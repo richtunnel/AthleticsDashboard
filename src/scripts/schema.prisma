@@ -1,0 +1,267 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Authentication & Users
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          UserRole  @default(ATHLETIC_DIRECTOR)
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts       Account[]
+  sessions       Session[]
+  games          Game[]       @relation("GameCreator")
+  emailLogs      EmailLog[]
+  
+  @@index([organizationId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+// Organization/School
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  district  String?
+  state     String?
+  timezone  String   @default("America/New_York")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  users     User[]
+  teams     Team[]
+  venues    Venue[]
+  opponents Opponent[]
+}
+
+// Sports & Teams
+model Sport {
+  id     String @id @default(cuid())
+  name   String @unique
+  season Season
+  
+  teams Team[]
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  name           String
+  level          TeamLevel
+  gender         Gender?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  sportId        String
+  sport          Sport        @relation(fields: [sportId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  homeGames      Game[]       @relation("HomeTeam")
+  awayGames      Game[]       @relation("AwayTeam")
+  
+  @@index([organizationId])
+  @@index([sportId])
+}
+
+// Games/Competitions
+model Game {
+  id          String      @id @default(cuid())
+  date        DateTime
+  time        String?
+  status      GameStatus  @default(SCHEDULED)
+  notes       String?     @db.Text
+  isHome      Boolean     @default(true)
+  
+  // Travel Information
+  travelRequired      Boolean  @default(false)
+  estimatedTravelTime Int?     // minutes
+  departureTime       DateTime?
+  busCount            Int?
+  travelCost          Float?
+  
+  // Calendar Integration
+  googleEventId       String?
+  calendarSynced      Boolean  @default(false)
+  lastSyncedAt        DateTime?
+  
+  // Custom fields (JSON for flexibility)
+  customFields        Json?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  homeTeamId  String
+  homeTeam    Team     @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId  String?
+  awayTeam    Team?    @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  venueId     String?
+  venue       Venue?   @relation(fields: [venueId], references: [id])
+  opponentId  String?
+  opponent    Opponent? @relation(fields: [opponentId], references: [id])
+  createdById String
+  createdBy   User     @relation("GameCreator", fields: [createdById], references: [id])
+  emailLogs   EmailLog[]
+  
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([date])
+  @@index([venueId])
+  @@index([opponentId])
+}
+
+// Venues/Locations
+model Venue {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  zipCode   String?
+  latitude  Float?
+  longitude Float?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  games          Game[]
+  
+  @@index([organizationId])
+}
+
+// Opponents
+model Opponent {
+  id        String   @id @default(cuid())
+  name      String
+  mascot    String?
+  colors    String?
+  contact   String?
+  phone     String?
+  email     String?
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  games          Game[]
+  
+  @@index([organizationId])
+}
+
+// Email Tracking
+model EmailLog {
+  id         String      @id @default(cuid())
+  to         String[]
+  cc         String[]
+  subject    String
+  body       String      @db.Text
+  status     EmailStatus @default(PENDING)
+  sentAt     DateTime?
+  error      String?     @db.Text
+  createdAt  DateTime    @default(now())
+  
+  // Relations
+  gameId     String?
+  game       Game?   @relation(fields: [gameId], references: [id])
+  sentById   String
+  sentBy     User    @relation(fields: [sentById], references: [id])
+  
+  @@index([gameId])
+  @@index([sentById])
+  @@index([createdAt])
+}
+
+// Enums
+enum UserRole {
+  SUPER_ADMIN
+  ATHLETIC_DIRECTOR
+  ASSISTANT_AD
+  COACH
+  STAFF
+  VENDOR_READ_ONLY
+}
+
+enum TeamLevel {
+  VARSITY
+  JV
+  FRESHMAN
+  MIDDLE_SCHOOL
+  YOUTH
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  COED
+}
+
+enum Season {
+  FALL
+  WINTER
+  SPRING
+  SUMMER
+}
+
+enum GameStatus {
+  SCHEDULED
+  CONFIRMED
+  POSTPONED
+  CANCELLED
+  COMPLETED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  BOUNCED
+}

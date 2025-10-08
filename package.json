@@ -1,0 +1,53 @@
+{
+  "name": "ad-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --turbopack",
+    "start": "next start --turbopack",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "db:migrate": "knex migrate:latest --knexfile knexfile.ts",
+    "db:rollback": "knex migrate:rollback --knexfile knexfile.ts",
+    "db:seed": "knex seed:run --knexfile knexfile.ts",
+    "db:migrate:make": "knex migrate:make --knexfile knexfile.ts -x ts",
+    "db:seed:make": "knex seed:make --knexfile knexfile.ts -x ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.10.0",
+    "@hookform/resolvers": "^5.2.2",
+    "@prisma/client": "^6.17.0",
+    "@tanstack/react-query": "^5.90.2",
+    "@types/pg": "^8.15.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
+    "googleapis": "^161.0.0",
+    "knex": "^3.1.0",
+    "lucide-react": "^0.545.0",
+    "next": "15.5.4",
+    "next-auth": "^4.24.11",
+    "openai": "^6.2.0",
+    "pg": "^8.16.3",
+    "prisma": "^6.17.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-hook-form": "^7.64.0",
+    "resend": "^6.1.2",
+    "ts-node": "^10.9.2",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^15.5.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
