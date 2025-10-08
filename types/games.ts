@@ -30,3 +30,22 @@ export type FilterState = {
   dateRange: "all" | "upcoming" | "past";
   searchTerm: string;
 };
+
+export interface TravelStats {
+  _sum: {
+    travelCost: number | null;
+    estimatedTravelTime: number | null;
+  };
+  _count: number;
+}
+
+export interface SportStat {
+  _count: number;
+}
+
+export interface AnalyticsData {
+  upcomingGamesCount: number;
+  travelStats: TravelStats;
+  gamesBySport: SportStat[];
+  sportStats?: Record<string, number>;
+}
