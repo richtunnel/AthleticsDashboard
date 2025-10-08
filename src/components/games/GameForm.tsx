@@ -74,9 +74,9 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     defaultValues: {
       date: "",
       homeTeamId: "",
-      isHome: true, // Ensure boolean default
-      travelRequired: false,
+      isHome: true,
       status: "SCHEDULED",
+      travelRequired: false,
     },
   });
 
@@ -88,7 +88,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
         time: existingGame.time || undefined,
         homeTeamId: existingGame.homeTeamId || "",
         awayTeamId: existingGame.awayTeamId || undefined,
-        isHome: existingGame.isHome ?? true, // Fallback to true if undefined
+        isHome: existingGame.isHome ?? true,
         opponentId: existingGame.opponentId || undefined,
         venueId: existingGame.venueId || undefined,
         status: existingGame.status || "SCHEDULED",
@@ -191,25 +191,14 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <label className="block text-sm font-medium mb-2">Location Type</label>
               <div className="flex gap-4">
                 <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="true"
-                    {...register("isHome")} // Use register directly
-                    className="mr-2"
-                  />
+                  <input type="radio" value="true" checked={isHome === true} onChange={() => setValue("isHome", true, { shouldValidate: true })} className="mr-2" />
                   Home Game
                 </label>
                 <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="false"
-                    {...register("isHome")} // Use register directly
-                    className="mr-2"
-                  />
+                  <input type="radio" value="false" checked={isHome === false} onChange={() => setValue("isHome", false, { shouldValidate: true })} className="mr-2" />
                   Away Game
                 </label>
               </div>
-              {errors.isHome && <p className="text-red-500 text-sm mt-1">{errors.isHome.message}</p>}
             </div>
 
             {/* Opponent */}
@@ -255,11 +244,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
             {/* Travel Information */}
             <div className="border-t pt-6">
               <div className="flex items-center mb-4">
-                <input
-                  type="checkbox"
-                  {...register("travelRequired")} // Use register directly
-                  className="mr-2"
-                />
+                <input type="checkbox" checked={travelRequired === true} onChange={(e) => setValue("travelRequired", e.target.checked, { shouldValidate: true })} className="mr-2" />
                 <label className="text-sm font-medium">Travel Required</label>
               </div>
 
