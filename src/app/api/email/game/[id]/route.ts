@@ -4,13 +4,7 @@ import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { emailService } from "@/lib/services/email.service";
 
-interface EmailRouteParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function POST(request: NextRequest, { params }: EmailRouteParams) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
 
@@ -18,6 +12,7 @@ export async function POST(request: NextRequest, { params }: EmailRouteParams) {
       return ApiResponse.forbidden();
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { recipients } = body;
 
@@ -25,7 +20,7 @@ export async function POST(request: NextRequest, { params }: EmailRouteParams) {
       return ApiResponse.error("Recipients are required");
     }
 
-    const result = await emailService.sendGameNotification(params.id, recipients, session.user.id);
+    const result = await emailService.sendGameNotification(id, recipients, session.user.id);
 
     return ApiResponse.success(result);
   } catch (error) {
