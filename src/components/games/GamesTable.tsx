@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Filter, Plus, Mail, Calendar, MapPin, Trash2, Edit } from "lucide-react";
+import { Filter, Plus, Mail, MapPin, Trash2, Edit } from "lucide-react";
 import { ImportButton, ExportButton } from "../import-export/ImportExportButton";
 import { GameForm } from "./GameForm";
 import { EmailComposer } from "../email/EmailComposer";
 import { CalendarSyncButton } from "../calendar/CalendarSyncButton";
 import type { GameQuery } from "@/lib/validations/games";
+import type { ApiSuccessResponse, GamesListResponse } from "../../../types/api";
+import { Game } from "../../../types/games";
 
 export function GamesTable() {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<Partial<GameQuery>>({
     sport: undefined,
     level: undefined,
@@ -21,9 +24,16 @@ export function GamesTable() {
     limit: 50,
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showGameForm, setShowGameForm] = useState(false);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
   // Fetch games
-  const { data, isLoading, error } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    error,
+  } = useQuery<ApiSuccessResponse<GamesListResponse>>({
     queryKey: ["games", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -38,19 +48,29 @@ export function GamesTable() {
     },
   });
 
-  const games = data?.data?.games || [];
-  const pagination = data?.data?.pagination;
+  const games = response?.data?.games || [];
+  const pagination = response?.data?.pagination;
 
   // Get unique sports and levels for filters
-  const sports = [...new Set(games.map((g: any) => g.homeTeam?.sport?.name))].filter(Boolean);
-  const levels = [...new Set(games.map((g: any) => g.homeTeam?.level))].filter(Boolean);
+  const sports = [...new Set(games.map((g: Game) => g.homeTeam?.sport?.name))].filter(Boolean);
+  const levels = [...new Set(games.map((g: Game) => g.homeTeam?.level))].filter(Boolean);
 
-  const [showGameForm, setShowGameForm] = useState(false);
-  const [showEmailComposer, setShowEmailComposer] = useState(false);
-  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      const res = await fetch(`/api/games/${gameId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete game");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+    },
+  });
 
   const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev: any) => ({ ...prev, [key]: value, page: 1 }));
+    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
   const handleEditGame = (gameId: string) => {
@@ -63,8 +83,21 @@ export function GamesTable() {
     setShowEmailComposer(true);
   };
 
+  const handleDeleteGame = (gameId: string) => {
+    if (confirm("Are you sure you want to delete this game?")) {
+      deleteMutation.mutate(gameId);
+    }
+  };
+
   if (error) {
-    return <div className="p-8 text-center text-red-600">Error loading games. Please try again.</div>;
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-600 mb-4">Error loading games. Please try again.</p>
+        <button onClick={() => queryClient.invalidateQueries({ queryKey: ["games"] })} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -104,7 +137,7 @@ export function GamesTable() {
                 className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">All Sports</option>
-                {sports.map((sport: any) => (
+                {sports.map((sport) => (
                   <option key={sport} value={sport}>
                     {sport}
                   </option>
@@ -120,7 +153,7 @@ export function GamesTable() {
                 className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">All Levels</option>
-                {levels.map((level: any) => (
+                {levels.map((level) => (
                   <option key={level} value={level}>
                     {level}
                   </option>
@@ -173,9 +206,9 @@ export function GamesTable() {
         {/* Stats Summary */}
         <div className="grid grid-cols-4 gap-4">
           <StatCard label="Total Games" value={pagination?.total || 0} isLoading={isLoading} />
-          <StatCard label="Home Games" value={games.filter((g: any) => g.isHome).length} isLoading={isLoading} />
-          <StatCard label="Away Games" value={games.filter((g: any) => !g.isHome).length} isLoading={isLoading} />
-          <StatCard label="Requires Travel" value={games.filter((g: any) => g.travelRequired).length} isLoading={isLoading} />
+          <StatCard label="Home Games" value={games.filter((g: Game) => g.isHome).length} isLoading={isLoading} />
+          <StatCard label="Away Games" value={games.filter((g: Game) => !g.isHome).length} isLoading={isLoading} />
+          <StatCard label="Requires Travel" value={games.filter((g: Game) => g.travelRequired).length} isLoading={isLoading} />
         </div>
 
         {/* Games Table */}
@@ -183,7 +216,12 @@ export function GamesTable() {
           {isLoading ? (
             <div className="p-12 text-center text-gray-500">Loading games...</div>
           ) : games.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">No games found matching your filters</div>
+            <div className="p-12 text-center text-gray-500">
+              <p className="mb-4">No games found matching your filters</p>
+              <button onClick={() => setShowGameForm(true)} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Add Your First Game
+              </button>
+            </div>
           ) : (
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
@@ -200,7 +238,7 @@ export function GamesTable() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {games.map((game: any) => (
+                {games.map((game: Game) => (
                   <tr key={game.id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-3 text-sm">{format(new Date(game.date), "MMM dd, yyyy")}</td>
                     <td className="px-4 py-3 text-sm">{game.time || "-"}</td>
@@ -228,7 +266,7 @@ export function GamesTable() {
                           <Mail size={16} className="text-gray-600" />
                         </button>
                         <CalendarSyncButton gameId={game.id} isSynced={game.calendarSynced} />
-                        <button className="p-1.5 hover:bg-red-100 rounded transition" title="Delete">
+                        <button onClick={() => handleDeleteGame(game.id)} className="p-1.5 hover:bg-red-100 rounded transition" title="Delete" disabled={deleteMutation.isPending}>
                           <Trash2 size={16} className="text-red-600" />
                         </button>
                       </div>
@@ -304,7 +342,7 @@ function StatCard({ label, value, isLoading }: { label: string; value: number; i
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const styles = {
+  const styles: Record<string, string> = {
     SCHEDULED: "bg-gray-100 text-gray-800",
     CONFIRMED: "bg-green-100 text-green-800",
     POSTPONED: "bg-yellow-100 text-yellow-800",
@@ -312,5 +350,5 @@ function StatusBadge({ status }: { status: string }) {
     COMPLETED: "bg-blue-100 text-blue-800",
   };
 
-  return <span className={`px-2 py-1 rounded text-xs font-medium ${styles[status as keyof typeof styles] || styles.SCHEDULED}`}>{status}</span>;
+  return <span className={`px-2 py-1 rounded text-xs font-medium ${styles[status] || styles.SCHEDULED}`}>{status}</span>;
 }

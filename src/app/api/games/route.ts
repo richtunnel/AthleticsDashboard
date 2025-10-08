@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
     const level = searchParams.get("level");
     const status = searchParams.get("status");
     const dateRange = searchParams.get("dateRange");
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
 
     // Build where clause
     const where: Prisma.GameWhereInput = {
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Filter by sport
-    if (sport && sport !== "all") {
+    if (sport && sport !== "all" && sport !== "") {
       where.homeTeam = {
         ...where.homeTeam,
         sport: { name: sport },
@@ -33,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by level
-    if (level && level !== "all") {
+    if (level && level !== "all" && level !== "") {
       where.homeTeam = {
         ...where.homeTeam,
         level: level as any,
@@ -41,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by status
-    if (status && status !== "all") {
+    if (status && status !== "all" && status !== "") {
       where.status = status as any;
     }
 
@@ -52,6 +55,19 @@ export async function GET(request: NextRequest) {
       where.date = { lt: new Date() };
     }
 
+    // Search filter
+    if (search && search.trim() !== "") {
+      where.OR = [
+        { homeTeam: { name: { contains: search, mode: "insensitive" } } },
+        { opponent: { name: { contains: search, mode: "insensitive" } } },
+        { venue: { name: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    // Get total count for pagination
+    const total = await prisma.game.count({ where });
+
+    // Get paginated games
     const games = await prisma.game.findMany({
       where,
       include: {
@@ -65,12 +81,35 @@ export async function GET(request: NextRequest) {
         venue: true,
       },
       orderBy: { date: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    return NextResponse.json(games);
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        games,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      },
+    });
   } catch (error) {
     console.error("Error fetching games:", error);
-    return NextResponse.json({ error: "Failed to fetch games" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch games",
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -97,9 +136,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(game, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        data: game,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Error creating game:", error);
-    return NextResponse.json({ error: "Failed to create game" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to create game",
+      },
+      { status: 500 }
+    );
   }
 }
