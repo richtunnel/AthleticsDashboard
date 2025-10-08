@@ -1,26 +1,29 @@
 export type Game = {
   id: string;
-  date: Date;
+  date: string;
   time: string | null;
   status: string;
   isHome: boolean;
+  travelRequired: boolean;
+  estimatedTravelTime: number | null;
+  calendarSynced?: boolean;
   homeTeam: {
     name: string;
     level: string;
-    sport: { name: string };
-  };
-  awayTeam?: {
-    name: string;
+    sport: {
+      name: string;
+    };
   };
   opponent?: {
+    name: string;
+  };
+  awayTeam?: {
     name: string;
   };
   venue?: {
     name: string;
     city: string;
   };
-  travelRequired: boolean;
-  estimatedTravelTime: number | null;
 };
 
 export type FilterState = {
@@ -48,4 +51,8 @@ export interface AnalyticsData {
   travelStats: TravelStats;
   gamesBySport: SportStat[];
   sportStats?: Record<string, number>;
+}
+
+export interface RouteParams {
+  params: { id: string };
 }
