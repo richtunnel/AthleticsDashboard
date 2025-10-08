@@ -2,10 +2,26 @@
 
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { createGameSchema, type CreateGame } from "@/lib/validations/games";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+
+// Define the form data type explicitly - don't rely on Zod inference
+interface GameFormData {
+  date: string;
+  time?: string;
+  homeTeamId: string;
+  awayTeamId?: string;
+  isHome: boolean;
+  opponentId?: string;
+  venueId?: string;
+  status: "SCHEDULED" | "CONFIRMED" | "POSTPONED" | "CANCELLED" | "COMPLETED";
+  travelRequired: boolean;
+  estimatedTravelTime?: number;
+  departureTime?: string;
+  busCount?: number;
+  travelCost?: number;
+  notes?: string;
+}
 
 interface GameFormProps {
   onClose: () => void;
@@ -62,6 +78,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
 
   const existingGame = existingGameResponse?.data;
 
+  // Use the explicit type, no resolver
   const {
     register,
     handleSubmit,
@@ -69,8 +86,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     setValue,
     reset,
     formState: { errors },
-  } = useForm<CreateGame>({
-    resolver: zodResolver(createGameSchema),
+  } = useForm<GameFormData>({
     defaultValues: {
       date: "",
       homeTeamId: "",
@@ -107,7 +123,12 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
 
   // Create/Update mutation
   const mutation = useMutation({
-    mutationFn: async (data: CreateGame) => {
+    mutationFn: async (data: GameFormData) => {
+      // Basic validation
+      if (!data.date || !data.homeTeamId) {
+        throw new Error("Date and Team are required");
+      }
+
       const url = isEditing ? `/api/games/${gameId}` : "/api/games";
       const method = isEditing ? "PATCH" : "POST";
 
@@ -131,7 +152,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     },
   });
 
-  const onSubmit: SubmitHandler<CreateGame> = (data) => {
+  const onSubmit: SubmitHandler<GameFormData> = (data) => {
     mutation.mutate(data);
   };
 
@@ -159,14 +180,13 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
                 <label className="block text-sm font-medium mb-2">
                   Date <span className="text-red-500">*</span>
                 </label>
-                <input type="date" {...register("date")} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                <input type="date" {...register("date", { required: "Date is required" })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date.message}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">Time</label>
                 <input type="time" {...register("time")} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                {errors.time && <p className="text-red-500 text-sm mt-1">{errors.time.message}</p>}
               </div>
             </div>
 
@@ -175,7 +195,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <label className="block text-sm font-medium mb-2">
                 Team <span className="text-red-500">*</span>
               </label>
-              <select {...register("homeTeamId")} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <select {...register("homeTeamId", { required: "Team is required" })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 <option value="">Select team</option>
                 {teams.map((team: any) => (
                   <option key={team.id} value={team.id}>
@@ -191,11 +211,11 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <label className="block text-sm font-medium mb-2">Location Type</label>
               <div className="flex gap-4">
                 <label className="flex items-center">
-                  <input type="radio" value="true" checked={isHome === true} onChange={() => setValue("isHome", true, { shouldValidate: true })} className="mr-2" />
+                  <input type="radio" value="true" checked={isHome === true} onChange={() => setValue("isHome", true)} className="mr-2" />
                   Home Game
                 </label>
                 <label className="flex items-center">
-                  <input type="radio" value="false" checked={isHome === false} onChange={() => setValue("isHome", false, { shouldValidate: true })} className="mr-2" />
+                  <input type="radio" value="false" checked={isHome === false} onChange={() => setValue("isHome", false)} className="mr-2" />
                   Away Game
                 </label>
               </div>
@@ -244,7 +264,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
             {/* Travel Information */}
             <div className="border-t pt-6">
               <div className="flex items-center mb-4">
-                <input type="checkbox" checked={travelRequired === true} onChange={(e) => setValue("travelRequired", e.target.checked, { shouldValidate: true })} className="mr-2" />
+                <input type="checkbox" checked={travelRequired === true} onChange={(e) => setValue("travelRequired", e.target.checked)} className="mr-2" />
                 <label className="text-sm font-medium">Travel Required</label>
               </div>
 
