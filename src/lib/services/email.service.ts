@@ -118,21 +118,37 @@ export class EmailService {
   }
 
   async sendBulkGameNotifications(filters: { sportId?: string; level?: string; startDate?: Date; endDate?: Date }, recipientEmails: string[], sentById: string) {
+    // Build the where clause step by step to avoid type conflicts
+    const where: any = {};
+
+    // Build homeTeam filter properly
+    if (filters.sportId || filters.level) {
+      where.homeTeam = {};
+
+      if (filters.sportId) {
+        where.homeTeam.sportId = filters.sportId;
+      }
+
+      if (filters.level) {
+        where.homeTeam.level = filters.level;
+      }
+    }
+
+    // Build date filter properly
+    if (filters.startDate || filters.endDate) {
+      where.date = {};
+
+      if (filters.startDate) {
+        where.date.gte = filters.startDate;
+      }
+
+      if (filters.endDate) {
+        where.date.lte = filters.endDate;
+      }
+    }
+
     const games = await prisma.game.findMany({
-      where: {
-        ...(filters.sportId && {
-          homeTeam: { sportId: filters.sportId },
-        }),
-        ...(filters.level && {
-          homeTeam: { level: filters.level },
-        }),
-        ...(filters.startDate && {
-          date: { gte: filters.startDate },
-        }),
-        ...(filters.endDate && {
-          date: { lte: filters.endDate },
-        }),
-      },
+      where,
       include: {
         homeTeam: {
           include: { sport: true },
@@ -149,13 +165,13 @@ export class EmailService {
 
     games.forEach((game: any) => {
       body += `
-        <li>
-          <strong>${new Date(game.date).toLocaleDateString()}</strong> - 
-          ${game.homeTeam.sport.name} (${game.homeTeam.level}) vs 
-          ${game.opponent?.name || "TBD"}
-          ${game.time ? ` at ${game.time}` : ""}
-        </li>
-      `;
+      <li>
+        <strong>${new Date(game.date).toLocaleDateString()}</strong> - 
+        ${game.homeTeam.sport.name} (${game.homeTeam.level}) vs 
+        ${game.opponent?.name || "TBD"}
+        ${game.time ? ` at ${game.time}` : ""}
+      </li>
+    `;
     });
 
     body += "</ul>";

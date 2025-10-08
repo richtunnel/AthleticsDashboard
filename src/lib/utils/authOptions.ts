@@ -27,9 +27,15 @@ export const authOptions: NextAuthOptions = {
           where: { id: user.id },
           include: { organization: true },
         });
-        session.user.role = fullUser?.role;
-        session.user.organizationId = fullUser?.organizationId;
-        session.user.organization = fullUser?.organization;
+        session.user.role = fullUser ? fullUser.role : "ATHLETIC_DIRECTOR";
+        session.user.organizationId = fullUser ? fullUser.organizationId : "";
+        session.user.organization = fullUser
+          ? fullUser.organization
+          : {
+              id: "",
+              name: "Unknown",
+              timezone: "America/New_York",
+            };
       }
       return session;
     },
