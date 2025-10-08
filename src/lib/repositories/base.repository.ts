@@ -56,8 +56,3 @@ export abstract class BaseRepository {
     return !!result;
   }
 }
-
-// Export singleton instances
-export const teamRepository = new TeamRepository();
-export const venueRepository = new VenueRepository();
-export const opponentRepository = new OpponentRepository();

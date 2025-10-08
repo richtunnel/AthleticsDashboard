@@ -1,4 +1,7 @@
-import { CreateOpponent, UpdateOpponent, Opponent } from "../validations/game";
+import { Knex } from "knex";
+import { db } from "../db";
+import { CreateOpponent, UpdateOpponent, Opponent } from "../validations/games";
+import { BaseRepository } from "./base.repository";
 
 export class OpponentRepository extends BaseRepository {
   constructor(dbInstance: Knex = db) {

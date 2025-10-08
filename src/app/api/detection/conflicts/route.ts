@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth } from "@/lib/utils/auth";
+import { travelService } from "@/lib/services/travel.service";
 
 export async function GET(request: NextRequest) {
   try {
