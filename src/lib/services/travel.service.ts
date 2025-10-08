@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { prisma } from "../prisma";
+import { prisma } from "../database/prisma";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

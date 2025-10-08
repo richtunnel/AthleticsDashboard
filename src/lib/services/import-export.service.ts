@@ -1,4 +1,4 @@
-import { prisma } from "../prisma";
+import { prisma } from "../database/prisma";
 import { format } from "date-fns";
 
 export class ImportExportService {

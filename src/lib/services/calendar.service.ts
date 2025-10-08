@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { prisma } from "../prisma";
+import { prisma } from "../database/prisma";
 
 //Google Calendar Sync
 export class CalendarService {

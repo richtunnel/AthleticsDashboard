@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { authOptions } from "@/lib/utils/authOptions";
+import { prisma } from "@/lib/database/prisma";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,8 +19,8 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
 
-    // Build where clause
-    const where: Prisma.GameWhereInput = {
+    // Build where clause - using plain object instead of Prisma.GameWhereInput
+    const where: any = {
       homeTeam: {
         organizationId: session.user.organizationId,
       },
@@ -39,13 +38,13 @@ export async function GET(request: NextRequest) {
     if (level && level !== "all" && level !== "") {
       where.homeTeam = {
         ...where.homeTeam,
-        level: level as any,
+        level: level,
       };
     }
 
     // Filter by status
     if (status && status !== "all" && status !== "") {
-      where.status = status as any;
+      where.status = status;
     }
 
     // Filter by date range

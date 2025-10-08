@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { prisma } from "../prisma";
+import { prisma } from "../database/prisma";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -39,6 +39,10 @@ export class EmailService {
         html: this.buildHtmlEmail(body),
       });
 
+      // The Resend API returns { data: { id: string } } on success or { error: ... }
+      // Check if we have data property
+      const emailId = result.data?.id || null;
+
       // Update log on success
       await prisma.emailLog.update({
         where: { id: emailLog.id },
@@ -48,7 +52,7 @@ export class EmailService {
         },
       });
 
-      return { success: true, emailId: result.id };
+      return { success: true, emailId };
     } catch (error) {
       // Update log on failure
       await prisma.emailLog.update({
