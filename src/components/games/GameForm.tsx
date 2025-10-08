@@ -1,14 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createGameSchema } from "@/lib/validations/games";
+import { createGameSchema, type CreateGame } from "@/lib/validations/games";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import type { z } from "zod";
-
-type GameFormData = z.infer<typeof createGameSchema>;
 
 interface GameFormProps {
   onClose: () => void;
@@ -72,10 +69,12 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     setValue,
     reset,
     formState: { errors },
-  } = useForm<GameFormData>({
+  } = useForm<CreateGame>({
     resolver: zodResolver(createGameSchema),
     defaultValues: {
-      isHome: true,
+      date: "",
+      homeTeamId: "",
+      isHome: true, // Ensure boolean default
       travelRequired: false,
       status: "SCHEDULED",
     },
@@ -85,15 +84,15 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
   useEffect(() => {
     if (existingGame) {
       reset({
-        date: existingGame.date?.split("T")[0],
+        date: existingGame.date?.split("T")[0] || "",
         time: existingGame.time || undefined,
-        homeTeamId: existingGame.homeTeamId,
+        homeTeamId: existingGame.homeTeamId || "",
         awayTeamId: existingGame.awayTeamId || undefined,
-        isHome: existingGame.isHome,
+        isHome: existingGame.isHome ?? true, // Fallback to true if undefined
         opponentId: existingGame.opponentId || undefined,
         venueId: existingGame.venueId || undefined,
-        status: existingGame.status,
-        travelRequired: existingGame.travelRequired,
+        status: existingGame.status || "SCHEDULED",
+        travelRequired: existingGame.travelRequired ?? false,
         estimatedTravelTime: existingGame.estimatedTravelTime || undefined,
         departureTime: existingGame.departureTime || undefined,
         busCount: existingGame.busCount || undefined,
@@ -108,7 +107,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
 
   // Create/Update mutation
   const mutation = useMutation({
-    mutationFn: async (data: GameFormData) => {
+    mutationFn: async (data: CreateGame) => {
       const url = isEditing ? `/api/games/${gameId}` : "/api/games";
       const method = isEditing ? "PATCH" : "POST";
 
@@ -132,7 +131,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     },
   });
 
-  const onSubmit = (data: GameFormData) => {
+  const onSubmit: SubmitHandler<CreateGame> = (data) => {
     mutation.mutate(data);
   };
 
@@ -192,14 +191,25 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <label className="block text-sm font-medium mb-2">Location Type</label>
               <div className="flex gap-4">
                 <label className="flex items-center">
-                  <input type="radio" value="true" checked={isHome === true} onChange={() => setValue("isHome", true)} className="mr-2" />
+                  <input
+                    type="radio"
+                    value="true"
+                    {...register("isHome")} // Use register directly
+                    className="mr-2"
+                  />
                   Home Game
                 </label>
                 <label className="flex items-center">
-                  <input type="radio" value="false" checked={isHome === false} onChange={() => setValue("isHome", false)} className="mr-2" />
+                  <input
+                    type="radio"
+                    value="false"
+                    {...register("isHome")} // Use register directly
+                    className="mr-2"
+                  />
                   Away Game
                 </label>
               </div>
+              {errors.isHome && <p className="text-red-500 text-sm mt-1">{errors.isHome.message}</p>}
             </div>
 
             {/* Opponent */}
@@ -245,7 +255,11 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
             {/* Travel Information */}
             <div className="border-t pt-6">
               <div className="flex items-center mb-4">
-                <input type="checkbox" checked={travelRequired} onChange={(e) => setValue("travelRequired", e.target.checked)} className="mr-2" />
+                <input
+                  type="checkbox"
+                  {...register("travelRequired")} // Use register directly
+                  className="mr-2"
+                />
                 <label className="text-sm font-medium">Travel Required</label>
               </div>
 
