@@ -1,4 +1,7 @@
-import { CreateVenue, UpdateVenue, Venue } from "../validations/game";
+import { Knex } from "knex";
+import { db } from "../db";
+import { CreateVenue, UpdateVenue, Venue } from "../validations/games";
+import { BaseRepository } from "./base.repository";
 
 export class VenueRepository extends BaseRepository {
   constructor(dbInstance: Knex = db) {

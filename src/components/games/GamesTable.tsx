@@ -5,7 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Filter, Plus, Mail, Calendar, MapPin, Trash2, Edit } from "lucide-react";
 import { ImportButton, ExportButton } from "../import-export/ImportExportButton";
-import type { GameQuery } from "@/lib/validations/game";
+import { GameForm } from "./GameForm";
+import { EmailComposer } from "../email/EmailComposer";
+import { CalendarSyncButton } from "../calendar/CalendarSyncButton";
+import type { GameQuery } from "@/lib/validations/games";
 
 export function GamesTable() {
   const [filters, setFilters] = useState<Partial<GameQuery>>({
