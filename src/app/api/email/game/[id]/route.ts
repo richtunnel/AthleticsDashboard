@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
-import { sendEmailSchema } from "@/lib/validations/game";
 import { emailService } from "@/lib/services/email.service";
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+interface EmailRouteParams {
+  params: {
+    id: string;
+  };
+}
+
+export async function POST(request: NextRequest, { params }: EmailRouteParams) {
   try {
     const session = await requireAuth();
 

@@ -104,7 +104,7 @@ export function GamesTable() {
                 className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
               >
                 <option value="">All Sports</option>
-                {sports.map((sport) => (
+                {sports.map((sport: any) => (
                   <option key={sport} value={sport}>
                     {sport}
                   </option>
