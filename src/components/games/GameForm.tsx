@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createGameSchema, type CreateGame } from "@/lib/validations/games";
+import { createGameSchema } from "@/lib/validations/games";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import type { z } from "zod";
+
+type GameFormData = z.infer<typeof createGameSchema>;
 
 interface GameFormProps {
   onClose: () => void;
@@ -18,65 +21,94 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
   const queryClient = useQueryClient();
 
   // Fetch teams, venues, opponents
-  const { data: teams = [] } = useQuery({
+  const { data: teamsResponse } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       const res = await fetch("/api/teams");
-      const result = await res.json();
-      return result.data;
+      if (!res.ok) throw new Error("Failed to fetch teams");
+      return res.json();
     },
   });
 
-  const { data: venues = [] } = useQuery({
+  const { data: venuesResponse } = useQuery({
     queryKey: ["venues"],
     queryFn: async () => {
       const res = await fetch("/api/venues");
-      const result = await res.json();
-      return result.data;
+      if (!res.ok) throw new Error("Failed to fetch venues");
+      return res.json();
     },
   });
 
-  const { data: opponents = [] } = useQuery({
+  const { data: opponentsResponse } = useQuery({
     queryKey: ["opponents"],
     queryFn: async () => {
       const res = await fetch("/api/opponents");
-      const result = await res.json();
-      return result.data;
+      if (!res.ok) throw new Error("Failed to fetch opponents");
+      return res.json();
     },
   });
 
+  const teams = teamsResponse?.data || [];
+  const venues = venuesResponse?.data || [];
+  const opponents = opponentsResponse?.data || [];
+
   // Fetch existing game if editing
-  const { data: existingGame } = useQuery({
+  const { data: existingGameResponse } = useQuery({
     queryKey: ["game", gameId],
     queryFn: async () => {
       const res = await fetch(`/api/games/${gameId}`);
-      const result = await res.json();
-      return result.data;
+      if (!res.ok) throw new Error("Failed to fetch game");
+      return res.json();
     },
     enabled: isEditing,
   });
+
+  const existingGame = existingGameResponse?.data;
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateGame>({
+    reset,
+    formState: { errors },
+  } = useForm<GameFormData>({
     resolver: zodResolver(createGameSchema),
-    defaultValues: existingGame || {
+    defaultValues: {
       isHome: true,
       travelRequired: false,
       status: "SCHEDULED",
     },
   });
 
+  // Update form when existing game loads
+  useEffect(() => {
+    if (existingGame) {
+      reset({
+        date: existingGame.date?.split("T")[0],
+        time: existingGame.time || undefined,
+        homeTeamId: existingGame.homeTeamId,
+        awayTeamId: existingGame.awayTeamId || undefined,
+        isHome: existingGame.isHome,
+        opponentId: existingGame.opponentId || undefined,
+        venueId: existingGame.venueId || undefined,
+        status: existingGame.status,
+        travelRequired: existingGame.travelRequired,
+        estimatedTravelTime: existingGame.estimatedTravelTime || undefined,
+        departureTime: existingGame.departureTime || undefined,
+        busCount: existingGame.busCount || undefined,
+        travelCost: existingGame.travelCost || undefined,
+        notes: existingGame.notes || undefined,
+      });
+    }
+  }, [existingGame, reset]);
+
   const isHome = watch("isHome");
   const travelRequired = watch("travelRequired");
 
   // Create/Update mutation
   const mutation = useMutation({
-    mutationFn: async (data: CreateGame) => {
+    mutationFn: async (data: GameFormData) => {
       const url = isEditing ? `/api/games/${gameId}` : "/api/games";
       const method = isEditing ? "PATCH" : "POST";
 
@@ -100,7 +132,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
     },
   });
 
-  const onSubmit = (data: CreateGame) => {
+  const onSubmit = (data: GameFormData) => {
     mutation.mutate(data);
   };
 
@@ -148,7 +180,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
                 <option value="">Select team</option>
                 {teams.map((team: any) => (
                   <option key={team.id} value={team.id}>
-                    {team.sport.name} - {team.level} ({team.name})
+                    {team.sport?.name} - {team.level} ({team.name})
                   </option>
                 ))}
               </select>
@@ -160,11 +192,11 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <label className="block text-sm font-medium mb-2">Location Type</label>
               <div className="flex gap-4">
                 <label className="flex items-center">
-                  <input type="radio" value="true" {...register("isHome")} onChange={() => setValue("isHome", true)} className="mr-2" />
+                  <input type="radio" value="true" checked={isHome === true} onChange={() => setValue("isHome", true)} className="mr-2" />
                   Home Game
                 </label>
                 <label className="flex items-center">
-                  <input type="radio" value="false" {...register("isHome")} onChange={() => setValue("isHome", false)} className="mr-2" />
+                  <input type="radio" value="false" checked={isHome === false} onChange={() => setValue("isHome", false)} className="mr-2" />
                   Away Game
                 </label>
               </div>
@@ -213,7 +245,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
             {/* Travel Information */}
             <div className="border-t pt-6">
               <div className="flex items-center mb-4">
-                <input type="checkbox" {...register("travelRequired")} className="mr-2" />
+                <input type="checkbox" checked={travelRequired} onChange={(e) => setValue("travelRequired", e.target.checked)} className="mr-2" />
                 <label className="text-sm font-medium">Travel Required</label>
               </div>
 
@@ -265,8 +297,8 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               <button type="button" onClick={onClose} className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition">
                 Cancel
               </button>
-              <button type="submit" disabled={isSubmitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting ? "Saving..." : isEditing ? "Update Game" : "Create Game"}
+              <button type="submit" disabled={mutation.isPending} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                {mutation.isPending ? "Saving..." : isEditing ? "Update Game" : "Create Game"}
               </button>
             </div>
           </form>

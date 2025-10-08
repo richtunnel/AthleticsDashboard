@@ -1,5 +1,5 @@
 import { Knex } from "knex";
-import { db } from "../db";
+import { db } from "../database/db";
 import { CreateVenue, UpdateVenue, Venue } from "../validations/games";
 import { BaseRepository } from "./base.repository";
 

@@ -1,5 +1,7 @@
 import { DefaultSession } from "next-auth";
-import { UserRole } from "@prisma/client";
+
+// Define UserRole locally to avoid Prisma dependency
+export type UserRole = "SUPER_ADMIN" | "ATHLETIC_DIRECTOR" | "ASSISTANT_AD" | "COACH" | "STAFF" | "VENDOR_READ_ONLY";
 
 declare module "next-auth" {
   interface Session {
