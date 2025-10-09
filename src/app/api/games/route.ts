@@ -2,15 +2,123 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const { id } = await params;
+
+    const searchParams = request.nextUrl.searchParams;
+    const sport = searchParams.get("sport");
+    const level = searchParams.get("level");
+    const status = searchParams.get("status");
+    const dateRange = searchParams.get("dateRange");
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+
+    // Build where clause - using plain object instead of Prisma.GameWhereInput
+    const where: any = {
+      homeTeam: {
+        organizationId: session.user.organizationId,
+      },
+    };
+
+    // Filter by sport
+    if (sport && sport !== "all" && sport !== "") {
+      where.homeTeam = {
+        ...where.homeTeam,
+        sport: { name: sport },
+      };
+    }
+
+    // Filter by level
+    if (level && level !== "all" && level !== "") {
+      where.homeTeam = {
+        ...where.homeTeam,
+        level: level,
+      };
+    }
+
+    // Filter by status
+    if (status && status !== "all" && status !== "") {
+      where.status = status;
+    }
+
+    // Filter by date range
+    if (dateRange === "upcoming") {
+      where.date = { gte: new Date() };
+    } else if (dateRange === "past") {
+      where.date = { lt: new Date() };
+    }
+
+    // Search filter
+    if (search && search.trim() !== "") {
+      where.OR = [
+        { homeTeam: { name: { contains: search, mode: "insensitive" } } },
+        { opponent: { name: { contains: search, mode: "insensitive" } } },
+        { venue: { name: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    // Get total count for pagination
+    const total = await prisma.game.count({ where });
+
+    // Get paginated games
+    const games = await prisma.game.findMany({
+      where,
+      include: {
+        homeTeam: {
+          include: {
+            sport: true,
+          },
+        },
+        awayTeam: true,
+        opponent: true,
+        venue: true,
+      },
+      orderBy: { date: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        games,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching games:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch games",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+
     const body = await request.json();
 
-    const game = await prisma.game.update({
-      where: { id },
-      data: body,
+    const game = await prisma.game.create({
+      data: {
+        ...body,
+        createdById: session.user.id,
+      },
       include: {
         homeTeam: {
           include: { sport: true },
@@ -20,25 +128,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
     });
 
-    return NextResponse.json(game);
+    return NextResponse.json(
+      {
+        success: true,
+        data: game,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Error updating game:", error);
-    return NextResponse.json({ error: "Failed to update game" }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const session = await requireAuth();
-    const { id } = await params;
-
-    await prisma.game.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error deleting game:", error);
-    return NextResponse.json({ error: "Failed to delete game" }, { status: 500 });
+    console.error("Error creating game:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to create game",
+      },
+      { status: 500 }
+    );
   }
 }
