@@ -7,7 +7,7 @@ import { ReactNode } from "react";
 const theme = createTheme({
   palette: {
     primary: {
-      main: "#2563eb", // Blue
+      main: "#23252aff", // Blue
     },
     secondary: {
       main: "#64748b", // Slate
@@ -21,6 +21,9 @@ const theme = createTheme({
     error: {
       main: "#ef4444", // Red
     },
+    // button : {
+    //   main: "#BEDBFE",
+    // },
   },
   typography: {
     fontFamily: "Inter, system-ui, -apple-system, sans-serif",
