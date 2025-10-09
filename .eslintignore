@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+dist
+build
+.vercel
+.turbo
+*.config.js
+*.config.ts
+coverage
