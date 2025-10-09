@@ -3,14 +3,17 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Users, MapPin, Shield, BarChart3, Settings, LogOut, Menu } from "lucide-react";
+import { Box, Drawer, AppBar, Toolbar, List, Typography, ListItem, ListItemButton, ListItemIcon, ListItemText, Container, IconButton, Avatar, Menu, MenuItem } from "@mui/material";
+import { Dashboard as DashboardIcon, CalendarMonth, Groups, Place, Shield, Settings, Logout, Menu as MenuIcon } from "@mui/icons-material";
 import { useState } from "react";
 
+const DRAWER_WIDTH = 240;
+
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-  { name: "Games", href: "/dashboard/games", icon: Calendar },
-  { name: "Teams", href: "/dashboard/teams", icon: Users },
-  { name: "Venues", href: "/dashboard/venues", icon: MapPin },
+  { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
+  { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
+  { name: "Teams", href: "/dashboard/teams", icon: Groups },
+  { name: "Venues", href: "/dashboard/venues", icon: Place },
   { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
@@ -18,74 +21,189 @@ const navigation = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const drawer = (
+    <Box>
+      {/* Logo/Brand */}
+      <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: "primary.main" }}>
+          AD Dashboard
+        </Typography>
+      </Box>
+
+      {/* Navigation */}
+      <List sx={{ px: 2, py: 2 }}>
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={Link}
+                href={item.href}
+                selected={isActive}
+                sx={{
+                  borderRadius: 1.5,
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "white",
+                    "&:hover": {
+                      bgcolor: "primary.dark",
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "white",
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <Icon sx={{ fontSize: 20 }} />
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.name}
+                  primaryTypographyProps={{
+                    fontSize: 14,
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
+      {/* Top App Bar */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          ml: { sm: `${DRAWER_WIDTH}px` },
+          bgcolor: "white",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
       >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center gap-2 border-b px-6">
-            <Calendar className="h-8 w-8 text-blue-600" />
-            <span className="text-xl font-bold">AD Dashboard</span>
-          </div>
+        <Toolbar>
+          <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: "none" }, color: "text.primary" }}>
+            <MenuIcon />
+          </IconButton>
 
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-3 py-4">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${isActive ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-100"}`}
-                >
-                  <Icon size={20} />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
+          <Box sx={{ flexGrow: 1 }} />
 
-          {/* User section */}
-          <div className="border-t p-4">
-            <div className="flex items-center gap-3 mb-3">
-              {session?.user?.image && <img src={session.user.image} alt="" className="h-10 w-10 rounded-full" />}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{session?.user?.name}</p>
-                <p className="text-xs text-gray-500 truncate">{session?.user?.organization?.name}</p>
-              </div>
-            </div>
-            <button onClick={() => signOut()} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors">
-              <LogOut size={18} />
-              Sign out
-            </button>
-          </div>
-        </div>
-      </aside>
+          {/* User Menu */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" } }}>
+              {session?.user?.name || "Dev User"}
+            </Typography>
+            <IconButton onClick={handleMenu} sx={{ p: 0 }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }} src={session?.user?.image || undefined}>
+                {(session?.user?.name || "D")[0]}
+              </Avatar>
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleClose}
+              anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "right",
+              }}
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+            >
+              <MenuItem
+                onClick={() => {
+                  handleClose();
+                  signOut();
+                }}
+              >
+                <ListItemIcon>
+                  <Logout fontSize="small" />
+                </ListItemIcon>
+                Sign out
+              </MenuItem>
+            </Menu>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && <div className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {/* Sidebar Drawer */}
+      <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
+        {/* Mobile drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: "block", sm: "none" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: DRAWER_WIDTH,
+              borderRight: 1,
+              borderColor: "divider",
+            },
+          }}
+        >
+          {drawer}
+        </Drawer>
+
+        {/* Desktop drawer */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: "none", sm: "block" },
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: DRAWER_WIDTH,
+              borderRight: 1,
+              borderColor: "divider",
+            },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
 
       {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-8">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden">
-            <Menu size={24} />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold">{navigation.find((item) => item.href === pathname)?.name || "Dashboard"}</h1>
-          </div>
-        </header>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          minHeight: "100vh",
+        }}
+      >
+        {/* Toolbar spacer */}
+        <Toolbar />
 
-        {/* Page content */}
-        <main className="p-4 lg:p-8">{children}</main>
-      </div>
-    </div>
+        {/* Page content with proper margins */}
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {children}
+        </Container>
+      </Box>
+    </Box>
   );
 }

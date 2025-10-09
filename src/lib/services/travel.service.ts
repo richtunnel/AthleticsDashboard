@@ -5,6 +5,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "TEST-KEY",
 });
 
+console.log("Keys : " + openai);
+
 interface TravelRecommendation {
   estimatedTravelTime: number; // minutes
   recommendedDepartureTime: Date;
