@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Box, Drawer, AppBar, Toolbar, List, Typography, ListItem, ListItemButton, ListItemIcon, ListItemText, Container, IconButton, Avatar, Menu, MenuItem } from "@mui/material";
 import { Dashboard as DashboardIcon, CalendarMonth, Groups, Place, Shield, Settings, Logout, Menu as MenuIcon } from "@mui/icons-material";
+import { Sync, Analytics, AssignmentInd, ImportExport, Check } from "@mui/icons-material";
 import { useState } from "react";
 
 const DRAWER_WIDTH = 240;
@@ -13,8 +14,13 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Teams", href: "/dashboard/teams", icon: Groups },
-  { name: "Venues", href: "/dashboard/venues", icon: Place },
+  //   { name: "Venues", href: "/dashboard/venues", icon: Place },
   { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
+  { name: "Google Calendar Sync", href: "", icon: Sync },
+  { name: "Analytics", href: "", icon: Analytics },
+  { name: "User Roles", href: "", icon: AssignmentInd },
+  { name: "Import/Export", href: "", icon: ImportExport },
+  { name: "Confirmation and Reminders", href: "", icon: Check },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 

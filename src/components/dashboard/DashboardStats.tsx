@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Calendar, MapPin, DollarSign, Clock } from "lucide-react";
 import { AnalyticsData } from "../../../types/games";
+import { Grid, Card, CardContent, Typography, Box } from "@mui/material";
 
 export function DashboardStats() {
   const { data, isLoading } = useQuery<AnalyticsData>({
@@ -47,23 +48,31 @@ export function DashboardStats() {
 
   return (
     <div>
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+      {/* Stats Row with Responsive MUI Cards */}
+      <Grid container spacing={3} sx={{ mb: 4, maxWidth: "991px" }}>
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.name} className="bg-white rounded-lg border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} p-3 rounded-lg`}>
-                  <Icon className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <div className="text-sm text-gray-600">{stat.name}</div>
-            </div>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={stat.name}>
+              <Card sx={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <CardContent sx={{ textAlign: "center" }}>
+                  <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+                    <div className={`${stat.color} p-3 rounded-lg`}>
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                  </Box>
+                  <Typography variant="h5" component="div" sx={{ fontWeight: "bold", mb: 1 }}>
+                    {stat.value}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {stat.name}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
           );
         })}
-      </div>
+      </Grid>
 
       {/* Sports Breakdown */}
       {data?.sportStats && Object.keys(data.sportStats).length > 0 && (
