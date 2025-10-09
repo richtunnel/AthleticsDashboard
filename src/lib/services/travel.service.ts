@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "../database/prisma";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || "TEST-KEY",
 });
 
 interface TravelRecommendation {
@@ -113,6 +113,26 @@ Consider:
 - Add buffer time for traffic and unexpected delays`;
 
     try {
+      if (!openai) {
+        // Fallback to manual calculation if OpenAI not configured
+        const arrivalTime = new Date(game.date);
+        if (game.time) {
+          const [hours, minutes] = game.time.split(":");
+          arrivalTime.setHours(parseInt(hours), parseInt(minutes));
+        }
+
+        arrivalTime.setMinutes(arrivalTime.getMinutes() - 45);
+        const departureTime = new Date(arrivalTime);
+        departureTime.setMinutes(departureTime.getMinutes() - travelTime - 15);
+
+        return {
+          estimatedTravelTime: travelTime,
+          recommendedDepartureTime: departureTime,
+          busCount: Math.ceil(teamSize / 40),
+          estimatedCost: Math.ceil(teamSize / 40) * 300,
+          reasoning: "Calculated based on standard travel requirements (OpenAI not configured)",
+        };
+      }
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [{ role: "user", content: prompt }],

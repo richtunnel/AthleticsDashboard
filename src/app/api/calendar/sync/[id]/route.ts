@@ -4,26 +4,22 @@ import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth } from "@/lib/utils/auth";
 import { calendarService } from "@/lib/services/calendar.service";
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
-    const result = await calendarService.syncGameToCalendar(params.id, session.user.id);
+    const { id } = await params; // AWAIT the params first
+    const result = await calendarService.syncGameToCalendar(id, session.user.id);
     return ApiResponse.success(result);
   } catch (error) {
     return handleApiError(error);
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
-    const result = await calendarService.unsyncGame(params.id, session.user.id);
+    const { id } = await params; // AWAIT the params first
+    const result = await calendarService.unsyncGame(id, session.user.id);
     return ApiResponse.success(result);
   } catch (error) {
     return handleApiError(error);

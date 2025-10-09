@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { prisma } from "../database/prisma";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface SendEmailParams {
   to: string[];
@@ -28,6 +28,10 @@ export class EmailService {
         sentById,
       },
     });
+
+    if (!resend) {
+      throw new Error("Email service not configured. Please set RESEND_API_KEY.");
+    }
 
     try {
       // Send email via Resend
