@@ -16,7 +16,29 @@ export const WRITE_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ATHLETIC_
 
 export const READ_ROLES: UserRole[] = [...WRITE_ROLES, UserRole.COACH, UserRole.STAFF, UserRole.VENDOR_READ_ONLY];
 
+const DEV_SESSION = {
+  user: {
+    id: "dev-user-id",
+    name: "Dev User",
+    email: "dev@example.com",
+    role: UserRole.ATHLETIC_DIRECTOR,
+    organizationId: "dev-org-id",
+    organization: {
+      id: "dev-org-id",
+      name: "Development School",
+      timezone: "America/New_York",
+    },
+  },
+  expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+};
+
 export async function requireAuth() {
+  // BYPASS AUTH IN DEVELOPMENT
+  if (process.env.NODE_ENV === "development") {
+    console.log(" DEV MODE: Auth bypassed, using mock session");
+    return DEV_SESSION as any;
+  }
+
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {

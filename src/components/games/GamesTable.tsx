@@ -1,46 +1,50 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, MenuItem, Stack, Typography, IconButton, Tooltip } from "@mui/material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, FilterList } from "@mui/icons-material";
 import { format } from "date-fns";
-import { Filter, Plus, Mail, MapPin, Trash2, Edit } from "lucide-react";
-import { ImportButton, ExportButton } from "../import-export/ImportExportButton";
-import { GameForm } from "./GameForm";
-import { EmailComposer } from "../email/EmailComposer";
-import { CalendarSyncButton } from "../calendar/CalendarSyncButton";
-import type { GameQuery } from "@/lib/validations/games";
-import type { ApiSuccessResponse, GamesListResponse } from "../../../types/api";
-import { Game } from "../../../types/games";
+
+interface Game {
+  id: string;
+  date: string;
+  time: string | null;
+  status: string;
+  isHome: boolean;
+  travelRequired: boolean;
+  estimatedTravelTime: number | null;
+  calendarSynced?: boolean;
+  homeTeam: {
+    name: string;
+    level: string;
+    sport: {
+      name: string;
+    };
+  };
+  opponent?: {
+    name: string;
+  };
+  venue?: {
+    name: string;
+  };
+  notes?: string;
+}
 
 export function GamesTable() {
-  const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<Partial<GameQuery>>({
-    sport: undefined,
-    level: undefined,
-    status: undefined,
+  const [filters, setFilters] = useState({
+    sport: "",
+    level: "",
+    status: "",
     dateRange: "upcoming",
-    search: "",
-    page: 1,
-    limit: 50,
   });
-  const [showFilters, setShowFilters] = useState(false);
-  const [showGameForm, setShowGameForm] = useState(false);
-  const [showEmailComposer, setShowEmailComposer] = useState(false);
-  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
-  // Fetch games
-  const {
-    data: response,
-    isLoading,
-    error,
-  } = useQuery<ApiSuccessResponse<GamesListResponse>>({
+  const { data: response, isLoading } = useQuery({
     queryKey: ["games", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== "") {
-          params.append(key, String(value));
-        }
+        if (value) params.append(key, value);
       });
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
@@ -49,306 +53,255 @@ export function GamesTable() {
   });
 
   const games = response?.data?.games || [];
-  const pagination = response?.data?.pagination;
 
-  // Get unique sports and levels for filters
-  const sports = [...new Set(games.map((g: Game) => g.homeTeam?.sport?.name))].filter(Boolean);
-  const levels = [...new Set(games.map((g: Game) => g.homeTeam?.level))].filter(Boolean);
-
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (gameId: string) => {
-      const res = await fetch(`/api/games/${gameId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete game");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
-    },
-  });
-
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
-  };
-
-  const handleEditGame = (gameId: string) => {
-    setSelectedGameId(gameId);
-    setShowGameForm(true);
-  };
-
-  const handleEmailGame = (gameId: string) => {
-    setSelectedGameId(gameId);
-    setShowEmailComposer(true);
-  };
-
-  const handleDeleteGame = (gameId: string) => {
-    if (confirm("Are you sure you want to delete this game?")) {
-      deleteMutation.mutate(gameId);
+  const getConfirmedStatus = (status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return { icon: <CheckCircle sx={{ fontSize: 16 }} />, color: "success", label: "Yes" };
+      case "SCHEDULED":
+        return { icon: <Schedule sx={{ fontSize: 16 }} />, color: "warning", label: "Pending" };
+      case "CANCELLED":
+      case "POSTPONED":
+        return { icon: <Cancel sx={{ fontSize: 16 }} />, color: "error", label: "No" };
+      default:
+        return { icon: <Schedule sx={{ fontSize: 16 }} />, color: "default", label: status };
     }
   };
 
-  if (error) {
+  if (isLoading) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-red-600 mb-4">Error loading games. Please try again.</p>
-        <button onClick={() => queryClient.invalidateQueries({ queryKey: ["games"] })} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          Retry
-        </button>
-      </div>
+      <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+        <Typography color="text.secondary">Loading games...</Typography>
+      </Box>
     );
   }
 
   return (
-    <>
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Game Schedule</h1>
-          <div className="flex gap-2">
-            <ImportButton />
-            <ExportButton />
-            <button onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition">
-              <Filter size={16} />
-              Filters
-            </button>
-            <button
-              onClick={() => {
-                setSelectedGameId(null);
-                setShowGameForm(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus size={16} />
-              Add Game
-            </button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        {showFilters && (
-          <div className="p-4 border rounded-lg bg-gray-50 grid grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Sport</label>
-              <select
-                value={filters.sport || ""}
-                onChange={(e) => handleFilterChange("sport", e.target.value || undefined)}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="">All Sports</option>
-                {sports.map((sport) => (
-                  <option key={sport} value={sport}>
-                    {sport}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Level</label>
-              <select
-                value={filters.level || ""}
-                onChange={(e) => handleFilterChange("level", e.target.value || undefined)}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="">All Levels</option>
-                {levels.map((level) => (
-                  <option key={level} value={level}>
-                    {level}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
-              <select
-                value={filters.status || ""}
-                onChange={(e) => handleFilterChange("status", e.target.value || undefined)}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="">All Status</option>
-                <option value="SCHEDULED">Scheduled</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="POSTPONED">Postponed</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="COMPLETED">Completed</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Date Range</label>
-              <select
-                value={filters.dateRange || "all"}
-                onChange={(e) => handleFilterChange("dateRange", e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="all">All Dates</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="past">Past</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Search</label>
-              <input
-                type="text"
-                placeholder="Team, opponent, venue..."
-                value={filters.search || ""}
-                onChange={(e) => handleFilterChange("search", e.target.value)}
-                className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Stats Summary */}
-        <div className="grid grid-cols-4 gap-4">
-          <StatCard label="Total Games" value={pagination?.total || 0} isLoading={isLoading} />
-          <StatCard label="Home Games" value={games.filter((g: Game) => g.isHome).length} isLoading={isLoading} />
-          <StatCard label="Away Games" value={games.filter((g: Game) => !g.isHome).length} isLoading={isLoading} />
-          <StatCard label="Requires Travel" value={games.filter((g: Game) => g.travelRequired).length} isLoading={isLoading} />
-        </div>
-
-        {/* Games Table */}
-        <div className="border rounded-lg overflow-hidden bg-white">
-          {isLoading ? (
-            <div className="p-12 text-center text-gray-500">Loading games...</div>
-          ) : games.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <p className="mb-4">No games found matching your filters</p>
-              <button onClick={() => setShowGameForm(true)} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Add Your First Game
-              </button>
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Date</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Time</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Sport</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Level</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Opponent</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Location</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Status</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Travel</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {games.map((game: Game) => (
-                  <tr key={game.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 text-sm">{format(new Date(game.date), "MMM dd, yyyy")}</td>
-                    <td className="px-4 py-3 text-sm">{game.time || "-"}</td>
-                    <td className="px-4 py-3 text-sm">{game.homeTeam?.sport?.name}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">{game.homeTeam?.level}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">{game.opponent?.name || game.awayTeam?.name || "-"}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-1">
-                        <MapPin size={14} className="text-gray-400" />
-                        {game.isHome ? "Home" : game.venue?.name || "-"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={game.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm">{game.travelRequired ? `${game.estimatedTravelTime || "?"} min` : "-"}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <button onClick={() => handleEditGame(game.id)} className="p-1.5 hover:bg-gray-200 rounded transition" title="Edit">
-                          <Edit size={16} className="text-gray-600" />
-                        </button>
-                        <button onClick={() => handleEmailGame(game.id)} className="p-1.5 hover:bg-gray-200 rounded transition" title="Send Email">
-                          <Mail size={16} className="text-gray-600" />
-                        </button>
-                        <CalendarSyncButton gameId={game.id} isSynced={game.calendarSynced} />
-                        <button onClick={() => handleDeleteGame(game.id)} className="p-1.5 hover:bg-red-100 rounded transition" title="Delete" disabled={deleteMutation.isPending}>
-                          <Trash2 size={16} className="text-red-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} games
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleFilterChange("page", pagination.page - 1)}
-                disabled={!pagination.hasPrev}
-                className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handleFilterChange("page", pagination.page + 1)}
-                disabled={!pagination.hasNext}
-                className="px-4 py-2 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Modals */}
-      {showGameForm && (
-        <GameForm
-          gameId={selectedGameId || undefined}
-          onClose={() => {
-            setShowGameForm(false);
-            setSelectedGameId(null);
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Games Schedule
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage your athletic schedules
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          sx={{
+            textTransform: "none",
+            boxShadow: 0,
+            "&:hover": { boxShadow: 2 },
           }}
-          onSuccess={() => {
-            setShowGameForm(false);
-            setSelectedGameId(null);
-          }}
-        />
-      )}
+        >
+          New Game
+        </Button>
+      </Box>
 
-      {showEmailComposer && (
-        <EmailComposer
-          gameId={selectedGameId || undefined}
-          onClose={() => {
-            setShowEmailComposer(false);
-            setSelectedGameId(null);
+      {/* Filters */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <TextField
+          select
+          size="small"
+          value={filters.sport}
+          onChange={(e) => setFilters({ ...filters, sport: e.target.value })}
+          sx={{ minWidth: 140 }}
+          InputProps={{
+            sx: { bgcolor: "white" },
           }}
-        />
-      )}
-    </>
+        >
+          <MenuItem value="">
+            <Typography variant="body2">Sport</Typography>
+          </MenuItem>
+          <MenuItem value="Football">Football</MenuItem>
+          <MenuItem value="Basketball">Basketball</MenuItem>
+          <MenuItem value="Soccer">Soccer</MenuItem>
+          <MenuItem value="Volleyball">Volleyball</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          size="small"
+          value={filters.level}
+          onChange={(e) => setFilters({ ...filters, level: e.target.value })}
+          sx={{ minWidth: 140 }}
+          InputProps={{
+            sx: { bgcolor: "white" },
+          }}
+        >
+          <MenuItem value="">
+            <Typography variant="body2">Level</Typography>
+          </MenuItem>
+          <MenuItem value="VARSITY">Varsity</MenuItem>
+          <MenuItem value="JV">JV</MenuItem>
+          <MenuItem value="FRESHMAN">Freshman</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          size="small"
+          value={filters.dateRange}
+          onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
+          sx={{ minWidth: 140 }}
+          InputProps={{
+            sx: { bgcolor: "white" },
+          }}
+        >
+          <MenuItem value="all">All Dates</MenuItem>
+          <MenuItem value="upcoming">Upcoming</MenuItem>
+          <MenuItem value="past">Past</MenuItem>
+        </TextField>
+      </Stack>
+
+      {/* Table */}
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        <Table size="small">
+          <TableHead>
+            <TableRow sx={{ bgcolor: "#f8fafc" }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>DATE</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>SPORT</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LEVEL</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>OPPONENT</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>H/A</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>TIME</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>CONFIRMED</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>TRAVEL INFO</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>NOTES</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {games.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={11} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                  <Typography color="text.secondary" variant="body2">
+                    No games found. Click &quot;New Game&quot; to add one.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              games.map((game: Game) => {
+                const confirmedStatus = getConfirmedStatus(game.status);
+                return (
+                  <TableRow
+                    key={game.id}
+                    sx={{
+                      bgcolor: "white",
+                      "&:hover": { bgcolor: "#f8fafc" },
+                      transition: "background-color 0.2s",
+                    }}
+                  >
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{format(new Date(game.date), "MMM d, yyyy")}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.opponent?.name || "TBD"}</TableCell>
+                    <TableCell sx={{ py: 2 }}>
+                      <Chip
+                        label={game.isHome ? "Home" : "Away"}
+                        size="small"
+                        color={game.isHome ? "primary" : "default"}
+                        sx={{
+                          fontSize: 11,
+                          height: 24,
+                          fontWeight: 500,
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.time || "TBD"}</TableCell>
+                    <TableCell sx={{ py: 2 }}>
+                      <Chip
+                        icon={confirmedStatus.icon}
+                        label={confirmedStatus.label}
+                        size="small"
+                        color={confirmedStatus.color as any}
+                        sx={{
+                          fontSize: 11,
+                          height: 24,
+                          fontWeight: 500,
+                          "& .MuiChip-icon": {
+                            fontSize: 16,
+                          },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.travelRequired ? `Dep ${game.estimatedTravelTime || "?"} min` : "N/A"}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 150 }}>
+                      {game.notes ? (
+                        <Tooltip title={game.notes}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontSize: 13,
+                            }}
+                          >
+                            {game.notes}
+                          </Typography>
+                        </Tooltip>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ py: 2 }}>
+                      <Stack direction="row" spacing={0}>
+                        <Tooltip title="Edit">
+                          <IconButton size="small" sx={{ p: 0.5 }}>
+                            <Edit sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Email">
+                          <IconButton size="small" sx={{ p: 0.5 }}>
+                            <Email sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Calendar">
+                          <IconButton size="small" sx={{ p: 0.5 }}>
+                            <CalendarMonth sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton size="small" color="error" sx={{ p: 0.5 }}>
+                            <Delete sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Footer Stats */}
+      <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 4 }}>
+        <Typography variant="body2" color="text.secondary">
+          Total Games: <strong>{games.length}</strong>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Home: <strong>{games.filter((g: Game) => g.isHome).length}</strong>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Away: <strong>{games.filter((g: Game) => !g.isHome).length}</strong>
+        </Typography>
+      </Box>
+    </Box>
   );
-}
-
-function StatCard({ label, value, isLoading }: { label: string; value: number; isLoading: boolean }) {
-  return (
-    <div className="p-4 border rounded-lg bg-white">
-      <div className="text-2xl font-bold">{isLoading ? "..." : value.toLocaleString()}</div>
-      <div className="text-sm text-gray-600">{label}</div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    SCHEDULED: "bg-gray-100 text-gray-800",
-    CONFIRMED: "bg-green-100 text-green-800",
-    POSTPONED: "bg-yellow-100 text-yellow-800",
-    CANCELLED: "bg-red-100 text-red-800",
-    COMPLETED: "bg-blue-100 text-blue-800",
-  };
-
-  return <span className={`px-2 py-1 rounded text-xs font-medium ${styles[status] || styles.SCHEDULED}`}>{status}</span>;
 }
