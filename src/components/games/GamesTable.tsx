@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, MenuItem, Stack, Typography, IconButton, Tooltip } from "@mui/material";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, FilterList } from "@mui/icons-material";
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, MenuItem, Stack, Typography, IconButton, Tooltip, TableSortLabel } from "@mui/material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add } from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface Game {
@@ -31,6 +31,9 @@ interface Game {
   notes?: string;
 }
 
+type SortField = "date" | "time" | "isHome" | "status";
+type SortOrder = "asc" | "desc";
+
 export function GamesTable() {
   const [filters, setFilters] = useState({
     sport: "",
@@ -39,13 +42,19 @@ export function GamesTable() {
     dateRange: "upcoming",
   });
 
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
   const { data: response, isLoading } = useQuery({
-    queryKey: ["games", filters],
+    queryKey: ["games", filters, sortField, sortOrder],
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
+      params.append("sortBy", sortField);
+      params.append("sortOrder", sortOrder);
+
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
       return res.json();
@@ -53,6 +62,17 @@ export function GamesTable() {
   });
 
   const games = response?.data?.games || [];
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Toggle order if same field
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
 
   const getConfirmedStatus = (status: string) => {
     switch (status) {
@@ -67,6 +87,31 @@ export function GamesTable() {
         return { icon: <Schedule sx={{ fontSize: 16 }} />, color: "default", label: status };
     }
   };
+
+  // Client-side sorting fallback (if API doesn't support sorting)
+  const sortedGames = [...games].sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortField) {
+      case "date":
+        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+        break;
+      case "time":
+        const timeA = a.time || "99:99";
+        const timeB = b.time || "99:99";
+        comparison = timeA.localeCompare(timeB);
+        break;
+      case "isHome":
+        comparison = a.isHome === b.isHome ? 0 : a.isHome ? -1 : 1;
+        break;
+      case "status":
+        const statusOrder = { CONFIRMED: 1, SCHEDULED: 2, POSTPONED: 3, CANCELLED: 4, COMPLETED: 5 };
+        comparison = (statusOrder[a.status as keyof typeof statusOrder] || 99) - (statusOrder[b.status as keyof typeof statusOrder] || 99);
+        break;
+    }
+
+    return sortOrder === "asc" ? comparison : -comparison;
+  });
 
   if (isLoading) {
     return (
@@ -170,13 +215,98 @@ export function GamesTable() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "#f8fafc" }}>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>DATE</TableCell>
+              {/* DATE - Sortable */}
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel
+                  active={sortField === "date"}
+                  direction={sortField === "date" ? sortOrder : "asc"}
+                  onClick={() => handleSort("date")}
+                  sx={{
+                    "&.MuiTableSortLabel-root": {
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: 12,
+                    },
+                    "&.Mui-active": {
+                      color: "primary.main",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  DATE
+                </TableSortLabel>
+              </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>SPORT</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LEVEL</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>OPPONENT</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>H/A</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>TIME</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>CONFIRMED</TableCell>
+
+              {/* H/A - Sortable */}
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel
+                  active={sortField === "isHome"}
+                  direction={sortField === "isHome" ? sortOrder : "asc"}
+                  onClick={() => handleSort("isHome")}
+                  sx={{
+                    "&.MuiTableSortLabel-root": {
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: 12,
+                    },
+                    "&.Mui-active": {
+                      color: "primary.main",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  H/A
+                </TableSortLabel>
+              </TableCell>
+
+              {/* TIME - Sortable */}
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel
+                  active={sortField === "time"}
+                  direction={sortField === "time" ? sortOrder : "asc"}
+                  onClick={() => handleSort("time")}
+                  sx={{
+                    "&.MuiTableSortLabel-root": {
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: 12,
+                    },
+                    "&.Mui-active": {
+                      color: "primary.main",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  TIME
+                </TableSortLabel>
+              </TableCell>
+
+              {/* CONFIRMED - Sortable */}
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel
+                  active={sortField === "status"}
+                  direction={sortField === "status" ? sortOrder : "asc"}
+                  onClick={() => handleSort("status")}
+                  sx={{
+                    "&.MuiTableSortLabel-root": {
+                      color: "text.secondary",
+                      fontWeight: 600,
+                      fontSize: 12,
+                    },
+                    "&.Mui-active": {
+                      color: "primary.main",
+                      fontWeight: 700,
+                    },
+                  }}
+                >
+                  CONFIRMED
+                </TableSortLabel>
+              </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>TRAVEL INFO</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>NOTES</TableCell>
@@ -184,7 +314,7 @@ export function GamesTable() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {games.length === 0 ? (
+            {sortedGames.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={11} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
@@ -193,7 +323,7 @@ export function GamesTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              games.map((game: Game) => {
+              sortedGames.map((game: Game) => {
                 const confirmedStatus = getConfirmedStatus(game.status);
                 return (
                   <TableRow
@@ -293,13 +423,13 @@ export function GamesTable() {
       {/* Footer Stats */}
       <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 4 }}>
         <Typography variant="body2" color="text.secondary">
-          Total Games: <strong>{games.length}</strong>
+          Total Games: <strong>{sortedGames.length}</strong>
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Home: <strong>{games.filter((g: Game) => g.isHome).length}</strong>
+          Home: <strong>{sortedGames.filter((g: Game) => g.isHome).length}</strong>
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Away: <strong>{games.filter((g: Game) => !g.isHome).length}</strong>
+          Away: <strong>{sortedGames.filter((g: Game) => !g.isHome).length}</strong>
         </Typography>
       </Box>
     </Box>

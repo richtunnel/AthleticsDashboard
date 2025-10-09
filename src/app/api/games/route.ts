@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
+    const sortBy = searchParams.get("sortBy") || "date";
+    const sortOrder = searchParams.get("sortOrder") || "asc";
 
-    // Build where clause - using plain object instead of Prisma.GameWhereInput
+    // Build where clause
     const where: any = {
       homeTeam: {
         organizationId: session.user.organizationId,
@@ -59,6 +61,26 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Build orderBy based on sortBy parameter
+    let orderBy: any = { date: "asc" };
+
+    switch (sortBy) {
+      case "date":
+        orderBy = { date: sortOrder };
+        break;
+      case "time":
+        orderBy = { time: sortOrder };
+        break;
+      case "isHome":
+        orderBy = { isHome: sortOrder };
+        break;
+      case "status":
+        orderBy = { status: sortOrder };
+        break;
+      default:
+        orderBy = { date: "asc" };
+    }
+
     // Get total count for pagination
     const total = await prisma.game.count({ where });
 
@@ -75,7 +97,7 @@ export async function GET(request: NextRequest) {
         opponent: true,
         venue: true,
       },
-      orderBy: { date: "asc" },
+      orderBy,
       skip: (page - 1) * limit,
       take: limit,
     });
