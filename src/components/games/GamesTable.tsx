@@ -2,8 +2,28 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Button, TextField, MenuItem, Stack, Typography, IconButton, Tooltip, TableSortLabel } from "@mui/material";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add } from "@mui/icons-material";
+import { useRouter } from "next/navigation";
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Button,
+  TextField,
+  MenuItem,
+  Stack,
+  Typography,
+  IconButton,
+  Tooltip,
+  TableSortLabel,
+  Checkbox,
+} from "@mui/material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send } from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface Game {
@@ -35,15 +55,16 @@ type SortField = "date" | "time" | "isHome" | "status";
 type SortOrder = "asc" | "desc";
 
 export function GamesTable() {
+  const router = useRouter();
   const [filters, setFilters] = useState({
     sport: "",
     level: "",
     status: "",
     dateRange: "upcoming",
   });
-
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
 
   const { data: response, isLoading } = useQuery({
     queryKey: ["games", filters, sortField, sortOrder],
@@ -65,13 +86,41 @@ export function GamesTable() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      // Toggle order if same field
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      // New field, default to ascending
       setSortField(field);
       setSortOrder("asc");
     }
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      const allGameIds = new Set(games.map((game: Game) => game.id));
+      const gameClusterIDs = allGameIds as any;
+      setSelectedGames(gameClusterIDs);
+    } else {
+      setSelectedGames(new Set());
+    }
+  };
+
+  const handleSelectGame = (gameId: string) => {
+    const newSelected = new Set(selectedGames);
+    if (newSelected.has(gameId)) {
+      newSelected.delete(gameId);
+    } else {
+      newSelected.add(gameId);
+    }
+    setSelectedGames(newSelected);
+  };
+
+  const handleSendEmail = () => {
+    const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
+
+    // Store in sessionStorage to pass to email page
+    sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
+
+    // Navigate to email composition page
+    router.push("/dashboard/compose-email");
   };
 
   const getConfirmedStatus = (status: string) => {
@@ -88,10 +137,8 @@ export function GamesTable() {
     }
   };
 
-  // Client-side sorting fallback (if API doesn't support sorting)
   const sortedGames = [...games].sort((a, b) => {
     let comparison = 0;
-
     switch (sortField) {
       case "date":
         comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -109,9 +156,11 @@ export function GamesTable() {
         comparison = (statusOrder[a.status as keyof typeof statusOrder] || 99) - (statusOrder[b.status as keyof typeof statusOrder] || 99);
         break;
     }
-
     return sortOrder === "asc" ? comparison : -comparison;
   });
+
+  const isAllSelected = games.length > 0 && selectedGames.size === games.length;
+  const isIndeterminate = selectedGames.size > 0 && selectedGames.size < games.length;
 
   if (isLoading) {
     return (
@@ -133,17 +182,34 @@ export function GamesTable() {
             Manage your athletic schedules
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          sx={{
-            textTransform: "none",
-            boxShadow: 0,
-            "&:hover": { boxShadow: 2 },
-          }}
-        >
-          New Game
-        </Button>
+        <Stack direction="row" spacing={2}>
+          {selectedGames.size > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Send />}
+              onClick={handleSendEmail}
+              sx={{
+                textTransform: "none",
+                boxShadow: 0,
+                "&:hover": { boxShadow: 2 },
+              }}
+            >
+              Send Email ({selectedGames.size})
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            sx={{
+              textTransform: "none",
+              boxShadow: 0,
+              "&:hover": { boxShadow: 2 },
+            }}
+          >
+            New Game
+          </Button>
+        </Stack>
       </Box>
 
       {/* Filters */}
@@ -215,101 +281,33 @@ export function GamesTable() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "#f8fafc" }}>
-              {/* DATE - Sortable */}
+              <TableCell padding="checkbox" sx={{ py: 2 }}>
+                <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
+              </TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel
-                  active={sortField === "date"}
-                  direction={sortField === "date" ? sortOrder : "asc"}
-                  onClick={() => handleSort("date")}
-                  sx={{
-                    "&.MuiTableSortLabel-root": {
-                      color: "text.secondary",
-                      fontWeight: 600,
-                      fontSize: 12,
-                    },
-                    "&.Mui-active": {
-                      color: "primary.main",
-                      fontWeight: 700,
-                    },
-                  }}
-                >
+                <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
                   DATE
                 </TableSortLabel>
               </TableCell>
-
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>SPORT</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LEVEL</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>OPPONENT</TableCell>
-
-              {/* H/A - Sortable */}
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel
-                  active={sortField === "isHome"}
-                  direction={sortField === "isHome" ? sortOrder : "asc"}
-                  onClick={() => handleSort("isHome")}
-                  sx={{
-                    "&.MuiTableSortLabel-root": {
-                      color: "text.secondary",
-                      fontWeight: 600,
-                      fontSize: 12,
-                    },
-                    "&.Mui-active": {
-                      color: "primary.main",
-                      fontWeight: 700,
-                    },
-                  }}
-                >
+                <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
                   H/A
                 </TableSortLabel>
               </TableCell>
-
-              {/* TIME - Sortable */}
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel
-                  active={sortField === "time"}
-                  direction={sortField === "time" ? sortOrder : "asc"}
-                  onClick={() => handleSort("time")}
-                  sx={{
-                    "&.MuiTableSortLabel-root": {
-                      color: "text.secondary",
-                      fontWeight: 600,
-                      fontSize: 12,
-                    },
-                    "&.Mui-active": {
-                      color: "primary.main",
-                      fontWeight: 700,
-                    },
-                  }}
-                >
+                <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
                   TIME
                 </TableSortLabel>
               </TableCell>
-
-              {/* CONFIRMED - Sortable */}
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel
-                  active={sortField === "status"}
-                  direction={sortField === "status" ? sortOrder : "asc"}
-                  onClick={() => handleSort("status")}
-                  sx={{
-                    "&.MuiTableSortLabel-root": {
-                      color: "text.secondary",
-                      fontWeight: 600,
-                      fontSize: 12,
-                    },
-                    "&.Mui-active": {
-                      color: "primary.main",
-                      fontWeight: 700,
-                    },
-                  }}
-                >
+                <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
                   CONFIRMED
                 </TableSortLabel>
               </TableCell>
-
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>TRAVEL INFO</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>NOTES</TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
@@ -318,22 +316,34 @@ export function GamesTable() {
               <TableRow>
                 <TableCell colSpan={11} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
-                    No games found. Click &quot;New Game&quot; to add one.
+                    No games found. Click "New Game" to add one.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
               sortedGames.map((game: Game) => {
                 const confirmedStatus = getConfirmedStatus(game.status);
+                const isSelected = selectedGames.has(game.id);
+
                 return (
                   <TableRow
                     key={game.id}
+                    selected={isSelected}
                     sx={{
                       bgcolor: "white",
                       "&:hover": { bgcolor: "#f8fafc" },
                       transition: "background-color 0.2s",
+                      "&.Mui-selected": {
+                        bgcolor: "#e3f2fd !important",
+                        "&:hover": {
+                          bgcolor: "#bbdefb !important",
+                        },
+                      },
                     }}
                   >
+                    <TableCell padding="checkbox">
+                      <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
+                    </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{format(new Date(game.date), "MMM d, yyyy")}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
@@ -368,36 +378,11 @@ export function GamesTable() {
                       />
                     </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.travelRequired ? `Dep ${game.estimatedTravelTime || "?"} min` : "N/A"}</TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 150 }}>
-                      {game.notes ? (
-                        <Tooltip title={game.notes}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              fontSize: 13,
-                            }}
-                          >
-                            {game.notes}
-                          </Typography>
-                        </Tooltip>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
                     <TableCell sx={{ py: 2 }}>
                       <Stack direction="row" spacing={0}>
                         <Tooltip title="Edit">
                           <IconButton size="small" sx={{ p: 0.5 }}>
                             <Edit sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Email">
-                          <IconButton size="small" sx={{ p: 0.5 }}>
-                            <Email sx={{ fontSize: 18 }} />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Calendar">
@@ -424,6 +409,9 @@ export function GamesTable() {
       <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 4 }}>
         <Typography variant="body2" color="text.secondary">
           Total Games: <strong>{sortedGames.length}</strong>
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Selected: <strong>{selectedGames.size}</strong>
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Home: <strong>{sortedGames.filter((g: Game) => g.isHome).length}</strong>
