@@ -295,8 +295,10 @@ export function GamesTable() {
       return;
     }
 
+    const isoDate = new Date(newGameData.date).toISOString();
+
     const gameData = {
-      date: newGameData.date,
+      date: isoDate,
       time: newGameData.time || null,
       homeTeamId: matchingTeam.id,
       isHome: newGameData.isHome,
@@ -334,9 +336,11 @@ export function GamesTable() {
     if (!editingGameData || !editingGameId) return;
 
     const matchingTeam = teams.find((team: any) => team.sport?.name === editingGameData.homeTeam.sport.name && team.level === editingGameData.homeTeam.level);
+    const rawDate = editingGameData.date.split("T")[0]; // Extract "YYYY-MM-DD" if it's already an ISO string
+    const isoDate = new Date(rawDate).toISOString();
 
     const updateData = {
-      date: editingGameData.date,
+      date: isoDate,
       time: editingGameData.time || null,
       homeTeamId: matchingTeam?.id || editingGameData.homeTeamId,
       isHome: editingGameData.isHome,
