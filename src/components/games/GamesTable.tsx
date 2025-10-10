@@ -38,6 +38,7 @@ interface Game {
   homeTeam: {
     name: string;
     level: string;
+    location: string;
     sport: {
       name: string;
     };
@@ -51,7 +52,7 @@ interface Game {
   notes?: string;
 }
 
-type SortField = "date" | "time" | "isHome" | "status";
+type SortField = "date" | "time" | "isHome" | "status" | "location";
 type SortOrder = "asc" | "desc";
 
 export function GamesTable() {
@@ -62,6 +63,7 @@ export function GamesTable() {
     level: "",
     status: "",
     opponent: "",
+    location: "",
     dateRange: "upcoming",
   });
   const [sortField, setSortField] = useState<SortField>("date");
@@ -112,6 +114,25 @@ export function GamesTable() {
 
   console.log("🎯 Opponents array:", opponents);
   console.log("📊 Opponents count:", opponents.length);
+
+  const {
+    data: locationResponse,
+    isLoading: locationLoading,
+    error: locationError,
+  } = useQuery({
+    queryKey: ["location"],
+    queryFn: async () => {
+      console.log("🔍 Fetching locations...");
+      const res = await fetch("/api/locations");
+      console.log("📡 Response status:", res.status);
+      const data = await res.json();
+      console.log("📦 Locations data:", data);
+      return data;
+    },
+  });
+
+  const locationRes = locationResponse?.data || [];
+  console.log("Location Response " + locationRes);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -340,6 +361,35 @@ export function GamesTable() {
           <MenuItem value="upcoming">Upcoming</MenuItem>
           <MenuItem value="past">Past</MenuItem>
         </TextField>
+
+        {/* Filter by Location */}
+        <TextField
+          select
+          size="small"
+          label="Filter by Location"
+          value={filters.location}
+          onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+          sx={{ minWidth: 140, fontSize: "14px" }}
+          InputProps={{
+            sx: { bgcolor: "white" },
+          }}
+          InputLabelProps={{
+            sx: { fontSize: 10, top: "2.5px" },
+          }}
+        >
+          <MenuItem value="">
+            <Typography variant="body2">All Locations</Typography>
+          </MenuItem>
+          {locationRes.map(
+            (
+              loc: string // Use locationRes fetched from useQuery
+            ) => (
+              <MenuItem key={loc} value={loc}>
+                {loc}
+              </MenuItem>
+            )
+          )}
+        </TextField>
       </Stack>
 
       {/* Table */}
@@ -382,7 +432,11 @@ export function GamesTable() {
                   CONFIRMED
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel active={sortField === "location"} direction={sortField === "location" ? sortOrder : "asc"} onClick={() => handleSort("location")}>
+                  LOCATION
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>

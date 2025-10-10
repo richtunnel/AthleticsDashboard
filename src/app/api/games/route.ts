@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const sport = searchParams.get("sport");
     const level = searchParams.get("level");
+    const location = searchParams.get("location");
     const status = searchParams.get("status");
     const dateRange = searchParams.get("dateRange");
     const opponent = searchParams.get("opponent");
@@ -51,6 +52,13 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
+    //Filter by location
+    if (location && location !== "all" && location !== "") {
+      where.venue = {
+        location: location,
+      };
+    }
+
     // Filter by date range
     if (dateRange === "upcoming") {
       where.date = { gte: new Date() };
@@ -82,6 +90,9 @@ export async function GET(request: NextRequest) {
         break;
       case "status":
         orderBy = { status: sortOrder };
+        break;
+      case "location":
+        orderBy = { venue: { name: sortOrder } };
         break;
       default:
         orderBy = { date: "asc" };
