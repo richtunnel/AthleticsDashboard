@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const level = searchParams.get("level");
     const status = searchParams.get("status");
     const dateRange = searchParams.get("dateRange");
+    const opponent = searchParams.get("opponent");
     const search = searchParams.get("search");
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -38,6 +39,11 @@ export async function GET(request: NextRequest) {
         ...where.homeTeam,
         level: level,
       };
+    }
+
+    // Filter by opponent
+    if (opponent && opponent !== "all" && opponent !== "") {
+      where.opponentId = opponent;
     }
 
     // Filter by status
