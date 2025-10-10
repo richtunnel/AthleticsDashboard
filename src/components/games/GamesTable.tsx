@@ -217,7 +217,7 @@ export function GamesTable() {
   // Mutation for manual sync (used by icon)
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
-      const res = await fetch(`/api/games/${gameId}/sync-calendar`, {
+      const res = await fetch(`/api/games/${gameId}/gsync-calendar`, {
         method: "POST",
       });
       if (!res.ok) {
