@@ -203,8 +203,8 @@ export class EmailService {
               padding: 20px;
             }
             h2 {
-              color: #BEDBFE;
-              border-bottom: 2px solid #BEDBFE;
+              color: #2563eb;
+              border-bottom: 2px solid #2563eb;
               padding-bottom: 10px;
             }
             h3 {
@@ -225,7 +225,7 @@ export class EmailService {
               padding: 10px;
               margin: 5px 0;
               background-color: #f3f4f6;
-              border-left: 3px solid #BEDBFE;
+              border-left: 3px solid #2563eb;
             }
           </style>
         </head>

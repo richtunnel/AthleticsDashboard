@@ -1,20 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { syncGameToCalendar } from "@/lib/google/google-calendar-sync";
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
-
-    // matches the file path [id]
-    const gameId = params.id;
-
-    if (!gameId) {
-      return NextResponse.json({ success: false, error: "Game ID is missing." }, { status: 400 });
-    }
+    const { id } = await params; // Await params and use 'id' to match [id] folder name
 
     // Call the core sync logic
-    const event = await syncGameToCalendar(gameId, session.user.id);
+    const event = await syncGameToCalendar(id, session.user.id);
 
     return NextResponse.json({
       success: true,
