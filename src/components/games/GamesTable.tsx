@@ -29,6 +29,7 @@ import {
 } from "@mui/material";
 import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Save, Close, Check } from "@mui/icons-material";
 import { format } from "date-fns";
+import SyncIcon from "@mui/icons-material/Sync";
 
 interface Game {
   id: string;
@@ -213,6 +214,33 @@ export function GamesTable() {
   const uniqueSports = [...new Set(teams.map((team: any) => team.sport?.name))].filter(Boolean);
   const uniqueLevels = [...new Set(teams.map((team: any) => team.level))].filter(Boolean);
 
+  // Mutation for manual sync (used by icon)
+  const syncGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      const res = await fetch(`/api/games/${gameId}/sync-calendar`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to sync calendar.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+      // You might add a notification here (e.g., alert or toast)
+      alert("Game successfully synced to Google Calendar!");
+    },
+    onError: (error) => {
+      alert(`Calendar Sync Error: ${error.message}`);
+    },
+  });
+
+  // Handler for the Calendar icon
+  const handleSyncCalendar = (gameId: string) => {
+    syncGameMutation.mutate(gameId);
+  };
+
   // Create new game mutation
   const createGameMutation = useMutation({
     mutationFn: async (gameData: any) => {
@@ -227,7 +255,7 @@ export function GamesTable() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setIsAddingNew(false);
       setNewGameData({
@@ -241,6 +269,9 @@ export function GamesTable() {
         venueId: "",
         notes: "",
       });
+
+      const newGameId = data.data.id;
+      syncGameMutation.mutate(newGameId);
     },
   });
 
@@ -262,6 +293,10 @@ export function GamesTable() {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setEditingGameId(null);
       setEditingGameData(null);
+
+      if (editingGameId) {
+        syncGameMutation.mutate(editingGameId);
+      }
     },
   });
 
@@ -482,6 +517,14 @@ export function GamesTable() {
           )}
           <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
             New Game
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<CalendarMonth />}
+            onClick={() => router.push("/api/auth/calendar-connect")} // Redirect to start OAuth flow
+            sx={{ textTransform: "none" }}
+          >
+            Connect Calendar
           </Button>
         </Stack>
       </Box>
@@ -947,6 +990,11 @@ export function GamesTable() {
                         <Tooltip title="Calendar">
                           <IconButton size="small" sx={{ p: 0.5 }}>
                             <CalendarMonth sx={{ fontSize: 18 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Sync to Google">
+                          <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
+                            {syncGameMutation.isPending && syncGameMutation.variables === game.id ? <CircularProgress size={16} /> : <SyncIcon sx={{ fontSize: 18 }} />}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
