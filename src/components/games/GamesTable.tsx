@@ -22,8 +22,12 @@ import {
   Tooltip,
   TableSortLabel,
   Checkbox,
+  TablePagination,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send } from "@mui/icons-material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage } from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface Game {
@@ -52,12 +56,27 @@ interface Game {
   notes?: string;
 }
 
+interface PaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
 type SortField = "date" | "time" | "isHome" | "status" | "location";
 type SortOrder = "asc" | "desc";
 
 export function GamesTable() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  // Pagination state
+  const [page, setPage] = useState(0); // MUI uses 0-based indexing
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
+  // Filter and sort state
   const [filters, setFilters] = useState({
     sport: "",
     level: "",
@@ -75,9 +94,13 @@ export function GamesTable() {
     setMounted(true);
   }, []);
 
-  // Fetch games
-  const { data: response, isLoading } = useQuery({
-    queryKey: ["games", filters, sortField, sortOrder],
+  // Fetch games with pagination
+  const {
+    data: response,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["games", filters, sortField, sortOrder, page + 1, rowsPerPage], // Convert to 1-based for API
     queryFn: async () => {
       const params = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
@@ -85,6 +108,8 @@ export function GamesTable() {
       });
       params.append("sortBy", sortField);
       params.append("sortOrder", sortOrder);
+      params.append("page", String(page + 1)); // API expects 1-based pagination
+      params.append("limit", String(rowsPerPage));
 
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
@@ -93,46 +118,58 @@ export function GamesTable() {
   });
 
   // Fetch opponents for the filter dropdown
-  const {
-    data: opponentsResponse,
-    isLoading: opponentsLoading,
-    error: opponentsError,
-  } = useQuery({
+  const { data: opponentsResponse } = useQuery({
     queryKey: ["opponents"],
     queryFn: async () => {
-      console.log("🔍 Fetching opponents...");
       const res = await fetch("/api/opponents");
-      console.log("📡 Response status:", res.status);
       const data = await res.json();
-      console.log("📦 Opponents data:", data);
+      return data;
+    },
+  });
+
+  const { data: locationResponse } = useQuery({
+    queryKey: ["location"],
+    queryFn: async () => {
+      const res = await fetch("/api/locations");
+      const data = await res.json();
       return data;
     },
   });
 
   const games = response?.data?.games || [];
+  const pagination: PaginationData = response?.data?.pagination || {
+    page: 1,
+    limit: 25,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  };
   const opponents = opponentsResponse?.data || [];
-
-  console.log("🎯 Opponents array:", opponents);
-  console.log("📊 Opponents count:", opponents.length);
-
-  const {
-    data: locationResponse,
-    isLoading: locationLoading,
-    error: locationError,
-  } = useQuery({
-    queryKey: ["location"],
-    queryFn: async () => {
-      console.log("🔍 Fetching locations...");
-      const res = await fetch("/api/locations");
-      console.log("📡 Response status:", res.status);
-      const data = await res.json();
-      console.log("📦 Locations data:", data);
-      return data;
-    },
-  });
-
   const locationRes = locationResponse?.data || [];
-  console.log("Location Response " + locationRes);
+
+  // Handle pagination changes
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+    setSelectedGames(new Set()); // Clear selection when changing pages
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0); // Reset to first page
+    setSelectedGames(new Set()); // Clear selection
+  };
+
+  // Quick page navigation
+  const handleFirstPage = () => {
+    setPage(0);
+    setSelectedGames(new Set());
+  };
+
+  const handleLastPage = () => {
+    setPage(pagination.totalPages - 1);
+    setSelectedGames(new Set());
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -141,6 +178,13 @@ export function GamesTable() {
       setSortField(field);
       setSortOrder("asc");
     }
+    setPage(0); // Reset to first page on sort change
+  };
+
+  const handleFilterChange = (filterKey: string, value: string) => {
+    setFilters({ ...filters, [filterKey]: value });
+    setPage(0); // Reset to first page on filter change
+    setSelectedGames(new Set()); // Clear selection
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -197,32 +241,10 @@ export function GamesTable() {
     }
   };
 
-  const sortedGames = [...games].sort((a, b) => {
-    let comparison = 0;
-    switch (sortField) {
-      case "date":
-        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
-        break;
-      case "time":
-        const timeA = a.time || "99:99";
-        const timeB = b.time || "99:99";
-        comparison = timeA.localeCompare(timeB);
-        break;
-      case "isHome":
-        comparison = a.isHome === b.isHome ? 0 : a.isHome ? -1 : 1;
-        break;
-      case "status":
-        const statusOrder = { CONFIRMED: 1, SCHEDULED: 2, POSTPONED: 3, CANCELLED: 4, COMPLETED: 5 };
-        comparison = (statusOrder[a.status as keyof typeof statusOrder] || 99) - (statusOrder[b.status as keyof typeof statusOrder] || 99);
-        break;
-    }
-    return sortOrder === "asc" ? comparison : -comparison;
-  });
-
   const isAllSelected = games.length > 0 && selectedGames.size === games.length;
   const isIndeterminate = selectedGames.size > 0 && selectedGames.size < games.length;
 
-  if (isLoading) {
+  if (isLoading && !mounted) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <Typography color="text.secondary">Loading games...</Typography>
@@ -279,7 +301,7 @@ export function GamesTable() {
           size="small"
           label="Filter by Sport"
           value={filters.sport}
-          onChange={(e) => setFilters({ ...filters, sport: e.target.value })}
+          onChange={(e) => handleFilterChange("sport", e.target.value)}
           sx={{ minWidth: 140 }}
           InputProps={{
             sx: { bgcolor: "white" },
@@ -302,7 +324,7 @@ export function GamesTable() {
           size="small"
           label="Filter by Level"
           value={filters.level}
-          onChange={(e) => setFilters({ ...filters, level: e.target.value })}
+          onChange={(e) => handleFilterChange("level", e.target.value)}
           sx={{ minWidth: 140 }}
           InputProps={{
             sx: { bgcolor: "white" },
@@ -324,7 +346,7 @@ export function GamesTable() {
           size="small"
           label="Filter by Opponent"
           value={filters.opponent}
-          onChange={(e) => setFilters({ ...filters, opponent: e.target.value })}
+          onChange={(e) => handleFilterChange("opponent", e.target.value)}
           sx={{ minWidth: 180 }}
           InputProps={{
             sx: { bgcolor: "white" },
@@ -348,7 +370,7 @@ export function GamesTable() {
           size="small"
           label="Filter by Upcoming"
           value={filters.dateRange}
-          onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
+          onChange={(e) => handleFilterChange("dateRange", e.target.value)}
           sx={{ minWidth: 140, fontSize: "14px" }}
           InputProps={{
             sx: { bgcolor: "white" },
@@ -368,7 +390,7 @@ export function GamesTable() {
           size="small"
           label="Filter by Location"
           value={filters.location}
-          onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+          onChange={(e) => handleFilterChange("location", e.target.value)}
           sx={{ minWidth: 140, fontSize: "14px" }}
           InputProps={{
             sx: { bgcolor: "white" },
@@ -380,15 +402,11 @@ export function GamesTable() {
           <MenuItem value="">
             <Typography variant="body2">All Locations</Typography>
           </MenuItem>
-          {locationRes.map(
-            (
-              loc: string // Use locationRes fetched from useQuery
-            ) => (
-              <MenuItem key={loc} value={loc}>
-                {loc}
-              </MenuItem>
-            )
-          )}
+          {locationRes.map((loc: string) => (
+            <MenuItem key={loc} value={loc}>
+              {loc}
+            </MenuItem>
+          ))}
         </TextField>
       </Stack>
 
@@ -441,16 +459,16 @@ export function GamesTable() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sortedGames.length === 0 ? (
+            {games.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={10} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "New Game" to add one.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              sortedGames.map((game: Game) => {
+              games.map((game: Game) => {
                 const confirmedStatus = getConfirmedStatus(game.status);
                 const isSelected = selectedGames.has(game.id);
 
@@ -534,19 +552,113 @@ export function GamesTable() {
         </Table>
       </TableContainer>
 
-      {/* Footer Stats */}
-      <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 4 }}>
+      {/* Pagination Controls */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mt: 3,
+          px: 2,
+        }}
+      >
+        {/* Left side - Page info and rows per page */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Rows per page:
+            </Typography>
+            <Select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setPage(0);
+              }}
+              size="small"
+              sx={{
+                minWidth: 70,
+                "& .MuiSelect-select": { py: 0.5 },
+              }}
+            >
+              <MenuItem value={25}>25</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+              <MenuItem value={100}>100</MenuItem>
+            </Select>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            {pagination.total > 0 ? `${page * rowsPerPage + 1}–${Math.min((page + 1) * rowsPerPage, pagination.total)} of ${pagination.total}` : "0 results"}
+          </Typography>
+        </Box>
+
+        {/* Center - Quick stats */}
+        <Box sx={{ display: "flex", gap: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            Page {page + 1} of {pagination.totalPages || 1}
+          </Typography>
+          {selectedGames.size > 0 && (
+            <Typography variant="body2" color="primary">
+              {selectedGames.size} selected
+            </Typography>
+          )}
+        </Box>
+
+        {/* Right side - Navigation buttons */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Tooltip title="First page">
+            <span>
+              <IconButton onClick={handleFirstPage} disabled={page === 0} size="small">
+                <FirstPage />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          <Tooltip title="Previous page">
+            <span>
+              <IconButton onClick={() => handleChangePage(null, page - 1)} disabled={page === 0} size="small">
+                <NavigateBefore />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          <Tooltip title="Next page">
+            <span>
+              <IconButton onClick={() => handleChangePage(null, page + 1)} disabled={page >= pagination.totalPages - 1} size="small">
+                <NavigateNext />
+              </IconButton>
+            </span>
+          </Tooltip>
+
+          <Tooltip title="Last page">
+            <span>
+              <IconButton onClick={handleLastPage} disabled={page >= pagination.totalPages - 1} size="small">
+                <LastPage />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Box>
+      </Box>
+
+      {/* Additional Stats Footer */}
+      <Box
+        sx={{
+          mt: 2,
+          pt: 2,
+          borderTop: 1,
+          borderColor: "divider",
+          display: "flex",
+          justifyContent: "center",
+          gap: 4,
+        }}
+      >
         <Typography variant="body2" color="text.secondary">
-          Total Games: <strong>{sortedGames.length}</strong>
+          Total Games: <strong>{pagination.total}</strong>
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Selected: <strong>{selectedGames.size}</strong>
+          Home: <strong>{games.filter((g: Game) => g.isHome).length}</strong> on this page
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Home: <strong>{sortedGames.filter((g: Game) => g.isHome).length}</strong>
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Away: <strong>{sortedGames.filter((g: Game) => !g.isHome).length}</strong>
+          Away: <strong>{games.filter((g: Game) => !g.isHome).length}</strong> on this page
         </Typography>
       </Box>
     </Box>
