@@ -90,11 +90,11 @@ export class CalendarService {
     };
 
     try {
-      if (game.googleEventId) {
+      if (game.googleCalendarEventId) {
         // Update existing event
         await calendar.events.update({
           calendarId: "primary",
-          eventId: game.googleEventId,
+          eventId: game.googleCalendarEventId,
           requestBody: event,
         });
       } else {
@@ -108,7 +108,7 @@ export class CalendarService {
         await prisma.game.update({
           where: { id: gameId },
           data: {
-            googleEventId: response.data.id || null,
+            googleCalendarEventId: response.data.id || null,
             calendarSynced: true,
             lastSyncedAt: new Date(),
           },
@@ -158,7 +158,7 @@ export class CalendarService {
       where: { id: gameId },
     });
 
-    if (!game || !game.googleEventId) {
+    if (!game || !game.googleCalendarEventId) {
       throw new Error("Game not synced to calendar");
     }
 
@@ -167,13 +167,13 @@ export class CalendarService {
     try {
       await calendar.events.delete({
         calendarId: "primary",
-        eventId: game.googleEventId,
+        eventId: game.googleCalendarEventId,
       });
 
       await prisma.game.update({
         where: { id: gameId },
         data: {
-          googleEventId: null,
+          googleCalendarEventId: null,
           calendarSynced: false,
         },
       });
