@@ -1,20 +1,14 @@
-// lib/google/calendar-sync.ts
-import { google, calendar_v3 } from "googleapis";
-import { prisma } from "@/lib/database/prisma";
+import { google } from "googleapis";
+import { prisma } from "../database/prisma";
 
-const CALENDAR_ID = "primary"; // Use the user's primary calendar
-
-/**
- * Creates or updates a Google Calendar event for a game.
- */
 export async function syncGameToCalendar(gameId: string, userId: string) {
+  // Get the user's Google account credentials
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { googleCalendarRefreshToken: true },
   });
 
   if (!user?.googleCalendarRefreshToken) {
-    throw new Error("User has not connected their Google Calendar.");
+    throw new Error("Google Calendar not connected. Please connect your calendar first.");
   }
 
   const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
@@ -25,73 +19,123 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
+  // Get the game details
   const game = await prisma.game.findUnique({
     where: { id: gameId },
-    include: { homeTeam: true, opponent: true, venue: true },
+    include: {
+      homeTeam: {
+        include: { sport: true },
+      },
+      opponent: true,
+      venue: true,
+    },
   });
 
-  if (!game) throw new Error("Game not found.");
+  if (!game) {
+    throw new Error("Game not found");
+  }
 
-  // Format data for Google Calendar API
-  const isHome = game.isHome;
-  const opponentName = game.opponent?.name || "TBD Opponent";
-  const locationName = isHome ? `${game.homeTeam.name} Home Field` : game.venue?.name || "TBD Venue";
-  const summary = `${isHome ? "Home" : "Away"} Game: ${game.homeTeam.name} vs ${opponentName}`;
+  // Prepare event data
+  const eventStart = new Date(game.date);
+  if (game.time) {
+    const [hours, minutes] = game.time.split(":");
+    eventStart.setHours(parseInt(hours), parseInt(minutes));
+  }
 
-  // Combine date and time to create start/end timestamps
-  const dateStr = game.date.toISOString().split("T")[0];
-  const startTime = game.time || "18:00"; // Default time if none is set
-  const endTime = game.time
-    ? // Assume 2-hour game duration
-      new Date(new Date(`${dateStr}T${game.time}:00`).getTime() + 2 * 60 * 60 * 1000).toTimeString().split(" ")[0].substring(0, 5)
-    : "20:00";
+  const eventEnd = new Date(eventStart);
+  eventEnd.setHours(eventEnd.getHours() + 2); // Default 2-hour duration
 
-  const event: calendar_v3.Schema$Event = {
-    summary: summary,
-    location: locationName,
-    description: `Status: ${game.status}\nNotes: ${game.notes || "N/A"}`,
+  const event = {
+    summary: `${game.homeTeam.sport.name} - ${game.opponent?.name || "TBD"}`,
+    description: buildEventDescription(game),
+    location: game.isHome ? "Home Field" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city || ""}, ${game.venue.state || ""}` : "TBD",
     start: {
-      dateTime: `${dateStr}T${startTime}:00`, // YYYY-MM-DDT18:00:00
-      timeZone: "America/New_York", // Set an appropriate Time Zone
-    },
-    end: {
-      dateTime: `${dateStr}T${endTime}:00`,
+      dateTime: eventStart.toISOString(),
       timeZone: "America/New_York",
     },
-    // Set event ID for update/delete operations if it exists
-    id: game.googleCalendarEventId || undefined,
+    end: {
+      dateTime: eventEnd.toISOString(),
+      timeZone: "America/New_York",
+    },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: "email", minutes: 24 * 60 }, // 1 day before
+        { method: "popup", minutes: 60 }, // 1 hour before
+      ],
+    },
   };
 
   try {
-    let result;
+    let response;
 
     if (game.googleCalendarEventId) {
-      // Event exists, UPDATE it
-      result = await calendar.events.update({
-        calendarId: CALENDAR_ID,
+      // Update existing event
+      response = await calendar.events.update({
+        calendarId: "primary",
         eventId: game.googleCalendarEventId,
         requestBody: event,
       });
     } else {
-      // Event does not exist, CREATE it
-      result = await calendar.events.insert({
-        calendarId: CALENDAR_ID,
+      // Create new event
+      response = await calendar.events.insert({
+        calendarId: "primary",
         requestBody: event,
+      });
+
+      // Update game with event ID
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          googleCalendarEventId: response.data.id || null,
+          googleCalendarHtmlLink: response.data.htmlLink || null,
+          calendarSynced: true,
+          lastSyncedAt: new Date(),
+        },
       });
     }
 
-    // Update the Game record with the Google Event ID
-    await prisma.game.update({
-      where: { id: gameId },
-      data: {
-        googleCalendarEventId: result.data.id,
-        googleCalendarHtmlLink: result.data.htmlLink,
-      },
-    });
-
-    return result.data;
-  } catch (err) {
-    console.error("Calendar Sync Error:", err);
-    throw new Error("Failed to sync game to Google Calendar.");
+    return {
+      id: response.data.id,
+      htmlLink: response.data.htmlLink,
+      success: true,
+    };
+  } catch (error) {
+    console.error("Calendar sync failed:", error);
+    throw new Error("Failed to sync to Google Calendar");
   }
+}
+
+function buildEventDescription(game: any): string {
+  let description = `Sport: ${game.homeTeam.sport.name}\n`;
+  description += `Level: ${game.homeTeam.level}\n`;
+  description += `Team: ${game.homeTeam.name}\n`;
+  description += `Status: ${game.status}\n`;
+
+  if (game.opponent) {
+    description += `Opponent: ${game.opponent.name}\n`;
+  }
+
+  if (game.travelRequired) {
+    description += `\nTravel Information:\n`;
+    description += `- Travel Required: Yes\n`;
+    if (game.estimatedTravelTime) {
+      description += `- Travel Time: ${game.estimatedTravelTime} minutes\n`;
+    }
+    if (game.busCount) {
+      description += `- Buses: ${game.busCount}\n`;
+    }
+    if (game.departureTime) {
+      description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
+    }
+    if (game.travelCost) {
+      description += `- Travel Cost: $${game.travelCost}\n`;
+    }
+  }
+
+  if (game.notes) {
+    description += `\nNotes: ${game.notes}`;
+  }
+
+  return description;
 }

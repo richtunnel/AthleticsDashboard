@@ -1,4 +1,3 @@
-// app/api/games/[gameId]/sync-calendar/route.ts
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { syncGameToCalendar } from "@/lib/google/google-calendar-sync";
