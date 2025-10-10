@@ -8,29 +8,33 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Starting seed...");
 
-  // Clear existing data (optional - be careful in production!)
-  // await prisma.game.deleteMany();
-  // await prisma.team.deleteMany();
-  // await prisma.sport.deleteMany();
-  // await prisma.opponent.deleteMany();
-  // await prisma.venue.deleteMany();
-  // await prisma.user.deleteMany();
-  // await prisma.organization.deleteMany();
-
-  // 1. Create Organization
-  const org = await prisma.organization.create({
-    data: {
+  // 1. Create or Update Organization
+  const org = await prisma.organization.upsert({
+    where: { id: "dev-org-id" },
+    update: {
+      name: "Central High School",
+      timezone: "America/New_York",
+      state: "Texas",
+    },
+    create: {
       id: "dev-org-id",
       name: "Central High School",
       timezone: "America/New_York",
       state: "Texas",
     },
   });
-  console.log("✅ Created organization:", org.name);
+  console.log("✅ Organization ready:", org.name);
 
-  // 2. Create Users
-  const adminUser = await prisma.user.create({
-    data: {
+  // 2. Create or Update Users
+  const adminUser = await prisma.user.upsert({
+    where: { id: "dev-user-id" },
+    update: {
+      name: "John Smith",
+      email: "dev@example.com",
+      role: UserRole.ATHLETIC_DIRECTOR,
+      organizationId: org.id,
+    },
+    create: {
       id: "dev-user-id",
       name: "John Smith",
       email: "dev@example.com",
@@ -38,29 +42,39 @@ async function main() {
       organizationId: org.id,
     },
   });
-  console.log("✅ Created user:", adminUser.name);
+  console.log("✅ User ready:", adminUser.name);
 
   // 3. Create Sports (global sports - no organizationId)
-  // Check if sports already exist to avoid duplicates
-  const existingSports = await prisma.sport.findMany();
-  let sports;
+  const sportsData = [
+    { name: "Football", season: "FALL" as const },
+    { name: "Basketball", season: "WINTER" as const },
+    { name: "Soccer", season: "FALL" as const },
+    { name: "Volleyball", season: "FALL" as const },
+    { name: "Baseball", season: "SPRING" as const },
+    { name: "Softball", season: "SPRING" as const },
+  ];
 
-  if (existingSports.length === 0) {
-    sports = await Promise.all([
-      prisma.sport.create({ data: { name: "Football", season: "FALL" } }),
-      prisma.sport.create({ data: { name: "Basketball", season: "WINTER" } }),
-      prisma.sport.create({ data: { name: "Soccer", season: "FALL" } }),
-      prisma.sport.create({ data: { name: "Volleyball", season: "FALL" } }),
-      prisma.sport.create({ data: { name: "Baseball", season: "SPRING" } }),
-      prisma.sport.create({ data: { name: "Softball", season: "SPRING" } }),
-    ]);
-    console.log("✅ Created sports:", sports.length);
-  } else {
-    sports = existingSports;
-    console.log("✅ Using existing sports:", sports.length);
-  }
+  const sports = await Promise.all(
+    sportsData.map((sport) =>
+      prisma.sport.upsert({
+        where: { name: sport.name },
+        update: { season: sport.season },
+        create: { name: sport.name, season: sport.season },
+      })
+    )
+  );
+  console.log("✅ Sports ready:", sports.length);
 
-  // 4. Create Teams
+  // 4. Delete old data in correct order (games first, then teams/opponents/venues)
+  console.log("🗑️  Cleaning up old data...");
+  await prisma.game.deleteMany({ where: { homeTeam: { organizationId: org.id } } });
+  await prisma.team.deleteMany({ where: { organizationId: org.id } });
+  await prisma.opponent.deleteMany({ where: { organizationId: org.id } });
+  await prisma.venue.deleteMany({ where: { organizationId: org.id } });
+  console.log("✅ Cleanup complete");
+
+  // 5. Create Teams
+  // 5. Create Teams
   const teams = await Promise.all([
     // Football Teams
     prisma.team.create({ data: { name: "Tigers Varsity", level: "VARSITY", gender: "MALE", sportId: sports[0].id, organizationId: org.id } }),
@@ -78,7 +92,7 @@ async function main() {
   ]);
   console.log("✅ Created teams:", teams.length);
 
-  // 5. Create Opponents
+  // 6. Create Opponents
   const opponents = await Promise.all([
     prisma.opponent.create({ data: { name: "Eastside Eagles", mascot: "Eagles", colors: "Blue & White", organizationId: org.id } }),
     prisma.opponent.create({ data: { name: "Westbrook Warriors", mascot: "Warriors", colors: "Red & Gold", organizationId: org.id } }),
@@ -89,7 +103,7 @@ async function main() {
   ]);
   console.log("✅ Created opponents:", opponents.length);
 
-  // 6. Create Venues
+  // 7. Create Venues
   const venues = await Promise.all([
     prisma.venue.create({
       data: {
@@ -134,7 +148,7 @@ async function main() {
   ]);
   console.log("✅ Created venues:", venues.length);
 
-  // 7. Create Games
+  // 8. Create Games
   const today = new Date();
   const games: Promise<any>[] = [];
 

@@ -91,17 +91,27 @@ export function GamesTable() {
   });
 
   // Fetch opponents for the filter dropdown
-  const { data: opponentsResponse } = useQuery({
+  const {
+    data: opponentsResponse,
+    isLoading: opponentsLoading,
+    error: opponentsError,
+  } = useQuery({
     queryKey: ["opponents"],
     queryFn: async () => {
+      console.log("🔍 Fetching opponents...");
       const res = await fetch("/api/opponents");
-      if (!res.ok) throw new Error("Failed to fetch opponents");
-      return res.json();
+      console.log("📡 Response status:", res.status);
+      const data = await res.json();
+      console.log("📦 Opponents data:", data);
+      return data;
     },
   });
 
   const games = response?.data?.games || [];
   const opponents = opponentsResponse?.data || [];
+
+  console.log("🎯 Opponents array:", opponents);
+  console.log("📊 Opponents count:", opponents.length);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -246,11 +256,15 @@ export function GamesTable() {
         <TextField
           select
           size="small"
+          label="Filter by Sport"
           value={filters.sport}
           onChange={(e) => setFilters({ ...filters, sport: e.target.value })}
           sx={{ minWidth: 140 }}
           InputProps={{
             sx: { bgcolor: "white" },
+          }}
+          InputLabelProps={{
+            sx: { fontSize: 10, top: "2.5px" },
           }}
         >
           <MenuItem value="">
@@ -265,11 +279,15 @@ export function GamesTable() {
         <TextField
           select
           size="small"
+          label="Filter by Level"
           value={filters.level}
           onChange={(e) => setFilters({ ...filters, level: e.target.value })}
           sx={{ minWidth: 140 }}
           InputProps={{
             sx: { bgcolor: "white" },
+          }}
+          InputLabelProps={{
+            sx: { fontSize: 10, top: "2.5px" },
           }}
         >
           <MenuItem value="">
@@ -283,11 +301,15 @@ export function GamesTable() {
         <TextField
           select
           size="small"
+          label="Filter by Opponent"
           value={filters.opponent}
           onChange={(e) => setFilters({ ...filters, opponent: e.target.value })}
           sx={{ minWidth: 180 }}
           InputProps={{
             sx: { bgcolor: "white" },
+          }}
+          InputLabelProps={{
+            sx: { fontSize: 10, top: "2.5px" },
           }}
         >
           <MenuItem value="">
@@ -303,11 +325,15 @@ export function GamesTable() {
         <TextField
           select
           size="small"
+          label="Filter by Upcoming"
           value={filters.dateRange}
           onChange={(e) => setFilters({ ...filters, dateRange: e.target.value })}
-          sx={{ minWidth: 140 }}
+          sx={{ minWidth: 140, fontSize: "14px" }}
           InputProps={{
             sx: { bgcolor: "white" },
+          }}
+          InputLabelProps={{
+            sx: { fontSize: 10, top: "2.5px" },
           }}
         >
           <MenuItem value="all">All Dates</MenuItem>
