@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -56,16 +56,24 @@ type SortOrder = "asc" | "desc";
 
 export function GamesTable() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [filters, setFilters] = useState({
     sport: "",
     level: "",
     status: "",
+    opponent: "",
     dateRange: "upcoming",
   });
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
 
+  // Handle client-side mounting
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Fetch games
   const { data: response, isLoading } = useQuery({
     queryKey: ["games", filters, sortField, sortOrder],
     queryFn: async () => {
@@ -82,7 +90,18 @@ export function GamesTable() {
     },
   });
 
+  // Fetch opponents for the filter dropdown
+  const { data: opponentsResponse } = useQuery({
+    queryKey: ["opponents"],
+    queryFn: async () => {
+      const res = await fetch("/api/opponents");
+      if (!res.ok) throw new Error("Failed to fetch opponents");
+      return res.json();
+    },
+  });
+
   const games = response?.data?.games || [];
+  const opponents = opponentsResponse?.data || [];
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -95,9 +114,8 @@ export function GamesTable() {
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const allGameIds = new Set(games.map((game: Game) => game.id));
-      const gameClusterIDs = allGameIds as any;
-      setSelectedGames(gameClusterIDs);
+      const allGameIds = new Set(games.map((game: Game) => game.id)) as any;
+      setSelectedGames(allGameIds);
     } else {
       setSelectedGames(new Set());
     }
@@ -114,6 +132,8 @@ export function GamesTable() {
   };
 
   const handleSendEmail = () => {
+    if (typeof window === "undefined") return;
+
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
 
     // Store in sessionStorage to pass to email page
@@ -121,6 +141,15 @@ export function GamesTable() {
 
     // Navigate to email composition page
     router.push("/dashboard/compose-email");
+  };
+
+  const formatGameDate = (dateString: string) => {
+    if (!mounted) return dateString; // Return raw date on server
+    try {
+      return format(new Date(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return dateString;
+    }
   };
 
   const getConfirmedStatus = (status: string) => {
@@ -225,7 +254,7 @@ export function GamesTable() {
           }}
         >
           <MenuItem value="">
-            <Typography variant="body2">Sport</Typography>
+            <Typography variant="body2">All Sports</Typography>
           </MenuItem>
           <MenuItem value="Football">Football</MenuItem>
           <MenuItem value="Basketball">Basketball</MenuItem>
@@ -244,11 +273,31 @@ export function GamesTable() {
           }}
         >
           <MenuItem value="">
-            <Typography variant="body2">Level</Typography>
+            <Typography variant="body2">All Levels</Typography>
           </MenuItem>
           <MenuItem value="VARSITY">Varsity</MenuItem>
           <MenuItem value="JV">JV</MenuItem>
           <MenuItem value="FRESHMAN">Freshman</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          size="small"
+          value={filters.opponent}
+          onChange={(e) => setFilters({ ...filters, opponent: e.target.value })}
+          sx={{ minWidth: 180 }}
+          InputProps={{
+            sx: { bgcolor: "white" },
+          }}
+        >
+          <MenuItem value="">
+            <Typography variant="body2">All Opponents</Typography>
+          </MenuItem>
+          {opponents.map((opponent: any) => (
+            <MenuItem key={opponent.id} value={opponent.id}>
+              {opponent.name}
+            </MenuItem>
+          ))}
         </TextField>
 
         <TextField
@@ -344,7 +393,7 @@ export function GamesTable() {
                     <TableCell padding="checkbox">
                       <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{format(new Date(game.date), "MMM d, yyyy")}</TableCell>
+                    <TableCell sx={{ fontSize: 13, py: 2 }}>{formatGameDate(game.date)}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.opponent?.name || "TBD"}</TableCell>
