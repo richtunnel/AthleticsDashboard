@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { FaGoogle } from "react-icons/fa";
 
 interface CalendarSyncButtonProps {
   gameId: string;

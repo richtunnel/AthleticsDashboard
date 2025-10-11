@@ -534,6 +534,21 @@ export function GamesTable() {
         <TextField
           select
           size="small"
+          label="Filter by Date"
+          value={filters.dateRange}
+          onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+          sx={{ minWidth: 140 }}
+          InputProps={{ sx: { bgcolor: "white" } }}
+          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+        >
+          <MenuItem value="all">All Dates</MenuItem>
+          <MenuItem value="upcoming">Upcoming</MenuItem>
+          <MenuItem value="past">Past</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          size="small"
           label="Filter by Sport"
           value={filters.sport}
           onChange={(e) => handleFilterChange("sport", e.target.value)}
@@ -589,21 +604,6 @@ export function GamesTable() {
               {opponent.name}
             </MenuItem>
           ))}
-        </TextField>
-
-        <TextField
-          select
-          size="small"
-          label="Filter by Date"
-          value={filters.dateRange}
-          onChange={(e) => handleFilterChange("dateRange", e.target.value)}
-          sx={{ minWidth: 140 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="all">All Dates</MenuItem>
-          <MenuItem value="upcoming">Upcoming</MenuItem>
-          <MenuItem value="past">Past</MenuItem>
         </TextField>
 
         <TextField
