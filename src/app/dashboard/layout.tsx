@@ -13,20 +13,24 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
 import { ThemeProvider, createTheme, useColorScheme } from "@mui/material/styles";
+import { VscGithubProject } from "react-icons/vsc";
+import styles from "../../styles/logo.module.css";
+import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
+import ScheduleIcon from "@mui/icons-material/Schedule";
 
 const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
-  { name: "Teams", href: "/dashboard/teams", icon: Groups },
-  { name: "Import/Export", href: "", icon: ImportExport },
+  { name: "Teams / Opponents", href: "/dashboard/teams", icon: Groups },
   //   { name: "Venues", href: "/dashboard/venues", icon: Place },
-  { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
+  // { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
   { name: "Calendar Sync", href: "/dashboard/gsync", icon: Sync },
+  { name: "Manage Schedule", href: "", icon: ScheduleIcon },
+  { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Analytics", href: "", icon: Analytics },
-  { name: "User Roles", href: "", icon: AssignmentInd },
-  { name: "Confirmation and Reminders", href: "", icon: Check },
+  { name: "History", href: "", icon: WorkHistoryIcon },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
@@ -57,9 +61,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <Box>
       {/* Logo/Brand */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: "primary.main" }}>
-          AD Dashboard
-        </Typography>
+        <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
+          adhub
+          <VscGithubProject />
+        </Link>
       </Box>
 
       {/* Navigation */}

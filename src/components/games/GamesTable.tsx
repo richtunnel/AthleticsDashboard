@@ -30,6 +30,7 @@ import {
 import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Save, Close, Check } from "@mui/icons-material";
 import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
+import Link from "next/link";
 
 interface Game {
   id: string;
@@ -506,7 +507,7 @@ export function GamesTable() {
             Games Schedule
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage your athletic schedules
+            Manage your athletic schedules and create your own customized columns.
           </Typography>
         </Box>
         <Stack direction="row" spacing={2}>
