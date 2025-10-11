@@ -7,6 +7,12 @@ import { Box, Drawer, AppBar, Toolbar, List, Typography, ListItem, ListItemButto
 import { Dashboard as DashboardIcon, CalendarMonth, Groups, Place, Shield, Settings, Logout, Menu as MenuIcon } from "@mui/icons-material";
 import { Sync, Analytics, AssignmentInd, ImportExport, Check } from "@mui/icons-material";
 import { useState } from "react";
+import RadioGroup from "@mui/material/RadioGroup";
+import Radio from "@mui/material/Radio";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import { ThemeProvider, createTheme, useColorScheme } from "@mui/material/styles";
 
 const DRAWER_WIDTH = 240;
 
@@ -16,7 +22,7 @@ const navigation = [
   { name: "Teams", href: "/dashboard/teams", icon: Groups },
   //   { name: "Venues", href: "/dashboard/venues", icon: Place },
   { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
-  { name: "Google Calendar Sync", href: "", icon: Sync },
+  { name: "Google Calendar Sync", href: "/dashboard/gsync", icon: Sync },
   { name: "Analytics", href: "", icon: Analytics },
   { name: "User Roles", href: "", icon: AssignmentInd },
   { name: "Import/Export", href: "", icon: ImportExport },
@@ -29,6 +35,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const { mode, setMode } = useColorScheme();
+
+  if (!mode) {
+    return null;
+  }
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -114,6 +125,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
+
+          {/* Modes */}
+          <Box
+            sx={{
+              display: "contents",
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "background.default",
+              color: "text.primary",
+              borderRadius: 1,
+              p: 3,
+              minHeight: "20px",
+            }}
+          >
+            <FormControl>
+              <RadioGroup aria-labelledby="demo-theme-toggle" name="theme-toggle" row value={mode} onChange={(event) => setMode(event.target.value as "light" | "dark")}>
+                {/* <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="system" control={<Radio />} label="System" /> */}
+                <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="light" control={<Radio />} label="Light" />
+                <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="dark" control={<Radio />} label="Dark" />
+              </RadioGroup>
+            </FormControl>
+          </Box>
 
           {/* User Menu */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
