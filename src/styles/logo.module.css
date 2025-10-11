@@ -1,0 +1,30 @@
+.ad-hub-logo {
+  color: #000;
+  font-size: 1.5rem;
+  font-weight: 800;
+  display: flex;
+}
+
+.ad-hub-logo a {
+  display: flex;
+}
+
+.ad-hub-logo svg {
+  position: relative;
+  top: 6px;
+}
+
+.homeHeaderContainer {
+  display: flex;
+  justify-content: space-between;
+  align-content: normal;
+  max-width: 768px;
+  margin: 0 auto;
+  top: 20px;
+  position: relative;
+}
+
+.homePageContentContainer {
+  position: relative;
+  top: -10px;
+}
