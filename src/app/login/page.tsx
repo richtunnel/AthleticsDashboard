@@ -16,7 +16,7 @@ function LoginContent() {
           <Calendar className="h-16 w-16 text-blue-600" />
         </div>
 
-        <h1 className="text-3xl font-bold text-center mb-2">Athletic Director Dashboard</h1>
+        <h1 className="text-3xl font-bold text-center mb-2">Athletic Director Hub</h1>
 
         <p className="text-gray-600 text-center mb-8">Sign in to manage your athletic schedules</p>
 
