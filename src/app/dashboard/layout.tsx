@@ -40,6 +40,7 @@ import {
   ImportExport,
   WorkHistory,
   Schedule,
+  Delete,
 } from "@mui/icons-material";
 import { useColorScheme } from "@mui/material/styles";
 import { VscGithubProject } from "react-icons/vsc";

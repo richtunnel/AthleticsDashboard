@@ -27,7 +27,25 @@ import {
   InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, Email, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Save, Close, Check } from "@mui/icons-material";
+import {
+  CheckCircle,
+  Cancel,
+  Schedule,
+  Edit,
+  Delete,
+  DeleteOutline,
+  Email,
+  CalendarMonth,
+  Add,
+  Send,
+  NavigateBefore,
+  NavigateNext,
+  FirstPage,
+  LastPage,
+  Save,
+  Close,
+  Check,
+} from "@mui/icons-material";
 import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
 import Link from "next/link";
@@ -315,6 +333,28 @@ export function GamesTable() {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (gameIds: string[]) => {
+      const results = await Promise.all(
+        gameIds.map((id) =>
+          fetch(`/api/games/${id}`, {
+            method: "DELETE",
+          })
+        )
+      );
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length > 0) {
+        throw new Error(`Failed to delete ${failed.length} game(s)`);
+      }
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+      setSelectedGames(new Set());
+    },
+  });
+
   // Handlers
   const handleNewGame = () => {
     setIsAddingNew(true);
@@ -397,6 +437,13 @@ export function GamesTable() {
   const handleDeleteGame = (gameId: string) => {
     if (confirm("Are you sure you want to delete this game?")) {
       deleteGameMutation.mutate(gameId);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    const count = selectedGames.size;
+    if (confirm(`Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`)) {
+      bulkDeleteMutation.mutate(Array.from(selectedGames));
     }
   };
 
@@ -626,6 +673,20 @@ export function GamesTable() {
             </MenuItem>
           ))}
         </TextField>
+        {/* Delete Rows Button */}
+        {selectedGames.size > 0 && (
+          <>
+            <Button
+              variant="contained"
+              startIcon={bulkDeleteMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutline />}
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+              sx={{ textTransform: "none", color: "red", backgroundColor: "transparent", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+            >
+              Delete ({selectedGames.size})
+            </Button>
+          </>
+        )}
       </Stack>
 
       {/* Table */}
