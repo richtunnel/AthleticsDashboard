@@ -69,6 +69,8 @@ model Organization {
   name      String
   district  String?
   state     String?
+
+  customColumns Json?
   timezone  String   @default("America/New_York")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,6 +137,7 @@ model Game {
   
   // Custom fields (JSON for flexibility)
   customFields        Json?
+  customData          Json?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

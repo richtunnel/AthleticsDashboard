@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
+import { CustomColumnManager } from "./CustomColumnManager";
+import { ViewColumn } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -60,6 +62,7 @@ interface Game {
   travelRequired: boolean;
   estimatedTravelTime: number | null;
   calendarSynced?: boolean;
+  customData?: [];
   homeTeam: {
     id?: string;
     name: string;
@@ -147,6 +150,8 @@ export function GamesTable() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
+  const [showColumnManager, setShowColumnManager] = useState(false);
+  const [editingCustomData, setEditingCustomData] = useState<{ [gameId: string]: any }>({});
 
   // Handle client-side mounting
   useEffect(() => {
@@ -215,6 +220,18 @@ export function GamesTable() {
       return data;
     },
   });
+
+  // Fetch custom columns
+  const { data: customColumnsResponse } = useQuery({
+    queryKey: ["customColumns"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/custom-columns");
+      if (!res.ok) throw new Error("Failed to fetch custom columns");
+      return res.json();
+    },
+  });
+
+  const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
 
   const games = response?.data?.games || [];
   const pagination: PaginationData = response?.data?.pagination || {
@@ -386,6 +403,42 @@ export function GamesTable() {
 
     createGameMutation.mutate(gameData);
   };
+
+  const handleCustomDataChange = useCallback((gameId: string, columnId: string, value: string) => {
+    setEditingCustomData((prev) => ({
+      ...prev,
+      [gameId]: {
+        ...(prev[gameId] || {}),
+        [columnId]: value,
+      },
+    }));
+  }, []);
+
+  const handleSaveCustomData = useCallback(
+    async (gameId: string) => {
+      const customData = editingCustomData[gameId];
+      if (!customData) return;
+
+      try {
+        await fetch(`/api/games/${gameId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ customData }),
+        });
+
+        queryClient.invalidateQueries({ queryKey: ["games"] });
+
+        setEditingCustomData((prev) => {
+          const newState = { ...prev };
+          delete newState[gameId];
+          return newState;
+        });
+      } catch (error) {
+        console.error("Error saving custom data:", error);
+      }
+    },
+    [editingCustomData, queryClient]
+  );
 
   const handleCancelNewGame = () => {
     setIsAddingNew(false);
@@ -578,6 +631,9 @@ export function GamesTable() {
           <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
             New Game
           </Button>
+          <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
+            Add Columns ({customColumns.length})
+          </Button>
           <Button variant="outlined" startIcon={<CalendarMonth />} onClick={() => router.push("/api/auth/calendar-connect")} sx={{ textTransform: "none" }}>
             Connect Calendar
           </Button>
@@ -736,6 +792,21 @@ export function GamesTable() {
                 </TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
+              {/* Custom Columns */}
+              {customColumns.map((column: any) => (
+                <TableCell
+                  key={column.id}
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: 12,
+                    py: 2,
+                    color: "text.secondary",
+                    minWidth: 150,
+                  }}
+                >
+                  {column.name.toUpperCase()}
+                </TableCell>
+              ))}
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
@@ -1048,6 +1119,36 @@ export function GamesTable() {
                       />
                     </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
+                    {/* Custom Column Cells */}
+                    {customColumns.map((column: any) => {
+                      const customData = (game.customData as any) || {};
+                      const cellValue = customData[column.id] || "";
+                      const isEditingCell = editingCustomData[game.id]?.[column.id] !== undefined;
+                      const displayValue = isEditingCell ? editingCustomData[game.id][column.id] : cellValue;
+
+                      return (
+                        <TableCell key={column.id} sx={{ py: 2, minWidth: 150 }}>
+                          <TextField
+                            size="small"
+                            fullWidth
+                            value={displayValue}
+                            onChange={(e) => handleCustomDataChange(game.id, column.id, e.target.value)}
+                            onBlur={() => {
+                              if (editingCustomData[game.id]?.[column.id] !== undefined) {
+                                handleSaveCustomData(game.id);
+                              }
+                            }}
+                            placeholder={`Enter ${column.name.toLowerCase()}`}
+                            sx={{
+                              "& .MuiInputBase-input": {
+                                fontSize: 13,
+                                py: 0.5,
+                              },
+                            }}
+                          />
+                        </TableCell>
+                      );
+                    })}
                     <TableCell sx={{ py: 2 }}>
                       <Stack direction="row" spacing={0}>
                         <Tooltip title="Edit">
@@ -1186,6 +1287,8 @@ export function GamesTable() {
           Away: <strong>{games.filter((g: Game) => !g.isHome).length}</strong> on this page
         </Typography>
       </Box>
+
+      <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
     </Box>
   );
 }

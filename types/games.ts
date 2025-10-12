@@ -7,6 +7,7 @@ export type Game = {
   travelRequired: boolean;
   estimatedTravelTime: number | null;
   calendarSynced?: boolean;
+  customData?: [];
   homeTeam: {
     name: string;
     level: string;
