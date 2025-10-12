@@ -50,12 +50,12 @@ const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
-  { name: "Teams / Opponents", href: "/dashboard/opponents", icon: Groups },
-  { name: "Calendar Sync", href: "/dashboard/gsync", icon: Sync },
+  { name: "Game Schedule", href: "/dashboard/games", icon: CalendarMonth },
+  { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "Manage Schedule", href: "", icon: Schedule },
+  { name: "My Calendars", href: "/dashboard/gsync", icon: Sync },
   { name: "Import/Export", href: "", icon: ImportExport },
-  { name: "Analytics", href: "", icon: Analytics },
+  { name: "Sports Analytics", href: "", icon: Analytics },
   { name: "History", href: "", icon: WorkHistory },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
