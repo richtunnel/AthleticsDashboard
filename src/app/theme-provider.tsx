@@ -21,10 +21,6 @@ const theme = createTheme({
     error: {
       main: "#ef4444", // Red
     },
-    // mode: "dark",
-    // button : {
-    //   main: "#BEDBFE",
-    // },
   },
   colorSchemes: {
     dark: false,

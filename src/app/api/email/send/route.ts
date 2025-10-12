@@ -108,7 +108,7 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
     html += `<td style="padding: 12px;">${game.isHome ? "<strong>Home</strong>" : game.venue?.name || "TBD"}</td>`;
 
     // Status with color
-    const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#f59e0b";
+    const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
     html += `<td style="padding: 12px;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${game.status}</span></td>`;
     html += "</tr>";
 
