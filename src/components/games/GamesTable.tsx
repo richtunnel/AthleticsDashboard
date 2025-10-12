@@ -33,7 +33,6 @@ import {
   Schedule,
   Edit,
   Delete,
-  DeleteOutline,
   Email,
   CalendarMonth,
   Add,
@@ -45,6 +44,7 @@ import {
   Save,
   Close,
   Check,
+  DeleteOutline,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
@@ -104,7 +104,7 @@ interface PaginationData {
   hasPrev: boolean;
 }
 
-type SortField = "date" | "time" | "isHome" | "status" | "location";
+type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent";
 type SortOrder = "asc" | "desc";
 
 export function GamesTable() {
@@ -247,7 +247,6 @@ export function GamesTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      // You might add a notification here (e.g., alert or toast)
       alert("Game successfully synced to Google Calendar!");
     },
     onError: (error) => {
@@ -412,7 +411,7 @@ export function GamesTable() {
     if (!editingGameData || !editingGameId) return;
 
     const matchingTeam = teams.find((team: any) => team.sport?.name === editingGameData.homeTeam.sport.name && team.level === editingGameData.homeTeam.level);
-    const rawDate = editingGameData.date.split("T")[0]; // Extract "YYYY-MM-DD" if it's already an ISO string
+    const rawDate = editingGameData.date.split("T")[0];
     const isoDate = new Date(rawDate).toISOString();
 
     const updateData = {
@@ -559,19 +558,26 @@ export function GamesTable() {
         </Box>
         <Stack direction="row" spacing={2}>
           {selectedGames.size > 0 && (
-            <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-              Send Email ({selectedGames.size})
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={bulkDeleteMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutline />}
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteMutation.isPending}
+                sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+              >
+                Delete ({selectedGames.size})
+              </Button>
+              <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                Send Email ({selectedGames.size})
+              </Button>
+            </>
           )}
           <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
             New Game
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<CalendarMonth />}
-            onClick={() => router.push("/api/auth/calendar-connect")} // Redirect to start OAuth flow
-            sx={{ textTransform: "none" }}
-          >
+          <Button variant="outlined" startIcon={<CalendarMonth />} onClick={() => router.push("/api/auth/calendar-connect")} sx={{ textTransform: "none" }}>
             Connect Calendar
           </Button>
         </Stack>
@@ -673,20 +679,6 @@ export function GamesTable() {
             </MenuItem>
           ))}
         </TextField>
-        {/* Delete Rows Button */}
-        {selectedGames.size > 0 && (
-          <>
-            <Button
-              variant="contained"
-              startIcon={bulkDeleteMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutline />}
-              onClick={handleBulkDelete}
-              disabled={bulkDeleteMutation.isPending}
-              sx={{ textTransform: "none", color: "red", backgroundColor: "transparent", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-            >
-              Delete ({selectedGames.size})
-            </Button>
-          </>
-        )}
       </Stack>
 
       {/* Table */}
@@ -711,9 +703,22 @@ export function GamesTable() {
                   DATE
                 </TableSortLabel>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>SPORT</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LEVEL</TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>OPPONENT</TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
+                  SPORT
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
+                  LEVEL
+                </TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
+                  OPPONENT
+                </TableSortLabel>
+              </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
                 <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
                   H/A
