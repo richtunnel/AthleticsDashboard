@@ -10,9 +10,7 @@ export async function GET(request: NextRequest) {
       where: {
         organizationId: session.user.organizationId,
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     });
 
     return NextResponse.json({
@@ -34,12 +32,21 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-
     const body = await request.json();
+
+    // Get the highest sort order for this organization
+    const highestSortOrder = await prisma.opponent.findFirst({
+      where: { organizationId: session.user.organizationId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+
+    const nextSortOrder = (highestSortOrder?.sortOrder || 0) + 1;
 
     const opponent = await prisma.opponent.create({
       data: {
         ...body,
+        sortOrder: nextSortOrder,
         organizationId: session.user.organizationId,
       },
     });
