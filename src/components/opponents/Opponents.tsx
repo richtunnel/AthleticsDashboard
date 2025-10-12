@@ -22,18 +22,7 @@ import {
   Snackbar,
   Grid,
 } from "@mui/material";
-import {
-  Add,
-  DragIndicator,
-  Edit,
-  Delete,
-  Save,
-  Cancel,
-  School,
-  Phone,
-  Email,
-  Person,
-} from "@mui/icons-material";
+import { Add, DragIndicator, Edit, Delete, Save, Cancel, School, Phone, Email, Person } from "@mui/icons-material";
 import { useOpponentsStore } from "@/store/OpponentStore";
 
 interface OpponentFormData {
@@ -47,20 +36,7 @@ interface OpponentFormData {
 }
 
 export default function OpponentsPage() {
-  const {
-    opponents,
-    isLoading,
-    isDragging,
-    isCreating,
-    setOpponents,
-    setLoading,
-    setDragging,
-    setCreating,
-    addOpponent,
-    updateOpponent,
-    deleteOpponent,
-    reorderOpponents,
-  } = useOpponentsStore();
+  const { opponents, isLoading, isDragging, isCreating, setOpponents, setLoading, setDragging, setCreating, addOpponent, updateOpponent, deleteOpponent, reorderOpponents } = useOpponentsStore();
 
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -74,7 +50,7 @@ export default function OpponentsPage() {
     notes: "",
   });
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" as any });
-  
+
   // Detect if mobile device
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -227,12 +203,7 @@ export default function OpponentsPage() {
             Drag to reorder your opponents list
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setOpenCreateDialog(true)}
-          sx={{ textTransform: "none" }}
-        >
+        <Button variant="contained" startIcon={<Add />} onClick={() => setOpenCreateDialog(true)} sx={{ textTransform: "none" }}>
           Add Opponent
         </Button>
       </Box>
@@ -262,81 +233,34 @@ export default function OpponentsPage() {
             >
               <CardContent>
                 <Grid container spacing={2} alignItems="center">
-                  <Grid item xs="auto">
-                    <IconButton
-                      className="drag-handle"
-                      sx={{ cursor: "grab", "&:active": { cursor: "grabbing" } }}
-                    >
+                  <Grid size="auto">
+                    <IconButton className="drag-handle" sx={{ cursor: "grab", "&:active": { cursor: "grabbing" } }}>
                       <DragIndicator />
                     </IconButton>
                   </Grid>
-                  
-                  <Grid item xs>
+
+                  <Grid size="grow">
                     {editingId === opponent.id ? (
                       <Stack spacing={2}>
-                        <TextField
-                          label="School/Team Name"
-                          value={opponent.name}
-                          onChange={(e) => updateOpponent(opponent.id, { name: e.target.value })}
-                          size="small"
-                          fullWidth
-                        />
+                        <TextField label="School/Team Name" value={opponent.name} onChange={(e) => updateOpponent(opponent.id, { name: e.target.value })} size="small" fullWidth />
                         <Grid container spacing={2}>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              label="Mascot"
-                              value={opponent.mascot || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { mascot: e.target.value })}
-                              size="small"
-                              fullWidth
-                            />
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Mascot" value={opponent.mascot || ""} onChange={(e) => updateOpponent(opponent.id, { mascot: e.target.value })} size="small" fullWidth />
                           </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              label="Colors"
-                              value={opponent.colors || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { colors: e.target.value })}
-                              size="small"
-                              fullWidth
-                            />
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Colors" value={opponent.colors || ""} onChange={(e) => updateOpponent(opponent.id, { colors: e.target.value })} size="small" fullWidth />
                           </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              label="Contact Person"
-                              value={opponent.contact || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { contact: e.target.value })}
-                              size="small"
-                              fullWidth
-                            />
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Contact Person" value={opponent.contact || ""} onChange={(e) => updateOpponent(opponent.id, { contact: e.target.value })} size="small" fullWidth />
                           </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              label="Phone"
-                              value={opponent.phone || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { phone: e.target.value })}
-                              size="small"
-                              fullWidth
-                            />
+                          <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField label="Phone" value={opponent.phone || ""} onChange={(e) => updateOpponent(opponent.id, { phone: e.target.value })} size="small" fullWidth />
                           </Grid>
-                          <Grid item xs={12}>
-                            <TextField
-                              label="Email"
-                              value={opponent.email || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { email: e.target.value })}
-                              size="small"
-                              fullWidth
-                            />
+                          <Grid size={{ xs: 12 }}>
+                            <TextField label="Email" value={opponent.email || ""} onChange={(e) => updateOpponent(opponent.id, { email: e.target.value })} size="small" fullWidth />
                           </Grid>
-                          <Grid item xs={12}>
-                            <TextField
-                              label="Notes"
-                              value={opponent.notes || ""}
-                              onChange={(e) => updateOpponent(opponent.id, { notes: e.target.value })}
-                              size="small"
-                              fullWidth
-                              multiline
-                              rows={2}
-                            />
+                          <Grid size={{ xs: 12 }}>
+                            <TextField label="Notes" value={opponent.notes || ""} onChange={(e) => updateOpponent(opponent.id, { notes: e.target.value })} size="small" fullWidth multiline rows={2} />
                           </Grid>
                         </Grid>
                       </Stack>
@@ -350,16 +274,10 @@ export default function OpponentsPage() {
                             Mascot: {opponent.mascot}
                           </Typography>
                         )}
-                        {opponent.colors && (
-                          <Chip
-                            label={opponent.colors}
-                            size="small"
-                            sx={{ mt: 1 }}
-                          />
-                        )}
+                        {opponent.colors && <Chip label={opponent.colors} size="small" sx={{ mt: 1 }} />}
                         <Grid container spacing={2} sx={{ mt: 1 }}>
                           {opponent.contact && (
-                            <Grid item xs="auto">
+                            <Grid size="auto">
                               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                 <Person fontSize="small" color="action" />
                                 <Typography variant="body2">{opponent.contact}</Typography>
@@ -367,7 +285,7 @@ export default function OpponentsPage() {
                             </Grid>
                           )}
                           {opponent.phone && (
-                            <Grid item xs="auto">
+                            <Grid size="auto">
                               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                 <Phone fontSize="small" color="action" />
                                 <Typography variant="body2">{opponent.phone}</Typography>
@@ -375,7 +293,7 @@ export default function OpponentsPage() {
                             </Grid>
                           )}
                           {opponent.email && (
-                            <Grid item xs="auto">
+                            <Grid size="auto">
                               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                 <Email fontSize="small" color="action" />
                                 <Typography variant="body2">{opponent.email}</Typography>
@@ -386,14 +304,11 @@ export default function OpponentsPage() {
                       </Box>
                     )}
                   </Grid>
-                  
-                  <Grid item xs="auto">
+
+                  <Grid size="auto">
                     {editingId === opponent.id ? (
                       <Stack direction="row" spacing={1}>
-                        <IconButton
-                          color="primary"
-                          onClick={() => handleUpdateOpponent(opponent.id)}
-                        >
+                        <IconButton color="primary" onClick={() => handleUpdateOpponent(opponent.id)}>
                           <Save />
                         </IconButton>
                         <IconButton
@@ -408,16 +323,10 @@ export default function OpponentsPage() {
                       </Stack>
                     ) : (
                       <Stack direction="row" spacing={1}>
-                        <IconButton
-                          color="primary"
-                          onClick={() => setEditingId(opponent.id)}
-                        >
+                        <IconButton color="primary" onClick={() => setEditingId(opponent.id)}>
                           <Edit />
                         </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDeleteOpponent(opponent.id)}
-                        >
+                        <IconButton color="error" onClick={() => handleDeleteOpponent(opponent.id)}>
                           <Delete />
                         </IconButton>
                       </Stack>
@@ -445,97 +354,45 @@ export default function OpponentsPage() {
         <DialogTitle>Add New Opponent</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 2 }}>
-            <TextField
-              label="School/Team Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              fullWidth
-              required
-              autoFocus
-            />
+            <TextField label="School/Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} fullWidth required autoFocus />
             <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  label="Mascot"
-                  value={formData.mascot}
-                  onChange={(e) => setFormData({ ...formData, mascot: e.target.value })}
-                  fullWidth
-                />
+              <Grid size={{ xs: 6 }}>
+                <TextField label="Mascot" value={formData.mascot} onChange={(e) => setFormData({ ...formData, mascot: e.target.value })} fullWidth />
               </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  label="Colors"
-                  value={formData.colors}
-                  onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
-                  fullWidth
-                  placeholder="e.g., Blue & Gold"
-                />
+              <Grid size={{ xs: 6 }}>
+                <TextField label="Colors" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} fullWidth placeholder="e.g., Blue & Gold" />
               </Grid>
             </Grid>
-            <TextField
-              label="Contact Person"
-              value={formData.contact}
-              onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-              fullWidth
-            />
+            <TextField label="Contact Person" value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} fullWidth />
             <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  label="Phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  fullWidth
-                />
+              <Grid size={{ xs: 6 }}>
+                <TextField label="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} fullWidth />
               </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  fullWidth
-                />
+              <Grid size={{ xs: 6 }}>
+                <TextField label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} fullWidth />
               </Grid>
             </Grid>
-            <TextField
-              label="Notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              fullWidth
-              multiline
-              rows={3}
-            />
+            <TextField label="Notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} fullWidth multiline rows={3} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => {
-            setOpenCreateDialog(false);
-            resetForm();
-          }}>
+          <Button
+            onClick={() => {
+              setOpenCreateDialog(false);
+              resetForm();
+            }}
+          >
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleCreateOpponent}
-            disabled={isCreating || !formData.name.trim()}
-            startIcon={isCreating ? <CircularProgress size={20} /> : <Save />}
-          >
+          <Button variant="contained" onClick={handleCreateOpponent} disabled={isCreating || !formData.name.trim()} startIcon={isCreating ? <CircularProgress size={20} /> : <Save />}>
             {isCreating ? "Creating..." : "Create Opponent"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
