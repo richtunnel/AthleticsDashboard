@@ -3,20 +3,47 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Box, Drawer, AppBar, Toolbar, List, Typography, ListItem, ListItemButton, ListItemIcon, ListItemText, Container, IconButton, Avatar, Menu, MenuItem } from "@mui/material";
-import { Dashboard as DashboardIcon, CalendarMonth, Groups, Place, Shield, Settings, Logout, Menu as MenuIcon } from "@mui/icons-material";
-import { Sync, Analytics, AssignmentInd, ImportExport, Check } from "@mui/icons-material";
 import { useState } from "react";
-import RadioGroup from "@mui/material/RadioGroup";
-import Radio from "@mui/material/Radio";
-import FormControl from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import FormLabel from "@mui/material/FormLabel";
-import { ThemeProvider, createTheme, useColorScheme } from "@mui/material/styles";
+import {
+  Box,
+  Drawer,
+  AppBar,
+  Toolbar,
+  List,
+  Typography,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Container,
+  IconButton,
+  Avatar,
+  Menu,
+  MenuItem,
+  Badge,
+  Popover,
+  Paper,
+  Divider,
+} from "@mui/material";
+import {
+  Dashboard as DashboardIcon,
+  CalendarMonth,
+  Groups,
+  Settings,
+  Logout,
+  Menu as MenuIcon,
+  LightMode,
+  DarkMode,
+  Notifications,
+  Sync,
+  Analytics,
+  ImportExport,
+  WorkHistory,
+  Schedule,
+} from "@mui/icons-material";
+import { useColorScheme } from "@mui/material/styles";
 import { VscGithubProject } from "react-icons/vsc";
 import styles from "../../styles/logo.module.css";
-import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
-import ScheduleIcon from "@mui/icons-material/Schedule";
 
 const DRAWER_WIDTH = 240;
 
@@ -24,14 +51,19 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Teams / Opponents", href: "/dashboard/opponents", icon: Groups },
-  //   { name: "Venues", href: "/dashboard/venues", icon: Place },
-  // { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
   { name: "Calendar Sync", href: "/dashboard/gsync", icon: Sync },
-  { name: "Manage Schedule", href: "", icon: ScheduleIcon },
+  { name: "Manage Schedule", href: "", icon: Schedule },
   { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Analytics", href: "", icon: Analytics },
-  { name: "History", href: "", icon: WorkHistoryIcon },
+  { name: "History", href: "", icon: WorkHistory },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+];
+
+// Mock notifications - replace with real data from your API
+const mockNotifications = [
+  { id: 1, message: "Game vs Lincoln High confirmed", time: "2 hours ago", read: false },
+  { id: 2, message: "Calendar sync completed", time: "5 hours ago", read: false },
+  { id: 3, message: "New opponent added: Roosevelt HS", time: "1 day ago", read: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -39,7 +71,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const { mode, setMode } = useColorScheme();
+
+  const [notifications] = useState(mockNotifications);
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (!mode) {
     return null;
@@ -55,6 +91,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+    setNotifAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotifAnchorEl(null);
+  };
+
+  const toggleTheme = () => {
+    setMode(mode === "light" ? "dark" : "light");
   };
 
   const drawer = (
@@ -131,28 +179,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <Box sx={{ flexGrow: 1 }} />
 
-          {/* Modes */}
-          <Box
-            sx={{
-              display: "contents",
-              width: "100%",
-              alignItems: "center",
-              justifyContent: "center",
-              bgcolor: "background.default",
-              color: "text.primary",
-              borderRadius: 1,
-              p: 3,
-              minHeight: "20px",
+          {/* Theme Toggle */}
+          <IconButton onClick={toggleTheme} sx={{ mr: 1 }} color="default">
+            {mode === "light" ? <DarkMode /> : <LightMode />}
+          </IconButton>
+
+          {/* Notifications Bell */}
+          <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
+            <Badge badgeContent={unreadCount} color="error">
+              <Notifications />
+            </Badge>
+          </IconButton>
+
+          {/* Notifications Popover */}
+          <Popover
+            open={Boolean(notifAnchorEl)}
+            anchorEl={notifAnchorEl}
+            onClose={handleNotificationClose}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "right",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "right",
             }}
           >
-            <FormControl>
-              <RadioGroup aria-labelledby="demo-theme-toggle" name="theme-toggle" row value={mode} onChange={(event) => setMode(event.target.value as "light" | "dark")}>
-                {/* <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="system" control={<Radio />} label="System" /> */}
-                <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="light" control={<Radio />} label="Light" />
-                <FormControlLabel componentsProps={{ typography: { fontSize: "10px" } }} value="dark" control={<Radio />} label="Dark" />
-              </RadioGroup>
-            </FormControl>
-          </Box>
+            <Paper sx={{ width: 350, maxHeight: 400 }}>
+              <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Notifications
+                </Typography>
+              </Box>
+              {notifications.length === 0 ? (
+                <Box sx={{ p: 4, textAlign: "center" }}>
+                  <Notifications sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
+                  <Typography color="text.secondary">No notifications</Typography>
+                </Box>
+              ) : (
+                <List sx={{ p: 0 }}>
+                  {notifications.map((notif, index) => (
+                    <Box key={notif.id}>
+                      <ListItem
+                        sx={{
+                          bgcolor: notif.read ? "transparent" : "action.hover",
+                          "&:hover": { bgcolor: "action.selected" },
+                        }}
+                      >
+                        <ListItemText
+                          primary={notif.message}
+                          secondary={notif.time}
+                          primaryTypographyProps={{
+                            fontSize: 14,
+                            fontWeight: notif.read ? 400 : 600,
+                          }}
+                          secondaryTypographyProps={{ fontSize: 12 }}
+                        />
+                      </ListItem>
+                      {index < notifications.length - 1 && <Divider />}
+                    </Box>
+                  ))}
+                </List>
+              )}
+            </Paper>
+          </Popover>
 
           {/* User Menu */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

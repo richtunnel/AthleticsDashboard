@@ -478,7 +478,7 @@ export function GamesTable() {
       case "CONFIRMED":
         return { icon: <CheckCircle sx={{ fontSize: 16 }} />, color: "success", label: "Yes" };
       case "SCHEDULED":
-        return { icon: <Schedule sx={{ fontSize: 16 }} />, color: "warning", label: "Pending" };
+        return { icon: <Schedule sx={{ fontSize: 16 }} />, color: "#BEDBFE", label: "Pending" };
       case "CANCELLED":
       case "POSTPONED":
         return { icon: <Cancel sx={{ fontSize: 16 }} />, color: "error", label: "No" };
