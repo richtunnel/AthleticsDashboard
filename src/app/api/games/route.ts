@@ -94,6 +94,15 @@ export async function GET(request: NextRequest) {
       case "location":
         orderBy = { venue: { name: sortOrder } };
         break;
+      case "sport":
+        orderBy = { homeTeam: { sport: { name: sortOrder } } };
+        break;
+      case "level":
+        orderBy = { homeTeam: { level: sortOrder } };
+        break;
+      case "opponent":
+        orderBy = { opponent: { name: sortOrder } };
+        break;
       default:
         orderBy = { date: "asc" };
     }
