@@ -8,9 +8,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const body = await request.json();
 
+    // Separate custom data from regular fields
+    const { customData, ...regularData } = body;
+
+    const updateData: any = { ...regularData };
+
+    // Handle custom data separately
+    if (customData !== undefined) {
+      const existingGame = await prisma.game.findUnique({
+        where: { id },
+        select: { customData: true },
+      });
+
+      const existingCustomData = (existingGame?.customData as any) || {};
+      updateData.customData = { ...existingCustomData, ...customData };
+    }
+
     const game = await prisma.game.update({
       where: { id },
-      data: body,
+      data: updateData,
       include: {
         homeTeam: {
           include: { sport: true },
