@@ -23,7 +23,7 @@ const DRAWER_WIDTH = 240;
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Games", href: "/dashboard/games", icon: CalendarMonth },
-  { name: "Teams / Opponents", href: "/dashboard/teams", icon: Groups },
+  { name: "Teams / Opponents", href: "/dashboard/opponents", icon: Groups },
   //   { name: "Venues", href: "/dashboard/venues", icon: Place },
   // { name: "Opponents", href: "/dashboard/opponents", icon: Shield },
   { name: "Calendar Sync", href: "/dashboard/gsync", icon: Sync },

@@ -181,26 +181,6 @@ model Venue {
   @@index([organizationId])
 }
 
-// Opponents
-model Opponent {
-  id        String   @id @default(cuid())
-  name      String
-  mascot    String?
-  colors    String?
-  contact   String?
-  phone     String?
-  email     String?
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  games          Game[]
-  
-  @@index([organizationId])
-}
 
 // Email Tracking
 model EmailLog {
@@ -223,6 +203,28 @@ model EmailLog {
   @@index([gameId])
   @@index([sentById])
   @@index([createdAt])
+}
+
+model Opponent {
+  id        String   @id @default(cuid())
+  name      String
+  mascot    String?
+  colors    String?
+  contact   String?
+  phone     String?
+  email     String?
+  notes     String?  @db.Text
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  games          Game[]
+  
+  @@index([organizationId, sortOrder])
+  @@index([organizationId])
 }
 
 // Enums
@@ -270,3 +272,4 @@ enum EmailStatus {
   FAILED
   BOUNCED
 }
+
