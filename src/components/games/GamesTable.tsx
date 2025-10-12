@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoadingButton } from "../utils/LoadingButton";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -559,16 +560,16 @@ export function GamesTable() {
         <Stack direction="row" spacing={2}>
           {selectedGames.size > 0 && (
             <>
-              <Button
+              <LoadingButton
                 variant="contained"
                 color="error"
-                startIcon={bulkDeleteMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <DeleteOutline />}
+                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline />}
                 onClick={handleBulkDelete}
-                disabled={bulkDeleteMutation.isPending}
+                loading={bulkDeleteMutation.isPending}
                 sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
               >
-                Delete ({selectedGames.size})
-              </Button>
+                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete (${selectedGames.size})`}
+              </LoadingButton>
               <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
                 Send Email ({selectedGames.size})
               </Button>
