@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
-import { ViewColumn } from "@mui/icons-material";
+import { CSVImport } from "./CSVImport";
+import { ExportService } from "@/lib/services/exportService";
+import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import {
   Box,
@@ -26,32 +28,12 @@ import {
   TableSortLabel,
   Checkbox,
   Select,
-  FormControl,
-  InputAdornment,
   CircularProgress,
 } from "@mui/material";
-import {
-  CheckCircle,
-  Cancel,
-  Schedule,
-  Edit,
-  Delete,
-  Email,
-  CalendarMonth,
-  Add,
-  Send,
-  NavigateBefore,
-  NavigateNext,
-  FirstPage,
-  LastPage,
-  Save,
-  Close,
-  Check,
-  DeleteOutline,
-} from "@mui/icons-material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
-import Link from "next/link";
 
 interface Game {
   id: string;
@@ -62,7 +44,7 @@ interface Game {
   travelRequired: boolean;
   estimatedTravelTime: number | null;
   calendarSynced?: boolean;
-  customData?: [];
+  customData?: any;
   homeTeam: {
     id?: string;
     name: string;
@@ -97,6 +79,7 @@ interface NewGameData {
   venueId: string;
   notes: string;
   homeTeamId?: string;
+  customData?: { [key: string]: string };
 }
 
 interface PaginationData {
@@ -132,11 +115,16 @@ export function GamesTable() {
     status: "SCHEDULED",
     venueId: "",
     notes: "",
+    customData: {},
   });
 
   // Edit mode state
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
+  const [editingCustomData, setEditingCustomData] = useState<{ [key: string]: string }>({});
+
+  //Import Dialog
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Filter and sort state
   const [filters, setFilters] = useState({
@@ -151,7 +139,6 @@ export function GamesTable() {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
-  const [editingCustomData, setEditingCustomData] = useState<{ [gameId: string]: any }>({});
 
   // Handle client-side mounting
   useEffect(() => {
@@ -304,6 +291,7 @@ export function GamesTable() {
         status: "SCHEDULED",
         venueId: "",
         notes: "",
+        customData: {},
       });
 
       const newGameId = data.data.id;
@@ -329,6 +317,7 @@ export function GamesTable() {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setEditingGameId(null);
       setEditingGameData(null);
+      setEditingCustomData({});
 
       if (editingGameId) {
         syncGameMutation.mutate(editingGameId);
@@ -379,6 +368,29 @@ export function GamesTable() {
     setEditingGameData(null);
   };
 
+  const handleExport = useCallback(() => {
+    const gamesToExport = games.length > 0 ? games : [];
+
+    if (gamesToExport.length === 0) {
+      alert("No games to export");
+      return;
+    }
+
+    ExportService.exportGames(gamesToExport, customColumns);
+  }, [games, customColumns]);
+
+  const handleImportComplete = useCallback(
+    (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+      setShowImportDialog(false);
+
+      const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`;
+
+      alert(message);
+    },
+    [queryClient]
+  );
+
   const handleSaveNewGame = () => {
     // Find the matching team based on sport and level
     const matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
@@ -399,46 +411,18 @@ export function GamesTable() {
       venueId: !newGameData.isHome && newGameData.venueId ? newGameData.venueId : null,
       status: newGameData.status,
       notes: newGameData.notes || null,
+      customData: newGameData.customData || {},
     };
 
     createGameMutation.mutate(gameData);
   };
 
-  const handleCustomDataChange = useCallback((gameId: string, columnId: string, value: string) => {
+  const handleCustomFieldChange = useCallback((columnId: string, value: string) => {
     setEditingCustomData((prev) => ({
       ...prev,
-      [gameId]: {
-        ...(prev[gameId] || {}),
-        [columnId]: value,
-      },
+      [columnId]: value,
     }));
   }, []);
-
-  const handleSaveCustomData = useCallback(
-    async (gameId: string) => {
-      const customData = editingCustomData[gameId];
-      if (!customData) return;
-
-      try {
-        await fetch(`/api/games/${gameId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ customData }),
-        });
-
-        queryClient.invalidateQueries({ queryKey: ["games"] });
-
-        setEditingCustomData((prev) => {
-          const newState = { ...prev };
-          delete newState[gameId];
-          return newState;
-        });
-      } catch (error) {
-        console.error("Error saving custom data:", error);
-      }
-    },
-    [editingCustomData, queryClient]
-  );
 
   const handleCancelNewGame = () => {
     setIsAddingNew(false);
@@ -452,12 +436,16 @@ export function GamesTable() {
       status: "SCHEDULED",
       venueId: "",
       notes: "",
+      customData: {},
     });
   };
 
   const handleEditGame = (game: Game) => {
     setEditingGameId(game.id);
     setEditingGameData({ ...game });
+    // Initialize custom data for editing
+    const customData = (game.customData as any) || {};
+    setEditingCustomData({ ...customData });
     setIsAddingNew(false);
   };
 
@@ -477,6 +465,7 @@ export function GamesTable() {
       venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
       status: editingGameData.status,
       notes: editingGameData.notes || null,
+      customData: editingCustomData, // Include custom data
     };
 
     updateGameMutation.mutate({ id: editingGameId, data: updateData });
@@ -485,6 +474,7 @@ export function GamesTable() {
   const handleCancelEdit = () => {
     setEditingGameId(null);
     setEditingGameData(null);
+    setEditingCustomData({});
   };
 
   const handleDeleteGame = (gameId: string) => {
@@ -629,114 +619,131 @@ export function GamesTable() {
             </>
           )}
           <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-            New Game
+            Create Game
           </Button>
           <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
             Add Columns ({customColumns.length})
           </Button>
-          <Button variant="outlined" startIcon={<CalendarMonth />} onClick={() => router.push("/api/auth/calendar-connect")} sx={{ textTransform: "none" }}>
-            Connect Calendar
+          <Button variant="outlined" startIcon={<Sync />} onClick={() => router.push("/api/auth/calendar-connect")} sx={{ textTransform: "none" }}>
+            Sync Calendar
           </Button>
         </Stack>
       </Box>
 
       {/* Filters */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-        <TextField
-          select
-          size="small"
-          label="Filter by Date"
-          value={filters.dateRange}
-          onChange={(e) => handleFilterChange("dateRange", e.target.value)}
-          sx={{ minWidth: 140 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="all">All Dates</MenuItem>
-          <MenuItem value="upcoming">Upcoming</MenuItem>
-          <MenuItem value="past">Past</MenuItem>
-        </TextField>
+      <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "flex-start" }}>
+        <Stack direction="row" spacing={2} sx={{ flexGrow: 1, flexWrap: "wrap" }}>
+          <TextField
+            select
+            size="small"
+            label="Filter by Date"
+            value={filters.dateRange}
+            onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+            sx={{ minWidth: 140 }}
+            InputProps={{ sx: { bgcolor: "white" } }}
+            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+          >
+            <MenuItem value="all">All Dates</MenuItem>
+            <MenuItem value="upcoming">Upcoming</MenuItem>
+            <MenuItem value="past">Past</MenuItem>
+          </TextField>
 
-        <TextField
-          select
-          size="small"
-          label="Filter by Sport"
-          value={filters.sport}
-          onChange={(e) => handleFilterChange("sport", e.target.value)}
-          sx={{ minWidth: 140 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="">
-            <Typography variant="body2">All Sports</Typography>
-          </MenuItem>
-          {(uniqueSports as string[]).map((sport: string) => (
-            <MenuItem key={sport} value={sport}>
-              {sport}
+          <TextField
+            select
+            size="small"
+            label="Filter by Sport"
+            value={filters.sport}
+            onChange={(e) => handleFilterChange("sport", e.target.value)}
+            sx={{ minWidth: 140 }}
+            InputProps={{ sx: { bgcolor: "white" } }}
+            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+          >
+            <MenuItem value="">
+              <Typography variant="body2">All Sports</Typography>
             </MenuItem>
-          ))}
-        </TextField>
+            {(uniqueSports as string[]).map((sport: string) => (
+              <MenuItem key={sport} value={sport}>
+                {sport}
+              </MenuItem>
+            ))}
+          </TextField>
 
-        <TextField
-          select
-          size="small"
-          label="Filter by Level"
-          value={filters.level}
-          onChange={(e) => handleFilterChange("level", e.target.value)}
-          sx={{ minWidth: 140 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="">
-            <Typography variant="body2">All Levels</Typography>
-          </MenuItem>
-          {(uniqueLevels as string[]).map((level: string) => (
-            <MenuItem key={level} value={level}>
-              {level}
+          <TextField
+            select
+            size="small"
+            label="Filter by Level"
+            value={filters.level}
+            onChange={(e) => handleFilterChange("level", e.target.value)}
+            sx={{ minWidth: 140 }}
+            InputProps={{ sx: { bgcolor: "white" } }}
+            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+          >
+            <MenuItem value="">
+              <Typography variant="body2">All Levels</Typography>
             </MenuItem>
-          ))}
-        </TextField>
+            {(uniqueLevels as string[]).map((level: string) => (
+              <MenuItem key={level} value={level}>
+                {level}
+              </MenuItem>
+            ))}
+          </TextField>
 
-        <TextField
-          select
-          size="small"
-          label="Filter by Opponent"
-          value={filters.opponent}
-          onChange={(e) => handleFilterChange("opponent", e.target.value)}
-          sx={{ minWidth: 180 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="">
-            <Typography variant="body2">All Opponents</Typography>
-          </MenuItem>
-          {opponents.map((opponent: any) => (
-            <MenuItem key={opponent.id} value={opponent.id}>
-              {opponent.name}
+          <TextField
+            select
+            size="small"
+            label="Filter by Opponent"
+            value={filters.opponent}
+            onChange={(e) => handleFilterChange("opponent", e.target.value)}
+            sx={{ minWidth: 180 }}
+            InputProps={{ sx: { bgcolor: "white" } }}
+            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+          >
+            <MenuItem value="">
+              <Typography variant="body2">All Opponents</Typography>
             </MenuItem>
-          ))}
-        </TextField>
+            {opponents.map((opponent: any) => (
+              <MenuItem key={opponent.id} value={opponent.id}>
+                {opponent.name}
+              </MenuItem>
+            ))}
+          </TextField>
 
-        <TextField
-          select
-          size="small"
-          label="Filter by Location"
-          value={filters.location}
-          onChange={(e) => handleFilterChange("location", e.target.value)}
-          sx={{ minWidth: 140 }}
-          InputProps={{ sx: { bgcolor: "white" } }}
-          InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-        >
-          <MenuItem value="">
-            <Typography variant="body2">All Locations</Typography>
-          </MenuItem>
-          {locationRes.map((loc: string) => (
-            <MenuItem key={loc} value={loc}>
-              {loc}
+          <TextField
+            select
+            size="small"
+            label="Filter by Location"
+            value={filters.location}
+            onChange={(e) => handleFilterChange("location", e.target.value)}
+            sx={{ minWidth: 140 }}
+            InputProps={{ sx: { bgcolor: "white" } }}
+            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
+          >
+            <MenuItem value="">
+              <Typography variant="body2">All Locations</Typography>
             </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+            {locationRes.map((loc: string) => (
+              <MenuItem key={loc} value={loc}>
+                {loc}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+
+        {/* Import/Export Buttons */}
+        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+          <Tooltip title="Import games from CSV">
+            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} sx={{ textTransform: "none", whiteSpace: "nowrap" }} size="small">
+              Import
+            </Button>
+          </Tooltip>
+
+          <Tooltip title="Export displayed games to CSV">
+            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} sx={{ textTransform: "none", whiteSpace: "nowrap" }} size="small">
+              Export ({games.length})
+            </Button>
+          </Tooltip>
+        </Stack>
+      </Box>
 
       {/* Table */}
       <TableContainer
@@ -899,6 +906,32 @@ export function GamesTable() {
                     </Select>
                   )}
                 </TableCell>
+                {/* Custom Column Cells for New Game */}
+                {customColumns.map((column: any) => (
+                  <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      value={newGameData.customData?.[column.id] || ""}
+                      onChange={(e) =>
+                        setNewGameData({
+                          ...newGameData,
+                          customData: {
+                            ...(newGameData.customData || {}),
+                            [column.id]: e.target.value,
+                          },
+                        })
+                      }
+                      placeholder={`Enter ${column.name.toLowerCase()}`}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 13,
+                          py: 0.5,
+                        },
+                      }}
+                    />
+                  </TableCell>
+                ))}
                 <TableCell sx={{ py: 1 }}>
                   <Stack direction="row" spacing={0}>
                     <Tooltip title="Save">
@@ -919,7 +952,7 @@ export function GamesTable() {
             {/* Existing Games */}
             {games.length === 0 && !isAddingNew ? (
               <TableRow>
-                <TableCell colSpan={10} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={10 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "New Game" to add one.
                   </Typography>
@@ -1058,6 +1091,24 @@ export function GamesTable() {
                           </Select>
                         )}
                       </TableCell>
+                      {/* Custom Column Cells in Edit Mode */}
+                      {customColumns.map((column: any) => (
+                        <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+                          <TextField
+                            size="small"
+                            fullWidth
+                            value={editingCustomData[column.id] || ""}
+                            onChange={(e) => handleCustomFieldChange(column.id, e.target.value)}
+                            placeholder={`Enter ${column.name.toLowerCase()}`}
+                            sx={{
+                              "& .MuiInputBase-input": {
+                                fontSize: 13,
+                                py: 0.5,
+                              },
+                            }}
+                          />
+                        </TableCell>
+                      ))}
                       <TableCell sx={{ py: 1 }}>
                         <Stack direction="row" spacing={0}>
                           <Tooltip title="Save">
@@ -1119,33 +1170,16 @@ export function GamesTable() {
                       />
                     </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
-                    {/* Custom Column Cells */}
+                    {/* Custom Column Cells in Display Mode */}
                     {customColumns.map((column: any) => {
                       const customData = (game.customData as any) || {};
                       const cellValue = customData[column.id] || "";
-                      const isEditingCell = editingCustomData[game.id]?.[column.id] !== undefined;
-                      const displayValue = isEditingCell ? editingCustomData[game.id][column.id] : cellValue;
 
                       return (
-                        <TableCell key={column.id} sx={{ py: 2, minWidth: 150 }}>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            value={displayValue}
-                            onChange={(e) => handleCustomDataChange(game.id, column.id, e.target.value)}
-                            onBlur={() => {
-                              if (editingCustomData[game.id]?.[column.id] !== undefined) {
-                                handleSaveCustomData(game.id);
-                              }
-                            }}
-                            placeholder={`Enter ${column.name.toLowerCase()}`}
-                            sx={{
-                              "& .MuiInputBase-input": {
-                                fontSize: 13,
-                                py: 0.5,
-                              },
-                            }}
-                          />
+                        <TableCell key={column.id} sx={{ fontSize: 13, py: 2, minWidth: 150 }}>
+                          <Typography variant="body2" sx={{ fontSize: 13 }}>
+                            {cellValue || "—"}
+                          </Typography>
                         </TableCell>
                       );
                     })}
@@ -1289,6 +1323,9 @@ export function GamesTable() {
       </Box>
 
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
+
+      {/* Import Dialog */}
+      {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
     </Box>
   );
 }

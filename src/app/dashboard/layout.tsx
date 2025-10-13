@@ -42,6 +42,8 @@ import {
   Schedule,
   Delete,
 } from "@mui/icons-material";
+
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { useColorScheme } from "@mui/material/styles";
 import { VscGithubProject } from "react-icons/vsc";
 import styles from "../../styles/logo.module.css";
@@ -53,7 +55,7 @@ const navigation = [
   { name: "Game Schedule", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "Manage Schedule", href: "", icon: Schedule },
-  { name: "My Calendars", href: "/dashboard/gsync", icon: Sync },
+  { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Sports Analytics", href: "", icon: Analytics },
   { name: "History", href: "", icon: WorkHistory },
