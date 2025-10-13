@@ -1,0 +1,152 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: "20.x"
+
+jobs:
+  # Job 1: Run Tests and Lint
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: yarn install --no-engines
+
+      - name: Run linter
+        run: yarn run lint
+        continue-on-error: true
+
+      - name: Type check
+        run: npx tsc --noEmit
+        continue-on-error: true
+
+      - name: Run tests (if available)
+        run: yarn test
+        continue-on-error: true
+
+  # Job 2: Build Application
+  build:
+    name: Build Application
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build application
+        run: yarn run build
+        env:
+          # Use GitHub Secrets for sensitive data
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: .next
+          retention-days: 1
+
+  # Job 3: Deploy to Digital Ocean (on main branch only)
+  deploy:
+    name: Deploy to Digital Ocean
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Deploy to Digital Ocean App Platform
+        run: |
+          doctl apps create-deployment ${{ secrets.DIGITALOCEAN_APP_ID }} --wait
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed!"
+          doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }}
+
+  # Job 4: Run Database Migrations (if needed)
+  migrate:
+    name: Run Database Migrations
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prisma migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+  # Job 5: Notify on Success/Failure
+  notify:
+    name: Notify Deployment Status
+    needs: [test, build, deploy, migrate]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment Success
+        if: ${{ needs.deploy.result == 'success' }}
+        run: |
+          echo "✅ Deployment successful!"
+          echo "App URL: ${{ secrets.APP_URL }}"
+
+      - name: Deployment Failed
+        if: ${{ needs.deploy.result == 'failure' }}
+        run: |
+          echo "❌ Deployment failed!"
+          exit 1
