@@ -1,11 +1,13 @@
 import OpenAI from "openai";
 import { prisma } from "../database/prisma";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "TEST-KEY",
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 
-console.log("Keys : " + openai);
+// Removed console.log that was causing build output
 
 interface TravelRecommendation {
   estimatedTravelTime: number; // minutes

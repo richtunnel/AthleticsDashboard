@@ -56,7 +56,7 @@ const navigation = [
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "Manage Schedule", href: "", icon: Schedule },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
-  { name: "Import/Export", href: "", icon: ImportExport },
+  // { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Sports Analytics", href: "", icon: Analytics },
   { name: "History", href: "", icon: WorkHistory },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
