@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Button, Box, Typography, CircularProgress, Alert, Stack } from "@mui/material";
+import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } from "@mui/material";
 import { CalendarMonth, CheckCircleOutline, LinkOff } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
 
@@ -14,13 +14,39 @@ const fetchConnectionStatus = async () => {
   return res.json();
 };
 
-export function GoogleCalendarSyncMenu() {
+// Separate component that uses useSearchParams
+function CalendarConnectionHandler({ refetch }: { refetch: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
-  // 1. Fetch the user's current connection status
-  // This API endpoint (defined below) will check if the refresh token exists.
+  useEffect(() => {
+    if (searchParams.get("calendar_connected") === "true") {
+      setConnectionMessage("Google Calendar connected successfully! You can now sync games.");
+      refetch();
+      router.replace("/dashboard/gsync");
+    }
+  }, [searchParams, router, refetch]);
+
+  if (!connectionMessage) return null;
+
+  return (
+    <Alert severity="success" sx={{ mb: 2 }}>
+      {connectionMessage}
+    </Alert>
+  );
+}
+
+// Loading fallback for Suspense
+function ConnectionHandlerFallback() {
+  return null; // Or return a skeleton/loading state if you prefer
+}
+
+// Main component
+function GoogleCalendarSyncMenuContent() {
+  const router = useRouter();
+
+  // Fetch the user's current connection status
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["calendarConnectionStatus"],
     queryFn: fetchConnectionStatus,
@@ -29,39 +55,26 @@ export function GoogleCalendarSyncMenu() {
 
   const isConnected = data?.isConnected;
 
-  // 2. Handle the redirect after successful OAuth completion
-  useEffect(() => {
-    if (searchParams.get("calendar_connected") === "true") {
-      setConnectionMessage("Google Calendar connected successfully! You can now sync games.");
-      refetch(); // Refresh the status after connection
-      // Clean up the URL query parameter
-      router.replace("/dashboard/games", undefined);
-    }
-  }, [searchParams, router, refetch]);
-
   const handleConnect = () => {
-    // The link to the OAuth initiation route
     router.push("/api/auth/calendar-connect");
   };
 
   const handleDisconnect = async () => {
-    // Call a new API endpoint to clear the refresh token from the database
     if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
       try {
         await fetch("/api/user/calendar-disconnect", { method: "POST" });
         refetch();
-        setConnectionMessage("Google Calendar disconnected.");
       } catch (error) {
-        setConnectionMessage("Failed to disconnect calendar.");
+        console.error("Failed to disconnect calendar:", error);
       }
     }
   };
 
   if (isLoading) {
     return (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <CircularProgress size={20} />
-        <Typography>Checking connection...</Typography>
+      <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
+        <Skeleton variant="text" width={200} height={40} />
+        <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
       </Box>
     );
   }
@@ -72,11 +85,10 @@ export function GoogleCalendarSyncMenu() {
         Google Calendar Sync
       </Typography>
 
-      {connectionMessage && (
-        <Alert severity={isConnected ? "success" : "info"} sx={{ mb: 2 }}>
-          {connectionMessage}
-        </Alert>
-      )}
+      {/* Connection message handler wrapped in Suspense */}
+      <Suspense fallback={<ConnectionHandlerFallback />}>
+        <CalendarConnectionHandler refetch={refetch} />
+      </Suspense>
 
       {isConnected ? (
         <Stack spacing={1}>
@@ -101,5 +113,21 @@ export function GoogleCalendarSyncMenu() {
         </Stack>
       )}
     </Box>
+  );
+}
+
+// Export with Suspense wrapper
+export function GoogleCalendarSyncMenu() {
+  return (
+    <Suspense
+      fallback={
+        <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
+          <Skeleton variant="text" width={200} height={40} />
+          <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
+        </Box>
+      }
+    >
+      <GoogleCalendarSyncMenuContent />
+    </Suspense>
   );
 }

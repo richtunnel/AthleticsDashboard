@@ -1,6 +1,9 @@
+/** @type {import('next').NextConfig} */
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["react-dropzone", "file-selector"],
+
   // Bypass ESLint errors during build
   eslint: {
     ignoreDuringBuilds: true,

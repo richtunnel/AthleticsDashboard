@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
-import { CSVImport } from "./CSVImport";
+import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
@@ -34,6 +34,15 @@ import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, 
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
+
+const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+      <CircularProgress />
+    </Box>
+  ),
+});
 
 interface Game {
   id: string;
