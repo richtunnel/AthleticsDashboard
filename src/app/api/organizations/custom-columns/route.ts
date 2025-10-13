@@ -1,177 +1,117 @@
-import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await requireAuth();
-
     const organization = await prisma.organization.findUnique({
       where: { id: session.user.organizationId },
-      select: { customColumns: true },
+      include: {
+        customColumns: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
     });
-
-    const customColumns = organization?.customColumns || [];
-
-    return NextResponse.json({
-      success: true,
-      data: customColumns,
-    });
+    if (!organization) {
+      return new Response(JSON.stringify({ error: "Organization not found" }), { status: 404 });
+    }
+    return new Response(JSON.stringify({ data: organization.customColumns }));
   } catch (error) {
     console.error("Error fetching custom columns:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to fetch custom columns",
-      },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Failed to fetch custom columns" }), { status: 500 });
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const session = await requireAuth();
-    const body = await request.json();
-    const { name, type = "text" } = body;
+    const { name } = await request.json();
 
-    if (!name || !name.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Column name is required",
-        },
-        { status: 400 }
-      );
+    if (!name?.trim()) {
+      return new Response(JSON.stringify({ error: "Column name is required" }), { status: 400 });
     }
 
     const organization = await prisma.organization.findUnique({
       where: { id: session.user.organizationId },
-      select: { customColumns: true },
-    });
-
-    const currentColumns = (organization?.customColumns as any[]) || [];
-
-    // Check max limit
-    if (currentColumns.length >= 50) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Maximum of 50 custom columns allowed",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check for duplicate names
-    if (currentColumns.some((col: any) => col.name.toLowerCase() === name.toLowerCase())) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "A column with this name already exists",
-        },
-        { status: 400 }
-      );
-    }
-
-    const newColumn = {
-      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: name.trim(),
-      type,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedColumns = [...currentColumns, newColumn];
-
-    await prisma.organization.update({
-      where: { id: session.user.organizationId },
-      data: { customColumns: updatedColumns },
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: newColumn,
+      include: {
+        customColumns: true,
       },
-      { status: 201 }
-    );
+    });
+
+    if (!organization) {
+      return new Response(JSON.stringify({ error: "Organization not found" }), { status: 404 });
+    }
+
+    if (organization.customColumns.length >= 50) {
+      return new Response(JSON.stringify({ error: "Maximum of 50 custom columns reached" }), { status: 400 });
+    }
+
+    const newColumn = await prisma.customColumn.create({
+      data: {
+        name: name.trim(),
+        organizationId: organization.id,
+      },
+    });
+
+    return new Response(JSON.stringify({ data: newColumn }));
   } catch (error) {
     console.error("Error creating custom column:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create custom column",
-      },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Failed to create custom column" }), { status: 500 });
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: Request) {
   try {
     const session = await requireAuth();
-    const { searchParams } = new URL(request.url);
-    const columnId = searchParams.get("id");
+    const url = new URL(request.url);
+    const columnId = url.searchParams.get("id");
 
     if (!columnId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Column ID is required",
-        },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "Column ID is required" }), { status: 400 });
     }
 
-    const organization = await prisma.organization.findUnique({
-      where: { id: session.user.organizationId },
-      select: { customColumns: true },
+    const column = await prisma.customColumn.findUnique({
+      where: { id: columnId },
     });
 
-    const currentColumns = (organization?.customColumns as any[]) || [];
-    const updatedColumns = currentColumns.filter((col: any) => col.id !== columnId);
+    if (!column || column.organizationId !== session.user.organizationId) {
+      return new Response(JSON.stringify({ error: "Column not found or unauthorized" }), { status: 404 });
+    }
 
-    await prisma.organization.update({
-      where: { id: session.user.organizationId },
-      data: { customColumns: updatedColumns },
+    // Delete the column
+    await prisma.customColumn.delete({
+      where: { id: columnId },
     });
 
-    // Also remove this column data from all games
+    // Clean up customData in all relevant games
     const games = await prisma.game.findMany({
       where: {
         homeTeam: {
           organizationId: session.user.organizationId,
         },
       },
+      select: {
+        id: true,
+        customData: true,
+      },
     });
 
-    // Update all games to remove this custom column data
-    await Promise.all(
-      games.map(async (game) => {
-        if (game.customData) {
-          const customData = game.customData as any;
-          delete customData[columnId];
+    for (const game of games) {
+      if (game.customData && columnId in (game.customData as any)) {
+        const newCustomData = { ...(game.customData as any) };
+        delete newCustomData[columnId];
+        await prisma.game.update({
+          where: { id: game.id },
+          data: { customData: newCustomData },
+        });
+      }
+    }
 
-          await prisma.game.update({
-            where: { id: game.id },
-            data: { customData },
-          });
-        }
-      })
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: "Column deleted successfully",
-    });
+    return new Response(JSON.stringify({ success: true }));
   } catch (error) {
     console.error("Error deleting custom column:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to delete custom column",
-      },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: "Failed to delete custom column" }), { status: 500 });
   }
 }
