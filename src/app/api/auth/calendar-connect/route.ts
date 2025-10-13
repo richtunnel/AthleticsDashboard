@@ -1,4 +1,3 @@
-// app/api/auth/calendar-connect/route.ts
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
 
