@@ -676,7 +676,7 @@ export function GamesTable() {
           border: "1px solid",
           borderColor: "divider",
           borderRadius: 2,
-          overflow: "hidden",
+          overflowX: "scroll",
         }}
       >
         <Table size="small">
