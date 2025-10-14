@@ -7,13 +7,8 @@ export async function GET(request: NextRequest) {
     const session = await requireAuth();
 
     const searchParams = request.nextUrl.searchParams;
-    const sport = searchParams.get("sport");
-    const level = searchParams.get("level");
-    const location = searchParams.get("location");
-    const status = searchParams.get("status");
-    const dateRange = searchParams.get("dateRange");
-    const opponent = searchParams.get("opponent");
-    const search = searchParams.get("search");
+
+    // Pagination
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "25");
     const sortBy = searchParams.get("sortBy") || "date";
@@ -26,54 +21,44 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Filter by sport
-    if (sport && sport !== "all" && sport !== "") {
-      where.homeTeam = {
-        ...where.homeTeam,
-        sport: { name: sport },
-      };
-    }
+    // Process column filters
+    const filterParams = Array.from(searchParams.entries()).filter(([key]) => key.startsWith("filter_"));
 
-    // Filter by level
-    if (level && level !== "all" && level !== "") {
-      where.homeTeam = {
-        ...where.homeTeam,
-        level: level,
-      };
-    }
+    // Group filters by column
+    const columnFilters: Record<string, any> = {};
+    filterParams.forEach(([key, value]) => {
+      const parts = key.split("_");
+      if (parts.length >= 3) {
+        const columnId = parts[1];
+        const filterProp = parts.slice(2).join("_");
 
-    // Filter by opponent
-    if (opponent && opponent !== "all" && opponent !== "") {
-      where.opponentId = opponent;
-    }
+        if (!columnFilters[columnId]) {
+          columnFilters[columnId] = {};
+        }
 
-    // Filter by status
-    if (status && status !== "all" && status !== "") {
-      where.status = status;
-    }
+        columnFilters[columnId][filterProp] = value;
+      }
+    });
 
-    //Filter by location
-    if (location && location !== "all" && location !== "") {
-      where.venue = {
-        location: location,
-      };
-    }
+    // Apply filters
+    Object.entries(columnFilters).forEach(([columnId, filter]) => {
+      const filterType = filter.type;
 
-    // Filter by date range
-    if (dateRange === "upcoming") {
-      where.date = { gte: new Date() };
-    } else if (dateRange === "past") {
-      where.date = { lt: new Date() };
-    }
+      if (filterType === "values") {
+        // Filter by selected values
+        const values = JSON.parse(filter.values || "[]");
+        if (values.length > 0) {
+          applyValueFilter(where, columnId, values);
+        }
+      } else if (filterType === "condition") {
+        // Filter by condition
+        const condition = filter.condition;
+        const value = filter.value;
+        const secondValue = filter.secondValue;
 
-    // Search filter
-    if (search && search.trim() !== "") {
-      where.OR = [
-        { homeTeam: { name: { contains: search, mode: "insensitive" } } },
-        { opponent: { name: { contains: search, mode: "insensitive" } } },
-        { venue: { name: { contains: search, mode: "insensitive" } } },
-      ];
-    }
+        applyConditionFilter(where, columnId, condition, value, secondValue);
+      }
+    });
 
     // Build orderBy based on sortBy parameter
     let orderBy: any = { date: "asc" };
@@ -154,6 +139,182 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to apply value filters
+function applyValueFilter(where: any, columnId: string, values: string[]) {
+  switch (columnId) {
+    case "sport":
+      where.homeTeam = {
+        ...where.homeTeam,
+        sport: {
+          name: { in: values },
+        },
+      };
+      break;
+
+    case "level":
+      where.homeTeam = {
+        ...where.homeTeam,
+        level: { in: values },
+      };
+      break;
+
+    case "opponent":
+      // Handle "TBD" case
+      if (values.includes("TBD")) {
+        where.OR = [{ opponent: { name: { in: values.filter((v) => v !== "TBD") } } }, { opponent: null }];
+      } else {
+        where.opponent = {
+          name: { in: values },
+        };
+      }
+      break;
+
+    case "status":
+      where.status = { in: values };
+      break;
+
+    case "location":
+      // Handle Home/Away and venue names
+      const hasHome = values.some((v) => v === "Home" || v === "Home Field");
+      const venueNames = values.filter((v) => v !== "Home" && v !== "Home Field" && v !== "TBD");
+
+      if (hasHome && venueNames.length > 0) {
+        where.OR = [{ isHome: true }, { venue: { name: { in: venueNames } } }];
+      } else if (hasHome) {
+        where.isHome = true;
+      } else if (venueNames.length > 0) {
+        where.venue = {
+          name: { in: venueNames },
+        };
+      }
+      break;
+
+    case "isHome":
+      where.isHome = values.includes("Home");
+      break;
+
+    case "date":
+      // For date, we'd need to parse the dates
+      const dates = values.map((v) => new Date(v));
+      where.date = { in: dates };
+      break;
+
+    default:
+      // Custom column
+      if (columnId.length > 10) {
+        // Likely a UUID for custom column
+        where.customData = {
+          path: [columnId],
+          in: values,
+        };
+      }
+      break;
+  }
+}
+
+// Helper function to apply condition filters
+function applyConditionFilter(where: any, columnId: string, condition: string, value: string, secondValue?: string) {
+  const buildCondition = (field: any) => {
+    switch (condition) {
+      case "equals":
+        return { equals: value };
+      case "not_equals":
+        return { not: value };
+      case "contains":
+        return { contains: value, mode: "insensitive" };
+      case "not_contains":
+        return { not: { contains: value, mode: "insensitive" } };
+      case "starts_with":
+        return { startsWith: value, mode: "insensitive" };
+      case "ends_with":
+        return { endsWith: value, mode: "insensitive" };
+      case "is_empty":
+        return { equals: null };
+      case "is_not_empty":
+        return { not: null };
+      case "greater_than":
+        return { gt: parseValue(value, columnId) };
+      case "less_than":
+        return { lt: parseValue(value, columnId) };
+      case "between":
+        return {
+          gte: parseValue(value, columnId),
+          lte: parseValue(secondValue || value, columnId),
+        };
+      default:
+        return { contains: value, mode: "insensitive" };
+    }
+  };
+
+  switch (columnId) {
+    case "sport":
+      where.homeTeam = {
+        ...where.homeTeam,
+        sport: {
+          name: buildCondition("name"),
+        },
+      };
+      break;
+
+    case "level":
+      where.homeTeam = {
+        ...where.homeTeam,
+        level: buildCondition("level"),
+      };
+      break;
+
+    case "opponent":
+      where.opponent = {
+        name: buildCondition("name"),
+      };
+      break;
+
+    case "status":
+      where.status = buildCondition("status");
+      break;
+
+    case "location":
+      where.venue = {
+        name: buildCondition("name"),
+      };
+      break;
+
+    case "date":
+      where.date = buildCondition("date");
+      break;
+
+    case "time":
+      where.time = buildCondition("time");
+      break;
+
+    default:
+      // Custom column - use JSON filtering
+      if (columnId.length > 10) {
+        where.customData = {
+          path: [columnId],
+          string_contains: value, // Prisma JSON filtering
+        };
+      }
+      break;
+  }
+}
+
+// Helper to parse values based on column type
+function parseValue(value: string, columnId: string): any {
+  if (columnId === "date") {
+    return new Date(value);
+  }
+  if (columnId === "time") {
+    return value;
+  }
+  // Try to parse as number
+  const num = parseFloat(value);
+  if (!isNaN(num)) {
+    return num;
+  }
+  return value;
 }
 
 export async function POST(request: NextRequest) {
