@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
+import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
@@ -20,7 +21,6 @@ import {
   Chip,
   Button,
   TextField,
-  MenuItem,
   Stack,
   Typography,
   IconButton,
@@ -29,11 +29,11 @@ import {
   Checkbox,
   Select,
   CircularProgress,
+  MenuItem,
 } from "@mui/material";
 import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
-import EditCalendarIcon from "@mui/icons-material/EditCalendar";
-import { format } from "date-fns";
 import SyncIcon from "@mui/icons-material/Sync";
+import { format } from "date-fns";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
   ssr: false,
@@ -103,16 +103,16 @@ interface PaginationData {
 type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent";
 type SortOrder = "asc" | "desc";
 
+type ColumnFilters = Record<string, ColumnFilterValue>;
+
 export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [mounted, setMounted] = useState(false);
 
-  // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  // New game state
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newGameData, setNewGameData] = useState<NewGameData>({
     date: new Date().toISOString().split("T")[0],
@@ -127,45 +127,46 @@ export function GamesTable() {
     customData: {},
   });
 
-  // Edit mode state
   const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
   const [editingCustomData, setEditingCustomData] = useState<{ [key: string]: string }>({});
 
-  //Import Dialog
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  // Filter and sort state
-  const [filters, setFilters] = useState({
-    sport: "",
-    level: "",
-    status: "",
-    opponent: "",
-    location: "",
-    dateRange: "upcoming",
-  });
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
 
-  // Handle client-side mounting
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch games with pagination
   const {
     data: response,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["games", filters, sortField, sortOrder, page + 1, rowsPerPage],
+    queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage],
     queryFn: async () => {
       const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
+
+      Object.entries(columnFilters).forEach(([columnId, filter]) => {
+        params.append(`filter_${columnId}_type`, filter.type);
+        if (filter.type === "condition") {
+          params.append(`filter_${columnId}_condition`, filter.condition || "");
+          params.append(`filter_${columnId}_value`, filter.value || "");
+          if (filter.secondValue) {
+            params.append(`filter_${columnId}_secondValue`, filter.secondValue);
+          }
+        } else if (filter.type === "values") {
+          params.append(`filter_${columnId}_values`, JSON.stringify(filter.values || []));
+        }
       });
+
       params.append("sortBy", sortField);
       params.append("sortOrder", sortOrder);
       params.append("page", String(page + 1));
@@ -177,7 +178,6 @@ export function GamesTable() {
     },
   });
 
-  // Fetch teams for sport/level combinations
   const { data: teamsResponse } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
@@ -187,7 +187,6 @@ export function GamesTable() {
     },
   });
 
-  // Fetch opponents
   const { data: opponentsResponse } = useQuery({
     queryKey: ["opponents"],
     queryFn: async () => {
@@ -197,7 +196,6 @@ export function GamesTable() {
     },
   });
 
-  // Fetch venues
   const { data: venuesResponse } = useQuery({
     queryKey: ["venues"],
     queryFn: async () => {
@@ -207,17 +205,6 @@ export function GamesTable() {
     },
   });
 
-  // Fetch locations
-  const { data: locationResponse } = useQuery({
-    queryKey: ["location"],
-    queryFn: async () => {
-      const res = await fetch("/api/locations");
-      const data = await res.json();
-      return data;
-    },
-  });
-
-  // Fetch custom columns
   const { data: customColumnsResponse } = useQuery({
     queryKey: ["customColumns"],
     queryFn: async () => {
@@ -241,13 +228,45 @@ export function GamesTable() {
   const teams = teamsResponse?.data || [];
   const opponents = opponentsResponse?.data || [];
   const venues = venuesResponse?.data || [];
-  const locationRes = locationResponse?.data || [];
 
-  // Get unique sports and levels from teams
   const uniqueSports = [...new Set(teams.map((team: any) => team.sport?.name))].filter(Boolean);
   const uniqueLevels = [...new Set(teams.map((team: any) => team.level))].filter(Boolean);
 
-  // Mutation for manual sync (used by icon)
+  const uniqueValues = useMemo(() => {
+    const values: Record<string, Set<string>> = {
+      sport: new Set(),
+      level: new Set(),
+      opponent: new Set(),
+      status: new Set(),
+      location: new Set(),
+    };
+
+    customColumns.forEach((col: any) => {
+      values[col.id] = new Set();
+    });
+
+    games.forEach((game: Game) => {
+      values.sport.add(game.homeTeam.sport.name);
+      values.level.add(game.homeTeam.level);
+      values.opponent.add(game.opponent?.name || "TBD");
+      values.status.add(game.status);
+      values.location.add(game.isHome ? "Home" : game.venue?.name || "TBD");
+
+      const customData = (game.customData as any) || {};
+      customColumns.forEach((col: any) => {
+        const value = customData[col.id] || "";
+        if (value) values[col.id].add(value);
+      });
+    });
+
+    const result: Record<string, string[]> = {};
+    Object.keys(values).forEach((key) => {
+      result[key] = Array.from(values[key]).sort();
+    });
+
+    return result;
+  }, [games, customColumns]);
+
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, {
@@ -268,12 +287,10 @@ export function GamesTable() {
     },
   });
 
-  // Handler for the Calendar icon
   const handleSyncCalendar = (gameId: string) => {
     syncGameMutation.mutate(gameId);
   };
 
-  // Create new game mutation
   const createGameMutation = useMutation({
     mutationFn: async (gameData: any) => {
       const res = await fetch("/api/games", {
@@ -308,7 +325,6 @@ export function GamesTable() {
     },
   });
 
-  // Update game mutation
   const updateGameMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const res = await fetch(`/api/games/${id}`, {
@@ -334,7 +350,6 @@ export function GamesTable() {
     },
   });
 
-  // Delete game mutation
   const deleteGameMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/games/${id}`, {
@@ -348,7 +363,6 @@ export function GamesTable() {
     },
   });
 
-  // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (gameIds: string[]) => {
       const results = await Promise.all(
@@ -370,7 +384,6 @@ export function GamesTable() {
     },
   });
 
-  // Handlers
   const handleNewGame = () => {
     setIsAddingNew(true);
     setEditingGameId(null);
@@ -401,7 +414,6 @@ export function GamesTable() {
   );
 
   const handleSaveNewGame = () => {
-    // Find the matching team based on sport and level
     const matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
 
     if (!matchingTeam) {
@@ -452,7 +464,6 @@ export function GamesTable() {
   const handleEditGame = (game: Game) => {
     setEditingGameId(game.id);
     setEditingGameData({ ...game });
-    // Initialize custom data for editing
     const customData = (game.customData as any) || {};
     setEditingCustomData({ ...customData });
     setIsAddingNew(false);
@@ -474,7 +485,7 @@ export function GamesTable() {
       venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
       status: editingGameData.status,
       notes: editingGameData.notes || null,
-      customData: editingCustomData, // Include custom data
+      customData: editingCustomData,
     };
 
     updateGameMutation.mutate({ id: editingGameId, data: updateData });
@@ -499,7 +510,19 @@ export function GamesTable() {
     }
   };
 
-  // Pagination handlers
+  const handleColumnFilterChange = useCallback((columnId: string, filter: ColumnFilterValue | null) => {
+    setColumnFilters((prev) => {
+      const newFilters = { ...prev };
+      if (filter === null) {
+        delete newFilters[columnId];
+      } else {
+        newFilters[columnId] = filter;
+      }
+      return newFilters;
+    });
+    setPage(0);
+  }, []);
+
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
     setSelectedGames(new Set());
@@ -529,12 +552,6 @@ export function GamesTable() {
       setSortOrder("asc");
     }
     setPage(0);
-  };
-
-  const handleFilterChange = (filterKey: string, value: string) => {
-    setFilters({ ...filters, [filterKey]: value });
-    setPage(0);
-    setSelectedGames(new Set());
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -589,6 +606,8 @@ export function GamesTable() {
   const isAllSelected = games.length > 0 && selectedGames.size === games.length;
   const isIndeterminate = selectedGames.size > 0 && selectedGames.size < games.length;
 
+  const activeFilterCount = Object.keys(columnFilters).length;
+
   if (isLoading && !mounted) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -607,6 +626,9 @@ export function GamesTable() {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Manage your athletic schedules and create your own customized columns.
+            {activeFilterCount > 0 && (
+              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />
+            )}
           </Typography>
         </Box>
         <Stack direction="row" spacing={2}>
@@ -633,121 +655,13 @@ export function GamesTable() {
           <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
             Add Columns ({customColumns.length})
           </Button>
-          <Button variant="outlined" startIcon={<Sync />} onClick={() => router.push("/api/auth/calendar-connect")} sx={{ textTransform: "none" }}>
-            Sync Calendar
-          </Button>
-        </Stack>
-      </Box>
-
-      {/* Filters */}
-      <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "flex-start" }}>
-        <Stack direction="row" spacing={2} sx={{ flexGrow: 1, flexWrap: "wrap" }}>
-          <TextField
-            select
-            size="small"
-            label="Filter by Date"
-            value={filters.dateRange}
-            onChange={(e) => handleFilterChange("dateRange", e.target.value)}
-            sx={{ minWidth: 140 }}
-            InputProps={{ sx: { bgcolor: "white" } }}
-            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-          >
-            <MenuItem value="all">All Dates</MenuItem>
-            <MenuItem value="upcoming">Upcoming</MenuItem>
-            <MenuItem value="past">Past</MenuItem>
-          </TextField>
-
-          <TextField
-            select
-            size="small"
-            label="Filter by Sport"
-            value={filters.sport}
-            onChange={(e) => handleFilterChange("sport", e.target.value)}
-            sx={{ minWidth: 140 }}
-            InputProps={{ sx: { bgcolor: "white" } }}
-            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-          >
-            <MenuItem value="">
-              <Typography variant="body2">All Sports</Typography>
-            </MenuItem>
-            {(uniqueSports as string[]).map((sport: string) => (
-              <MenuItem key={sport} value={sport}>
-                {sport}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            size="small"
-            label="Filter by Level"
-            value={filters.level}
-            onChange={(e) => handleFilterChange("level", e.target.value)}
-            sx={{ minWidth: 140 }}
-            InputProps={{ sx: { bgcolor: "white" } }}
-            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-          >
-            <MenuItem value="">
-              <Typography variant="body2">All Levels</Typography>
-            </MenuItem>
-            {(uniqueLevels as string[]).map((level: string) => (
-              <MenuItem key={level} value={level}>
-                {level}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            size="small"
-            label="Filter by Opponent"
-            value={filters.opponent}
-            onChange={(e) => handleFilterChange("opponent", e.target.value)}
-            sx={{ minWidth: 180 }}
-            InputProps={{ sx: { bgcolor: "white" } }}
-            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-          >
-            <MenuItem value="">
-              <Typography variant="body2">All Opponents</Typography>
-            </MenuItem>
-            {opponents.map((opponent: any) => (
-              <MenuItem key={opponent.id} value={opponent.id}>
-                {opponent.name}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            size="small"
-            label="Filter by Location"
-            value={filters.location}
-            onChange={(e) => handleFilterChange("location", e.target.value)}
-            sx={{ minWidth: 140 }}
-            InputProps={{ sx: { bgcolor: "white" } }}
-            InputLabelProps={{ sx: { fontSize: 10, top: "2.5px" } }}
-          >
-            <MenuItem value="">
-              <Typography variant="body2">All Locations</Typography>
-            </MenuItem>
-            {locationRes.map((loc: string) => (
-              <MenuItem key={loc} value={loc}>
-                {loc}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-
-        {/* Import/Export Buttons */}
-        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
           <Tooltip title="Import games from CSV">
-            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} sx={{ textTransform: "none", whiteSpace: "nowrap" }} size="small">
+            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} sx={{ textTransform: "none" }}>
               Import
             </Button>
           </Tooltip>
-
           <Tooltip title="Export displayed games to CSV">
-            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} sx={{ textTransform: "none", whiteSpace: "nowrap" }} size="small">
+            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} sx={{ textTransform: "none" }}>
               Export ({games.length})
             </Button>
           </Tooltip>
@@ -771,44 +685,123 @@ export function GamesTable() {
               <TableCell padding="checkbox" sx={{ py: 2 }}>
                 <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
               </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
-                  DATE
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
-                  SPORT
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
-                  LEVEL
-                </TableSortLabel>
-              </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
-                  OPPONENT
-                </TableSortLabel>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
+                    DATE
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="date"
+                    columnName="Date"
+                    columnType="date"
+                    uniqueValues={uniqueValues.date || []}
+                    currentFilter={columnFilters.date}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
               </TableCell>
 
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
-                  H/A
-                </TableSortLabel>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
+                    SPORT
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="sport"
+                    columnName="Sport"
+                    columnType="text"
+                    uniqueValues={uniqueValues.sport || []}
+                    currentFilter={columnFilters.sport}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
               </TableCell>
+
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
+                    LEVEL
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="level"
+                    columnName="Level"
+                    columnType="text"
+                    uniqueValues={uniqueValues.level || []}
+                    currentFilter={columnFilters.level}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
+
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
+                    OPPONENT
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="opponent"
+                    columnName="Opponent"
+                    columnType="text"
+                    uniqueValues={uniqueValues.opponent || []}
+                    currentFilter={columnFilters.opponent}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
+
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
+                    H/A
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="isHome"
+                    columnName="Home/Away"
+                    columnType="select"
+                    uniqueValues={["Home", "Away"]}
+                    currentFilter={columnFilters.isHome}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
                 <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
                   TIME
                 </TableSortLabel>
               </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
-                  CONFIRMED
-                </TableSortLabel>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
+                    CONFIRMED
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="status"
+                    columnName="Status"
+                    columnType="select"
+                    uniqueValues={uniqueValues.status || []}
+                    currentFilter={columnFilters.status}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
               </TableCell>
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>LOCATION</TableCell>
-              {/* Custom Columns */}
+
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  LOCATION
+                  <ColumnFilter
+                    columnId="location"
+                    columnName="Location"
+                    columnType="text"
+                    uniqueValues={uniqueValues.location || []}
+                    currentFilter={columnFilters.location}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
+
               {customColumns.map((column: any) => (
                 <TableCell
                   key={column.id}
@@ -820,9 +813,20 @@ export function GamesTable() {
                     minWidth: 150,
                   }}
                 >
-                  {column.name.toUpperCase()}
+                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                    {column.name.toUpperCase()}
+                    <ColumnFilter
+                      columnId={column.id}
+                      columnName={column.name}
+                      columnType="text"
+                      uniqueValues={uniqueValues[column.id] || []}
+                      currentFilter={columnFilters[column.id]}
+                      onFilterChange={handleColumnFilterChange}
+                    />
+                  </Box>
                 </TableCell>
               ))}
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
@@ -915,7 +919,6 @@ export function GamesTable() {
                     </Select>
                   )}
                 </TableCell>
-                {/* Custom Column Cells for New Game */}
                 {customColumns.map((column: any) => (
                   <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
                     <TextField
@@ -963,7 +966,7 @@ export function GamesTable() {
               <TableRow>
                 <TableCell colSpan={10 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
-                    No games found. Click "New Game" to add one.
+                    No games found. Click "Create Game" to add one.
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -974,7 +977,6 @@ export function GamesTable() {
                 const isEditing = editingGameId === game.id;
 
                 if (isEditing && editingGameData) {
-                  // Edit mode row
                   return (
                     <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
                       <TableCell padding="checkbox">
@@ -1100,7 +1102,6 @@ export function GamesTable() {
                           </Select>
                         )}
                       </TableCell>
-                      {/* Custom Column Cells in Edit Mode */}
                       {customColumns.map((column: any) => (
                         <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
                           <TextField
@@ -1136,7 +1137,6 @@ export function GamesTable() {
                   );
                 }
 
-                // Normal display row
                 return (
                   <TableRow
                     key={game.id}
@@ -1179,7 +1179,6 @@ export function GamesTable() {
                       />
                     </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
-                    {/* Custom Column Cells in Display Mode */}
                     {customColumns.map((column: any) => {
                       const customData = (game.customData as any) || {};
                       const cellValue = customData[column.id] || "";
@@ -1197,11 +1196,6 @@ export function GamesTable() {
                         <Tooltip title="Edit">
                           <IconButton size="small" onClick={() => handleEditGame(game)} sx={{ p: 0.5 }}>
                             <Edit sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Calendar">
-                          <IconButton size="small" sx={{ p: 0.5 }}>
-                            <CalendarMonth sx={{ fontSize: 18 }} />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Sync to Google">
@@ -1224,7 +1218,7 @@ export function GamesTable() {
         </Table>
       </TableContainer>
 
-      {/* Pagination Controls */}
+      {/* Pagination */}
       <Box
         sx={{
           display: "flex",
@@ -1234,7 +1228,6 @@ export function GamesTable() {
           px: 2,
         }}
       >
-        {/* Left side - Page info and rows per page */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" color="text.secondary">
@@ -1260,7 +1253,6 @@ export function GamesTable() {
           </Typography>
         </Box>
 
-        {/* Center - Quick stats */}
         <Box sx={{ display: "flex", gap: 3 }}>
           <Typography variant="body2" color="text.secondary">
             Page {page + 1} of {pagination.totalPages || 1}
@@ -1272,7 +1264,6 @@ export function GamesTable() {
           )}
         </Box>
 
-        {/* Right side - Navigation buttons */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Tooltip title="First page">
             <span>
@@ -1308,32 +1299,8 @@ export function GamesTable() {
         </Box>
       </Box>
 
-      {/* Additional Stats Footer */}
-      <Box
-        sx={{
-          mt: 2,
-          pt: 2,
-          borderTop: 1,
-          borderColor: "divider",
-          display: "flex",
-          justifyContent: "center",
-          gap: 4,
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          Total Games: <strong>{pagination.total}</strong>
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Home: <strong>{games.filter((g: Game) => g.isHome).length}</strong> on this page
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Away: <strong>{games.filter((g: Game) => !g.isHome).length}</strong> on this page
-        </Typography>
-      </Box>
-
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
-      {/* Import Dialog */}
       {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
     </Box>
   );
