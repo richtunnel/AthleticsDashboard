@@ -28,8 +28,8 @@ export default function HomePage() {
             <p style={{ maxWidth: "665px", padding: "0px" }} className="text-xl text-gray-600 mb-8">
               A smart spreadsheet allowing athletic directors to automate, process and manage athletic schedules with ease.{" "}
             </p>
-            <Link href="/api/auth/signin" style={{ backgroundColor: "#b4fc66", color: "#000" }} className="inline-block px-8 py-3 text-white rounded-lg font-medium transition">
-              Get Started
+            <Link href="/dashboard/games" style={{ backgroundColor: "#b4fc66", color: "#000", fontWeight: "600" }} className="inline-block px-8 py-3 text-white rounded-lg font-medium transition">
+              Sign in
             </Link>
           </div>
         </div>

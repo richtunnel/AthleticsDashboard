@@ -52,13 +52,13 @@ const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "Game Schedule", href: "/dashboard/games", icon: CalendarMonth },
+  { name: "Game Schedules", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
-  { name: "Manage Schedule", href: "", icon: Schedule },
+  // { name: "Manage Schedule", href: "", icon: Schedule },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   // { name: "Import/Export", href: "", icon: ImportExport },
-  { name: "Sports Analytics", href: "", icon: Analytics },
-  { name: "History", href: "", icon: WorkHistory },
+  { name: "Analytics", href: "", icon: Analytics },
+  { name: "Game History", href: "", icon: WorkHistory },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
