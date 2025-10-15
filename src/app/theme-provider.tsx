@@ -22,6 +22,7 @@ const theme = createTheme({
       main: "#ef4444", // Red
     },
   },
+
   colorSchemes: {
     dark: false,
     light: true,

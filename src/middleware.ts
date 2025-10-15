@@ -2,6 +2,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { withAuth } from "next-auth/middleware";
 
 export function middleware(request: NextRequest) {
   // Bypass auth in development
@@ -19,6 +20,12 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
+export default withAuth({
+  pages: {
+    signIn: "/onboarding/plans",
+  },
+});
+
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/start", "/onboarding/details"],
 };
