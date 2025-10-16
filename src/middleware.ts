@@ -3,33 +3,28 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    const token = req.nextauth.token;
-    const isAuth = !!token;
-    const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/signup");
-
-    if (isAuthPage) {
-      if (isAuth) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-      return null;
-    }
-
-    if (!isAuth) {
-      let from = req.nextUrl.pathname;
-      if (req.nextUrl.search) {
-        from += req.nextUrl.search;
-      }
-
-      return NextResponse.redirect(new URL(`/onboarding/signup?from=${encodeURIComponent(from)}`, req.url));
-    }
+    return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: () => true, // Handle authorization in middleware function above
+      authorized: ({ token, req }) => {
+        const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/signup");
+
+        // Allow access to auth pages without token
+        if (isAuthPage) {
+          return true;
+        }
+
+        // Require token for protected routes
+        return !!token;
+      },
+    },
+    pages: {
+      signIn: "/login",
     },
   }
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/login", "/signup"],
 };
