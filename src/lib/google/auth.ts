@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 
 export async function refreshGoogleToken(refreshToken: string) {
-  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
+  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
 
   oauth2Client.setCredentials({
     refresh_token: refreshToken,
@@ -18,7 +18,7 @@ export async function refreshGoogleToken(refreshToken: string) {
 
 // Alternatively, get a fresh token and return the oauth2Client
 export async function getGoogleAuthClient(refreshToken: string) {
-  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
+  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
 
   oauth2Client.setCredentials({
     refresh_token: refreshToken,

@@ -54,11 +54,11 @@ services:
         scope: RUN_AND_BUILD_TIME
         type: SECRET
 
-      - key: GOOGLE_CLIENT_ID
+      - key: GOOGLE_CALENDAR_CLIENT_ID
         scope: RUN_AND_BUILD_TIME
         type: SECRET
 
-      - key: GOOGLE_CLIENT_SECRET
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
         scope: RUN_AND_BUILD_TIME
         type: SECRET
 
