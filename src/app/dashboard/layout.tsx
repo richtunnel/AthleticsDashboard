@@ -25,6 +25,7 @@ import {
   Paper,
   Divider,
 } from "@mui/material";
+import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import {
   Dashboard as DashboardIcon,
   CalendarMonth,
@@ -56,10 +57,12 @@ const navigation = [
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   // { name: "Manage Schedule", href: "", icon: Schedule },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
+
   // { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Game History", href: "", icon: WorkHistory },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Account", href: "/dashboard/settings", icon: Settings },
+  { name: "Travel AI", href: "/dashboard/gsync", icon: DepartureBoardIcon },
 ];
 
 // Mock notifications - replace with real data from your API

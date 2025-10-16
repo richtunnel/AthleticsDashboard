@@ -41,7 +41,7 @@ export default async function SettingsPage() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Connect your Google Calendar to automatically sync games and events.
               </Typography>
-              <ConnectCalendarButton />
+              <ConnectCalendarButton isConnected={isCalendarConnected} />
             </>
           )}
         </CardContent>
