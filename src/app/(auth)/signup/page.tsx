@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, Button, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink } from "@mui/material";
+import { Box, Button, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
 import { Google } from "@mui/icons-material";
 import Link from "next/link";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -19,9 +20,16 @@ export default function SignupPage() {
     confirmPassword: "",
   });
 
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!formData.name || !formData.email || !formData.password) {
+      setError("All fields are required");
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
@@ -36,7 +44,6 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      // Create account
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,22 +72,28 @@ export default function SignupPage() {
       if (signInResult?.error) {
         setError("Account created but login failed. Please login manually.");
         setLoading(false);
+        setTimeout(() => router.push("/login"), 2000);
         return;
       }
 
-      // Redirect to dashboard or returnUrl
-      const from = searchParams.get("from") || "/dashboard";
-      router.push(from);
+      router.push(callbackUrl);
       router.refresh();
     } catch (error) {
+      console.error("Signup error:", error);
       setError("An unexpected error occurred");
       setLoading(false);
     }
   };
 
-  const handleGoogleSignup = () => {
-    const from = searchParams.get("from") || "/dashboard";
-    signIn("google", { callbackUrl: from });
+  const handleGoogleSignup = async () => {
+    setGoogleLoading(true);
+    setError("");
+
+    // For Google OAuth, signup and login are the same flow
+    // NextAuth will create account if it doesn't exist
+    signIn("google", {
+      callbackUrl,
+    });
   };
 
   return (
@@ -107,6 +120,12 @@ export default function SignupPage() {
               {error}
             </Alert>
           )}
+
+          <Button fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} disabled={loading || googleLoading} sx={{ mb: 2 }}>
+            {googleLoading ? <CircularProgress size={24} /> : "Sign up with Google"}
+          </Button>
+
+          <Divider sx={{ my: 2 }}>OR</Divider>
 
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
@@ -162,14 +181,8 @@ export default function SignupPage() {
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               disabled={loading}
             />
-            <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-              {loading ? "Creating Account..." : "Sign Up"}
-            </Button>
-
-            <Divider sx={{ my: 2 }}>OR</Divider>
-
-            <Button fullWidth variant="outlined" startIcon={<Google />} onClick={handleGoogleSignup} disabled={loading}>
-              Sign up with Google
+            <Button type="submit" fullWidth variant="outlined" sx={{ mt: 3, mb: 2 }} disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : "Sign up with Email"}
             </Button>
 
             <Box sx={{ mt: 2, textAlign: "center" }}>
@@ -184,5 +197,28 @@ export default function SignupPage() {
         </Paper>
       </Box>
     </Container>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <Container component="main" maxWidth="xs">
+          <Box
+            sx={{
+              minHeight: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        </Container>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }
