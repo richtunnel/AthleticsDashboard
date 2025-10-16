@@ -1,31 +1,35 @@
-// Middleware that prevents required authorization like login
-
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  // Bypass auth in development
-  if (process.env.NODE_ENV === "development") {
-    return NextResponse.next();
-  }
+export default withAuth(
+  function middleware(req) {
+    const token = req.nextauth.token;
+    const isAuth = !!token;
+    const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/signup");
 
-  // In production, check for auth (implement your auth logic here)
-  const token = request.cookies.get("next-auth.session-token");
+    if (isAuthPage) {
+      if (isAuth) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+      return null;
+    }
 
-  if (!token && request.nextUrl.pathname.startsWith("/dashboard")) {
-    return NextResponse.redirect(new URL("/api/auth/signin", request.url));
-  }
+    if (!isAuth) {
+      let from = req.nextUrl.pathname;
+      if (req.nextUrl.search) {
+        from += req.nextUrl.search;
+      }
 
-  return NextResponse.next();
-}
-
-export default withAuth({
-  pages: {
-    signIn: "/onboarding/plans",
+      return NextResponse.redirect(new URL(`/onboarding/signup?from=${encodeURIComponent(from)}`, req.url));
+    }
   },
-});
+  {
+    callbacks: {
+      authorized: () => true, // Handle authorization in middleware function above
+    },
+  }
+);
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/start", "/onboarding/details"],
+  matcher: ["/dashboard/:path*", "/login", "/signup"],
 };

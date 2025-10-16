@@ -1,33 +1,60 @@
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
-import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
-export async function POST(req: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, organizationId } = await req.json();
+    const body = await request.json();
+    const { email, password, name, organizationId } = body;
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+    // Validation
+    if (!email || !password || !name) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
     if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 409 });
+      return NextResponse.json({ error: "User with this email already exists" }, { status: 400 });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create user
-    await prisma.user.create({ data: { name, email, hashedPassword, organizationId } });
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        hashedPassword,
+        organizationId: organizationId || null,
+        role: "ATHLETIC_DIRECTOR", // or whatever default role you want
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    });
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.log(err);
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Account created successfully",
+        user,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Signup error:", error);
+    return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
-}
-
-export async function GET() {
-  return NextResponse.json({ message: "Signup endpoint. Use POST to create a user." });
 }

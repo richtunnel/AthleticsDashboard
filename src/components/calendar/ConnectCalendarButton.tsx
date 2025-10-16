@@ -1,28 +1,25 @@
 "use client";
 
-import { Button, Alert } from "@mui/material";
+import { Button, Alert, Box } from "@mui/material";
 import { CalendarMonth, CheckCircle } from "@mui/icons-material";
-import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
-export function ConnectCalendarButton() {
-  const { data: session } = useSession();
+interface ConnectCalendarButtonProps {
+  isConnected: boolean;
+}
+
+export function ConnectCalendarButton({ isConnected }: ConnectCalendarButtonProps) {
   const searchParams = useSearchParams();
 
   const calendarConnected = searchParams.get("calendar") === "connected";
   const error = searchParams.get("error");
 
   const handleConnect = () => {
-    // This will redirect to your calendar-connect endpoint
     window.location.href = "/api/auth/calendar-connect";
   };
 
-  if (!session) {
-    return <Alert severity="warning">Please log in to connect your Google Calendar</Alert>;
-  }
-
   return (
-    <div>
+    <Box>
       {calendarConnected && (
         <Alert severity="success" sx={{ mb: 2 }}>
           ✅ Google Calendar connected successfully!
@@ -35,9 +32,15 @@ export function ConnectCalendarButton() {
         </Alert>
       )}
 
-      <Button variant="contained" startIcon={<CalendarMonth />} onClick={handleConnect} fullWidth>
-        Connect Google Calendar
-      </Button>
-    </div>
+      {isConnected ? (
+        <Alert severity="success" icon={<CheckCircle />}>
+          Your Google Calendar is connected
+        </Alert>
+      ) : (
+        <Button variant="contained" startIcon={<CalendarMonth />} onClick={handleConnect} fullWidth>
+          Connect Google Calendar
+        </Button>
+      )}
+    </Box>
   );
 }

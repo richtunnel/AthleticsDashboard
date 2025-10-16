@@ -8,14 +8,15 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
+  const state = searchParams.get("state"); // user ID
 
   if (error) {
     console.error("Calendar OAuth error:", error);
-    return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(error)}`, request.url));
+    return NextResponse.redirect(new URL(`/dashboard/settings?error=${encodeURIComponent(error)}`, request.url));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/dashboard?error=no_code", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?error=no_code", request.url));
   }
 
   try {
@@ -24,10 +25,16 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user) {
       console.error("❌ No active session - user must be logged in");
-      return NextResponse.redirect(new URL("/login?error=must_be_logged_in&redirect=/dashboard", request.url));
+      return NextResponse.redirect(new URL("/login?error=must_be_logged_in", request.url));
     }
 
     console.log("📅 Connecting calendar for user:", session.user.email);
+
+    // Verify state matches user ID (optional security check)
+    if (state && state !== session.user.id) {
+      console.error("❌ State mismatch - possible CSRF attack");
+      return NextResponse.redirect(new URL("/dashboard/settings?error=invalid_state", request.url));
+    }
 
     // Exchange authorization code for tokens
     const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
@@ -40,33 +47,22 @@ export async function GET(request: NextRequest) {
       expiryDate: tokens.expiry_date,
     });
 
-    // Find user by session ID or email
-    const user = await prisma.user.findUnique({
-      where: {
-        id: session.user.id || undefined,
-        email: session.user.email || undefined,
-      },
-    });
-
-    if (!user) {
-      console.error("❌ User not found in database");
-      return NextResponse.redirect(new URL("/dashboard?error=user_not_found", request.url));
-    }
+    // Update the EXISTING user with calendar tokens
     await prisma.user.update({
-      where: { id: user.id },
+      where: { id: session.user.id },
       data: {
-        googleCalendarRefreshToken: tokens.refresh_token || user.googleCalendarRefreshToken, // Keep old if no new one
-        googleCalendarAccessToken: tokens.access_token,
+        googleCalendarRefreshToken: tokens.refresh_token || undefined,
+        googleCalendarAccessToken: tokens.access_token || undefined,
         calendarTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
       },
     });
 
-    console.log("✅ Calendar connected to existing user:", user.email);
+    console.log("✅ Calendar connected to user:", session.user.email);
 
-    return NextResponse.redirect(new URL("/dashboard?calendar=connected", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?calendar=connected", request.url));
   } catch (error) {
     console.error("❌ Calendar OAuth error:", error);
 
-    return NextResponse.redirect(new URL("/dashboard?error=calendar_connection_failed", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?error=calendar_connection_failed", request.url));
   }
 }
