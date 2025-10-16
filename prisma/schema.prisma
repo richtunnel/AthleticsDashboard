@@ -21,15 +21,17 @@ model User {
   schoolName       String?
   teamName         String?
 
-  mascot           String?
-  stripeCustomerId String?
- subscriptionId   String?  @unique
-  plan             String?   // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+  mascot            String?
+  stripeCustomerId  String?
+  subscriptionId    String?  @unique
+  plan              String?   // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd         DateTime?
 
 //Google calendars
-  googleCalendarRefreshToken String? // Store the token needed to get new access tokens
-  googleCalendarId           String? // Optionally store the primary calendar ID
+  googleCalendarRefreshToken  String? // Store the token needed to get new access tokens
+  googleCalendarAccessToken   String?
+  calendarTokenExpiry         DateTime?
+  googleCalendarId            String? // Optionally store the primary calendar ID
   
   // Relations
   organizationId String
@@ -43,6 +45,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   
   @@index([organizationId])
+  @@map("User")
 }
 
 model Account {
