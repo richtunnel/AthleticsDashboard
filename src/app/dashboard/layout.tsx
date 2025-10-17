@@ -1,32 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+import { formatDistanceToNow } from "date-fns";
+import { Tooltip } from "@mui/material";
+
 import {
-  Box,
-  Drawer,
   AppBar,
-  Toolbar,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Chip,
+  Container,
+  Divider,
+  Drawer,
+  IconButton,
   List,
-  Typography,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Container,
-  IconButton,
-  Avatar,
   Menu,
   MenuItem,
-  Badge,
-  Popover,
   Paper,
-  Divider,
+  Popover,
+  Toolbar,
+  Typography,
 } from "@mui/material";
-import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
+
 import {
   Dashboard as DashboardIcon,
   CalendarMonth,
@@ -37,18 +41,22 @@ import {
   LightMode,
   DarkMode,
   Notifications,
-  Sync,
-  Analytics,
-  ImportExport,
+  Close,
+  CheckCircle,
+  Error as ErrorIcon,
+  Info,
+  Warning,
   WorkHistory,
-  Schedule,
-  Delete,
+  Analytics,
 } from "@mui/icons-material";
 
+import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { useColorScheme } from "@mui/material/styles";
 import { VscGithubProject } from "react-icons/vsc";
+
 import styles from "../../styles/logo.module.css";
+import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
 
 const DRAWER_WIDTH = 240;
 
@@ -56,69 +64,63 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
-  // { name: "Manage Schedule", href: "", icon: Schedule },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
-
-  // { name: "Import/Export", href: "", icon: ImportExport },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Game History", href: "", icon: WorkHistory },
+  { name: "Game History", href: "/dashboard/history", icon: WorkHistory },
   { name: "Account", href: "/dashboard/settings", icon: Settings },
-  { name: "Travel AI", href: "", icon: DepartureBoardIcon },
+  { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
 ];
 
-// Mock notifications - replace with real data from your API
-const mockNotifications = [
-  { id: 1, message: "Game vs Lincoln High confirmed", time: "2 hours ago", read: false },
-  { id: 2, message: "Calendar sync completed", time: "5 hours ago", read: false },
-  { id: 3, message: "New opponent added: Roosevelt HS", time: "1 day ago", read: true },
-];
-
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const { mode, setMode } = useColorScheme();
+  const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
 
-  const [notifications] = useState(mockNotifications);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  if (!mode) return null;
 
-  if (!mode) {
-    return null;
-  }
+  const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
+  const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => setNotifAnchorEl(event.currentTarget);
+  const handleNotificationClose = () => setNotifAnchorEl(null);
+  const toggleTheme = () => setMode(mode === "light" ? "dark" : "light");
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "success":
+        return <CheckCircle sx={{ color: "success.main", fontSize: 20, mr: 1 }} />;
+      case "error":
+        return <ErrorIcon sx={{ color: "error.main", fontSize: 20, mr: 1 }} />;
+      case "warning":
+        return <Warning sx={{ color: "warning.main", fontSize: 20, mr: 1 }} />;
+      default:
+        return <Info sx={{ color: "info.main", fontSize: 20, mr: 1 }} />;
+    }
   };
 
-  const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
-    setNotifAnchorEl(event.currentTarget);
-  };
-
-  const handleNotificationClose = () => {
-    setNotifAnchorEl(null);
-  };
-
-  const toggleTheme = () => {
-    setMode(mode === "light" ? "dark" : "light");
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "success":
+        return "success";
+      case "error":
+        return "error";
+      case "warning":
+        return "warning";
+      default:
+        return "info";
+    }
   };
 
   const drawer = (
     <Box>
-      {/* Logo/Brand */}
+      {/* Logo / Brand */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
-        <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
-          adhub
-          <VscGithubProject />
+        <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`}>
+          adhub <VscGithubProject />
         </Link>
       </Box>
 
@@ -138,12 +140,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   "&.Mui-selected": {
                     bgcolor: "primary.main",
                     color: "white",
-                    "&:hover": {
-                      bgcolor: "primary.dark",
-                    },
-                    "& .MuiListItemIcon-root": {
-                      color: "white",
-                    },
+                    "&:hover": { bgcolor: "primary.dark" },
+                    "& .MuiListItemIcon-root": { color: "white" },
                   },
                 }}
               >
@@ -166,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#f8fafc" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
       {/* Top App Bar */}
       <AppBar
         position="fixed"
@@ -174,24 +172,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         sx={{
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { sm: `${DRAWER_WIDTH}px` },
-          bgcolor: "white",
+          bgcolor: "background.paper",
           borderBottom: 1,
           borderColor: "divider",
         }}
       >
         <Toolbar>
+          {/* Drawer Toggle (Mobile) */}
           <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: "none" }, color: "text.primary" }}>
             <MenuIcon />
           </IconButton>
 
           <Box sx={{ flexGrow: 1 }} />
 
+          {/* Google Calendar Button */}
+          <Tooltip title="Open Google Calendar">
+            <IconButton component="a" href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" sx={{ mr: 1 }} color="default">
+              <CalendarMonth />
+            </IconButton>
+          </Tooltip>
+
           {/* Theme Toggle */}
           <IconButton onClick={toggleTheme} sx={{ mr: 1 }} color="default">
             {mode === "light" ? <DarkMode /> : <LightMode />}
           </IconButton>
 
-          {/* Notifications Bell */}
+          {/* Notifications */}
           <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
             <Badge badgeContent={unreadCount} color="error">
               <Notifications />
@@ -203,45 +209,77 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             open={Boolean(notifAnchorEl)}
             anchorEl={notifAnchorEl}
             onClose={handleNotificationClose}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
           >
-            <Paper sx={{ width: 350, maxHeight: 400 }}>
-              <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
+            <Paper sx={{ width: 380, maxHeight: 500 }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderBottom: 1,
+                  borderColor: "divider",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
                   Notifications
                 </Typography>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  {notifications.length > 0 && (
+                    <Button size="small" onClick={clearNotifications} sx={{ textTransform: "none" }}>
+                      Clear All
+                    </Button>
+                  )}
+                  <IconButton size="small" onClick={handleNotificationClose}>
+                    <Close fontSize="small" />
+                  </IconButton>
+                </Box>
               </Box>
+
               {notifications.length === 0 ? (
                 <Box sx={{ p: 4, textAlign: "center" }}>
                   <Notifications sx={{ fontSize: 48, color: "text.secondary", mb: 1 }} />
                   <Typography color="text.secondary">No notifications</Typography>
                 </Box>
               ) : (
-                <List sx={{ p: 0 }}>
+                <List sx={{ p: 0, maxHeight: 400, overflow: "auto" }}>
                   {notifications.map((notif, index) => (
                     <Box key={notif.id}>
                       <ListItem
                         sx={{
-                          bgcolor: notif.read ? "transparent" : "action.hover",
-                          "&:hover": { bgcolor: "action.selected" },
+                          py: 2,
+                          px: 2,
+                          "&:hover": { bgcolor: "action.hover" },
+                          display: "flex",
+                          alignItems: "flex-start",
                         }}
                       >
-                        <ListItemText
-                          primary={notif.message}
-                          secondary={notif.time}
-                          primaryTypographyProps={{
-                            fontSize: 14,
-                            fontWeight: notif.read ? 400 : 600,
-                          }}
-                          secondaryTypographyProps={{ fontSize: 12 }}
-                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5, gap: 1 }}>
+                            {getNotificationIcon(notif.type)}
+                            <Chip
+                              label={notif.type}
+                              size="small"
+                              color={getTypeColor(notif.type) as any}
+                              sx={{
+                                height: 20,
+                                fontSize: 11,
+                                textTransform: "capitalize",
+                              }}
+                            />
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+                              {formatDistanceToNow(notif.timestamp, { addSuffix: true })}
+                            </Typography>
+                          </Box>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            {notif.message}
+                          </Typography>
+                        </Box>
+                        <IconButton size="small" onClick={() => removeNotification(notif.id)} sx={{ ml: 1 }}>
+                          <Close fontSize="small" />
+                        </IconButton>
                       </ListItem>
                       {index < notifications.length - 1 && <Divider />}
                     </Box>
@@ -265,14 +303,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleClose}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "right",
-              }}
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "right",
-              }}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
               <MenuItem
                 onClick={() => {
@@ -292,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Sidebar Drawer */}
       <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
-        {/* Mobile drawer */}
+        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -311,7 +343,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {drawer}
         </Drawer>
 
-        {/* Desktop drawer */}
+        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
@@ -329,7 +361,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Drawer>
       </Box>
 
-      {/* Main content */}
+      {/* Main Content */}
       <Box
         component="main"
         sx={{
@@ -338,14 +370,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           minHeight: "100vh",
         }}
       >
-        {/* Toolbar spacer */}
         <Toolbar />
-
-        {/* Page content with proper margins */}
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          <NotificationProvider>{children}</NotificationProvider>
+          {children}
         </Container>
       </Box>
     </Box>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NotificationProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </NotificationProvider>
   );
 }
