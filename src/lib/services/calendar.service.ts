@@ -41,11 +41,30 @@ export class CalendarService {
   }
 
   async syncGameToCalendar(gameId: string, userId: string) {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
+    // Get user's organizationId (only need this field)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true }, // ✅ Only select what we need
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // ✅ VALIDATE: Game belongs to user's organization
+    const game = await prisma.game.findFirst({
+      where: {
+        id: gameId,
+        homeTeam: {
+          organizationId: user.organizationId,
+        },
+      },
       include: {
         homeTeam: {
-          include: { sport: true },
+          include: {
+            sport: true,
+            organization: true, // Get timezone from org
+          },
         },
         opponent: true,
         venue: true,
@@ -53,10 +72,14 @@ export class CalendarService {
     });
 
     if (!game) {
-      throw new Error("Game not found");
+      throw new Error("Game not found or unauthorized");
     }
 
+    // Get calendar client (this already handles tokens via Account table)
     const calendar = await this.getCalendarClient(userId);
+
+    // Use organization's timezone
+    const timezone = game.homeTeam.organization.timezone || "America/New_York";
 
     // Prepare event data
     const eventStart = new Date(game.date);
@@ -71,14 +94,14 @@ export class CalendarService {
     const event = {
       summary: `${game.homeTeam.sport.name} - ${game.opponent?.name || "TBD"}`,
       description: this.buildEventDescription(game),
-      location: game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city}, ${game.venue.state}` : "TBD",
+      location: game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city}, ${game.venue.state}`.trim() : "TBD",
       start: {
         dateTime: eventStart.toISOString(),
-        timeZone: "America/New_York", // Should use organization timezone
+        timeZone: timezone,
       },
       end: {
         dateTime: eventEnd.toISOString(),
-        timeZone: "America/New_York",
+        timeZone: timezone,
       },
       reminders: {
         useDefault: false,
@@ -92,11 +115,23 @@ export class CalendarService {
     try {
       if (game.googleCalendarEventId) {
         // Update existing event
-        await calendar.events.update({
+        const response = await calendar.events.update({
           calendarId: "primary",
           eventId: game.googleCalendarEventId,
           requestBody: event,
         });
+
+        // Update sync timestamp
+        await prisma.game.update({
+          where: { id: gameId },
+          data: {
+            calendarSynced: true,
+            lastSyncedAt: new Date(),
+            googleCalendarHtmlLink: response.data.htmlLink || null,
+          },
+        });
+
+        return response.data;
       } else {
         // Create new event
         const response = await calendar.events.insert({
@@ -109,59 +144,50 @@ export class CalendarService {
           where: { id: gameId },
           data: {
             googleCalendarEventId: response.data.id || null,
+            googleCalendarHtmlLink: response.data.htmlLink || null,
             calendarSynced: true,
             lastSyncedAt: new Date(),
           },
         });
-      }
 
-      return { success: true };
+        return response.data;
+      }
     } catch (error) {
       console.error("Calendar sync failed:", error);
       throw new Error("Failed to sync to Google Calendar");
     }
   }
 
-  async syncAllGames(userId: string, organizationId: string) {
-    const games = await prisma.game.findMany({
-      where: {
-        homeTeam: { organizationId },
-        date: { gte: new Date() },
-        calendarSynced: false,
-      },
-      take: 50, // Limit to avoid rate limits
+  async unsyncGame(gameId: string, userId: string) {
+    // Get user's organizationId
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true }, // ✅ Only select what we need
     });
 
-    const results = [];
-
-    for (const game of games) {
-      try {
-        await this.syncGameToCalendar(game.id, userId);
-        results.push({ gameId: game.id, success: true });
-      } catch (error) {
-        results.push({
-          gameId: game.id,
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-
-      // Add delay to avoid rate limits
-      await new Promise((resolve) => setTimeout(resolve, 200));
+    if (!user) {
+      throw new Error("User not found");
     }
 
-    return results;
-  }
-
-  async unsyncGame(gameId: string, userId: string) {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
+    // ✅ VALIDATE: Game belongs to user's organization
+    const game = await prisma.game.findFirst({
+      where: {
+        id: gameId,
+        homeTeam: {
+          organizationId: user.organizationId,
+        },
+      },
+      select: {
+        id: true,
+        googleCalendarEventId: true,
+      },
     });
 
     if (!game || !game.googleCalendarEventId) {
-      throw new Error("Game not synced to calendar");
+      throw new Error("Game not found, unauthorized, or not synced to calendar");
     }
 
+    // Get calendar client (this already handles tokens via Account table)
     const calendar = await this.getCalendarClient(userId);
 
     try {
@@ -171,9 +197,10 @@ export class CalendarService {
       });
 
       await prisma.game.update({
-        where: { id: gameId },
+        where: { id: game.id },
         data: {
           googleCalendarEventId: null,
+          googleCalendarHtmlLink: null,
           calendarSynced: false,
         },
       });

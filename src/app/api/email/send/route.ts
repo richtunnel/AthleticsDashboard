@@ -4,10 +4,11 @@ import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { emailService } from "@/lib/services/email.service";
 import { format } from "date-fns";
+import { prisma } from "@/lib/database/prisma";
 
 interface Game {
   id: string;
-  date: string;
+  date: Date;
   time: string | null;
   status: string;
   isHome: boolean;
@@ -18,13 +19,15 @@ interface Game {
       name: string;
     };
   };
-  opponent?: {
+  opponent: {
     name: string;
-  };
-  venue?: {
+    [key: string]: any;
+  } | null;
+  venue: {
     name: string;
-  };
-  notes?: string;
+    [key: string]: any;
+  } | null;
+  notes: string | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { to, subject, recipientCategory, games, additionalMessage } = body;
+    const { to, subject, recipientCategory, gameIds, additionalMessage } = body;
 
     if (!to || !Array.isArray(to) || to.length === 0) {
       return ApiResponse.error("Recipients are required");
@@ -46,8 +49,32 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Subject is required");
     }
 
-    if (!games || !Array.isArray(games) || games.length === 0) {
+    if (!gameIds || !Array.isArray(gameIds) || gameIds.length === 0) {
       return ApiResponse.error("At least one game must be selected");
+    }
+
+    // ✅ VALIDATE: Fetch games and ensure they belong to user's organization
+    const games = await prisma.game.findMany({
+      where: {
+        id: { in: gameIds },
+        homeTeam: {
+          organizationId: session.user.organizationId, // ✅ Validate ownership
+        },
+      },
+      include: {
+        homeTeam: {
+          include: {
+            sport: true,
+          },
+        },
+        opponent: true,
+        venue: true,
+      },
+    });
+
+    // Check if allrequested games were found (security check)
+    if (games.length !== gameIds.length) {
+      return ApiResponse.error("Some games were not found or you don't have access", 403);
     }
 
     // Build the email body

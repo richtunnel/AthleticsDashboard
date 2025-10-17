@@ -34,7 +34,7 @@ const DEV_SESSION = {
 
 export async function requireAuth() {
   // BYPASS AUTH IN DEVELOPMENT
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.USE_MOCK_DATA === "true") {
     console.log(" DEV MODE: Auth bypassed, using mock session");
     return DEV_SESSION as any;
   }

@@ -5,7 +5,17 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   // Get the user's Google account credentials
   const user = await prisma.user.findUnique({
     where: { id: userId },
+    select: {
+      organizationId: true,
+      googleCalendarRefreshToken: true,
+      googleCalendarAccessToken: true,
+      calendarTokenExpiry: true,
+    },
   });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
 
   if (!user?.googleCalendarRefreshToken) {
     throw new Error("Google Calendar not connected. Please connect your calendar first.");
@@ -19,9 +29,14 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // Get the game details
-  const game = await prisma.game.findUnique({
-    where: { id: gameId },
+  // ✅ VALIDATE: Game belongs to user's organization
+  const game = await prisma.game.findFirst({
+    where: {
+      id: gameId,
+      homeTeam: {
+        organizationId: user.organizationId,
+      },
+    },
     include: {
       homeTeam: {
         include: { sport: true },

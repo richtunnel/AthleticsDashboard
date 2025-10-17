@@ -111,6 +111,7 @@ function LoginForm() {
             <Box component="form" onSubmit={handleSubmit} noValidate>
               <TextField
                 margin="normal"
+                size="small"
                 required
                 fullWidth
                 id="email"
@@ -124,6 +125,7 @@ function LoginForm() {
               />
               <TextField
                 margin="normal"
+                size="small"
                 required
                 fullWidth
                 name="password"

@@ -72,12 +72,18 @@ export async function DELETE(request: Request) {
       return new Response(JSON.stringify({ error: "Column ID is required" }), { status: 400 });
     }
 
+    // ✅ VALIDATE: Is this a custom column or built-in?
+    // Built-in columns don't have entries in CustomColumn table
     const column = await prisma.customColumn.findUnique({
       where: { id: columnId },
     });
 
-    if (!column || column.organizationId !== session.user.organizationId) {
-      return new Response(JSON.stringify({ error: "Column not found or unauthorized" }), { status: 404 });
+    if (!column) {
+      return new Response(JSON.stringify({ error: "Column not found or cannot be deleted (built-in column)" }), { status: 404 });
+    }
+
+    if (column.organizationId !== session.user.organizationId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403 });
     }
 
     // Delete the column
