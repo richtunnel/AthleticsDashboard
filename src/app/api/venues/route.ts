@@ -10,9 +10,7 @@ export async function GET(request: NextRequest) {
       where: {
         organizationId: session.user.organizationId,
       },
-      orderBy: {
-        name: "asc",
-      },
+      orderBy: { name: "asc" },
     });
 
     return NextResponse.json({
@@ -35,6 +33,15 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
     const body = await request.json();
+
+    // ✅ CHECK LIMIT: Max 100 venues per organization
+    const venuesCount = await prisma.venue.count({
+      where: { organizationId: session.user.organizationId },
+    });
+
+    if (venuesCount >= 100) {
+      return NextResponse.json({ success: false, error: "Maximum of 100 venues reached for your organization" }, { status: 400 });
+    }
 
     const venue = await prisma.venue.create({
       data: {

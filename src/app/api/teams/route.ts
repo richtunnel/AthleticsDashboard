@@ -37,6 +37,28 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
+    // ✅ CHECK LIMIT: Max 20 unique levels per organization
+    const uniqueLevels = await prisma.team.findMany({
+      where: { organizationId: session.user.organizationId },
+      select: { level: true },
+      distinct: ["level"],
+    });
+
+    // Check if adding a new level
+    const isNewLevel = !uniqueLevels.some((t) => t.level === body.level);
+    if (isNewLevel && uniqueLevels.length >= 20) {
+      return NextResponse.json({ success: false, error: "Maximum of 20 different levels reached for your organization" }, { status: 400 });
+    }
+
+    // ✅ CHECK LIMIT: Max 100 teams per organization (reasonable limit)
+    const teamsCount = await prisma.team.count({
+      where: { organizationId: session.user.organizationId },
+    });
+
+    if (teamsCount >= 100) {
+      return NextResponse.json({ success: false, error: "Maximum of 100 teams reached for your organization" }, { status: 400 });
+    }
+
     const team = await prisma.team.create({
       data: {
         ...body,

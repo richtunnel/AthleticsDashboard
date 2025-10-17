@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
+    // ✅ CHECK LIMIT: Max 100 opponents per organization
+    const opponentsCount = await prisma.opponent.count({
+      where: { organizationId: session.user.organizationId },
+    });
+
+    if (opponentsCount >= 100) {
+      return NextResponse.json({ success: false, error: "Maximum of 100 opponents reached for your organization" }, { status: 400 });
+    }
+
     // Get the highest sort order for this organization
     const highestSortOrder = await prisma.opponent.findFirst({
       where: { organizationId: session.user.organizationId },
