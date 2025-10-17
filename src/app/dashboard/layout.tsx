@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 import {
   Box,
   Drawer,
@@ -342,7 +343,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content with proper margins */}
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          {children}
+          <NotificationProvider>{children}</NotificationProvider>
         </Container>
       </Box>
     </Box>

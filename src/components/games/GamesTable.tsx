@@ -12,6 +12,9 @@ import { QuickAddVenue } from "./QuickAddVenue";
 import { QuickAddTeam } from "./QuickAddTeams";
 import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
+
 import {
   Box,
   Paper,
@@ -115,6 +118,7 @@ interface InlineEditState {
 export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { addNotification } = useNotifications();
   const [mounted, setMounted] = useState(false);
 
   const [page, setPage] = useState(0);
@@ -295,10 +299,10 @@ export function GamesTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      alert("Game successfully synced to Google Calendar!");
+      addNotification("Game successfully synced to Google Calendar!", "success");
     },
-    onError: (error) => {
-      alert(`Calendar Sync Error: ${error.message}`);
+    onError: (error: any) => {
+      addNotification(`Calendar Sync Error: ${error.message}`, "error");
     },
   });
 
@@ -466,12 +470,12 @@ export function GamesTable() {
         setInlineEditState(null);
         setInlineEditValue("");
       } catch (error: any) {
-        alert(`Error updating game: ${error.message}`);
+        addNotification(`Error updating game: ${error.message}`, "error");
       } finally {
         setIsInlineSaving(false);
       }
     },
-    [inlineEditState, inlineEditValue, isInlineSaving, queryClient, syncGameMutation]
+    [inlineEditState, inlineEditValue, isInlineSaving, queryClient, syncGameMutation, addNotification]
   );
 
   const handleInlineKeyDown = useCallback(
@@ -525,12 +529,12 @@ export function GamesTable() {
     const gamesToExport = games.length > 0 ? games : [];
 
     if (gamesToExport.length === 0) {
-      alert("No games to export");
+      addNotification("No games to export", "warning");
       return;
     }
 
     ExportService.exportGames(gamesToExport, customColumns);
-  }, [games, customColumns]);
+  }, [games, customColumns, addNotification]);
 
   const handleImportComplete = useCallback(
     (result: any) => {
@@ -539,16 +543,16 @@ export function GamesTable() {
 
       const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`;
 
-      alert(message);
+      addNotification(message, result.failed > 0 ? "warning" : "success");
     },
-    [queryClient]
+    [queryClient, addNotification]
   );
 
   const handleSaveNewGame = () => {
     const matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
 
     if (!matchingTeam) {
-      alert("Please select valid sport and level combination");
+      addNotification("Please select valid sport and level combination", "error");
       return;
     }
 
@@ -764,10 +768,10 @@ export function GamesTable() {
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
             {selectedGames.size > 0 && (
               <>
-                <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
                   Send Email ({selectedGames.size})
                 </Button>
               </>
@@ -783,9 +787,9 @@ export function GamesTable() {
         <Stack direction="row" spacing={2}>
           {selectedGames.size > 0 && (
             <>
+              {/* Delete Button */}
               <LoadingButton
                 variant="contained"
-                color="error"
                 startIcon={!bulkDeleteMutation.isPending && <DeleteOutline />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
@@ -1147,59 +1151,30 @@ export function GamesTable() {
                           InputProps={{ sx: { fontSize: 13 } }}
                         />
                       </TableCell>
-                      <TableCell sx={{ py: 1 }}>
-                        <Select
-                          size="small"
-                          value={editingGameData.homeTeam.sport.name}
-                          onChange={(e) =>
-                            setEditingGameData({
-                              ...editingGameData,
-                              homeTeam: {
-                                ...editingGameData.homeTeam,
-                                sport: { name: e.target.value },
-                              },
-                            })
-                          }
-                          sx={{ width: 120, fontSize: 13 }}
-                        >
-                          {(uniqueSports as string[]).map((sport: string) => (
-                            <MenuItem key={sport} value={sport}>
-                              {sport}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </TableCell>
-                      <TableCell sx={{ py: 1 }}>
-                        <Select
-                          size="small"
-                          value={editingGameData.homeTeam.level}
-                          onChange={(e) =>
-                            setEditingGameData({
-                              ...editingGameData,
-                              homeTeam: {
-                                ...editingGameData.homeTeam,
-                                level: e.target.value,
-                              },
-                            })
-                          }
-                          sx={{ width: 100, fontSize: 13 }}
-                        >
-                          {(uniqueLevels as string[]).map((level: string) => (
-                            <MenuItem key={level} value={level}>
-                              {level}
-                            </MenuItem>
-                          ))}
-                        </Select>
+                      {/* MERGED CELL for Sport + Level in Edit Mode */}
+                      <TableCell colSpan={2} sx={{ py: 1 }}>
+                        <Button size="small" variant="outlined" onClick={() => setShowAddTeam(true)} fullWidth sx={{ fontSize: 13, textTransform: "none", justifyContent: "flex-start" }}>
+                          {editingGameData.homeTeam.sport.name && editingGameData.homeTeam.level ? `${editingGameData.homeTeam.sport.name} - ${editingGameData.homeTeam.level}` : "+ Select Team"}
+                        </Button>
                       </TableCell>
                       <TableCell sx={{ py: 1 }}>
                         <Select
                           size="small"
                           value={editingGameData.opponentId || editingGameData.opponent?.id || ""}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, opponentId: e.target.value })}
+                          onChange={(e) => {
+                            if (e.target.value === "__add_new__") {
+                              setShowAddOpponent(true);
+                            } else {
+                              setEditingGameData({ ...editingGameData, opponentId: e.target.value });
+                            }
+                          }}
                           sx={{ width: 140, fontSize: 13 }}
                           displayEmpty
                         >
                           <MenuItem value="">TBD</MenuItem>
+                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            + Add New Opponent
+                          </MenuItem>
                           {opponents.map((opponent: any) => (
                             <MenuItem key={opponent.id} value={opponent.id}>
                               {opponent.name}
@@ -1244,11 +1219,20 @@ export function GamesTable() {
                           <Select
                             size="small"
                             value={editingGameData.venueId || editingGameData.venue?.id || ""}
-                            onChange={(e) => setEditingGameData({ ...editingGameData, venueId: e.target.value })}
+                            onChange={(e) => {
+                              if (e.target.value === "__add_new__") {
+                                setShowAddVenue(true);
+                              } else {
+                                setEditingGameData({ ...editingGameData, venueId: e.target.value });
+                              }
+                            }}
                             sx={{ width: 140, fontSize: 13 }}
                             displayEmpty
                           >
                             <MenuItem value="">TBD</MenuItem>
+                            <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                              + Add New Venue
+                            </MenuItem>
                             {venues.map((venue: any) => (
                               <MenuItem key={venue.id} value={venue.id}>
                                 {venue.name}
@@ -1316,6 +1300,7 @@ export function GamesTable() {
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
 
                     {/* Opponent Cell - Double-click to edit */}
+                    {/* Opponent Cell - Double-click to edit */}
                     <TableCell
                       sx={{
                         fontSize: 13,
@@ -1333,7 +1318,18 @@ export function GamesTable() {
                         <Select
                           size="small"
                           value={inlineEditValue}
-                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onChange={(e) => {
+                            if (e.target.value === "__add_new__") {
+                              // Clear timeout to prevent auto-save
+                              if (saveTimeoutRef.current) {
+                                clearTimeout(saveTimeoutRef.current);
+                                saveTimeoutRef.current = null;
+                              }
+                              setShowAddOpponent(true);
+                            } else {
+                              setInlineEditValue(e.target.value);
+                            }
+                          }}
                           onKeyDown={(e) => handleInlineKeyDown(e, game)}
                           onBlur={() => handleInlineBlur(game)}
                           autoFocus
@@ -1342,6 +1338,9 @@ export function GamesTable() {
                           displayEmpty
                         >
                           <MenuItem value="">TBD</MenuItem>
+                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            + Add New Opponent
+                          </MenuItem>
                           {opponents.map((opponent: any) => (
                             <MenuItem key={opponent.id} value={opponent.id}>
                               {opponent.name}
@@ -1396,7 +1395,18 @@ export function GamesTable() {
                         <Select
                           size="small"
                           value={inlineEditValue}
-                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onChange={(e) => {
+                            if (e.target.value === "add_new") {
+                              // Clear timeout to prevent auto-save
+                              if (saveTimeoutRef.current) {
+                                clearTimeout(saveTimeoutRef.current);
+                                saveTimeoutRef.current = null;
+                              }
+                              setShowAddVenue(true);
+                            } else {
+                              setInlineEditValue(e.target.value);
+                            }
+                          }}
                           onKeyDown={(e) => handleInlineKeyDown(e, game)}
                           onBlur={() => handleInlineBlur(game)}
                           autoFocus
@@ -1405,6 +1415,9 @@ export function GamesTable() {
                           displayEmpty
                         >
                           <MenuItem value="">TBD</MenuItem>
+                          <MenuItem value="add_new" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            + Add New Venue
+                          </MenuItem>
                           {venues.map((venue: any) => (
                             <MenuItem key={venue.id} value={venue.id}>
                               {venue.name}
@@ -1540,6 +1553,7 @@ export function GamesTable() {
           </Tooltip>
         </Box>
       </Box>
+
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
       {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
@@ -1548,7 +1562,16 @@ export function GamesTable() {
         open={showAddOpponent}
         onClose={() => setShowAddOpponent(false)}
         onCreated={(opponentId) => {
-          setNewGameData({ ...newGameData, opponentId });
+          // Handle inline edit state
+          if (inlineEditState?.field === "opponent") {
+            setInlineEditValue(opponentId);
+            // Don't close inline edit, let user see the change
+          }
+          // Handle new game state
+          if (isAddingNew) {
+            setNewGameData({ ...newGameData, opponentId });
+          }
+          // Handle full edit state
           if (editingGameData) {
             setEditingGameData({ ...editingGameData, opponentId });
           }
@@ -1559,7 +1582,16 @@ export function GamesTable() {
         open={showAddVenue}
         onClose={() => setShowAddVenue(false)}
         onCreated={(venueId) => {
-          setNewGameData({ ...newGameData, venueId });
+          // Handle inline edit state
+          if (inlineEditState?.field === "location") {
+            setInlineEditValue(venueId);
+            // Don't close inline edit, let user see the change
+          }
+          // Handle new game state
+          if (isAddingNew) {
+            setNewGameData({ ...newGameData, venueId });
+          }
+          // Handle full edit state
           if (editingGameData) {
             setEditingGameData({ ...editingGameData, venueId });
           }

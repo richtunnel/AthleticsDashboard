@@ -16,7 +16,7 @@ export default function DashboardPage() {
         {/* <DashboardStats /> */}
         <ImportBox />
         {/* <p className="mt-4 text-gray-600"></p> */}
-        <DashboardStats />
+        {/* <DashboardStats /> */}
       </Suspense>
     </div>
   );

@@ -49,10 +49,14 @@ export function LoadingButton({
       startIcon={loading ? <CircularProgress size={20} color="inherit" /> : startIcon}
       endIcon={!loading ? endIcon : undefined}
       sx={{
-        minWidth: loading ? 120 : "auto",
-        transition: "all 0.2s",
-        "&.Mui-disabled": {
-          opacity: 0.7,
+        backgroundColor: "#d3dbe2!important",
+        boxShadow: "none",
+        border: "1px solid rgba(255, 255, 255, 0.2)",
+        color: "inherit",
+        fontWeight: "600",
+        "&:hover": {
+          backgroundColor: "rgba(255,255,255,0.1)", // subtle hover effect
+          boxShadow: "none",
         },
         ...sx,
       }}
