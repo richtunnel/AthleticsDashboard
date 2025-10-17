@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
 
 interface Notification {
   id: string;
   message: string;
   type: "success" | "error" | "info" | "warning";
   timestamp: Date;
+  read: boolean;
 }
 
 interface NotificationContextType {
@@ -14,6 +15,9 @@ interface NotificationContextType {
   addNotification: (message: string, type: Notification["type"]) => void;
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
+  markAsRead?: (id: string) => void;
+  markAllAsRead?: () => void;
+  unreadCount: number; // Count of unread notifications
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -27,6 +31,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       id,
       message,
       type,
+      read: false, // New notifications are unread
       timestamp: new Date(),
     };
     setNotifications((prev) => [notification, ...prev]);
@@ -40,7 +45,29 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications([]);
   };
 
-  return <NotificationContext.Provider value={{ notifications, addNotification, removeNotification, clearNotifications }}>{children}</NotificationContext.Provider>;
+  const markAsRead = useCallback((id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  }, []);
+
+  const markAllAsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.read).length; // Count unread
+
+  return (
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        addNotification,
+        removeNotification,
+        clearNotifications,
+        unreadCount,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
 }
 
 export function useNotifications() {

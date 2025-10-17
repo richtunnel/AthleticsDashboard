@@ -1,5 +1,5 @@
 "use client";
-
+import { useNotifications } from "@/contexts/NotificationContext";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
@@ -40,6 +40,8 @@ const RECIPIENT_CATEGORIES = [
 
 export default function ComposeEmailPage() {
   const router = useRouter();
+  const { addNotification } = useNotifications();
+  const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [recipientCategory, setRecipientCategory] = useState("parents");
@@ -110,34 +112,30 @@ export default function ComposeEmailPage() {
     }
   };
 
-  const handleSendEmail = () => {
-    // Parse recipients based on category
-    let recipients: string[] = [];
+  const handleSendEmail = async (emailData: any) => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/emails/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailData),
+      });
 
-    if (recipientCategory === "custom") {
-      recipients = customRecipients
-        .split(",")
-        .map((email) => email.trim())
-        .filter((email) => email.length > 0);
-    } else {
-      // In a real app, you'd fetch these from your database based on category
-      recipients = [`${recipientCategory}@example.com`];
+      if (!res.ok) {
+        throw new Error("Failed to send email");
+      }
+
+      const result = await res.json();
+
+      addNotification(`Email sent successfully to ${emailData.to.length} recipient${emailData.to.length > 1 ? "s" : ""}!`, "success");
+
+      // Redirect or clear form
+      // router.push("/dashboard/games");
+    } catch (error: any) {
+      addNotification(`Failed to send email: ${error.message}`, "error");
+    } finally {
+      setLoading(false);
     }
-
-    if (recipients.length === 0) {
-      alert("Please enter at least one recipient email address");
-      return;
-    }
-
-    const emailData = {
-      to: recipients,
-      subject,
-      recipientCategory,
-      games: selectedGames,
-      additionalMessage,
-    };
-
-    sendEmailMutation.mutate(emailData);
   };
 
   const generateEmailPreview = () => {
