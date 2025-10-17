@@ -337,6 +337,19 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
+    // ✅ CHECK LIMIT: Max 2500 games per organization
+    const gamesCount = await prisma.game.count({
+      where: {
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+    });
+
+    if (gamesCount >= 2500) {
+      return NextResponse.json({ success: false, error: "Maximum of 2,500 games reached for your organization" }, { status: 400 });
+    }
+
     // VALIDATE: homeTeam belongs to user's organization
     const homeTeam = await prisma.team.findUnique({
       where: { id: body.homeTeamId },
@@ -383,7 +396,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // NOW create the game
     const game = await prisma.game.create({
       data: {
         ...body,

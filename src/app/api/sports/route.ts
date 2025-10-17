@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth();
+    const session = await requireAuth();
 
     const body = await request.json();
     const { name, season } = body;
@@ -72,6 +72,12 @@ export async function POST(request: NextRequest) {
         success: true,
         data: existingSport,
       });
+    }
+
+    // ✅ CHECK LIMIT: Max 100 sports total (global)
+    const sportsCount = await prisma.sport.count();
+    if (sportsCount >= 100) {
+      return NextResponse.json({ success: false, error: "Maximum of 100 sports reached" }, { status: 400 });
     }
 
     // Create new sport

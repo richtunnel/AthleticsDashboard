@@ -33,7 +33,16 @@ const customAdapter = {
 
     return newUser;
   },
-};
+
+  // ✅ Override linkAccount to remove unsupported fields
+  async linkAccount(account: any) {
+    // Remove fields that aren't in the Prisma schema
+    const { refresh_token_expires_in, ...accountData } = account;
+
+    // Call the original linkAccount with cleaned data
+    return adapter.linkAccount!(accountData);
+  },
+} as any;
 
 export const authOptions: NextAuthOptions = {
   adapter: customAdapter, // Use customAdapter instead of PrismaAdapter(prisma)
@@ -48,6 +57,7 @@ export const authOptions: NextAuthOptions = {
           prompt: "consent",
           access_type: "offline",
           response_type: "code",
+          scope: "openid email profile https://www.googleapis.com/auth/calendar",
         },
       },
     }),
