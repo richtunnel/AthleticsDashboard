@@ -5,6 +5,11 @@ import { prisma } from "@/lib/database/prisma";
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+    console.log("=== GAMES API DEBUG ===");
+    console.log("User ID:", session.user.id);
+    console.log("User Email:", session.user.email);
+    console.log("Organization ID:", session.user.organizationId);
+    console.log("====================");
 
     const searchParams = request.nextUrl.searchParams;
 
@@ -20,6 +25,8 @@ export async function GET(request: NextRequest) {
         organizationId: session.user.organizationId,
       },
     };
+
+    console.log("WHERE clause:", JSON.stringify(where, null, 2));
 
     // Process column filters
     const filterParams = Array.from(searchParams.entries()).filter(([key]) => key.startsWith("filter_"));
@@ -102,6 +109,7 @@ export async function GET(request: NextRequest) {
         homeTeam: {
           include: {
             sport: true,
+            organization: true,
           },
         },
         awayTeam: true,
@@ -112,6 +120,13 @@ export async function GET(request: NextRequest) {
       skip: (page - 1) * limit,
       take: limit,
     });
+
+    // 🔍 DEBUG: Log first game's organization
+    if (games.length > 0) {
+      console.log("First game org ID:", games[0].homeTeam.organizationId);
+      console.log("First game org name:", games[0].homeTeam.organization?.name);
+      console.log("==================");
+    }
 
     const totalPages = Math.ceil(total / limit);
 
@@ -320,9 +335,55 @@ function parseValue(value: string, columnId: string): any {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-
     const body = await request.json();
 
+    // VALIDATE: homeTeam belongs to user's organization
+    const homeTeam = await prisma.team.findUnique({
+      where: { id: body.homeTeamId },
+      select: { organizationId: true },
+    });
+
+    if (!homeTeam || homeTeam.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ success: false, error: "Invalid home team" }, { status: 403 });
+    }
+
+    // VALIDATE: awayTeam (if provided) belongs to user's organization
+    if (body.awayTeamId) {
+      const awayTeam = await prisma.team.findUnique({
+        where: { id: body.awayTeamId },
+        select: { organizationId: true },
+      });
+
+      if (!awayTeam || awayTeam.organizationId !== session.user.organizationId) {
+        return NextResponse.json({ success: false, error: "Invalid away team" }, { status: 403 });
+      }
+    }
+
+    // VALIDATE: venue (if provided) belongs to user's organization
+    if (body.venueId) {
+      const venue = await prisma.venue.findUnique({
+        where: { id: body.venueId },
+        select: { organizationId: true },
+      });
+
+      if (!venue || venue.organizationId !== session.user.organizationId) {
+        return NextResponse.json({ success: false, error: "Invalid venue" }, { status: 403 });
+      }
+    }
+
+    // VALIDATE: opponent (if provided) belongs to user's organization
+    if (body.opponentId) {
+      const opponent = await prisma.opponent.findUnique({
+        where: { id: body.opponentId },
+        select: { organizationId: true },
+      });
+
+      if (!opponent || opponent.organizationId !== session.user.organizationId) {
+        return NextResponse.json({ success: false, error: "Invalid opponent" }, { status: 403 });
+      }
+    }
+
+    // NOW create the game
     const game = await prisma.game.create({
       data: {
         ...body,

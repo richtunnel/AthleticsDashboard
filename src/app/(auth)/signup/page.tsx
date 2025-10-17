@@ -129,6 +129,7 @@ function SignupForm() {
 
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
+              size="small"
               margin="normal"
               required
               fullWidth
@@ -142,6 +143,7 @@ function SignupForm() {
               disabled={loading}
             />
             <TextField
+              size="small"
               margin="normal"
               required
               fullWidth
@@ -155,6 +157,7 @@ function SignupForm() {
               disabled={loading}
             />
             <TextField
+              size="small"
               margin="normal"
               required
               fullWidth
@@ -169,6 +172,7 @@ function SignupForm() {
               helperText="Must be at least 8 characters"
             />
             <TextField
+              size="small"
               margin="normal"
               required
               fullWidth

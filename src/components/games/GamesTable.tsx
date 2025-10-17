@@ -7,6 +7,9 @@ import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
+import { QuickAddOpponent } from "./QuickAddOpponent";
+import { QuickAddVenue } from "./QuickAddVenue";
+import { QuickAddTeam } from "./QuickAddTeams";
 import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import {
@@ -140,6 +143,10 @@ export function GamesTable() {
 
   const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
+
+  const [showAddOpponent, setShowAddOpponent] = useState(false);
+  const [showAddVenue, setShowAddVenue] = useState(false);
+  const [showAddTeam, setShowAddTeam] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -847,27 +854,30 @@ export function GamesTable() {
                     InputProps={{ sx: { fontSize: 13 } }}
                   />
                 </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select size="small" value={newGameData.sport} onChange={(e) => setNewGameData({ ...newGameData, sport: e.target.value })} sx={{ width: 120, fontSize: 13 }}>
-                    {(uniqueSports as string[]).map((sport: string) => (
-                      <MenuItem key={sport} value={sport}>
-                        {sport}
-                      </MenuItem>
-                    ))}
-                  </Select>
+                {/* MERGED CELL for Sport + Level */}
+                <TableCell colSpan={2} sx={{ py: 1 }}>
+                  <Button size="small" variant="outlined" onClick={() => setShowAddTeam(true)} fullWidth sx={{ fontSize: 13, textTransform: "none", justifyContent: "flex-start" }}>
+                    {newGameData.sport && newGameData.level ? `${newGameData.sport} - ${newGameData.level}` : "+ Select Team"}
+                  </Button>
                 </TableCell>
                 <TableCell sx={{ py: 1 }}>
-                  <Select size="small" value={newGameData.level} onChange={(e) => setNewGameData({ ...newGameData, level: e.target.value })} sx={{ width: 100, fontSize: 13 }}>
-                    {(uniqueLevels as string[]).map((level: string) => (
-                      <MenuItem key={level} value={level}>
-                        {level}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select size="small" value={newGameData.opponentId} onChange={(e) => setNewGameData({ ...newGameData, opponentId: e.target.value })} sx={{ width: 140, fontSize: 13 }} displayEmpty>
+                  <Select
+                    size="small"
+                    value={newGameData.opponentId}
+                    onChange={(e) => {
+                      if (e.target.value === "__add_new__") {
+                        setShowAddOpponent(true);
+                      } else {
+                        setNewGameData({ ...newGameData, opponentId: e.target.value });
+                      }
+                    }}
+                    sx={{ width: 140, fontSize: 13 }}
+                    displayEmpty
+                  >
                     <MenuItem value="">TBD</MenuItem>
+                    <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                      + Add New Opponent
+                    </MenuItem>
                     {opponents.map((opponent: any) => (
                       <MenuItem key={opponent.id} value={opponent.id}>
                         {opponent.name}
@@ -903,21 +913,31 @@ export function GamesTable() {
                     <MenuItem value="CANCELLED">No</MenuItem>
                   </Select>
                 </TableCell>
+
                 <TableCell sx={{ py: 1 }}>
-                  {newGameData.isHome ? (
-                    <Typography variant="body2" sx={{ fontSize: 13 }}>
-                      Home Field
-                    </Typography>
-                  ) : (
-                    <Select size="small" value={newGameData.venueId} onChange={(e) => setNewGameData({ ...newGameData, venueId: e.target.value })} sx={{ width: 140, fontSize: 13 }} displayEmpty>
-                      <MenuItem value="">TBD</MenuItem>
-                      {venues.map((venue: any) => (
-                        <MenuItem key={venue.id} value={venue.id}>
-                          {venue.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  )}
+                  <Select
+                    size="small"
+                    value={newGameData.venueId}
+                    onChange={(e) => {
+                      if (e.target.value === "__add_new__") {
+                        setShowAddVenue(true);
+                      } else {
+                        setNewGameData({ ...newGameData, venueId: e.target.value });
+                      }
+                    }}
+                    sx={{ width: 140, fontSize: 13 }}
+                    displayEmpty
+                  >
+                    <MenuItem value="">TBD</MenuItem>
+                    <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                      + Add New Venue
+                    </MenuItem>
+                    {venues.map((venue: any) => (
+                      <MenuItem key={venue.id} value={venue.id}>
+                        {venue.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </TableCell>
                 {customColumns.map((column: any) => (
                   <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
@@ -1302,6 +1322,46 @@ export function GamesTable() {
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
       {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
+
+      <QuickAddOpponent
+        open={showAddOpponent}
+        onClose={() => setShowAddOpponent(false)}
+        onCreated={(opponentId) => {
+          setNewGameData({ ...newGameData, opponentId });
+          if (editingGameData) {
+            setEditingGameData({ ...editingGameData, opponentId });
+          }
+        }}
+      />
+
+      <QuickAddVenue
+        open={showAddVenue}
+        onClose={() => setShowAddVenue(false)}
+        onCreated={(venueId) => {
+          setNewGameData({ ...newGameData, venueId });
+          if (editingGameData) {
+            setEditingGameData({ ...editingGameData, venueId });
+          }
+        }}
+      />
+
+      <QuickAddTeam
+        open={showAddTeam}
+        onClose={() => setShowAddTeam(false)}
+        onCreated={(sport, level) => {
+          setNewGameData({ ...newGameData, sport, level });
+          if (editingGameData && editingGameData.homeTeam) {
+            setEditingGameData({
+              ...editingGameData,
+              homeTeam: {
+                ...editingGameData.homeTeam,
+                sport: { name: sport },
+                level,
+              },
+            });
+          }
+        }}
+      />
     </Box>
   );
 }

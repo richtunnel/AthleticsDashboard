@@ -15,6 +15,9 @@ declare module "next-auth" {
         name: string;
         timezone: string;
       };
+      googleCalendarRefreshToken?: string;
+      googleCalendarAccessToken?: string;
+      calendarTokenExpiry?: Date;
     } & DefaultSession["user"];
   }
 
@@ -27,6 +30,9 @@ declare module "next-auth" {
       name: string;
       timezone: string;
     };
+    googleCalendarRefreshToken?: string;
+    googleCalendarAccessToken?: string;
+    calendarTokenExpiry?: Date;
   }
 }
 
@@ -40,5 +46,8 @@ declare module "next-auth/jwt" {
       name: string;
       timezone: string;
     };
+    googleCalendarRefreshToken?: string;
+    googleCalendarAccessToken?: string;
+    calendarTokenExpiry?: Date;
   }
 }

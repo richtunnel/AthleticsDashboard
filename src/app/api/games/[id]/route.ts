@@ -8,22 +8,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { id } = await params;
     const body = await request.json();
 
+    // ✅ VALIDATE: Game belongs to user's organization
+    const existingGame = await prisma.game.findFirst({
+      where: {
+        id,
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+      select: {
+        id: true,
+        customData: true,
+      },
+    });
+
+    if (!existingGame) {
+      return NextResponse.json({ error: "Game not found or unauthorized" }, { status: 404 });
+    }
+
     // Separate custom data from regular fields
     const { customData, ...regularData } = body;
 
     const updateData: any = { ...regularData };
 
-    // Handle custom data separately
+    // Handle custom data separately (merge with existing)
     if (customData !== undefined) {
-      const existingGame = await prisma.game.findUnique({
-        where: { id },
-        select: { customData: true },
-      });
-
-      const existingCustomData = (existingGame?.customData as any) || {};
+      const existingCustomData = (existingGame.customData as any) || {};
       updateData.customData = { ...existingCustomData, ...customData };
     }
 
+    // Update using only the unique ID (after validation)
     const game = await prisma.game.update({
       where: { id },
       data: updateData,
@@ -48,6 +62,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const session = await requireAuth();
     const { id } = await params;
 
+    // ✅ VALIDATE: Game belongs to user's organization
+    const game = await prisma.game.findFirst({
+      where: {
+        id,
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+    });
+
+    if (!game) {
+      return NextResponse.json({ error: "Game not found or unauthorized" }, { status: 404 });
+    }
+
+    // Now delete using the unique ID (after validation)
     await prisma.game.delete({
       where: { id },
     });

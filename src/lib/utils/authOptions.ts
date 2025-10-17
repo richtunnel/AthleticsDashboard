@@ -105,15 +105,22 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account, profile }) {
+      // Handle Google OAuth
       if (account?.provider === "google" && profile?.email) {
         const existingUser = await prisma.user.findUnique({
           where: { email: profile.email },
         });
 
-        if (!existingUser) {
-          return true;
-        } else {
-          return true;
+        // Store the refresh token for calendar sync
+        if (existingUser && account.refresh_token) {
+          await prisma.user.update({
+            where: { email: profile.email },
+            data: {
+              googleCalendarRefreshToken: account.refresh_token,
+              googleCalendarAccessToken: account.access_token,
+              calendarTokenExpiry: account.expires_at ? new Date(account.expires_at * 1000) : null,
+            },
+          });
         }
       }
 
@@ -130,15 +137,38 @@ export const authOptions: NextAuthOptions = {
           name: "",
           timezone: "America/New_York",
         };
+        session.user.googleCalendarRefreshToken = token.googleCalendarRefreshToken;
+        session.user.googleCalendarAccessToken = token.googleCalendarAccessToken;
+        session.user.calendarTokenExpiry = token.calendarTokenExpiry;
       }
       return session;
     },
 
     async jwt({ token, user, account, trigger }) {
+      // Save Google tokens when account is first linked
+      if (account?.provider === "google" && account.refresh_token && token.email) {
+        await prisma.user.update({
+          where: { email: token.email },
+          data: {
+            googleCalendarRefreshToken: account.refresh_token,
+            googleCalendarAccessToken: account.access_token,
+            calendarTokenExpiry: account.expires_at ? new Date(account.expires_at * 1000) : null,
+          },
+        });
+
+        // Set them in the token immediately
+        token.googleCalendarRefreshToken = account.refresh_token;
+        token.googleCalendarAccessToken = account.access_token;
+        token.calendarTokenExpiry = account.expires_at ? new Date(account.expires_at * 1000) : undefined;
+      }
+
       if (user) {
         token.role = user.role;
         token.organizationId = user.organizationId;
         token.organization = user.organization;
+        token.googleCalendarRefreshToken = user.googleCalendarRefreshToken ?? undefined;
+        token.googleCalendarAccessToken = user.googleCalendarAccessToken ?? undefined;
+        token.calendarTokenExpiry = user.calendarTokenExpiry ?? undefined;
       }
 
       if (account?.provider === "google" && token.email) {
@@ -155,6 +185,9 @@ export const authOptions: NextAuthOptions = {
                 timezone: true,
               },
             },
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
           },
         });
 
@@ -162,6 +195,9 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.organizationId = dbUser.organizationId;
           token.organization = dbUser.organization || undefined;
+          token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
+          token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
+          token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
         }
       }
 
@@ -178,6 +214,9 @@ export const authOptions: NextAuthOptions = {
                 timezone: true,
               },
             },
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
           },
         });
 
@@ -185,6 +224,9 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.organizationId = dbUser.organizationId;
           token.organization = dbUser.organization || undefined;
+          token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
+          token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
+          token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
         }
       }
 

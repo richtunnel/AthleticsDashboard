@@ -28,8 +28,8 @@ model User {
   trialEnd         DateTime?
 
 //Google calendars
-  googleCalendarRefreshToken  String? // Store the token needed to get new access tokens
-  googleCalendarAccessToken   String?
+  googleCalendarRefreshToken  String? @db.Text // Store the token needed to get new access tokens
+  googleCalendarAccessToken   String? @db.Text
   calendarTokenExpiry         DateTime?
   googleCalendarId            String? // Optionally store the primary calendar ID
   

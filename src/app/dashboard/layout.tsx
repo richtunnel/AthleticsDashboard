@@ -62,7 +62,7 @@ const navigation = [
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Game History", href: "", icon: WorkHistory },
   { name: "Account", href: "/dashboard/settings", icon: Settings },
-  { name: "Travel AI", href: "/dashboard/gsync", icon: DepartureBoardIcon },
+  { name: "Travel AI", href: "", icon: DepartureBoardIcon },
 ];
 
 // Mock notifications - replace with real data from your API
