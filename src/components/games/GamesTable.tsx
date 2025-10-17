@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
@@ -35,7 +35,6 @@ import {
   MenuItem,
 } from "@mui/material";
 import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
-import SyncIcon from "@mui/icons-material/Sync";
 import { format } from "date-fns";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
@@ -108,6 +107,11 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
+interface InlineEditState {
+  gameId: string;
+  field: "opponent" | "location";
+}
+
 export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -147,6 +151,12 @@ export function GamesTable() {
   const [showAddOpponent, setShowAddOpponent] = useState(false);
   const [showAddVenue, setShowAddVenue] = useState(false);
   const [showAddTeam, setShowAddTeam] = useState(false);
+
+  // Inline editing state
+  const [inlineEditState, setInlineEditState] = useState<InlineEditState | null>(null);
+  const [inlineEditValue, setInlineEditValue] = useState<string>("");
+  const [isInlineSaving, setIsInlineSaving] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -276,9 +286,7 @@ export function GamesTable() {
 
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
-      const res = await fetch(`/api/games/${gameId}/gsync-calendar`, {
-        method: "POST",
-      });
+      const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to sync calendar.");
@@ -391,6 +399,122 @@ export function GamesTable() {
     },
   });
 
+  // Inline editing handlers
+  const handleDoubleClick = useCallback(
+    (game: Game, field: "opponent" | "location") => {
+      // Prevent editing if row is in full edit mode
+      if (editingGameId === game.id) return;
+
+      // Prevent editing location for home games
+      if (field === "location" && game.isHome) return;
+
+      const currentValue = field === "opponent" ? game.opponentId || game.opponent?.id || "" : game.venueId || game.venue?.id || "";
+
+      setInlineEditState({ gameId: game.id, field });
+      setInlineEditValue(currentValue);
+    },
+    [editingGameId]
+  );
+
+  const saveInlineEdit = useCallback(
+    async (game: Game) => {
+      if (!inlineEditState || isInlineSaving) return;
+
+      // Clear any pending timeouts
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+
+      setIsInlineSaving(true);
+
+      try {
+        const updateData: any = {
+          date: new Date(game.date.split("T")[0]).toISOString(),
+          time: game.time || null,
+          homeTeamId: game.homeTeamId || game.homeTeam.id,
+          isHome: game.isHome,
+          status: game.status,
+          notes: game.notes || null,
+          customData: game.customData || {},
+        };
+
+        if (inlineEditState.field === "opponent") {
+          updateData.opponentId = inlineEditValue || null;
+          updateData.venueId = game.venueId || game.venue?.id || null;
+        } else if (inlineEditState.field === "location") {
+          updateData.opponentId = game.opponentId || game.opponent?.id || null;
+          updateData.venueId = inlineEditValue || null;
+        }
+
+        const res = await fetch(`/api/games/${game.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateData),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || "Failed to update game");
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ["games"] });
+
+        // Sync to calendar after successful update
+        syncGameMutation.mutate(game.id);
+
+        setInlineEditState(null);
+        setInlineEditValue("");
+      } catch (error: any) {
+        alert(`Error updating game: ${error.message}`);
+      } finally {
+        setIsInlineSaving(false);
+      }
+    },
+    [inlineEditState, inlineEditValue, isInlineSaving, queryClient, syncGameMutation]
+  );
+
+  const handleInlineKeyDown = useCallback(
+    (e: React.KeyboardEvent, game: Game) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveInlineEdit(game);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setInlineEditState(null);
+        setInlineEditValue("");
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+      }
+    },
+    [saveInlineEdit]
+  );
+
+  const handleInlineBlur = useCallback(
+    (game: Game) => {
+      // Debounce the save to prevent rapid consecutive updates
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      saveTimeoutRef.current = setTimeout(() => {
+        saveInlineEdit(game);
+      }, 300);
+    },
+    [saveInlineEdit]
+  );
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleNewGame = () => {
     setIsAddingNew(true);
     setEditingGameId(null);
@@ -474,6 +598,9 @@ export function GamesTable() {
     const customData = (game.customData as any) || {};
     setEditingCustomData({ ...customData });
     setIsAddingNew(false);
+    // Clear inline edit state when entering full edit mode
+    setInlineEditState(null);
+    setInlineEditValue("");
   };
 
   const handleSaveEdit = () => {
@@ -637,6 +764,21 @@ export function GamesTable() {
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
+          <Stack direction="row" spacing={2}>
+            {selectedGames.size > 0 && (
+              <>
+                <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                  Send Email ({selectedGames.size})
+                </Button>
+              </>
+            )}
+            <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+              Create Game
+            </Button>
+            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
+              Add Columns ({customColumns.length})
+            </Button>
+          </Stack>
         </Box>
         <Stack direction="row" spacing={2}>
           {selectedGames.size > 0 && (
@@ -651,17 +793,8 @@ export function GamesTable() {
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete (${selectedGames.size})`}
               </LoadingButton>
-              <Button variant="contained" color="primary" startIcon={<Send />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                Send Email ({selectedGames.size})
-              </Button>
             </>
           )}
-          <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-            Create Game
-          </Button>
-          <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
-            Add Columns ({customColumns.length})
-          </Button>
           <Tooltip title="Import games from CSV">
             <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} sx={{ textTransform: "none" }}>
               Import
@@ -683,7 +816,7 @@ export function GamesTable() {
           border: "1px solid",
           borderColor: "divider",
           borderRadius: 2,
-          overflowX: "scroll",
+          overflowX: "auto",
         }}
       >
         <Table size="small">
@@ -797,7 +930,9 @@ export function GamesTable() {
 
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
-                  LOCATION
+                  <TableSortLabel active={sortField === "location"} direction={sortField === "location" ? sortOrder : "asc"} onClick={() => handleSort("location")}>
+                    LOCATION
+                  </TableSortLabel>
                   <ColumnFilter
                     columnId="location"
                     columnName="Location"
@@ -913,7 +1048,6 @@ export function GamesTable() {
                     <MenuItem value="CANCELLED">No</MenuItem>
                   </Select>
                 </TableCell>
-
                 <TableCell sx={{ py: 1 }}>
                   <Select
                     size="small"
@@ -995,6 +1129,7 @@ export function GamesTable() {
                 const confirmedStatus = getConfirmedStatus(game.status);
                 const isSelected = selectedGames.has(game.id);
                 const isEditing = editingGameId === game.id;
+                const isInlineEditing = inlineEditState?.gameId === game.id;
 
                 if (isEditing && editingGameData) {
                   return (
@@ -1179,7 +1314,50 @@ export function GamesTable() {
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{formatGameDate(game.date)}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.opponent?.name || "TBD"}</TableCell>
+
+                    {/* Opponent Cell - Double-click to edit */}
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 2,
+                        cursor: isInlineEditing && inlineEditState?.field === "opponent" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "transparent",
+                        border: isInlineEditing && inlineEditState?.field === "opponent" ? "2px solid #ffa726" : "none",
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "opponent")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "opponent" ? (
+                        <Select
+                          size="small"
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                          onBlur={() => handleInlineBlur(game)}
+                          autoFocus
+                          disabled={isInlineSaving}
+                          sx={{ width: "100%", fontSize: 13 }}
+                          displayEmpty
+                        >
+                          <MenuItem value="">TBD</MenuItem>
+                          {opponents.map((opponent: any) => (
+                            <MenuItem key={opponent.id} value={opponent.id}>
+                              {opponent.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography variant="body2" sx={{ fontSize: 13 }}>
+                            {game.opponent?.name || "TBD"}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
+
                     <TableCell sx={{ py: 2 }}>
                       <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "primary" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
                     </TableCell>
@@ -1198,7 +1376,51 @@ export function GamesTable() {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2, maxWidth: 180 }}>{game.isHome ? "Home Field" : game.venue?.name || "TBD"}</TableCell>
+
+                    {/* Location Cell - Double-click to edit (only for away games) */}
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 2,
+                        maxWidth: 180,
+                        cursor: game.isHome ? "default" : isInlineEditing && inlineEditState?.field === "location" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "transparent",
+                        border: isInlineEditing && inlineEditState?.field === "location" ? "2px solid #ffa726" : "none",
+                        "&:hover": {
+                          bgcolor: game.isHome ? "transparent" : isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "location")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "location" && !game.isHome ? (
+                        <Select
+                          size="small"
+                          value={inlineEditValue}
+                          onChange={(e) => setInlineEditValue(e.target.value)}
+                          onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                          onBlur={() => handleInlineBlur(game)}
+                          autoFocus
+                          disabled={isInlineSaving}
+                          sx={{ width: "100%", fontSize: 13 }}
+                          displayEmpty
+                        >
+                          <MenuItem value="">TBD</MenuItem>
+                          {venues.map((venue: any) => (
+                            <MenuItem key={venue.id} value={venue.id}>
+                              {venue.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography variant="body2" sx={{ fontSize: 13 }}>
+                            {game.isHome ? "Home Field" : game.venue?.name || "TBD"}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
+
                     {customColumns.map((column: any) => {
                       const customData = (game.customData as any) || {};
                       const cellValue = customData[column.id] || "";
@@ -1220,7 +1442,7 @@ export function GamesTable() {
                         </Tooltip>
                         <Tooltip title="Sync to Google">
                           <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
-                            {syncGameMutation.isPending && syncGameMutation.variables === game.id ? <CircularProgress size={16} /> : <SyncIcon sx={{ fontSize: 18 }} />}
+                            {syncGameMutation.isPending && syncGameMutation.variables === game.id ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
@@ -1318,7 +1540,6 @@ export function GamesTable() {
           </Tooltip>
         </Box>
       </Box>
-
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
       {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
