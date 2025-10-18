@@ -14,6 +14,7 @@ import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
+import { ChipProps } from "@mui/material/Chip";
 
 import {
   Box,
@@ -114,6 +115,12 @@ interface InlineEditState {
   gameId: string;
   field: "opponent" | "location";
 }
+
+type ConfirmedStatus = {
+  icon: React.ReactNode;
+  label: string;
+  color: ChipProps["color"]; // Use MUI's Chip color type
+};
 
 export function GamesTable() {
   const router = useRouter();
@@ -1135,40 +1142,77 @@ export function GamesTable() {
                 const isEditing = editingGameId === game.id;
                 const isInlineEditing = inlineEditState?.gameId === game.id;
 
-                if (isEditing && editingGameData) {
-                  return (
+                {
+                  isEditing && editingGameData && (
                     <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
+                      {/* Checkbox */}
                       <TableCell padding="checkbox">
                         <Checkbox disabled sx={{ p: 0 }} />
                       </TableCell>
+
+                      {/* Date */}
                       <TableCell sx={{ py: 1 }}>
                         <TextField
                           type="date"
                           size="small"
                           value={editingGameData.date.split("T")[0]}
                           onChange={(e) => setEditingGameData({ ...editingGameData, date: e.target.value })}
-                          sx={{ width: 140 }}
+                          sx={{
+                            width: 140,
+                            "& .MuiOutlinedInput-root": {
+                              bgcolor: "transparent",
+                              "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                              "&:hover fieldset": { borderColor: "primary.main" },
+                              "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                            },
+                          }}
                           InputProps={{ sx: { fontSize: 13 } }}
                         />
                       </TableCell>
-                      {/* MERGED CELL for Sport + Level in Edit Mode */}
+
+                      {/* Sport + Level (merged cell) */}
                       <TableCell colSpan={2} sx={{ py: 1 }}>
-                        <Button size="small" variant="outlined" onClick={() => setShowAddTeam(true)} fullWidth sx={{ fontSize: 13, textTransform: "none", justifyContent: "flex-start" }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setShowAddTeam(true)}
+                          fullWidth
+                          sx={{
+                            fontSize: 13,
+                            textTransform: "none",
+                            justifyContent: "flex-start",
+                            bgcolor: "transparent",
+                            "&:hover": { bgcolor: "rgba(0, 0, 0, 0.04)" },
+                          }}
+                        >
                           {editingGameData.homeTeam.sport.name && editingGameData.homeTeam.level ? `${editingGameData.homeTeam.sport.name} - ${editingGameData.homeTeam.level}` : "+ Select Team"}
                         </Button>
                       </TableCell>
+
+                      {/* Opponent */}
                       <TableCell sx={{ py: 1 }}>
                         <Select
                           size="small"
                           value={editingGameData.opponentId || editingGameData.opponent?.id || ""}
                           onChange={(e) => {
-                            if (e.target.value === "__add_new__") {
-                              setShowAddOpponent(true);
-                            } else {
-                              setEditingGameData({ ...editingGameData, opponentId: e.target.value });
-                            }
+                            if (e.target.value === "__add_new__") setShowAddOpponent(true);
+                            else setEditingGameData({ ...editingGameData, opponentId: e.target.value });
                           }}
-                          sx={{ width: 140, fontSize: 13 }}
+                          sx={{
+                            width: 140,
+                            fontSize: 13,
+                            bgcolor: "transparent",
+                            borderBottom: "#e0e0e0!important",
+                            "& .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "rgba(0, 0, 0, 0.23)",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                          }}
                           displayEmpty
                         >
                           <MenuItem value="">TBD</MenuItem>
@@ -1182,34 +1226,81 @@ export function GamesTable() {
                           ))}
                         </Select>
                       </TableCell>
+
+                      {/* Home/Away */}
                       <TableCell sx={{ py: 1 }}>
                         <Select
                           size="small"
                           value={editingGameData.isHome ? "home" : "away"}
                           onChange={(e) => setEditingGameData({ ...editingGameData, isHome: e.target.value === "home" })}
-                          sx={{ width: 80, fontSize: 13 }}
+                          sx={{
+                            width: 80,
+                            fontSize: 13,
+                            bgcolor: "transparent",
+                            "& .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "rgba(0, 0, 0, 0.23)",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                          }}
                         >
                           <MenuItem value="home">Home</MenuItem>
                           <MenuItem value="away">Away</MenuItem>
                         </Select>
                       </TableCell>
+
+                      {/* Time */}
                       <TableCell sx={{ py: 1 }}>
                         <TextField
                           type="time"
                           size="small"
                           value={editingGameData.time || ""}
                           onChange={(e) => setEditingGameData({ ...editingGameData, time: e.target.value })}
-                          sx={{ width: 100 }}
+                          sx={{
+                            width: 100,
+                            "& .MuiOutlinedInput-root": {
+                              bgcolor: "transparent",
+                              "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                              "&:hover fieldset": { borderColor: "primary.main" },
+                              "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                            },
+                          }}
                           InputProps={{ sx: { fontSize: 13 } }}
                         />
                       </TableCell>
+
+                      {/* Status */}
                       <TableCell sx={{ py: 1 }}>
-                        <Select size="small" value={editingGameData.status} onChange={(e) => setEditingGameData({ ...editingGameData, status: e.target.value })} sx={{ width: 110, fontSize: 13 }}>
+                        <Select
+                          size="small"
+                          value={editingGameData.status}
+                          onChange={(e) => setEditingGameData({ ...editingGameData, status: e.target.value })}
+                          sx={{
+                            width: 110,
+                            fontSize: 13,
+                            bgcolor: "transparent",
+                            "& .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "rgba(0, 0, 0, 0.23)",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                              borderColor: "primary.main",
+                            },
+                          }}
+                        >
                           <MenuItem value="SCHEDULED">Pending</MenuItem>
                           <MenuItem value="CONFIRMED">Yes</MenuItem>
                           <MenuItem value="CANCELLED">No</MenuItem>
                         </Select>
                       </TableCell>
+
+                      {/* Venue */}
                       <TableCell sx={{ py: 1 }}>
                         {editingGameData.isHome ? (
                           <Typography variant="body2" sx={{ fontSize: 13 }}>
@@ -1220,17 +1311,27 @@ export function GamesTable() {
                             size="small"
                             value={editingGameData.venueId || editingGameData.venue?.id || ""}
                             onChange={(e) => {
-                              if (e.target.value === "__add_new__") {
-                                setShowAddVenue(true);
-                              } else {
-                                setEditingGameData({ ...editingGameData, venueId: e.target.value });
-                              }
+                              if (e.target.value === "__add_new__") setShowAddVenue(true);
+                              else setEditingGameData({ ...editingGameData, venueId: e.target.value });
                             }}
-                            sx={{ width: 140, fontSize: 13 }}
+                            sx={{
+                              width: 140,
+                              fontSize: 13,
+                              bgcolor: "transparent",
+                              "& .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "rgba(0, 0, 0, 0.23)",
+                              },
+                              "&:hover .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "primary.main",
+                              },
+                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                                borderColor: "primary.main",
+                              },
+                            }}
                             displayEmpty
                           >
                             <MenuItem value="">TBD</MenuItem>
-                            <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            <MenuItem value="add_new" sx={{ color: "primary.main", fontWeight: 600 }}>
                               + Add New Venue
                             </MenuItem>
                             {venues.map((venue: any) => (
@@ -1241,6 +1342,8 @@ export function GamesTable() {
                           </Select>
                         )}
                       </TableCell>
+
+                      {/* Custom Fields */}
                       {customColumns.map((column: any) => (
                         <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
                           <TextField
@@ -1250,14 +1353,19 @@ export function GamesTable() {
                             onChange={(e) => handleCustomFieldChange(column.id, e.target.value)}
                             placeholder={`Enter ${column.name.toLowerCase()}`}
                             sx={{
-                              "& .MuiInputBase-input": {
-                                fontSize: 13,
-                                py: 0.5,
+                              "& .MuiOutlinedInput-root": {
+                                bgcolor: "transparent",
+                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                                "&:hover fieldset": { borderColor: "primary.main" },
+                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
                               },
+                              "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
                             }}
                           />
                         </TableCell>
                       ))}
+
+                      {/* Save / Cancel Buttons */}
                       <TableCell sx={{ py: 1 }}>
                         <Stack direction="row" spacing={0}>
                           <Tooltip title="Save">
@@ -1300,14 +1408,16 @@ export function GamesTable() {
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
 
                     {/* Opponent Cell - Double-click to edit */}
-                    {/* Opponent Cell - Double-click to edit */}
                     <TableCell
                       sx={{
                         fontSize: 13,
-                        py: 2,
+                        py: 0,
                         cursor: isInlineEditing && inlineEditState?.field === "opponent" ? "default" : "pointer",
                         bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "transparent",
-                        border: isInlineEditing && inlineEditState?.field === "opponent" ? "2px solid #ffa726" : "none",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "opponent" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
                         "&:hover": {
                           bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "#f5f5f5",
                         },
@@ -1320,7 +1430,6 @@ export function GamesTable() {
                           value={inlineEditValue}
                           onChange={(e) => {
                             if (e.target.value === "__add_new__") {
-                              // Clear timeout to prevent auto-save
                               if (saveTimeoutRef.current) {
                                 clearTimeout(saveTimeoutRef.current);
                                 saveTimeoutRef.current = null;
@@ -1357,16 +1466,21 @@ export function GamesTable() {
                       )}
                     </TableCell>
 
+                    {/* Home/Away */}
                     <TableCell sx={{ py: 2 }}>
                       <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "primary" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
                     </TableCell>
+
+                    {/* Time */}
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.time || "TBD"}</TableCell>
+
+                    {/* Confirmed Status */}
                     <TableCell sx={{ py: 2 }}>
                       <Chip
                         icon={confirmedStatus.icon}
                         label={confirmedStatus.label}
                         size="small"
-                        color={confirmedStatus.color as any}
+                        color={confirmedStatus.color as ChipProps["color"]}
                         sx={{
                           fontSize: 11,
                           height: 24,
@@ -1384,7 +1498,10 @@ export function GamesTable() {
                         maxWidth: 180,
                         cursor: game.isHome ? "default" : isInlineEditing && inlineEditState?.field === "location" ? "default" : "pointer",
                         bgcolor: isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "transparent",
-                        border: isInlineEditing && inlineEditState?.field === "location" ? "2px solid #ffa726" : "none",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "location" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
                         "&:hover": {
                           bgcolor: game.isHome ? "transparent" : isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "#f5f5f5",
                         },
@@ -1396,8 +1513,7 @@ export function GamesTable() {
                           size="small"
                           value={inlineEditValue}
                           onChange={(e) => {
-                            if (e.target.value === "add_new") {
-                              // Clear timeout to prevent auto-save
+                            if (e.target.value === "__add_new__") {
                               if (saveTimeoutRef.current) {
                                 clearTimeout(saveTimeoutRef.current);
                                 saveTimeoutRef.current = null;
@@ -1415,7 +1531,7 @@ export function GamesTable() {
                           displayEmpty
                         >
                           <MenuItem value="">TBD</MenuItem>
-                          <MenuItem value="add_new" sx={{ color: "primary.main", fontWeight: 600 }}>
+                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
                             + Add New Venue
                           </MenuItem>
                           {venues.map((venue: any) => (
@@ -1434,6 +1550,7 @@ export function GamesTable() {
                       )}
                     </TableCell>
 
+                    {/* Custom Columns */}
                     {customColumns.map((column: any) => {
                       const customData = (game.customData as any) || {};
                       const cellValue = customData[column.id] || "";
@@ -1446,6 +1563,8 @@ export function GamesTable() {
                         </TableCell>
                       );
                     })}
+
+                    {/* Actions */}
                     <TableCell sx={{ py: 2 }}>
                       <Stack direction="row" spacing={0}>
                         <Tooltip title="Edit">
