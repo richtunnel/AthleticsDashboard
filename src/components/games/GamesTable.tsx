@@ -1494,7 +1494,7 @@ export function GamesTable() {
                     <TableCell
                       sx={{
                         fontSize: 13,
-                        py: 2,
+                        py: 0,
                         maxWidth: 180,
                         cursor: game.isHome ? "default" : isInlineEditing && inlineEditState?.field === "location" ? "default" : "pointer",
                         bgcolor: isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "transparent",
