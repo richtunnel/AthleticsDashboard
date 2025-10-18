@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["...", "openssl"]
+
+[phases.build]
+cmds = [
+  "yarn install --frozen-lockfile",
+  "yarn prisma generate", 
+  "yarn build"
+]
+
+[start]
+cmd = "yarn prisma migrate deploy && yarn start"
+
+[variables]
+NODE_ENV = "production"
