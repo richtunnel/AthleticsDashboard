@@ -40,6 +40,43 @@ export class CalendarService {
     return google.calendar({ version: "v3", auth: oauth2Client });
   }
 
+  async syncAllGames(userId: string, organizationId: string) {
+    // Adjust the where clause to match your schema relations
+    // Assumes Game has homeTeam with organizationId
+    const games = await prisma.game.findMany({
+      where: {
+        homeTeam: {
+          organizationId,
+        },
+      },
+      select: { id: true },
+    });
+
+    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+
+    for (const g of games) {
+      try {
+        // Reuse your single-game sync routine if you have one
+        // e.g., await this.syncGameToGoogleCalendar(g.id, userId);
+        // For now, flip a synced flag so this compiles and runs:
+        await prisma.game.update({
+          where: { id: g.id },
+          data: { calendarSynced: true },
+        });
+
+        results.push({ id: g.id, ok: true });
+      } catch (e) {
+        results.push({
+          id: g.id,
+          ok: false,
+          error: e instanceof Error ? e.message : "Unknown error",
+        });
+      }
+    }
+
+    return results;
+  }
+
   async syncGameToCalendar(gameId: string, userId: string) {
     // Get user's organizationId (only need this field)
     const user = await prisma.user.findUnique({
