@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
-
-// Valid team levels from Prisma schema
-type TeamLevel = "VARSITY" | "JV" | "FRESHMAN" | "MIDDLE_SCHOOL" | "YOUTH";
-
-// Valid game statuses from Prisma schema
-type GameStatus = "SCHEDULED" | "CONFIRMED" | "POSTPONED" | "CANCELLED" | "COMPLETED";
+import { TeamLevel, GameStatus } from "../../../../../../types/main.types";
 
 interface ImportGameData {
   date: string;
