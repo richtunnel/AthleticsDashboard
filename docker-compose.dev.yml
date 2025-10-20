@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: athletics-db-dev
+    restart: unless-stopped
+    environment:
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - athletics-network-dev
+
+  app-dev:
+    image: node:20-alpine
+    container_name: athletics-app-dev
+    working_dir: /app
+    command: sh -c "yarn install && yarn prisma migrate dev && yarn dev"
+    environment:
+      DATABASE_URL: postgresql://athleticsuser:athleticspass@postgres:5432/athleticsdb?schema=public
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: development-secret-change-in-production
+      NODE_ENV: development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - athletics-network-dev
+
+  athletics-admin:
+    image: athletics-admin
+    container_name: athletics-admin
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - athletics-network-dev
+    depends_on:
+      - postgres
+
+networks:
+  athletics-network-dev:
+    driver: bridge
+
+volumes:
+  postgres-data-dev:
