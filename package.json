@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build --turbopack",
     "start": "next start",
     "migrate:deploy": "prisma migrate deploy",
     "start:prod": "yarn migrate:deploy && yarn start",

@@ -32,6 +32,7 @@ import {
   StepLabel,
 } from "@mui/material";
 import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning } from "@mui/icons-material";
+import Link from "next/link";
 
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
@@ -519,6 +520,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               <>
                 <CheckCircle sx={{ fontSize: 64, color: "success.main" }} />
                 <Typography variant="h6">Import Complete!</Typography>
+                <Link href="/dashboard/games">View Schedule</Link>
                 <Stack direction="row" spacing={2}>
                   <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                   {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
