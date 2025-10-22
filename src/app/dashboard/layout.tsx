@@ -66,8 +66,8 @@ const navigation = [
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
+  { name: "Manage Emais", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Email", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Account", href: "/dashboard/settings", icon: Settings },
   { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
 ];
