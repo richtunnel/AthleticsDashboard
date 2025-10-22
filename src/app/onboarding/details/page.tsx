@@ -4,6 +4,8 @@ import { getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
+import styles from "@/styles/details_page.module.css";
+import BaseHeader from "@/components/headers/_base";
 
 export default function DetailsPage() {
   // This export is crucial
@@ -28,24 +30,30 @@ export default function DetailsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schoolName, teamName, mascot }),
     });
-    if (res.ok) router.push("/");
+    if (res.ok) router.push("/dashboard");
   };
 
   if (loading) return <Typography>Loading...</Typography>;
 
   return (
-    <Box sx={{ maxWidth: 400, mx: "auto", mt: 8 }}>
-      <Typography variant="h4" gutterBottom>
-        Enter School Details
-      </Typography>
-      <form onSubmit={handleSubmit}>
-        <TextField fullWidth label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} />
-        <TextField fullWidth label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} />
-        <TextField fullWidth label="Mascot" value={mascot} onChange={(e) => setMascot(e.target.value)} sx={{ mb: 2 }} />
-        <Button fullWidth variant="contained" type="submit">
-          Complete Setup
-        </Button>
-      </form>
-    </Box>
+    <>
+      <BaseHeader pt={"20px"} pl={"20px"} />
+
+      <div className={`${styles.detailsContainer}`}>
+        <Box sx={{ maxWidth: 400, mx: "auto" }}>
+          <Typography variant="h4" gutterBottom>
+            Enter School Details
+          </Typography>
+          <form onSubmit={handleSubmit}>
+            <TextField size="small" fullWidth label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} />
+            <TextField size="small" fullWidth label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} />
+            <TextField size="small" fullWidth label="Mascot" value={mascot} onChange={(e) => setMascot(e.target.value)} sx={{ mb: 2 }} />
+            <Button fullWidth variant="contained" type="submit">
+              Complete Setup
+            </Button>
+          </form>
+        </Box>
+      </div>
+    </>
   );
 }

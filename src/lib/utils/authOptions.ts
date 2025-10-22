@@ -10,6 +10,31 @@ const adapter = PrismaAdapter(prisma);
 const customAdapter = {
   ...adapter,
   async createUser(user: any) {
+    // Extract plan from user data if available (passed from callback URL)
+    const plan = user.plan || "free_trial_plan";
+
+    let stripeCustomerId = null;
+
+    // Create Stripe customer if plan is selected (not free trial) and we have the required environment
+    if (plan && plan !== "free_trial_plan") {
+      try {
+        // Import the Stripe helper function
+        const { getStripe } = await import("@/lib/stripe");
+        const stripe = getStripe();
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: user.name,
+          metadata: {
+            plan: plan,
+            source: "google_oauth",
+          },
+        });
+        stripeCustomerId = customer.id;
+      } catch (stripeError) {
+        console.error("Stripe customer creation error during OAuth:", stripeError);
+        // Continue with user creation even if Stripe fails - we can retry later
+      }
+    }
     // Create user with their own organization
     const newUser = await prisma.user.create({
       data: {
@@ -18,6 +43,9 @@ const customAdapter = {
         image: user.image,
         emailVerified: user.emailVerified,
         role: "ATHLETIC_DIRECTOR", // Set default role
+        plan: plan,
+        stripeCustomerId,
+        trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
         organization: {
           create: {
             name: user.name ? `${user.name}'s Organization` : "My Organization",
