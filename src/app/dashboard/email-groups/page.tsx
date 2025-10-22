@@ -102,15 +102,19 @@ export default function EmailGroupsPage() {
   if (loading) return <Typography>Loading...</Typography>;
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Manage Email Groups
+    <Box sx={{ maxWidth: 600, mt: 4 }}>
+      <Typography sx={{ mb: 1 }} variant="h5">
+        Create Email Campaigns
+      </Typography>
+      <Typography sx={{ marginBottom: "1rem" }} gutterBottom>
+        Save time by uploading your email contacts into our campaign manager allowing you to group and send bulk emails and updates with the click of a button.
       </Typography>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
+      <Typography variant="caption">Name of campaign</Typography>
       <TextField fullWidth label="New Group Name" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} sx={{ mb: 2 }} />
       <Button variant="contained" onClick={handleCreateGroup} sx={{ mb: 4 }}>
         Create Group
@@ -118,7 +122,7 @@ export default function EmailGroupsPage() {
       <Typography variant="h6" gutterBottom>
         Upload Bulk Emails (CSV)
       </Typography>
-      <Select fullWidth value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)} displayEmpty sx={{ mb: 2 }}>
+      <Select size="small" fullWidth value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)} displayEmpty sx={{ mb: 2 }}>
         <MenuItem value="" disabled>
           Select Group
         </MenuItem>
