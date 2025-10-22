@@ -36,7 +36,7 @@ export default function HomePage() {
               >
                 Sign in
               </Link>
-              <Link style={{ fontSize: "1.05rem" }} className="d-flex flex text-decoration-line underline font-medium" href="/onboarding/start">
+              <Link style={{ fontSize: "1.05rem" }} className="d-flex flex text-decoration-line underline font-medium" href="/onboarding/plans">
                 Get Started
               </Link>
             </div>

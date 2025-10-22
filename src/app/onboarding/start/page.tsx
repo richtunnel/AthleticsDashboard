@@ -51,25 +51,40 @@ export default async function StartPage({ searchParams }: { searchParams: Promis
     redirect("/onboarding/plans");
   }
 
-  if (plan === "free") {
+  // Handle free trial plan
+  if (plan === "free_trial_plan" || plan === "free") {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan: "free", trialEnd },
+      data: { plan: "free_trial_plan", trialEnd },
     });
     redirect("/onboarding/details");
   }
 
   // Map paid plans to price IDs
   let priceId: string | undefined;
+  let billingType = "monthly"; // default
+  
   switch (plan) {
+    case "directors_plan":
+      // Default to monthly for directors plan, but we'll need to handle the billing toggle
+      priceId = process.env.STRIPE_DIRECTORS_MONTHLY_PRICE_ID || process.env.STRIPE_STANDARD_MONTHLY_PRICE_ID;
+      billingType = "monthly";
+      break;
+    case "directors_plan_yearly":
+      priceId = process.env.STRIPE_DIRECTORS_YEARLY_PRICE_ID || process.env.STRIPE_STANDARD_YEARLY_PRICE_ID;
+      billingType = "yearly";
+      break;
     case "standard_monthly":
       priceId = process.env.STRIPE_STANDARD_MONTHLY_PRICE_ID;
+      billingType = "monthly";
       break;
     case "standard_yearly":
       priceId = process.env.STRIPE_STANDARD_YEARLY_PRICE_ID;
+      billingType = "yearly";
       break;
     case "business_yearly":
       priceId = process.env.STRIPE_BUSINESS_YEARLY_PRICE_ID;
+      billingType = "yearly";
       break;
     default:
       redirect("/onboarding/plans");
