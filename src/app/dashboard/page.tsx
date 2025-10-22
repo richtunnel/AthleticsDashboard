@@ -1,8 +1,21 @@
+"use client";
+
 import { Suspense } from "react";
+import { useEffect } from "react";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { ImportBox } from "@/components/import-export/ImportBox";
+import { useRouter } from "next/navigation";
+import { getSession } from "next-auth/react";
 
 export default function DashboardPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    (async () => {
+      const session = await getSession();
+      if (!session) router.push("/login");
+    })();
+  }, [router]);
   return (
     <div className="space-y-8">
       <div>

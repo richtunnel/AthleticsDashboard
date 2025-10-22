@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } from "@mui/material";
 import { CalendarMonth, CheckCircleOutline, LinkOff } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
+import { IconButton } from "@mui/material";
+import Link from "next/link";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -81,8 +83,11 @@ function GoogleCalendarSyncMenuContent() {
 
   return (
     <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
-      <Typography variant="h6" gutterBottom>
-        Google Calendar Sync
+      <Typography variant="h6">Google Calendar Sync</Typography>
+      <Typography variant="overline" gutterBottom>
+        <Link href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" color="default">
+          View Calendar
+        </Link>
       </Typography>
 
       {/* Connection message handler wrapped in Suspense */}
