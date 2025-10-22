@@ -204,7 +204,7 @@ function SignupForm() {
   );
 }
 
-export default function SignupPage() {
+export default function SignUpPlan() {
   return (
     <Suspense
       fallback={
