@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
 
@@ -39,7 +40,11 @@ const plans = [
   // },
 ];
 
-export default function SignupPage() {
+interface BackButtonProps {
+  clickBack: (event: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+export default function SignUpPlan({ clickBack }: BackButtonProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const router = useRouter();
   const theme = useTheme();
@@ -64,13 +69,21 @@ export default function SignupPage() {
 
   return (
     <>
-      <BaseHeader />
-      <Box sx={{ py: 10, px: 2, textAlign: "center" }}>
+      {/* <BaseHeader /> */}
+      <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
         {/* Header */}
+        <Typography variant="body1">
+          <button style={{ cursor: "pointer" }} type="button" className="button" onClick={clickBack}>
+            <span>
+              <ArrowBackIcon sx={{ fontSize: 15 }} />
+            </span>
+            &nbsp;Back
+          </button>
+        </Typography>
         <Typography style={{ marginBottom: "0.25rem" }} variant="h4" fontWeight={400} gutterBottom>
           <span style={{ fontWeight: 700, fontStyle: "normal" }}>Choose the automation you need</span>
         </Typography>
-        <Typography variant="h6" color="text.secondary" gutterBottom>
+        <Typography variant="body1" color="text.secondary" gutterBottom>
           or get an assist from one of our experts
         </Typography>
 
@@ -87,7 +100,7 @@ export default function SignupPage() {
         {/* Pricing cards */}
         <Grid container spacing={4} justifyContent="center" sx={{ maxWidth: 1100, mx: "auto" }}>
           {plans.map((plan) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={plan.name}>
+            <Grid size={{ xs: 12, sm: 12, md: 10 }} key={plan.name}>
               <Card
                 elevation={plan.mostPopular ? 8 : 2}
                 sx={{
