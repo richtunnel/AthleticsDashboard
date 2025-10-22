@@ -1,0 +1,7 @@
+.detailsContainer {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  top: -50px;
+}
