@@ -10,7 +10,7 @@ const plans = [
   {
     name: "Free Trial Plan",
     monthlyPrice: 0,
-    annualPrice: 18,
+    annualPrice: 0,
     features: [
       "Sync personal calendars & spreadsheets",
       "Automated Bus & Event scheduling",
@@ -27,7 +27,7 @@ const plans = [
   {
     name: "Directors plan",
     monthlyPrice: 40,
-    annualPrice: 32,
+    annualPrice: 250,
     mostPopular: true,
     features: ["Everything in Free plan plus...", "50,000+ batch email sends", "Advanced reporting and analytics", "Up to 20 individual users", "Priority chat and email support"],
   },
@@ -57,7 +57,7 @@ export default function SignupPage() {
       <BaseHeader />
       <Box sx={{ py: 10, px: 2, textAlign: "center" }}>
         {/* Header */}
-        <Typography variant="h4" fontWeight={400} gutterBottom>
+        <Typography style={{ marginBottom: "0.25rem" }} variant="h4" fontWeight={400} gutterBottom>
           <span style={{ fontWeight: 700, fontStyle: "normal" }}>Choose the automation you need</span>
         </Typography>
         <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -66,8 +66,12 @@ export default function SignupPage() {
 
         {/* Billing toggle */}
         <ToggleButtonGroup color="primary" value={billing} exclusive onChange={handleBillingChange} sx={{ mt: 4, mb: 6 }}>
-          <ToggleButton value="monthly">Monthly billing</ToggleButton>
-          <ToggleButton value="annual">Annual billing</ToggleButton>
+          <ToggleButton style={{ fontSize: "0.75rem" }} value="monthly">
+            Monthly billing
+          </ToggleButton>
+          <ToggleButton style={{ fontSize: "0.75rem" }} value="annual">
+            Annual billing
+          </ToggleButton>
         </ToggleButtonGroup>
 
         {/* Pricing cards */}

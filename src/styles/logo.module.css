@@ -4,8 +4,6 @@
   font-weight: 800;
   display: flex;
   position: relative;
-  top: 20px;
-  left: 20px;
 }
 
 .ad-hub-logo a {
@@ -20,14 +18,21 @@
 .homeHeaderContainer {
   display: flex;
   justify-content: space-between;
-  align-content: normal;
   max-width: 768px;
   margin: 0 auto;
-  top: 20px;
   position: relative;
+  align-items: center;
+  padding: 20px;
 }
 
 .homePageContentContainer {
   position: relative;
   top: -10px;
+  padding: 0px 40px;
+}
+
+@media all and (max-width: 991px) {
+  .loginScreenContainer {
+    padding: 40px;
+  }
 }
