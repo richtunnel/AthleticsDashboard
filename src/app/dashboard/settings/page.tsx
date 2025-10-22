@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
+import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -15,30 +16,55 @@ export default async function SettingsPage() {
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      image: true,
+      organization: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       googleCalendarRefreshToken: true,
       calendarTokenExpiry: true,
     },
   });
 
+  if (!user) {
+    // Defensive fallback
+    throw new Error("User not found");
+  }
+
   const isCalendarConnected = !!user?.googleCalendarRefreshToken;
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Settings
-      </Typography>
+    <>
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Settings
+        </Typography>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Google Calendar Integration
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Connect your Google Calendar to automatically sync games and events.
-          </Typography>
-          <ConnectCalendarButton isConnected={isCalendarConnected} />
-        </CardContent>
-      </Card>
-    </Box>
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Google Calendar Integration
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Connect your Google Calendar to automatically sync games and events.
+            </Typography>
+            <ConnectCalendarButton isConnected={isCalendarConnected} />
+          </CardContent>
+        </Card>
+      </Box>
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Account Details
+        </Typography>
+        <AccountDetailsForm user={user} />
+      </Box>
+    </>
   );
 }

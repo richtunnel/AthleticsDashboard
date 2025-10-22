@@ -1,10 +1,14 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/utils/authOptions";
+import { prisma } from "@/lib/database/prisma";
+import { Resend } from "resend";
+import { format } from "date-fns";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
-import { emailService } from "@/lib/services/email.service";
-import { format } from "date-fns";
-import { prisma } from "@/lib/database/prisma";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface Game {
   id: string;
@@ -28,70 +32,6 @@ interface Game {
     [key: string]: any;
   } | null;
   notes: string | null;
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await requireAuth();
-
-    if (!hasPermission(session.user.role, WRITE_ROLES)) {
-      return ApiResponse.forbidden();
-    }
-
-    const body = await request.json();
-    const { to, subject, recipientCategory, gameIds, additionalMessage } = body;
-
-    if (!to || !Array.isArray(to) || to.length === 0) {
-      return ApiResponse.error("Recipients are required");
-    }
-
-    if (!subject) {
-      return ApiResponse.error("Subject is required");
-    }
-
-    if (!gameIds || !Array.isArray(gameIds) || gameIds.length === 0) {
-      return ApiResponse.error("At least one game must be selected");
-    }
-
-    // ✅ VALIDATE: Fetch games and ensure they belong to user's organization
-    const games = await prisma.game.findMany({
-      where: {
-        id: { in: gameIds },
-        homeTeam: {
-          organizationId: session.user.organizationId, // ✅ Validate ownership
-        },
-      },
-      include: {
-        homeTeam: {
-          include: {
-            sport: true,
-          },
-        },
-        opponent: true,
-        venue: true,
-      },
-    });
-
-    // Check if allrequested games were found (security check)
-    if (games.length !== gameIds.length) {
-      return ApiResponse.error("Some games were not found or you don't have access", 403);
-    }
-
-    // Build the email body
-    const emailBody = buildScheduleEmailHTML(games, additionalMessage, recipientCategory);
-
-    // Send the email
-    const result = await emailService.sendEmail({
-      to,
-      subject,
-      body: emailBody,
-      sentById: session.user.id,
-    });
-
-    return ApiResponse.success(result);
-  } catch (error) {
-    return handleApiError(error);
-  }
 }
 
 function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string): string {
@@ -160,4 +100,133 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   html += "</div>";
 
   return html;
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+    if (!hasPermission(session.user.role, WRITE_ROLES)) {
+      return ApiResponse.forbidden();
+    }
+
+    const body = await request.json();
+    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId } = body;
+
+    // Validate inputs
+    if (!to && !groupId) {
+      return ApiResponse.error("Either 'to' or 'groupId' is required");
+    }
+    if (!subject) {
+      return ApiResponse.error("Subject is required");
+    }
+
+    let toEmails: string[] = [];
+    let emailBody: string;
+    let campaign;
+
+    // Case 1: Game schedule email with custom recipients or group
+    if (gameIds && Array.isArray(gameIds) && gameIds.length > 0) {
+      // Validate games belong to user's organization
+      const games = await prisma.game.findMany({
+        where: {
+          id: { in: gameIds },
+          homeTeam: {
+            organizationId: session.user.organizationId,
+          },
+        },
+        include: {
+          homeTeam: {
+            include: {
+              sport: true,
+            },
+          },
+          opponent: true,
+          venue: true,
+        },
+      });
+
+      if (games.length !== gameIds.length) {
+        return ApiResponse.error("Some games were not found or you don't have access", 403);
+      }
+
+      // Build game schedule email body
+      emailBody = buildScheduleEmailHTML(games, additionalMessage || "", recipientCategory || "");
+
+      // Determine recipients
+      if (groupId) {
+        const group = await prisma.emailGroup.findUnique({
+          where: { id: groupId, userId: session.user.id },
+          include: { emails: true },
+        });
+        if (!group) {
+          return ApiResponse.error("Group not found", 404);
+        }
+        toEmails = group.emails.map((e) => e.email);
+      } else {
+        if (!Array.isArray(to) || to.length === 0) {
+          return ApiResponse.error("Valid recipients are required");
+        }
+        toEmails = to;
+      }
+    }
+    // Case 2: Email campaign
+    else if (campaignId) {
+      campaign = await prisma.emailCampaign.findUnique({
+        where: { id: campaignId, userId: session.user.id },
+        include: { group: { include: { emails: true } } },
+      });
+      if (!campaign || !campaign.group) {
+        return ApiResponse.error("Campaign or group not found", 404);
+      }
+      toEmails = campaign.group.emails.map((e) => e.email);
+      emailBody = campaign.body;
+      if (!subject) {
+        return ApiResponse.error("Subject is required for campaign");
+      }
+      if (toEmails.length === 0) {
+        return ApiResponse.error("No emails in group", 400);
+      }
+    } else {
+      return ApiResponse.error("Either gameIds or campaignId is required");
+    }
+
+    // Send email via Resend
+    const emailResponse = await resend.emails.send({
+      from: "no-reply@yourdomain.com", // Replace with your verified Resend domain
+      to: toEmails,
+      subject,
+      html: emailBody,
+    });
+
+    // Log the email in EmailLog
+    const emailLog = await prisma.emailLog.create({
+      data: {
+        to: toEmails,
+        cc: [],
+        subject,
+        body: emailBody,
+        status: emailResponse.error ? "FAILED" : "SENT",
+        error: emailResponse.error?.message || null,
+        sentAt: emailResponse.error ? null : new Date(),
+        sentById: session.user.id,
+        gameId: gameIds && gameIds.length === 1 ? gameIds[0] : undefined, // Log single gameId if applicable
+      },
+    });
+
+    // Update campaign sentAt if campaignId was provided
+    if (campaignId && !emailResponse.error) {
+      await prisma.emailCampaign.update({
+        where: { id: campaignId },
+        data: { sentAt: new Date() },
+      });
+    }
+
+    if (emailResponse.error) {
+      return ApiResponse.error(`Failed to send: ${emailResponse.error.message}`, 500);
+    }
+
+    return ApiResponse.success({ message: "Email sent successfully", emailLog });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
