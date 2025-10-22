@@ -28,7 +28,7 @@ export default function DetailsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schoolName, teamName, mascot }),
     });
-    if (res.ok) router.push("/");
+    if (res.ok) router.push("/dashboard");
   };
 
   if (loading) return <Typography>Loading...</Typography>;

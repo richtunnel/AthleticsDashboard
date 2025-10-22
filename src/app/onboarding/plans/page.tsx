@@ -48,8 +48,18 @@ export default function SignupPage() {
     if (newBilling) setBilling(newBilling);
   };
 
-  const handleSelectPlan = (plan: string) => {
-    router.push(`/onboarding/signup?plan=${plan.toLowerCase().replace(" ", "_")}`);
+  const handleSelectPlan = (planName: string) => {
+    let planId: string;
+    
+    if (planName === "Free Trial Plan") {
+      planId = "free_trial_plan";
+    } else if (planName === "Directors plan") {
+      planId = billing === "monthly" ? "directors_plan" : "directors_plan_yearly";
+    } else {
+      planId = planName.toLowerCase().replace(/\s+/g, "_");
+    }
+    
+    router.push(`/onboarding/signup?plan=${planId}`);
   };
 
   return (
