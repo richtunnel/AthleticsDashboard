@@ -1,61 +1,39 @@
 "use client";
 
-import { ThemeProvider, createTheme } from "@mui/material/styles";
-import CssBaseline from "@mui/material/CssBaseline";
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
+import { CssBaseline, GlobalStyles, ThemeProvider } from "@mui/material";
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: "#23252aff", // Blue
-    },
-    secondary: {
-      main: "#64748b", // Slate
-    },
-    success: {
-      main: "#22c55e", // Green
-    },
-    warning: {
-      main: "#f59e0b", // Orange
-    },
-    error: {
-      main: "#ef4444", // Red
-    },
-  },
-
-  colorSchemes: {
-    dark: false,
-    light: true,
-  },
-  typography: {
-    fontFamily: "Inter, system-ui, -apple-system, sans-serif",
-    h5: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: "none",
-          borderRadius: 6,
-        },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          borderRadius: 6,
-        },
-      },
-    },
-  },
-});
+import lightTheme from "@/lib/theme/lightTheme";
+import darkTheme from "@/lib/theme/darkTheme";
+import { useThemeMode } from "@/lib/hooks/useTheme";
 
 export function MUIThemeProvider({ children }: { children: ReactNode }) {
+  const { mode } = useThemeMode();
+
+  const theme = useMemo(() => (mode === "dark" ? darkTheme : lightTheme), [mode]);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <GlobalStyles
+        styles={(currentTheme) => ({
+          "::selection": {
+            backgroundColor: currentTheme.palette.primary.main,
+            color: currentTheme.palette.primary.contrastText,
+          },
+          a: {
+            color: currentTheme.palette.primary.main,
+            textDecoration: "none",
+          },
+          "a:hover": {
+            textDecoration: "underline",
+          },
+          "html, body": {
+            backgroundColor: currentTheme.palette.background.default,
+            color: currentTheme.palette.text.primary,
+          },
+        })}
+      />
       {children}
     </ThemeProvider>
   );

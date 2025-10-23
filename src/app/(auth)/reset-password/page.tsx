@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Box, Button, TextField, Typography, Paper, Container, Alert, CircularProgress, LinearProgress, Link as MuiLink } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 import { CheckCircle, Cancel, Visibility, VisibilityOff } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
@@ -11,6 +12,7 @@ import { validateResetToken, resetPassword } from "./actions";
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [validatingToken, setValidatingToken] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
@@ -57,10 +59,10 @@ function ResetPasswordForm() {
     if (/[0-9]/.test(password)) strength += 15;
     if (/[^a-zA-Z0-9]/.test(password)) strength += 10;
 
-    if (strength < 40) return { strength, label: "Weak", color: "#ef4444" };
-    if (strength < 70) return { strength, label: "Fair", color: "#f59e0b" };
-    if (strength < 90) return { strength, label: "Good", color: "#10b981" };
-    return { strength: 100, label: "Strong", color: "#10b981" };
+    if (strength < 40) return { strength, label: "Weak", color: theme.palette.error.main };
+    if (strength < 70) return { strength, label: "Fair", color: theme.palette.warning.main };
+    if (strength < 90) return { strength, label: "Good", color: theme.palette.success.main };
+    return { strength: 100, label: "Strong", color: theme.palette.success.main };
   };
 
   const passwordStrength = getPasswordStrength(formData.newPassword);
@@ -269,14 +271,14 @@ function ResetPasswordForm() {
                   <LinearProgress
                     variant="determinate"
                     value={passwordStrength.strength}
-                    sx={{
+                    sx={(theme) => ({
                       height: 6,
                       borderRadius: 1,
-                      backgroundColor: "#e0e0e0",
+                      backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200],
                       "& .MuiLinearProgress-bar": {
                         backgroundColor: passwordStrength.color,
                       },
-                    }}
+                    })}
                   />
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
                     Must be at least 8 characters with letters and numbers
