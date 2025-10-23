@@ -43,8 +43,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <BaseHeader />
-      <Container component="main" maxWidth="xs">
+      <BaseHeader pt="20px" pl="20px" />
+      <Container sx={{ top: "-75px", position: "relative" }} component="main" maxWidth="xs">
         <Box
           sx={{
             minHeight: "100vh",
@@ -54,9 +54,8 @@ export default function ForgotPasswordPage() {
             py: 4,
           }}
         >
-          <Paper elevation={3} sx={{ p: 4 }}>
-            <Box sx={{ mb: 3 }}>
-              <MuiLink
+          <Box sx={{ mb: 3 }}>
+            {/* <MuiLink
                 component={Link}
                 href="/login"
                 sx={{
@@ -69,68 +68,66 @@ export default function ForgotPasswordPage() {
               >
                 <ArrowBack sx={{ mr: 1, fontSize: 20 }} />
                 Back to Login
-              </MuiLink>
+              </MuiLink> */}
+          </Box>
+
+          <Typography component="h1" variant="h5" align="center" gutterBottom>
+            Forgot Password
+          </Typography>
+          <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
+            Enter your email address and we'll send you a link to reset your password
+          </Typography>
+
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Check your email! If an account exists with this email, you will receive a password reset link shortly.
+            </Alert>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {!success && (
+            <Box component="form" onSubmit={handleSubmit} noValidate>
+              <TextField
+                margin="normal"
+                size="small"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+
+              <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
+                {loading ? <CircularProgress size={24} /> : "Send Reset Link"}
+              </Button>
+
+              <Box sx={{ mt: 2, textAlign: "center" }}>
+                <Typography variant="body2">
+                  <MuiLink component={Link} href="/login" underline="hover">
+                    Back to Sign in ?
+                  </MuiLink>
+                </Typography>
+              </Box>
             </Box>
+          )}
 
-            <Typography component="h1" variant="h5" align="center" gutterBottom>
-              Forgot Password
-            </Typography>
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-              Enter your email address and we'll send you a link to reset your password
-            </Typography>
-
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Check your email! If an account exists with this email, you will receive a password reset link shortly.
-              </Alert>
-            )}
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            {!success && (
-              <Box component="form" onSubmit={handleSubmit} noValidate>
-                <TextField
-                  margin="normal"
-                  size="small"
-                  required
-                  fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
-                  autoFocus
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-
-                <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-                  {loading ? <CircularProgress size={24} /> : "Send Reset Link"}
-                </Button>
-
-                <Box sx={{ mt: 2, textAlign: "center" }}>
-                  <Typography variant="body2">
-                    Remember your password?{" "}
-                    <MuiLink component={Link} href="/login" underline="hover">
-                      Sign in
-                    </MuiLink>
-                  </Typography>
-                </Box>
-              </Box>
-            )}
-
-            {success && (
-              <Box sx={{ mt: 3, textAlign: "center" }}>
-                <Button variant="outlined" component={Link} href="/login" fullWidth>
-                  Return to Login
-                </Button>
-              </Box>
-            )}
-          </Paper>
+          {success && (
+            <Box sx={{ mt: 3, textAlign: "center" }}>
+              <Button variant="outlined" component={Link} href="/login" fullWidth>
+                Return to Login
+              </Button>
+            </Box>
+          )}
         </Box>
       </Container>
     </>
