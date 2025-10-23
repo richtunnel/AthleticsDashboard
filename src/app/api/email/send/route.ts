@@ -8,7 +8,7 @@ import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== "" ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface Game {
   id: string;
@@ -191,6 +191,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email via Resend
+
+    if (!resend) {
+      console.warn("Resend API key missing — skipping email sending.");
+      return NextResponse.json({
+        success: true,
+        message: "Email service not configured. (Skipped during build)",
+      });
+    }
     const emailResponse = await resend.emails.send({
       from: "no-reply@yourdomain.com", // Replace with your verified Resend domain
       to: toEmails,
