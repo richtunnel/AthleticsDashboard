@@ -92,6 +92,7 @@ model Organization {
   updatedAt     DateTime @updatedAt
   customColumns CustomColumn[]
   emailGroups   EmailGroup[]   @relation("OrganizationEmailGroups")
+  travelSettings TravelSettings?
 
   // Relations
   users         User[]
@@ -141,6 +142,13 @@ model Game {
   departureTime         DateTime?
   busCount              Int?
   travelCost            Float?
+  // AI Travel Recommendations
+  recommendedDepartureTime DateTime?
+  recommendedArrivalTime DateTime?
+  actualDepartureTime   DateTime?
+  actualArrivalTime     DateTime?
+  travelTimeMinutes     Int?
+  autoFillBusInfo       Boolean     @default(false)
   // Calendar Integration
   calendarSynced        Boolean     @default(false)
   lastSyncedAt          DateTime?
@@ -163,6 +171,7 @@ model Game {
   createdById           String
   createdBy             User        @relation("GameCreator", fields: [createdById], references: [id])
   emailLogs             EmailLog[]
+  travelRecommendations TravelRecommendation[]
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([date])
@@ -229,6 +238,32 @@ model Opponent {
   games          Game[]
   @@index([organizationId, sortOrder])
   @@index([organizationId])
+}
+
+model TravelRecommendation {
+  id                  String   @id @default(cuid())
+  gameId              String
+  game                Game     @relation(fields: [gameId], references: [id])
+  recommendedDeparture DateTime
+  recommendedArrival   DateTime
+  travelDuration      Int
+  trafficCondition    String?
+  weatherCondition    String?
+  addedToGame         Boolean  @default(false)
+  addedAt             DateTime?
+  createdAt           DateTime @default(now())
+  @@index([gameId])
+}
+
+model TravelSettings {
+  id                  String       @id @default(cuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  autoFillEnabled     Boolean      @default(false)
+  defaultBufferMinutes Int         @default(45)
+  busLoadingMinutes   Int          @default(15)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 }
 
 model VerificationToken {
