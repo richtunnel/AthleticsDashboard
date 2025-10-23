@@ -121,7 +121,7 @@ export default function EmailGroupsPage() {
       <Typography variant="caption">Name of campaign</Typography>
       <TextField fullWidth label="New Group Name" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} sx={{ mb: 2 }} />
       <Button variant="contained" onClick={handleCreateGroup} sx={{ mb: 4 }}>
-        Create Group
+        Create Email Group
       </Button>
       <Typography variant="h6" gutterBottom>
         Upload Bulk Emails (CSV)
