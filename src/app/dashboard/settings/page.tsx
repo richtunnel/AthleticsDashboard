@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
 import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
+import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -22,10 +23,16 @@ export default async function SettingsPage() {
       phone: true,
       role: true,
       image: true,
+      hashedPassword: true,
       organization: {
         select: {
           id: true,
           name: true,
+        },
+      },
+      accounts: {
+        select: {
+          provider: true,
         },
       },
       googleCalendarRefreshToken: true,
@@ -39,6 +46,8 @@ export default async function SettingsPage() {
   }
 
   const isCalendarConnected = !!user?.googleCalendarRefreshToken;
+  const hasPassword = !!user.hashedPassword;
+  const hasGoogleAccount = user.accounts.some((account) => account.provider === "google");
 
   return (
     <>
@@ -64,6 +73,9 @@ export default async function SettingsPage() {
           Account Details
         </Typography>
         <AccountDetailsForm user={user} />
+      </Box>
+      <Box sx={{ p: 3 }}>
+        <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
       </Box>
     </>
   );
