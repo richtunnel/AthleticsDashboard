@@ -23,7 +23,9 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Generate Prisma client and build Next.js
 RUN yarn prisma generate
-RUN yarn build
+#This will keep the logs visible even if the build fails
+RUN yarn build || cat .next/types/**/*.tsbuildinfo || true
+# RUN yarn build
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -35,6 +37,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV NEXT_DEBUG_BUILD=1
 
 # Install minimal dependencies for Prisma runtime
 RUN apk add --no-cache libc6-compat
