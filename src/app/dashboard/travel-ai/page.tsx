@@ -2,24 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Box,
-  Paper,
-  Typography,
-  Stack,
-  Button,
-  CircularProgress,
-  Alert,
-  Divider,
-} from "@mui/material";
+import { Box, Paper, Typography, Stack, Button, CircularProgress, Alert, Divider } from "@mui/material";
 import { AutoFillToggle } from "@/components/travel/AutoFillToggle";
 import { RecommendationCard } from "@/components/travel/RecommendationCard";
-import {
-  generateRecommendation,
-  addRecommendationToGame,
-  undoRecommendation,
-  cleanupExpiredRecommendations,
-} from "./actions";
+import { generateRecommendation, addRecommendationToGame, undoRecommendation, cleanupExpiredRecommendations } from "./actions";
 import { Refresh } from "@mui/icons-material";
 
 interface Game {
@@ -49,6 +35,7 @@ interface Game {
 export default function TravelAIPage() {
   const queryClient = useQueryClient();
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const {
     data: gamesResponse,
@@ -76,10 +63,7 @@ export default function TravelAIPage() {
     },
   });
 
-  const {
-    data: settingsResponse,
-    isLoading: settingsLoading,
-  } = useQuery({
+  const { data: settingsResponse, isLoading: settingsLoading } = useQuery({
     queryKey: ["travel-settings"],
     queryFn: async () => {
       const res = await fetch("/api/travel-settings");
@@ -131,20 +115,40 @@ export default function TravelAIPage() {
 
   const handleGenerateAll = async () => {
     setIsGeneratingAll(true);
+    setGenerationError(null); // Clear previous errors
+    const errors: string[] = [];
+
     try {
       const games = gamesResponse?.data?.games || [];
+      const recommendations: any[] = recommendationsResponse?.data || [];
+
       const gamesNeedingRecommendations = games.filter((game: Game) => {
-        const recommendations = recommendationsResponse?.data || [];
         return !recommendations.some((rec: any) => rec.gameId === game.id && !rec.addedToGame);
       });
 
       for (const game of gamesNeedingRecommendations) {
-        await generateRecommendationMutation.mutateAsync(game.id);
+        try {
+          // Use the mutation and wait for it to complete
+          await generateRecommendationMutation.mutateAsync(game.id);
+        } catch (error: any) {
+          // Catch individual generation errors
+          console.error(`Failed to generate recommendation for game ${game.id}:`, error);
+          errors.push(error.message || `Generation failed for a game.`);
+        }
+      }
+
+      if (errors.length > 0) {
+        // Consolidate and set the error message
+        setGenerationError(`Batch generation completed with ${errors.length} error(s). (e.g., ${errors[0]})`);
       }
     } catch (error) {
-      console.error("Failed to generate recommendations:", error);
+      // Catch fatal errors outside the loop (e.g., gamesResponse failure)
+      setGenerationError("A critical error occurred during batch setup.");
+      console.error("Critical error during batch generation:", error);
     } finally {
       setIsGeneratingAll(false);
+      // Ensure data is refetched even if errors occurred in the loop
+      queryClient.invalidateQueries({ queryKey: ["travel-recommendations"] });
     }
   };
 
@@ -160,9 +164,12 @@ export default function TravelAIPage() {
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      handleCleanup();
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        handleCleanup();
+      },
+      5 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, []);
@@ -186,17 +193,19 @@ export default function TravelAIPage() {
     );
   }
 
-  if (gamesError || recommendationsError) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">Failed to load Travel AI data</Alert>
-      </Box>
-    );
-  }
+  // TODO: Enable in production
+
+  // if (gamesError || recommendationsError) {
+  //   return (
+  //     <Box sx={{ p: 3 }}>
+  //       <Alert severity="error">Failed to load Travel AI data</Alert>
+  //     </Box>
+  //   );
+  // }
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h5" gutterBottom>
         Travel AI Recommendations
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
@@ -207,32 +216,26 @@ export default function TravelAIPage() {
         <AutoFillToggle initialValue={settings?.autoFillEnabled || false} />
 
         <Divider />
-
+        {generationError && (
+          <Alert severity="error" onClose={() => setGenerationError(null)} sx={{ mb: 2 }}>
+            {generationError}
+          </Alert>
+        )}
         <Paper elevation={2} sx={{ p: 3 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
             <Typography variant="h6">Recommendations</Typography>
             <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                startIcon={<Refresh />}
-                onClick={handleCleanup}
-              >
+              <Button variant="outlined" startIcon={<Refresh />} onClick={handleCleanup}>
                 Cleanup Expired
               </Button>
-              <Button
-                variant="contained"
-                onClick={handleGenerateAll}
-                disabled={isGeneratingAll}
-              >
+              <Button variant="contained" onClick={handleGenerateAll} disabled={isGeneratingAll}>
                 {isGeneratingAll ? "Generating..." : "Generate All"}
               </Button>
             </Stack>
           </Stack>
 
           {gamesWithRecommendations.length === 0 ? (
-            <Alert severity="info">
-              No recommendations available. Click "Generate All" to create recommendations for games with travel requirements.
-            </Alert>
+            <Alert severity="info">No recommendations available. Click "Generate All" to create recommendations for games with travel requirements.</Alert>
           ) : (
             <Stack spacing={2}>
               {gamesWithRecommendations.map((item: any) => (
