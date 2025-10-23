@@ -61,8 +61,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         userId: session.user.id,
-        // If you add organizationId to EmailGroup schema later, include it here:
-        // organizationId: org.id
+        organizationId: session.user.organizationId,
       },
     });
     return NextResponse.json(group);
