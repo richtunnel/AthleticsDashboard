@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["react-dropzone", "file-selector"],
 
   // Enable standalone output for Docker
-  // output: "standalone",
+  output: "standalone",
 
   webpack: (config, { isServer }) => {
     if (isServer) {
@@ -25,11 +25,11 @@ const nextConfig: NextConfig = {
   },
 
   // Turbopack settings (Next.js 15)
-  // experimental: {
-  //   turbo: {
-  //     // Add any turbopack-specific settings here if needed
-  //   },
-  // },
+  experimental: {
+    turbo: {
+      // Add any turbopack-specific settings here if needed
+    },
+  },
 };
 
 export default nextConfig;
