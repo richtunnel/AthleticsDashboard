@@ -8,10 +8,12 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        const isAuthPage = req.nextUrl.pathname.startsWith("/login") || req.nextUrl.pathname.startsWith("/signup");
+        const pathname = req.nextUrl.pathname;
+        const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+        const isOnboardingPage = pathname.startsWith("/onboarding");
 
-        // Allow access to auth pages without token
-        if (isAuthPage) {
+        // Allow access to auth and onboarding pages without token
+        if (isAuthPage || isOnboardingPage) {
           return true;
         }
 
