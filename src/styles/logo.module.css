@@ -1,9 +1,10 @@
 .ad-hub-logo {
-  color: #000;
+  color: var(--text-primary);
   font-size: 1.5rem;
   font-weight: 800;
   display: flex;
   position: relative;
+  transition: color 0.3s ease;
 }
 
 .ad-hub-logo a {
