@@ -964,10 +964,10 @@ export function GamesTable() {
                 </Box>
               </TableCell>
 
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
-                    BUS TRAVEL
+                    BUS INFO
                   </TableSortLabel>
                   <ColumnFilter
                     columnId="busTravel"
@@ -1110,11 +1110,7 @@ export function GamesTable() {
                   </Select>
                 </TableCell>
                 <TableCell sx={{ py: 1 }}>
-                  <Checkbox
-                    checked={newGameData.busTravel}
-                    onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })}
-                    sx={{ p: 0 }}
-                  />
+                  <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
                 </TableCell>
                 {customColumns.map((column: any) => (
                   <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
@@ -1377,11 +1373,7 @@ export function GamesTable() {
 
                       {/* Bus Travel */}
                       <TableCell sx={{ py: 1 }}>
-                        <Checkbox
-                          checked={editingGameData.busTravel}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })}
-                          sx={{ p: 0 }}
-                        />
+                        <Checkbox checked={editingGameData.busTravel} onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
                       </TableCell>
 
                       {/* Custom Fields */}
