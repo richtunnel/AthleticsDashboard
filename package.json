@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --turbopack",
+    "build": "prisma generate && next build",
     "start": "next start",
     "tsc": "node ./scripts/run-tsc.mjs",
     "migrate:deploy": "prisma migrate deploy",
@@ -78,6 +78,7 @@
   },
   "engines": {
     "node": "20.x",
+    "npm": "10.x",
     "yarn": "1.x"
   }
 }
