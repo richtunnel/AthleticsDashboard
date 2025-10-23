@@ -19,9 +19,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold mb-2">Welcome back!</h2>
-        <p className="text-gray-600">Import your CSV game schedules and navigate to game center to create, manage, update, email and automate your schedules. </p>
-        <strong>You can make updates to your game schedule inside game center and download it.</strong>
+        <h2 className="text-3xl font-bold mb-2">Import your spreadsheets</h2>
+        <strong>Import your CSV game schedules and navigate to game center to create, manage, update, email and automate your schedules. </strong>
+        <p className="text-gray-600">You can also make updates to your game schedule inside game center and download it back to it's original CSV format.</p>
         <br />
       </div>
 
