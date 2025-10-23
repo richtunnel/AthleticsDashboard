@@ -35,7 +35,7 @@ export default function HomePage() {
 
         <div className="flex h-full items-center justify-center">
           {showPricing ? (
-            <SignUpPlan clickBack={setShowPricingButton} />
+            <SignUpPlan />
           ) : (
             <div className={styles.homePageContentContainer}>
               <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>

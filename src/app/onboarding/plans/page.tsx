@@ -7,6 +7,10 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
 
+interface SignUpPlanProps {
+  onBackClick: () => void;
+}
+
 const plans = [
   {
     name: "Free Trial Plan",
@@ -40,14 +44,15 @@ const plans = [
   // },
 ];
 
-interface BackButtonProps {
-  clickBack: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}
-
-export default function SignUpPlan({ clickBack }: BackButtonProps) {
+export default function SignUpPlan({ onBackClick }: SignUpPlanProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const router = useRouter();
   const theme = useTheme();
+
+  const handleBackClick = () => {
+    // This calls the function passed down from HomePage, setting showPricing to false.
+    onBackClick();
+  };
 
   const handleBillingChange = (_event: React.MouseEvent<HTMLElement>, newBilling: "monthly" | "annual" | null) => {
     if (newBilling) setBilling(newBilling);
@@ -73,7 +78,7 @@ export default function SignUpPlan({ clickBack }: BackButtonProps) {
       <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
         {/* Header */}
         <Typography variant="body1">
-          <button style={{ cursor: "pointer" }} type="button" className="button" onClick={clickBack}>
+          <button style={{ cursor: "pointer" }} type="button" className="button" onClick={handleBackClick}>
             <span>
               <ArrowBackIcon sx={{ fontSize: 15 }} />
             </span>
