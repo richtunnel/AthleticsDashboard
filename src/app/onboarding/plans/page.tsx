@@ -44,7 +44,7 @@ const plans = [
   // },
 ];
 
-export default function SignUpPlan({ onBackClick }: SignUpPlanProps) {
+export function SignUpPlan({ onBackClick }: SignUpPlanProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const router = useRouter();
   const theme = useTheme();
