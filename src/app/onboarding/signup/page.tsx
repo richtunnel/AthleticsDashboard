@@ -127,7 +127,7 @@ function SignupForm() {
         </Button>
         <Divider sx={{ my: 3 }}>OR</Divider>
         <Typography variant="h6" gutterBottom>
-          Manual Sign Up
+          Create account manually
         </Typography>
         <Typography variant="body2" sx={{ mb: 2 }}>
           Create your account to get started. Change plans by clicking the trash icon above.
