@@ -20,6 +20,7 @@ function LoginForm() {
   });
 
   const errorParam = searchParams.get("error");
+  const resetSuccess = searchParams.get("reset");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +97,12 @@ function LoginForm() {
               Welcome back to the Hub
             </Typography>
 
+            {resetSuccess === "success" && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Your password has been reset successfully! You can now sign in with your new password.
+              </Alert>
+            )}
+
             {displayError && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {displayError}
@@ -137,7 +144,14 @@ function LoginForm() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 disabled={loading}
               />
-              <Button type="submit" fullWidth variant="outlined" sx={{ mt: 3, mb: 2 }} disabled={loading}>
+
+              <Box sx={{ mt: 1, textAlign: "right" }}>
+                <MuiLink component={Link} href="/forgot-password" variant="body2" underline="hover">
+                  Forgot password?
+                </MuiLink>
+              </Box>
+
+              <Button type="submit" fullWidth variant="outlined" sx={{ mt: 2, mb: 2 }} disabled={loading}>
                 {loading ? <CircularProgress size={24} /> : "Sign in with Email"}
               </Button>
 
