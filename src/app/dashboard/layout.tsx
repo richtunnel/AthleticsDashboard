@@ -167,9 +167,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         sx={{
           width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
           ml: { sm: `${DRAWER_WIDTH}px` },
-          bgcolor: "background.paper",
-          borderBottom: 1,
-          borderColor: "divider",
+          bgcolor: "transparent",
+          borderBottom: "none",
+          borderColor: "none",
+          border: "none!important",
+          borderRadius: "0",
         }}
       >
         <Toolbar>
