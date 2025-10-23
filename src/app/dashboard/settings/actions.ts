@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { Prisma } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 type UpdateUserPayload = {
   name: string;
@@ -106,5 +107,53 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
         error: "Failed to update organization. Your Prisma schema likely defines organization as a relation OR a scalar; both update strategies failed. Check server logs for details.",
       };
     }
+  }
+}
+
+type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export async function changePassword(payload: ChangePasswordPayload) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+  const userId = session.user.id;
+
+  if (!payload.newPassword || payload.newPassword.length < 8) {
+    return { success: false, error: "New password must be at least 8 characters." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { hashedPassword: true },
+    });
+
+    if (!user) {
+      return { success: false, error: "User not found." };
+    }
+
+    if (user.hashedPassword && payload.currentPassword) {
+      const isValid = await bcrypt.compare(payload.currentPassword, user.hashedPassword);
+      if (!isValid) {
+        return { success: false, error: "Current password is incorrect." };
+      }
+    } else if (user.hashedPassword && !payload.currentPassword) {
+      return { success: false, error: "Current password is required." };
+    }
+
+    const hashedPassword = await bcrypt.hash(payload.newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { hashedPassword },
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("changePassword error:", err);
+    return { success: false, error: "Failed to update password." };
   }
 }
