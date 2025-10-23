@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build --turbopack",
     "start": "next start",
+    "tsc": "node ./scripts/run-tsc.mjs",
     "migrate:deploy": "prisma migrate deploy",
     "start:prod": "yarn migrate:deploy && yarn start",
     "type-check": "tsc --noEmit",
