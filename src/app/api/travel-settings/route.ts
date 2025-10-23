@@ -4,6 +4,13 @@ import { requireAuth } from "@/lib/utils/auth";
 
 export async function GET() {
   try {
+    // --- TEMPORARY GUARD FOR DEBUGGING ---
+    if (!prisma.travelSettings) {
+      console.error("CRITICAL ERROR: prisma.travelSettings is undefined. PRISMA CLIENT NOT UPDATED.");
+      throw new Error("Database initialization failed. Please run 'npx prisma generate'.");
+    }
+    // ------------------------------------
+
     const session = await requireAuth();
 
     const settings = await prisma.travelSettings.upsert({
