@@ -115,7 +115,7 @@ export default function EmailGroupsPage() {
         </Alert>
       )}
 
-      <Typography variant="body1">Import from Google</Typography>
+      {/* <Typography variant="body1">Import contacts from GMail</Typography> */}
       {/* <ImportGroupsButton /> */}
 
       <Typography variant="caption">Name of campaign</Typography>
