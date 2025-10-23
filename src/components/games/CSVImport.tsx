@@ -62,6 +62,7 @@ const DATABASE_FIELDS = [
   { value: "isHome", label: "Home/Away", required: true },
   { value: "venue", label: "Venue", required: false },
   { value: "status", label: "Status", required: false },
+  { value: "busTravel", label: "Bus Travel", required: false },
   { value: "notes", label: "Notes", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
@@ -136,6 +137,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       else if (normalized.includes("home") || normalized.includes("away") || normalized.includes("location")) mapping[header] = "isHome";
       else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
       else if (normalized.includes("status")) mapping[header] = "status";
+      else if (normalized.includes("bus") && normalized.includes("travel")) mapping[header] = "busTravel";
       else if (normalized.includes("note")) mapping[header] = "notes";
       else mapping[header] = "skip";
     });

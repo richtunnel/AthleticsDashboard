@@ -16,6 +16,7 @@ interface GameFormData {
   venueId?: string;
   status: "SCHEDULED" | "CONFIRMED" | "POSTPONED" | "CANCELLED" | "COMPLETED";
   travelRequired: boolean;
+  busTravel: boolean;
   estimatedTravelTime?: number;
   departureTime?: string;
   busCount?: number;
@@ -93,6 +94,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
       isHome: true,
       status: "SCHEDULED",
       travelRequired: false,
+      busTravel: false,
     },
   });
 
@@ -109,6 +111,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
         venueId: existingGame.venueId || undefined,
         status: existingGame.status || "SCHEDULED",
         travelRequired: existingGame.travelRequired ?? false,
+        busTravel: existingGame.busTravel ?? false,
         estimatedTravelTime: existingGame.estimatedTravelTime || undefined,
         departureTime: existingGame.departureTime || undefined,
         busCount: existingGame.busCount || undefined,
@@ -120,6 +123,13 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
 
   const isHome = watch("isHome");
   const travelRequired = watch("travelRequired");
+  const busTravel = watch("busTravel");
+
+  useEffect(() => {
+    if (!travelRequired && busTravel) {
+      setValue("busTravel", false);
+    }
+  }, [travelRequired, busTravel, setValue]);
 
   // Create/Update mutation
   const mutation = useMutation({
@@ -269,31 +279,38 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
               </div>
 
               {travelRequired && (
-                <div className="grid grid-cols-3 gap-4 pl-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Travel Time (minutes)</label>
-                    <input
-                      type="number"
-                      {...register("estimatedTravelTime", { valueAsNumber: true })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
+                <>
+                  <div className="flex items-center mb-4 pl-1">
+                    <input type="checkbox" checked={busTravel === true} onChange={(e) => setValue("busTravel", e.target.checked)} className="mr-2" />
+                    <label className="text-sm font-medium">Bus Travel</label>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Number of Buses</label>
-                    <input type="number" {...register("busCount", { valueAsNumber: true })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-                  </div>
+                  <div className="grid grid-cols-3 gap-4 pl-6">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Travel Time (minutes)</label>
+                      <input
+                        type="number"
+                        {...register("estimatedTravelTime", { valueAsNumber: true })}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Travel Cost ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      {...register("travelCost", { valueAsNumber: true })}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Number of Buses</label>
+                      <input type="number" {...register("busCount", { valueAsNumber: true })} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Travel Cost ($)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register("travelCost", { valueAsNumber: true })}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
 
