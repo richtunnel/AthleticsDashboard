@@ -17,6 +17,8 @@ model User {
   image                     String?
   emailVerified             DateTime?
   hashedPassword            String?
+  resetToken                String?
+  resetTokenExpiry          DateTime?
   schoolName                String?
   teamName                  String?
   mascot                    String?
