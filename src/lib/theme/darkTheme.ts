@@ -82,6 +82,6 @@ const darkTheme = createTheme({
   },
 });
 
-darkTheme.components = buildThemeComponents(darkTheme);
+darkTheme.components = buildThemeComponents(darkTheme) as typeof darkTheme.components;
 
 export default darkTheme;

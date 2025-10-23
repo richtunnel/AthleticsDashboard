@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button, CircularProgress, Alert, Stack } from "@mui/material";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
-import { importGoogleEmailGroups } from "@/app/actions/ImportGroupEmail.google";
+import { importGoogleEmailGroups } from "@/app/actions/googleGroups";
 import { useState } from "react";
 
 export function ImportGroupsButton() {
@@ -51,7 +51,7 @@ export function ImportGroupsButton() {
       {/* Show Error Message */}
       {lastError && (
         <Alert severity="error" onClose={() => setLastError(null)} sx={{ width: "100%" }}>
-          Import Error: {lastError}. Ensure you have the **contacts.readonly** scope enabled.
+          Import Error: {lastError}
         </Alert>
       )}
     </Stack>
