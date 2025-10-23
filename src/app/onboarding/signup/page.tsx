@@ -98,7 +98,7 @@ function SignupForm() {
 
   return (
     <>
-      <BaseHeader />
+      <BaseHeader pt="20px" pl="20px" />
       <Box sx={{ maxWidth: 400, mx: "auto", mt: 8, p: 2 }}>
         <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
           <Chip
