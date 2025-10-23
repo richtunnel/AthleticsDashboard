@@ -41,21 +41,53 @@ export async function GET(request: NextRequest) {
 
     const { tokens } = await oauth2Client.getToken(code);
 
+    oauth2Client.setCredentials({
+      access_token: tokens.access_token ?? undefined,
+      refresh_token: tokens.refresh_token ?? session.user.googleCalendarRefreshToken ?? undefined,
+    });
+
     console.log("✅ Tokens received:", {
       hasAccessToken: !!tokens.access_token,
       hasRefreshToken: !!tokens.refresh_token,
       expiryDate: tokens.expiry_date,
     });
 
-    // Update the EXISTING user with calendar tokens
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        googleCalendarRefreshToken: tokens.refresh_token || undefined,
-        googleCalendarAccessToken: tokens.access_token || undefined,
-        calendarTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
-      },
-    });
+    let connectedEmail = session.user.googleCalendarEmail ?? null;
+    try {
+      const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+      const profile = await oauth2.userinfo.get();
+      if (profile.data.email) {
+        connectedEmail = profile.data.email;
+      }
+    } catch (profileError) {
+      console.error("⚠️ Failed to fetch Google account email:", profileError);
+    }
+
+    const updateData: Record<string, any> = {};
+
+    if (tokens.refresh_token) {
+      updateData.googleCalendarRefreshToken = tokens.refresh_token;
+    }
+
+    if (tokens.access_token) {
+      updateData.googleCalendarAccessToken = tokens.access_token;
+    }
+
+    if (typeof tokens.expiry_date === "number") {
+      updateData.calendarTokenExpiry = new Date(tokens.expiry_date);
+    }
+
+    const emailToPersist = connectedEmail ?? session.user.googleCalendarEmail ?? session.user.email ?? null;
+    if (emailToPersist) {
+      updateData.googleCalendarEmail = emailToPersist;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: updateData,
+      });
+    }
 
     console.log("✅ Calendar connected to user:", session.user.email);
 
