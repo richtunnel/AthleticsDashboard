@@ -1,43 +1,215 @@
 import { google } from "googleapis";
+import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
+
+export interface UpcomingCalendarEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string | null;
+  isAllDay: boolean;
+  location?: string | null;
+  opponent?: string | null;
+  description?: string | null;
+  htmlLink?: string | null;
+}
 
 //Google Calendar Sync
 export class CalendarService {
   private async getCalendarClient(userId: string) {
-    const account = await prisma.account.findFirst({
-      where: {
-        userId,
-        provider: "google",
-      },
-    });
+    const [account, userTokens] = await Promise.all([
+      prisma.account.findFirst({
+        where: {
+          userId,
+          provider: "google",
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          googleCalendarRefreshToken: true,
+          googleCalendarAccessToken: true,
+          calendarTokenExpiry: true,
+        },
+      }),
+    ]);
 
-    if (!account || !account.access_token) {
+    const refreshToken = account?.refresh_token ?? userTokens?.googleCalendarRefreshToken ?? undefined;
+    let accessToken = account?.access_token ?? userTokens?.googleCalendarAccessToken ?? undefined;
+    const expiryMillis = account?.expires_at ? account.expires_at * 1000 : userTokens?.calendarTokenExpiry?.getTime();
+
+    if (!refreshToken && !accessToken) {
       throw new Error("Google account not connected");
     }
 
     const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
 
     oauth2Client.setCredentials({
-      access_token: account.access_token,
-      refresh_token: account.refresh_token,
+      access_token: accessToken,
+      refresh_token: refreshToken,
     });
 
-    // Refresh token if expired
-    if (account.expires_at && account.expires_at * 1000 < Date.now()) {
+    const tokenExpired = expiryMillis !== undefined && expiryMillis < Date.now() - 60 * 1000;
+
+    if ((tokenExpired || !accessToken) && refreshToken) {
       const { credentials } = await oauth2Client.refreshAccessToken();
 
-      await prisma.account.update({
-        where: { id: account.id },
-        data: {
-          access_token: credentials.access_token,
-          expires_at: credentials.expiry_date ? Math.floor(credentials.expiry_date / 1000) : null,
-        },
-      });
+      accessToken = credentials.access_token ?? accessToken;
+      const updatedRefreshToken = credentials.refresh_token ?? refreshToken;
+      const updatedExpiry = credentials.expiry_date ?? null;
 
-      oauth2Client.setCredentials(credentials);
+      if (account) {
+        const accountUpdateData: Record<string, any> = {};
+        if (accessToken) {
+          accountUpdateData.access_token = accessToken;
+        }
+        if (updatedRefreshToken && updatedRefreshToken !== account.refresh_token) {
+          accountUpdateData.refresh_token = updatedRefreshToken;
+        }
+        if (updatedExpiry !== null) {
+          accountUpdateData.expires_at = Math.floor(updatedExpiry / 1000);
+        } else if (account.expires_at !== null && account.expires_at !== undefined) {
+          accountUpdateData.expires_at = null;
+        }
+
+        if (Object.keys(accountUpdateData).length > 0) {
+          await prisma.account.update({
+            where: { id: account.id },
+            data: accountUpdateData,
+          });
+        }
+      }
+
+      const userUpdateData: Record<string, any> = {};
+      if (accessToken) {
+        userUpdateData.googleCalendarAccessToken = accessToken;
+      }
+      if (updatedRefreshToken) {
+        userUpdateData.googleCalendarRefreshToken = updatedRefreshToken;
+      }
+      if (updatedExpiry !== null) {
+        userUpdateData.calendarTokenExpiry = new Date(updatedExpiry);
+      } else if (userTokens?.calendarTokenExpiry) {
+        userUpdateData.calendarTokenExpiry = null;
+      }
+
+      if (Object.keys(userUpdateData).length > 0) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: userUpdateData,
+        });
+      }
+
+      oauth2Client.setCredentials({
+        access_token: accessToken ?? undefined,
+        refresh_token: updatedRefreshToken ?? undefined,
+      });
     }
 
     return google.calendar({ version: "v3", auth: oauth2Client });
+  }
+
+  async getUpcomingEvents(userId: string, daysAhead = 3): Promise<UpcomingCalendarEvent[]> {
+    const calendar = await this.getCalendarClient(userId);
+
+    const now = new Date();
+    const timeMin = now.toISOString();
+    const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
+
+    const response = await calendar.events.list({
+      calendarId: "primary",
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: "startTime",
+      maxResults: 50,
+    });
+
+    const items = response.data.items ?? [];
+    const upcomingEvents: UpcomingCalendarEvent[] = [];
+
+    for (const event of items) {
+      if (event.status === "cancelled") {
+        continue;
+      }
+
+      const startDate = this.getEventStartDate(event);
+
+      if (!startDate) {
+        continue;
+      }
+
+      const details = this.extractDetailsFromDescription(event.description);
+      const startValue = event.start?.dateTime ?? event.start?.date ?? startDate.toISOString();
+      const endValue = event.end?.dateTime ?? event.end?.date ?? null;
+
+      upcomingEvents.push({
+        id: event.id ?? `${startValue}-${event.summary ?? "event"}`,
+        summary: event.summary ?? "Untitled Event",
+        start: startValue,
+        end: endValue,
+        isAllDay: Boolean(event.start?.date && !event.start?.dateTime),
+        location: event.location ?? details.location ?? null,
+        opponent: details.opponent ?? null,
+        description: event.description ?? null,
+        htmlLink: event.htmlLink ?? null,
+      });
+    }
+
+    upcomingEvents.sort((a, b) => {
+      const aTime = new Date(a.start).getTime();
+      const bTime = new Date(b.start).getTime();
+      return aTime - bTime;
+    });
+
+    return upcomingEvents;
+  }
+
+  private getEventStartDate(event: calendar_v3.Schema$Event): Date | null {
+    const rawStart = event.start?.dateTime ?? event.start?.date;
+
+    if (!rawStart) {
+      return null;
+    }
+
+    const parsed = new Date(rawStart);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private extractDetailsFromDescription(description?: string | null): { opponent?: string | null; location?: string | null } {
+    if (!description) {
+      return {};
+    }
+
+    const details: { opponent?: string | null; location?: string | null } = {};
+
+    const lines = description.split(/\r?\n/);
+
+    for (const line of lines) {
+      const [label, ...rest] = line.split(":");
+
+      if (rest.length === 0) {
+        continue;
+      }
+
+      const value = rest.join(":").trim();
+      const normalizedLabel = label.trim().toLowerCase();
+
+      if (normalizedLabel === "opponent") {
+        details.opponent = value || null;
+      }
+
+      if (normalizedLabel === "location") {
+        details.location = value || null;
+      }
+    }
+
+    return details;
   }
 
   async syncAllGames(userId: string, organizationId: string) {
