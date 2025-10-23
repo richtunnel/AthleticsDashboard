@@ -112,7 +112,7 @@ function SignupForm() {
             Create Account
           </Typography>
           <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-            Sign up for AD Hub by Sports Source
+            Sign up for AD Hub
           </Typography>
 
           {error && (
