@@ -15,7 +15,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           color: theme.palette.text.primary,
           borderBottom: `1px solid ${theme.palette.divider}`,
           backgroundImage: "none",
-          boxShadow: isDark ? "0 1px 0 rgba(148, 163, 184, 0.18)" : "0 1px 0 rgba(15, 23, 42, 0.06)",
+          // boxShadow: isDark ? "0 1px 0 rgba(148, 163, 184, 0.18)" : "0 1px 0 rgba(15, 23, 42, 0.06)",
           backdropFilter: "blur(12px)",
         },
       },
