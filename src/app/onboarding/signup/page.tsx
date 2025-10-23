@@ -130,7 +130,7 @@ function SignupForm() {
           Create account manually
         </Typography>
         <Typography variant="body2" sx={{ mb: 2 }}>
-          Create your account to get started. Change plans by clicking the trash icon above.
+          Create an account to get started automating your spreadsheets.
         </Typography>
         <form onSubmit={handleManualSignup}>
           <TextField fullWidth size="small" label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} disabled={loading} sx={{ mb: 2 }} error={!!error && !name} />

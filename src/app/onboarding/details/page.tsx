@@ -39,7 +39,7 @@ export default function DetailsPage() {
       <BaseHeader pt={"20px"} pl={"20px"} />
       <div className={`${styles.detailsContainer}`}>
         <Box sx={{ maxWidth: 400, mx: "auto" }}>
-          <Typography variant="h4" gutterBottom>
+          <Typography variant="h4" sx={{ fontWeight: "600" }} gutterBottom>
             Enter School Details
           </Typography>
           <form onSubmit={handleSubmit}>
