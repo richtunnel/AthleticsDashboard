@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
       case "opponent":
         orderBy = { opponent: { name: sortOrder } };
         break;
+      case "busTravel":
+        orderBy = { busTravel: sortOrder };
+        break;
       default:
         orderBy = { date: "asc" };
     }
@@ -210,6 +213,18 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       where.isHome = values.includes("Home");
       break;
 
+    case "busTravel": {
+      const includeYes = values.includes("Yes");
+      const includeNo = values.includes("No");
+
+      if (includeYes && !includeNo) {
+        where.busTravel = true;
+      } else if (!includeYes && includeNo) {
+        where.busTravel = false;
+      }
+      break;
+    }
+
     case "date":
       // For date, we'd need to parse the dates
       const dates = values.map((v) => new Date(v));
@@ -296,6 +311,29 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       };
       break;
 
+    case "busTravel": {
+      if (!value && condition !== "is_empty" && condition !== "is_not_empty") {
+        break;
+      }
+
+      const boolValue = parseBoolean(value);
+      switch (condition) {
+        case "not_equals":
+        case "not_contains":
+          where.busTravel = { not: boolValue };
+          break;
+        case "is_empty":
+          where.busTravel = false;
+          break;
+        case "is_not_empty":
+          where.busTravel = true;
+          break;
+        default:
+          where.busTravel = boolValue;
+      }
+      break;
+    }
+
     case "date":
       where.date = buildCondition("date");
       break;
@@ -330,6 +368,10 @@ function parseValue(value: string, columnId: string): any {
     return num;
   }
   return value;
+}
+
+function parseBoolean(value: string): boolean {
+  return ["true", "yes", "1"].includes((value || "").toLowerCase());
 }
 
 export async function POST(request: NextRequest) {
