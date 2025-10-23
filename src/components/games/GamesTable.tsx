@@ -38,6 +38,7 @@ import {
   CircularProgress,
   MenuItem,
 } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
 import { format } from "date-fns";
 
@@ -128,6 +129,7 @@ export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
+  const theme = useTheme();
   const [mounted, setMounted] = useState(false);
 
   const [page, setPage] = useState(0);

@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
@@ -9,7 +8,7 @@ import SignUpPlan from "./onboarding/plans/page";
 export default function HomePage() {
   const [showPricing, setShowPricing] = useState(false);
 
-  const setShowPricingButton = (e: any) => {
+  const setShowPricingButton = (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
     e.preventDefault();
     setShowPricing((prev) => !prev);
   };
@@ -21,40 +20,46 @@ export default function HomePage() {
       </div>
 
       <div>
-        <div className={`${styles.homeHeaderContainer}`}>
+        <div className={styles.homeHeaderContainer}>
           <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
             adhub
             <VscGithubProject />
           </Link>
 
-          <Link href="/">Need Help ?</Link>
+          <Link href="/" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
+            Need Help?
+          </Link>
         </div>
 
-        <div className={`flex h-full items-center justify-center`}>
+        <div className="flex h-full items-center justify-center">
           {showPricing ? (
-            <>
-              <SignUpPlan clickBack={setShowPricingButton} />
-            </>
+            <SignUpPlan clickBack={setShowPricingButton} />
           ) : (
-            <div className={`${styles.homePageContentContainer}`}>
-              <h3 className="text-5xl font-bold text-gray-900 mb-4">
+            <div className={styles.homePageContentContainer}>
+              <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
                 Athletic <br /> Directors Hub
               </h3>
-              <p style={{ maxWidth: "665px", padding: "0px" }} className="text-xl text-gray-600 mb-8">
-                A smart spreadsheet allowing athletic directors to automate, process and manage athletic schedules with ease.{" "}
+              <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
+                A smart spreadsheet allowing athletic directors to automate, process and manage athletic schedules with ease.
               </p>
-              <div className="d-flex flex content-center items-center">
+              <div className="d-flex flex content-center items-center gap-4">
                 <Link
                   href="/dashboard/games"
-                  style={{ backgroundColor: "#b4fc66", color: "#000", fontWeight: "600" }}
-                  className="inline-block px-8 py-3 text-white rounded-lg font-medium transition flex mx-[14px]"
+                  style={{
+                    backgroundColor: "var(--accent)",
+                    color: "var(--accent-contrast)",
+                    fontWeight: 600,
+                    boxShadow: "var(--shadow-soft)",
+                    borderRadius: "0.75rem",
+                  }}
+                  className="inline-flex px-8 py-3 rounded-lg font-semibold transition-transform duration-200 hover:-translate-y-0.5"
                 >
                   Sign in
                 </Link>
                 <button
                   onClick={setShowPricingButton}
-                  style={{ fontSize: "1.05rem", border: "none", background: "transparent", cursor: "pointer" }}
-                  className="d-flex flex text-decoration-line underline font-medium"
+                  style={{ fontSize: "1.05rem", border: "none", background: "transparent", cursor: "pointer", color: "var(--accent)", fontWeight: 600 }}
+                  className="d-flex flex underline"
                 >
                   Get Started
                 </button>
