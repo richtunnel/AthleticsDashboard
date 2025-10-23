@@ -78,6 +78,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
 
+  const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
+  const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
+  const calendarTooltip = calendarAccountEmail ? `Open Google Calendar for ${calendarAccountEmail}` : "Open Google Calendar";
+
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
@@ -183,8 +187,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <Box sx={{ flexGrow: 1 }} />
 
           {/* Google Calendar Button */}
-          <Tooltip title="Open Google Calendar">
-            <IconButton component="a" href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" sx={{ mr: 1 }} color="default">
+          <Tooltip title={calendarTooltip}>
+            <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: 1 }} color="default" aria-label="Open Google Calendar">
               <CalendarMonth />
             </IconButton>
           </Tooltip>

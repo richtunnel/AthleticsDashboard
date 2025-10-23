@@ -85,7 +85,14 @@ export const authOptions: NextAuthOptions = {
           prompt: "consent",
           access_type: "offline",
           response_type: "code",
-          scope: "openid email profile https://www.googleapis.com/auth/calendar",
+          scope: [
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/contacts.readonly",
+            "https://www.googleapis.com/auth/userinfo.email",
+          ].join(" "),
         },
       },
     }),
@@ -136,6 +143,10 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           organizationId: user.organizationId || undefined,
           organization: user.organization || undefined,
+          googleCalendarRefreshToken: user.googleCalendarRefreshToken ?? undefined,
+          googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
+          calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
+          googleCalendarEmail: (user as any).googleCalendarEmail ?? undefined,
         };
       },
     }),
@@ -143,22 +154,44 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Handle Google OAuth
-      if (account?.provider === "google" && profile?.email) {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: profile.email },
-        });
+      if (account?.provider === "google") {
+        const email = profile?.email ?? user?.email ?? undefined;
 
-        // Store the refresh token for calendar sync
-        if (existingUser && account.refresh_token) {
-          await prisma.user.update({
-            where: { email: profile.email },
-            data: {
-              googleCalendarRefreshToken: account.refresh_token,
-              googleCalendarAccessToken: account.access_token,
-              calendarTokenExpiry: account.expires_at ? new Date(account.expires_at * 1000) : null,
-            },
-          });
+        if (email) {
+          const existingUser = (await prisma.user.findUnique(
+            {
+              where: { email },
+              select: {
+                id: true,
+                googleCalendarEmail: true,
+              },
+            } as any,
+          )) as { id: string; googleCalendarEmail?: string | null } | null;
+
+          if (existingUser) {
+            const updateData: Record<string, any> = {};
+
+            if (account.refresh_token) {
+              updateData.googleCalendarRefreshToken = account.refresh_token;
+            }
+
+            if (account.access_token) {
+              updateData.googleCalendarAccessToken = account.access_token;
+            }
+
+            if (typeof account.expires_at === "number") {
+              updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
+            }
+
+            updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+
+            if (Object.keys(updateData).length > 0) {
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: updateData,
+              });
+            }
+          }
         }
       }
 
@@ -178,6 +211,7 @@ export const authOptions: NextAuthOptions = {
         session.user.googleCalendarRefreshToken = token.googleCalendarRefreshToken;
         session.user.googleCalendarAccessToken = token.googleCalendarAccessToken;
         session.user.calendarTokenExpiry = token.calendarTokenExpiry;
+        session.user.googleCalendarEmail = token.googleCalendarEmail;
       }
       return session;
     },
@@ -207,27 +241,31 @@ export const authOptions: NextAuthOptions = {
         token.googleCalendarRefreshToken = user.googleCalendarRefreshToken ?? undefined;
         token.googleCalendarAccessToken = user.googleCalendarAccessToken ?? undefined;
         token.calendarTokenExpiry = user.calendarTokenExpiry ?? undefined;
+        token.googleCalendarEmail = user.googleCalendarEmail ?? undefined;
       }
 
       if (account?.provider === "google" && token.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
-          select: {
-            id: true,
-            role: true,
-            organizationId: true,
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                timezone: true,
+        const dbUser = (await prisma.user.findUnique(
+          {
+            where: { email: token.email },
+            select: {
+              id: true,
+              role: true,
+              organizationId: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  timezone: true,
+                },
               },
+              googleCalendarRefreshToken: true,
+              googleCalendarAccessToken: true,
+              calendarTokenExpiry: true,
+              googleCalendarEmail: true,
             },
-            googleCalendarRefreshToken: true,
-            googleCalendarAccessToken: true,
-            calendarTokenExpiry: true,
-          },
-        });
+          } as any,
+        )) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -236,27 +274,31 @@ export const authOptions: NextAuthOptions = {
           token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
+          token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
         }
       }
 
-      if ((trigger === "update" || !token.organization) && token.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: token.email },
-          select: {
-            role: true,
-            organizationId: true,
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                timezone: true,
+      if ((trigger === "update" || !token.organization || !token.googleCalendarEmail) && token.email) {
+        const dbUser = (await prisma.user.findUnique(
+          {
+            where: { email: token.email },
+            select: {
+              role: true,
+              organizationId: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  timezone: true,
+                },
               },
+              googleCalendarRefreshToken: true,
+              googleCalendarAccessToken: true,
+              calendarTokenExpiry: true,
+              googleCalendarEmail: true,
             },
-            googleCalendarRefreshToken: true,
-            googleCalendarAccessToken: true,
-            calendarTokenExpiry: true,
-          },
-        });
+          } as any,
+        )) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -265,6 +307,7 @@ export const authOptions: NextAuthOptions = {
           token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
+          token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
         }
       }
 
