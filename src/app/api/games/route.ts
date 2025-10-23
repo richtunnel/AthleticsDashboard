@@ -26,6 +26,13 @@ export async function GET(request: NextRequest) {
       },
     };
 
+    const travelRequiredParam = searchParams.get("travelRequired");
+    if (travelRequiredParam === "true") {
+      where.travelRequired = true;
+    } else if (travelRequiredParam === "false") {
+      where.travelRequired = false;
+    }
+
     console.log("WHERE clause:", JSON.stringify(where, null, 2));
 
     // Process column filters
