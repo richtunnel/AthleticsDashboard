@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSession } from "next-auth/react";
 import { Box, Button, TextField, Typography, Select, MenuItem, Alert, CircularProgress } from "@mui/material";
 import Papa from "papaparse"; // For CSV parsing
-
+import { ImportGroupsButton } from "@/components/communication/email/ImportGroupButtonG";
 interface EmailGroup {
   id: string;
   name: string;
@@ -114,6 +114,10 @@ export default function EmailGroupsPage() {
           {error}
         </Alert>
       )}
+
+      <Typography variant="body1">Import from Google</Typography>
+      {/* <ImportGroupsButton /> */}
+
       <Typography variant="caption">Name of campaign</Typography>
       <TextField fullWidth label="New Group Name" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} sx={{ mb: 2 }} />
       <Button variant="contained" onClick={handleCreateGroup} sx={{ mb: 4 }}>
@@ -126,7 +130,7 @@ export default function EmailGroupsPage() {
         <MenuItem value="" disabled>
           Select Group
         </MenuItem>
-        {groups.map((group) => (
+        {groups.map((group: any) => (
           <MenuItem key={group.id} value={group.id}>
             {group.name}
           </MenuItem>

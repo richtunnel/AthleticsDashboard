@@ -277,12 +277,15 @@ model EmailGroup {
   id        String         @id @default(uuid())
   name      String
   userId    String
-  organizationId String?
+  organizationId String
   createdAt DateTime       @default(now())
   user      User           @relation("UserEmailGroups", fields: [userId], references: [id], onDelete: Cascade)
   organization  Organization?  @relation("OrganizationEmailGroups", fields: [organizationId], references: [id], onDelete: Cascade) 
   emails    EmailAddress[]
   campaigns EmailCampaign[]
+
+  @@unique([organizationId, name])
+  @@index([userId])
 }
 
 model EmailAddress {
