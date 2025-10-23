@@ -52,7 +52,7 @@ export default async function SettingsPage() {
   return (
     <>
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
+        <Typography sx={{ mb: 1 }} variant="h5">
           Settings
         </Typography>
 
@@ -69,7 +69,7 @@ export default async function SettingsPage() {
         </Card>
       </Box>
       <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
+        <Typography sx={{ mb: 1 }} variant="h5">
           Account Details
         </Typography>
         <AccountDetailsForm user={user} />
