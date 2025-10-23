@@ -136,6 +136,7 @@ model Game {
   isHome                Boolean     @default(true)
   // Travel Information
   travelRequired        Boolean     @default(false)
+  busTravel             Boolean     @default(false)
   estimatedTravelTime   Int?        // minutes
   departureTime         DateTime?
   busCount              Int?

@@ -11,6 +11,7 @@ export const createGameSchema = z.object({
   venueId: z.string().optional(),
   status: z.enum(["SCHEDULED", "CONFIRMED", "POSTPONED", "CANCELLED", "COMPLETED"]).default("SCHEDULED"),
   travelRequired: z.boolean().default(false),
+  busTravel: z.boolean().default(false),
   estimatedTravelTime: z.number().optional(),
   departureTime: z.string().optional(),
   busCount: z.number().optional(),
