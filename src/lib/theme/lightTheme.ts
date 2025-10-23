@@ -82,6 +82,6 @@ const lightTheme = createTheme({
   },
 });
 
-lightTheme.components = buildThemeComponents(lightTheme);
+lightTheme.components = buildThemeComponents(lightTheme) as typeof lightTheme.components;
 
 export default lightTheme;
