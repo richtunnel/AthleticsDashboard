@@ -16,14 +16,17 @@ services:
       - key: NODE_ENV
         value: production
         scope: RUN_TIME
+      - key: NODE_VERSION
+        value: "20"
+        scope: RUN_AND_BUILD_TIME
       - key: NEXTAUTH_URL
-        value: https://your-domain.example.com
+        value: https://your-app.ondigitalocean.app
         scope: RUN_TIME
       - key: NEXTAUTH_SECRET
         scope: RUN_TIME
         type: SECRET
       - key: DATABASE_URL
-        scope: RUN_TIME
+        scope: RUN_AND_BUILD_TIME
         type: SECRET
       - key: RESEND_API_KEY
         scope: RUN_TIME
