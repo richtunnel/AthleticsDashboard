@@ -5,10 +5,14 @@ import { useState } from "react";
 import Image from "next/image";
 import styles from "../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
-import SignUpPlan from "./onboarding/plans/page";
+import { SignUpPlan } from "./onboarding/plans/page";
 
 export default function HomePage() {
   const [showPricing, setShowPricing] = useState(false);
+
+  const handleBackToHome = () => {
+    setShowPricing(false);
+  };
 
   const setShowPricingButton = (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
     e.preventDefault();
@@ -35,7 +39,7 @@ export default function HomePage() {
 
         <div className="flex h-full items-center justify-center">
           {showPricing ? (
-            <SignUpPlan />
+            <SignUpPlan onBackClick={handleBackToHome} />
           ) : (
             <div className={styles.homePageContentContainer}>
               <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
