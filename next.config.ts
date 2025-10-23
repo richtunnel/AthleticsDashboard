@@ -44,10 +44,8 @@ const nextConfig: NextConfig = {
   },
 
   // Turbopack settings (Next.js 15)
-  experimental: {
-    turbo: {
-      // Add any turbopack-specific settings here if needed
-    },
+  turbopack: {
+    // Add any turbopack-specific settings here if needed
   },
 };
 
