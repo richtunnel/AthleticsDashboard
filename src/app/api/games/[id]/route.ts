@@ -2,6 +2,38 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const session = await requireAuth();
+    const { id } = await params;
+
+    const game = await prisma.game.findFirst({
+      where: {
+        id,
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+      include: {
+        homeTeam: {
+          include: { sport: true },
+        },
+        opponent: true,
+        venue: true,
+      },
+    });
+
+    if (!game) {
+      return NextResponse.json({ error: "Game not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: game });
+  } catch (error) {
+    console.error("Error fetching game:", error);
+    return NextResponse.json({ error: "Failed to fetch game" }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();

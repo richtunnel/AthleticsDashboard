@@ -57,6 +57,7 @@ interface Game {
   status: string;
   isHome: boolean;
   travelRequired: boolean;
+  busTravel: boolean;
   estimatedTravelTime: number | null;
   calendarSynced?: boolean;
   customData?: any;
@@ -90,6 +91,7 @@ interface NewGameData {
   level: string;
   opponentId: string;
   isHome: boolean;
+  busTravel: boolean;
   status: string;
   venueId: string;
   notes: string;
@@ -106,7 +108,7 @@ interface PaginationData {
   hasPrev: boolean;
 }
 
-type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent";
+type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel";
 type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
@@ -139,6 +141,7 @@ export function GamesTable() {
     level: "",
     opponentId: "",
     isHome: true,
+    busTravel: false,
     status: "SCHEDULED",
     venueId: "",
     notes: "",
@@ -267,6 +270,7 @@ export function GamesTable() {
       opponent: new Set(),
       status: new Set(),
       location: new Set(),
+      busTravel: new Set(),
     };
 
     customColumns.forEach((col: any) => {
@@ -279,6 +283,7 @@ export function GamesTable() {
       values.opponent.add(game.opponent?.name || "TBD");
       values.status.add(game.status);
       values.location.add(game.isHome ? "Home" : game.venue?.name || "TBD");
+      values.busTravel.add(game.busTravel ? "Yes" : "No");
 
       const customData = (game.customData as any) || {};
       customColumns.forEach((col: any) => {
@@ -340,6 +345,7 @@ export function GamesTable() {
         level: "",
         opponentId: "",
         isHome: true,
+        busTravel: false,
         status: "SCHEDULED",
         venueId: "",
         notes: "",
@@ -570,6 +576,7 @@ export function GamesTable() {
       time: newGameData.time || null,
       homeTeamId: matchingTeam.id,
       isHome: newGameData.isHome,
+      busTravel: newGameData.busTravel,
       opponentId: newGameData.opponentId || null,
       venueId: !newGameData.isHome && newGameData.venueId ? newGameData.venueId : null,
       status: newGameData.status,
@@ -596,6 +603,7 @@ export function GamesTable() {
       level: "",
       opponentId: "",
       isHome: true,
+      busTravel: false,
       status: "SCHEDULED",
       venueId: "",
       notes: "",
@@ -626,6 +634,7 @@ export function GamesTable() {
       time: editingGameData.time || null,
       homeTeamId: matchingTeam?.id || editingGameData.homeTeamId,
       isHome: editingGameData.isHome,
+      busTravel: editingGameData.busTravel,
       opponentId: editingGameData.opponentId || editingGameData.opponent?.id || null,
       venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
       status: editingGameData.status,
@@ -955,6 +964,22 @@ export function GamesTable() {
                 </Box>
               </TableCell>
 
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
+                    BUS TRAVEL
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="busTravel"
+                    columnName="Bus Travel"
+                    columnType="select"
+                    uniqueValues={["Yes", "No"]}
+                    currentFilter={columnFilters.busTravel}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
+
               {customColumns.map((column: any) => (
                 <TableCell
                   key={column.id}
@@ -1084,6 +1109,13 @@ export function GamesTable() {
                     ))}
                   </Select>
                 </TableCell>
+                <TableCell sx={{ py: 1 }}>
+                  <Checkbox
+                    checked={newGameData.busTravel}
+                    onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })}
+                    sx={{ p: 0 }}
+                  />
+                </TableCell>
                 {customColumns.map((column: any) => (
                   <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
                     <TextField
@@ -1129,7 +1161,7 @@ export function GamesTable() {
             {/* Existing Games */}
             {games.length === 0 && !isAddingNew ? (
               <TableRow>
-                <TableCell colSpan={10 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={11 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "Create Game" to add one.
                   </Typography>
@@ -1343,6 +1375,15 @@ export function GamesTable() {
                         )}
                       </TableCell>
 
+                      {/* Bus Travel */}
+                      <TableCell sx={{ py: 1 }}>
+                        <Checkbox
+                          checked={editingGameData.busTravel}
+                          onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })}
+                          sx={{ p: 0 }}
+                        />
+                      </TableCell>
+
                       {/* Custom Fields */}
                       {customColumns.map((column: any) => (
                         <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
@@ -1548,6 +1589,11 @@ export function GamesTable() {
                           {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
                         </Box>
                       )}
+                    </TableCell>
+
+                    {/* Bus Travel */}
+                    <TableCell sx={{ py: 2 }}>
+                      <Chip label={game.busTravel ? "Yes" : "No"} size="small" color={game.busTravel ? "success" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
                     </TableCell>
 
                     {/* Custom Columns */}
