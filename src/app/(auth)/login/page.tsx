@@ -77,7 +77,7 @@ function LoginForm() {
 
   return (
     <>
-      <BaseHeader />
+      <BaseHeader pt="20px" pl="20px" />
 
       <Container component="main" maxWidth="xs">
         <Box
