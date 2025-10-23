@@ -586,6 +586,20 @@ Deploy with PostgreSQL included:
 4. Configure environment variables
 5. Railway will auto-deploy
 
+### DigitalOcean App Platform
+
+DigitalOcean's App Platform can deploy this project directly from the repository or from a container image. When using the Node.js runtime, configure the app with:
+
+1. **Build command:** `yarn prisma generate && yarn build`
+2. **Run command:** `yarn prisma migrate deploy && yarn start`
+3. **Environment:** set `NODE_VERSION` (or `NODEJS_VERSION`) to `20` to match the engine requirements.
+4. **Secrets:** mark `DATABASE_URL` and any variables required during build time as `RUN_AND_BUILD_TIME`. All other secrets (e.g., `NEXTAUTH_SECRET`, OAuth keys) can remain `RUN_TIME`.
+5. **Database:** if you use a managed Postgres instance, append `?sslmode=require` to the `DATABASE_URL` so Prisma can connect over TLS.
+6. **Application URL:** set `NEXTAUTH_URL` to the live app domain (e.g., `https://your-app.ondigitalocean.app` or your custom domain).
+7. **Secrets & APIs:** provide `NEXTAUTH_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `RESEND_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
+
+After deployment completes, trigger `yarn prisma migrate deploy` (via the start command above) to ensure the database schema is up to date. You can also use the provided `.do/app.yaml` template with `doctl apps update` if you prefer managing the spec through code.
+
 ### Docker
 
 Build and run with Docker:
