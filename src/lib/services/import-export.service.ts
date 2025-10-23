@@ -18,7 +18,7 @@ export class ImportExportService {
     });
 
     // CSV Headers
-    const headers = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location Type", "Venue", "Status", "Travel Required", "Travel Time (min)", "Bus Count", "Travel Cost", "Notes"];
+    const headers = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location Type", "Venue", "Status", "Travel Required", "Bus Travel", "Travel Time (min)", "Bus Count", "Travel Cost", "Notes"];
 
     // Convert games to CSV rows
     const rows = games.map((game: any) => [
@@ -32,6 +32,7 @@ export class ImportExportService {
       game.venue?.name || "",
       game.status,
       game.travelRequired ? "Yes" : "No",
+      game.busTravel ? "Yes" : "No",
       game.estimatedTravelTime?.toString() || "",
       game.busCount?.toString() || "",
       game.travelCost?.toString() || "",
@@ -107,6 +108,7 @@ export class ImportExportService {
             isHome: row["Location Type"]?.toLowerCase() === "home",
             notes: row["Notes"] || null,
             travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
+            busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
             estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
             busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
             travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
