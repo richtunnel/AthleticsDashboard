@@ -807,8 +807,8 @@ export default function OpponentsPage() {
                     minHeight: 400,
                     padding: 16,
                     borderRadius: 8,
-                    border: selectedOpponents.length === 2 ? "2px solid #1976d2" : "2px dashed #ccc",
-                    backgroundColor: selectedOpponents.length === 2 ? "#e3f2fd" : "#fafafa",
+                    border: selectedOpponents.length === 2 ? "2px solid var(--accent)" : "2px dashed var(--border-color)",
+                    backgroundColor: selectedOpponents.length === 2 ? "var(--surface-selected)" : "var(--surface-muted)",
                     transition: "all 0.3s ease",
                   }}
                 >

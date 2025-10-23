@@ -38,8 +38,6 @@ import {
   Settings,
   Logout,
   Menu as MenuIcon,
-  LightMode,
-  DarkMode,
   Notifications,
   Close,
   CheckCircle,
@@ -52,12 +50,12 @@ import {
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
-import { useColorScheme } from "@mui/material/styles";
 import { VscGithubProject } from "react-icons/vsc";
 import EmailIcon from "@mui/icons-material/Email";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const DRAWER_WIDTH = 240;
 
@@ -78,17 +76,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
-  const { mode, setMode } = useColorScheme();
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
-
-  if (!mode) return null;
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
   const handleClose = () => setAnchorEl(null);
   const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => setNotifAnchorEl(event.currentTarget);
   const handleNotificationClose = () => setNotifAnchorEl(null);
-  const toggleTheme = () => setMode(mode === "light" ? "dark" : "light");
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -194,9 +188,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           </Tooltip>
 
           {/* Theme Toggle */}
-          <IconButton onClick={toggleTheme} sx={{ mr: 1 }} color="default">
-            {mode === "light" ? <DarkMode /> : <LightMode />}
-          </IconButton>
+          <ThemeToggle sx={{ mr: 1 }} />
 
           {/* Notifications */}
           <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
