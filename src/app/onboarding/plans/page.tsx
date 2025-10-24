@@ -7,9 +7,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
 
-interface SignUpPlanProps {
-  onBackClick: () => void;
-}
+type SignUpPlanProps = {
+  onToggleChange: (value: boolean) => void;
+};
 
 const plans = [
   {
@@ -44,14 +44,16 @@ const plans = [
   // },
 ];
 
-export default function SignUpPlan({ onBackClick }: SignUpPlanProps) {
+export default function SignUpPlan({ onToggleChange }: SignUpPlanProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [showPlans, setShowPlans] = useState<boolean>(false);
   const router = useRouter();
   const theme = useTheme();
 
   const handleBackClick = () => {
-    // This calls the function passed down from HomePage, setting showPricing to false.
-    onBackClick();
+    const newValue = !showPlans;
+    setShowPlans(newValue);
+    onToggleChange(newValue);
   };
 
   const handleBillingChange = (_event: React.MouseEvent<HTMLElement>, newBilling: "monthly" | "annual" | null) => {
