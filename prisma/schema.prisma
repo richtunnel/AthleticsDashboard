@@ -27,6 +27,7 @@ model User {
   subscriptionId            String?         @unique
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd                  DateTime?
+  deletionScheduledAt       DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
@@ -41,6 +42,7 @@ model User {
   emailLogs                 EmailLog[]
   emailGroups               EmailGroup[]    @relation("UserEmailGroups")
   emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
+  accountDeletionReminders  AccountDeletionReminder[]
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
@@ -72,6 +74,17 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+model AccountDeletionReminder {
+  id                 String   @id @default(cuid())
+  userId             String
+  daysBeforeDeletion Int
+  sentAt             DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, daysBeforeDeletion])
+  @@index([daysBeforeDeletion])
 }
 
 model CustomColumn {
