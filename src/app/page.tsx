@@ -10,8 +10,8 @@ import SignUpPlan from "./onboarding/plans/page";
 export default function HomePage() {
   const [showPricing, setShowPricing] = useState(false);
 
-  const handleBackToHome = () => {
-    setShowPricing(false);
+  const handleBackToHome = (newValue: boolean) => {
+    setShowPricing(newValue);
   };
 
   const setShowPricingButton = (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
@@ -39,7 +39,7 @@ export default function HomePage() {
 
         <div className="flex h-full items-center justify-center">
           {showPricing ? (
-            <SignUpPlan onBackClick={handleBackToHome} />
+            <SignUpPlan onToggleChange={handleBackToHome} />
           ) : (
             <div className={styles.homePageContentContainer}>
               <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
