@@ -164,7 +164,7 @@ export function SignupForm() {
   );
 }
 
-export function SignUpPlan() {
+export default function SignUpPlan() {
   return (
     <Suspense fallback={<Box sx={{ maxWidth: 400, mx: "auto", mt: 8 }}>Loading...</Box>}>
       <SignupForm />

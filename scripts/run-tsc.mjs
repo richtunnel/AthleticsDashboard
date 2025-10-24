@@ -5,6 +5,11 @@ import { spawnSync } from "node:child_process";
 const rawArgs = process.argv.slice(2);
 const flagArgs = rawArgs.filter((arg) => arg.startsWith("-"));
 
+if (!process.env.NODE_OPTIONS?.includes("--max-old-space-size")) {
+  const existingOptions = process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : "";
+  process.env.NODE_OPTIONS = `${existingOptions}--max-old-space-size=4096`;
+}
+
 // Ensure type-checking runs without emitting files
 if (!flagArgs.some((arg) => arg === "--noEmit" || arg.startsWith("--noEmit="))) {
   flagArgs.push("--noEmit");
