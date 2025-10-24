@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useEffect } from "react";
-import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { CalendarPreviewWidget } from "@/components/dashboard/CalendarPreviewWidget";
 import { ImportBox } from "@/components/import-export/ImportBox";
 import { useRouter } from "next/navigation";
 import { getSession } from "next-auth/react";
@@ -25,12 +25,14 @@ export default function DashboardPage() {
         <br />
       </div>
 
-      <Suspense fallback={<div>Loading stats...</div>}>
-        {/* <DashboardStats /> */}
-        <ImportBox />
-        {/* <p className="mt-4 text-gray-600"></p> */}
-        {/* <DashboardStats /> */}
-      </Suspense>
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        <div className="flex-1 w-full">
+          <Suspense fallback={<div>Loading import tools...</div>}>
+            <ImportBox />
+          </Suspense>
+        </div>
+        <CalendarPreviewWidget />
+      </div>
     </div>
   );
 }
