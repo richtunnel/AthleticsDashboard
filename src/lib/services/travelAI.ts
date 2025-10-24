@@ -11,11 +11,7 @@ interface TravelRecommendationResult {
 }
 
 export class TravelAIService {
-  async calculateTravelTime(
-    origin: string,
-    destination: string,
-    departureTime?: Date
-  ): Promise<{ travelTimeMinutes: number; distance: string; trafficCondition: string }> {
+  async calculateTravelTime(origin: string, destination: string, departureTime?: Date): Promise<{ travelTimeMinutes: number; distance: string; trafficCondition: string }> {
     try {
       const result = await googleMapsService.calculateTravelTime(origin, destination, departureTime);
       return {
@@ -33,11 +29,7 @@ export class TravelAIService {
     }
   }
 
-  async getWeatherConditions(
-    latitude: number,
-    longitude: number,
-    dateTime?: Date
-  ): Promise<{ description: string; main: string }> {
+  async getWeatherConditions(latitude: number, longitude: number, dateTime?: Date): Promise<{ description: string; main: string }> {
     try {
       const weather = await openWeatherService.getWeatherByLocation(latitude, longitude, dateTime);
       return {
@@ -117,11 +109,7 @@ export class TravelAIService {
     };
   }
 
-  async recommendDepartureTime(
-    arrivalTime: Date,
-    origin: string,
-    destination: string
-  ): Promise<{ departureTime: Date; travelDuration: number }> {
+  async recommendDepartureTime(arrivalTime: Date, origin: string, destination: string): Promise<{ departureTime: Date; travelDuration: number }> {
     const estimatedDepartureTime = new Date(arrivalTime);
     estimatedDepartureTime.setMinutes(estimatedDepartureTime.getMinutes() - 60);
 
@@ -137,11 +125,16 @@ export class TravelAIService {
     };
   }
 
-  async batchGenerateRecommendations(gameIds: string[], organizationId: string): Promise<Array<{
-    gameId: string;
-    recommendation: any | null;
-    error?: string;
-  }>> {
+  async batchGenerateRecommendations(
+    gameIds: string[],
+    organizationId: string
+  ): Promise<
+    Array<{
+      gameId: string;
+      recommendation: any | null;
+      error?: string;
+    }>
+  > {
     const results: Array<{ gameId: string; recommendation: any | null; error?: string }> = [];
 
     for (const gameId of gameIds) {
