@@ -19,7 +19,7 @@ COPY . .
 # Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_DEBUG_BUILD=1
-ENV NODE_OPTIONS="--max-old-space-size=512"
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Generate Prisma client and build Next.js
 RUN yarn prisma generate
@@ -34,6 +34,7 @@ WORKDIR /app
 # Set production environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 
 # Install minimal dependencies for Prisma runtime
