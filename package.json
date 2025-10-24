@@ -10,7 +10,18 @@
     "migrate:deploy": "prisma migrate deploy",
     "start:prod": "yarn migrate:deploy && yarn start",
     "type-check": "tsc --noEmit",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "docker:build": "docker build -t athletics-dashboard:latest .",
+    "docker:build:prod": "docker build --no-cache -t athletics-dashboard:latest .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env athletics-dashboard:latest",
+    "docker:run:detached": "docker run -d -p 3000:3000 --env-file .env --name athletics-app athletics-dashboard:latest",
+    "docker:stop": "docker stop athletics-app && docker rm athletics-app",
+    "docker:logs": "docker logs -f athletics-app",
+    "docker:shell": "docker exec -it athletics-app sh",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "docker:compose:logs": "docker-compose logs -f app",
+    "docker:compose:build": "docker-compose build --no-cache"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

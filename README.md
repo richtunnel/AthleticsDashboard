@@ -602,21 +602,59 @@ After deployment completes, trigger `yarn prisma migrate deploy` (via the start 
 
 ### Docker
 
-Build and run with Docker:
+This application is fully optimized for Docker deployment with a multi-stage build that minimizes image size and memory usage. Perfect for platforms like App Platform, Cloud Run, ECS, and others.
+
+**Quick Start:**
 
 ```bash
 # Build image
-docker build -t athletics-dashboard .
+yarn docker:build
 
 # Run container
-docker run -p 3000:3000 --env-file .env.local athletics-dashboard
+yarn docker:run:detached
+
+# View logs
+yarn docker:logs
+
+# Stop container
+yarn docker:stop
 ```
 
-Or use Docker Compose:
+**With Docker Compose (includes PostgreSQL + Adminer):**
 
 ```bash
+# Start all services
+yarn docker:compose:up
+
+# View logs
+yarn docker:compose:logs
+
+# Stop all services
+yarn docker:compose:down
+```
+
+**Direct Docker commands:**
+
+```bash
+# Build image
+docker build -t athletics-dashboard:latest .
+
+# Run container
+docker run -p 3000:3000 --env-file .env athletics-dashboard:latest
+
+# With Docker Compose
 docker-compose up -d
 ```
+
+**📦 Optimizations:**
+- Multi-stage build with 3 stages (deps, builder, runner)
+- Next.js standalone output mode for minimal bundle
+- Alpine Linux base (~300-400MB final image)
+- Memory limit: 4GB during build
+- Non-root user for security
+- Health checks included
+
+**📖 For detailed Docker deployment instructions**, including platform-specific guides for Google Cloud Run, DigitalOcean App Platform, AWS ECS, and more, see **[DOCKER.md](./DOCKER.md)**.
 
 ### Environment Variables for Production
 
@@ -628,6 +666,8 @@ Ensure these are set in your hosting platform:
 
 ## 📜 Scripts
 
+### Development & Build
+
 | Command | Description |
 |---------|-------------|
 | `yarn dev` | Start development server |
@@ -635,11 +675,32 @@ Ensure these are set in your hosting platform:
 | `yarn start` | Start production server |
 | `yarn start:prod` | Run migrations then start production server |
 | `yarn type-check` | Run TypeScript type checking |
+
+### Database (Prisma)
+
+| Command | Description |
+|---------|-------------|
 | `yarn prisma migrate dev` | Create and apply new migration |
 | `yarn prisma migrate deploy` | Apply migrations in production |
 | `yarn prisma db seed` | Seed database with sample data |
 | `yarn prisma studio` | Open Prisma Studio GUI |
 | `yarn prisma generate` | Generate Prisma Client |
+
+### Docker
+
+| Command | Description |
+|---------|-------------|
+| `yarn docker:build` | Build Docker image |
+| `yarn docker:build:prod` | Build Docker image without cache |
+| `yarn docker:run` | Run container (interactive) |
+| `yarn docker:run:detached` | Run container in background |
+| `yarn docker:stop` | Stop and remove container |
+| `yarn docker:logs` | View container logs |
+| `yarn docker:shell` | Open shell in container |
+| `yarn docker:compose:up` | Start all services with Docker Compose |
+| `yarn docker:compose:down` | Stop all Docker Compose services |
+| `yarn docker:compose:logs` | View Docker Compose logs |
+| `yarn docker:compose:build` | Rebuild Docker Compose services |
 
 ## 🤝 Contributing
 
