@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -30,6 +31,7 @@ model User {
   googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
   googleCalendarId          String?         // Optionally store the primary calendar ID
+  googleCalendarEmail        String?
   // Relations
   organizationId             String
   organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -92,6 +94,7 @@ model Organization {
   updatedAt     DateTime @updatedAt
   customColumns CustomColumn[]
   emailGroups   EmailGroup[]   @relation("OrganizationEmailGroups")
+  travelSettings TravelSettings?
 
   // Relations
   users         User[]
@@ -136,10 +139,18 @@ model Game {
   isHome                Boolean     @default(true)
   // Travel Information
   travelRequired        Boolean     @default(false)
+  busTravel             Boolean     @default(false)
   estimatedTravelTime   Int?        // minutes
   departureTime         DateTime?
   busCount              Int?
   travelCost            Float?
+  // AI Travel Recommendations
+  recommendedDepartureTime DateTime?
+  recommendedArrivalTime DateTime?
+  actualDepartureTime   DateTime?
+  actualArrivalTime     DateTime?
+  travelTimeMinutes     Int?
+  autoFillBusInfo       Boolean     @default(false)
   // Calendar Integration
   calendarSynced        Boolean     @default(false)
   lastSyncedAt          DateTime?
@@ -162,6 +173,7 @@ model Game {
   createdById           String
   createdBy             User        @relation("GameCreator", fields: [createdById], references: [id])
   emailLogs             EmailLog[]
+  travelRecommendations TravelRecommendation[]
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([date])
@@ -230,6 +242,32 @@ model Opponent {
   @@index([organizationId])
 }
 
+model TravelRecommendation {
+  id                  String   @id @default(cuid())
+  gameId              String
+  game                Game     @relation(fields: [gameId], references: [id])
+  recommendedDeparture DateTime
+  recommendedArrival   DateTime
+  travelDuration      Int
+  trafficCondition    String?
+  weatherCondition    String?
+  addedToGame         Boolean  @default(false)
+  addedAt             DateTime?
+  createdAt           DateTime @default(now())
+  @@index([gameId])
+}
+
+model TravelSettings {
+  id                  String       @id @default(cuid())
+  organizationId      String       @unique
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  autoFillEnabled     Boolean      @default(false)
+  defaultBufferMinutes Int         @default(45)
+  busLoadingMinutes   Int          @default(15)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -241,12 +279,15 @@ model EmailGroup {
   id        String         @id @default(uuid())
   name      String
   userId    String
-  organizationId String?
+  organizationId String
   createdAt DateTime       @default(now())
   user      User           @relation("UserEmailGroups", fields: [userId], references: [id], onDelete: Cascade)
   organization  Organization?  @relation("OrganizationEmailGroups", fields: [organizationId], references: [id], onDelete: Cascade) 
   emails    EmailAddress[]
   campaigns EmailCampaign[]
+
+  @@unique([organizationId, name])
+  @@index([userId])
 }
 
 model EmailAddress {
