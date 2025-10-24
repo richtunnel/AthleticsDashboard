@@ -27,6 +27,7 @@ model User {
   subscriptionId            String?         @unique
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd                  DateTime?
+  deletionScheduledAt       DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
@@ -41,6 +42,7 @@ model User {
   emailLogs                 EmailLog[]
   emailGroups               EmailGroup[]    @relation("UserEmailGroups")
   emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
+  accountRecoveries         AccountRecovery[]
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
@@ -273,6 +275,20 @@ model VerificationToken {
   token      String   @unique
   expires    DateTime
   @@unique([identifier, token])
+}
+
+model AccountRecovery {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email       String
+  hashedToken String
+  expiresAt   DateTime
+  used        Boolean  @default(false)
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+  @@index([email])
 }
 
 model EmailGroup {
