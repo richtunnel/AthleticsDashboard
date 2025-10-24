@@ -40,7 +40,7 @@ const plans = [
   // },
 ];
 
-export default function SignUpPlan() {
+export default function PricingPlansPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const router = useRouter();
   const theme = useTheme();
