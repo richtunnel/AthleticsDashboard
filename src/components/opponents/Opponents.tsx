@@ -29,7 +29,7 @@ import {
   Skeleton,
 } from "@mui/material";
 import { Add, DragIndicator, Edit, Delete, Save, Cancel, School, Phone, Email, Person, Close, Check, NavigateNext, SkipNext, Warning } from "@mui/icons-material";
-import { useOpponentsStore } from "@/store/OpponentStore";
+import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T & { cancel: () => void } {
