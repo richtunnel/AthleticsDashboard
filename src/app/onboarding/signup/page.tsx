@@ -8,7 +8,7 @@ import { useState, Suspense } from "react";
 import Divider from "@mui/material/Divider";
 import BaseHeader from "@/components/headers/_base";
 
-export function SignupForm() {
+function SignupForm() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") || "free_trial_plan";
   const router = useRouter();
@@ -164,10 +164,12 @@ export function SignupForm() {
   );
 }
 
-export default function SignUpPlan() {
+function SignupPage() {
   return (
     <Suspense fallback={<Box sx={{ maxWidth: 400, mx: "auto", mt: 8 }}>Loading...</Box>}>
       <SignupForm />
     </Suspense>
   );
 }
+
+export default SignupPage;
