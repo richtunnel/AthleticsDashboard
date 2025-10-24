@@ -1,9 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { ColumnFilterValue, ColumnFilters } from "@/types/filters";
-
-export type { ColumnFilterValue, ColumnFilters } from "@/types/filters";
+import { ColumnFilterValue, ColumnFilters } from "../../../types/filters";
 
 interface GamesFiltersState {
   columnFilters: ColumnFilters;
