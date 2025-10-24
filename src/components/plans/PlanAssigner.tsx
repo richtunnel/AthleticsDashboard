@@ -2,49 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, Alert } from "@mui/material";
 
 export default function PlanAssigner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const assignPlan = async () => {
-      // Get plan from URL params or localStorage
       let plan = searchParams.get("plan");
 
       if (!plan) {
         plan = localStorage.getItem("onboarding_plan");
-        localStorage.removeItem("onboarding_plan"); // Clean up
+        localStorage.removeItem("onboarding_plan");
       }
 
       if (plan) {
         try {
-          const response = await fetch("/api/auth/update-plan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan }),
-          });
-
-          if (response.ok) {
-            // Redirect to appropriate page based on plan
-            if (plan === "free_trial_plan") {
-              router.push("/onboarding/details");
-            } else {
-              // For paid plans, continue with Stripe setup
-              router.push(`/onboarding/start?plan=${plan}`);
-            }
+          if (plan === "free_trial_plan") {
+            router.push("/onboarding/start?plan=free_trial_plan");
           } else {
-            console.error("Failed to assign plan");
             router.push("/onboarding/plans");
           }
         } catch (error) {
           console.error("Error assigning plan:", error);
-          router.push("/onboarding/plans");
+          setError("Failed to process plan selection. Redirecting...");
+          setTimeout(() => router.push("/onboarding/plans"), 2000);
         }
       } else {
-        // No plan found, redirect to plans page
         router.push("/onboarding/plans");
       }
     };
@@ -63,10 +50,16 @@ export default function PlanAssigner() {
         gap: 2,
       }}
     >
-      <CircularProgress size={40} />
-      <Typography variant="h6" color="text.secondary">
-        Setting up your account...
-      </Typography>
+      {error ? (
+        <Alert severity="error">{error}</Alert>
+      ) : (
+        <>
+          <CircularProgress size={40} />
+          <Typography variant="h6" color="text.secondary">
+            Setting up your account...
+          </Typography>
+        </>
+      )}
     </Box>
   );
 }
