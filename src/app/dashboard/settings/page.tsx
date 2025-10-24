@@ -6,6 +6,7 @@ import { Card, CardContent, Typography, Box } from "@mui/material";
 import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
 import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
 import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
+import AccountRecoverySection from "@/components/settings/AccountRecoverySection";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -37,6 +38,20 @@ export default async function SettingsPage() {
       },
       googleCalendarRefreshToken: true,
       calendarTokenExpiry: true,
+      accountRecoveries: {
+        where: {
+          used: false,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 1,
+        select: {
+          createdAt: true,
+          expiresAt: true,
+          used: true,
+        },
+      },
     },
   });
 
@@ -48,6 +63,7 @@ export default async function SettingsPage() {
   const isCalendarConnected = !!user?.googleCalendarRefreshToken;
   const hasPassword = !!user.hashedPassword;
   const hasGoogleAccount = user.accounts.some((account) => account.provider === "google");
+  const lastRecovery = user.accountRecoveries.length > 0 ? user.accountRecoveries[0] : null;
 
   return (
     <>
@@ -76,6 +92,12 @@ export default async function SettingsPage() {
       </Box>
       <Box sx={{ p: 3 }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+      </Box>
+      <Box sx={{ p: 3 }}>
+        <Typography sx={{ mb: 1 }} variant="h5">
+          Account Recovery
+        </Typography>
+        <AccountRecoverySection lastRecovery={lastRecovery} />
       </Box>
     </>
   );
