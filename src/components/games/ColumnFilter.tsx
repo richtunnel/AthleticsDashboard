@@ -23,16 +23,9 @@ import {
   Chip,
 } from "@mui/material";
 import { FilterList, Close, Search, Check } from "@mui/icons-material";
+import type { ColumnFilterValue, FilterCondition } from "@/types/filters";
 
-export type FilterCondition = "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with" | "is_empty" | "is_not_empty" | "greater_than" | "less_than" | "between";
-
-export interface ColumnFilterValue {
-  type: "condition" | "values";
-  condition?: FilterCondition;
-  value?: string;
-  values?: string[];
-  secondValue?: string; // for "between"
-}
+export type { ColumnFilterValue, FilterCondition } from "@/types/filters";
 
 interface ColumnFilterProps {
   columnId: string;
