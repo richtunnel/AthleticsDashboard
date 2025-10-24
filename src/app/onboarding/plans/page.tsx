@@ -7,9 +7,9 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
 
-type SignUpPlanProps = {
+interface PricingPlanProps {
   onToggleChange: (value: boolean) => void;
-};
+}
 
 const plans = [
   {
@@ -44,7 +44,7 @@ const plans = [
   // },
 ];
 
-export default function SignUpPlan({ onToggleChange }: SignUpPlanProps) {
+export default function PricingPlans({ onToggleChange }: PricingPlanProps) {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [showPlans, setShowPlans] = useState<boolean>(false);
   const router = useRouter();
