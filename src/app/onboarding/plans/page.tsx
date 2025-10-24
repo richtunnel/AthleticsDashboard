@@ -7,10 +7,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
 
-type SignUpPlanProps = {
-  onToggleChange: (value: boolean) => void;
-};
-
 const plans = [
   {
     name: "Free Trial Plan",
@@ -44,16 +40,13 @@ const plans = [
   // },
 ];
 
-export default function SignUpPlan({ onToggleChange }: SignUpPlanProps) {
+export default function SignUpPlan() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
-  const [showPlans, setShowPlans] = useState<boolean>(false);
   const router = useRouter();
   const theme = useTheme();
 
   const handleBackClick = () => {
-    const newValue = !showPlans;
-    setShowPlans(newValue);
-    onToggleChange(newValue);
+    router.back();
   };
 
   const handleBillingChange = (_event: React.MouseEvent<HTMLElement>, newBilling: "monthly" | "annual" | null) => {
