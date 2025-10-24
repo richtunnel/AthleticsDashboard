@@ -25,6 +25,10 @@ model User {
   mascot                    String?
   stripeCustomerId          String?
   subscriptionId            String?         @unique
+  subscriptionStatus        String?
+  cancellationDate          DateTime?
+  deletionScheduledAt       DateTime?
+  hasReceivedFreeTrial      Boolean         @default(false)
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd                  DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
@@ -34,6 +38,7 @@ model User {
   googleCalendarEmail        String?
   // Relations
   organizationId             String
+  subscription              Subscription?   @relation("UserSubscription", fields: [subscriptionId], references: [id], onDelete: SetNull)
   organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accounts                  Account[]
   sessions                  Session[]
@@ -72,6 +77,38 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+model Subscription {
+  id                 String    @id
+  customerId         String
+  status             String
+  planPriceId        String?
+  planProductId      String?
+  planLookupKey      String?
+  planNickname       String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAt           DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  endedAt            DateTime?
+  latestInvoiceId    String?
+  lastEventId        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  users              User[]    @relation("UserSubscription")
+  @@map("Subscription")
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  createdAt   DateTime @default(now())
+  processedAt DateTime @default(now())
+  @@map("StripeWebhookEvent")
 }
 
 model CustomColumn {
