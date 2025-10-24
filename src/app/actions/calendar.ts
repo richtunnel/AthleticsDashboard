@@ -5,10 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { calendarService, type UpcomingCalendarEvent } from "@/lib/services/calendar.service";
 
-export async function getUpcomingCalendarEvents(daysAhead = 3): Promise<
-  | { success: true; events: UpcomingCalendarEvent[] }
-  | { success: false; error: string }
-> {
+export async function getUpcomingCalendarEvents(daysAhead = 3): Promise<{ success: true; events: UpcomingCalendarEvent[] } | { success: false; error: string }> {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {

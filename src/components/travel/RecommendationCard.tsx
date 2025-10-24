@@ -136,20 +136,8 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1 }}>
                 <Chip label={game.homeTeam.level} size="small" />
-                <Chip
-                  icon={<CalendarMonth />}
-                  label={format(gameDate, "MMM dd, yyyy")}
-                  size="small"
-                  variant="outlined"
-                />
-                {game.time && (
-                  <Chip
-                    icon={<Schedule />}
-                    label={game.time}
-                    size="small"
-                    variant="outlined"
-                  />
-                )}
+                <Chip icon={<CalendarMonth />} label={format(gameDate, "MMM dd, yyyy")} size="small" variant="outlined" />
+                {game.time && <Chip icon={<Schedule />} label={game.time} size="small" variant="outlined" />}
               </Stack>
               {game.venue && (
                 <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -172,12 +160,7 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
                     </Typography>
                   )}
                   <Tooltip title="Undo add to spreadsheet">
-                    <IconButton
-                      size="small"
-                      onClick={handleUndo}
-                      disabled={isLoading}
-                      color="primary"
-                    >
+                    <IconButton size="small" onClick={handleUndo} disabled={isLoading} color="primary">
                       <Undo />
                     </IconButton>
                   </Tooltip>
@@ -236,19 +219,8 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
           </Stack>
 
           <Stack direction="row" spacing={1} flexWrap="wrap">
-            <Chip
-              icon={<Traffic />}
-              label={`Traffic: ${recommendation.trafficCondition}`}
-              size="small"
-              color={getTrafficColor(recommendation.trafficCondition)}
-              variant="outlined"
-            />
-            <Chip
-              icon={<WbSunny />}
-              label={recommendation.weatherCondition}
-              size="small"
-              variant="outlined"
-            />
+            <Chip icon={<Traffic />} label={`Traffic: ${recommendation.trafficCondition}`} size="small" color={getTrafficColor(recommendation.trafficCondition)} variant="outlined" />
+            <Chip icon={<WbSunny />} label={recommendation.weatherCondition} size="small" variant="outlined" />
           </Stack>
         </Stack>
       </CardContent>

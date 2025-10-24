@@ -73,9 +73,7 @@ export class GoogleMapsService {
       }
 
       const baseTravelTime = Math.ceil(element.duration.value / 60);
-      const travelTimeWithTraffic = element.duration_in_traffic
-        ? Math.ceil(element.duration_in_traffic.value / 60)
-        : baseTravelTime;
+      const travelTimeWithTraffic = element.duration_in_traffic ? Math.ceil(element.duration_in_traffic.value / 60) : baseTravelTime;
 
       let trafficCondition = "normal";
       if (element.duration_in_traffic) {
@@ -101,12 +99,7 @@ export class GoogleMapsService {
     }
   }
 
-  async getAddressFromVenue(venue: {
-    address?: string | null;
-    city?: string | null;
-    state?: string | null;
-    name: string;
-  }): Promise<string> {
+  async getAddressFromVenue(venue: { address?: string | null; city?: string | null; state?: string | null; name: string }): Promise<string> {
     if (venue.address && venue.city && venue.state) {
       return `${venue.address}, ${venue.city}, ${venue.state}`;
     }
