@@ -18,8 +18,8 @@ COPY . .
 
 # Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_DEBUG_BUILD=1
+ENV NODE_OPTIONS="--max-old-space-size=512"
 
 # Generate Prisma client and build Next.js
 RUN yarn prisma generate
@@ -34,11 +34,10 @@ WORKDIR /app
 # Set production environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=512"
-ENV NEXT_DEBUG_BUILD=1
+
 
 # Install minimal dependencies for Prisma runtime
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -50,8 +49,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 # Install only production dependencies
 RUN yarn install --production --frozen-lockfile --no-engines
