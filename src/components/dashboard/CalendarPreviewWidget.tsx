@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Box, Button, Card, CardContent, CardHeader, CircularProgress, Divider, IconButton, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
@@ -10,45 +9,100 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import EventNoteIcon from "@mui/icons-material/EventNote";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
-import { getUpcomingCalendarEvents } from "@/app/actions/calendar";
-import type { UpcomingCalendarEvent } from "@/lib/services/calendar.service";
+import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 
 const REFRESH_INTERVAL_MS = 1000 * 60 * 5;
+
+interface Game {
+  id: string;
+  date: string;
+  time: string | null;
+  status: string;
+  isHome: boolean;
+  homeTeam: {
+    id?: string;
+    name: string;
+    level: string;
+    location: string;
+    sport: {
+      name: string;
+    };
+  };
+  opponent?: {
+    id?: string;
+    name: string;
+  };
+  venue?: {
+    id?: string;
+    name: string;
+  };
+  googleCalendarHtmlLink?: string | null;
+}
 
 interface GroupedEvents {
   key: string;
   label: string;
   date: Date;
-  items: Array<{ event: UpcomingCalendarEvent; startDate: Date }>;
+  items: Array<{ game: Game; startDate: Date }>;
 }
 
 export function CalendarPreviewWidget() {
   const { data: session } = useSession();
+  const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
   const calendarTooltip = calendarAccountEmail ? `Open Google Calendar for ${calendarAccountEmail}` : "Open Google Calendar";
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["dashboard-upcoming-calendar-events"],
+    queryKey: ["dashboard-upcoming-games", columnFilters],
     queryFn: async () => {
-      const response = await getUpcomingCalendarEvents();
-      if (!response.success) {
-        throw new Error(response.error || "Failed to load events");
-      }
-      return response.events;
+      const params = new URLSearchParams();
+      
+      // Apply filters from the store
+      Object.entries(columnFilters).forEach(([columnId, filter]) => {
+        params.append(`filter_${columnId}_type`, filter.type);
+        if (filter.type === "condition") {
+          params.append(`filter_${columnId}_condition`, filter.condition || "");
+          params.append(`filter_${columnId}_value`, filter.value || "");
+          if (filter.secondValue) {
+            params.append(`filter_${columnId}_secondValue`, filter.secondValue);
+          }
+        } else if (filter.type === "values") {
+          params.append(`filter_${columnId}_values`, JSON.stringify(filter.values || []));
+        }
+      });
+
+      // Only fetch upcoming games (next 3 days)
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      
+      // Add date filter for next 3 days
+      params.append("filter_date_type", "condition");
+      params.append("filter_date_condition", "between");
+      params.append("filter_date_value", now.toISOString().split('T')[0]);
+      params.append("filter_date_secondValue", threeDaysFromNow.toISOString().split('T')[0]);
+
+      // Sort by date ascending
+      params.append("sortBy", "date");
+      params.append("sortOrder", "asc");
+      params.append("page", "1");
+      params.append("limit", "50");
+
+      const res = await fetch(`/api/games?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch games");
+      const response = await res.json();
+      return response.data?.games || [];
     },
     staleTime: 1000 * 60 * 1,
     refetchInterval: REFRESH_INTERVAL_MS,
   });
 
-  const events = data ?? [];
+  const games = data ?? [];
 
-  const groupedEvents = useMemo(() => groupEventsByDate(events), [events]);
+  const groupedEvents = useMemo(() => groupGamesByDate(games), [games]);
 
-  const errorMessage = error instanceof Error ? error.message : "Failed to load calendar events.";
-  const isConnectionError = /not connected/i.test(errorMessage);
-  const displayErrorMessage = isConnectionError ? "Connect your Google account to preview upcoming games." : errorMessage;
+  const errorMessage = error instanceof Error ? error.message : "Failed to load upcoming games.";
 
   return (
     <Box
@@ -65,7 +119,7 @@ export function CalendarPreviewWidget() {
         <CardHeader
           avatar={<EventNoteIcon color="primary" />}
           title="Upcoming Games"
-          subheader="Next 3 days from Google Calendar"
+          subheader="Next 3 days from your schedule"
           action={
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Tooltip title={calendarTooltip}>
@@ -95,23 +149,12 @@ export function CalendarPreviewWidget() {
             <Alert
               severity="error"
               action={
-                isConnectionError ? (
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button component={Link} href="/dashboard/gsync" color="inherit" size="small">
-                      Connect Calendar
-                    </Button>
-                    <Button color="inherit" size="small" onClick={() => refetch()}>
-                      Retry
-                    </Button>
-                  </Box>
-                ) : (
-                  <Button color="inherit" size="small" onClick={() => refetch()}>
-                    Retry
-                  </Button>
-                )
+                <Button color="inherit" size="small" onClick={() => refetch()}>
+                  Retry
+                </Button>
               }
             >
-              {displayErrorMessage}
+              {errorMessage}
             </Alert>
           ) : groupedEvents.length === 0 ? (
             <Box sx={{ py: 4, textAlign: "center" }}>
@@ -129,15 +172,15 @@ export function CalendarPreviewWidget() {
                   {group.label}
                 </Typography>
                 <List disablePadding>
-                  {group.items.map(({ event, startDate }, eventIndex) => (
-                    <Fragment key={`${group.key}-${event.id}`}>
+                  {group.items.map(({ game, startDate }, gameIndex) => (
+                    <Fragment key={`${group.key}-${game.id}`}>
                       <ListItem
                         alignItems="flex-start"
                         disableGutters
                         secondaryAction={
-                          event.htmlLink ? (
+                          game.googleCalendarHtmlLink ? (
                             <Tooltip title="Open event in Google Calendar">
-                              <IconButton edge="end" component="a" href={event.htmlLink} target="_blank" rel="noopener noreferrer" size="small" aria-label="Open event in Google Calendar">
+                              <IconButton edge="end" component="a" href={game.googleCalendarHtmlLink} target="_blank" rel="noopener noreferrer" size="small" aria-label="Open event in Google Calendar">
                                 <LaunchIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -148,35 +191,33 @@ export function CalendarPreviewWidget() {
                         <ListItemText
                           primary={
                             <Typography variant="body1" fontWeight={600} sx={{ mb: 0.5 }}>
-                              {event.summary}
+                              {game.homeTeam.sport.name} - {game.opponent?.name || "TBD"}
                             </Typography>
                           }
                           secondary={
                             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
                               <Typography variant="body2" color="text.secondary">
-                                {formatEventTime(startDate, event.isAllDay)}
+                                {formatGameTime(startDate, game.time)}
                               </Typography>
-                              {event.opponent && (
+                              {game.homeTeam.level && (
                                 <Typography variant="body2" color="text.secondary">
-                                  Opponent:{" "}
+                                  Level:{" "}
                                   <Typography component="span" color="text.primary">
-                                    {event.opponent}
+                                    {game.homeTeam.level}
                                   </Typography>
                                 </Typography>
                               )}
-                              {event.location && (
-                                <Typography variant="body2" color="text.secondary">
-                                  Location:{" "}
-                                  <Typography component="span" color="text.primary">
-                                    {event.location}
-                                  </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Location:{" "}
+                                <Typography component="span" color="text.primary">
+                                  {game.isHome ? "Home" : game.venue?.name || "TBD"}
                                 </Typography>
-                              )}
+                              </Typography>
                             </Box>
                           }
                         />
                       </ListItem>
-                      {eventIndex < group.items.length - 1 && <Divider component="li" sx={{ ml: 2 }} />}
+                      {gameIndex < group.items.length - 1 && <Divider component="li" sx={{ ml: 2 }} />}
                     </Fragment>
                   ))}
                 </List>
@@ -190,11 +231,11 @@ export function CalendarPreviewWidget() {
   );
 }
 
-function groupEventsByDate(events: UpcomingCalendarEvent[]): GroupedEvents[] {
+function groupGamesByDate(games: Game[]): GroupedEvents[] {
   const groupsMap = new Map<string, GroupedEvents>();
 
-  for (const event of events) {
-    const startDate = parseEventStart(event);
+  for (const game of games) {
+    const startDate = parseGameDate(game);
 
     if (!startDate) {
       continue;
@@ -212,7 +253,7 @@ function groupEventsByDate(events: UpcomingCalendarEvent[]): GroupedEvents[] {
     }
 
     const group = groupsMap.get(key)!;
-    group.items.push({ event, startDate });
+    group.items.push({ game, startDate });
   }
 
   const sortedGroups = Array.from(groupsMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -224,22 +265,32 @@ function groupEventsByDate(events: UpcomingCalendarEvent[]): GroupedEvents[] {
   return sortedGroups;
 }
 
-function parseEventStart(event: UpcomingCalendarEvent): Date | null {
-  if (!event.start) {
+function parseGameDate(game: Game): Date | null {
+  if (!game.date) {
     return null;
   }
 
   try {
-    const parsed = parseISO(event.start);
+    const parsed = parseISO(game.date);
     if (!Number.isNaN(parsed.getTime())) {
+      // If game has a time, set it on the date
+      if (game.time) {
+        const [hours, minutes] = game.time.split(":");
+        parsed.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      }
       return parsed;
     }
   } catch (error) {
     // Ignore parse error and fall back to Date constructor
   }
 
-  const fallback = new Date(event.start);
+  const fallback = new Date(game.date);
   if (!Number.isNaN(fallback.getTime())) {
+    // If game has a time, set it on the date
+    if (game.time) {
+      const [hours, minutes] = game.time.split(":");
+      fallback.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
     return fallback;
   }
 
@@ -258,9 +309,9 @@ function formatDateLabel(date: Date): string {
   return format(date, "EEEE, MMM d");
 }
 
-function formatEventTime(date: Date, isAllDay: boolean): string {
-  if (isAllDay) {
-    return "All day";
+function formatGameTime(date: Date, time: string | null): string {
+  if (!time) {
+    return "Time TBD";
   }
 
   return format(date, "h:mm a");
