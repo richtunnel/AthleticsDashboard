@@ -5,7 +5,7 @@ import { useState } from "react";
 import Image from "next/image";
 import styles from "../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
-import { SignUpPlan } from "./onboarding/plans/page";
+import SignUpPlan from "./onboarding/plans/page";
 
 export default function HomePage() {
   const [showPricing, setShowPricing] = useState(false);
