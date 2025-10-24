@@ -1,5 +1,4 @@
-import { Card, CardContent, Typography, Box, Button } from "@mui/material";
-import { useState } from "react";
+import { Card, CardContent, Typography, Box } from "@mui/material";
 import AIButton from "@/components/buttons/EnableAiButton";
 
 const plans = [
