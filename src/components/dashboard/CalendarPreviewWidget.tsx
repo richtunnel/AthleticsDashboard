@@ -4,22 +4,7 @@ import { Fragment, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CircularProgress,
-  Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, CardHeader, CircularProgress, Divider, IconButton, List, ListItem, ListItemText, Tooltip, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import LaunchIcon from "@mui/icons-material/Launch";
 import EventNoteIcon from "@mui/icons-material/EventNote";
@@ -41,21 +26,10 @@ export function CalendarPreviewWidget() {
   const { data: session } = useSession();
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
-  const calendarHref = calendarAccountEmail
-    ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}`
-    : "https://calendar.google.com/calendar/u/0/r";
-  const calendarTooltip = calendarAccountEmail
-    ? `Open Google Calendar for ${calendarAccountEmail}`
-    : "Open Google Calendar";
+  const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
+  const calendarTooltip = calendarAccountEmail ? `Open Google Calendar for ${calendarAccountEmail}` : "Open Google Calendar";
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["dashboard-upcoming-calendar-events"],
     queryFn: async () => {
       const response = await getUpcomingCalendarEvents();
@@ -74,9 +48,7 @@ export function CalendarPreviewWidget() {
 
   const errorMessage = error instanceof Error ? error.message : "Failed to load calendar events.";
   const isConnectionError = /not connected/i.test(errorMessage);
-  const displayErrorMessage = isConnectionError
-    ? "Connect your Google account to preview upcoming games."
-    : errorMessage;
+  const displayErrorMessage = isConnectionError ? "Connect your Google account to preview upcoming games." : errorMessage;
 
   return (
     <Box
@@ -165,15 +137,7 @@ export function CalendarPreviewWidget() {
                         secondaryAction={
                           event.htmlLink ? (
                             <Tooltip title="Open event in Google Calendar">
-                              <IconButton
-                                edge="end"
-                                component="a"
-                                href={event.htmlLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                size="small"
-                                aria-label="Open event in Google Calendar"
-                              >
+                              <IconButton edge="end" component="a" href={event.htmlLink} target="_blank" rel="noopener noreferrer" size="small" aria-label="Open event in Google Calendar">
                                 <LaunchIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
@@ -194,12 +158,18 @@ export function CalendarPreviewWidget() {
                               </Typography>
                               {event.opponent && (
                                 <Typography variant="body2" color="text.secondary">
-                                  Opponent: <Typography component="span" color="text.primary">{event.opponent}</Typography>
+                                  Opponent:{" "}
+                                  <Typography component="span" color="text.primary">
+                                    {event.opponent}
+                                  </Typography>
                                 </Typography>
                               )}
                               {event.location && (
                                 <Typography variant="body2" color="text.secondary">
-                                  Location: <Typography component="span" color="text.primary">{event.location}</Typography>
+                                  Location:{" "}
+                                  <Typography component="span" color="text.primary">
+                                    {event.location}
+                                  </Typography>
                                 </Typography>
                               )}
                             </Box>
