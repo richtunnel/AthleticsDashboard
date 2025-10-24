@@ -17,6 +17,7 @@ declare module "next-auth" {
       };
       googleCalendarRefreshToken?: string;
       googleCalendarAccessToken?: string;
+      googleCalendarEmail?: string;
       calendarTokenExpiry?: Date;
     } & DefaultSession["user"];
   }
@@ -32,6 +33,7 @@ declare module "next-auth" {
     };
     googleCalendarRefreshToken?: string;
     googleCalendarAccessToken?: string;
+    googleCalendarEmail?: string;
     calendarTokenExpiry?: Date;
   }
 }
