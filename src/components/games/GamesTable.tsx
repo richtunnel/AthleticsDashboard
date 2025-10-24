@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
+import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 
 import {
   Box,
@@ -156,7 +157,9 @@ export function GamesTable() {
 
   const [showImportDialog, setShowImportDialog] = useState(false);
 
-  const [columnFilters, setColumnFilters] = useState<ColumnFilters>({});
+  const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
+  const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
+  const updateFilter = useGamesFiltersStore((state) => state.updateFilter);
 
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
@@ -667,17 +670,9 @@ export function GamesTable() {
   };
 
   const handleColumnFilterChange = useCallback((columnId: string, filter: ColumnFilterValue | null) => {
-    setColumnFilters((prev) => {
-      const newFilters = { ...prev };
-      if (filter === null) {
-        delete newFilters[columnId];
-      } else {
-        newFilters[columnId] = filter;
-      }
-      return newFilters;
-    });
+    updateFilter(columnId, filter);
     setPage(0);
-  }, []);
+  }, [updateFilter]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
