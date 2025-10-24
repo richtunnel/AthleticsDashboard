@@ -48,10 +48,7 @@ export function AutoFillToggle({ initialValue }: AutoFillToggleProps) {
         <Typography variant="body2" color="text.secondary">
           When enabled, new games with travel requirements will automatically receive AI-generated bus departure and arrival times based on real-time traffic and weather data.
         </Typography>
-        <FormControlLabel
-          control={<Switch checked={isEnabled} onChange={handleToggle} disabled={isSaving} />}
-          label={isEnabled ? "Auto-fill enabled" : "Auto-fill disabled"}
-        />
+        <FormControlLabel control={<Switch checked={isEnabled} onChange={handleToggle} disabled={isSaving} />} label={isEnabled ? "Auto-fill enabled" : "Auto-fill disabled"} />
         <Stack direction="row" spacing={2} alignItems="center">
           <LoadingButton loading={isSaving} variant="contained" onClick={handleSave}>
             Save Preference

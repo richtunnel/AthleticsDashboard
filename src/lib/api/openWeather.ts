@@ -16,11 +16,7 @@ export class OpenWeatherService {
     this.apiKey = process.env.OPENWEATHER_API_KEY || process.env.OPEN_WEATHER_API_KEY || "";
   }
 
-  async getWeatherByLocation(
-    latitude: number,
-    longitude: number,
-    dateTime?: Date
-  ): Promise<{ description: string; main: string; temperatureCelsius: number | null }> {
+  async getWeatherByLocation(latitude: number, longitude: number, dateTime?: Date): Promise<{ description: string; main: string; temperatureCelsius: number | null }> {
     if (!this.apiKey) {
       throw new Error("OpenWeatherMap API key not configured");
     }
