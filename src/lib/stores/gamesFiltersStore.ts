@@ -1,16 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-
-export interface ColumnFilterValue {
-  type: "values" | "condition";
-  values?: string[];
-  condition?: string;
-  value?: string;
-  secondValue?: string;
-}
-
-export type ColumnFilters = Record<string, ColumnFilterValue>;
+import { ColumnFilterValue, ColumnFilters } from "../../../types/filters";
 
 interface GamesFiltersState {
   columnFilters: ColumnFilters;
