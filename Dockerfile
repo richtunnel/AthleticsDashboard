@@ -9,6 +9,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json yarn.lock* ./
 
+# Copy Prisma schema before installing dependencies
+COPY prisma ./prisma
+
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
