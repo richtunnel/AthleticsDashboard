@@ -92,5 +92,125 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ received: true });
+  const planName = derivePlanName(result);
+  await emailService.sendSubscriptionEmail({
+    type: "confirmation",
+    user: {
+      id: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+    },
+    planName,
+    status: result.subscription.status,
+    currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
+  });
+
+  console.info("stripe.webhook.email.subscription_confirmation", {
+    subscriptionId: result.subscription.id,
+    userId: result.user.id,
+    eventType,
+  });
+}
+
+async function maybeSendCancellationEmail(result: SubscriptionSyncResult, eventType: string) {
+  if (!result.user) {
+    return;
+  }
+
+  const cancellationScheduled = !result.previousCancelAt && !!result.subscription.cancelAt;
+  const newlyCanceled =
+    result.subscription.status === "canceled" && result.previousStatus !== "canceled";
+
+  if (!cancellationScheduled && !newlyCanceled) {
+    return;
+  }
+
+  const planName = derivePlanName(result);
+  const cancellationDate =
+    result.subscription.cancelAt ?? result.subscription.canceledAt ?? result.subscription.currentPeriodEnd ?? null;
+
+  await emailService.sendSubscriptionEmail({
+    type: "cancellation",
+    user: {
+      id: result.user.id,
+      email: result.user.email,
+      name: result.user.name,
+    },
+    planName,
+    status: result.subscription.status,
+    currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
+    cancellationDate,
+  });
+
+  console.info("stripe.webhook.email.subscription_cancellation", {
+    subscriptionId: result.subscription.id,
+    userId: result.user.id,
+    eventType,
+  });
+}
+
+async function findUserFallback(params: { customerId?: string | null; email?: string | null }): Promise<SelectedUser | null> {
+  if (params.customerId) {
+    const byCustomer = await prisma.user.findFirst({
+      where: { stripeCustomerId: params.customerId },
+      select: userSelect,
+    });
+    if (byCustomer) {
+      return byCustomer;
+    }
+  }
+
+  if (params.email) {
+    return prisma.user.findUnique({ where: { email: params.email }, select: userSelect });
+  }
+
+  return null;
+}
+
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const subscriptionField = (invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null }).subscription;
+  if (!subscriptionField) {
+    return null;
+  }
+  return typeof subscriptionField === "string" ? subscriptionField : subscriptionField.id;
+}
+
+type InvoiceLineWithPrice = Stripe.InvoiceLineItem & {
+  plan?: { nickname?: string | null };
+  price?: Stripe.Price | null;
+};
+
+function derivePlanName(result?: SubscriptionSyncResult | null, invoice?: Stripe.Invoice): string | null {
+  if (result) {
+    return result.planNickname ?? result.planLookupKey ?? result.planPriceId ?? null;
+  }
+
+  if (invoice) {
+    const line = invoice.lines?.data?.[0] as InvoiceLineWithPrice | undefined;
+    if (line?.plan?.nickname) {
+      return line.plan.nickname;
+    }
+    if (line?.price?.nickname) {
+      return line.price.nickname;
+    }
+    if (line?.price?.lookup_key) {
+      return line.price.lookup_key;
+    }
+    if (line?.price?.id) {
+      return line.price.id;
+    }
+  }
+
+  return null;
+}
+
+function toDate(timestamp: number | null | undefined): Date | null {
+  if (!timestamp) {
+    return null;
+  }
+  return new Date(timestamp * 1000);
+}
+
+function isActiveOrTrialing(status: string | null | undefined): boolean {
+  return status === "active" || status === "trialing";
 }

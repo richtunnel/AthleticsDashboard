@@ -2,23 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Lazy Stripe singleton (defined in this file to avoid import-time instantiation)
-let stripeClient: Stripe | null = null;
-function getStripe(): Stripe {
-  if (!stripeClient) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) {
-      throw new Error("STRIPE_SECRET_KEY is not set");
-    }
-    stripeClient = new Stripe(key, { apiVersion: "2025-09-30.clover" });
-  }
-  return stripeClient;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +16,17 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, email: true, name: true, stripeCustomerId: true },
+      select: { 
+        id: true, 
+        email: true, 
+        name: true, 
+        stripeCustomerId: true,
+        subscription: {
+          select: {
+            stripeCustomerId: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -38,11 +35,14 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    let customerId = user.stripeCustomerId || undefined;
+    let customerId = user.stripeCustomerId || user.subscription?.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email ?? undefined,
         name: user.name ?? undefined,
+        metadata: {
+          userId: user.id,
+        },
       });
       customerId = customer.id;
 
@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: portal.url });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message ?? "Unexpected error creating portal session" }, { status: 500 });
+    console.error("Portal session creation error:", err);
+    return NextResponse.json(
+      { error: err?.message ?? "Unexpected error creating portal session" }, 
+      { status: 500 }
+    );
   }
 }

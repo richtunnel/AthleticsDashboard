@@ -4,6 +4,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
+import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
+import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -72,6 +74,18 @@ const customAdapter = {
   },
 } as any;
 
+const recordUserLoginSafely = async (payload: LoginTrackingPayload) => {
+  try {
+    await recordUserLogin(payload);
+  } catch (error) {
+    console.error("Login tracking failed", {
+      provider: payload.provider,
+      userId: payload.userId,
+      error,
+    });
+  }
+};
+
 export const authOptions: NextAuthOptions = {
   adapter: customAdapter, // Use customAdapter instead of PrismaAdapter(prisma)
 
@@ -103,7 +117,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Invalid credentials");
         }
@@ -135,6 +149,15 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid password");
         }
 
+        const metadata = extractRequestMetadataFromHeaders(req?.headers);
+
+        await recordUserLoginSafely({
+          userId: user.id,
+          provider: "credentials",
+          ip: metadata.ip,
+          userAgent: metadata.userAgent,
+        });
+
         return {
           id: user.id,
           email: user.email!,
@@ -151,6 +174,28 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+
+  events: {
+    async signIn({ user, account }) {
+      if (!account || account.provider === "credentials") {
+        return;
+      }
+
+      const metadata = await getRequestMetadataFromContext();
+      const userId = typeof user?.id === "string" ? user.id : null;
+
+      if (!userId) {
+        return;
+      }
+
+      await recordUserLoginSafely({
+        userId,
+        provider: account.provider,
+        ip: metadata.ip,
+        userAgent: metadata.userAgent,
+      });
+    },
+  },
 
   callbacks: {
     async signIn({ user, account, profile }) {

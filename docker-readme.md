@@ -1,5 +1,7 @@
 # Docker Setup for Athletics Dashboard
 
+> **📖 For comprehensive Docker documentation**, including optimizations, platform-specific deployment guides (Cloud Run, App Platform, ECS), and troubleshooting, see **[DOCKER.md](./DOCKER.md)**.
+
 This Docker setup provides both production and development environments for the Athletics Dashboard application.
 
 ## Prerequisites
