@@ -31,6 +31,7 @@ model User {
   hasReceivedFreeTrial      Boolean         @default(false)
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd                  DateTime?
+  deletionScheduledAt       DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
@@ -50,6 +51,7 @@ model User {
   emailLogs                 EmailLog[]
   emailGroups               EmailGroup[]    @relation("UserEmailGroups")
   emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
+  accountDeletionReminders  AccountDeletionReminder[]
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
@@ -85,36 +87,15 @@ model Session {
   @@index([userId])
 }
 
-model Subscription {
-  id                 String    @id
-  customerId         String
-  status             String
-  planPriceId        String?
-  planProductId      String?
-  planLookupKey      String?
-  planNickname       String?
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  cancelAt           DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  canceledAt         DateTime?
-  trialStart         DateTime?
-  trialEnd           DateTime?
-  endedAt            DateTime?
-  latestInvoiceId    String?
-  lastEventId        String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  users              User[]    @relation("UserSubscription")
-  @@map("Subscription")
-}
+model AccountDeletionReminder {
+  id                 String   @id @default(cuid())
+  userId             String
+  daysBeforeDeletion Int
+  sentAt             DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model StripeWebhookEvent {
-  id          String   @id
-  type        String
-  createdAt   DateTime @default(now())
-  processedAt DateTime @default(now())
-  @@map("StripeWebhookEvent")
+  @@unique([userId, daysBeforeDeletion])
+  @@index([daysBeforeDeletion])
 }
 
 model CustomColumn {

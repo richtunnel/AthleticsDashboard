@@ -255,6 +255,14 @@ Create a `.env.local` file in the root directory with the following variables:
 | `STRIPE_SECRET_KEY` | Stripe secret key | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | Stripe Dashboard → Developers → Webhooks |
 
+### Account Cleanup Automation
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `CRON_SECRET` | Shared secret required to trigger the scheduled cleanup endpoint | `super-secure-cron-token` |
+| `ACCOUNT_DELETION_GRACE_DAYS` | Number of days after cancellation before data is permanently deleted (defaults to 14) | `14` |
+| `ACCOUNT_DELETION_REMINDER_DAYS` | Comma-separated list of reminder offsets before deletion (defaults to `7,1`) | `7,1` |
+
 ### Other
 
 | Variable | Description | Values |
@@ -646,6 +654,47 @@ Export schedules:
 ### Stripe
 - `POST /api/stripe/webhook` - Stripe webhook handler
 - `POST /api/stripe/portal` - Create customer portal session
+
+### Maintenance & Automation
+- `POST /api/cron/account-cleanup` - Secure cron entry point that sends deletion reminders and removes accounts once the grace period has expired. Requires the `x-cron-secret` header to match `CRON_SECRET`.
+
+## 🧹 Automated Account Cleanup
+
+The cleanup endpoint enforces the 14-day grace period after cancellation, sends reminder emails, and deletes expired accounts. Configure your hosting provider's scheduler to call it with a shared secret.
+
+### Trigger Details
+- **Method:** `POST`
+- **Endpoint:** `https://<your-domain>/api/cron/account-cleanup`
+- **Headers:**
+  - `Content-Type: application/json`
+  - `x-cron-secret: ${CRON_SECRET}` (required)
+- **Body:** Empty object (`{}`) or omitted
+- **Recommended cadence:** Once per day (e.g., `0 6 * * *`) so 7-day and 1-day reminders are delivered predictably.
+
+### Example (Vercel Cron)
+```json
+{
+  "path": "/api/cron/account-cleanup",
+  "schedule": "0 6 * * *",
+  "method": "POST",
+  "headers": {
+    "x-cron-secret": "${CRON_SECRET}",
+    "Content-Type": "application/json"
+  }
+}
+```
+
+### Example (Railway)
+1. Open **Deployments → Cron Jobs → New Cron Job**
+2. Set the schedule to `0 6 * * *` (adjust for your timezone)
+3. Choose **POST** and the path `/api/cron/account-cleanup`
+4. Add header `x-cron-secret` with the value of `CRON_SECRET`
+5. Save — Railway will now invoke the job daily
+
+### Customisation
+- Adjust `ACCOUNT_DELETION_GRACE_DAYS` if you need a longer or shorter grace period
+- Tweak `ACCOUNT_DELETION_REMINDER_DAYS` (comma separated) to send additional reminders
+- The response payload logs counts of reminders sent, deletions, Stripe cancellations, and any errors for auditing
 
 ## 🚀 Deployment
 
