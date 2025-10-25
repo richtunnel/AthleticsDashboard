@@ -220,6 +220,12 @@ Create a `.env.local` file in the root directory with the following variables:
 | `NEXTAUTH_SECRET` | Secret key for NextAuth.js (generate with `openssl rand -base64 32`) | `your-secret-key-here` |
 | `NEXTAUTH_URL` | Base URL of your application | `http://localhost:3000` |
 
+### Login Tracking Geolocation
+
+| Variable | Description | How to Get |
+|----------|-------------|------------|
+| `IPINFO_API_TOKEN` | API token for IPInfo used to resolve login city information | [IPinfo Account](https://ipinfo.io/account/token) |
+
 ### Google OAuth & Calendar
 
 | Variable | Description | How to Get |
