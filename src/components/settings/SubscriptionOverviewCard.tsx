@@ -29,7 +29,7 @@ import {
 interface SubscriptionData {
   id: string;
   status: string;
-  planType: string;
+  planType: string | null;
   billingCycle: string | null;
   currentPeriodStart: Date | null;
   currentPeriodEnd: Date | null;
@@ -76,6 +76,11 @@ export default function SubscriptionOverviewCard({
   const [optimisticState, setOptimisticState] = useState(subscription);
 
   const displaySubscription = optimisticState || subscription;
+  const planLabel = displaySubscription ? formatPlanType(displaySubscription.planType) : "Unknown";
+  const billingLabelRaw = displaySubscription?.billingCycle
+    ? formatPlanType(displaySubscription.billingCycle)
+    : null;
+  const showBillingLabel = !!billingLabelRaw && billingLabelRaw !== planLabel;
 
   const handleOpenPortal = async () => {
     setLoading(true);
@@ -220,7 +225,11 @@ export default function SubscriptionOverviewCard({
     }
   };
 
-  const formatPlanType = (planType: string): string => {
+  const formatPlanType = (planType: string | null): string => {
+    if (!planType) {
+      return "Unknown";
+    }
+
     return planType
       .replace(/_/g, " ")
       .split(" ")
@@ -270,8 +279,8 @@ export default function SubscriptionOverviewCard({
               <Stack spacing={2}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="body1" fontWeight="medium">
-                    Plan: {formatPlanType(displaySubscription.planType)}
-                    {displaySubscription.billingCycle && ` (${displaySubscription.billingCycle})`}
+                    Plan: {planLabel === "Unknown" ? "Unknown Plan" : planLabel}
+                    {showBillingLabel && ` (${billingLabelRaw})`}
                   </Typography>
                   <Chip
                     label={displaySubscription.status}
