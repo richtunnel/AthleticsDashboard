@@ -21,27 +21,6 @@
   --shadow-strong: 0 32px 50px rgba(15, 23, 42, 0.18);
 }
 
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --background: #0b1120;
-  --surface: #111827;
-  --surface-muted: rgba(148, 163, 184, 0.12);
-  --surface-elevated: #131c2f;
-  --surface-selected: rgba(147, 197, 253, 0.18);
-  --surface-hover: rgba(147, 197, 253, 0.14);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5f5;
-  --border-color: rgba(148, 163, 184, 0.24);
-  --accent: #93c5fd;
-  --accent-contrast: #0b1120;
-  --success: #4ade80;
-  --warning: #facc15;
-  --error: #f87171;
-  --focus-ring: rgba(147, 197, 253, 0.45);
-  --shadow-soft: 0 24px 48px rgba(8, 15, 35, 0.6);
-  --shadow-strong: 0 40px 70px rgba(8, 15, 35, 0.7);
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);

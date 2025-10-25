@@ -55,7 +55,6 @@ import EmailIcon from "@mui/icons-material/Email";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
-import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const DRAWER_WIDTH = 240;
 
@@ -192,9 +191,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <CalendarMonth />
             </IconButton>
           </Tooltip>
-
-          {/* Theme Toggle */}
-          <ThemeToggle sx={{ mr: 1 }} />
 
           {/* Notifications */}
           <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
