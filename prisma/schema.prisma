@@ -344,9 +344,9 @@ model EmailCampaign {
 }
 
 model Subscription {
-  id                   String             @id
+  id                   String             @id @default(cuid())
   userId               String             @unique
-  customerId           String
+  customerId           String?
   stripeCustomerId     String?
   stripeSubscriptionId String?
   status               SubscriptionStatus
