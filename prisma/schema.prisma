@@ -31,7 +31,6 @@ model User {
   hasReceivedFreeTrial      Boolean         @default(false)
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   trialEnd                  DateTime?
-  deletionScheduledAt       DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
@@ -44,6 +43,7 @@ model User {
   // Relations
   organizationId             String
   subscription              Subscription?   @relation("UserSubscription", fields: [subscriptionId], references: [id], onDelete: SetNull)
+  subscriptionRecord        Subscription?   @relation("SubscriptionOwner")
   organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accounts                  Account[]
   sessions                  Session[]
@@ -344,18 +344,30 @@ model EmailCampaign {
 model Subscription {
   id                   String             @id @default(cuid())
   userId               String             @unique
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User               @relation("SubscriptionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  userSubscription     User?              @relation("UserSubscription")
   stripeSubscriptionId String?            @unique
   stripeCustomerId     String?
   status               SubscriptionStatus @default(INCOMPLETE)
   planType             PlanType?
   priceId              String?
+  planPriceId          String?
+  planProductId        String?
+  planLookupKey        String?
+  planNickname         String?
+  billingCycle         String?
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   cancelAt             DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
   canceledAt           DateTime?
   trialStart           DateTime?
   trialEnd             DateTime?
+  gracePeriodEndsAt    DateTime?
+  deletionScheduledAt  DateTime?
+  endedAt              DateTime?
+  latestInvoiceId      String?
+  lastEventId          String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
