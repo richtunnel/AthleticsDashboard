@@ -51,7 +51,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ px: 3, pb: 3, pt: 0 }}>
         <Typography sx={{ mb: 1 }} variant="h5">
           Settings
         </Typography>
