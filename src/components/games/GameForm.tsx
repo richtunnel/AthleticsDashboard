@@ -19,10 +19,30 @@ interface GameFormData {
   busTravel: boolean;
   estimatedTravelTime?: number;
   departureTime?: string;
+  actualDepartureTime?: string;
+  actualArrivalTime?: string;
   busCount?: number;
   travelCost?: number;
   notes?: string;
 }
+
+const toTimeInputValue = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  const hours = parsed.getHours().toString().padStart(2, "0");
+  const minutes = parsed.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
+const combineDateAndTime = (dateValue: string, timeValue?: string): string | null => {
+  if (!dateValue || !timeValue) return null;
+  const combined = new Date(`${dateValue}T${timeValue}`);
+  if (Number.isNaN(combined.getTime())) {
+    return null;
+  }
+  return combined.toISOString();
+};
 
 interface GameFormProps {
   onClose: () => void;
@@ -95,6 +115,8 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
       status: "SCHEDULED",
       travelRequired: false,
       busTravel: false,
+      actualDepartureTime: undefined,
+      actualArrivalTime: undefined,
     },
   });
 
@@ -114,6 +136,8 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
         busTravel: existingGame.busTravel ?? false,
         estimatedTravelTime: existingGame.estimatedTravelTime || undefined,
         departureTime: existingGame.departureTime || undefined,
+        actualDepartureTime: toTimeInputValue(existingGame.actualDepartureTime) || undefined,
+        actualArrivalTime: toTimeInputValue(existingGame.actualArrivalTime) || undefined,
         busCount: existingGame.busCount || undefined,
         travelCost: existingGame.travelCost || undefined,
         notes: existingGame.notes || undefined,
@@ -142,10 +166,17 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
       const url = isEditing ? `/api/games/${gameId}` : "/api/games";
       const method = isEditing ? "PATCH" : "POST";
 
+      // Convert time inputs to ISO strings
+      const payload = {
+        ...data,
+        actualDepartureTime: combineDateAndTime(data.date, data.actualDepartureTime),
+        actualArrivalTime: combineDateAndTime(data.date, data.actualArrivalTime),
+      };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -283,6 +314,25 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
                   <div className="flex items-center mb-4 pl-1">
                     <input type="checkbox" checked={busTravel === true} onChange={(e) => setValue("busTravel", e.target.checked)} className="mr-2" />
                     <label className="text-sm font-medium">Bus Travel</label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pl-6 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Departure Time</label>
+                      <input
+                        type="time"
+                        {...register("actualDepartureTime")}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Arrival Time</label>
+                      <input
+                        type="time"
+                        {...register("actualArrivalTime")}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 pl-6">
