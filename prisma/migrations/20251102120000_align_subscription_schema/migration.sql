@@ -89,10 +89,7 @@ ALTER TABLE "Subscription"
 -- Step 7: remove legacy Stripe plan columns now that data is migrated
 ALTER TABLE "Subscription"
     DROP COLUMN "customerId",
-    DROP COLUMN "planPriceId",
-    DROP COLUMN "planProductId",
-    DROP COLUMN "planLookupKey",
-    DROP COLUMN "planNickname";
+    DROP COLUMN "planPriceId";
 
 -- Step 8: rebuild relational constraints and indexes
 ALTER TABLE "Subscription"
