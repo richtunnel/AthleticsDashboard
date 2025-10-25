@@ -7,6 +7,8 @@ interface Game {
   status: string;
   isHome: boolean;
   busTravel: boolean;
+  actualDepartureTime?: string | null;
+  actualArrivalTime?: string | null;
   homeTeam: {
     name: string;
     level: string;
@@ -35,7 +37,7 @@ export class ExportService {
    */
   static exportToCSV(games: Game[], customColumns: CustomColumn[] = []): string {
     // Define base headers
-    const baseHeaders = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location", "Venue", "Status", "Bus Travel", "Notes"];
+    const baseHeaders = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location", "Venue", "Status", "Bus Travel", "Departure Time", "Arrival Time", "Notes"];
 
     // Add custom column headers
     const customHeaders = customColumns.map((col) => col.name);
@@ -54,6 +56,8 @@ export class ExportService {
         game.isHome ? "" : game.venue?.name || "",
         game.status,
         game.busTravel ? "Yes" : "No",
+        game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : "",
+        game.actualArrivalTime ? format(new Date(game.actualArrivalTime), "h:mm a") : "",
         game.notes || "",
       ];
 
