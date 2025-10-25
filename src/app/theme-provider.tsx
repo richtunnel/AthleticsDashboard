@@ -1,19 +1,13 @@
 "use client";
 
-import { ReactNode, useMemo } from "react";
+import { ReactNode } from "react";
 import { CssBaseline, GlobalStyles, ThemeProvider } from "@mui/material";
 
 import lightTheme from "@/lib/theme/lightTheme";
-import darkTheme from "@/lib/theme/darkTheme";
-import { useThemeMode } from "@/lib/hooks/useTheme";
 
 export function MUIThemeProvider({ children }: { children: ReactNode }) {
-  const { mode } = useThemeMode();
-
-  const theme = useMemo(() => (mode === "dark" ? darkTheme : lightTheme), [mode]);
-
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={lightTheme}>
       <CssBaseline />
       <GlobalStyles
         styles={(currentTheme) => ({
