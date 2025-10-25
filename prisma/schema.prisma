@@ -348,6 +348,9 @@ model Subscription {
   planType             PlanType?
   billingCycle         String?
   priceId              String?
+  planProductId        String?
+  planLookupKey        String?
+  planNickname         String?
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   cancelAt             DateTime?
