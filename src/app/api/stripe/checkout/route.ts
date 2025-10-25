@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
       where: { userId: user.id },
       create: {
         userId: user.id,
+        customerId,
         stripeCustomerId: customerId,
         planType,
         billingCycle: planType,
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
         trialEnd: trialEligible ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
       },
       update: {
+        customerId,
         stripeCustomerId: customerId,
         planType,
         billingCycle: planType,
