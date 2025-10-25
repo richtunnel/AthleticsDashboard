@@ -54,40 +54,40 @@ function SignupForm() {
     }
 
     try {
-      await credentialsAuth.executeAction({
-        type: "custom",
-        customAction: async () => {
-          const res = await fetch("/api/auth/signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: formData.name,
-              email: formData.email,
-              password: formData.password,
-            }),
-          });
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            throw new Error(data.error || "Failed to create account");
-          }
-
-          // Auto-login after signup
-          const signInResult = await signIn("credentials", {
-            email: formData.email,
-            password: formData.password,
-            redirect: false,
-          });
-
-          if (signInResult?.error) {
-            throw new Error("Account created but login failed. Please login manually.");
-          }
-
-          router.push(callbackUrl);
-          router.refresh();
-        },
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to create account");
+        setLoading(false);
+        return;
+      }
+
+      // Auto-login after signup
+      const signInResult = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+        callbackUrl: "/dashboard",
+      });
+
+      if (signInResult?.error) {
+        setError("Account created but login failed. Please login manually.");
+        setLoading(false);
+        setTimeout(() => router.push("/login"), 2000);
+        return;
+      }
+
+      router.replace("/dashboard");
     } catch (error) {
       // Error handled by onError callback
     }
