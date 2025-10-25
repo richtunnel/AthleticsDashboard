@@ -52,6 +52,38 @@ const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: 
   ),
 });
 
+const extractDatePart = (dateValue: string): string => {
+  return dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+};
+
+const toTimeInputValue = (dateTime: string | null): string => {
+  if (!dateTime) return "";
+  const parsed = new Date(dateTime);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const hours = parsed.getHours().toString().padStart(2, "0");
+  const minutes = parsed.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
+const combineDateAndTime = (dateValue: string, timeValue: string): string | null => {
+  if (!dateValue || !timeValue) return null;
+  const baseDate = extractDatePart(dateValue);
+  const combined = new Date(`${baseDate}T${timeValue}`);
+  if (Number.isNaN(combined.getTime())) {
+    return null;
+  }
+  return combined.toISOString();
+};
+
+const formatBusTimeDisplay = (dateTime: string | null): string => {
+  if (!dateTime) return "—";
+  try {
+    return format(new Date(dateTime), "h:mm a");
+  } catch (error) {
+    return "—";
+  }
+};
+
 interface Game {
   id: string;
   date: string;
@@ -61,6 +93,8 @@ interface Game {
   travelRequired: boolean;
   busTravel: boolean;
   estimatedTravelTime: number | null;
+  actualDepartureTime: string | null;
+  actualArrivalTime: string | null;
   calendarSynced?: boolean;
   customData?: any;
   homeTeam: {
@@ -94,6 +128,8 @@ interface NewGameData {
   opponentId: string;
   isHome: boolean;
   busTravel: boolean;
+  actualDepartureTime: string;
+  actualArrivalTime: string;
   status: string;
   venueId: string;
   notes: string;
@@ -145,6 +181,8 @@ export function GamesTable() {
     opponentId: "",
     isHome: true,
     busTravel: false,
+    actualDepartureTime: "",
+    actualArrivalTime: "",
     status: "SCHEDULED",
     venueId: "",
     notes: "",
@@ -351,6 +389,8 @@ export function GamesTable() {
         opponentId: "",
         isHome: true,
         busTravel: false,
+        actualDepartureTime: "",
+        actualArrivalTime: "",
         status: "SCHEDULED",
         venueId: "",
         notes: "",
@@ -582,6 +622,8 @@ export function GamesTable() {
       homeTeamId: matchingTeam.id,
       isHome: newGameData.isHome,
       busTravel: newGameData.busTravel,
+      actualDepartureTime: combineDateAndTime(newGameData.date, newGameData.actualDepartureTime),
+      actualArrivalTime: combineDateAndTime(newGameData.date, newGameData.actualArrivalTime),
       opponentId: newGameData.opponentId || null,
       venueId: !newGameData.isHome && newGameData.venueId ? newGameData.venueId : null,
       status: newGameData.status,
@@ -609,6 +651,8 @@ export function GamesTable() {
       opponentId: "",
       isHome: true,
       busTravel: false,
+      actualDepartureTime: "",
+      actualArrivalTime: "",
       status: "SCHEDULED",
       venueId: "",
       notes: "",
@@ -640,6 +684,8 @@ export function GamesTable() {
       homeTeamId: matchingTeam?.id || editingGameData.homeTeamId,
       isHome: editingGameData.isHome,
       busTravel: editingGameData.busTravel,
+      actualDepartureTime: editingGameData.actualDepartureTime || null,
+      actualArrivalTime: editingGameData.actualArrivalTime || null,
       opponentId: editingGameData.opponentId || editingGameData.opponent?.id || null,
       venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
       status: editingGameData.status,
@@ -780,7 +826,9 @@ export function GamesTable() {
           </Typography>
           <Typography variant="body2" color="text.primary">
             Manage your athletic schedules and create your own customized columns.
-            {activeFilterCount > 0 && <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />}
+            {activeFilterCount > 0 && (
+              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
+            )}
           </Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
             {selectedGames.size > 0 && (
@@ -1107,8 +1155,49 @@ export function GamesTable() {
                     ))}
                   </Select>
                 </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                <TableCell sx={{ py: 1, minWidth: 180 }}>
+                  <Stack direction="column" spacing={0.75}>
+                    <TextField
+                      type="time"
+                      size="small"
+                      label="Depart"
+                      value={newGameData.actualDepartureTime || ""}
+                      onChange={(e) => setNewGameData({ ...newGameData, actualDepartureTime: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 11,
+                          py: 0.25,
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: 11,
+                        },
+                      }}
+                    />
+                    <TextField
+                      type="time"
+                      size="small"
+                      label="Arrive"
+                      value={newGameData.actualArrivalTime || ""}
+                      onChange={(e) => setNewGameData({ ...newGameData, actualArrivalTime: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 11,
+                          py: 0.25,
+                        },
+                        "& .MuiInputLabel-root": {
+                          fontSize: 11,
+                        },
+                      }}
+                    />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                      <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                        Bus
+                      </Typography>
+                    </Box>
+                  </Stack>
                 </TableCell>
                 {customColumns.map((column: any) => (
                   <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
@@ -1168,8 +1257,8 @@ export function GamesTable() {
                 const isEditing = editingGameId === game.id;
                 const isInlineEditing = inlineEditState?.gameId === game.id;
 
-                {
-                  isEditing && editingGameData && (
+                if (isEditing && editingGameData) {
+                  return (
                     <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
                       {/* Checkbox */}
                       <TableCell padding="checkbox">
@@ -1181,8 +1270,22 @@ export function GamesTable() {
                         <TextField
                           type="date"
                           size="small"
-                          value={editingGameData.date.split("T")[0]}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, date: e.target.value })}
+                          value={extractDatePart(editingGameData.date)}
+                          onChange={(e) => {
+                            const nextDate = e.target.value;
+                            setEditingGameData((prev) => {
+                              if (!prev) return prev;
+                              const departureInput = toTimeInputValue(prev.actualDepartureTime);
+                              const arrivalInput = toTimeInputValue(prev.actualArrivalTime);
+
+                              return {
+                                ...prev,
+                                date: nextDate,
+                                actualDepartureTime: departureInput ? combineDateAndTime(nextDate, departureInput) : null,
+                                actualArrivalTime: arrivalInput ? combineDateAndTime(nextDate, arrivalInput) : null,
+                              };
+                            });
+                          }}
                           sx={{
                             width: 140,
                             "& .MuiOutlinedInput-root": {
@@ -1357,7 +1460,7 @@ export function GamesTable() {
                             displayEmpty
                           >
                             <MenuItem value="">TBD</MenuItem>
-                            <MenuItem value="add_new" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
                               + Add New Venue
                             </MenuItem>
                             {venues.map((venue: any) => (
@@ -1370,8 +1473,71 @@ export function GamesTable() {
                       </TableCell>
 
                       {/* Bus Travel */}
-                      <TableCell sx={{ py: 1 }}>
-                        <Checkbox checked={editingGameData.busTravel} onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                      <TableCell sx={{ py: 1, minWidth: 180 }}>
+                        <Stack direction="column" spacing={0.75}>
+                          <TextField
+                            type="time"
+                            size="small"
+                            label="Depart"
+                            value={toTimeInputValue(editingGameData.actualDepartureTime)}
+                            onChange={(e) =>
+                              setEditingGameData({
+                                ...editingGameData,
+                                actualDepartureTime: combineDateAndTime(editingGameData.date, e.target.value),
+                              })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                bgcolor: "transparent",
+                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                                "&:hover fieldset": { borderColor: "primary.main" },
+                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                              },
+                              "& .MuiInputBase-input": {
+                                fontSize: 11,
+                                py: 0.25,
+                              },
+                              "& .MuiInputLabel-root": {
+                                fontSize: 11,
+                              },
+                            }}
+                          />
+                          <TextField
+                            type="time"
+                            size="small"
+                            label="Arrive"
+                            value={toTimeInputValue(editingGameData.actualArrivalTime)}
+                            onChange={(e) =>
+                              setEditingGameData({
+                                ...editingGameData,
+                                actualArrivalTime: combineDateAndTime(editingGameData.date, e.target.value),
+                              })
+                            }
+                            InputLabelProps={{ shrink: true }}
+                            sx={{
+                              "& .MuiOutlinedInput-root": {
+                                bgcolor: "transparent",
+                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                                "&:hover fieldset": { borderColor: "primary.main" },
+                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                              },
+                              "& .MuiInputBase-input": {
+                                fontSize: 11,
+                                py: 0.25,
+                              },
+                              "& .MuiInputLabel-root": {
+                                fontSize: 11,
+                              },
+                            }}
+                          />
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Checkbox checked={editingGameData.busTravel} onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                            <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                              Bus
+                            </Typography>
+                          </Box>
+                        </Stack>
                       </TableCell>
 
                       {/* Custom Fields */}
@@ -1414,6 +1580,9 @@ export function GamesTable() {
                     </TableRow>
                   );
                 }
+
+                const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
+                const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
 
                 return (
                   <TableRow
@@ -1582,8 +1751,31 @@ export function GamesTable() {
                     </TableCell>
 
                     {/* Bus Travel */}
-                    <TableCell sx={{ py: 2 }}>
-                      <Chip label={game.busTravel ? "Yes" : "No"} size="small" color={game.busTravel ? "success" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
+                    <TableCell sx={{ py: 2, minWidth: 180 }}>
+                      <Stack spacing={0.75}>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                            Depart
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                            {departureDisplay}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                            Arrive
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                            {arrivalDisplay}
+                          </Typography>
+                        </Stack>
+                        <Chip
+                          label={game.busTravel ? "Bus Scheduled" : "No Bus"}
+                          size="small"
+                          color={game.busTravel ? "success" : "default"}
+                          sx={{ fontSize: 11, height: 24, fontWeight: 500 }}
+                        />
+                      </Stack>
                     </TableCell>
 
                     {/* Custom Columns */}

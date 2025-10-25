@@ -19,4 +19,4 @@ ALTER TABLE "AccountDeletionReminder"
   REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN "deletionScheduledAt" TIMESTAMP(3);
+-- ALTER TABLE "User" ADD COLUMN "deletionScheduledAt" TIMESTAMP(3);

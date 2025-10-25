@@ -25,12 +25,17 @@ import {
   Email as EmailIcon,
   History as HistoryIcon,
 } from "@mui/icons-material";
+import type { PlanType, SubscriptionStatus } from "@/lib/validations/subscription";
 
 interface SubscriptionData {
   id: string;
-  status: string;
-  planType: string;
+  status: SubscriptionStatus;
+  planType: PlanType | null;
   billingCycle: string | null;
+  priceId: string | null;
+  planProductId: string | null;
+  planLookupKey: string | null;
+  planNickname: string | null;
   currentPeriodStart: Date | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
@@ -76,6 +81,11 @@ export default function SubscriptionOverviewCard({
   const [optimisticState, setOptimisticState] = useState(subscription);
 
   const displaySubscription = optimisticState || subscription;
+  const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : "Unknown";
+  const billingLabelRaw = displaySubscription?.billingCycle
+    ? formatPlanType(displaySubscription.billingCycle)
+    : null;
+  const showBillingLabel = !!billingLabelRaw && billingLabelRaw !== planLabel;
 
   const handleOpenPortal = async () => {
     setLoading(true);
@@ -203,7 +213,7 @@ export default function SubscriptionOverviewCard({
     }
   };
 
-  const getStatusColor = (status: string): "success" | "warning" | "error" | "info" => {
+  function getStatusColor(status: SubscriptionStatus | string): "success" | "warning" | "error" | "info" {
     switch (status) {
       case "ACTIVE":
         return "success";
@@ -218,15 +228,39 @@ export default function SubscriptionOverviewCard({
       default:
         return "info";
     }
-  };
+  }
 
-  const formatPlanType = (planType: string): string => {
+  function formatPlanType(planType: PlanType | string | null): string {
+    if (!planType) {
+      return "Unknown";
+    }
+
     return planType
-      .replace(/_/g, " ")
+      .toString()
+      .replace(/[-_]/g, " ")
       .split(" ")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(" ");
-  };
+  }
+
+  function getPlanDisplayName(sub: SubscriptionData): string {
+    if (sub.planNickname) {
+      return sub.planNickname;
+    }
+    if (sub.planLookupKey) {
+      return formatPlanType(sub.planLookupKey);
+    }
+    if (sub.planType) {
+      return formatPlanType(sub.planType);
+    }
+    if (sub.planProductId) {
+      return sub.planProductId;
+    }
+    if (sub.priceId) {
+      return sub.priceId;
+    }
+    return "Unknown";
+  }
 
   const formatDate = (date: Date | null): string => {
     if (!date) return "N/A";
@@ -270,8 +304,8 @@ export default function SubscriptionOverviewCard({
               <Stack spacing={2}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="body1" fontWeight="medium">
-                    Plan: {formatPlanType(displaySubscription.planType)}
-                    {displaySubscription.billingCycle && ` (${displaySubscription.billingCycle})`}
+                    Plan: {planLabel === "Unknown" ? "Unknown Plan" : planLabel}
+                    {showBillingLabel && ` (${billingLabelRaw})`}
                   </Typography>
                   <Chip
                     label={displaySubscription.status}

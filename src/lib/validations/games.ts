@@ -16,6 +16,8 @@ export const createGameSchema = z.object({
   departureTime: z.string().optional(),
   busCount: z.number().optional(),
   travelCost: z.number().optional(),
+  actualDepartureTime: z.string().optional(),
+  actualArrivalTime: z.string().optional(),
   notes: z.string().optional(),
 });
 

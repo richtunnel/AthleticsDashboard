@@ -18,7 +18,25 @@ export class ImportExportService {
     });
 
     // CSV Headers
-    const headers = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location Type", "Venue", "Status", "Travel Required", "Bus Travel", "Travel Time (min)", "Bus Count", "Travel Cost", "Notes"];
+    const headers = [
+      "Date",
+      "Time",
+      "Sport",
+      "Level",
+      "Team",
+      "Opponent",
+      "Location Type",
+      "Venue",
+      "Status",
+      "Travel Required",
+      "Bus Travel",
+      "Departure Time",
+      "Arrival Time",
+      "Travel Time (min)",
+      "Bus Count",
+      "Travel Cost",
+      "Notes",
+    ];
 
     // Convert games to CSV rows
     const rows = games.map((game: any) => [
@@ -33,6 +51,8 @@ export class ImportExportService {
       game.status,
       game.travelRequired ? "Yes" : "No",
       game.busTravel ? "Yes" : "No",
+      game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : "",
+      game.actualArrivalTime ? format(new Date(game.actualArrivalTime), "h:mm a") : "",
       game.estimatedTravelTime?.toString() || "",
       game.busCount?.toString() || "",
       game.travelCost?.toString() || "",

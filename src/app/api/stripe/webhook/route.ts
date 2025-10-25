@@ -4,9 +4,35 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
+import { emailService } from "@/lib/services/email.service";
+import type { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+  plan: true,
+  stripeCustomerId: true,
+};
+
+type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>; // prettier-ignore
+type SubscriptionWithUser = Prisma.SubscriptionGetPayload<{ include: { user: { select: typeof userSelect } } }>; // prettier-ignore
+type SubscriptionStatusEnum = Prisma.$Enums.SubscriptionStatus;
+type PlanTypeEnum = Prisma.$Enums.PlanType;
+
+type SubscriptionSyncResult = {
+  subscription: SubscriptionWithUser;
+  previousStatus: SubscriptionStatusEnum | null;
+  previousCancelAt: Date | null;
+  planPriceId: string | null;
+  planLookupKey: string | null;
+  planNickname: string | null;
+  planProductId: string | null;
+  user: SelectedUser;
+};
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("stripe-signature");
@@ -31,65 +57,235 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-    const subscription = event.data.object as Stripe.Subscription;
-
-    if (!subscription.id) {
-      console.warn("Received subscription event without an ID");
-      return NextResponse.json({ received: true });
+  try {
+    switch (event.type) {
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const result = await syncSubscription(subscription, event.id, event.type);
+        if (result) {
+          await maybeSendConfirmationEmail(result, event.type);
+          await maybeSendCancellationEmail(result, event.type);
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handlePaymentFailure(invoice);
+        break;
+      }
+      default:
+        break;
     }
+  } catch (error) {
+    console.error("Stripe webhook processing error", error);
+    return NextResponse.json({ error: "Processing error" }, { status: 500 });
+  }
 
-    const user = await prisma.user.findUnique({
-      where: { subscriptionId: subscription.id },
-      select: {
-        id: true,
-        plan: true,
-      },
-    });
+  return NextResponse.json({ received: true });
+}
 
-    if (!user) {
-      console.warn(`No user found for subscription ${subscription.id}`);
-      return NextResponse.json({ received: true });
+async function syncSubscription(
+  stripeSubscription: Stripe.Subscription,
+  eventId: string,
+  eventType: string,
+): Promise<SubscriptionSyncResult | null> {
+  const stripeSubscriptionId = stripeSubscription.id;
+  if (!stripeSubscriptionId) {
+    console.warn("Received subscription event without an ID", { eventType });
+    return null;
+  }
+
+  const customerId = getStripeCustomerId(stripeSubscription.customer);
+  const metadataUserId = stripeSubscription.metadata?.userId ?? stripeSubscription.metadata?.userID ?? null;
+
+  const orFilters: Prisma.SubscriptionWhereInput[] = [{ stripeSubscriptionId }];
+  if (metadataUserId) {
+    orFilters.push({ userId: metadataUserId });
+  }
+  if (customerId) {
+    orFilters.push({ stripeCustomerId: customerId });
+  }
+
+  let existing = await prisma.subscription.findFirst({
+    where: { OR: orFilters },
+    include: { user: { select: userSelect } },
+  });
+
+  let user = existing?.user ?? null;
+
+  if (!user && metadataUserId) {
+    user = await prisma.user.findUnique({ where: { id: metadataUserId }, select: userSelect });
+  }
+
+  if (!user && customerId) {
+    user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: userSelect });
+  }
+
+  if (!user) {
+    user = await findUserFallback({ customerId, email: stripeSubscription.customer_email ?? null });
+  }
+
+  if (!user) {
+    console.warn(`No user found for subscription ${stripeSubscriptionId}`);
+    return null;
+  }
+
+  const previousStatus = existing?.status ?? null;
+  const previousCancelAt = existing?.cancelAt ?? null;
+
+  const priceItem = stripeSubscription.items?.data?.[0];
+  const planPriceId = priceItem?.price?.id ?? null;
+  const planLookupKey = priceItem?.price?.lookup_key ?? null;
+  const planNickname = priceItem?.price?.nickname ?? null;
+  const planProductId = (() => {
+    const product = priceItem?.price?.product;
+    if (!product) {
+      return null;
     }
+    return typeof product === "string" ? product : product.id ?? null;
+  })();
 
-    const { gracePeriodDays } = getAccountCleanupConfig();
-    const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : null;
+  const billingCycle = deriveBillingCycle([planLookupKey, planNickname, planPriceId]);
+  const planType = toPlanType(billingCycle) ?? existing?.planType ?? null;
 
-    if (subscription.status === "active" || subscription.status === "trialing") {
-      const nextPlan = subscription.items?.data?.[0]?.price?.id ?? user.plan;
+  const status = mapStripeStatus(stripeSubscription.status);
+  const currentPeriodStart = toDate(stripeSubscription.current_period_start);
+  const currentPeriodEnd = toDate(stripeSubscription.current_period_end);
+  const cancelAt = toDate(stripeSubscription.cancel_at);
+  const canceledAt = toDate(stripeSubscription.canceled_at);
+  const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end ?? false;
+  const trialStart = toDate(stripeSubscription.trial_start);
+  const trialEnd = toDate(stripeSubscription.trial_end);
+  const endedAt = toDate(stripeSubscription.ended_at);
+  const latestInvoiceId = typeof stripeSubscription.latest_invoice === "string"
+    ? stripeSubscription.latest_invoice
+    : stripeSubscription.latest_invoice?.id ?? null;
 
-      await prisma.$transaction([
-        prisma.accountDeletionReminder.deleteMany({ where: { userId: user.id } }),
-        prisma.user.update({
-          where: { id: user.id },
-          data: {
-            plan: nextPlan,
-            trialEnd,
-            deletionScheduledAt: null,
-          },
-        }),
-      ]);
-    } else if (subscription.status === "canceled") {
-      const cancellationDate = subscription.canceled_at
-        ? new Date(subscription.canceled_at * 1000)
-        : new Date();
-      const scheduledDeletion = calculateDeletionDeadline(cancellationDate, gracePeriodDays);
+  const { gracePeriodDays } = getAccountCleanupConfig();
+  const cancellationReference = cancelAt ?? currentPeriodEnd ?? canceledAt ?? null;
+  const computedGracePeriodEndsAt =
+    (cancelAtPeriodEnd || status === "CANCELED") && cancellationReference
+      ? calculateDeletionDeadline(cancellationReference, gracePeriodDays)
+      : null;
+  const shouldClearGrace = !cancelAtPeriodEnd && status !== "CANCELED";
 
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          trialEnd,
-          deletionScheduledAt: scheduledDeletion,
-        },
-      });
-    } else {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          trialEnd,
-        },
-      });
-    }
+  const stripeCustomerIdValue = customerId ?? existing?.stripeCustomerId ?? user.stripeCustomerId ?? null;
+  const billingCycleValue = billingCycle ?? existing?.billingCycle ?? null;
+  const priceIdValue = planPriceId ?? existing?.priceId ?? null;
+  const planProductIdValue = planProductId ?? existing?.planProductId ?? null;
+  const planLookupKeyValue = planLookupKey ?? existing?.planLookupKey ?? null;
+  const planNicknameValue = planNickname ?? existing?.planNickname ?? null;
+  const canceledAtValue = canceledAt ?? existing?.canceledAt ?? null;
+  const gracePeriodEndsAtValue = shouldClearGrace
+    ? null
+    : computedGracePeriodEndsAt ?? existing?.gracePeriodEndsAt ?? null;
+  const deletionScheduledAtValue = shouldClearGrace
+    ? null
+    : computedGracePeriodEndsAt ?? existing?.deletionScheduledAt ?? null;
+
+  const subscriptionPayload = {
+    userId: user.id,
+    stripeSubscriptionId,
+    stripeCustomerId: stripeCustomerIdValue,
+    status,
+    planType,
+    billingCycle: billingCycleValue,
+    priceId: priceIdValue,
+    planProductId: planProductIdValue,
+    planLookupKey: planLookupKeyValue,
+    planNickname: planNicknameValue,
+    currentPeriodStart,
+    currentPeriodEnd,
+    cancelAt,
+    cancelAtPeriodEnd,
+    canceledAt: canceledAtValue,
+    gracePeriodEndsAt: gracePeriodEndsAtValue,
+    deletionScheduledAt: deletionScheduledAtValue,
+    trialStart,
+    trialEnd,
+    endedAt,
+    latestInvoiceId,
+    lastEventId: eventId,
+  };
+
+  const updatedSubscription = await prisma.subscription.upsert({
+    where: { userId: user.id },
+    create: subscriptionPayload,
+    update: subscriptionPayload,
+    include: { user: { select: userSelect } },
+  });
+
+  const nextPlan = planPriceId ?? user.plan;
+  const userUpdate: Prisma.UserUpdateInput = {
+    plan: nextPlan,
+    trialEnd,
+  };
+
+  if (isActiveOrTrialing(stripeSubscription.status)) {
+    await prisma.$transaction([
+      prisma.accountDeletionReminder.deleteMany({ where: { userId: user.id } }),
+      prisma.user.update({ where: { id: user.id }, data: userUpdate }),
+    ]);
+  } else {
+    await prisma.user.update({ where: { id: user.id }, data: userUpdate });
+  }
+
+  return {
+    subscription: updatedSubscription,
+    previousStatus,
+    previousCancelAt,
+    planPriceId,
+    planLookupKey,
+    planNickname,
+    planProductId,
+    user: updatedSubscription.user,
+  };
+}
+
+async function handlePaymentFailure(invoice: Stripe.Invoice) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
+    return;
+  }
+
+  const subscriptionRecord = await prisma.subscription.findFirst({
+    where: { stripeSubscriptionId: subscriptionId },
+    include: { user: { select: userSelect } },
+  });
+
+  const user = subscriptionRecord?.user;
+  if (!user?.email) {
+    return;
+  }
+
+  const planName = derivePlanName(null, invoice);
+  await emailService.sendSubscriptionEmail({
+    type: "payment_failure",
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+    planName,
+    status: subscriptionRecord?.status ?? null,
+    invoiceUrl: invoice.hosted_invoice_url ?? null,
+    dueDate: invoice.due_date ? new Date(invoice.due_date * 1000) : null,
+  });
+}
+
+async function maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventType: string) {
+  if (!result.user?.email) {
+    return;
+  }
+
+  const becameActive =
+    (result.subscription.status === "ACTIVE" || result.subscription.status === "TRIALING") &&
+    result.previousStatus !== result.subscription.status;
+
+  if (!becameActive) {
+    return;
   }
 
   const planName = derivePlanName(result);
@@ -113,13 +309,13 @@ export async function POST(req: NextRequest) {
 }
 
 async function maybeSendCancellationEmail(result: SubscriptionSyncResult, eventType: string) {
-  if (!result.user) {
+  if (!result.user?.email) {
     return;
   }
 
   const cancellationScheduled = !result.previousCancelAt && !!result.subscription.cancelAt;
   const newlyCanceled =
-    result.subscription.status === "canceled" && result.previousStatus !== "canceled";
+    result.subscription.status === "CANCELED" && result.previousStatus !== "CANCELED";
 
   if (!cancellationScheduled && !newlyCanceled) {
     return;
@@ -127,7 +323,10 @@ async function maybeSendCancellationEmail(result: SubscriptionSyncResult, eventT
 
   const planName = derivePlanName(result);
   const cancellationDate =
-    result.subscription.cancelAt ?? result.subscription.canceledAt ?? result.subscription.currentPeriodEnd ?? null;
+    result.subscription.cancelAt ??
+    result.subscription.canceledAt ??
+    result.subscription.currentPeriodEnd ??
+    null;
 
   await emailService.sendSubscriptionEmail({
     type: "cancellation",
@@ -182,7 +381,13 @@ type InvoiceLineWithPrice = Stripe.InvoiceLineItem & {
 
 function derivePlanName(result?: SubscriptionSyncResult | null, invoice?: Stripe.Invoice): string | null {
   if (result) {
-    return result.planNickname ?? result.planLookupKey ?? result.planPriceId ?? null;
+    return (
+      result.planNickname ??
+      result.planLookupKey ??
+      result.planPriceId ??
+      result.planProductId ??
+      null
+    );
   }
 
   if (invoice) {
@@ -212,5 +417,69 @@ function toDate(timestamp: number | null | undefined): Date | null {
 }
 
 function isActiveOrTrialing(status: string | null | undefined): boolean {
-  return status === "active" || status === "trialing";
+  const normalized = status?.toLowerCase();
+  return normalized === "active" || normalized === "trialing";
+}
+
+function mapStripeStatus(status: Stripe.Subscription.Status | string | null | undefined): SubscriptionStatusEnum {
+  switch ((status ?? "").toLowerCase()) {
+    case "trialing":
+      return "TRIALING";
+    case "active":
+      return "ACTIVE";
+    case "past_due":
+      return "PAST_DUE";
+    case "canceled":
+      return "CANCELED";
+    case "unpaid":
+      return "UNPAID";
+    case "incomplete_expired":
+      return "INCOMPLETE_EXPIRED";
+    case "incomplete":
+      return "INCOMPLETE";
+    default:
+      return "INCOMPLETE";
+  }
+}
+
+function deriveBillingCycle(values: Array<string | null | undefined>): string | null {
+  const normalized = values
+    .filter((value): value is string => !!value)
+    .map((value) => value.toLowerCase());
+
+  if (normalized.some((value) => value.includes("annual") || value.includes("year"))) {
+    return "ANNUAL";
+  }
+
+  if (normalized.some((value) => value.includes("month"))) {
+    return "MONTHLY";
+  }
+
+  return null;
+}
+
+function toPlanType(value: string | null): PlanTypeEnum | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.toUpperCase();
+  if (normalized.includes("ANNUAL")) {
+    return "ANNUAL";
+  }
+  if (normalized.includes("MONTH")) {
+    return "MONTHLY";
+  }
+
+  return null;
+}
+
+function getStripeCustomerId(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined,
+): string | null {
+  if (!customer) {
+    return null;
+  }
+
+  return typeof customer === "string" ? customer : customer.id;
 }

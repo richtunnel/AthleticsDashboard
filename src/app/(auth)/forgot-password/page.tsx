@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, TextField, Typography, Paper, Container, Alert, CircularProgress, Link as MuiLink } from "@mui/material";
+import { Box, TextField, Typography, Container, Alert, Link as MuiLink, CircularProgress, Button } from "@mui/material";
 import Link from "next/link";
-import { ArrowBack } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import { requestPasswordReset } from "./actions";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -107,9 +107,9 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
               />
 
-              <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : "Send Reset Link"}
-              </Button>
+              <AuthActionButton type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} loading={loading}>
+                Send Reset Link
+              </AuthActionButton>
 
               <Box sx={{ mt: 2, textAlign: "center" }}>
                 <Typography variant="body2">

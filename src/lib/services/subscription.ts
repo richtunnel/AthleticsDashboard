@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/database/prisma";
+import type { PlanType, SubscriptionStatus } from "@prisma/client";
 
 export interface UserWithSubscription {
   id: string;
@@ -7,9 +8,13 @@ export interface UserWithSubscription {
   stripeCustomerId: string | null;
   subscription: {
     id: string;
-    status: string;
-    planType: string;
+    status: SubscriptionStatus;
+    planType: PlanType | null;
     billingCycle: string | null;
+    priceId: string | null;
+    planProductId: string | null;
+    planLookupKey: string | null;
+    planNickname: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;
@@ -45,6 +50,10 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
           status: true,
           planType: true,
           billingCycle: true,
+          priceId: true,
+          planProductId: true,
+          planLookupKey: true,
+          planNickname: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
@@ -63,7 +72,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
       },
       loginEvents: {
         orderBy: {
-          timestamp: 'desc',
+          timestamp: "desc",
         },
         take: 1,
         select: {
@@ -82,7 +91,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
   // Count today's logins
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   const todayLoginCount = await prisma.userLoginEvent.count({
     where: {
       userId: userId,
@@ -107,7 +116,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
 export async function getRecentLoginEvents(userId: string, limit: number = 10) {
   return await prisma.userLoginEvent.findMany({
     where: { userId },
-    orderBy: { timestamp: 'desc' },
+    orderBy: { timestamp: "desc" },
     take: limit,
     select: {
       id: true,

@@ -9,49 +9,42 @@ datasource db {
 }
 
 model User {
-  id                         String           @id @default(cuid())
-  email                      String           @unique
-  name                       String?
-  role                       UserRole         @default(ATHLETIC_DIRECTOR)
-  image                      String?
-  emailVerified              DateTime?
-  hashedPassword             String?
-  schoolName                 String?
-  teamName                   String?
-  mascot                     String?
-  stripeCustomerId           String?
-  subscriptionId             String?          @unique
-  plan                       String?
-  trialEnd                   DateTime?
-  googleCalendarRefreshToken String?
-  googleCalendarAccessToken  String?
+  id                        String          @id @default(cuid())
+  email                     String          @unique
+  name                      String?
+  phone                     String?         @unique
+  role                      UserRole        @default(ATHLETIC_DIRECTOR)
+  image                     String?
+  emailVerified             DateTime?
+  hashedPassword            String?
+  resetToken                String?
+  resetTokenExpiry          DateTime?
+  schoolName                String?
+  teamName                  String?
+  mascot                    String?
+  stripeCustomerId          String?
+  hasReceivedFreeTrial      Boolean         @default(false)
+  plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+  trialEnd                  DateTime?
+  googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
+  googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
   googleCalendarId           String?
   organizationId             String
-  createdAt                  DateTime         @default(now())
-  updatedAt                  DateTime         @updatedAt
-  subscriptionStatus         String?
-  cancellationDate           DateTime?
-  deletionScheduledAt        DateTime?
-  hasReceivedFreeTrial       Boolean          @default(false)
-  city                       String?
-  dailyLoginCount            Int              @default(0)
-  lastLoginAt                DateTime?
-  lastLoginDate              DateTime?
-  phone                      String?          @unique
-  resetToken                 String?
-  resetTokenExpiry           DateTime?
-  googleCalendarEmail        String?
-  accounts                   Account[]
-  emailCampaigns             EmailCampaign[]  @relation("UserEmailCampaigns")
-  emailGroups                EmailGroup[]     @relation("UserEmailGroups")
-  emailLogs                  EmailLog[]
-  games                      Game[]           @relation("GameCreator")
-  sessions                   Session[]
-  organization               Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subscription               Subscription?    @relation("UserSubscription", fields: [subscriptionId], references: [id])
-  UserLoginEvent             UserLoginEvent[]
+  subscription              Subscription?
+  organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts                  Account[]
+  sessions                  Session[]
+  games                     Game[]          @relation("GameCreator")
+  emailLogs                 EmailLog[]
+  emailGroups               EmailGroup[]    @relation("UserEmailGroups")
+  emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
 
+  recoveryEmail RecoveryEmail?
+  loginEvents   UserLoginEvent[]
+
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
   @@map("User")
 }
@@ -322,43 +315,59 @@ model EmailCampaign {
 }
 
 model Subscription {
-  id                 String    @id
-  customerId         String
-  status             String
-  planPriceId        String?
-  planProductId      String?
-  planLookupKey      String?
-  planNickname       String?
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  cancelAt           DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  canceledAt         DateTime?
-  trialStart         DateTime?
-  trialEnd           DateTime?
-  endedAt            DateTime?
-  latestInvoiceId    String?
-  lastEventId        String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @default(now()) @updatedAt
-  users              User?     @relation("UserSubscription")
-
+  id                   String                 @id @default(cuid())
+  userId               String                 @unique
+  user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  status               SubscriptionStatus
+  planType             PlanType?
+  billingCycle         String?
+  priceId              String?
+  planProductId        String?
+  planLookupKey        String?
+  planNickname         String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAt             DateTime?
+  cancelAtPeriodEnd    Boolean                @default(false)
+  canceledAt           DateTime?
+  gracePeriodEndsAt    DateTime?
+  deletionScheduledAt  DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  endedAt              DateTime?
+  latestInvoiceId      String?
+  lastEventId          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  @@index([stripeSubscriptionId])
   @@map("Subscription")
 }
 
 model UserLoginEvent {
-  id        String   @id
+  id        String   @id @default(cuid())
   userId    String
-  provider  String
-  ip        String?
+  timestamp DateTime @default(now())
+  ipAddress String?
   city      String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
+  country   String?
+  success   Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([timestamp])
 }
 
+model RecoveryEmail {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  verified Boolean @default(false)
+  userId   String  @unique
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Enums
 enum UserRole {
   SUPER_ADMIN
   ATHLETIC_DIRECTOR
