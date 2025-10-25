@@ -66,7 +66,7 @@ const navigation = [
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
-  { name: "Manage Emais", href: "/dashboard/email-groups", icon: EmailIcon },
+  { name: "Manage Emails", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Account", href: "/dashboard/settings", icon: Settings },
   { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
@@ -205,22 +205,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }}
           >
             {/* Drawer Toggle (Mobile) */}
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ display: { sm: "none" }, color: "text.primary" }}
-            >
+            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ display: { sm: "none" }, color: "text.primary" }}>
               <MenuIcon />
             </IconButton>
 
             {/* Sidebar Toggle */}
-            <IconButton
-              onClick={toggleLeftNav}
-              aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"}
-              sx={{ display: { xs: "none", sm: "flex" }, color: "text.primary" }}
-            >
+            <IconButton onClick={toggleLeftNav} aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"} sx={{ display: { xs: "none", sm: "flex" }, color: "text.primary" }}>
               {isSidebarVisible ? <ChevronLeft /> : <ChevronRight />}
             </IconButton>
 
