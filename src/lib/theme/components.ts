@@ -1,11 +1,10 @@
 import { alpha, type Components, type Theme } from "@mui/material/styles";
 
 export const buildThemeComponents = (theme: Theme): Components<Theme> => {
-  const isDark = theme.palette.mode === "dark";
   const primaryMain = theme.palette.primary.main;
-  const paperBorderColor = isDark ? alpha("#FFFFFF", 0.08) : alpha("#0F172A", 0.06);
-  const cardShadow = isDark ? "0 24px 48px rgba(15, 23, 42, 0.45)" : "0 20px 45px rgba(15, 23, 42, 0.12)";
-  const hoverOverlay = alpha(primaryMain, isDark ? 0.18 : 0.08);
+  const paperBorderColor = alpha("#0F172A", 0.06);
+  const cardShadow = "0 20px 45px rgba(15, 23, 42, 0.12)";
+  const hoverOverlay = alpha(primaryMain, 0.08);
 
   return {
     MuiAppBar: {
@@ -15,7 +14,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           color: theme.palette.text.primary,
           borderBottom: `1px solid ${theme.palette.divider}`,
           backgroundImage: "none",
-          // boxShadow: isDark ? "0 1px 0 rgba(148, 163, 184, 0.18)" : "0 1px 0 rgba(15, 23, 42, 0.06)",
+          // boxShadow: "0 1px 0 rgba(15, 23, 42, 0.06)",
           backdropFilter: "blur(12px)",
         },
       },
@@ -43,7 +42,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: isDark ? alpha(theme.palette.background.paper, 0.92) : "#FFFFFF",
+          backgroundColor: "#FFFFFF",
           borderRight: `1px solid ${theme.palette.divider}`,
           backdropFilter: "blur(18px)",
         },
@@ -62,13 +61,13 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
             color: theme.palette.text.primary,
           },
           "&.Mui-selected": {
-            backgroundColor: alpha(primaryMain, isDark ? 0.32 : 0.16),
-            color: isDark ? theme.palette.primary.contrastText : theme.palette.primary.dark,
+            backgroundColor: alpha(primaryMain, 0.16),
+            color: theme.palette.primary.dark,
             "&:hover": {
-              backgroundColor: alpha(primaryMain, isDark ? 0.38 : 0.22),
+              backgroundColor: alpha(primaryMain, 0.22),
             },
             "& .MuiListItemIcon-root": {
-              color: isDark ? theme.palette.primary.contrastText : theme.palette.primary.dark,
+              color: theme.palette.primary.dark,
             },
           },
           "& .MuiListItemIcon-root": {
@@ -100,7 +99,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         contained: {
           boxShadow: "none",
           "&:hover": {
-            boxShadow: `0 12px 20px ${alpha(primaryMain, isDark ? 0.38 : 0.22)}`,
+            boxShadow: `0 12px 20px ${alpha(primaryMain, 0.22)}`,
           },
         },
         outlined: {
@@ -108,7 +107,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           borderColor: alpha(primaryMain, 0.4),
           "&:hover": {
             borderColor: primaryMain,
-            backgroundColor: alpha(primaryMain, isDark ? 0.2 : 0.12),
+            backgroundColor: alpha(primaryMain, 0.12),
           },
         },
         text: {
@@ -138,7 +137,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           fontWeight: 500,
         },
         filled: {
-          backgroundColor: alpha(primaryMain, isDark ? 0.28 : 0.12),
+          backgroundColor: alpha(primaryMain, 0.12),
         },
       },
     },
@@ -167,14 +166,14 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: `1px solid ${alpha(theme.palette.divider, isDark ? 0.9 : 1)}`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 1)}`,
           "&.MuiTableCell-head": {
             fontWeight: 600,
             textTransform: "uppercase",
             fontSize: "0.75rem",
             letterSpacing: 0.5,
             color: theme.palette.text.secondary,
-            backgroundColor: isDark ? alpha(primaryMain, 0.12) : alpha(primaryMain, 0.05),
+            backgroundColor: alpha(primaryMain, 0.05),
           },
         },
       },
@@ -194,12 +193,12 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
       styleOverrides: {
         root: {
           borderRadius: 12,
-          backgroundColor: isDark ? alpha("#FFFFFF", 0.04) : "#FFFFFF",
+          backgroundColor: "#FFFFFF",
           "& input": {
             fontSize: "0.95rem",
           },
           "& fieldset": {
-            borderColor: alpha(theme.palette.text.secondary, isDark ? 0.3 : 0.18),
+            borderColor: alpha(theme.palette.text.secondary, 0.18),
           },
           "&:hover fieldset": {
             borderColor: alpha(primaryMain, 0.6),
@@ -237,17 +236,17 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           borderRadius: 8,
           padding: theme.spacing(1, 1.5),
           fontSize: "0.75rem",
-          backgroundColor: alpha("#0F172A", isDark ? 0.92 : 0.92),
+          backgroundColor: alpha("#0F172A", 0.92),
         },
         arrow: {
-          color: alpha("#0F172A", isDark ? 0.92 : 0.92),
+          color: alpha("#0F172A", 0.92),
         },
       },
     },
     MuiDivider: {
       styleOverrides: {
         root: {
-          borderColor: alpha(theme.palette.divider, isDark ? 0.8 : 1),
+          borderColor: alpha(theme.palette.divider, 1),
         },
       },
     },
@@ -297,8 +296,8 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiAvatar: {
       styleOverrides: {
         root: {
-          backgroundColor: alpha(primaryMain, isDark ? 0.28 : 0.14),
-          color: isDark ? theme.palette.primary.contrastText : theme.palette.primary.dark,
+          backgroundColor: alpha(primaryMain, 0.14),
+          color: theme.palette.primary.dark,
         },
       },
     },
@@ -316,7 +315,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           height: "8px",
         },
         "*::-webkit-scrollbar-thumb": {
-          backgroundColor: alpha(primaryMain, isDark ? 0.32 : 0.18),
+          backgroundColor: alpha(primaryMain, 0.18),
           borderRadius: 999,
         },
       },
