@@ -4,13 +4,28 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=2048' prisma generate && next build",
     "start": "next start",
     "tsc": "node ./scripts/run-tsc.mjs",
     "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "bash ./scripts/prisma-migration-troubleshoot.sh status",
+    "migrate:resolve:rollback": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-rolled-back",
+    "migrate:resolve:applied": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-applied",
+    "migrate:check": "bash ./scripts/prisma-predeploy-check.sh",
     "start:prod": "yarn migrate:deploy && yarn start",
     "type-check": "tsc --noEmit",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "docker:build": "docker build -t athletics-dashboard:latest .",
+    "docker:build:prod": "docker build --no-cache -t athletics-dashboard:latest .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env athletics-dashboard:latest",
+    "docker:run:detached": "docker run -d -p 3000:3000 --env-file .env --name athletics-app athletics-dashboard:latest",
+    "docker:stop": "docker stop athletics-app && docker rm athletics-app",
+    "docker:logs": "docker logs -f athletics-app",
+    "docker:shell": "docker exec -it athletics-app sh",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down",
+    "docker:compose:logs": "docker-compose logs -f app",
+    "docker:compose:build": "docker-compose build --no-cache"
   },
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
