@@ -341,6 +341,7 @@ model Subscription {
   lastEventId          String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
+  
   @@index([stripeSubscriptionId])
   @@map("Subscription")
 }
