@@ -43,16 +43,11 @@ export default function AIButton() {
   const theme = useTheme();
   const primary = theme.palette.primary.main;
   const secondary = theme.palette.secondary.main;
-  const isDark = theme.palette.mode === "dark";
 
-  const background = isDark
-    ? `linear-gradient(135deg, ${alpha(primary, 0.45)} 0%, ${alpha(secondary, 0.55)} 100%)`
-    : `linear-gradient(135deg, ${alpha(primary, 0.9)} 0%, ${alpha(secondary, 0.85)} 100%)`;
-  const hoverBackground = isDark
-    ? `linear-gradient(135deg, ${alpha(primary, 0.55)} 0%, ${alpha(secondary, 0.65)} 100%)`
-    : `linear-gradient(135deg, ${alpha(primary, 1)} 0%, ${alpha(secondary, 0.95)} 100%)`;
-  const boxShadow = isDark ? "0 24px 48px rgba(8, 15, 35, 0.55)" : "0 20px 45px rgba(65, 105, 225, 0.28)";
-  const hoverBoxShadow = isDark ? "0 28px 56px rgba(8, 15, 35, 0.6)" : "0 24px 52px rgba(65, 105, 225, 0.35)";
+  const background = `linear-gradient(135deg, ${alpha(primary, 0.9)} 0%, ${alpha(secondary, 0.85)} 100%)`;
+  const hoverBackground = `linear-gradient(135deg, ${alpha(primary, 1)} 0%, ${alpha(secondary, 0.95)} 100%)`;
+  const boxShadow = "0 20px 45px rgba(65, 105, 225, 0.28)";
+  const hoverBoxShadow = "0 24px 52px rgba(65, 105, 225, 0.35)";
 
   const buttonSx = {
     borderRadius: 16,
@@ -66,9 +61,9 @@ export default function AIButton() {
     textTransform: "none",
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
     background,
-    color: isDark ? theme.palette.primary.contrastText : "#FFFFFF",
+    color: "#FFFFFF",
     boxShadow,
-    border: `1px solid ${alpha(primary, isDark ? 0.4 : 0.3)}`,
+    border: `1px solid ${alpha(primary, 0.3)}`,
     backdropFilter: "blur(6px)",
     "&:hover": {
       transform: "translateY(-2px)",
