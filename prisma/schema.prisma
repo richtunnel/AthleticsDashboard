@@ -46,6 +46,10 @@ model User {
   emailLogs                 EmailLog[]
   emailGroups               EmailGroup[]    @relation("UserEmailGroups")
   emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
+
+  recoveryEmail RecoveryEmail?
+  loginEvents   UserLoginEvent[]
+
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
@@ -335,6 +339,7 @@ model EmailCampaign {
 }
 
 model Subscription {
+<<<<<<< Updated upstream
   id                   String                 @id @default(cuid())
   userId               String                 @unique
   user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -359,7 +364,56 @@ model Subscription {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   @@index([stripeSubscriptionId])
+=======
+  id                    String    @id
+  customerId            String
+  status                String
+  planPriceId           String?
+  planProductId         String?
+  planLookupKey         String?
+  planNickname          String?
+  planType              String    @default("free")  
+  billingCycle          String?   
+  stripeSubscriptionId  String?   
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAt              DateTime?
+  cancelAtPeriodEnd     Boolean   @default(false)
+  canceledAt            DateTime?
+  deletionScheduledAt   DateTime? 
+  gracePeriodEndsAt     DateTime?
+  trialStart            DateTime?
+  trialEnd              DateTime?
+  endedAt               DateTime?
+  latestInvoiceId       String?
+  lastEventId           String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  users                 User[]    @relation("UserSubscription")
+>>>>>>> Stashed changes
   @@map("Subscription")
+}
+
+model UserLoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  timestamp DateTime @default(now())
+  ipAddress String?
+  city      String?
+  country   String?
+  success   Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model RecoveryEmail {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  verified Boolean @default(false)
+  userId   String  @unique
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Enums

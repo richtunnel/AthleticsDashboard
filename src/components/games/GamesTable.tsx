@@ -826,7 +826,9 @@ export function GamesTable() {
           </Typography>
           <Typography variant="body2" color="text.primary">
             Manage your athletic schedules and create your own customized columns.
-            {activeFilterCount > 0 && <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />}
+            {activeFilterCount > 0 && (
+              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
+            )}
           </Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
             {selectedGames.size > 0 && (

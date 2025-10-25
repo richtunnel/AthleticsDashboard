@@ -63,7 +63,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
       },
       loginEvents: {
         orderBy: {
-          timestamp: 'desc',
+          timestamp: "desc",
         },
         take: 1,
         select: {
@@ -82,7 +82,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
   // Count today's logins
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  
+
   const todayLoginCount = await prisma.userLoginEvent.count({
     where: {
       userId: userId,
@@ -107,7 +107,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
 export async function getRecentLoginEvents(userId: string, limit: number = 10) {
   return await prisma.userLoginEvent.findMany({
     where: { userId },
-    orderBy: { timestamp: 'desc' },
+    orderBy: { timestamp: "desc" },
     take: limit,
     select: {
       id: true,
