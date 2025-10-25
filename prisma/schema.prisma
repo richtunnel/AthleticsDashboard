@@ -10,26 +10,29 @@ datasource db {
 
 // Authentication & Users
 model User {
-  id                         String          @id @default(cuid())
-  email                      String          @unique
-  name                       String?
-  phone                      String?         @unique
-  role                       UserRole        @default(ATHLETIC_DIRECTOR)
-  image                      String?
-  emailVerified              DateTime?
-  hashedPassword             String?
-  resetToken                 String?
-  resetTokenExpiry           DateTime?
-  schoolName                 String?
-  teamName                   String?
-  mascot                     String?
-  stripeCustomerId           String?
-  subscriptionId             String?         @unique
-  plan                       String? // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
-  trialEnd                   DateTime?
-  hasReceivedFreeTrial       Boolean         @default(false)
-  googleCalendarRefreshToken String?         @db.Text // Store the token needed to get new access tokens
-  googleCalendarAccessToken  String?         @db.Text
+  id                        String          @id @default(cuid())
+  email                     String          @unique
+  name                      String?
+  phone                     String?         @unique
+  role                      UserRole        @default(ATHLETIC_DIRECTOR)
+  image                     String?
+  emailVerified             DateTime?
+  hashedPassword            String?
+  resetToken                String?
+  resetTokenExpiry          DateTime?
+  schoolName                String?
+  teamName                  String?
+  mascot                    String?
+  stripeCustomerId          String?
+  subscriptionId            String?         @unique
+  subscriptionStatus        String?
+  cancellationDate          DateTime?
+  deletionScheduledAt       DateTime?
+  hasReceivedFreeTrial      Boolean         @default(false)
+  plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+  trialEnd                  DateTime?
+  googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
+  googleCalendarAccessToken  String?        @db.Text
   calendarTokenExpiry        DateTime?
   googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
@@ -39,17 +42,16 @@ model User {
   dailyLoginCount           Int             @default(0)
   // Relations
   organizationId             String
-  organization               Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accounts                   Account[]
-  sessions                   Session[]
-  games                      Game[]          @relation("GameCreator")
-  emailLogs                  EmailLog[]
-  emailGroups                EmailGroup[]    @relation("UserEmailGroups")
-  emailCampaigns             EmailCampaign[] @relation("UserEmailCampaigns")
-  subscription               Subscription?
-  createdAt                  DateTime        @default(now())
-  updatedAt                  DateTime        @updatedAt
-
+  subscription              Subscription?   @relation("UserSubscription", fields: [subscriptionId], references: [id], onDelete: SetNull)
+  organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts                  Account[]
+  sessions                  Session[]
+  games                     Game[]          @relation("GameCreator")
+  emailLogs                 EmailLog[]
+  emailGroups               EmailGroup[]    @relation("UserEmailGroups")
+  emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
   @@index([organizationId])
   @@map("User")
 }
@@ -83,18 +85,36 @@ model Session {
   @@index([userId])
 }
 
-model UserLoginEvent {
-  id        String   @id @default(cuid())
-  userId    String
-  provider  String
-  ip        String?
-  city      String?
-  userAgent String?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model Subscription {
+  id                 String    @id
+  customerId         String
+  status             String
+  planPriceId        String?
+  planProductId      String?
+  planLookupKey      String?
+  planNickname       String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAt           DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  endedAt            DateTime?
+  latestInvoiceId    String?
+  lastEventId        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  users              User[]    @relation("UserSubscription")
+  @@map("Subscription")
+}
 
-  @@index([userId, createdAt])
-  @@map("UserLoginEvent")
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  createdAt   DateTime @default(now())
+  processedAt DateTime @default(now())
+  @@map("StripeWebhookEvent")
 }
 
 model CustomColumn {
