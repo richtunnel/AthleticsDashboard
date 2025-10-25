@@ -30,6 +30,10 @@ model User {
   deletionScheduledAt       DateTime?
   hasReceivedFreeTrial      Boolean         @default(false)
   plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+    priceId              String?
+  planProductId        String?
+  planLookupKey        String?
+  planNickname         String?
   trialEnd                  DateTime?
   googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?        @db.Text
