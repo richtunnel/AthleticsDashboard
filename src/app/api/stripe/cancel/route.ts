@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { cancelSubscriptionSchema } from "@/lib/validations/subscription";
+import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,14 +54,33 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    const cancelAt = canceledSubscription.cancel_at
+      ? new Date(canceledSubscription.cancel_at * 1000)
+      : null;
+    const canceledAtFromStripe = canceledSubscription.canceled_at
+      ? new Date(canceledSubscription.canceled_at * 1000)
+      : null;
+    const canceledAt = immediately ? new Date() : canceledAtFromStripe;
+    const currentPeriodEnd = canceledSubscription.current_period_end
+      ? new Date(canceledSubscription.current_period_end * 1000)
+      : null;
+    const cancelAtPeriodEnd = canceledSubscription.cancel_at_period_end ?? false;
+    const { gracePeriodDays } = getAccountCleanupConfig();
+    const graceReference = cancelAt ?? currentPeriodEnd ?? canceledAt;
+    const gracePeriodEndsAt = graceReference
+      ? calculateDeletionDeadline(graceReference, gracePeriodDays)
+      : null;
+
     const updatedSubscription = await prisma.subscription.update({
       where: { userId: user.id },
       data: {
         status: immediately ? "CANCELED" : user.subscription.status,
-        cancelAt: canceledSubscription.cancel_at
-          ? new Date(canceledSubscription.cancel_at * 1000)
-          : null,
-        canceledAt: immediately ? new Date() : null,
+        cancelAt,
+        cancelAtPeriodEnd,
+        canceledAt: canceledAt ?? user.subscription.canceledAt,
+        currentPeriodEnd,
+        gracePeriodEndsAt,
+        deletionScheduledAt: gracePeriodEndsAt ?? user.subscription.deletionScheduledAt,
       },
     });
 
@@ -73,6 +93,7 @@ export async function POST(req: NextRequest) {
         status: updatedSubscription.status,
         cancelAt: updatedSubscription.cancelAt,
         currentPeriodEnd: updatedSubscription.currentPeriodEnd,
+        gracePeriodEndsAt: updatedSubscription.gracePeriodEndsAt,
       },
     });
   } catch (error: any) {
