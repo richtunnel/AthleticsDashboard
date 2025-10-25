@@ -339,7 +339,6 @@ model EmailCampaign {
 }
 
 model Subscription {
-<<<<<<< Updated upstream
   id                   String                 @id @default(cuid())
   userId               String                 @unique
   user                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -364,33 +363,6 @@ model Subscription {
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
   @@index([stripeSubscriptionId])
-=======
-  id                    String    @id
-  customerId            String
-  status                String
-  planPriceId           String?
-  planProductId         String?
-  planLookupKey         String?
-  planNickname          String?
-  planType              String    @default("free")  
-  billingCycle          String?   
-  stripeSubscriptionId  String?   
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  cancelAt              DateTime?
-  cancelAtPeriodEnd     Boolean   @default(false)
-  canceledAt            DateTime?
-  deletionScheduledAt   DateTime? 
-  gracePeriodEndsAt     DateTime?
-  trialStart            DateTime?
-  trialEnd              DateTime?
-  endedAt               DateTime?
-  latestInvoiceId       String?
-  lastEventId           String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  users                 User[]    @relation("UserSubscription")
->>>>>>> Stashed changes
   @@map("Subscription")
 }
 
