@@ -1769,12 +1769,12 @@ export function GamesTable() {
                             {arrivalDisplay}
                           </Typography>
                         </Stack>
-                        <Chip
+                        {/* <Chip
                           label={game.busTravel ? "Bus Scheduled" : "No Bus"}
                           size="small"
                           color={game.busTravel ? "success" : "default"}
                           sx={{ fontSize: 11, height: 24, fontWeight: 500 }}
-                        />
+                        /> */}
                       </Stack>
                     </TableCell>
 
