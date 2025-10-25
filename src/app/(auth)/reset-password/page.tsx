@@ -8,6 +8,7 @@ import Link from "next/link";
 import { CheckCircle, Cancel, Visibility, VisibilityOff } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import { validateResetToken, resetPassword } from "./actions";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -312,9 +313,9 @@ function ResetPasswordForm() {
                 }}
               />
 
-              <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : "Reset Password"}
-              </Button>
+              <AuthActionButton type="submit" fullWidth variant="contained" sx={{ mt: 3, mb: 2 }} loading={loading}>
+                Reset Password
+              </AuthActionButton>
 
               <Box sx={{ mt: 2, textAlign: "center" }}>
                 <Typography variant="body2">
