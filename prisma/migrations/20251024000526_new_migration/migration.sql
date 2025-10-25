@@ -5,6 +5,36 @@
   - Made the column `organizationId` on table `EmailGroup` required. This step will fail if there are existing NULL values in that column.
 
 */
+-- Data migration: backfill existing email groups before enforcing constraints
+UPDATE "EmailGroup" AS eg
+SET "organizationId" = u."organizationId"
+FROM "User" AS u
+WHERE eg."userId" = u."id" AND eg."organizationId" IS NULL;
+
+WITH duplicates AS (
+    SELECT
+        "id",
+        "organizationId",
+        "name",
+        ROW_NUMBER() OVER (
+            PARTITION BY "organizationId", "name"
+            ORDER BY "createdAt", "id"
+        ) AS row_number
+    FROM "EmailGroup"
+)
+UPDATE "EmailGroup" AS eg
+SET "name" = eg."name" || ' (duplicate ' || (duplicates.row_number - 1)::text || ')'
+FROM duplicates
+WHERE eg."id" = duplicates."id" AND duplicates.row_number > 1;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM "EmailGroup" WHERE "organizationId" IS NULL) THEN
+        RAISE EXCEPTION 'Cannot set EmailGroup.organizationId to NOT NULL because some rows still have a NULL value.';
+    END IF;
+END
+$$;
+
 -- AlterTable
 ALTER TABLE "EmailGroup" ALTER COLUMN "organizationId" SET NOT NULL;
 

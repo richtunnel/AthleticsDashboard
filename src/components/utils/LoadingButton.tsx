@@ -39,37 +39,20 @@ export function LoadingButton({
 
   const baseStyles: SxProps<Theme> = (theme) => {
     const primary = theme.palette.primary.main;
+    const isContained = variant === "contained";
+    const isOutlined = variant === "outlined";
 
     return {
       boxShadow: "none",
       borderRadius: 10,
       fontWeight: 600,
       transition: "background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease",
-      backgroundColor:
-        variant === "contained"
-          ? theme.palette.mode === "dark"
-            ? alpha(primary, 0.35)
-            : alpha(primary, 0.92)
-          : theme.palette.mode === "dark"
-            ? alpha("#FFFFFF", 0.08)
-            : alpha(primary, 0.1),
-      color: variant === "contained" ? theme.palette.primary.contrastText : theme.palette.text.primary,
-      border:
-        variant === "outlined"
-          ? `1.5px solid ${alpha(primary, 0.45)}`
-          : variant === "text"
-            ? "none"
-            : `1px solid ${alpha(primary, theme.palette.mode === "dark" ? 0.45 : 0.25)}`,
+      backgroundColor: isContained ? alpha(primary, 0.92) : alpha(primary, 0.1),
+      color: isContained ? theme.palette.primary.contrastText : theme.palette.text.primary,
+      border: isOutlined ? `1.5px solid ${alpha(primary, 0.45)}` : variant === "text" ? "none" : `1px solid ${alpha(primary, 0.25)}`,
       "&:hover": {
-        backgroundColor:
-          variant === "contained"
-            ? theme.palette.mode === "dark"
-              ? alpha(primary, 0.45)
-              : theme.palette.primary.dark
-            : variant === "outlined"
-              ? alpha(primary, theme.palette.mode === "dark" ? 0.35 : 0.18)
-              : alpha(primary, theme.palette.mode === "dark" ? 0.2 : 0.12),
-        boxShadow: theme.palette.mode === "dark" ? "0 18px 42px rgba(8, 15, 35, 0.5)" : "0 16px 36px rgba(65, 105, 225, 0.25)",
+        backgroundColor: isContained ? theme.palette.primary.dark : isOutlined ? alpha(primary, 0.18) : alpha(primary, 0.12),
+        boxShadow: "0 16px 36px rgba(65, 105, 225, 0.25)",
       },
       "&:disabled": {
         opacity: 0.6,
