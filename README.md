@@ -242,6 +242,8 @@ Create a `.env.local` file in the root directory with the following variables:
 | `RESEND_API_KEY` | Resend API key for sending emails | [Resend Dashboard](https://resend.com/api-keys) |
 | `EMAIL_FROM` | Sender email address | `"AD Hub <noreply@yourdomain.com>"` |
 
+**Welcome Email Feature**: The application automatically sends a branded welcome email to new users when they sign up (both manual signup and Google OAuth). The welcome email introduces the product and provides next steps for getting started. If `RESEND_API_KEY` is not configured, the signup process continues normally but the welcome email won't be sent (a warning is logged).
+
 ### OpenAI
 
 | Variable | Description | How to Get |
