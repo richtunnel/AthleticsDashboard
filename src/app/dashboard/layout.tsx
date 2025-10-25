@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +46,8 @@ import {
   Warning,
   WorkHistory,
   Analytics,
+  ChevronLeft,
+  ChevronRight,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -55,7 +57,7 @@ import EmailIcon from "@mui/icons-material/Email";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
-import ThemeToggle from "@/components/theme/ThemeToggle";
+import { useNavigationStore } from "@/lib/stores/navigationStore";
 
 const DRAWER_WIDTH = 240;
 
@@ -77,6 +79,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
+  const { isLeftNavOpen, toggleLeftNav } = useNavigationStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isSidebarVisible = mounted ? isLeftNavOpen : true;
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
@@ -169,22 +179,111 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         position="fixed"
         elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { sm: `${DRAWER_WIDTH}px` },
+          width: { sm: isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%" },
+          ml: { sm: isSidebarVisible ? `${DRAWER_WIDTH}px` : 0 },
           bgcolor: "transparent",
           borderBottom: "none",
           borderColor: "none",
           border: "none!important",
           borderRadius: "0",
+          boxShadow: "none",
+          transition: (theme) =>
+            theme.transitions.create(["margin", "width"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.shorter,
+            }),
         }}
       >
-        <Toolbar>
-          {/* Drawer Toggle (Mobile) */}
-          <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: "none" }, color: "text.primary" }}>
-            <MenuIcon />
-          </IconButton>
+        <Toolbar sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexGrow: 1,
+              minWidth: 0,
+            }}
+          >
+            {/* Drawer Toggle (Mobile) */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ display: { sm: "none" }, color: "text.primary" }}
+            >
+              <MenuIcon />
+            </IconButton>
 
-          <Box sx={{ flexGrow: 1 }} />
+            {/* Sidebar Toggle */}
+            <IconButton
+              onClick={toggleLeftNav}
+              aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"}
+              sx={{ display: { xs: "none", sm: "flex" }, color: "text.primary" }}
+            >
+              {isSidebarVisible ? <ChevronLeft /> : <ChevronRight />}
+            </IconButton>
+
+            {/* Horizontal Navigation (Desktop) */}
+            <Box
+              sx={{
+                display: { xs: "none", sm: isSidebarVisible ? "none" : "flex" },
+                alignItems: "center",
+                gap: 0.5,
+                flexGrow: 1,
+                minWidth: 0,
+                overflowX: "auto",
+                pr: 2,
+                "&::-webkit-scrollbar": { display: "none" },
+              }}
+            >
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Box
+                    key={item.name}
+                    component={Link}
+                    href={item.href}
+                    sx={{
+                      position: "relative",
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: 1,
+                      color: isActive ? "primary.main" : "text.secondary",
+                      fontWeight: isActive ? 600 : 500,
+                      fontSize: 14,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      whiteSpace: "nowrap",
+                      bgcolor: isActive ? "action.selected" : "transparent",
+                      transition: "color 0.2s ease, background-color 0.2s ease",
+                      "&::after": {
+                        content: '""',
+                        position: "absolute",
+                        left: 12,
+                        right: 12,
+                        bottom: 4,
+                        height: 2,
+                        borderRadius: 999,
+                        backgroundColor: isActive ? "primary.main" : "transparent",
+                        transition: "background-color 0.2s ease",
+                      },
+                      "&:hover": {
+                        color: "primary.main",
+                        bgcolor: "action.hover",
+                        "&::after": {
+                          backgroundColor: "primary.main",
+                        },
+                      },
+                    }}
+                  >
+                    {item.name}
+                  </Box>
+                );
+              })}
+            </Box>
+          </Box>
 
           {/* Google Calendar Button */}
           <Tooltip title={calendarTooltip}>
@@ -192,9 +291,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <CalendarMonth />
             </IconButton>
           </Tooltip>
-
-          {/* Theme Toggle */}
-          <ThemeToggle sx={{ mr: 1 }} />
 
           {/* Notifications */}
           <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
@@ -294,7 +390,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               {session?.user?.name || "loading..."}
             </Typography>
             <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }} src={session?.user?.image || undefined}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
                 {(session?.user?.name || "D")[0]}
               </Avatar>
             </IconButton>
@@ -322,7 +418,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </AppBar>
 
       {/* Sidebar Drawer */}
-      <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
+      <Box
+        component="nav"
+        sx={{
+          width: { xs: 0, sm: isSidebarVisible ? DRAWER_WIDTH : 0 },
+          flexShrink: { sm: 0 },
+          transition: (theme) =>
+            theme.transitions.create("width", {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.shorter,
+            }),
+        }}
+      >
         {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
@@ -336,6 +443,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               width: DRAWER_WIDTH,
               borderRight: 1,
               borderColor: "divider",
+              borderTopLeftRadius: 0,
+              borderBottomLeftRadius: 0,
             },
           }}
         >
@@ -343,21 +452,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </Drawer>
 
         {/* Desktop Drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: "none", sm: "block" },
-            "& .MuiDrawer-paper": {
-              boxSizing: "border-box",
-              width: DRAWER_WIDTH,
-              borderRight: 1,
-              borderColor: "divider",
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
+        {isSidebarVisible && (
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: "none", sm: "block" },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: DRAWER_WIDTH,
+                borderRight: 1,
+                borderColor: "divider",
+                borderTopLeftRadius: 0,
+                borderBottomLeftRadius: 0,
+                transition: (theme) =>
+                  theme.transitions.create("width", {
+                    easing: theme.transitions.easing.sharp,
+                    duration: theme.transitions.duration.shorter,
+                  }),
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        )}
       </Box>
 
       {/* Main Content */}
@@ -365,8 +483,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { sm: isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%" },
           minHeight: "100vh",
+          transition: (theme) =>
+            theme.transitions.create(["width", "margin"], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.shorter,
+            }),
         }}
       >
         <Toolbar />

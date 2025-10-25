@@ -1,0 +1,80 @@
+# Cloud Build configuration for deploying the AthleticsDashboard Next.js application to Cloud Run.
+# Replace the placeholder values in the substitution block below or via trigger configuration
+# before running the pipeline. Each placeholder value is prefixed with an underscore (_).
+
+substitutions:
+  _LOCATION: us-central1 # Artifact Registry location (e.g. us-central1, europe-west1)
+  _REPOSITORY: athleticsdashboard # Artifact Registry repository (must exist beforehand)
+  _IMAGE: athleticsdashboard-web # Artifact Registry image name
+  _SERVICE_NAME: athleticsdashboard-service # Cloud Run service name
+  _SERVICE_REGION: us-central1 # Cloud Run region for deployment
+  _NEXT_PUBLIC_APP_URL: https://athleticsdashboard.example.com # Public app URL for Next.js build-time config
+  _NEXTAUTH_URL: https://athleticsdashboard.example.com # Production NextAuth URL (must match domain)
+  _GOOGLE_REDIRECT_URI: https://athleticsdashboard.example.com/api/auth/calendar-callback # Google OAuth redirect URI hosted on Cloud Run
+  _EMAIL_FROM: "AD Hub <noreply@yourdomain.com>" # Default "from" email address for Resend
+  _DATABASE_SECRET: DATABASE_URL # Secret Manager secret name for the DATABASE_URL connection string
+  _NEXTAUTH_SECRET: NEXTAUTH_SECRET # Secret Manager secret name for the NextAuth secret
+  _GOOGLE_CALENDAR_CLIENT_ID_SECRET: GOOGLE_CALENDAR_CLIENT_ID # Secret name for the Google Calendar OAuth client ID
+  _GOOGLE_CALENDAR_CLIENT_SECRET_SECRET: GOOGLE_CALENDAR_CLIENT_SECRET # Secret name for the Google Calendar OAuth client secret
+  _GOOGLE_MAPS_API_KEY_SECRET: GOOGLE_MAPS_API_KEY # Secret name for the Google Maps API key
+  _OPENWEATHER_API_KEY_SECRET: OPENWEATHER_API_KEY # Secret name for the OpenWeather API key
+  _RESEND_API_KEY_SECRET: RESEND_API_KEY # Secret name for the Resend API key
+  _OPENAI_API_KEY_SECRET: OPENAI_API_KEY # Secret name for the OpenAI API key
+  _STRIPE_SECRET_KEY_SECRET: STRIPE_SECRET_KEY # Secret name for the Stripe secret key
+  _STRIPE_WEBHOOK_SECRET_SECRET: STRIPE_WEBHOOK_SECRET # Secret name for the Stripe webhook signing secret
+
+steps:
+  - id: Build Next.js container image
+    name: gcr.io/cloud-builders/docker
+    # Builds the production container image using the repository Dockerfile.
+    args:
+      - build
+      - --file
+      - Dockerfile
+      - --tag
+      - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
+      - --build-arg
+      - NEXT_PUBLIC_APP_URL=${_NEXT_PUBLIC_APP_URL}
+      - .
+
+  - id: Push image to Artifact Registry
+    name: gcr.io/cloud-builders/docker
+    # Pushes the freshly built image to Google Artifact Registry.
+    args:
+      - push
+      - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
+
+  - id: Deploy to Cloud Run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    # Deploys the image to Cloud Run and wires required secrets/environment variables.
+    entrypoint: bash
+    args:
+      - -c
+      - |
+          set -euo pipefail
+
+          # Secrets referenced below must exist in Secret Manager (names provided via substitutions).
+          gcloud run deploy ${_SERVICE_NAME} \
+            --project $PROJECT_ID \
+            --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA \
+            --region ${_SERVICE_REGION} \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars=NODE_ENV=production \
+            --set-env-vars=NEXTAUTH_URL=${_NEXTAUTH_URL} \
+            --set-env-vars=GOOGLE_REDIRECT_URI=${_GOOGLE_REDIRECT_URI} \
+            --set-env-vars=EMAIL_FROM="${_EMAIL_FROM}" \
+            --set-secrets=DATABASE_URL=${_DATABASE_SECRET}:latest \
+            --set-secrets=NEXTAUTH_SECRET=${_NEXTAUTH_SECRET}:latest \
+            --set-secrets=GOOGLE_CALENDAR_CLIENT_ID=${_GOOGLE_CALENDAR_CLIENT_ID_SECRET}:latest \
+            --set-secrets=GOOGLE_CALENDAR_CLIENT_SECRET=${_GOOGLE_CALENDAR_CLIENT_SECRET_SECRET}:latest \
+            --set-secrets=GOOGLE_MAPS_API_KEY=${_GOOGLE_MAPS_API_KEY_SECRET}:latest \
+            --set-secrets=OPENWEATHER_API_KEY=${_OPENWEATHER_API_KEY_SECRET}:latest \
+            --set-secrets=RESEND_API_KEY=${_RESEND_API_KEY_SECRET}:latest \
+            --set-secrets=OPENAI_API_KEY=${_OPENAI_API_KEY_SECRET}:latest \
+            --set-secrets=STRIPE_SECRET_KEY=${_STRIPE_SECRET_KEY_SECRET}:latest \
+            --set-secrets=STRIPE_WEBHOOK_SECRET=${_STRIPE_WEBHOOK_SECRET_SECRET}:latest
+
+images:
+  # Registers the image built in this pipeline as the build artifact. Keep in sync with the build/push steps.
+  - ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
