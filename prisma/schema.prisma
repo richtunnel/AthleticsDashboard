@@ -85,29 +85,7 @@ model Session {
   @@index([userId])
 }
 
-model Subscription {
-  id                 String    @id
-  customerId         String
-  status             String
-  planPriceId        String?
-  planProductId      String?
-  planLookupKey      String?
-  planNickname       String?
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  cancelAt           DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  canceledAt         DateTime?
-  trialStart         DateTime?
-  trialEnd           DateTime?
-  endedAt            DateTime?
-  latestInvoiceId    String?
-  lastEventId        String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  users              User[]    @relation("UserSubscription")
-  @@map("Subscription")
-}
+
 
 model StripeWebhookEvent {
   id          String   @id
@@ -361,25 +339,27 @@ model EmailCampaign {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String             @unique
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripeSubscriptionId String?            @unique
-  stripeCustomerId     String?
-  status               SubscriptionStatus @default(INCOMPLETE)
-  planType             PlanType?
-  priceId              String?
-  currentPeriodStart   DateTime?
-  currentPeriodEnd     DateTime?
-  cancelAt             DateTime?
-  canceledAt           DateTime?
-  trialStart           DateTime?
-  trialEnd             DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-
-  @@index([userId])
-  @@index([stripeSubscriptionId])
+  id                 String    @id
+  customerId         String
+  status             String
+  planPriceId        String?
+  planProductId      String?
+  planLookupKey      String?
+  planNickname       String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAt           DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+  endedAt            DateTime?
+  latestInvoiceId    String?
+  lastEventId        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  users              User[]    @relation("UserSubscription")
+  @@map("Subscription")
 }
 
 // Enums
