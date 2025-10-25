@@ -665,10 +665,10 @@ export default function OpponentsPage() {
       <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Opponents & Matchups
+            Add Teams & Create Matchups
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Drag to reorder opponents or click to create matchups
+            Here is where you can add new teams that you'll play. You can use our custom match maker feature to create games in Game Center.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpenCreateDialog(true)} sx={{ textTransform: "none" }}>
