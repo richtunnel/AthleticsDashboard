@@ -7,36 +7,58 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useState, Suspense } from "react";
 import Divider from "@mui/material/Divider";
 import BaseHeader from "@/components/headers/_base";
+import { useAuthButton } from "@/lib/hooks/useAuthButton";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 function SignupForm() {
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") || "free_trial_plan";
   const router = useRouter();
 
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
+  const googleAuth = useAuthButton({
+    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    onError: (err) => setError(err),
+  });
+
+  const azureAuth = useAuthButton({
+    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    onError: (err) => setError(err),
+  });
+
+  const credentialsAuth = useAuthButton({
+    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    onError: (err) => setError(err),
+  });
+
+  const isLoading = googleAuth.loading || azureAuth.loading || credentialsAuth.loading;
+
   const handleGoogleLogin = async () => {
+    setError("");
+    if (plan) {
+      localStorage.setItem("onboarding_plan", plan);
+    }
     try {
-      setGoogleLoading(true);
-      setError("");
-
-      if (plan) {
-        localStorage.setItem("onboarding_plan", plan);
-      }
-
-      await signIn("google", {
-        callbackUrl: `/onboarding/setup?plan=${plan}`,
-      });
+      await googleAuth.executeAction({ type: "google" });
     } catch (error) {
-      console.error("Google signup error:", error);
-      setError("Failed to sign up with Google");
-      setGoogleLoading(false);
+      // Error handled by onError callback
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    setError("");
+    if (plan) {
+      localStorage.setItem("onboarding_plan", plan);
+    }
+    try {
+      await azureAuth.executeAction({ type: "azure-ad" });
+    } catch (error) {
+      // Error handled by onError callback
     }
   };
 
@@ -54,41 +76,37 @@ function SignupForm() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      const signupRes = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, plan, phone }),
+      await credentialsAuth.executeAction({
+        type: "custom",
+        customAction: async () => {
+          const signupRes = await fetch("/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email, password, plan, phone }),
+          });
+
+          const data = await signupRes.json();
+
+          if (!signupRes.ok) {
+            throw new Error(data.error || "Failed to create user.");
+          }
+
+          const signInRes = await signIn("credentials", {
+            redirect: false,
+            email,
+            password,
+          });
+
+          if (signInRes?.error) {
+            throw new Error("Account created but login failed. Please login manually.");
+          }
+
+          router.push(`/onboarding/setup?plan=${plan}`);
+        },
       });
-
-      const data = await signupRes.json();
-
-      if (!signupRes.ok) {
-        setError(data.error || "Failed to create user.");
-        setLoading(false);
-        return;
-      }
-
-      const signInRes = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-      });
-
-      if (signInRes?.error) {
-        setError("Account created but login failed. Please login manually.");
-        setLoading(false);
-        setTimeout(() => router.push("/login"), 2000);
-        return;
-      }
-
-      router.push(`/onboarding/setup?plan=${plan}`);
     } catch (error) {
-      console.error("Signup error:", error);
-      setError("An unexpected error occurred");
-      setLoading(false);
+      // Error handled by onError callback
     }
   };
 
@@ -119,12 +137,12 @@ function SignupForm() {
             {error}
           </Alert>
         )}
-        <Button fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} disabled={loading || googleLoading} sx={{ mb: 1 }}>
-          {googleLoading ? <CircularProgress size={24} /> : "Sign up with Google"}
-        </Button>
-        <Button fullWidth variant="outlined" onClick={() => signIn("azure-ad", { callbackUrl: `/onboarding/setup?plan=${plan}` })} disabled={loading} sx={{ mb: 2 }}>
+        <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
+          Sign up with Google
+        </AuthActionButton>
+        <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
           Sign up with Microsoft
-        </Button>
+        </AuthActionButton>
         <Divider sx={{ my: 3 }}>OR</Divider>
         <Typography variant="h6" gutterBottom>
           Create account manually
@@ -133,9 +151,9 @@ function SignupForm() {
           Create an account to get started automating your spreadsheets.
         </Typography>
         <form onSubmit={handleManualSignup}>
-          <TextField fullWidth size="small" label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} disabled={loading} sx={{ mb: 2 }} error={!!error && !name} />
-          <TextField fullWidth size="small" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} sx={{ mb: 2 }} error={!!error && !email} />
-          <TextField fullWidth size="small" label="Phone (Optional)" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={loading} sx={{ mb: 2 }} />
+          <TextField fullWidth size="small" label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} error={!!error && !name} />
+          <TextField fullWidth size="small" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} error={!!error && !email} />
+          <TextField fullWidth size="small" label="Phone (Optional)" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} />
           <TextField
             fullWidth
             size="small"
@@ -144,14 +162,14 @@ function SignupForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
+            disabled={isLoading}
             helperText="Must be at least 8 characters"
             sx={{ mb: 2 }}
             error={!!error && (!password || password.length < 8)}
           />
-          <Button fullWidth variant="contained" type="submit" disabled={loading || !name || !email || !password || password.length < 8}>
-            {loading ? <CircularProgress size={24} /> : "Create Account"}
-          </Button>
+          <AuthActionButton fullWidth variant="contained" type="submit" loading={credentialsAuth.loading} disabled={isLoading || !name || !email || !password || password.length < 8}>
+            Create Account
+          </AuthActionButton>
         </form>
         <Typography variant="body2" sx={{ mt: 2, textAlign: "center" }}>
           Already have an account?{" "}
