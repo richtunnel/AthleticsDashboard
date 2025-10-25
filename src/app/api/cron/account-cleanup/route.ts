@@ -25,7 +25,10 @@ type ReminderCandidate = {
   id: string;
   email: string | null;
   name: string | null;
-  deletionScheduledAt: Date | null;
+  subscription: {
+    deletionScheduledAt: Date | null;
+    gracePeriodEndsAt: Date | null;
+  } | null;
   organization: {
     name: string | null;
     timezone: string;
@@ -36,7 +39,9 @@ type DeletionCandidate = {
   id: string;
   email: string | null;
   name: string | null;
-  subscriptionId: string | null;
+  subscription: {
+    stripeSubscriptionId: string | null;
+  } | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -78,9 +83,13 @@ export async function POST(req: NextRequest) {
     try {
       reminderCandidates = await prisma.user.findMany({
         where: {
-          deletionScheduledAt: {
-            gte: windowStart,
-            lt: windowEnd,
+          subscription: {
+            is: {
+              deletionScheduledAt: {
+                gte: windowStart,
+                lt: windowEnd,
+              },
+            },
           },
           accountDeletionReminders: {
             none: {
@@ -92,7 +101,12 @@ export async function POST(req: NextRequest) {
           id: true,
           email: true,
           name: true,
-          deletionScheduledAt: true,
+          subscription: {
+            select: {
+              deletionScheduledAt: true,
+              gracePeriodEndsAt: true,
+            },
+          },
           organization: {
             select: {
               name: true,
@@ -113,13 +127,14 @@ export async function POST(req: NextRequest) {
     }
 
     for (const user of reminderCandidates) {
-      if (!user.email || !user.deletionScheduledAt) {
+      const deletionScheduledAt = user.subscription?.deletionScheduledAt;
+      if (!user.email || !deletionScheduledAt) {
         continue;
       }
 
       try {
         const countdownLabel = getCountdownLabel(windowDays);
-        const formattedDeletionDate = formatDateTime(user.deletionScheduledAt, user.organization?.timezone);
+        const formattedDeletionDate = formatDateTime(deletionScheduledAt, user.organization?.timezone);
         const organizationName = user.organization?.name ?? "your organization";
         const recipientName = user.name ?? "there";
 
@@ -157,7 +172,7 @@ export async function POST(req: NextRequest) {
         summary.reminderBreakdown[key] = (summary.reminderBreakdown[key] ?? 0) + 1;
 
         console.log(
-          `[AccountCleanup] Reminder sent to user ${user.id} (${user.email}) for ${countdownLabel} before deletion scheduled at ${user.deletionScheduledAt.toISOString()}`,
+          `[AccountCleanup] Reminder sent to user ${user.id} (${user.email}) for ${countdownLabel} before deletion scheduled at ${deletionScheduledAt.toISOString()}`,
         );
       } catch (error) {
         const errorMessage = `Failed to send reminder to user ${user.id}: ${getErrorMessage(error)}`;
@@ -183,15 +198,23 @@ export async function POST(req: NextRequest) {
   try {
     deletionCandidates = await prisma.user.findMany({
       where: {
-        deletionScheduledAt: {
-          lte: now,
+        subscription: {
+          is: {
+            deletionScheduledAt: {
+              lte: now,
+            },
+          },
         },
       },
       select: {
         id: true,
         email: true,
         name: true,
-        subscriptionId: true,
+        subscription: {
+          select: {
+            stripeSubscriptionId: true,
+          },
+        },
       },
     });
   } catch (error) {
@@ -202,17 +225,18 @@ export async function POST(req: NextRequest) {
 
   for (const user of deletionCandidates) {
     let subscriptionCancelled = false;
+    const stripeSubscriptionId = user.subscription?.stripeSubscriptionId;
 
-    if (stripeClient && user.subscriptionId) {
+    if (stripeClient && stripeSubscriptionId) {
       try {
-        const subscription = await stripeClient.subscriptions.retrieve(user.subscriptionId);
+        const subscription = await stripeClient.subscriptions.retrieve(stripeSubscriptionId);
         if (subscription.status !== "canceled") {
-          await stripeClient.subscriptions.cancel(user.subscriptionId);
+          await stripeClient.subscriptions.cancel(stripeSubscriptionId);
           subscriptionCancelled = true;
-          console.log(`[AccountCleanup] Cancelled Stripe subscription ${user.subscriptionId} for user ${user.id}`);
+          console.log(`[AccountCleanup] Cancelled Stripe subscription ${stripeSubscriptionId} for user ${user.id}`);
         }
       } catch (error) {
-        const errorMessage = `Failed to cancel Stripe subscription ${user.subscriptionId} for user ${user.id}: ${getErrorMessage(error)}`;
+        const errorMessage = `Failed to cancel Stripe subscription ${stripeSubscriptionId} for user ${user.id}: ${getErrorMessage(error)}`;
         console.error(`[AccountCleanup] ${errorMessage}`);
         summary.errors.push(errorMessage);
       }
