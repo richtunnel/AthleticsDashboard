@@ -57,6 +57,7 @@ model User {
   emailCampaigns             EmailCampaign[]  @relation("UserEmailCampaigns")
   recoveryEmail              RecoveryEmail?
   loginEvents                UserLoginEvent[]
+  accountDeletionReminders   AccountDeletionReminder[]
 
   @@index([organizationId])
   @@map("User")
@@ -252,6 +253,18 @@ model EmailLog {
   @@index([createdAt])
 }
 
+model AccountDeletionReminder {
+  id                 String   @id @default(cuid())
+  userId             String
+  daysBeforeDeletion Int
+  sentAt             DateTime @default(now())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, daysBeforeDeletion])
+  @@index([daysBeforeDeletion])
+  @@map("AccountDeletionReminder")
+}
+
 model Opponent {
   id             String       @id @default(cuid())
   name           String
@@ -346,24 +359,24 @@ model EmailCampaign {
 model Subscription {
   id                   String             @id @default(cuid())
   userId               String             @unique
-  customerId           String?
+  user                 User               @relation("UserSubscription", fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String?            @unique
   stripeCustomerId     String?
-  stripeSubscriptionId String?
-  status               SubscriptionStatus
+  customerId           String?
   planType             PlanType?
   billingCycle         String?
   priceId              String?
-  planPriceId          String?
   planProductId        String?
   planLookupKey        String?
   planNickname         String?
+  status               SubscriptionStatus
   currentPeriodStart   DateTime?
   currentPeriodEnd     DateTime?
   cancelAt             DateTime?
   cancelAtPeriodEnd    Boolean            @default(false)
   canceledAt           DateTime?
-  deletionScheduledAt  DateTime?
   gracePeriodEndsAt    DateTime?
+  deletionScheduledAt  DateTime?
   trialStart           DateTime?
   trialEnd             DateTime?
   endedAt              DateTime?
@@ -371,8 +384,8 @@ model Subscription {
   lastEventId          String?
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
-  user                 User               @relation("UserSubscription", fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([stripeSubscriptionId])
   @@map("Subscription")
 }
 
@@ -455,6 +468,7 @@ enum SubscriptionStatus {
 }
 
 enum PlanType {
+  FREE
   MONTHLY
   ANNUAL
 }
