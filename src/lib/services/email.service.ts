@@ -9,7 +9,7 @@ interface SendEmailParams {
   subject: string;
   body: string;
   gameId?: string;
-  sentById: string;
+  sentById?: string; // Make optional for system emails
 }
 
 type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "trial_ending";
@@ -39,7 +39,7 @@ export class EmailService {
         body,
         status: "PENDING",
         gameId: gameId || null,
-        sentById,
+        sentById: sentById || null, // Allow null for system emails
       },
     });
 
@@ -50,7 +50,7 @@ export class EmailService {
     try {
       // Send email via Resend
       const result = await resend.emails.send({
-        from: "Athletic Director <noreply@yourdomain.com>",
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
         to,
         cc,
         subject,
@@ -98,8 +98,53 @@ export class EmailService {
       to: [user.email],
       subject,
       body,
-      sentById: user.id,
+      sentById: user.id, // User emails still have sentById
     });
+  }
+
+  async sendWelcomeEmail(user: { id: string; email: string; name?: string | null }) {
+    if (!user?.email) {
+      throw new Error("Cannot send welcome email without a recipient email address.");
+    }
+
+    // Check if welcome email was already sent to avoid duplicates
+    const existingWelcomeEmail = await prisma.emailLog.findFirst({
+      where: {
+        to: { has: user.email },
+        subject: { contains: "Welcome to Athletic Director Hub" },
+        status: "SENT",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (existingWelcomeEmail) {
+      console.log(`Welcome email already sent to ${user.email} on ${existingWelcomeEmail.createdAt.toISOString()}`);
+      return { success: true, emailId: existingWelcomeEmail.id, skipped: true };
+    }
+
+    const { subject, body } = this.buildWelcomeEmailTemplate(user);
+
+    // Gracefully handle missing Resend configuration
+    if (!resend) {
+      console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
+      return { success: false, error: "Email service not configured" };
+    }
+
+    try {
+      const result = await this.sendEmail({
+        to: [user.email],
+        subject,
+        body,
+        // No sentById for system emails
+      });
+
+      console.log(`Welcome email sent successfully to ${user.email}`);
+      return result;
+    } catch (error) {
+      console.error(`Failed to send welcome email to ${user.email}:`, error);
+      // Don't throw - we don't want to block user signup
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
   }
 
   async sendGameNotification(gameId: string, recipientEmails: string[], sentById: string) {
@@ -217,6 +262,54 @@ export class EmailService {
       body,
       sentById,
     });
+  }
+
+  private buildWelcomeEmailTemplate(user: { id: string; email: string; name?: string | null }): { subject: string; body: string } {
+    const greeting = `<p>${user.name ? `Hi ${user.name}` : "Hi there"},</p>`;
+    
+    const body = `
+      ${greeting}
+      <p>Welcome to <strong>Athletic Director Hub</strong>! We're excited to help you streamline your athletic program management.</p>
+      
+      <h3>What's Next?</h3>
+      <p>Here are the key steps to get started:</p>
+      <ul>
+        <li><strong>Set up your teams:</strong> Add your sports teams and organize them by level and season</li>
+        <li><strong>Add opponents:</strong> Build your opponent database for easy scheduling</li>
+        <li><strong>Configure venues:</strong> Add your home and away locations</li>
+        <li><strong>Schedule games:</strong> Start creating your game schedule with our intuitive interface</li>
+        <li><strong>Enable integrations:</strong> Connect Google Calendar for seamless sync</li>
+      </ul>
+      
+      <h3>Key Features</h3>
+      <ul>
+        <li>📅 Smart scheduling with conflict detection</li>
+        <li>🗺️ AI-powered travel recommendations</li>
+        <li>📧 Automated email notifications</li>
+        <li>📊 Dashboard analytics and reporting</li>
+        <li>📱 Mobile-friendly interface</li>
+      </ul>
+      
+      <p>Need help getting started? Check out our dashboard or reply to this email with any questions.</p>
+      
+      <p style="margin-top: 24px;">
+        <a
+          href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/dashboard"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          Go to Dashboard
+        </a>
+      </p>
+      
+      <p>We're here to help you make this season your best yet!</p>
+      
+      <p>Best regards,<br>The Athletic Director Hub Team</p>
+    `;
+    
+    return {
+      subject: "Welcome to Athletic Director Hub 🏆",
+      body,
+    };
   }
 
   private buildSubscriptionEmailTemplate(type: SubscriptionEmailType, params: SubscriptionEmailParams): { subject: string; body: string } {
