@@ -6,6 +6,7 @@ import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
 import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
+import { emailService } from "@/lib/services/email.service";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -60,6 +61,18 @@ const customAdapter = {
         organization: true,
       },
     });
+
+    // Send welcome email (non-blocking)
+    try {
+      await emailService.sendWelcomeEmail({
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+      });
+    } catch (welcomeEmailError) {
+      console.error("Failed to send welcome email for OAuth user:", welcomeEmailError);
+      // Don't fail the user creation if welcome email fails
+    }
 
     return newUser;
   },
