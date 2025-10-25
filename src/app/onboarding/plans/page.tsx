@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
+import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
 import BaseHeader from "@/components/headers/_base";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 const plans = [
   {
@@ -169,17 +170,18 @@ export default function PricingPlansPage() {
                     per month
                   </Typography>
 
-                  <Button 
-                    fullWidth 
-                    variant={plan.mostPopular ? "contained" : "outlined"} 
-                    size="large" 
-                    sx={{ borderRadius: 2, mb: 3 }} 
+                  <AuthActionButton
+                    fullWidth
+                    variant={plan.mostPopular ? "contained" : "outlined"}
+                    size="large"
+                    sx={{ borderRadius: 2, mb: 3 }}
                     onClick={() => handleSelectPlan(plan.name)}
+                    loading={loading}
                     disabled={loading}
-                    startIcon={loading ? <CircularProgress size={20} /> : undefined}
+                    loadingText="Processing..."
                   >
-                    {loading ? "Processing..." : "Get started"}
-                  </Button>
+                    Get started
+                  </AuthActionButton>
 
                   <Divider sx={{ mb: 3 }} />
 
