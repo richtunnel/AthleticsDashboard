@@ -57,7 +57,7 @@ function SignupForm() {
     setLoading(true);
 
     try {
-      const signupRes = await fetch("/api/auth/signup", {
+      const signupRes = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, plan, phone }),
@@ -75,6 +75,7 @@ function SignupForm() {
         redirect: false,
         email,
         password,
+        callbackUrl: `/onboarding/setup?plan=${plan}`,
       });
 
       if (signInRes?.error) {
@@ -84,7 +85,7 @@ function SignupForm() {
         return;
       }
 
-      router.push(`/onboarding/setup?plan=${plan}`);
+      router.replace(`/onboarding/setup?plan=${plan}`);
     } catch (error) {
       console.error("Signup error:", error);
       setError("An unexpected error occurred");
