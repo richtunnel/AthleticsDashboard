@@ -1,18 +1,17 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, Button, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
+import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
 import { Google } from "@mui/icons-material";
 import Link from "next/link";
 import BaseHeader from "@/components/headers/_base";
+import { useAuthButton } from "@/lib/hooks/useAuthButton";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
@@ -23,6 +22,28 @@ function LoginForm() {
   const resetSuccess = searchParams.get("reset");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
+  const googleAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
+  const credentialsAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => {
+      if (err === "No user found with this email") {
+        setError("No account found with this email. Please sign up first.");
+      } else if (err === "Please sign in with Google") {
+        setError("This account uses Google sign-in. Please use the Google button below.");
+      } else if (err === "Invalid password") {
+        setError("Incorrect password");
+      } else {
+        setError("Invalid email or password");
+      }
+    },
+  });
+
+  const isLoading = googleAuth.loading || credentialsAuth.loading;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -32,45 +53,26 @@ function LoginForm() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      const result = await signIn("credentials", {
-        email: formData.email,
-        password: formData.password,
-        redirect: false,
+      await credentialsAuth.executeAction({
+        type: "credentials",
+        credentials: {
+          email: formData.email,
+          password: formData.password,
+        },
       });
-
-      if (result?.error) {
-        if (result.error === "No user found with this email") {
-          setError("No account found with this email. Please sign up first.");
-        } else if (result.error === "Please sign in with Google") {
-          setError("This account uses Google sign-in. Please use the Google button below.");
-        } else if (result.error === "Invalid password") {
-          setError("Incorrect password");
-        } else {
-          setError("Invalid email or password");
-        }
-        setLoading(false);
-        return;
-      }
-
-      router.push(callbackUrl);
-      router.refresh();
     } catch (error) {
-      console.error("Login error:", error);
-      setError("An unexpected error occurred");
-      setLoading(false);
+      // Error already handled by onError callback
     }
   };
 
   const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
     setError("");
-
-    signIn("google", {
-      callbackUrl,
-    });
+    try {
+      await googleAuth.executeAction({ type: "google" });
+    } catch (error) {
+      // Error already handled by onError callback
+    }
   };
 
   const displayError = error || (errorParam === "OAuthSignin" ? "Failed to sign in with Google. Please try again." : "");
@@ -109,9 +111,9 @@ function LoginForm() {
               </Alert>
             )}
 
-            <Button fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} disabled={loading || googleLoading} sx={{ mb: 2 }}>
-              {googleLoading ? <CircularProgress size={24} /> : "Sign in with Google"}
-            </Button>
+            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+              Sign in with Google
+            </AuthActionButton>
 
             <Divider sx={{ my: 2 }}>OR</Divider>
 
@@ -128,7 +130,7 @@ function LoginForm() {
                 autoFocus
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                disabled={loading}
+                disabled={isLoading}
               />
               <TextField
                 margin="normal"
@@ -142,7 +144,7 @@ function LoginForm() {
                 autoComplete="current-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                disabled={loading}
+                disabled={isLoading}
               />
 
               <Box sx={{ mt: 1, textAlign: "right" }}>
@@ -151,9 +153,9 @@ function LoginForm() {
                 </MuiLink>
               </Box>
 
-              <Button type="submit" fullWidth variant="outlined" sx={{ mt: 2, mb: 2 }} disabled={loading}>
-                {loading ? <CircularProgress size={24} /> : "Sign in with Email"}
-              </Button>
+              <AuthActionButton type="submit" fullWidth variant="outlined" loading={credentialsAuth.loading} disabled={isLoading} sx={{ mt: 2, mb: 2 }}>
+                Sign in with Email
+              </AuthActionButton>
 
               <Box sx={{ mt: 2, textAlign: "center" }}>
                 <Typography variant="body2">

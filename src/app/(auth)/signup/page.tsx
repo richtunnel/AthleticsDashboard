@@ -3,15 +3,15 @@
 import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, Button, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
+import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
 import { Google } from "@mui/icons-material";
 import Link from "next/link";
+import { useAuthButton } from "@/lib/hooks/useAuthButton";
+import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -21,6 +21,18 @@ function SignupForm() {
   });
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  const googleAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
+  const credentialsAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
+  const isLoading = googleAuth.loading || credentialsAuth.loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +52,6 @@ function SignupForm() {
       setError("Password must be at least 8 characters");
       return;
     }
-
-    setLoading(true);
 
     try {
       const res = await fetch("/api/signup", {
@@ -79,21 +89,17 @@ function SignupForm() {
 
       router.replace("/dashboard");
     } catch (error) {
-      console.error("Signup error:", error);
-      setError("An unexpected error occurred");
-      setLoading(false);
+      // Error handled by onError callback
     }
   };
 
   const handleGoogleSignup = async () => {
-    setGoogleLoading(true);
     setError("");
-
-    // For Google OAuth, signup and login are the same flow
-    // NextAuth will create account if it doesn't exist
-    signIn("google", {
-      callbackUrl,
-    });
+    try {
+      await googleAuth.executeAction({ type: "google" });
+    } catch (error) {
+      // Error handled by onError callback
+    }
   };
 
   return (
@@ -121,9 +127,9 @@ function SignupForm() {
             </Alert>
           )}
 
-          <Button fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} disabled={loading || googleLoading} sx={{ mb: 2 }}>
-            {googleLoading ? <CircularProgress size={24} /> : "Sign up with Google"}
-          </Button>
+          <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+            Sign up with Google
+          </AuthActionButton>
 
           <Divider sx={{ my: 2 }}>OR</Divider>
 
@@ -140,7 +146,7 @@ function SignupForm() {
               autoFocus
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
             <TextField
               size="small"
@@ -154,7 +160,7 @@ function SignupForm() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
             <TextField
               size="small"
@@ -168,7 +174,7 @@ function SignupForm() {
               autoComplete="new-password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
               helperText="Must be at least 8 characters"
             />
             <TextField
@@ -183,11 +189,11 @@ function SignupForm() {
               autoComplete="new-password"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              disabled={loading}
+              disabled={isLoading}
             />
-            <Button type="submit" fullWidth variant="outlined" sx={{ mt: 3, mb: 2 }} disabled={loading}>
-              {loading ? <CircularProgress size={24} /> : "Sign up with Email"}
-            </Button>
+            <AuthActionButton type="submit" fullWidth variant="outlined" loading={credentialsAuth.loading} disabled={isLoading} sx={{ mt: 3, mb: 2 }}>
+              Sign up with Email
+            </AuthActionButton>
 
             <Box sx={{ mt: 2, textAlign: "center" }}>
               <Typography variant="body2">

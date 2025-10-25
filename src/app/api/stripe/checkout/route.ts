@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         stripeCustomerId: customerId,
         planType,
+        billingCycle: planType,
         priceId,
         status: "INCOMPLETE",
         trialStart: trialEligible ? now : null,
@@ -93,6 +94,7 @@ export async function POST(req: NextRequest) {
       update: {
         stripeCustomerId: customerId,
         planType,
+        billingCycle: planType,
         priceId,
         status: "INCOMPLETE",
         trialStart: trialEligible ? now : null,

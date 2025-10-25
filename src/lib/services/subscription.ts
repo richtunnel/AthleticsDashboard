@@ -8,7 +8,7 @@ export interface UserWithSubscription {
   subscription: {
     id: string;
     status: string;
-    planType: string;
+    planType: string | null;
     billingCycle: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;

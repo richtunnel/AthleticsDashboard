@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       where: { userId: user.id },
       data: {
         planType,
+        billingCycle: planType,
         priceId,
         currentPeriodStart: currentPeriodStart
           ? new Date(currentPeriodStart * 1000)
