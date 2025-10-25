@@ -12,7 +12,7 @@
     "migrate:resolve:rollback": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-rolled-back",
     "migrate:resolve:applied": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-applied",
     "migrate:check": "bash ./scripts/prisma-predeploy-check.sh",
-    "start:prod": "yarn migrate:deploy && yarn start",
+    "start:prod": "yarn start",
     "type-check": "tsc --noEmit",
     "postinstall": "prisma generate",
     "docker:build": "docker build -t athletics-dashboard:latest .",

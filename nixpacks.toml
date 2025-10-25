@@ -9,7 +9,7 @@ cmds = [
 ]
 
 [start]
-cmd = "yarn prisma migrate deploy && yarn start"
+cmd = "yarn start"
 
 [variables]
 NODE_ENV = "production"

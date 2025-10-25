@@ -183,9 +183,13 @@ See the [Database Setup](#database-setup) section for detailed instructions.
 
 ### 5. Run Database Migrations
 
+For development, run migrations to set up your database schema:
+
 ```bash
 yarn prisma migrate dev
 ```
+
+> **Note:** In production deployments, migrations are **not** run automatically. See the [Database Migrations in Production](#database-migrations-in-production) section for details.
 
 ### 6. Seed the Database (Optional)
 
@@ -440,11 +444,29 @@ yarn start
 
 ### Production with Database Migration
 
-This command runs migrations before starting the server (useful for deployment):
+**Note:** Automatic migrations during deployment have been disabled to prevent deployment failures. The `start:prod` script now only starts the server without running migrations.
+
+To run database migrations manually when needed:
+
+```bash
+# Deploy pending migrations to production database
+yarn migrate:deploy
+
+# Or use the full command
+npx prisma migrate deploy
+```
+
+Then start the production server:
 
 ```bash
 yarn start:prod
 ```
+
+> **Important:** Database migrations must be run manually before deploying new code that requires schema changes. This separation allows you to:
+> - Control when migrations run
+> - Handle migration failures without blocking deployments
+> - Test migrations independently
+> - Roll back or resolve problematic migrations before redeploying
 
 ### Type Checking
 
@@ -740,6 +762,38 @@ docker-compose up -d
 
 **📖 For detailed Docker deployment instructions**, including platform-specific guides for Google Cloud Run, DigitalOcean App Platform, AWS ECS, and more, see **[DOCKER.md](./DOCKER.md)**.
 
+### Database Migrations in Production
+
+**⚠️ Important: Automatic migrations during deployment are disabled by default.**
+
+Database migrations are no longer run automatically during application startup. This prevents deployment failures due to migration errors (e.g., P3009) and gives you better control over when schema changes are applied.
+
+**To run migrations manually:**
+
+```bash
+# Before deploying new code with schema changes
+yarn migrate:deploy
+
+# Or use npx directly
+npx prisma migrate deploy
+```
+
+**Deployment workflow:**
+
+1. Deploy your application (migrations will NOT run automatically)
+2. The app will connect to the database using the existing schema
+3. When you need to apply schema changes, run migrations manually as a separate step
+4. Use `yarn migrate:check` to verify migration status before deployment
+
+**Why migrations are separate:**
+- ✅ App can deploy successfully even if there are pending migrations
+- ✅ Migrations can be fixed and tested without re-deploying the entire app
+- ✅ Failed migrations don't block application startup
+- ✅ Better control over when schema changes are applied in production
+- ✅ Easier to roll back or resolve migration issues
+
+See the [Prisma Migration Troubleshooting](#-prisma-migration-troubleshooting) section for details on resolving migration issues.
+
 ### Environment Variables for Production
 
 Ensure these are set in your hosting platform:
@@ -757,7 +811,7 @@ Ensure these are set in your hosting platform:
 | `yarn dev` | Start development server |
 | `yarn build` | Build production bundle |
 | `yarn start` | Start production server |
-| `yarn start:prod` | Run migrations then start production server |
+| `yarn start:prod` | Start production server (migrations must be run manually) |
 | `yarn type-check` | Run TypeScript type checking |
 
 ### Database (Prisma)

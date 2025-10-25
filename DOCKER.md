@@ -523,18 +523,25 @@ postgresql://user:password@postgres:5432/dbname?schema=public
 docker-compose exec app ping postgres
 ```
 
-#### Migrations don't run
+#### Running Database Migrations
+
+**Note:** Migrations are no longer run automatically during container startup. You must run them manually when needed.
 
 ```bash
-# Run migrations manually
+# Run migrations manually before or after deployment
 docker-compose exec app npx prisma migrate deploy
 
 # Check migration status
 docker-compose exec app npx prisma migrate status
 
+# Or run from host machine if DATABASE_URL is set
+npx prisma migrate deploy
+
 # Reset database (development only!)
 docker-compose exec app npx prisma migrate reset
 ```
+
+For production deployments, run migrations as a separate step before starting the application container. This prevents deployment failures due to migration errors.
 
 #### "Cannot find module './server.js'"
 
