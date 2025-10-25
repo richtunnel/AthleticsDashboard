@@ -23,14 +23,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        NODE_OPTIONS: "--max-old-space-size=6144"
     container_name: athletics-app
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 8G
+          memory: 4G
+        reservations:
+          memory: 512M
     environment:
       # Database
       DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?schema=public
@@ -64,6 +64,12 @@ services:
         condition: service_healthy
     networks:
       - athletics-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
       # volumes:
       #   # Mount source code for hot-reload (uncomment for development)
       # - ./src:/app/src

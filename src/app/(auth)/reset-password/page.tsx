@@ -274,7 +274,7 @@ function ResetPasswordForm() {
                     sx={(theme) => ({
                       height: 6,
                       borderRadius: 1,
-                      backgroundColor: theme.palette.mode === "dark" ? theme.palette.grey[800] : theme.palette.grey[200],
+                      backgroundColor: theme.palette.grey[200],
                       "& .MuiLinearProgress-bar": {
                         backgroundColor: passwordStrength.color,
                       },
