@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme } from "@mui/material";
+import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter } from "next/navigation";
@@ -42,6 +42,8 @@ const plans = [
 
 export default function PricingPlansPage() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const theme = useTheme();
 
@@ -53,18 +55,40 @@ export default function PricingPlansPage() {
     if (newBilling) setBilling(newBilling);
   };
 
-  const handleSelectPlan = (planName: string) => {
-    let planId: string;
+  const handleSelectPlan = async (planName: string) => {
+    setError(null);
+    setLoading(true);
 
-    if (planName === "Free Trial Plan") {
-      planId = "free_trial_plan";
-    } else if (planName === "Directors plan") {
-      planId = billing === "monthly" ? "directors_plan" : "directors_plan_yearly";
-    } else {
-      planId = planName.toLowerCase().replace(/\s+/g, "_");
+    try {
+      if (planName === "Free Trial Plan") {
+        router.push("/onboarding/signup?plan=free_trial_plan");
+        return;
+      }
+
+      const planType = billing === "monthly" ? "MONTHLY" : "ANNUAL";
+
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planType }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create checkout session");
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      console.error("Plan selection error:", err);
+      setError(err.message || "Failed to start checkout. Please try again.");
+      setLoading(false);
     }
-
-    router.push(`/onboarding/signup?plan=${planId}`);
   };
 
   return (
@@ -87,8 +111,14 @@ export default function PricingPlansPage() {
           or get an assist from one of our experts
         </Typography>
 
+        {error && (
+          <Alert severity="error" sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}>
+            {error}
+          </Alert>
+        )}
+
         {/* Billing toggle */}
-        <ToggleButtonGroup color="primary" value={billing} exclusive onChange={handleBillingChange} sx={{ mt: 4, mb: 6 }}>
+        <ToggleButtonGroup color="primary" value={billing} exclusive onChange={handleBillingChange} sx={{ mt: 4, mb: 6 }} disabled={loading}>
           <ToggleButton style={{ fontSize: "0.75rem" }} value="monthly">
             Monthly billing
           </ToggleButton>
@@ -139,8 +169,16 @@ export default function PricingPlansPage() {
                     per month
                   </Typography>
 
-                  <Button fullWidth variant={plan.mostPopular ? "contained" : "outlined"} size="large" sx={{ borderRadius: 2, mb: 3 }} onClick={() => handleSelectPlan(plan.name)}>
-                    Get started
+                  <Button 
+                    fullWidth 
+                    variant={plan.mostPopular ? "contained" : "outlined"} 
+                    size="large" 
+                    sx={{ borderRadius: 2, mb: 3 }} 
+                    onClick={() => handleSelectPlan(plan.name)}
+                    disabled={loading}
+                    startIcon={loading ? <CircularProgress size={20} /> : undefined}
+                  >
+                    {loading ? "Processing..." : "Get started"}
                   </Button>
 
                   <Divider sx={{ mb: 3 }} />
