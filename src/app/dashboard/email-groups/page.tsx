@@ -102,8 +102,8 @@ export default function EmailGroupsPage() {
   if (loading) return <Typography>Loading...</Typography>;
 
   return (
-    <Box sx={{ maxWidth: 600, mt: 4 }}>
-      <Typography sx={{ mb: 1 }} variant="h5">
+    <Box sx={{ maxWidth: 600, mt: 0 }}>
+      <Typography sx={{ mb: 1, paddingTop: "0", mt: 0 }} variant="h5">
         Create Email Campaigns
       </Typography>
       <Typography sx={{ marginBottom: "1rem" }} gutterBottom>
