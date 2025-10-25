@@ -5,7 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 import { emailService } from "@/lib/services/email.service";
-import type { Prisma } from "@prisma/client";
+import type { PlanType, Prisma, SubscriptionStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +20,8 @@ const userSelect = {
 
 type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>; // prettier-ignore
 type SubscriptionWithUser = Prisma.SubscriptionGetPayload<{ include: { user: { select: typeof userSelect } } }>; // prettier-ignore
-type SubscriptionStatusEnum = Prisma.$Enums.SubscriptionStatus;
-type PlanTypeEnum = Prisma.$Enums.PlanType;
+type SubscriptionStatusEnum = SubscriptionStatus;
+type PlanTypeEnum = PlanType;
 
 type SubscriptionSyncResult = {
   subscription: SubscriptionWithUser;
@@ -171,7 +171,8 @@ async function syncSubscription(
       : null;
   const shouldClearGrace = !cancelAtPeriodEnd && status !== "CANCELED";
 
-  const stripeCustomerIdValue = customerId ?? existing?.stripeCustomerId ?? user.stripeCustomerId ?? null;
+  const stripeCustomerIdValue =
+    customerId ?? existing?.stripeCustomerId ?? existing?.customerId ?? user.stripeCustomerId ?? null;
   const billingCycleValue = billingCycle ?? existing?.billingCycle ?? null;
   const priceIdValue = planPriceId ?? existing?.priceId ?? null;
   const planProductIdValue = planProductId ?? existing?.planProductId ?? null;
@@ -187,6 +188,7 @@ async function syncSubscription(
 
   const subscriptionPayload = {
     userId: user.id,
+    customerId: stripeCustomerIdValue,
     stripeSubscriptionId,
     stripeCustomerId: stripeCustomerIdValue,
     status,
