@@ -11,6 +11,7 @@ A comprehensive Next.js 15 application designed for athletic directors to effici
 - [Installation](#installation)
 - [Environment Variables](#environment-variables)
 - [Database Setup](#database-setup)
+- [Prisma Migration Troubleshooting](#-prisma-migration-troubleshooting)
 - [Running the Application](#running-the-application)
 - [Project Structure](#project-structure)
 - [Key Features Explained](#key-features-explained)
@@ -219,6 +220,12 @@ Create a `.env.local` file in the root directory with the following variables:
 | `NEXTAUTH_SECRET` | Secret key for NextAuth.js (generate with `openssl rand -base64 32`) | `your-secret-key-here` |
 | `NEXTAUTH_URL` | Base URL of your application | `http://localhost:3000` |
 
+### Login Tracking Geolocation
+
+| Variable | Description | How to Get |
+|----------|-------------|------------|
+| `IPINFO_API_TOKEN` | API token for IPInfo used to resolve login city information | [IPinfo Account](https://ipinfo.io/account/token) |
+
 ### Google OAuth & Calendar
 
 | Variable | Description | How to Get |
@@ -335,6 +342,87 @@ yarn prisma studio
 ```
 
 Open [http://localhost:5555](http://localhost:5555)
+
+## 🛡️ Prisma Migration Troubleshooting
+
+When Prisma reports an error such as `P3009` referencing the `20251024000526_new_migration`, the target database still records that migration as failed in the `_prisma_migrations` table. Follow the checklist below to bring the database back to a consistent state and keep future deployments safe.
+
+### Quick commands
+
+| Task | Command |
+|------|---------|
+| Check migration status | `yarn migrate:status` |
+| Mark `20251024000526_new_migration` as rolled back | `yarn migrate:resolve:rollback 20251024000526_new_migration` |
+| Mark a migration as applied (only if schema already matches) | `yarn migrate:resolve:applied <migration_id>` |
+| Deploy pending migrations | `yarn migrate:deploy` |
+| Pre-deployment health check | `yarn migrate:check` |
+| Reset local database (destructive) | `yarn prisma migrate reset` |
+
+These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot.sh` and `scripts/prisma-predeploy-check.sh` for convenience.
+
+### 1. Check the database state
+
+1. Export the database connection string (example for DigitalOcean – replace placeholders with your credentials):
+   ```bash
+   export DATABASE_URL="postgresql://<user>:<password>@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?schema=public&sslmode=require"
+   ```
+2. Run the status command to see whether any migrations are pending, failed, or drifted:
+   ```bash
+   yarn migrate:status
+   ```
+   This wraps `npx prisma migrate status` and requires `DATABASE_URL` to be set.
+
+### 2. Resolve the failed migration safely
+
+- If the migration failed part-way through (most common), mark it as **rolled back** so Prisma can attempt it again:
+  ```bash
+  yarn migrate:resolve:rollback 20251024000526_new_migration
+  # Equivalent: npx prisma migrate resolve --rolled-back 20251024000526_new_migration
+  ```
+- If you manually verified that the changes already exist in the database, mark it as **applied** instead:
+  ```bash
+  yarn migrate:resolve:applied 20251024000526_new_migration
+  # Equivalent: npx prisma migrate resolve --applied 20251024000526_new_migration
+  ```
+- Re-run the migrations to apply the updated SQL (we added automatic data backfills and de-duplication for `EmailGroup` in this migration so it can succeed when retried):
+  ```bash
+  yarn migrate:deploy
+  ```
+
+### 3. Understand why the migration failed
+
+1. Inspect the migration logs stored by Prisma:
+   ```sql
+   SELECT migration_name, finished_at, rolled_back_at, logs
+   FROM "_prisma_migrations"
+   WHERE migration_name = '20251024000526_new_migration';
+   ```
+2. Review the SQL at `prisma/migrations/20251024000526_new_migration/migration.sql`. The file now:
+   - Backfills `EmailGroup.organizationId` from the owning user.
+   - Renames duplicate group names per organization before enforcing the unique constraint.
+   - Blocks the change if any `organizationId` would still be `NULL`.
+3. If additional data cleanup is required, perform it manually and re-run the migration deploy command.
+
+### 4. Add guard rails to deployments
+
+- Run the pre-check script before starting any production instance (useful for CI/CD or container health checks):
+  ```bash
+  yarn migrate:check
+  ```
+  `scripts/prisma-predeploy-check.sh` exits non-zero when pending migrations or drift are detected so your pipeline can fail fast.
+- Keep migration execution separate from starting the application (e.g., run `yarn migrate:deploy` or `yarn migrate:check` in a dedicated job before launching `yarn start`).
+
+### 5. Development-only reset option
+
+For local environments you can drop and recreate the database from scratch:
+```bash
+yarn prisma migrate reset
+```
+Do **not** use this in production because all data will be lost. Instead, resolve or roll back the problematic migration as shown above.
+
+### 6. Include a runtime health check
+
+If you run the app in Docker or on a PaaS, add a health/ready check that executes `yarn migrate:check`. This ensures the server only starts when the schema in the database matches the Prisma schema, preventing future startup failures caused by schema drift.
 
 ## 🏃 Running the Application
 
@@ -649,23 +737,63 @@ DigitalOcean's App Platform can deploy this project directly from the repository
 
 After deployment completes, trigger `yarn prisma migrate deploy` (via the start command above) to ensure the database schema is up to date. You can also use the provided `.do/app.yaml` template with `doctl apps update` if you prefer managing the spec through code.
 
+> 💡 **Tip:** Add a dedicated pipeline step (or App Platform pre-deployment job) that runs `yarn migrate:check`. The command exits non-zero when pending migrations or drift are detected so deployments can fail fast before the application starts.
+
 ### Docker
 
-Build and run with Docker:
+This application is fully optimized for Docker deployment with a multi-stage build that minimizes image size and memory usage. Perfect for platforms like App Platform, Cloud Run, ECS, and others.
+
+**Quick Start:**
 
 ```bash
 # Build image
-docker build -t athletics-dashboard .
+yarn docker:build
 
 # Run container
-docker run -p 3000:3000 --env-file .env.local athletics-dashboard
+yarn docker:run:detached
+
+# View logs
+yarn docker:logs
+
+# Stop container
+yarn docker:stop
 ```
 
-Or use Docker Compose:
+**With Docker Compose (includes PostgreSQL + Adminer):**
 
 ```bash
+# Start all services
+yarn docker:compose:up
+
+# View logs
+yarn docker:compose:logs
+
+# Stop all services
+yarn docker:compose:down
+```
+
+**Direct Docker commands:**
+
+```bash
+# Build image
+docker build -t athletics-dashboard:latest .
+
+# Run container
+docker run -p 3000:3000 --env-file .env athletics-dashboard:latest
+
+# With Docker Compose
 docker-compose up -d
 ```
+
+**📦 Optimizations:**
+- Multi-stage build with 3 stages (deps, builder, runner)
+- Next.js standalone output mode for minimal bundle
+- Alpine Linux base (~300-400MB final image)
+- Memory limit: 4GB during build
+- Non-root user for security
+- Health checks included
+
+**📖 For detailed Docker deployment instructions**, including platform-specific guides for Google Cloud Run, DigitalOcean App Platform, AWS ECS, and more, see **[DOCKER.md](./DOCKER.md)**.
 
 ### Environment Variables for Production
 
@@ -677,6 +805,8 @@ Ensure these are set in your hosting platform:
 
 ## 📜 Scripts
 
+### Development & Build
+
 | Command | Description |
 |---------|-------------|
 | `yarn dev` | Start development server |
@@ -684,11 +814,32 @@ Ensure these are set in your hosting platform:
 | `yarn start` | Start production server |
 | `yarn start:prod` | Run migrations then start production server |
 | `yarn type-check` | Run TypeScript type checking |
+
+### Database (Prisma)
+
+| Command | Description |
+|---------|-------------|
 | `yarn prisma migrate dev` | Create and apply new migration |
 | `yarn prisma migrate deploy` | Apply migrations in production |
 | `yarn prisma db seed` | Seed database with sample data |
 | `yarn prisma studio` | Open Prisma Studio GUI |
 | `yarn prisma generate` | Generate Prisma Client |
+
+### Docker
+
+| Command | Description |
+|---------|-------------|
+| `yarn docker:build` | Build Docker image |
+| `yarn docker:build:prod` | Build Docker image without cache |
+| `yarn docker:run` | Run container (interactive) |
+| `yarn docker:run:detached` | Run container in background |
+| `yarn docker:stop` | Stop and remove container |
+| `yarn docker:logs` | View container logs |
+| `yarn docker:shell` | Open shell in container |
+| `yarn docker:compose:up` | Start all services with Docker Compose |
+| `yarn docker:compose:down` | Stop all Docker Compose services |
+| `yarn docker:compose:logs` | View Docker Compose logs |
+| `yarn docker:compose:build` | Rebuild Docker Compose services |
 
 ## 🤝 Contributing
 

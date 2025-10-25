@@ -12,6 +12,20 @@ interface SendEmailParams {
   sentById: string;
 }
 
+type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "trial_ending";
+
+interface SubscriptionEmailParams {
+  type: SubscriptionEmailType;
+  user: { id: string; email: string; name?: string | null };
+  planName?: string | null;
+  status?: string | null;
+  currentPeriodEnd?: Date | null;
+  cancellationDate?: Date | null;
+  invoiceUrl?: string | null;
+  dueDate?: Date | null;
+  portalUrl?: string | null;
+}
+
 export class EmailService {
   async sendEmail(params: SendEmailParams) {
     const { to, cc = [], subject, body, gameId, sentById } = params;
@@ -69,6 +83,23 @@ export class EmailService {
 
       throw error;
     }
+  }
+
+  async sendSubscriptionEmail(params: SubscriptionEmailParams) {
+    const { user, type } = params;
+
+    if (!user?.email) {
+      throw new Error("Cannot send subscription email without a recipient email address.");
+    }
+
+    const { subject, body } = this.buildSubscriptionEmailTemplate(type, params);
+
+    return this.sendEmail({
+      to: [user.email],
+      subject,
+      body,
+      sentById: user.id,
+    });
   }
 
   async sendGameNotification(gameId: string, recipientEmails: string[], sentById: string) {
@@ -185,6 +216,123 @@ export class EmailService {
       subject,
       body,
       sentById,
+    });
+  }
+
+  private buildSubscriptionEmailTemplate(type: SubscriptionEmailType, params: SubscriptionEmailParams): { subject: string; body: string } {
+    const greeting = `<p>${params.user.name ? `Hi ${params.user.name}` : "Hi there"},</p>`;
+    const planBase = params.planName?.trim();
+    const planLabel = planBase ? `${planBase} subscription` : "subscription";
+    const planDescription = planBase ? `${planBase} subscription` : "your subscription";
+    const status = params.status ?? "active";
+    const portalUrl = params.portalUrl ?? this.resolvePortalUrl();
+    const portalSection = this.portalCallToAction(portalUrl);
+    const periodEnd = this.formatDisplayDate(params.currentPeriodEnd);
+    const cancellationDate = this.formatDisplayDate(params.cancellationDate ?? params.currentPeriodEnd ?? null);
+    const dueDate = this.formatDisplayDate(params.dueDate);
+    const invoiceLink = params.invoiceUrl
+      ? `<p><a href="${params.invoiceUrl}" style="color: #2563eb;">View latest invoice</a></p>`
+      : "";
+
+    switch (type) {
+      case "confirmation": {
+        const periodLine = periodEnd ? `<p><strong>Current period ends:</strong> ${periodEnd}</p>` : "";
+        const body = `
+          ${greeting}
+          <p>Thanks for choosing Athletic Director Hub! Your ${planDescription} is now <strong>${status}</strong>.</p>
+          ${periodLine}
+          ${portalSection}
+          <p>If you ever need assistance, reply to this email and our team will help.</p>
+        `;
+        return {
+          subject: `Your ${planDescription} is confirmed`,
+          body,
+        };
+      }
+      case "cancellation": {
+        const scheduleLine = cancellationDate
+          ? `<p>Your access will remain available until <strong>${cancellationDate}</strong>.</p>`
+          : "<p>Your access has been removed immediately.</p>";
+        const body = `
+          ${greeting}
+          <p>We've processed your request to cancel your ${planDescription}.</p>
+          ${scheduleLine}
+          ${portalSection}
+          <p>If this was a mistake, you can reactivate your subscription from the portal anytime.</p>
+        `;
+        return {
+          subject: `Your ${planDescription} has been cancelled`,
+          body,
+        };
+      }
+      case "payment_failure": {
+        const dueLine = dueDate
+          ? `<p>Please update your billing details before <strong>${dueDate}</strong> to avoid any interruption.</p>`
+          : "<p>Please update your billing details to avoid interruption.</p>";
+        const body = `
+          ${greeting}
+          <p>We couldn't process your latest payment for your ${planDescription}.</p>
+          ${dueLine}
+          ${invoiceLink}
+          ${portalSection}
+          <p>If you've already updated your payment method, you can ignore this message.</p>
+        `;
+        return {
+          subject: `Payment failed for your ${planLabel}`,
+          body,
+        };
+      }
+      case "trial_ending":
+      default: {
+        const trialLine = periodEnd
+          ? `<p>Your trial will end on <strong>${periodEnd}</strong>.</p>`
+          : "<p>Your trial is ending soon.</p>";
+        const body = `
+          ${greeting}
+          ${trialLine}
+          <p>Update your billing information now to keep uninterrupted access.</p>
+          ${portalSection}
+          <p>We're excited to keep working with you!</p>
+        `;
+        return {
+          subject: `Your ${planLabel} trial is ending soon`,
+          body,
+        };
+      }
+    }
+  }
+
+  private portalCallToAction(url: string, label = "Open Billing Portal"): string {
+    const safeUrl = url;
+    return `
+      <p style="margin-top: 24px;">
+        <a
+          href="${safeUrl}"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          ${label}
+        </a>
+      </p>
+      <p style="font-size: 14px; color: #4b5563;">
+        You can manage billing, update payment methods, or download invoices anytime.
+      </p>
+    `;
+  }
+
+  private resolvePortalUrl(): string {
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    return `${baseUrl.replace(/\/$/, "")}/dashboard/settings`;
+  }
+
+  private formatDisplayDate(date?: Date | null): string | null {
+    if (!date) {
+      return null;
+    }
+
+    return date.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     });
   }
 
