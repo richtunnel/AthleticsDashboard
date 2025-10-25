@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/database/prisma";
+import type { PlanType, SubscriptionStatus } from "@prisma/client";
 
 export interface UserWithSubscription {
   id: string;
@@ -7,9 +8,13 @@ export interface UserWithSubscription {
   stripeCustomerId: string | null;
   subscription: {
     id: string;
-    status: string;
-    planType: string | null;
+    status: SubscriptionStatus;
+    planType: PlanType | null;
     billingCycle: string | null;
+    priceId: string | null;
+    planProductId: string | null;
+    planLookupKey: string | null;
+    planNickname: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     cancelAtPeriodEnd: boolean;
@@ -45,6 +50,10 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
           status: true,
           planType: true,
           billingCycle: true,
+          priceId: true,
+          planProductId: true,
+          planLookupKey: true,
+          planNickname: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
