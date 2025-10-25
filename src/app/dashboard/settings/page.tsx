@@ -6,6 +6,8 @@ import { Card, CardContent, Typography, Box } from "@mui/material";
 import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
 import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
 import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
+import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
+import { getUserWithSubscription } from "@/lib/services/subscription";
 
 export default async function SettingsPage() {
   const session = await getServerSession(authOptions);
@@ -49,12 +51,24 @@ export default async function SettingsPage() {
   const hasPassword = !!user.hashedPassword;
   const hasGoogleAccount = user.accounts.some((account) => account.provider === "google");
 
+  // Fetch subscription and login data
+  const userWithSubscription = await getUserWithSubscription(session.user.id);
+
   return (
     <>
       <Box sx={{ px: 3, pb: 3, pt: 0 }}>
         <Typography sx={{ mb: 1 }} variant="h5">
           Settings
         </Typography>
+
+        {/* Billing & Subscription Card */}
+        <SubscriptionOverviewCard
+          subscription={userWithSubscription?.subscription || null}
+          recoveryEmail={userWithSubscription?.recoveryEmail || null}
+          lastLogin={userWithSubscription?.lastLogin || null}
+          todayLoginCount={userWithSubscription?.todayLoginCount || 0}
+          stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
+        />
 
         <Card sx={{ mb: 3 }}>
           <CardContent>
