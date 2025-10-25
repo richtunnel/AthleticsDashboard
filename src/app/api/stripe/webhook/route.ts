@@ -30,6 +30,7 @@ type SubscriptionSyncResult = {
   planPriceId: string | null;
   planLookupKey: string | null;
   planNickname: string | null;
+  planProductId: string | null;
   user: SelectedUser;
 };
 
@@ -138,6 +139,13 @@ async function syncSubscription(
   const planPriceId = priceItem?.price?.id ?? null;
   const planLookupKey = priceItem?.price?.lookup_key ?? null;
   const planNickname = priceItem?.price?.nickname ?? null;
+  const planProductId = (() => {
+    const product = priceItem?.price?.product;
+    if (!product) {
+      return null;
+    }
+    return typeof product === "string" ? product : product.id ?? null;
+  })();
 
   const billingCycle = deriveBillingCycle([planLookupKey, planNickname, planPriceId]);
   const planType = toPlanType(billingCycle) ?? existing?.planType ?? null;
@@ -166,6 +174,9 @@ async function syncSubscription(
   const stripeCustomerIdValue = customerId ?? existing?.stripeCustomerId ?? user.stripeCustomerId ?? null;
   const billingCycleValue = billingCycle ?? existing?.billingCycle ?? null;
   const priceIdValue = planPriceId ?? existing?.priceId ?? null;
+  const planProductIdValue = planProductId ?? existing?.planProductId ?? null;
+  const planLookupKeyValue = planLookupKey ?? existing?.planLookupKey ?? null;
+  const planNicknameValue = planNickname ?? existing?.planNickname ?? null;
   const canceledAtValue = canceledAt ?? existing?.canceledAt ?? null;
   const gracePeriodEndsAtValue = shouldClearGrace
     ? null
@@ -182,6 +193,9 @@ async function syncSubscription(
     planType,
     billingCycle: billingCycleValue,
     priceId: priceIdValue,
+    planProductId: planProductIdValue,
+    planLookupKey: planLookupKeyValue,
+    planNickname: planNicknameValue,
     currentPeriodStart,
     currentPeriodEnd,
     cancelAt,
@@ -225,6 +239,7 @@ async function syncSubscription(
     planPriceId,
     planLookupKey,
     planNickname,
+    planProductId,
     user: updatedSubscription.user,
   };
 }
@@ -366,7 +381,13 @@ type InvoiceLineWithPrice = Stripe.InvoiceLineItem & {
 
 function derivePlanName(result?: SubscriptionSyncResult | null, invoice?: Stripe.Invoice): string | null {
   if (result) {
-    return result.planNickname ?? result.planLookupKey ?? result.planPriceId ?? null;
+    return (
+      result.planNickname ??
+      result.planLookupKey ??
+      result.planPriceId ??
+      result.planProductId ??
+      null
+    );
   }
 
   if (invoice) {
