@@ -25,7 +25,7 @@ import {
   Email as EmailIcon,
   History as HistoryIcon,
 } from "@mui/icons-material";
-import type { PlanType, SubscriptionStatus } from "@/lib/validations/subscription";
+import type { PlanType, SubscriptionStatus } from "@prisma/client";
 
 interface SubscriptionData {
   id: string;
