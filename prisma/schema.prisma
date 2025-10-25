@@ -32,11 +32,16 @@ model User {
   calendarTokenExpiry        DateTime?
   googleCalendarId          String?         // Optionally store the primary calendar ID
   googleCalendarEmail        String?
+  city                      String?
+  lastLoginAt               DateTime?
+  lastLoginDate             DateTime?
+  dailyLoginCount           Int             @default(0)
   // Relations
   organizationId             String
   organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accounts                  Account[]
   sessions                  Session[]
+  loginEvents               UserLoginEvent[]
   games                     Game[]          @relation("GameCreator")
   emailLogs                 EmailLog[]
   emailGroups               EmailGroup[]    @relation("UserEmailGroups")
@@ -72,6 +77,20 @@ model Session {
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
+}
+
+model UserLoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  ip        String?
+  city      String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("UserLoginEvent")
 }
 
 model CustomColumn {
