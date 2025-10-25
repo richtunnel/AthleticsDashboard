@@ -1168,8 +1168,8 @@ export function GamesTable() {
                 const isEditing = editingGameId === game.id;
                 const isInlineEditing = inlineEditState?.gameId === game.id;
 
-                {
-                  isEditing && editingGameData && (
+                if (isEditing && editingGameData) {
+                  return (
                     <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
                       {/* Checkbox */}
                       <TableCell padding="checkbox">
@@ -1357,7 +1357,7 @@ export function GamesTable() {
                             displayEmpty
                           >
                             <MenuItem value="">TBD</MenuItem>
-                            <MenuItem value="add_new" sx={{ color: "primary.main", fontWeight: 600 }}>
+                            <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
                               + Add New Venue
                             </MenuItem>
                             {venues.map((venue: any) => (
