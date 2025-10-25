@@ -364,7 +364,7 @@ model Subscription {
   stripeCustomerId     String?
   customerId           String?
   customer_email       String?
-  planType             PlanType
+  planType             PlanType?
   billingCycle         String?
   priceId              String?
   planProductId        String?
