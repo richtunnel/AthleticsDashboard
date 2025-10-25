@@ -10,27 +10,28 @@ datasource db {
 
 // Authentication & Users
 model User {
-  id                        String          @id @default(cuid())
-  email                     String          @unique
-  name                      String?
-  phone                     String?         @unique
-  role                      UserRole        @default(ATHLETIC_DIRECTOR)
-  image                     String?
-  emailVerified             DateTime?
-  hashedPassword            String?
-  resetToken                String?
-  resetTokenExpiry          DateTime?
-  schoolName                String?
-  teamName                  String?
-  mascot                    String?
-  stripeCustomerId          String?
-  subscriptionId            String?         @unique
-  plan                      String?         // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
-  trialEnd                  DateTime?
-  googleCalendarRefreshToken String?        @db.Text // Store the token needed to get new access tokens
-  googleCalendarAccessToken  String?        @db.Text
+  id                         String          @id @default(cuid())
+  email                      String          @unique
+  name                       String?
+  phone                      String?         @unique
+  role                       UserRole        @default(ATHLETIC_DIRECTOR)
+  image                      String?
+  emailVerified              DateTime?
+  hashedPassword             String?
+  resetToken                 String?
+  resetTokenExpiry           DateTime?
+  schoolName                 String?
+  teamName                   String?
+  mascot                     String?
+  stripeCustomerId           String?
+  subscriptionId             String?         @unique
+  plan                       String? // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+  trialEnd                   DateTime?
+  hasReceivedFreeTrial       Boolean         @default(false)
+  googleCalendarRefreshToken String?         @db.Text // Store the token needed to get new access tokens
+  googleCalendarAccessToken  String?         @db.Text
   calendarTokenExpiry        DateTime?
-  googleCalendarId          String?         // Optionally store the primary calendar ID
+  googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
   city                      String?
   lastLoginAt               DateTime?
@@ -38,19 +39,17 @@ model User {
   dailyLoginCount           Int             @default(0)
   // Relations
   organizationId             String
-  organization              Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accounts                  Account[]
-  sessions                  Session[]
-  loginEvents               UserLoginEvent[]
-  games                     Game[]          @relation("GameCreator")
-  emailLogs                 EmailLog[]
-  emailGroups               EmailGroup[]    @relation("UserEmailGroups")
-  emailCampaigns            EmailCampaign[] @relation("UserEmailCampaigns")
-  subscription              Subscription?   @relation("UserSubscription")
-  loginEvents               UserLoginEvent[] @relation("UserLoginEvents")
-  recoveryEmail             RecoveryEmail?  @relation("UserRecoveryEmail")
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
+  organization               Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts                   Account[]
+  sessions                   Session[]
+  games                      Game[]          @relation("GameCreator")
+  emailLogs                  EmailLog[]
+  emailGroups                EmailGroup[]    @relation("UserEmailGroups")
+  emailCampaigns             EmailCampaign[] @relation("UserEmailCampaigns")
+  subscription               Subscription?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
   @@index([organizationId])
   @@map("User")
 }
@@ -69,6 +68,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
@@ -79,6 +79,7 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -97,32 +98,32 @@ model UserLoginEvent {
 }
 
 model CustomColumn {
-  id            String   @id @default(uuid())
-  name          String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  name           String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
 }
 
 // Organization/School
 model Organization {
-  id            String   @id @default(cuid())
-  name          String
-  district      String?
-  state         String?
-  timezone      String   @default("America/New_York")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  customColumns CustomColumn[]
-  emailGroups   EmailGroup[]   @relation("OrganizationEmailGroups")
+  id             String          @id @default(cuid())
+  name           String
+  district       String?
+  state          String?
+  timezone       String          @default("America/New_York")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  customColumns  CustomColumn[]
+  emailGroups    EmailGroup[]    @relation("OrganizationEmailGroups")
   travelSettings TravelSettings?
 
   // Relations
-  users         User[]
-  teams         Team[]
-  venues        Venue[]
-  opponents     Opponent[]
+  users     User[]
+  teams     Team[]
+  venues    Venue[]
+  opponents Opponent[]
 }
 
 // Sports & Teams
@@ -134,12 +135,12 @@ model Sport {
 }
 
 model Team {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   name           String
   level          TeamLevel
   gender         Gender?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   // Relations
   sportId        String
   sport          Sport        @relation(fields: [sportId], references: [id])
@@ -147,55 +148,57 @@ model Team {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   homeGames      Game[]       @relation("HomeTeam")
   awayGames      Game[]       @relation("AwayTeam")
+
   @@index([organizationId])
   @@index([sportId])
 }
 
 // Games/Competitions
 model Game {
-  id                    String      @id @default(cuid())
-  date                  DateTime
-  time                  String?
-  status                GameStatus  @default(SCHEDULED)
-  notes                 String?     @db.Text
-  isHome                Boolean     @default(true)
+  id                       String                 @id @default(cuid())
+  date                     DateTime
+  time                     String?
+  status                   GameStatus             @default(SCHEDULED)
+  notes                    String?                @db.Text
+  isHome                   Boolean                @default(true)
   // Travel Information
-  travelRequired        Boolean     @default(false)
-  busTravel             Boolean     @default(false)
-  estimatedTravelTime   Int?        // minutes
-  departureTime         DateTime?
-  busCount              Int?
-  travelCost            Float?
+  travelRequired           Boolean                @default(false)
+  busTravel                Boolean                @default(false)
+  estimatedTravelTime      Int? // minutes
+  departureTime            DateTime?
+  busCount                 Int?
+  travelCost               Float?
   // AI Travel Recommendations
   recommendedDepartureTime DateTime?
-  recommendedArrivalTime DateTime?
-  actualDepartureTime   DateTime?
-  actualArrivalTime     DateTime?
-  travelTimeMinutes     Int?
-  autoFillBusInfo       Boolean     @default(false)
+  recommendedArrivalTime   DateTime?
+  actualDepartureTime      DateTime?
+  actualArrivalTime        DateTime?
+  travelTimeMinutes        Int?
+  autoFillBusInfo          Boolean                @default(false)
   // Calendar Integration
-  calendarSynced        Boolean     @default(false)
-  lastSyncedAt          DateTime?
-  googleCalendarEventId String?     // The ID of the event in the user's calendar
-  googleCalendarHtmlLink String?    // Optional: Link to the event
+  calendarSynced           Boolean                @default(false)
+  lastSyncedAt             DateTime?
+  googleCalendarEventId    String? // The ID of the event in the user's calendar
+  googleCalendarHtmlLink   String? // Optional: Link to the event
   // Custom fields (JSON for flexibility)
-  customFields          Json?
-  customData            Json?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  customFields             Json?
+  customData               Json?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
   // Relations
-  homeTeamId            String
-  homeTeam              Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeamId            String?
-  awayTeam              Team?       @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  venueId               String?
-  venue                 Venue?      @relation(fields: [venueId], references: [id])
-  opponentId            String?
-  opponent              Opponent?   @relation(fields: [opponentId], references: [id])
-  createdById           String
-  createdBy             User        @relation("GameCreator", fields: [createdById], references: [id])
-  emailLogs             EmailLog[]
-  travelRecommendations TravelRecommendation[]
+  homeTeamId               String
+  homeTeam                 Team                   @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId               String?
+  awayTeam                 Team?                  @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  venueId                  String?
+  venue                    Venue?                 @relation(fields: [venueId], references: [id])
+  opponentId               String?
+  opponent                 Opponent?              @relation(fields: [opponentId], references: [id])
+  createdById              String
+  createdBy                User                   @relation("GameCreator", fields: [createdById], references: [id])
+  emailLogs                EmailLog[]
+  travelRecommendations    TravelRecommendation[]
+
   @@index([homeTeamId])
   @@index([awayTeamId])
   @@index([date])
@@ -205,108 +208,113 @@ model Game {
 
 // Venues/Locations
 model Venue {
-  id            String   @id @default(cuid())
-  name          String
-  address       String?
-  city          String?
-  state         String?
-  zipCode       String?
-  latitude      Float?
-  longitude     Float?
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String       @id @default(cuid())
+  name           String
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  latitude       Float?
+  longitude      Float?
+  notes          String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   // Relations
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   games          Game[]
+
   @@index([organizationId])
 }
 
 // Email Tracking
 model EmailLog {
-  id         String      @id @default(cuid())
-  to         String[]
-  cc         String[]
-  subject    String
-  body       String      @db.Text
-  status     EmailStatus @default(PENDING)
-  sentAt     DateTime?
-  error      String?     @db.Text
-  createdAt  DateTime    @default(now())
+  id        String      @id @default(cuid())
+  to        String[]
+  cc        String[]
+  subject   String
+  body      String      @db.Text
+  status    EmailStatus @default(PENDING)
+  sentAt    DateTime?
+  error     String?     @db.Text
+  createdAt DateTime    @default(now())
   // Relations
-  gameId     String?
-  game       Game?       @relation(fields: [gameId], references: [id])
-  sentById   String
-  sentBy     User        @relation(fields: [sentById], references: [id])
+  gameId    String?
+  game      Game?       @relation(fields: [gameId], references: [id])
+  sentById  String
+  sentBy    User        @relation(fields: [sentById], references: [id])
+
   @@index([gameId])
   @@index([sentById])
   @@index([createdAt])
 }
 
 model Opponent {
-  id            String   @id @default(cuid())
-  name          String
-  mascot        String?
-  colors        String?
-  contact       String?
-  phone         String?
-  email         String?
-  notes         String?  @db.Text
-  sortOrder     Int      @default(0) @map("sort_order")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String       @id @default(cuid())
+  name           String
+  mascot         String?
+  colors         String?
+  contact        String?
+  phone          String?
+  email          String?
+  notes          String?      @db.Text
+  sortOrder      Int          @default(0) @map("sort_order")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   // Relations
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   games          Game[]
+
   @@index([organizationId, sortOrder])
   @@index([organizationId])
 }
 
 model TravelRecommendation {
-  id                  String   @id @default(cuid())
-  gameId              String
-  game                Game     @relation(fields: [gameId], references: [id])
+  id                   String    @id @default(cuid())
+  gameId               String
+  game                 Game      @relation(fields: [gameId], references: [id])
   recommendedDeparture DateTime
   recommendedArrival   DateTime
-  travelDuration      Int
-  trafficCondition    String?
-  weatherCondition    String?
-  addedToGame         Boolean  @default(false)
-  addedAt             DateTime?
-  createdAt           DateTime @default(now())
+  travelDuration       Int
+  trafficCondition     String?
+  weatherCondition     String?
+  addedToGame          Boolean   @default(false)
+  addedAt              DateTime?
+  createdAt            DateTime  @default(now())
+
   @@index([gameId])
 }
 
 model TravelSettings {
-  id                  String       @id @default(cuid())
-  organizationId      String       @unique
-  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  autoFillEnabled     Boolean      @default(false)
-  defaultBufferMinutes Int         @default(45)
-  busLoadingMinutes   Int          @default(15)
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  autoFillEnabled      Boolean      @default(false)
+  defaultBufferMinutes Int          @default(45)
+  busLoadingMinutes    Int          @default(15)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 }
 
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
 model EmailGroup {
-  id        String         @id @default(uuid())
-  name      String
-  userId    String
+  id             String          @id @default(uuid())
+  name           String
+  userId         String
   organizationId String
-  createdAt DateTime       @default(now())
-  user      User           @relation("UserEmailGroups", fields: [userId], references: [id], onDelete: Cascade)
-  organization  Organization?  @relation("OrganizationEmailGroups", fields: [organizationId], references: [id], onDelete: Cascade) 
-  emails    EmailAddress[]
-  campaigns EmailCampaign[]
+  createdAt      DateTime        @default(now())
+  user           User            @relation("UserEmailGroups", fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?   @relation("OrganizationEmailGroups", fields: [organizationId], references: [id], onDelete: Cascade)
+  emails         EmailAddress[]
+  campaigns      EmailCampaign[]
 
   @@unique([organizationId, name])
   @@index([userId])
@@ -332,55 +340,26 @@ model EmailCampaign {
   group     EmailGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 }
 
-// Subscription Management
 model Subscription {
-  id                    String              @id @default(cuid())
-  userId                String              @unique
-  user                  User                @relation("UserSubscription", fields: [userId], references: [id], onDelete: Cascade)
-  stripeSubscriptionId  String?             @unique
-  stripePriceId         String?
-  status                SubscriptionStatus  @default(ACTIVE)
-  planType              PlanType            @default(FREE)
-  billingCycle          BillingCycle?
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  cancelAtPeriodEnd     Boolean             @default(false)
-  canceledAt            DateTime?
-  deletionScheduledAt   DateTime?
-  gracePeriodEndsAt     DateTime?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  @@index([userId])
-  @@index([status])
-}
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String?            @unique
+  stripeCustomerId     String?
+  status               SubscriptionStatus @default(INCOMPLETE)
+  planType             PlanType?
+  priceId              String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAt             DateTime?
+  canceledAt           DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-// Login Activity Tracking
-model UserLoginEvent {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation("UserLoginEvents", fields: [userId], references: [id], onDelete: Cascade)
-  timestamp  DateTime @default(now())
-  ipAddress  String?
-  userAgent  String?  @db.Text
-  city       String?
-  country    String?
-  success    Boolean  @default(true)
-  @@index([userId, timestamp])
   @@index([userId])
-}
-
-// Account Recovery
-model RecoveryEmail {
-  id        String    @id @default(cuid())
-  userId    String    @unique
-  user      User      @relation("UserRecoveryEmail", fields: [userId], references: [id], onDelete: Cascade)
-  email     String
-  verified  Boolean   @default(false)
-  token     String?   @unique
-  tokenExpiry DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  @@index([userId])
+  @@index([stripeSubscriptionId])
 }
 
 // Enums
@@ -430,24 +409,16 @@ enum EmailStatus {
 }
 
 enum SubscriptionStatus {
-  ACTIVE
-  TRIALING
-  CANCELED
-  PAST_DUE
-  UNPAID
   INCOMPLETE
-  GRACE_PERIOD
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
 }
 
 enum PlanType {
-  FREE
-  STANDARD_MONTHLY
-  STANDARD_YEARLY
-  BUSINESS_MONTHLY
-  BUSINESS_YEARLY
-}
-
-enum BillingCycle {
   MONTHLY
-  YEARLY
+  ANNUAL
 }
