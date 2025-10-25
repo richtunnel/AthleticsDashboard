@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import Image from "next/image";
 import styles from "../styles/logo.module.css";
@@ -47,7 +46,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/onboarding/plans"
-                style={{ fontSize: "1.05rem", border: "none", background: "transparent", cursor: "pointer", color: "var(--accent)", fontWeight: 600 }}
+                style={{ fontSize: "1.05rem", border: "none", background: "transparent", cursor: "pointer", color: "var(--accent-contrast)", fontWeight: 600 }}
                 className="d-flex flex underline"
               >
                 Get Started
