@@ -175,6 +175,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           borderColor: "none",
           border: "none!important",
           borderRadius: "0",
+          boxShadow: "none",
         }}
       >
         <Toolbar>
