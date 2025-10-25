@@ -21,14 +21,101 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
-    const sub = event.data.object as Stripe.Subscription;
+    const stripeSub = event.data.object as Stripe.Subscription;
+    
+    // Find user by stripe customer ID
+    const user = await prisma.user.findFirst({
+      where: { stripeCustomerId: stripeSub.customer as string },
+      include: { subscription: true },
+    });
+
+    if (!user) {
+      console.error("User not found for Stripe customer:", stripeSub.customer);
+      return NextResponse.json({ received: true });
+    }
+
+    // Update legacy fields for backward compatibility
     await prisma.user.update({
-      where: { subscriptionId: sub.id || "No subscription ID" },
+      where: { id: user.id },
       data: {
-        plan: sub.status === "active" || sub.status === "trialing" ? sub.items.data[0].price.id : "free",
-        trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+        plan: stripeSub.status === "active" || stripeSub.status === "trialing" ? stripeSub.items.data[0].price.id : "free",
+        trialEnd: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
+        subscriptionId: stripeSub.id,
       },
     });
+
+    // Determine status based on Stripe subscription status
+    type SubscriptionStatusType = "ACTIVE" | "TRIALING" | "CANCELED" | "PAST_DUE" | "UNPAID" | "INCOMPLETE" | "GRACE_PERIOD";
+    let status: SubscriptionStatusType = "ACTIVE";
+    switch (stripeSub.status) {
+      case "active":
+        status = "ACTIVE";
+        break;
+      case "trialing":
+        status = "TRIALING";
+        break;
+      case "canceled":
+        status = "CANCELED";
+        break;
+      case "past_due":
+        status = "PAST_DUE";
+        break;
+      case "unpaid":
+        status = "UNPAID";
+        break;
+      case "incomplete":
+        status = "INCOMPLETE";
+        break;
+    }
+
+    // Determine plan type
+    const priceId = stripeSub.items.data[0].price.id;
+    type PlanTypeType = "FREE" | "STANDARD_MONTHLY" | "STANDARD_YEARLY" | "BUSINESS_MONTHLY" | "BUSINESS_YEARLY";
+    type BillingCycleType = "MONTHLY" | "YEARLY" | null;
+    let planType: PlanTypeType = "FREE";
+    let billingCycle: BillingCycleType = null;
+
+    if (priceId) {
+      if (priceId.includes("monthly")) {
+        billingCycle = "MONTHLY";
+        planType = priceId.includes("business") ? "BUSINESS_MONTHLY" : "STANDARD_MONTHLY";
+      } else if (priceId.includes("yearly") || priceId.includes("annual")) {
+        billingCycle = "YEARLY";
+        planType = priceId.includes("business") ? "BUSINESS_YEARLY" : "STANDARD_YEARLY";
+      }
+    }
+
+    // Update or create subscription record
+    const stripeSubAny = stripeSub as any;
+    if (user.subscription) {
+      await prisma.subscription.update({
+        where: { id: user.subscription.id },
+        data: {
+          stripeSubscriptionId: stripeSub.id,
+          stripePriceId: priceId,
+          status,
+          planType,
+          billingCycle,
+          currentPeriodStart: new Date((stripeSubAny.current_period_start as number) * 1000),
+          currentPeriodEnd: new Date((stripeSubAny.current_period_end as number) * 1000),
+          cancelAtPeriodEnd: stripeSub.cancel_at_period_end || false,
+        },
+      });
+    } else {
+      await prisma.subscription.create({
+        data: {
+          userId: user.id,
+          stripeSubscriptionId: stripeSub.id,
+          stripePriceId: priceId,
+          status,
+          planType,
+          billingCycle,
+          currentPeriodStart: new Date((stripeSubAny.current_period_start as number) * 1000),
+          currentPeriodEnd: new Date((stripeSubAny.current_period_end as number) * 1000),
+          cancelAtPeriodEnd: stripeSub.cancel_at_period_end || false,
+        },
+      });
+    }
   }
 
   return NextResponse.json({ received: true });
