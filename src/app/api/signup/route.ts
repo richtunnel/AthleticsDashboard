@@ -8,21 +8,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, name, plan } = body;
 
+    console.log("[Signup] Signup attempt for email:", email?.toLowerCase());
+
     // Validation
     if (!email || !password || !name) {
+      console.error("[Signup] Missing required fields:", { email: !!email, password: !!password, name: !!name });
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     if (password.length < 8) {
+      console.error("[Signup] Password too short for email:", email?.toLowerCase());
       return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
+    const normalizedEmail = email.toLowerCase();
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
+      console.error("[Signup] User already exists:", normalizedEmail);
       return NextResponse.json({ error: "User with this email already exists" }, { status: 400 });
     }
 
@@ -36,7 +43,7 @@ export async function POST(request: NextRequest) {
       try {
         const stripe = getStripe();
         const customer = await stripe.customers.create({
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           name,
           metadata: {
             plan: plan,
@@ -44,8 +51,9 @@ export async function POST(request: NextRequest) {
           },
         });
         stripeCustomerId = customer.id;
+        console.log("[Signup] Stripe customer created:", customer.id, "for email:", normalizedEmail);
       } catch (stripeError) {
-        console.error("Stripe customer creation error:", stripeError);
+        console.error("[Signup] Stripe customer creation error for email:", normalizedEmail, stripeError);
         // Continue with user creation even if Stripe fails - we can retry later
       }
     }
@@ -53,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Create user with organization and plan
     const user = await prisma.user.create({
       data: {
-        email: email.toLowerCase(),
+        email: normalizedEmail,
         name,
         hashedPassword,
         role: "ATHLETIC_DIRECTOR",
@@ -72,6 +80,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+
     return NextResponse.json(
       {
         success: true,
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error("[Signup] Unexpected error during signup:", error);
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
 }

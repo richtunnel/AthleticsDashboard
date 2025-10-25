@@ -77,34 +77,35 @@ function SignupForm() {
     }
 
     try {
-      await credentialsAuth.executeAction({
-        type: "custom",
-        customAction: async () => {
-          const signupRes = await fetch("/api/auth/signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, password, plan, phone }),
-          });
-
-          const data = await signupRes.json();
-
-          if (!signupRes.ok) {
-            throw new Error(data.error || "Failed to create user.");
-          }
-
-          const signInRes = await signIn("credentials", {
-            redirect: false,
-            email,
-            password,
-          });
-
-          if (signInRes?.error) {
-            throw new Error("Account created but login failed. Please login manually.");
-          }
-
-          router.push(`/onboarding/setup?plan=${plan}`);
-        },
+      const signupRes = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, plan, phone }),
       });
+
+      const data = await signupRes.json();
+
+      if (!signupRes.ok) {
+        setError(data.error || "Failed to create user.");
+        setLoading(false);
+        return;
+      }
+
+      const signInRes = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        callbackUrl: `/onboarding/setup?plan=${plan}`,
+      });
+
+      if (signInRes?.error) {
+        setError("Account created but login failed. Please login manually.");
+        setLoading(false);
+        setTimeout(() => router.push("/login"), 2000);
+        return;
+      }
+
+      router.replace(`/onboarding/setup?plan=${plan}`);
     } catch (error) {
       // Error handled by onError callback
     }
