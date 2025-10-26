@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getResendClientOptional } from "@/lib/resend";
 import Stripe from "stripe";
 
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { DAY_IN_MS, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
-
-const resendClient = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const emailFrom = process.env.EMAIL_FROM || "AD Hub <noreply@yourdomain.com>";
 const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
 
@@ -64,6 +62,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const resendClient = getResendClientOptional();
   if (!resendClient) {
     return NextResponse.json({ error: "Email service is not configured" }, { status: 500 });
   }
