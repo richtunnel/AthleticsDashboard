@@ -1,7 +1,5 @@
-import { Resend } from "resend";
+import { getResendClientOptional } from "../resend";
 import { prisma } from "../database/prisma";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface SendEmailParams {
   to: string[];
@@ -43,6 +41,7 @@ export class EmailService {
       },
     });
 
+    const resend = getResendClientOptional();
     if (!resend) {
       throw new Error("Email service not configured. Please set RESEND_API_KEY.");
     }
@@ -125,6 +124,7 @@ export class EmailService {
     const { subject, body } = this.buildWelcomeEmailTemplate(user);
 
     // Gracefully handle missing Resend configuration
+    const resend = getResendClientOptional();
     if (!resend) {
       console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
       return { success: false, error: "Email service not configured" };
