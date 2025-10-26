@@ -443,6 +443,8 @@ model RecoveryEmail {
   id       String  @id @default(cuid())
   email    String  @unique
   verified Boolean @default(false)
+  token       String?  
+  tokenExpiry DateTime? 
   userId   String  @unique
   user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
