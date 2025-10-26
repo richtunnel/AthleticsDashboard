@@ -62,19 +62,8 @@ export default async function SettingsPage() {
           Settings
         </Typography>
 
-        {/* Billing & Subscription Card */}
-        <SubscriptionOverviewCard
-          subscription={userWithSubscription?.subscription || null}
-          recoveryEmail={userWithSubscription?.recoveryEmail || null}
-          lastLogin={userWithSubscription?.lastLogin || null}
-          todayLoginCount={userWithSubscription?.todayLoginCount || 0}
-          stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
-          userRole={userWithSubscription?.role || user.role}
-          userPlan={user.plan}
-        />
-
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
+        <Card sx={{ mb: 3, boxShadow: "none" }}>
+          <CardContent sx={{ boxShadow: "none" }}>
             <Typography variant="h6" gutterBottom>
               Google Calendar Integration
             </Typography>
@@ -85,10 +74,22 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       </Box>
+
+      {/* Billing & Subscription Card */}
+      <SubscriptionOverviewCard
+        subscription={userWithSubscription?.subscription || null}
+        recoveryEmail={userWithSubscription?.recoveryEmail || null}
+        lastLogin={userWithSubscription?.lastLogin || null}
+        todayLoginCount={userWithSubscription?.todayLoginCount || 0}
+        stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
+        userRole={userWithSubscription?.role || user.role}
+        userPlan={user.plan}
+      />
       <Box sx={{ p: 3 }}>
         <Typography sx={{ mb: 1 }} variant="h5">
           Account Details
         </Typography>
+
         <AccountDetailsForm user={user} />
       </Box>
       <Box sx={{ p: 3 }}>
