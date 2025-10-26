@@ -2,31 +2,39 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 export default withAuth(
-  function middleware(req) {
+  function middleware() {
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname;
-        const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
-        const isOnboardingPage = pathname.startsWith("/onboarding");
-
-        // Allow access to auth and onboarding pages without token
-        if (isAuthPage || isOnboardingPage) {
-          return true;
+      authorized: ({ token }) => {
+        if (!token) {
+          return false;
         }
 
-        // Require token for protected routes
-        return !!token;
+        const { exp } = token as { exp?: number | string };
+
+        if (typeof exp === "number" && Date.now() >= exp * 1000) {
+          return false;
+        }
+
+        if (typeof exp === "string") {
+          const expNumber = Number(exp);
+
+          if (!Number.isNaN(expNumber) && Date.now() >= expNumber * 1000) {
+            return false;
+          }
+        }
+
+        return true;
       },
     },
     pages: {
-      signIn: "/login",
+      signIn: "/",
     },
   }
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*"],
 };
