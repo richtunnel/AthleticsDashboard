@@ -32,7 +32,10 @@ import {
   StepLabel,
   Grid,
 } from "@mui/material";
+import Link from "next/link";
 import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning } from "@mui/icons-material";
+import GoogleIcon from "@mui/icons-material/Google";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
@@ -367,8 +370,20 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
               </Paper>
 
               <Box textAlign="center">
-                <Button startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
+                <Button sx={{ ml: "12px" }} startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
                   Download Sample Template
+                </Button>
+                <Button variant="outlined" sx={{ ml: "12px" }}>
+                  <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank">
+                    Open Googlesheets&nbsp;
+                    <OpenInNewIcon fontSize="small" />
+                  </Link>
+                </Button>
+                <Button sx={{ ml: "12px" }} variant="outlined">
+                  <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank">
+                    Open excel&nbsp;
+                    <OpenInNewIcon />
+                  </Link>
                 </Button>
               </Box>
 
