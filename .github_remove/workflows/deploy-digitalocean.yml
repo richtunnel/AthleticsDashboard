@@ -79,31 +79,6 @@ jobs:
           path: .next
           retention-days: 1
 
-  # Job 3: Deploy to Digital Ocean (on main branch only)
-  deploy:
-    name: Deploy to Digital Ocean
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: Deploy to Digital Ocean App Platform
-        run: |
-          doctl apps create-deployment ${{ secrets.DIGITALOCEAN_APP_ID }} --wait
-
-      - name: Verify deployment
-        run: |
-          echo "Deployment completed!"
-          doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }}
-
   # Job 4: Run Database Migrations (if needed)
   migrate:
     name: Run Database Migrations
@@ -130,6 +105,31 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
+
+  # Job 3: Deploy to Digital Ocean (on main branch only)
+  deploy:
+    name: Deploy to Digital Ocean
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Deploy to Digital Ocean App Platform
+        run: |
+          doctl apps create-deployment ${{ secrets.DIGITALOCEAN_APP_ID }} --wait
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed!"
+          doctl apps get ${{ secrets.DIGITALOCEAN_APP_ID }}
 
   # Job 5: Notify on Success/Failure
   notify:

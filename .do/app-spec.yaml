@@ -12,7 +12,7 @@ services:
       repo: your-org/athletics-dashboard
       branch: main
       deploy_on_push: true
-    
+
     # Option 2: Use pre-built image from Container Registry
     # Uncomment this and comment out 'github' above to use a pre-built image
     # image:
@@ -21,20 +21,20 @@ services:
     #   tag: latest
 
     dockerfile_path: Dockerfile
-    
+
     # Resource allocation
     instance_count: 1
-    instance_size_slug: professional-s  # 2GB RAM, 1 vCPU
+    instance_size_slug: professional-s # 2GB RAM, 1 vCPU
     # instance_size_slug: professional-m  # 4GB RAM, 2 vCPU (recommended)
     # instance_size_slug: professional-l  # 8GB RAM, 4 vCPU
-    
+
     # Port configuration
     http_port: 3000
-    
+
     # Routing
     routes:
       - path: /
-    
+
     # Health check
     health_check:
       http_path: /api/health
@@ -43,77 +43,77 @@ services:
       timeout_seconds: 10
       success_threshold: 1
       failure_threshold: 3
-    
+
     # Auto-deploy on push
     source_dir: /
-    
+
     # Environment variables
     envs:
       # Node environment
       - key: NODE_ENV
         value: production
         scope: RUN_TIME
-      
+
       # NextAuth (required)
       - key: NEXTAUTH_URL
-        value: ${APP_URL}  # App Platform provides this automatically
+        value: ${APP_URL} # App Platform provides this automatically
         scope: RUN_TIME
-      
+
       - key: NEXTAUTH_SECRET
         value: ${NEXTAUTH_SECRET}
         type: SECRET
         scope: RUN_TIME
-      
+
       # Database (from managed database component below)
       - key: DATABASE_URL
         value: ${db.DATABASE_URL}
         type: SECRET
         scope: RUN_AND_BUILD_TIME
-      
+
       # Google OAuth & Calendar
       - key: GOOGLE_CALENDAR_CLIENT_ID
         value: ${GOOGLE_CALENDAR_CLIENT_ID}
         type: SECRET
         scope: RUN_TIME
-      
+
       - key: GOOGLE_CALENDAR_CLIENT_SECRET
         value: ${GOOGLE_CALENDAR_CLIENT_SECRET}
         type: SECRET
         scope: RUN_TIME
-      
+
       - key: GOOGLE_MAPS_API_KEY
         value: ${GOOGLE_MAPS_API_KEY}
         type: SECRET
         scope: RUN_TIME
-      
+
       # Email service (Resend)
       - key: RESEND_API_KEY
         value: ${RESEND_API_KEY}
         type: SECRET
         scope: RUN_TIME
-      
+
       - key: EMAIL_FROM
         value: "AD Hub <noreply@yourdomain.com>"
         scope: RUN_TIME
-      
+
       # OpenAI
       - key: OPENAI_API_KEY
         value: ${OPENAI_API_KEY}
         type: SECRET
         scope: RUN_TIME
-      
+
       # Weather API
       - key: OPENWEATHER_API_KEY
         value: ${OPENWEATHER_API_KEY}
         type: SECRET
         scope: RUN_TIME
-      
+
       # Stripe (if using)
       - key: STRIPE_SECRET_KEY
         value: ${STRIPE_SECRET_KEY}
         type: SECRET
         scope: RUN_TIME
-      
+
       - key: STRIPE_WEBHOOK_SECRET
         value: ${STRIPE_WEBHOOK_SECRET}
         type: SECRET
@@ -127,18 +127,18 @@ databases:
     production: true
     cluster_name: athletics-db-cluster
     db_name: athleticsdb
-    db_user: athleticsuser
+    db_user: athleticsdb
 
 # Jobs (optional - for scheduled tasks)
-# jobs:
-#   - name: cleanup-job
-#     kind: POST_DEPLOY
-#     github:
-#       repo: your-org/athletics-dashboard
-#       branch: main
-#     dockerfile_path: Dockerfile
-#     run_command: "npx prisma migrate deploy"
-#     instance_size_slug: basic-xxs
+jobs:
+  - name: cleanup-job
+    kind: POST_DEPLOY
+    github:
+      repo: your-org/athletics-dashboard
+      branch: main
+    dockerfile_path: Dockerfile
+    run_command: "npx prisma migrate deploy"
+    instance_size_slug: basic-xxs
 
 # Alerts (optional)
 alerts:
