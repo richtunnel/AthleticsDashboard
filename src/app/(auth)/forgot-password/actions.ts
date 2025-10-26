@@ -3,9 +3,7 @@
 import { prisma } from "@/lib/database/prisma";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { Resend } from "resend";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+import { getResendClientOptional } from "@/lib/resend";
 
 // Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
@@ -88,6 +86,7 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
     });
 
     // Send reset email
+    const resend = getResendClientOptional();
     if (resend) {
       const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
 

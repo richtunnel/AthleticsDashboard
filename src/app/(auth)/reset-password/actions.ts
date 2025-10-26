@@ -2,9 +2,7 @@
 
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
-import { Resend } from "resend";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+import { getResendClientOptional } from "@/lib/resend";
 
 interface ValidateTokenResult {
   valid: boolean;
@@ -149,6 +147,7 @@ export async function resetPassword(
     });
 
     // Send confirmation email
+    const resend = getResendClientOptional();
     if (resend) {
       try {
         await resend.emails.send({

@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import { Resend } from "resend";
+import { getResendClientOptional } from "@/lib/resend";
 import { format } from "date-fns";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
-
-const resend = process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== "" ? new Resend(process.env.RESEND_API_KEY) : null;
 
 interface Game {
   id: string;
@@ -191,7 +189,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send email via Resend
-
+    const resend = getResendClientOptional();
     if (!resend) {
       console.warn("Resend API key missing — skipping email sending.");
       return NextResponse.json({

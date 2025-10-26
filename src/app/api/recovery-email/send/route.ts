@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import { Resend } from "resend";
+import { getResendClient } from "@/lib/resend";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,6 +63,7 @@ export async function POST(req: NextRequest) {
     const verificationUrl = `${req.nextUrl.origin}/verify-recovery-email?token=${token}`;
     
     try {
+      const resend = getResendClient();
       await resend.emails.send({
         from: process.env.EMAIL_FROM || "noreply@adhub.com",
         to: recoveryEmail,
