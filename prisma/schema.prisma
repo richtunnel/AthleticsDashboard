@@ -10,11 +10,11 @@ datasource db {
 
 // Authentication & Users
 model User {
-  id                         String           @id @default(cuid())
-  email                      String           @unique
+  id                         String    @id @default(cuid())
+  email                      String    @unique
   name                       String?
-  phone                      String?          @unique
-  role                       UserRole         @default(ATHLETIC_DIRECTOR)
+  phone                      String?   @unique
+  role                       UserRole  @default(ATHLETIC_DIRECTOR)
   image                      String?
   emailVerified              DateTime?
   hashedPassword             String?
@@ -24,40 +24,42 @@ model User {
   teamName                   String?
   mascot                     String?
   stripeCustomerId           String?
-  plan                       String?          // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
+  plan                       String? // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   priceId                    String?
   planProductId              String?
   planLookupKey              String?
   planNickname               String?
   trialEnd                   DateTime?
-  hasReceivedFreeTrial       Boolean          @default(false)
+  hasReceivedFreeTrial       Boolean   @default(false)
   cancellationDate           DateTime?
   deletionScheduledAt        DateTime?
-  googleCalendarRefreshToken String?          @db.Text // Store the token needed to get new access tokens
-  googleCalendarAccessToken  String?          @db.Text
+  googleCalendarRefreshToken String?   @db.Text // Store the token needed to get new access tokens
+  googleCalendarAccessToken  String?   @db.Text
   calendarTokenExpiry        DateTime?
-  googleCalendarId           String?          // Optionally store the primary calendar ID
+  googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
   city                       String?
   lastLoginAt                DateTime?
   lastLoginDate              DateTime?
-  dailyLoginCount            Int              @default(0)
+  dailyLoginCount            Int       @default(0)
   organizationId             String
-  createdAt                  DateTime         @default(now())
-  updatedAt                  DateTime         @updatedAt
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   // Relations
-  subscription               Subscription?    @relation("UserSubscription")
-  organization               Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accounts                   Account[]
-  sessions                   Session[]
-  games                      Game[]           @relation("GameCreator")
-  emailLogs                  EmailLog[]
-  emailGroups                EmailGroup[]     @relation("UserEmailGroups")
-  emailCampaigns             EmailCampaign[]  @relation("UserEmailCampaigns")
-  recoveryEmail              RecoveryEmail?
-  loginEvents                UserLoginEvent[]
-  accountDeletionReminders   AccountDeletionReminder[]
+  subscription             Subscription?             @relation("UserSubscription")
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts                 Account[]
+  sessions                 Session[]
+  games                    Game[]                    @relation("GameCreator")
+  emailLogs                EmailLog[]
+  emailGroups              EmailGroup[]              @relation("UserEmailGroups")
+  emailCampaigns           EmailCampaign[]           @relation("UserEmailCampaigns")
+  recoveryEmail            RecoveryEmail?
+  loginEvents              UserLoginEvent[]
+  accountDeletionReminders AccountDeletionReminder[]
+  supportTickets           SupportTicket[]
+  feedbackSubmissions      FeedbackSubmission[]
 
   @@index([organizationId])
   @@map("User")
@@ -168,7 +170,7 @@ model Game {
   // Travel Information
   travelRequired           Boolean                @default(false)
   busTravel                Boolean                @default(false)
-  estimatedTravelTime      Int?                   // minutes
+  estimatedTravelTime      Int? // minutes
   departureTime            DateTime?
   busCount                 Int?
   travelCost               Float?
@@ -182,8 +184,8 @@ model Game {
   // Calendar Integration
   calendarSynced           Boolean                @default(false)
   lastSyncedAt             DateTime?
-  googleCalendarEventId    String?                // The ID of the event in the user's calendar
-  googleCalendarHtmlLink   String?                // Optional: Link to the event
+  googleCalendarEventId    String? // The ID of the event in the user's calendar
+  googleCalendarHtmlLink   String? // Optional: Link to the event
   // Custom fields (JSON for flexibility)
   customFields             Json?
   customData               Json?
@@ -263,6 +265,39 @@ model AccountDeletionReminder {
   @@unique([userId, daysBeforeDeletion])
   @@index([daysBeforeDeletion])
   @@map("AccountDeletionReminder")
+}
+
+model SupportTicket {
+  id             String              @id @default(cuid())
+  ticketNumber   String              @unique
+  userId         String?
+  name           String
+  email          String
+  subject        String
+  initialMessage String              @db.Text
+  description    String?             @db.Text
+  status         SupportTicketStatus @default(OPEN)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model FeedbackSubmission {
+  id        String   @id @default(cuid())
+  userId    String?
+  name      String
+  email     String?
+  subject   String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
 
 model Opponent {
@@ -399,7 +434,7 @@ model UserLoginEvent {
   country   String?
   success   Boolean  @default(true)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
   @@index([timestamp])
 }
@@ -472,4 +507,10 @@ enum PlanType {
   FREE
   MONTHLY
   ANNUAL
+}
+
+enum SupportTicketStatus {
+  OPEN
+  PENDING_RESPONSE
+  CLOSED
 }
