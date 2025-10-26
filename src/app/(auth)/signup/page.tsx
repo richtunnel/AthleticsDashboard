@@ -21,6 +21,7 @@ function SignupForm() {
   });
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const referrerEmail = searchParams.get("ref") ? decodeURIComponent(searchParams.get("ref")!) : null;
 
   const googleAuth = useAuthButton({
     callbackUrl,
@@ -61,6 +62,7 @@ function SignupForm() {
           name: formData.name,
           email: formData.email,
           password: formData.password,
+          referrerEmail,
         }),
       });
 
@@ -68,7 +70,6 @@ function SignupForm() {
 
       if (!res.ok) {
         setError(data.error || "Failed to create account");
-        setLoading(false);
         return;
       }
 
@@ -82,7 +83,6 @@ function SignupForm() {
 
       if (signInResult?.error) {
         setError("Account created but login failed. Please login manually.");
-        setLoading(false);
         setTimeout(() => router.push("/login"), 2000);
         return;
       }
