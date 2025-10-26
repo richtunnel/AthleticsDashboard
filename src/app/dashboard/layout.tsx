@@ -58,6 +58,7 @@ import EmailIcon from "@mui/icons-material/Email";
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
 import { useNavigationStore } from "@/lib/stores/navigationStore";
+import ReferralShareButton from "@/components/layout/ReferralShareButton";
 
 const DRAWER_WIDTH = 240;
 
@@ -281,6 +282,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <CalendarMonth />
             </IconButton>
           </Tooltip>
+
+          {/* Referral Share Button */}
+          <ReferralShareButton />
 
           {/* Notifications */}
           <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
