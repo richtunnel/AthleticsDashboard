@@ -1,14 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { Box, Button, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useRouter } from "next/navigation";
-import BaseHeader from "@/components/headers/_base";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
-const plans = [
+const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
+const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
+
+type BillingInterval = "monthly" | "annual";
+
+type Plan = {
+  name: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  features: string[];
+  mostPopular?: boolean;
+  monthlyPriceId?: string;
+  annualPriceId?: string;
+  isFree?: boolean;
+};
+
+const plans: Plan[] = [
   {
     name: "Free Trial Plan",
     monthlyPrice: 0,
@@ -25,6 +41,7 @@ const plans = [
       "Basic chat and email support",
       "2 weeks free trial period",
     ],
+    isFree: true,
   },
   {
     name: "Directors plan",
@@ -39,78 +56,150 @@ const plans = [
       "Priority chat and email support",
       "Multi-spreadsheets (Coming soon)",
     ],
+    monthlyPriceId: DIRECTORS_MONTHLY_PRICE_ID,
+    annualPriceId: DIRECTORS_ANNUAL_PRICE_ID,
   },
-  // {
-  //   name: "Enterprise plan",
-  //   monthlyPrice: 64,
-  //   annualPrice: 52,
-  //   features: ["Everything in Business plus...", "200+ integrations", "Advanced reporting and analytics", "Unlimited individual users", "Unlimited individual data", "Personalized + priority service"],
-  // },
 ];
 
 export default function PricingPlansPage() {
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
-  const [loading, setLoading] = useState(false);
+  const [billing, setBilling] = useState<BillingInterval>("monthly");
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [hasDismissedCheckoutAlert, setHasDismissedCheckoutAlert] = useState(false);
   const router = useRouter();
   const theme = useTheme();
+  const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
+
+  const isBusy = loadingKey !== null;
+  const checkoutStatus = searchParams.get("checkout");
+  const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
+  const hasActiveSubscription = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (sessionStatus !== "authenticated") {
+      if (isMounted) {
+        setSubscriptionStatus(null);
+      }
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    (async () => {
+      try {
+        const response = await fetch("/api/subscription/status", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Failed to fetch subscription status");
+        }
+
+        if (isMounted) {
+          setSubscriptionStatus(data?.subscription?.status ?? null);
+        }
+      } catch (err) {
+        console.error("Error fetching subscription status:", err);
+        if (isMounted) {
+          setError((current) => current ?? "Unable to determine your subscription status. Please try again later.");
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sessionStatus]);
 
   const handleBackClick = () => {
     router.back();
   };
 
-  const handleBillingChange = (_event: React.MouseEvent<HTMLElement>, newBilling: "monthly" | "annual" | null) => {
+  const handleBillingChange = (_event: React.MouseEvent<HTMLElement>, newBilling: BillingInterval | null) => {
     if (newBilling) setBilling(newBilling);
   };
 
-  const handleSelectPlan = async (planName: string) => {
+  const handleSelectPlan = async (plan: Plan, planKey: string) => {
     setError(null);
-    setLoading(true);
+
+    if (plan.isFree) {
+      router.push("/onboarding/signup?plan=free_trial_plan");
+      return;
+    }
+
+    if (hasActiveSubscription) {
+      router.push("/dashboard/settings");
+      return;
+    }
+
+    if (sessionStatus === "loading") {
+      setError("Please wait while we confirm your account. Try again in a moment.");
+      return;
+    }
+
+    if (sessionStatus !== "authenticated" || !session?.user) {
+      const callbackUrl = encodeURIComponent("/onboarding/plans");
+      router.push(`/login?callbackUrl=${callbackUrl}`);
+      return;
+    }
+
+    const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
+
+    if (!priceId) {
+      setError("This plan is not currently available. Please contact support.");
+      return;
+    }
+
+    setLoadingKey(planKey);
 
     const timeoutId = window.setTimeout(() => {
-      setLoading(false);
+      setLoadingKey(null);
       setError((current) => current ?? "Plan selection is taking longer than expected. Please try again.");
     }, 10000);
 
     try {
-      if (planName === "Free Trial Plan") {
-        router.push("/onboarding/signup?plan=free_trial_plan");
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to create checkout session");
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      if (data?.url) {
+        window.location.href = data.url as string;
         return;
       }
 
-      const planType = billing === "monthly" ? "MONTHLY" : "ANNUAL";
-
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planType }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create checkout session");
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
+      throw new Error("No checkout URL returned");
     } catch (err: unknown) {
-      console.error("Plan selection error:", err);
+      console.error("Checkout error:", err);
       setError(err instanceof Error ? err.message : "Failed to start checkout. Please try again.");
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      setLoadingKey(null);
     }
   };
 
   return (
     <>
-      {/* <BaseHeader /> */}
       <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
-        {/* Header */}
         <Typography variant="body1">
           <button style={{ cursor: "pointer" }} type="button" className="button" onClick={handleBackClick}>
             <span>
@@ -126,14 +215,26 @@ export default function PricingPlansPage() {
           or get an assist from one of our experts
         </Typography>
 
+        {showCancelledAlert && (
+          <Alert
+            severity="warning"
+            sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}
+            onClose={() => {
+              setHasDismissedCheckoutAlert(true);
+              router.replace("/onboarding/plans");
+            }}
+          >
+            Your payment was cancelled. You can try again whenever you&apos;re ready.
+          </Alert>
+        )}
+
         {error && (
-          <Alert severity="error" sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}>
+          <Alert severity="error" sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }} onClose={() => setError(null)}>
             {error}
           </Alert>
         )}
 
-        {/* Billing toggle */}
-        <ToggleButtonGroup color="primary" value={billing} exclusive onChange={handleBillingChange} sx={{ mt: 4, mb: 6 }} disabled={loading}>
+        <ToggleButtonGroup color="primary" value={billing} exclusive onChange={handleBillingChange} sx={{ mt: 4, mb: 6 }} disabled={isBusy}>
           <ToggleButton style={{ fontSize: "0.75rem" }} value="monthly">
             Monthly billing
           </ToggleButton>
@@ -142,74 +243,89 @@ export default function PricingPlansPage() {
           </ToggleButton>
         </ToggleButtonGroup>
 
-        {/* Pricing cards */}
         <Grid container spacing={4} justifyContent="center" sx={{ maxWidth: 1100, mx: "auto" }}>
-          {plans.map((plan) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={plan.name}>
-              <Card
-                elevation={plan.mostPopular ? 8 : 2}
-                sx={{
-                  height: "100%",
-                  borderRadius: 4,
-                  border: plan.mostPopular && billing === "monthly" ? `2px solid ${theme.palette.primary.main}` : "1px solid #ddd",
-                  position: "relative",
-                }}
-              >
-                {plan.mostPopular && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      top: 16,
-                      right: 16,
-                      bgcolor: theme.palette.primary.main,
-                      color: "white",
-                      fontSize: 12,
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: 10,
-                    }}
-                  >
-                    Most popular
-                  </Box>
-                )}
-                <CardContent sx={{ p: 4 }}>
-                  <Typography variant="h6" gutterBottom fontWeight={600}>
-                    {plan.name}
-                  </Typography>
+          {plans.map((plan) => {
+            const planKey = plan.isFree ? `${plan.name}-free` : `${plan.name}-${billing}`;
+            const selectedPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
+            const requiresPriceId = !plan.isFree;
+            const disableForMissingPrice = requiresPriceId && !selectedPriceId && !(hasActiveSubscription && !plan.isFree);
+            const buttonDisabled = Boolean(loadingKey) || disableForMissingPrice;
+            const isLoading = loadingKey === planKey;
+            const buttonLabel = hasActiveSubscription && !plan.isFree ? "Manage Subscription" : "Get started";
 
-                  <Typography variant="h3" fontWeight={700} sx={{ mb: 1 }}>
-                    ${billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    per month
-                  </Typography>
+            return (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={plan.name}>
+                <Card
+                  elevation={plan.mostPopular ? 8 : 2}
+                  sx={{
+                    height: "100%",
+                    borderRadius: 4,
+                    border: plan.mostPopular && billing === "monthly" ? `2px solid ${theme.palette.primary.main}` : "1px solid #ddd",
+                    position: "relative",
+                  }}
+                >
+                  {plan.mostPopular && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: 16,
+                        right: 16,
+                        bgcolor: theme.palette.primary.main,
+                        color: "white",
+                        fontSize: 12,
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 10,
+                      }}
+                    >
+                      Most popular
+                    </Box>
+                  )}
+                  <CardContent sx={{ p: 4 }}>
+                    <Typography variant="h6" gutterBottom fontWeight={600}>
+                      {plan.name}
+                    </Typography>
 
-                  <AuthActionButton
-                    fullWidth
-                    variant={plan.mostPopular ? "contained" : "outlined"}
-                    size="large"
-                    sx={{ borderRadius: 2, mb: 3 }}
-                    onClick={() => handleSelectPlan(plan.name)}
-                    loading={loading}
-                    disabled={loading}
-                  >
-                    Get started
-                  </AuthActionButton>
+                    <Typography variant="h3" fontWeight={700} sx={{ mb: 1 }}>
+                      ${billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      per month
+                    </Typography>
 
-                  <Divider sx={{ mb: 3 }} />
+                    <AuthActionButton
+                      fullWidth
+                      variant={plan.mostPopular ? "contained" : "outlined"}
+                      size="large"
+                      sx={{ borderRadius: 2, mb: 3 }}
+                      onClick={() => handleSelectPlan(plan, planKey)}
+                      loading={isLoading}
+                      disabled={buttonDisabled}
+                    >
+                      {buttonLabel}
+                    </AuthActionButton>
 
-                  <Stack sx={{ textAlign: "left" }} spacing={1} alignItems="flex-start">
-                    {plan.features.map((feature) => (
-                      <Box key={feature} display="flex" alignItems="center" gap={1}>
-                        <CheckIcon fontSize="small" color="action" />
-                        <Typography variant="body2">{feature}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                    {!plan.isFree && !selectedPriceId && !hasActiveSubscription && (
+                      <Typography variant="caption" color="error" display="block" sx={{ mb: 2 }}>
+                        This plan is currently unavailable. Please contact support.
+                      </Typography>
+                    )}
+
+                    <Divider sx={{ mb: 3 }} />
+
+                    <Stack sx={{ textAlign: "left" }} spacing={1} alignItems="flex-start">
+                      {plan.features.map((feature) => (
+                        <Box key={feature} display="flex" alignItems="center" gap={1}>
+                          <CheckIcon fontSize="small" color="action" />
+                          <Typography variant="body2">{feature}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       </Box>
     </>

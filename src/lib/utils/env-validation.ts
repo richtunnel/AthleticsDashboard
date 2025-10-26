@@ -1,9 +1,11 @@
 export function validateStripeEnv() {
   const requiredVars = [
-    'STRIPE_SECRET_KEY',
-    'STRIPE_WEBHOOK_SECRET',
-    'STRIPE_MONTHLY_PRICE_ID',
-    'STRIPE_ANNUAL_PRICE_ID',
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_MONTHLY_PRICE_ID",
+    "STRIPE_ANNUAL_PRICE_ID",
+    "NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID",
+    "NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID",
   ];
 
   const missing: string[] = [];
