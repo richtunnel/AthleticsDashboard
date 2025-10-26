@@ -367,6 +367,31 @@ export class CalendarService {
     }
   }
 
+  async deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
+    try {
+      console.info(`[Calendar] Attempting to delete event ${eventId} for user ${userId}`);
+      const calendar = await this.getCalendarClient(userId);
+
+      await calendar.events.delete({
+        calendarId: "primary",
+        eventId,
+      });
+
+      console.info(`[Calendar] Successfully deleted event ${eventId} for user ${userId}`);
+      return true;
+    } catch (error: any) {
+      const statusCode = error?.code ?? error?.status ?? error?.response?.status;
+
+      if (statusCode === 404 || statusCode === 410) {
+        console.warn(`[Calendar] Event ${eventId} not found during deletion for user ${userId} (status ${statusCode}). Treating as success.`);
+        return true;
+      }
+
+      console.error(`[Calendar] Failed to delete event ${eventId} for user ${userId}:`, error);
+      return false;
+    }
+  }
+
   async unsyncGame(gameId: string, userId: string) {
     // Get user's organizationId
     const user = await prisma.user.findUnique({
@@ -396,14 +421,12 @@ export class CalendarService {
       throw new Error("Game not found, unauthorized, or not synced to calendar");
     }
 
-    // Get calendar client (this already handles tokens via Account table)
-    const calendar = await this.getCalendarClient(userId);
-
     try {
-      await calendar.events.delete({
-        calendarId: "primary",
-        eventId: game.googleCalendarEventId,
-      });
+      const deletionSucceeded = await this.deleteCalendarEvent(userId, game.googleCalendarEventId);
+
+      if (!deletionSucceeded) {
+        throw new Error("Failed to remove event from Google Calendar");
+      }
 
       await prisma.game.update({
         where: { id: game.id },
