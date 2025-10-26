@@ -264,6 +264,48 @@ export class EmailService {
     });
   }
 
+  async sendSupportTicketAcknowledgment(params: { ticketNumber: string; email: string; name: string; subject: string; userId?: string }) {
+    const { ticketNumber, email, name, subject: ticketSubject, userId } = params;
+
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const supportFormUrl = `${baseUrl.replace(/\/$/, "")}/support?ticket=${ticketNumber}`;
+
+    const greeting = `<p>Hi ${name},</p>`;
+
+    const body = `
+      ${greeting}
+      <p>Thank you for contacting Athletic Director Hub support. We've received your request and created a support ticket for you.</p>
+      
+      <h3>Ticket Details</h3>
+      <p><strong>Ticket Number:</strong> ${ticketNumber}</p>
+      <p><strong>Subject:</strong> ${ticketSubject}</p>
+      
+      <p>Our support team will review your request and get back to you as soon as possible. You can track the status of your ticket using the link below:</p>
+      
+      <p style="margin-top: 24px;">
+        <a
+          href="${supportFormUrl}"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          View Ticket
+        </a>
+      </p>
+      
+      <p style="margin-top: 24px;">If you have any additional information to add, you can reply to this email or use the ticket link above.</p>
+      
+      <p>Best regards,<br>The Athletic Director Hub Support Team</p>
+    `;
+
+    const emailSubject = `Support Ticket Created - ${ticketNumber}`;
+
+    return this.sendEmail({
+      to: [email],
+      subject: emailSubject,
+      body,
+      sentById: userId,
+    });
+  }
+
   private buildWelcomeEmailTemplate(user: { id: string; email: string; name?: string | null }): { subject: string; body: string } {
     const greeting = `<p>${user.name ? `Hi ${user.name}` : "Hi there"},</p>`;
     
