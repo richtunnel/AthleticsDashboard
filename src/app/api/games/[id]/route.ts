@@ -63,10 +63,31 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updateData: any = { ...regularData };
 
+    // Validate notes field character limit
+    const MAX_CHAR_LIMIT = 2500;
+    if (updateData.notes && typeof updateData.notes === "string" && updateData.notes.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json(
+        { error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+        { status: 400 }
+      );
+    }
+
     // Handle custom data separately (merge with existing)
     if (customData !== undefined) {
       const existingCustomData = (existingGame.customData as any) || {};
-      updateData.customData = { ...existingCustomData, ...customData };
+      const mergedCustomData: any = { ...existingCustomData, ...customData };
+
+      // Validate custom data fields character limits
+      for (const [key, value] of Object.entries(mergedCustomData)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json(
+            { error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.customData = mergedCustomData;
     }
 
     // Update using only the unique ID (after validation)
