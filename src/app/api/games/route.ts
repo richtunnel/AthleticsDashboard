@@ -445,6 +445,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // VALIDATE: notes field character limit
+    const MAX_CHAR_LIMIT = 2500;
+    if (body.notes && typeof body.notes === "string" && body.notes.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json(
+        { success: false, error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+        { status: 400 }
+      );
+    }
+
+    // VALIDATE: custom data fields character limits
+    if (body.customData && typeof body.customData === "object") {
+      for (const [key, value] of Object.entries(body.customData)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json(
+            { success: false, error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const game = await prisma.game.create({
       data: {
         ...body,
