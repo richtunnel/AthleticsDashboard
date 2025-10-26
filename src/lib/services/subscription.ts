@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/database/prisma";
-import type { PlanType, SubscriptionStatus } from "@prisma/client";
+import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
 
 export interface UserWithSubscription {
   id: string;
   email: string;
   name: string | null;
+  role: UserRole;
   stripeCustomerId: string | null;
   subscription: {
     id: string;
@@ -43,6 +44,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
       id: true,
       email: true,
       name: true,
+      role: true,
       stripeCustomerId: true,
       subscription: {
         select: {
@@ -105,6 +107,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
     id: user.id,
     email: user.email,
     name: user.name,
+    role: user.role,
     stripeCustomerId: user.stripeCustomerId,
     subscription: user.subscription,
     recoveryEmail: user.recoveryEmail,
