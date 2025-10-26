@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { calendarService } from "@/lib/services/calendar.service";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -114,8 +115,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const session = await requireAuth();
     const { id } = await params;
+    const userId = session.user.id;
 
-    // ✅ VALIDATE: Game belongs to user's organization
     const game = await prisma.game.findFirst({
       where: {
         id,
@@ -123,18 +124,48 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           organizationId: session.user.organizationId,
         },
       },
+      select: {
+        id: true,
+        calendarSynced: true,
+        googleCalendarEventId: true,
+        createdById: true,
+      },
     });
 
     if (!game) {
       return NextResponse.json({ error: "Game not found or unauthorized" }, { status: 404 });
     }
 
-    // Now delete using the unique ID (after validation)
+    if (game.createdById !== userId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const shouldDeleteFromCalendar = Boolean(game.calendarSynced && game.googleCalendarEventId);
+    let calendarDeletionSucceeded: boolean | null = null;
+
+    if (shouldDeleteFromCalendar) {
+      calendarDeletionSucceeded = await calendarService.deleteCalendarEvent(userId, game.googleCalendarEventId!);
+
+      if (!calendarDeletionSucceeded) {
+        console.error(`[Calendar] Failed to delete Google Calendar event ${game.googleCalendarEventId} for game ${game.id}`);
+      }
+    } else {
+      console.info(`[Calendar] Game ${game.id} is not synced to Google Calendar or missing an event ID; skipping calendar deletion.`);
+    }
+
     await prisma.game.delete({
-      where: { id },
+      where: { id: game.id },
     });
 
-    return NextResponse.json({ success: true });
+    console.info(`[Games] Deleted game ${game.id} for user ${userId}`);
+
+    return NextResponse.json({
+      success: true,
+      calendar: {
+        attempted: shouldDeleteFromCalendar,
+        succeeded: shouldDeleteFromCalendar ? calendarDeletionSucceeded === true : null,
+      },
+    });
   } catch (error) {
     console.error("Error deleting game:", error);
     return NextResponse.json({ error: "Failed to delete game" }, { status: 500 });
