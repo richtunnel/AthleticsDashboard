@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Card, CardContent, Typography, CircularProgress, Alert, Button } from "@mui/material";
 import { CheckCircle as CheckCircleIcon, Error as ErrorIcon } from "@mui/icons-material";
 
-export default function VerifyRecoveryEmailPage() {
+function VerifyRecoveryEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token");
@@ -104,5 +104,26 @@ export default function VerifyRecoveryEmailPage() {
         </CardContent>
       </Card>
     </Box>
+  );
+}
+
+export default function VerifyRecoveryEmailPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "100vh",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
+    >
+      <VerifyRecoveryEmailContent />
+    </Suspense>
   );
 }
