@@ -147,7 +147,7 @@ interface PaginationData {
   hasPrev: boolean;
 }
 
-type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel";
+type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel" | "notes";
 type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
@@ -500,7 +500,7 @@ export function GamesTable() {
 
   // Inline editing handlers
   const handleDoubleClick = useCallback(
-    (game: Game, field: "opponent" | "location" | "date" | "time" | "status" | "notes") => {
+    (game: Game, field: InlineEditField) => {
       // Prevent editing if row is in full edit mode
       if (editingGameId === game.id) return;
 
@@ -1106,9 +1106,7 @@ export function GamesTable() {
                 </Box>
               </TableCell>
 
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
-                NOTES
-              </TableCell>
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>NOTES</TableCell>
 
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -1271,12 +1269,7 @@ export function GamesTable() {
                     FormHelperTextProps={{
                       sx: {
                         fontSize: 10,
-                        color:
-                          newGameData.notes.length >= MAX_CHAR_LIMIT
-                            ? "error.main"
-                            : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9
-                            ? "warning.main"
-                            : "text.secondary",
+                        color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
                       },
                     }}
                     sx={{
@@ -1617,7 +1610,7 @@ export function GamesTable() {
                             setEditingGameData({ ...editingGameData, notes: value });
                           }}
                           placeholder="Add notes..."
-                          helperText={`${(editingGameData.notes?.length ?? 0)}/${MAX_CHAR_LIMIT}`}
+                          helperText={`${editingGameData.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
                           FormHelperTextProps={{
                             sx: {
                               fontSize: 10,
@@ -1626,8 +1619,8 @@ export function GamesTable() {
                                 (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT
                                   ? "error.main"
                                   : (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
-                                  ? "warning.main"
-                                  : "text.secondary",
+                                    ? "warning.main"
+                                    : "text.secondary",
                             },
                           }}
                           sx={{
@@ -1840,10 +1833,10 @@ export function GamesTable() {
                                 saveTimeoutRef.current = null;
                               }
                               setShowAddOpponent(true);
-                              } else {
+                            } else {
                               handleInlineValueChange(e.target.value as string);
-                              }
-                              }}
+                            }
+                          }}
                           onKeyDown={(e) => handleInlineKeyDown(e, game)}
                           onBlur={() => handleInlineBlur(game)}
                           autoFocus
