@@ -529,10 +529,7 @@ export function GamesTable() {
 
       const calendarFailures = data?.data?.calendar?.failed ?? 0;
       if (calendarFailures > 0) {
-        addNotification(
-          `${calendarFailures} Google Calendar event${calendarFailures === 1 ? "" : "s"} could not be removed.`,
-          "warning"
-        );
+        addNotification(`${calendarFailures} Google Calendar event${calendarFailures === 1 ? "" : "s"} could not be removed.`, "warning");
       }
     },
     onError: (error: any) => {
@@ -842,9 +839,7 @@ export function GamesTable() {
 
   const handleDeleteGame = (game: Game) => {
     const hasCalendarEvent = Boolean(game.calendarSynced && game.googleCalendarEventId);
-    const message = hasCalendarEvent
-      ? "This will delete the game from both the table and your Google Calendar. Are you sure?"
-      : "Are you sure you want to delete this game?";
+    const message = hasCalendarEvent ? "This will delete the game from both the table and your Google Calendar. Are you sure?" : "Are you sure you want to delete this game?";
 
     if (confirm(message)) {
       deleteGameMutation.mutate(game.id);
@@ -860,11 +855,12 @@ export function GamesTable() {
 
     const selectedIds = Array.from(selectedGames);
     const selectedGameDetails = games.filter((game: Game) => selectedGames.has(game.id));
-    const syncedCount = selectedGameDetails.filter((game) => game.calendarSynced && game.googleCalendarEventId).length;
+    const syncedCount = selectedGameDetails.filter((game: any) => game.calendarSynced && game.googleCalendarEventId).length;
 
-    const message = syncedCount > 0
-      ? `This will delete ${count} selected game${count > 1 ? "s" : ""} and remove ${syncedCount} linked Google Calendar event${syncedCount === 1 ? "" : "s"}. Are you sure?`
-      : `Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`;
+    const message =
+      syncedCount > 0
+        ? `This will delete ${count} selected game${count > 1 ? "s" : ""} and remove ${syncedCount} linked Google Calendar event${syncedCount === 1 ? "" : "s"}. Are you sure?`
+        : `Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`;
 
     if (confirm(message)) {
       bulkDeleteMutation.mutate(selectedIds);
