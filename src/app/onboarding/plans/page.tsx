@@ -1,7 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert } from "@mui/material";
+import { Suspense, useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  Grid,
+  Stack,
+  Divider,
+  useTheme,
+  Alert,
+  CircularProgress,
+} from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -61,7 +74,22 @@ const plans: Plan[] = [
   },
 ];
 
-export default function PricingPlansPage() {
+function PlansLoadingFallback() {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "400px",
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
+
+function PricingPlansContent() {
   const [billing, setBilling] = useState<BillingInterval>("monthly");
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -329,5 +357,13 @@ export default function PricingPlansPage() {
         </Grid>
       </Box>
     </>
+  );
+}
+
+export default function PricingPlansPage() {
+  return (
+    <Suspense fallback={<PlansLoadingFallback />}>
+      <PricingPlansContent />
+    </Suspense>
   );
 }
