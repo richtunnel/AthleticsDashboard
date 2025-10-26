@@ -97,6 +97,7 @@ interface Game {
   actualDepartureTime: string | null;
   actualArrivalTime: string | null;
   calendarSynced?: boolean;
+  googleCalendarEventId?: string | null;
   customData?: any;
   homeTeam: {
     id?: string;
@@ -469,32 +470,73 @@ export function GamesTable() {
       const res = await fetch(`/api/games/${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to delete game");
-      return res.json();
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch (error) {
+        data = {};
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to delete game");
+      }
+
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      addNotification("Game deleted successfully", "success");
+
+      const calendarAttempted = data?.calendar?.attempted === true;
+      const calendarSucceeded = data?.calendar?.succeeded === true;
+
+      if (calendarAttempted && !calendarSucceeded) {
+        addNotification("The linked Google Calendar event could not be removed.", "warning");
+      }
+    },
+    onError: (error: any) => {
+      addNotification(error?.message || "Failed to delete game", "error");
     },
   });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (gameIds: string[]) => {
-      const results = await Promise.all(
-        gameIds.map((id) =>
-          fetch(`/api/games/${id}`, {
-            method: "DELETE",
-          })
-        )
-      );
-      const failed = results.filter((r) => !r.ok);
-      if (failed.length > 0) {
-        throw new Error(`Failed to delete ${failed.length} game(s)`);
+      const res = await fetch(`/api/games/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameIds }),
+      });
+
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch (error) {
+        data = {};
       }
-      return results;
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to delete selected games");
+      }
+
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any, gameIds: string[]) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setSelectedGames(new Set());
+      const deletedCount = data?.data?.deletedCount ?? gameIds.length;
+      addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
+
+      const calendarFailures = data?.data?.calendar?.failed ?? 0;
+      if (calendarFailures > 0) {
+        addNotification(
+          `${calendarFailures} Google Calendar event${calendarFailures === 1 ? "" : "s"} could not be removed.`,
+          "warning"
+        );
+      }
+    },
+    onError: (error: any) => {
+      addNotification(error?.message || "Failed to delete selected games", "error");
     },
   });
 
@@ -798,16 +840,34 @@ export function GamesTable() {
     setEditingCustomData({});
   };
 
-  const handleDeleteGame = (gameId: string) => {
-    if (confirm("Are you sure you want to delete this game?")) {
-      deleteGameMutation.mutate(gameId);
+  const handleDeleteGame = (game: Game) => {
+    const hasCalendarEvent = Boolean(game.calendarSynced && game.googleCalendarEventId);
+    const message = hasCalendarEvent
+      ? "This will delete the game from both the table and your Google Calendar. Are you sure?"
+      : "Are you sure you want to delete this game?";
+
+    if (confirm(message)) {
+      deleteGameMutation.mutate(game.id);
     }
   };
 
   const handleBulkDelete = () => {
     const count = selectedGames.size;
-    if (confirm(`Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`)) {
-      bulkDeleteMutation.mutate(Array.from(selectedGames));
+
+    if (count === 0) {
+      return;
+    }
+
+    const selectedIds = Array.from(selectedGames);
+    const selectedGameDetails = games.filter((game: Game) => selectedGames.has(game.id));
+    const syncedCount = selectedGameDetails.filter((game) => game.calendarSynced && game.googleCalendarEventId).length;
+
+    const message = syncedCount > 0
+      ? `This will delete ${count} selected game${count > 1 ? "s" : ""} and remove ${syncedCount} linked Google Calendar event${syncedCount === 1 ? "" : "s"}. Are you sure?`
+      : `Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`;
+
+    if (confirm(message)) {
+      bulkDeleteMutation.mutate(selectedIds);
     }
   };
 
@@ -2204,7 +2264,7 @@ export function GamesTable() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteGame(game.id)} sx={{ p: 0.5 }}>
+                          <IconButton size="small" color="error" onClick={() => handleDeleteGame(game)} sx={{ p: 0.5 }}>
                             <Delete sx={{ fontSize: 18 }} />
                           </IconButton>
                         </Tooltip>
