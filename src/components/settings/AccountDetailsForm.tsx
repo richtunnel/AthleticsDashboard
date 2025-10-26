@@ -119,7 +119,7 @@ export default function AccountDetailsForm({ user }: Props) {
   };
 
   return (
-    <Card sx={{ border: "none", boxShadow: "none", maxWidth: "720px" }}>
+    <Card sx={{ border: "none", boxShadow: "none" }}>
       <CardContent>
         <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
           <Avatar src={form.image || undefined} alt={form.name || ""} />
@@ -132,7 +132,7 @@ export default function AccountDetailsForm({ user }: Props) {
         </Box>
 
         <form onSubmit={handleSubmit}>
-          <Stack spacing={2}>
+          <Stack sx={{ maxWidth: "768px" }} spacing={2}>
             <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth />
             <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth />
             <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />

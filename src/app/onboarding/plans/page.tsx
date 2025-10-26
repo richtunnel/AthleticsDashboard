@@ -138,7 +138,7 @@ export default function PricingPlansPage() {
         {/* Pricing cards */}
         <Grid container spacing={4} justifyContent="center" sx={{ maxWidth: 1100, mx: "auto" }}>
           {plans.map((plan) => (
-            <Grid size={{ xs: 12, sm: 12, md: 10 }} key={plan.name}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={plan.name}>
               <Card
                 elevation={plan.mostPopular ? 8 : 2}
                 sx={{
@@ -185,7 +185,6 @@ export default function PricingPlansPage() {
                     onClick={() => handleSelectPlan(plan.name)}
                     loading={loading}
                     disabled={loading}
-                    loadingText="Processing..."
                   >
                     Get started
                   </AuthActionButton>
