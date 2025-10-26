@@ -19,25 +19,16 @@ export async function POST(req: NextRequest) {
     const validationResult = changePlanSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: "Invalid request", details: validationResult.error.format() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid request", details: validationResult.error.format() }, { status: 400 });
     }
 
     const { planType } = validationResult.data;
 
-    const priceId =
-      planType === "MONTHLY"
-        ? process.env.STRIPE_MONTHLY_PRICE_ID
-        : process.env.STRIPE_ANNUAL_PRICE_ID;
+    const priceId = planType === "MONTHLY" ? process.env.STRIPE_STANDARD_MONTHLY_PRICE_ID : process.env.STRIPE_STANDARD_FREE_PRICE_ID;
 
     if (!priceId) {
       console.error(`Missing price ID for plan type: ${planType}`);
-      return NextResponse.json(
-        { error: "Subscription plan configuration error. Please contact support." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Subscription plan configuration error. Please contact support." }, { status: 500 });
     }
 
     const user = await prisma.user.findUnique({
@@ -58,26 +49,21 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    const currentSubscription = await stripe.subscriptions.retrieve(
-      user.subscription.stripeSubscriptionId
-    );
+    const currentSubscription = await stripe.subscriptions.retrieve(user.subscription.stripeSubscriptionId);
 
     if (!currentSubscription.items.data[0]) {
       return NextResponse.json({ error: "Invalid subscription state" }, { status: 400 });
     }
 
-    const updatedSubscription = await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      {
-        items: [
-          {
-            id: currentSubscription.items.data[0].id,
-            price: priceId,
-          },
-        ],
-        proration_behavior: "create_prorations",
-      }
-    );
+    const updatedSubscription = await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
+      items: [
+        {
+          id: currentSubscription.items.data[0].id,
+          price: priceId,
+        },
+      ],
+      proration_behavior: "create_prorations",
+    });
 
     const currentPeriodStart = (updatedSubscription as any).current_period_start;
     const currentPeriodEnd = (updatedSubscription as any).current_period_end;
@@ -88,12 +74,8 @@ export async function POST(req: NextRequest) {
         planType,
         billingCycle: planType,
         priceId,
-        currentPeriodStart: currentPeriodStart
-          ? new Date(currentPeriodStart * 1000)
-          : null,
-        currentPeriodEnd: currentPeriodEnd
-          ? new Date(currentPeriodEnd * 1000)
-          : null,
+        currentPeriodStart: currentPeriodStart ? new Date(currentPeriodStart * 1000) : null,
+        currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : null,
       },
     });
 
