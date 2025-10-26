@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, Typography, Box, Button, Chip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, CircularProgress, Divider, Stack } from "@mui/material";
 import { CreditCard as CreditCardIcon, Cancel as CancelIcon, PlayArrow as PlayArrowIcon, Email as EmailIcon, History as HistoryIcon } from "@mui/icons-material";
 import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
@@ -43,9 +43,10 @@ interface SubscriptionOverviewCardProps {
   stripeCustomerId: string | null;
   userRole: UserRole | null;
   userPlan: string | null;
+  checkoutStatus?: string | null;
 }
 
-export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan }: SubscriptionOverviewCardProps) {
+export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan, checkoutStatus }: SubscriptionOverviewCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,19 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const [recoveryEmailDialogOpen, setRecoveryEmailDialogOpen] = useState(false);
   const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
   const [optimisticState, setOptimisticState] = useState(subscription);
+
+  useEffect(() => {
+    if (!checkoutStatus) {
+      return;
+    }
+
+    if (checkoutStatus === "success") {
+      setSuccess("Your payment was successful! Your subscription details will refresh shortly.");
+      setError(null);
+    } else if (checkoutStatus === "error") {
+      setError("We couldn't confirm your payment. Please try again or contact support.");
+    }
+  }, [checkoutStatus]);
 
   const displaySubscription = optimisticState || subscription;
   const isSuperAdmin = userRole === "SUPER_ADMIN";

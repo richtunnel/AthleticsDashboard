@@ -9,12 +9,19 @@ import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
 import { getUserWithSubscription } from "@/lib/services/subscription";
 
-export default async function SettingsPage() {
+interface SettingsPageProps {
+  searchParams?: Record<string, string | string[] | undefined>;
+}
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     redirect("/login");
   }
+
+  const checkoutParam = searchParams?.checkout;
+  const checkoutStatus = Array.isArray(checkoutParam) ? checkoutParam[0] : checkoutParam ?? null;
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -84,6 +91,7 @@ export default async function SettingsPage() {
         stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
         userRole={userWithSubscription?.role || user.role}
         userPlan={user.plan}
+        checkoutStatus={checkoutStatus}
       />
       <Box sx={{ p: 3 }}>
         <Typography sx={{ mb: 1 }} variant="h5">
