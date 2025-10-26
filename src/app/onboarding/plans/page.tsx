@@ -31,7 +31,14 @@ const plans = [
     monthlyPrice: 40,
     annualPrice: 250,
     mostPopular: true,
-    features: ["Everything in Free plan plus...", "50,000+ batch email sends", "Advanced reporting and analytics", "Up to 20 individual users", "Priority chat and email support"],
+    features: [
+      "Everything in Free plan plus...",
+      "50,000+ batch email sends",
+      "Advanced reporting and analytics",
+      "Up to 20 individual users",
+      "Priority chat and email support",
+      "Multi-spreadsheets (Coming soon)",
+    ],
   },
   // {
   //   name: "Enterprise plan",
