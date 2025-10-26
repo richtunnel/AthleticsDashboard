@@ -60,6 +60,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
+# Copy Prisma CLI for migrations
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
 # Copy public assets
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
@@ -78,7 +82,7 @@ ENV HOSTNAME=0.0.0.0
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('https://adhub-8ajac.ondigitalocean.app/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
 # Run migrations before starting the server
