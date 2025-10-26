@@ -125,7 +125,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   const drawer = (
-    <Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
       {/* Logo / Brand */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
         <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`}>
@@ -134,7 +140,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       </Box>
 
       {/* Navigation */}
-      <List sx={{ px: 2, py: 2 }}>
+      <List sx={{ px: 2, py: 2, flexGrow: 1 }}>
         {navigation.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -169,6 +175,48 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           );
         })}
       </List>
+
+      <Box
+        sx={{
+          mt: "auto",
+          pt: 2,
+          pb: 2,
+          px: 2,
+          borderTop: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Link href="/dashboard/feedback" style={{ textDecoration: "none", display: "block" }}>
+          <Typography
+            sx={{
+              color: "text.disabled",
+              fontSize: "0.875rem",
+              fontWeight: 400,
+              opacity: 0.6,
+              textAlign: "center",
+              letterSpacing: "0.02em",
+              px: 2,
+              py: 1,
+              textShadow: "0 1px 0 rgba(255, 255, 255, 0.1)",
+              cursor: "pointer",
+              transition: "opacity 0.2s ease, color 0.2s ease",
+              textTransform: "none",
+              "&:hover": {
+                opacity: 0.85,
+                color: "text.secondary",
+              },
+              "&:focus-visible": {
+                outline: "2px solid",
+                outlineColor: "primary.main",
+                outlineOffset: 2,
+                opacity: 1,
+              },
+            }}
+          >
+            Leave Feedback
+          </Typography>
+        </Link>
+      </Box>
     </Box>
   );
 
