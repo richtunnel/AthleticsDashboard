@@ -60,6 +60,9 @@ model User {
   accountDeletionReminders AccountDeletionReminder[]
   supportTickets           SupportTicket[]
   feedbackSubmissions      FeedbackSubmission[]
+  referrals                Referral[]                @relation("UserReferrals")
+  referredBy               Referral[]                @relation("UserReferredBy")
+  rewardPoints             RewardPoints?             @relation("UserRewardPoints")
 
   @@index([organizationId])
   @@map("User")
@@ -515,4 +518,41 @@ enum SupportTicketStatus {
   OPEN
   PENDING_RESPONSE
   CLOSED
+}
+
+enum ReferralStatus {
+  PENDING   // Link shared but not clicked/signed up
+  SIGNED_UP // User created account
+  REWARDED  // Points awarded to referrer
+}
+
+// Referral System
+model Referral {
+  id             String         @id @default(cuid())
+  referrerUserId String // User who shared the link
+  referredEmail  String? // Email of person who was referred
+  referredUserId String? // User who signed up (once they create account)
+  status         ReferralStatus @default(PENDING)
+  pointsAwarded  Int            @default(0)
+  signedUpAt     DateTime?
+  rewardedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  referrer User  @relation("UserReferrals", fields: [referrerUserId], references: [id], onDelete: Cascade)
+  referred User? @relation("UserReferredBy", fields: [referredUserId], references: [id], onDelete: SetNull)
+
+  @@index([referrerUserId])
+  @@index([referredUserId])
+  @@index([referredEmail])
+}
+
+model RewardPoints {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  points    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserRewardPoints", fields: [userId], references: [id], onDelete: Cascade)
 }

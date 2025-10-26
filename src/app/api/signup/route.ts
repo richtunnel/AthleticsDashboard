@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import bcrypt from "bcryptjs";
+import { trackReferral } from "@/lib/services/referral.service";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name, plan } = body;
+    const { email, password, name, plan, referrerEmail } = body;
 
     console.log("[Signup] Signup attempt for email:", email?.toLowerCase());
 
@@ -81,6 +82,17 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+
+    // Track referral if referrerEmail is provided
+    if (referrerEmail) {
+      try {
+        await trackReferral(referrerEmail, user.id, normalizedEmail);
+        console.log("[Signup] Referral tracked for:", referrerEmail);
+      } catch (referralError) {
+        console.error("[Signup] Failed to track referral:", referralError);
+        // Don't fail signup if referral tracking fails
+      }
+    }
 
     return NextResponse.json(
       {
