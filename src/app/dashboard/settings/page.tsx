@@ -24,6 +24,7 @@ export default async function SettingsPage() {
       email: true,
       phone: true,
       role: true,
+      plan: true,
       image: true,
       hashedPassword: true,
       organization: {
@@ -68,6 +69,8 @@ export default async function SettingsPage() {
           lastLogin={userWithSubscription?.lastLogin || null}
           todayLoginCount={userWithSubscription?.todayLoginCount || 0}
           stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
+          userRole={userWithSubscription?.role || user.role}
+          userPlan={user.plan}
         />
 
         <Card sx={{ mb: 3 }}>
