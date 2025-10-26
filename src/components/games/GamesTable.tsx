@@ -40,6 +40,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
+import TextareaAutosize from "@mui/material/TextareaAutosize";
 import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
 import { format } from "date-fns";
 
@@ -151,9 +152,11 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | `custom:${string}`;
+
 interface InlineEditState {
   gameId: string;
-  field: "opponent" | "location";
+  field: InlineEditField;
 }
 
 type ConfirmedStatus = {
@@ -212,8 +215,42 @@ export function GamesTable() {
   // Inline editing state
   const [inlineEditState, setInlineEditState] = useState<InlineEditState | null>(null);
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
+  const [inlineEditError, setInlineEditError] = useState<string | null>(null);
   const [isInlineSaving, setIsInlineSaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Constants
+  const MAX_CHAR_LIMIT = 2500;
+  const NOTES_PREVIEW_LENGTH = 100;
+
+  const getCharacterCounterColor = (length: number) => {
+    if (length >= MAX_CHAR_LIMIT) {
+      return theme.palette.error.main;
+    }
+    if (length >= MAX_CHAR_LIMIT * 0.9) {
+      return (theme.palette.warning && theme.palette.warning.main) || theme.palette.error.main;
+    }
+    return theme.palette.text.secondary;
+  };
+
+  const getNotesPreview = (notes?: string | null) => {
+    if (!notes) return "—";
+    return notes.length > NOTES_PREVIEW_LENGTH ? `${notes.slice(0, NOTES_PREVIEW_LENGTH).trimEnd()}…` : notes;
+  };
+
+  const handleInlineValueChange = useCallback(
+    (value: string) => {
+      if (value.length <= MAX_CHAR_LIMIT) {
+        setInlineEditValue(value);
+        if (inlineEditError) {
+          setInlineEditError(null);
+        }
+      } else {
+        setInlineEditError(`Maximum ${MAX_CHAR_LIMIT} characters allowed`);
+      }
+    },
+    [MAX_CHAR_LIMIT, inlineEditError]
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -463,17 +500,45 @@ export function GamesTable() {
 
   // Inline editing handlers
   const handleDoubleClick = useCallback(
-    (game: Game, field: "opponent" | "location") => {
+    (game: Game, field: "opponent" | "location" | "date" | "time" | "status" | "notes") => {
       // Prevent editing if row is in full edit mode
       if (editingGameId === game.id) return;
 
       // Prevent editing location for home games
       if (field === "location" && game.isHome) return;
 
-      const currentValue = field === "opponent" ? game.opponentId || game.opponent?.id || "" : game.venueId || game.venue?.id || "";
+      let currentValue = "";
+
+      if (field.startsWith("custom:")) {
+        const columnId = field.replace("custom:", "");
+        const customData = (game.customData as any) || {};
+        currentValue = customData[columnId] || "";
+      } else {
+        switch (field) {
+          case "opponent":
+            currentValue = game.opponentId || game.opponent?.id || "";
+            break;
+          case "location":
+            currentValue = game.venueId || game.venue?.id || "";
+            break;
+          case "date":
+            currentValue = extractDatePart(game.date);
+            break;
+          case "time":
+            currentValue = game.time || "";
+            break;
+          case "status":
+            currentValue = game.status;
+            break;
+          case "notes":
+            currentValue = game.notes || "";
+            break;
+        }
+      }
 
       setInlineEditState({ gameId: game.id, field });
       setInlineEditValue(currentValue);
+      setInlineEditError(null);
     },
     [editingGameId]
   );
@@ -481,6 +546,7 @@ export function GamesTable() {
   const saveInlineEdit = useCallback(
     async (game: Game) => {
       if (!inlineEditState || isInlineSaving) return;
+      if (inlineEditError) return;
 
       // Clear any pending timeouts
       if (saveTimeoutRef.current) {
@@ -498,15 +564,38 @@ export function GamesTable() {
           isHome: game.isHome,
           status: game.status,
           notes: game.notes || null,
+          opponentId: game.opponentId || game.opponent?.id || null,
+          venueId: game.venueId || game.venue?.id || null,
           customData: game.customData || {},
         };
 
+        // Apply the inline edit value based on field
         if (inlineEditState.field === "opponent") {
           updateData.opponentId = inlineEditValue || null;
-          updateData.venueId = game.venueId || game.venue?.id || null;
         } else if (inlineEditState.field === "location") {
-          updateData.opponentId = game.opponentId || game.opponent?.id || null;
           updateData.venueId = inlineEditValue || null;
+        } else if (inlineEditState.field === "date") {
+          if (inlineEditValue) {
+            const nextDate = new Date(inlineEditValue);
+            if (!Number.isNaN(nextDate.getTime())) {
+              updateData.date = nextDate.toISOString();
+            }
+          }
+        } else if (inlineEditState.field === "time") {
+          updateData.time = inlineEditValue || null;
+        } else if (inlineEditState.field === "status") {
+          updateData.status = inlineEditValue;
+        } else if (inlineEditState.field === "notes") {
+          // Enforce character limit
+          updateData.notes = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
+        } else if (inlineEditState.field.startsWith("custom:")) {
+          // Handle custom column editing
+          const columnId = inlineEditState.field.replace("custom:", "");
+          const existingCustomData = (game.customData as any) || {};
+          updateData.customData = {
+            ...existingCustomData,
+            [columnId]: inlineEditValue.slice(0, MAX_CHAR_LIMIT), // Also apply limit to custom fields
+          };
         }
 
         const res = await fetch(`/api/games/${game.id}`, {
@@ -527,18 +616,20 @@ export function GamesTable() {
 
         setInlineEditState(null);
         setInlineEditValue("");
+        setInlineEditError(null);
       } catch (error: any) {
         addNotification(`Error updating game: ${error.message}`, "error");
       } finally {
         setIsInlineSaving(false);
       }
     },
-    [inlineEditState, inlineEditValue, isInlineSaving, queryClient, syncGameMutation, addNotification]
+    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT]
   );
 
   const handleInlineKeyDown = useCallback(
     (e: React.KeyboardEvent, game: Game) => {
-      if (e.key === "Enter") {
+      if (e.key === "Enter" && inlineEditState?.field !== "notes") {
+        // Don't save on Enter for notes field (textarea)
         e.preventDefault();
         saveInlineEdit(game);
       } else if (e.key === "Escape") {
@@ -551,7 +642,7 @@ export function GamesTable() {
         }
       }
     },
-    [saveInlineEdit]
+    [saveInlineEdit, inlineEditState]
   );
 
   const handleInlineBlur = useCallback(
@@ -634,12 +725,17 @@ export function GamesTable() {
     createGameMutation.mutate(gameData);
   };
 
-  const handleCustomFieldChange = useCallback((columnId: string, value: string) => {
-    setEditingCustomData((prev) => ({
-      ...prev,
-      [columnId]: value,
-    }));
-  }, []);
+  const handleCustomFieldChange = useCallback(
+    (columnId: string, value: string) => {
+      // Enforce character limit
+      const limitedValue = value.slice(0, MAX_CHAR_LIMIT);
+      setEditingCustomData((prev) => ({
+        ...prev,
+        [columnId]: limitedValue,
+      }));
+    },
+    [MAX_CHAR_LIMIT]
+  );
 
   const handleCancelNewGame = () => {
     setIsAddingNew(false);
@@ -1010,6 +1106,10 @@ export function GamesTable() {
                 </Box>
               </TableCell>
 
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
+                NOTES
+              </TableCell>
+
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
@@ -1155,6 +1255,37 @@ export function GamesTable() {
                     ))}
                   </Select>
                 </TableCell>
+                <TableCell sx={{ py: 1, minWidth: 220 }}>
+                  <TextField
+                    size="small"
+                    multiline
+                    rows={2}
+                    fullWidth
+                    value={newGameData.notes}
+                    onChange={(e) => {
+                      const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                      setNewGameData({ ...newGameData, notes: value });
+                    }}
+                    placeholder="Add notes..."
+                    helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
+                    FormHelperTextProps={{
+                      sx: {
+                        fontSize: 10,
+                        color:
+                          newGameData.notes.length >= MAX_CHAR_LIMIT
+                            ? "error.main"
+                            : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9
+                            ? "warning.main"
+                            : "text.secondary",
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                </TableCell>
                 <TableCell sx={{ py: 1, minWidth: 180 }}>
                   <Stack direction="column" spacing={0.75}>
                     <TextField
@@ -1205,15 +1336,16 @@ export function GamesTable() {
                       size="small"
                       fullWidth
                       value={newGameData.customData?.[column.id] || ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
                         setNewGameData({
                           ...newGameData,
                           customData: {
                             ...(newGameData.customData || {}),
-                            [column.id]: e.target.value,
+                            [column.id]: value,
                           },
-                        })
-                      }
+                        });
+                      }}
                       placeholder={`Enter ${column.name.toLowerCase()}`}
                       sx={{
                         "& .MuiInputBase-input": {
@@ -1472,6 +1604,40 @@ export function GamesTable() {
                         )}
                       </TableCell>
 
+                      {/* Notes */}
+                      <TableCell sx={{ py: 1, minWidth: 220 }}>
+                        <TextField
+                          size="small"
+                          multiline
+                          rows={3}
+                          fullWidth
+                          value={editingGameData.notes || ""}
+                          onChange={(e) => {
+                            const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                            setEditingGameData({ ...editingGameData, notes: value });
+                          }}
+                          placeholder="Add notes..."
+                          helperText={`${(editingGameData.notes?.length ?? 0)}/${MAX_CHAR_LIMIT}`}
+                          FormHelperTextProps={{
+                            sx: {
+                              fontSize: 10,
+                              mt: 0.5,
+                              color:
+                                (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT
+                                  ? "error.main"
+                                  : (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
+                                  ? "warning.main"
+                                  : "text.secondary",
+                            },
+                          }}
+                          sx={{
+                            "& .MuiInputBase-input": {
+                              fontSize: 13,
+                            },
+                          }}
+                        />
+                      </TableCell>
+
                       {/* Bus Travel */}
                       <TableCell sx={{ py: 1, minWidth: 180 }}>
                         <Stack direction="column" spacing={0.75}>
@@ -1603,7 +1769,46 @@ export function GamesTable() {
                     <TableCell padding="checkbox">
                       <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{formatGameDate(game.date)}</TableCell>
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 0,
+                        cursor: isInlineEditing && inlineEditState?.field === "date" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "date" ? "#fff9e6" : "transparent",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "date" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "date" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "date")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "date" ? (
+                        <Box sx={{ py: 1 }}>
+                          <TextField
+                            type="date"
+                            size="small"
+                            value={inlineEditValue}
+                            onChange={(e) => handleInlineValueChange(e.target.value)}
+                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                            onBlur={() => handleInlineBlur(game)}
+                            autoFocus
+                            disabled={isInlineSaving}
+                            sx={{ width: "100%" }}
+                            InputProps={{ sx: { fontSize: 13 } }}
+                          />
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                          <Typography variant="body2" sx={{ fontSize: 13 }}>
+                            {formatGameDate(game.date)}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
                     <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
 
@@ -1635,10 +1840,10 @@ export function GamesTable() {
                                 saveTimeoutRef.current = null;
                               }
                               setShowAddOpponent(true);
-                            } else {
-                              setInlineEditValue(e.target.value);
-                            }
-                          }}
+                              } else {
+                              handleInlineValueChange(e.target.value as string);
+                              }
+                              }}
                           onKeyDown={(e) => handleInlineKeyDown(e, game)}
                           onBlur={() => handleInlineBlur(game)}
                           autoFocus
@@ -1671,23 +1876,98 @@ export function GamesTable() {
                       <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "primary" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
                     </TableCell>
 
-                    {/* Time */}
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.time || "TBD"}</TableCell>
+                    {/* Time Cell - Double-click to edit */}
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 0,
+                        cursor: isInlineEditing && inlineEditState?.field === "time" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "time" ? "#fff9e6" : "transparent",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "time" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "time" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "time")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "time" ? (
+                        <Box sx={{ py: 1 }}>
+                          <TextField
+                            type="time"
+                            size="small"
+                            value={inlineEditValue}
+                            onChange={(e) => handleInlineValueChange(e.target.value)}
+                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                            onBlur={() => handleInlineBlur(game)}
+                            autoFocus
+                            disabled={isInlineSaving}
+                            sx={{ width: "100%" }}
+                            InputProps={{ sx: { fontSize: 13 } }}
+                          />
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                          <Typography variant="body2" sx={{ fontSize: 13 }}>
+                            {game.time || "TBD"}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "time" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
 
-                    {/* Confirmed Status */}
-                    <TableCell sx={{ py: 2 }}>
-                      <Chip
-                        icon={confirmedStatus.icon}
-                        label={confirmedStatus.label}
-                        size="small"
-                        color={confirmedStatus.color as ChipProps["color"]}
-                        sx={{
-                          fontSize: 11,
-                          height: 24,
-                          fontWeight: 500,
-                          "& .MuiChip-icon": { fontSize: 16 },
-                        }}
-                      />
+                    {/* Confirmed Status Cell - Double-click to edit */}
+                    <TableCell
+                      sx={{
+                        py: 0,
+                        cursor: isInlineEditing && inlineEditState?.field === "status" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "status" ? "#fff9e6" : "transparent",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "status" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "status" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "status")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "status" ? (
+                        <Box sx={{ py: 1 }}>
+                          <Select
+                            size="small"
+                            value={inlineEditValue}
+                            onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                            onBlur={() => handleInlineBlur(game)}
+                            autoFocus
+                            disabled={isInlineSaving}
+                            sx={{ width: "100%", fontSize: 13 }}
+                          >
+                            <MenuItem value="SCHEDULED">Pending</MenuItem>
+                            <MenuItem value="CONFIRMED">Yes</MenuItem>
+                            <MenuItem value="CANCELLED">No</MenuItem>
+                          </Select>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                          <Chip
+                            icon={confirmedStatus.icon}
+                            label={confirmedStatus.label}
+                            size="small"
+                            color={confirmedStatus.color as ChipProps["color"]}
+                            sx={{
+                              fontSize: 11,
+                              height: 24,
+                              fontWeight: 500,
+                              "& .MuiChip-icon": { fontSize: 16 },
+                            }}
+                          />
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "status" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
                     </TableCell>
 
                     {/* Location Cell - Double-click to edit (only for away games) */}
@@ -1720,7 +2000,7 @@ export function GamesTable() {
                               }
                               setShowAddVenue(true);
                             } else {
-                              setInlineEditValue(e.target.value);
+                              handleInlineValueChange(e.target.value as string);
                             }
                           }}
                           onKeyDown={(e) => handleInlineKeyDown(e, game)}
@@ -1746,6 +2026,78 @@ export function GamesTable() {
                             {game.isHome ? "Home Field" : game.venue?.name || "TBD"}
                           </Typography>
                           {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
+
+                    {/* Notes Cell - Double-click to edit */}
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 0,
+                        minWidth: 220,
+                        cursor: isInlineEditing && inlineEditState?.field === "notes" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "transparent",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "notes" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "notes")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "notes" ? (
+                        <Box sx={{ py: 1 }}>
+                          <TextareaAutosize
+                            value={inlineEditValue}
+                            onChange={(e) => {
+                              const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                              setInlineEditValue(value);
+                            }}
+                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                            onBlur={() => handleInlineBlur(game)}
+                            autoFocus
+                            minRows={3}
+                            maxRows={6}
+                            placeholder="Add notes..."
+                            disabled={isInlineSaving}
+                            style={{
+                              width: "100%",
+                              fontSize: "13px",
+                              fontFamily: theme.typography.fontFamily,
+                              padding: "8px",
+                              border: `1px solid ${theme.palette.divider}`,
+                              borderRadius: "4px",
+                              resize: "vertical",
+                            }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: 10,
+                              color: getCharacterCounterColor(inlineEditValue.length),
+                              mt: 0.5,
+                              display: "block",
+                            }}
+                          >
+                            {inlineEditValue.length}/{MAX_CHAR_LIMIT}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: 13,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {getNotesPreview(game.notes)}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
                         </Box>
                       )}
                     </TableCell>
@@ -1782,12 +2134,65 @@ export function GamesTable() {
                     {customColumns.map((column: any) => {
                       const customData = (game.customData as any) || {};
                       const cellValue = customData[column.id] || "";
+                      const fieldKey = `custom:${column.id}` as InlineEditField;
+                      const isCustomEditing = isInlineEditing && inlineEditState?.field === fieldKey;
 
                       return (
-                        <TableCell key={column.id} sx={{ fontSize: 13, py: 2, minWidth: 150 }}>
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            {cellValue || "—"}
-                          </Typography>
+                        <TableCell
+                          key={column.id}
+                          sx={{
+                            fontSize: 13,
+                            py: 0,
+                            minWidth: 150,
+                            cursor: isCustomEditing ? "default" : "pointer",
+                            bgcolor: isCustomEditing ? "#fff9e6" : "transparent",
+                            ...(isCustomEditing && {
+                              boxShadow: "inset 0 0 0 1px #DBEAFE",
+                            }),
+                            "&:hover": {
+                              bgcolor: isCustomEditing ? "#fff9e6" : "#f5f5f5",
+                            },
+                          }}
+                          onDoubleClick={() => handleDoubleClick(game, fieldKey)}
+                        >
+                          {isCustomEditing ? (
+                            <Box sx={{ py: 1 }}>
+                              <TextField
+                                size="small"
+                                fullWidth
+                                value={inlineEditValue}
+                                onChange={(e) => handleInlineValueChange(e.target.value)}
+                                onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                                onBlur={() => handleInlineBlur(game)}
+                                autoFocus
+                                disabled={isInlineSaving}
+                                helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                                FormHelperTextProps={{
+                                  sx: {
+                                    fontSize: 10,
+                                    color: getCharacterCounterColor(inlineEditValue.length),
+                                  },
+                                }}
+                                sx={{
+                                  "& .MuiInputBase-input": {
+                                    fontSize: 13,
+                                  },
+                                }}
+                              />
+                              {inlineEditError && inlineEditState?.field === fieldKey && (
+                                <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
+                                  {inlineEditError}
+                                </Typography>
+                              )}
+                            </Box>
+                          ) : (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                              <Typography variant="body2" sx={{ fontSize: 13 }}>
+                                {cellValue || "—"}
+                              </Typography>
+                              {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
+                            </Box>
+                          )}
                         </TableCell>
                       );
                     })}
