@@ -1,30 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Alert,
-  CircularProgress,
-  Divider,
-  Stack,
-} from "@mui/material";
-import {
-  CreditCard as CreditCardIcon,
-  Cancel as CancelIcon,
-  PlayArrow as PlayArrowIcon,
-  Email as EmailIcon,
-  History as HistoryIcon,
-} from "@mui/icons-material";
+import { Card, CardContent, Typography, Box, Button, Chip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, CircularProgress, Divider, Stack } from "@mui/material";
+import { CreditCard as CreditCardIcon, Cancel as CancelIcon, PlayArrow as PlayArrowIcon, Email as EmailIcon, History as HistoryIcon } from "@mui/icons-material";
 import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
 
 interface SubscriptionData {
@@ -67,15 +45,7 @@ interface SubscriptionOverviewCardProps {
   userPlan: string | null;
 }
 
-export default function SubscriptionOverviewCard({
-  subscription,
-  recoveryEmail,
-  lastLogin,
-  todayLoginCount,
-  stripeCustomerId,
-  userRole,
-  userPlan,
-}: SubscriptionOverviewCardProps) {
+export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan }: SubscriptionOverviewCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,16 +58,8 @@ export default function SubscriptionOverviewCard({
   const isSuperAdmin = userRole === "SUPER_ADMIN";
   const isFreePlan = !displaySubscription && !isSuperAdmin;
 
-  const planLabel = displaySubscription
-    ? getPlanDisplayName(displaySubscription)
-    : isSuperAdmin
-      ? "Admin Account"
-      : userPlan
-        ? formatPlanType(userPlan)
-        : "Free Plan";
-  const billingLabelRaw = displaySubscription?.billingCycle
-    ? formatPlanType(displaySubscription.billingCycle)
-    : null;
+  const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : isSuperAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan";
+  const billingLabelRaw = displaySubscription?.billingCycle ? formatPlanType(displaySubscription.billingCycle) : null;
   const showBillingLabel = !!displaySubscription && !!billingLabelRaw && billingLabelRaw !== planLabel;
 
   const handleOpenPortal = async () => {
@@ -292,243 +254,198 @@ export default function SubscriptionOverviewCard({
 
   return (
     <>
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <CreditCardIcon />
-            Billing & Subscription
-          </Typography>
+      <Box sx={{ px: 3, pb: 3, pt: 0 }}>
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CreditCardIcon />
+              Billing & Subscription
+            </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-              {success}
-            </Alert>
-          )}
-
-          {/* Subscription Details */}
-          <Box sx={{ mb: 3 }}>
-            {isSuperAdmin && (
-              <Stack spacing={2} sx={{ mb: displaySubscription ? 3 : 0 }}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body1" fontWeight="medium">
-                    Plan: Admin Account
-                  </Typography>
-                  <Chip label="SUPER ADMIN" color="info" size="small" />
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  You have full access to all features as a super administrator. No active subscription is required.
-                </Typography>
-                {!displaySubscription && (
-                  <Typography variant="body2" color="text.secondary">
-                    Billing for super admin accounts is managed outside of this workspace.
-                  </Typography>
-                )}
-              </Stack>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                {error}
+              </Alert>
             )}
 
-            {displaySubscription && (
-              <Stack spacing={2}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body1" fontWeight="medium">
-                    Plan: {planLabel === "Unknown" ? "Unknown Plan" : planLabel}
-                    {showBillingLabel && ` (${billingLabelRaw})`}
-                  </Typography>
-                  <Chip
-                    label={displaySubscription.status}
-                    color={getStatusColor(displaySubscription.status)}
-                    size="small"
-                  />
-                </Box>
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+                {success}
+              </Alert>
+            )}
 
-                {displaySubscription.currentPeriodStart && (
+            {/* Subscription Details */}
+            <Box sx={{ mb: 3 }}>
+              {isSuperAdmin && (
+                <Stack spacing={2} sx={{ mb: displaySubscription ? 3 : 0 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body1" fontWeight="medium">
+                      Plan: Admin Account
+                    </Typography>
+                    <Chip label="SUPER ADMIN" color="info" size="small" />
+                  </Box>
                   <Typography variant="body2" color="text.secondary">
-                    Billing period: {formatDate(displaySubscription.currentPeriodStart)} -{" "}
-                    {formatDate(displaySubscription.currentPeriodEnd)}
+                    You have full access to all features as a super administrator. No active subscription is required.
                   </Typography>
-                )}
+                  {!displaySubscription && (
+                    <Typography variant="body2" color="text.secondary">
+                      Billing for super admin accounts is managed outside of this workspace.
+                    </Typography>
+                  )}
+                </Stack>
+              )}
 
-                {displaySubscription.currentPeriodEnd && !displaySubscription.cancelAtPeriodEnd && (
-                  <Typography variant="body2" color="text.secondary">
-                    Next payment: {formatDate(displaySubscription.currentPeriodEnd)}
-                  </Typography>
-                )}
+              {displaySubscription && (
+                <Stack spacing={2}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body1" fontWeight="medium">
+                      Plan: {planLabel === "Unknown" ? "Unknown Plan" : planLabel}
+                      {showBillingLabel && ` (${billingLabelRaw})`}
+                    </Typography>
+                    <Chip label={displaySubscription.status} color={getStatusColor(displaySubscription.status)} size="small" />
+                  </Box>
 
-                {displaySubscription.cancelAtPeriodEnd && displaySubscription.currentPeriodEnd && (
-                  <Alert severity="warning">
-                    Your subscription is cancelled and will end on{" "}
-                    {formatDate(displaySubscription.currentPeriodEnd)}
-                  </Alert>
-                )}
-
-                {displaySubscription.deletionScheduledAt && (
-                  <Alert severity="error">
-                    Account deletion scheduled for {formatDate(displaySubscription.deletionScheduledAt)}
-                    {getDaysUntil(displaySubscription.deletionScheduledAt) !== null && (
-                      <> ({getDaysUntil(displaySubscription.deletionScheduledAt)} days remaining)</>
-                    )}
-                  </Alert>
-                )}
-
-                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={loading ? <CircularProgress size={16} /> : <CreditCardIcon />}
-                    onClick={handleOpenPortal}
-                    disabled={loading}
-                  >
-                    Manage Billing
-                  </Button>
-
-                  {displaySubscription.status === "ACTIVE" && !displaySubscription.cancelAtPeriodEnd && (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<CancelIcon />}
-                      onClick={() => setCancelDialogOpen(true)}
-                      disabled={loading}
-                    >
-                      Cancel Subscription
-                    </Button>
+                  {displaySubscription.currentPeriodStart && (
+                    <Typography variant="body2" color="text.secondary">
+                      Billing period: {formatDate(displaySubscription.currentPeriodStart)} - {formatDate(displaySubscription.currentPeriodEnd)}
+                    </Typography>
                   )}
 
-                  {displaySubscription.cancelAtPeriodEnd &&
-                    displaySubscription.gracePeriodEndsAt &&
-                    getDaysUntil(displaySubscription.gracePeriodEndsAt)! > 0 && (
-                      <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<PlayArrowIcon />}
-                        onClick={handleResumeSubscription}
-                        disabled={loading}
-                      >
+                  {displaySubscription.currentPeriodEnd && !displaySubscription.cancelAtPeriodEnd && (
+                    <Typography variant="body2" color="text.secondary">
+                      Next payment: {formatDate(displaySubscription.currentPeriodEnd)}
+                    </Typography>
+                  )}
+
+                  {displaySubscription.cancelAtPeriodEnd && displaySubscription.currentPeriodEnd && (
+                    <Alert severity="warning">Your subscription is cancelled and will end on {formatDate(displaySubscription.currentPeriodEnd)}</Alert>
+                  )}
+
+                  {displaySubscription.deletionScheduledAt && (
+                    <Alert severity="error">
+                      Account deletion scheduled for {formatDate(displaySubscription.deletionScheduledAt)}
+                      {getDaysUntil(displaySubscription.deletionScheduledAt) !== null && <> ({getDaysUntil(displaySubscription.deletionScheduledAt)} days remaining)</>}
+                    </Alert>
+                  )}
+
+                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                    <Button variant="outlined" startIcon={loading ? <CircularProgress size={16} /> : <CreditCardIcon />} onClick={handleOpenPortal} disabled={loading}>
+                      Manage Billing
+                    </Button>
+
+                    {displaySubscription.status === "ACTIVE" && !displaySubscription.cancelAtPeriodEnd && (
+                      <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={() => setCancelDialogOpen(true)} disabled={loading}>
+                        Cancel Subscription
+                      </Button>
+                    )}
+
+                    {displaySubscription.cancelAtPeriodEnd && displaySubscription.gracePeriodEndsAt && getDaysUntil(displaySubscription.gracePeriodEndsAt)! > 0 && (
+                      <Button variant="contained" color="success" startIcon={<PlayArrowIcon />} onClick={handleResumeSubscription} disabled={loading}>
                         Resume Subscription
                       </Button>
                     )}
-                </Box>
-              </Stack>
-            )}
+                  </Box>
+                </Stack>
+              )}
 
-            {isFreePlan && (
-              <Stack spacing={2}>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body1" fontWeight="medium">
-                    Plan: {planLabel}
+              {isFreePlan && (
+                <Stack spacing={2}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Typography variant="body1" fontWeight="medium">
+                      Plan: {planLabel}
+                    </Typography>
+                    <Chip label="FREE" color="default" size="small" />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    You are currently on the free plan. Upgrade to unlock more features.
                   </Typography>
-                  <Chip label="FREE" color="default" size="small" />
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  You are currently on the free plan. Upgrade to unlock more features.
-                </Typography>
+                  <Box>
+                    <Button variant="contained" color="primary" href="/onboarding/plans">
+                      View Plans
+                    </Button>
+                  </Box>
+                </Stack>
+              )}
+            </Box>
+
+            <Divider sx={{ my: 3, borderColor: "lightgray" }} />
+
+            {/* Account Recovery */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                Account Recovery
+              </Typography>
+              {recoveryEmail ? (
                 <Box>
-                  <Button variant="contained" color="primary" href="/onboarding/plans">
-                    View Plans
+                  <Typography variant="body2" color="text.secondary">
+                    Recovery email: {recoveryEmail.email}
+                    {recoveryEmail.verified && <Chip label="Verified" color="success" size="small" sx={{ ml: 1 }} />}
+                    {!recoveryEmail.verified && <Chip label="Not Verified" color="warning" size="small" sx={{ ml: 1 }} />}
+                  </Typography>
+                  <Button variant="text" size="small" onClick={() => setRecoveryEmailDialogOpen(true)} sx={{ mt: 1 }}>
+                    Update Recovery Email
                   </Button>
                 </Box>
-              </Stack>
-            )}
-          </Box>
-
-          <Divider sx={{ my: 3 }} />
-
-          {/* Account Recovery */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-              Account Recovery
-            </Typography>
-            {recoveryEmail ? (
-              <Box>
-                <Typography variant="body2" color="text.secondary">
-                  Recovery email: {recoveryEmail.email}
-                  {recoveryEmail.verified && (
-                    <Chip label="Verified" color="success" size="small" sx={{ ml: 1 }} />
-                  )}
-                  {!recoveryEmail.verified && (
-                    <Chip label="Not Verified" color="warning" size="small" sx={{ ml: 1 }} />
-                  )}
-                </Typography>
-                <Button
-                  variant="text"
-                  size="small"
-                  onClick={() => setRecoveryEmailDialogOpen(true)}
-                  sx={{ mt: 1 }}
-                >
-                  Update Recovery Email
-                </Button>
-              </Box>
-            ) : (
-              <Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  No recovery email set
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<EmailIcon />}
-                  onClick={() => setRecoveryEmailDialogOpen(true)}
-                >
-                  Add Recovery Email
-                </Button>
-              </Box>
-            )}
-          </Box>
-
-          <Divider sx={{ my: 3 }} />
-
-          {/* Login Activity */}
-          <Box>
-            <Typography variant="subtitle1" fontWeight="medium" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <HistoryIcon fontSize="small" />
-              Login Activity
-            </Typography>
-            <Stack spacing={1}>
-              {lastLogin ? (
-                <>
-                  <Typography variant="body2" color="text.secondary">
-                    Last login:{" "}
-                    {new Date(lastLogin.timestamp).toLocaleString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </Typography>
-                  {lastLogin.city && (
-                    <Typography variant="body2" color="text.secondary">
-                      Location: {lastLogin.city}
-                      {lastLogin.country && `, ${lastLogin.country}`}
-                    </Typography>
-                  )}
-                  <Typography variant="body2" color="text.secondary">
-                    Today's logins: {todayLoginCount}
-                  </Typography>
-                </>
               ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No login activity recorded
-                </Typography>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    No recovery email set
+                  </Typography>
+                  <Button variant="outlined" size="small" startIcon={<EmailIcon />} onClick={() => setRecoveryEmailDialogOpen(true)}>
+                    Add Recovery Email
+                  </Button>
+                </Box>
               )}
-            </Stack>
-          </Box>
-        </CardContent>
-      </Card>
+            </Box>
+
+            <Divider sx={{ my: 3, borderColor: "lightgray" }} />
+
+            {/* Login Activity */}
+            <Box>
+              <Typography variant="subtitle1" fontWeight="medium" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <HistoryIcon fontSize="small" />
+                Login Activity
+              </Typography>
+              <Stack spacing={1}>
+                {lastLogin ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      Last login:{" "}
+                      {new Date(lastLogin.timestamp).toLocaleString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Typography>
+                    {lastLogin.city && (
+                      <Typography variant="body2" color="text.secondary">
+                        Location: {lastLogin.city}
+                        {lastLogin.country && `, ${lastLogin.country}`}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      Today's logins: {todayLoginCount}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No login activity recorded
+                  </Typography>
+                )}
+              </Stack>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* Cancel Confirmation Dialog */}
-      <Dialog
-        open={cancelDialogOpen}
-        onClose={() => !loading && setCancelDialogOpen(false)}
-      >
+      <Dialog open={cancelDialogOpen} onClose={() => !loading && setCancelDialogOpen(false)}>
         <DialogTitle>Cancel Subscription?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to cancel your subscription? You'll still have access to your account
-            until the end of your current billing period, and you can resume your subscription within the
+            Are you sure you want to cancel your subscription? You'll still have access to your account until the end of your current billing period, and you can resume your subscription within the
             grace period.
           </DialogContentText>
         </DialogContent>
@@ -536,28 +453,17 @@ export default function SubscriptionOverviewCard({
           <Button onClick={() => setCancelDialogOpen(false)} disabled={loading}>
             Keep Subscription
           </Button>
-          <Button
-            onClick={handleCancelSubscription}
-            color="error"
-            variant="contained"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} /> : null}
-          >
+          <Button onClick={handleCancelSubscription} color="error" variant="contained" disabled={loading} startIcon={loading ? <CircularProgress size={16} /> : null}>
             Cancel Subscription
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Recovery Email Dialog */}
-      <Dialog
-        open={recoveryEmailDialogOpen}
-        onClose={() => !loading && setRecoveryEmailDialogOpen(false)}
-      >
+      <Dialog open={recoveryEmailDialogOpen} onClose={() => !loading && setRecoveryEmailDialogOpen(false)}>
         <DialogTitle>{recoveryEmail ? "Update" : "Add"} Recovery Email</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            Enter an email address that can be used to recover your account if you lose access.
-          </DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>Enter an email address that can be used to recover your account if you lose access.</DialogContentText>
           <input
             type="email"
             value={recoveryEmailInput}
@@ -576,13 +482,7 @@ export default function SubscriptionOverviewCard({
           <Button onClick={() => setRecoveryEmailDialogOpen(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSendRecoveryEmail}
-            color="primary"
-            variant="contained"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={16} /> : <EmailIcon />}
-          >
+          <Button onClick={handleSendRecoveryEmail} color="primary" variant="contained" disabled={loading} startIcon={loading ? <CircularProgress size={16} /> : <EmailIcon />}>
             Send Verification
           </Button>
         </DialogActions>
