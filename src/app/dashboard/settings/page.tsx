@@ -20,8 +20,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect("/login");
   }
 
-  const checkoutParam = searchParams?.checkout;
-  const checkoutStatus = Array.isArray(checkoutParam) ? checkoutParam[0] : checkoutParam ?? null;
+  const params = await searchParams;
+  const checkoutParam = params?.checkout;
+  const checkoutStatus = Array.isArray(checkoutParam) ? checkoutParam[0] : (checkoutParam ?? null);
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
