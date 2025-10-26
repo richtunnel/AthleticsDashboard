@@ -60,6 +60,11 @@ export default function PricingPlansPage() {
     setError(null);
     setLoading(true);
 
+    const timeoutId = window.setTimeout(() => {
+      setLoading(false);
+      setError((current) => current ?? "Plan selection is taking longer than expected. Please try again.");
+    }, 10000);
+
     try {
       if (planName === "Free Trial Plan") {
         router.push("/onboarding/signup?plan=free_trial_plan");
@@ -85,9 +90,11 @@ export default function PricingPlansPage() {
       } else {
         throw new Error("No checkout URL returned");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Plan selection error:", err);
-      setError(err.message || "Failed to start checkout. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to start checkout. Please try again.");
+    } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
