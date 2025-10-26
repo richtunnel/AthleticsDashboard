@@ -25,7 +25,7 @@ import {
   Email as EmailIcon,
   History as HistoryIcon,
 } from "@mui/icons-material";
-import type { PlanType, SubscriptionStatus } from "@prisma/client";
+import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
 
 interface SubscriptionData {
   id: string;
@@ -63,6 +63,8 @@ interface SubscriptionOverviewCardProps {
   lastLogin: LastLoginData | null;
   todayLoginCount: number;
   stripeCustomerId: string | null;
+  userRole: UserRole | null;
+  userPlan: string | null;
 }
 
 export default function SubscriptionOverviewCard({
@@ -71,6 +73,8 @@ export default function SubscriptionOverviewCard({
   lastLogin,
   todayLoginCount,
   stripeCustomerId,
+  userRole,
+  userPlan,
 }: SubscriptionOverviewCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -81,11 +85,20 @@ export default function SubscriptionOverviewCard({
   const [optimisticState, setOptimisticState] = useState(subscription);
 
   const displaySubscription = optimisticState || subscription;
-  const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : "Unknown";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isFreePlan = !displaySubscription && !isSuperAdmin;
+
+  const planLabel = displaySubscription
+    ? getPlanDisplayName(displaySubscription)
+    : isSuperAdmin
+      ? "Admin Account"
+      : userPlan
+        ? formatPlanType(userPlan)
+        : "Free Plan";
   const billingLabelRaw = displaySubscription?.billingCycle
     ? formatPlanType(displaySubscription.billingCycle)
     : null;
-  const showBillingLabel = !!billingLabelRaw && billingLabelRaw !== planLabel;
+  const showBillingLabel = !!displaySubscription && !!billingLabelRaw && billingLabelRaw !== planLabel;
 
   const handleOpenPortal = async () => {
     setLoading(true);
@@ -300,7 +313,26 @@ export default function SubscriptionOverviewCard({
 
           {/* Subscription Details */}
           <Box sx={{ mb: 3 }}>
-            {displaySubscription ? (
+            {isSuperAdmin && (
+              <Stack spacing={2} sx={{ mb: displaySubscription ? 3 : 0 }}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="body1" fontWeight="medium">
+                    Plan: Admin Account
+                  </Typography>
+                  <Chip label="SUPER ADMIN" color="info" size="small" />
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  You have full access to all features as a super administrator. No active subscription is required.
+                </Typography>
+                {!displaySubscription && (
+                  <Typography variant="body2" color="text.secondary">
+                    Billing for super admin accounts is managed outside of this workspace.
+                  </Typography>
+                )}
+              </Stack>
+            )}
+
+            {displaySubscription && (
               <Stack spacing={2}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Typography variant="body1" fontWeight="medium">
@@ -380,15 +412,25 @@ export default function SubscriptionOverviewCard({
                     )}
                 </Box>
               </Stack>
-            ) : (
-              <Box>
+            )}
+
+            {isFreePlan && (
+              <Stack spacing={2}>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Typography variant="body1" fontWeight="medium">
+                    Plan: {planLabel}
+                  </Typography>
+                  <Chip label="FREE" color="default" size="small" />
+                </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  You don't have an active subscription.
+                  You are currently on the free plan. Upgrade to unlock more features.
                 </Typography>
-                <Button variant="contained" color="primary" href="/onboarding/plans">
-                  View Plans
-                </Button>
-              </Box>
+                <Box>
+                  <Button variant="contained" color="primary" href="/onboarding/plans">
+                    View Plans
+                  </Button>
+                </Box>
+              </Stack>
             )}
           </Box>
 
