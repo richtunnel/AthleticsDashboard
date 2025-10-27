@@ -13,4 +13,4 @@ else
 fi
 
 echo "Starting application..."
-exec node server.js
+exec yarn start

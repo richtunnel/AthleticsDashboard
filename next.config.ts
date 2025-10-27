@@ -2,10 +2,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  compress: true,
+  poweredByHeader: false,
   transpilePackages: ["react-dropzone", "file-selector"],
 
-  // Enable standalone output for Docker
-  output: "standalone",
   experimental: {
     outputFileTracingIncludes: {
       "/": ["node_modules/.prisma/**"],
@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   //     // 1. Exclude Prisma from bundling into the server-side code
   //     config.externals.push("@prisma/client");
   //   }
-
+  //
   //   return config;
   // },
 
