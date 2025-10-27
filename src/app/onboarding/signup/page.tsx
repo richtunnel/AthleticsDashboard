@@ -87,7 +87,6 @@ function SignupForm() {
 
       if (!signupRes.ok) {
         setError(data.error || "Failed to create user.");
-        setLoading(false);
         return;
       }
 
@@ -100,7 +99,6 @@ function SignupForm() {
 
       if (signInRes?.error) {
         setError("Account created but login failed. Please login manually.");
-        setLoading(false);
         setTimeout(() => router.push("/login"), 2000);
         return;
       }
