@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "DATABASE_URL='postgresql://adscheduler:AVNS_K8MQ1YWINrYG61lRUi7@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?sslmode=require' yarn prisma generate && next build",
+    "build": "yarn prisma generate && next build",
     "start": "next start -p 3000 -H 0.0.0.0",
     "tsc": "node ./scripts/run-tsc.mjs",
     "lint": "next lint",
@@ -18,7 +18,7 @@
     "migrate:resolve:rollback": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-rolled-back",
     "migrate:resolve:applied": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-applied",
     "migrate:check": "bash ./scripts/prisma-predeploy-check.sh",
-    "start:prod": "yarn migrate:deploy && yarn start",
+    "start:prod": "DATABASE_URL='postgresql://adscheduler:AVNS_K8MQ1YWINrYG61lRUi7@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?sslmode=require' yarn migrate:deploy && yarn start",
     "type-check": "tsc --noEmit",
     "docker:build": "docker build -t athletics-dashboard:latest .",
     "docker:build:prod": "docker build --no-cache -t athletics-dashboard:latest .",
