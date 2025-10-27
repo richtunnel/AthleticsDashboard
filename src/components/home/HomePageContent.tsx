@@ -106,6 +106,104 @@ export default function HomePageContent() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer
+        style={{
+          backgroundColor: "var(--background, #fff)",
+          borderTop: "1px solid var(--border, #e0e0e0)",
+          padding: "1.5rem 2rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
+        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+          <Link
+            href="/terms"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          >
+            Terms
+          </Link>
+          <Link
+            href="/policy"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          >
+            Policy
+          </Link>
+          <Link
+            href="/company"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          >
+            Company
+          </Link>
+          <Link
+            href="/waitlist"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          >
+            Waitlist
+          </Link>
+          <Link
+            href="/contact"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 500,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          >
+            Contact Us
+          </Link>
+        </div>
+        <div>
+          <span
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: "0.875rem",
+              fontWeight: 400,
+            }}
+          >
+            &copy; 2025 Athletics Directors Hub. All rights reserved.
+          </span>
+        </div>
+      </footer>
     </div>
   );
 }

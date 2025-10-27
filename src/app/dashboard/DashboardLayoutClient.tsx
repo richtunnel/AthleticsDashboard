@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@mui/material";
+import FeedbackIcon from "@mui/icons-material/Feedback";
 
 import {
   AppBar,
@@ -214,7 +215,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               },
             }}
           >
-            Leave Feedback
+            <FeedbackIcon />
+            &nbsp; Leave Feedback
           </Typography>
         </Link>
       </Box>
