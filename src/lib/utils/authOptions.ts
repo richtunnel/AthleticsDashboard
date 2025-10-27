@@ -371,6 +371,33 @@ export const authOptions: NextAuthOptions = {
 
       return token;
     },
+
+    async redirect({ url, baseUrl }) {
+      try {
+        const resolvedUrl = url.startsWith("/") ? new URL(url, baseUrl) : new URL(url);
+        const baseOrigin = new URL(baseUrl);
+
+        if (resolvedUrl.origin !== baseOrigin.origin) {
+          return baseUrl;
+        }
+
+        if (resolvedUrl.searchParams.has("postLogout")) {
+          return baseUrl;
+        }
+
+        if (resolvedUrl.pathname.startsWith("/dashboard")) {
+          return resolvedUrl.toString();
+        }
+
+        if (resolvedUrl.pathname === "/") {
+          return `${baseUrl}/dashboard`;
+        }
+
+        return resolvedUrl.toString();
+      } catch {
+        return baseUrl;
+      }
+    },
   },
 
   session: {
@@ -379,9 +406,9 @@ export const authOptions: NextAuthOptions = {
   },
 
   pages: {
-    signIn: "/login",
-    signOut: "/login",
-    error: "/login",
+    signIn: "/",
+    signOut: "/",
+    error: "/",
   },
   debug: process.env.NODE_ENV === "development",
 };
