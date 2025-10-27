@@ -1937,7 +1937,11 @@ export function GamesTable() {
 
                     {/* Home/Away */}
                     <TableCell sx={{ py: 2 }}>
-                      <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "primary" : "default"} sx={{ fontSize: 11, height: 24, fontWeight: 500 }} />
+                      <Chip
+                        label={game.isHome ? "Home" : "Away"}
+                        size="small"
+                        sx={{ fontSize: 11, height: 24, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
+                      />
                     </TableCell>
 
                     {/* Time Cell - Double-click to edit */}
