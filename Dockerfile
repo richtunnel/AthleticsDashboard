@@ -1,89 +1,89 @@
-# Build stage
+# Stage 1: Install dependencies
 FROM node:20-alpine AS deps
 
-# Install dependencies only when needed
-RUN apk add --no-cache libc6-compat
-
 WORKDIR /app
 
-# Copy package files
-COPY package.json yarn.lock* ./
+# Required packages for native bindings and Prisma
+RUN apk add --no-cache libc6-compat openssl
 
-# Copy Prisma schema before installing dependencies
+# Copy package manifests and Prisma schema
+COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
+# Install dependencies (fallback to available package manager)
+RUN \
+  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
+  else yarn install --non-interactive --no-progress; \
+  fi
 
-# Builder stage
+# Stage 2: Build application
 FROM node:20-alpine AS builder
-
-# Install necessary build tools for native dependencies
-RUN apk add --no-cache libc6-compat python3 make g++
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
+# System dependencies for building native modules
+RUN apk add --no-cache libc6-compat openssl python3 make g++
+
+# Reuse installed node_modules
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy all source files
+# Copy project files
 COPY . .
 
-# Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Generate Prisma client
+# Generate Prisma client prior to building
 RUN npx prisma generate
 
-# Build Next.js application with standalone output
-RUN yarn build
+# Build Next.js application (supports yarn/npm/pnpm)
+RUN \
+  if [ -f yarn.lock ]; then yarn build; \
+  elif [ -f package-lock.json ]; then npm run build; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
+  else yarn build; \
+  fi
 
-# Production stage
+# Stage 3: Production runtime image
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Set production environment variables
+RUN apk add --no-cache libc6-compat openssl
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Install minimal runtime dependencies for Prisma
-RUN apk add --no-cache libc6-compat openssl
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy Prisma schema and generated client
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+# Copy minimal artifacts required at runtime
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 
-# Copy Prisma CLI for migrations
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+# Ensure entrypoint is executable and owned by runtime user
+RUN chmod +x ./docker-entrypoint.sh
+RUN chown -R nextjs:nodejs /app
 
-# Copy public assets
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-# Copy Next.js standalone output
-# The standalone output includes all necessary dependencies
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Switch to non-root user
 USER nextjs
 
-# Expose port
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('https://adhub-8ajac.ondigitalocean.app/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://127.0.0.1:3000/api/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
-# Start the application
-# Run migrations before starting the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["./docker-entrypoint.sh"]
