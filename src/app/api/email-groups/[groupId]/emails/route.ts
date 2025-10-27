@@ -52,14 +52,15 @@ async function ensureGroupAccess(groupId: string, organizationId: string) {
   });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { groupId: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const groupId = params.groupId;
+  // Await params to ensure dynamic route parameters are resolved
+  const { groupId } = await params;
 
   if (!groupId) {
     return NextResponse.json({ error: "Group ID required" }, { status: 400 });
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: { groupId
     console.error("Error adding emails to group", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      // Unique constraint on email might reject duplicates across groups
+      // Handle duplicate emails gracefully
       const updated = await prisma.emailGroup.findUnique({
         where: { id: groupId },
         include: emailGroupInclude,
