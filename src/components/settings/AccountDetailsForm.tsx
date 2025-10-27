@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert, Snackbar, Avatar, Box } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { updateUserDetails } from "@/app/dashboard/settings/actions";
+import { ALLOWED_SETTINGS_ROLES, ROLE_OPTIONS, AllowedSettingsRole } from "@/lib/constants/role";
 
 type OrgOption = { id: string; name: string };
 
@@ -24,7 +25,7 @@ export default function AccountDetailsForm({ user }: Props) {
     name: user.name ?? "",
     email: user.email ?? "",
     phone: user.phone ?? "",
-    role: user.role ?? "",
+    role: (user.role ?? "") as AllowedSettingsRole | "",
     image: user.image ?? "",
   });
 
@@ -45,6 +46,7 @@ export default function AccountDetailsForm({ user }: Props) {
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ severity: "success" | "error"; message: string } | null>(null);
+  const isRoleLocked = ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(user.role || "");
 
   // Track initial state for comparison
   const initialData = useMemo(
@@ -58,7 +60,7 @@ export default function AccountDetailsForm({ user }: Props) {
     [user]
   );
 
-  // 🔍 Detect if user made changes
+  //  Detect if user made changes
   const isDirty = useMemo(() => {
     return (
       form.name.trim() !== initialData.name.trim() ||
@@ -76,6 +78,9 @@ export default function AccountDetailsForm({ user }: Props) {
   const validate = () => {
     if (!form.name || form.name.trim().length < 2) {
       return "Name must be at least 2 characters";
+    }
+    if (form.role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(form.role as AllowedSettingsRole)) {
+      return "Invalid role selected. Choose from: Athletic Director, Assistant AD, Coach, Staff";
     }
     return null;
   };
@@ -136,9 +141,29 @@ export default function AccountDetailsForm({ user }: Props) {
             <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth />
             <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth />
             <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />
-            <TextField size="small" label="Job title / Role" name="role" value={form.role} onChange={handleChange} fullWidth />
+            <Autocomplete
+              size="small"
+              options={ROLE_OPTIONS}
+              getOptionLabel={(option) => option.label}
+              isOptionEqualToValue={(option, value) => option.value === value.value}
+              value={ROLE_OPTIONS.find((opt) => opt.value === form.role) || null}
+              onChange={(_, newValue) => {
+                setForm((s: any) => ({ ...s, role: newValue ? newValue.value : null }));
+              }}
+              renderInput={(params) => <TextField {...params} label="Job title / Role" />}
+              renderOption={(props, option) => (
+                <li {...props} key={option.value}>
+                  {option.label}
+                </li>
+              )}
+              disabled={isRoleLocked}
+            />
+            {isRoleLocked && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Your role ({user.role}) cannot be changed from this page. Contact support for assistance.
+              </Typography>
+            )}
             <TextField size="small" label="Profile Image URL" name="image" value={form.image} onChange={handleChange} fullWidth />
-
             <Autocomplete
               freeSolo
               options={orgOptions}
@@ -185,9 +210,7 @@ export default function AccountDetailsForm({ user }: Props) {
                 </li>
               )}
             />
-
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
-
             <Button type="submit" variant="contained" disabled={!isDirty || loading} startIcon={loading ? <CircularProgress size={18} /> : undefined}>
               {loading ? "Saving..." : "Save Changes"}
             </Button>
