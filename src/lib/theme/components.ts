@@ -3,7 +3,7 @@ import { alpha, type Components, type Theme } from "@mui/material/styles";
 export const buildThemeComponents = (theme: Theme): Components<Theme> => {
   const primaryMain = theme.palette.primary.main;
   const paperBorderColor = alpha("#0F172A", 0.06);
-  const cardShadow = "0 20px 45px rgba(15, 23, 42, 0.12)";
+  const cardShadow = "0 20px 45px rgba(15, 23, 42, 0.20)";
   const hoverOverlay = alpha(primaryMain, 0.08);
 
   return {
@@ -25,7 +25,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           backgroundImage: "none",
           borderRadius: 16,
           border: `1px solid ${paperBorderColor}`,
-          boxShadow: cardShadow,
+          // boxShadow: cardShadow,
         },
       },
     },

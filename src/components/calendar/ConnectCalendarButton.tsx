@@ -19,9 +19,9 @@ export function ConnectCalendarButton({ isConnected }: ConnectCalendarButtonProp
   };
 
   return (
-    <Box sx={{ boxShadow: "none" }}>
+    <Box>
       {calendarConnected && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert severity="success" sx={{ mb: 2, boxShadow: "none" }}>
           ✅ Google Calendar connected successfully!
         </Alert>
       )}
