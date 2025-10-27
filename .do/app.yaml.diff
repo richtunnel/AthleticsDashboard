@@ -1,5 +1,23 @@
 name: athletics-dashboard
 region: nyc
+
+jobs:
+  - name: db-migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: your-org/athletics-dashboard
+      branch: main
+    dockerfile_path: Dockerfile.migrate
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}?connection_limit=20&pool_timeout=10
+        type: SECRET
+        scope: RUN_TIME
+      - key: NODE_ENV
+        value: production
+        scope: RUN_TIME
+
 services:
   - name: web
     image:
@@ -7,11 +25,19 @@ services:
       registry: registry.digitalocean.com
       repository: athletics-dashboard
       tag: TAG_TO_REPLACE
+    run_command: yarn start
     http_port: 3000
     instance_count: 1
     instance_size_slug: basic-xxs
     routes:
       - path: /
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 60
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
     envs:
       - key: NODE_ENV
         value: production
@@ -26,6 +52,7 @@ services:
         scope: RUN_TIME
         type: SECRET
       - key: DATABASE_URL
+        value: ${db.DATABASE_URL}?connection_limit=20&pool_timeout=10
         scope: RUN_AND_BUILD_TIME
         type: SECRET
       - key: RESEND_API_KEY
@@ -40,3 +67,8 @@ services:
       - key: OPENAI_API_KEY
         scope: RUN_TIME
         type: SECRET
+
+databases:
+  - name: db
+    engine: PG
+    version: "15"
