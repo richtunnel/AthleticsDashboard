@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "yarn prisma generate && next build",
+    "build": "DATABASE_URL='postgresql://adscheduler:AVNS_K8MQ1YWINrYG61lRUi7@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?sslmode=require' yarn prisma generate && next build",
     "start": "next start",
     "tsc": "node ./scripts/run-tsc.mjs",
     "lint": "next lint",
