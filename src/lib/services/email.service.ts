@@ -102,48 +102,66 @@ export class EmailService {
   }
 
   async sendWelcomeEmail(user: { id: string; email: string; name?: string | null }) {
-    if (!user?.email) {
-      throw new Error("Cannot send welcome email without a recipient email address.");
-    }
-
-    // Check if welcome email was already sent to avoid duplicates
-    const existingWelcomeEmail = await prisma.emailLog.findFirst({
-      where: {
-        to: { has: user.email },
-        subject: { contains: "Welcome to Athletic Director Hub" },
-        status: "SENT",
-      },
-      orderBy: { createdAt: "desc" },
+    this.sendWelcomeEmailBackground(user).catch((error) => {
+      console.error("Welcome email failed (non-critical):", error);
     });
+  }
 
-    if (existingWelcomeEmail) {
-      console.log(`Welcome email already sent to ${user.email} on ${existingWelcomeEmail.createdAt.toISOString()}`);
-      return { success: true, emailId: existingWelcomeEmail.id, skipped: true };
-    }
-
-    const { subject, body } = this.buildWelcomeEmailTemplate(user);
-
-    // Gracefully handle missing Resend configuration
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
-      return { success: false, error: "Email service not configured" };
+  private async sendWelcomeEmailBackground(user: { id: string; email: string; name?: string | null }) {
+    if (!user?.email) {
+      console.warn("Cannot send welcome email without a recipient email address.");
+      return;
     }
 
     try {
-      const result = await this.sendEmail({
-        to: [user.email],
-        subject,
-        body,
-        // No sentById for system emails
+      const existingWelcomeEmail = await prisma.emailLog.findFirst({
+        where: {
+          to: { has: user.email },
+          subject: { contains: "Welcome to Athletic Director Hub" },
+          status: "SENT",
+        },
+        orderBy: { createdAt: "desc" },
       });
 
-      console.log(`Welcome email sent successfully to ${user.email}`);
-      return result;
+      if (existingWelcomeEmail) {
+        console.log(`Welcome email already sent to ${user.email} on ${existingWelcomeEmail.createdAt.toISOString()}`);
+        return;
+      }
+
+      const resend = getResendClientOptional();
+
+      if (!resend) {
+        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
+        return;
+      }
+
+      const { subject, body } = this.buildWelcomeEmailTemplate(user);
+      const html = this.buildHtmlEmail(body);
+
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        to: [user.email],
+        subject,
+        html,
+      });
+
+      await prisma.emailLog
+        .create({
+          data: {
+            to: [user.email],
+            cc: [],
+            subject,
+            body: html,
+            status: "SENT",
+            sentAt: new Date(),
+            sentById: null,
+          },
+        })
+        .catch((err) => {
+          console.error("Email log failed:", err);
+        });
     } catch (error) {
-      console.error(`Failed to send welcome email to ${user.email}:`, error);
-      // Don't throw - we don't want to block user signup
-      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+      console.error("Welcome email send failed:", error);
     }
   }
 

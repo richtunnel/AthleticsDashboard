@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
+import { runNonCritical } from "@/lib/utils/nonCritical";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -63,15 +64,16 @@ const customAdapter = {
     });
 
     // Send welcome email (non-blocking)
-    try {
-      await emailService.sendWelcomeEmail({
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-      });
-    } catch (welcomeEmailError) {
-      console.error("Failed to send welcome email for OAuth user:", welcomeEmailError);
-      // Don't fail the user creation if welcome email fails
+    if (newUser.email) {
+      void runNonCritical(
+        () =>
+          emailService.sendWelcomeEmail({
+            id: newUser.id,
+            email: newUser.email,
+            name: newUser.name,
+          }),
+        `welcome email for user ${newUser.id}`,
+      );
     }
 
     return newUser;
@@ -87,16 +89,10 @@ const customAdapter = {
   },
 } as any;
 
-const recordUserLoginSafely = async (payload: LoginTrackingPayload) => {
-  try {
-    await recordUserLogin(payload);
-  } catch (error) {
-    console.error("Login tracking failed", {
-      provider: payload.provider,
-      userId: payload.userId,
-      error,
-    });
-  }
+const queueLoginTracking = (payload: LoginTrackingPayload) => {
+  const providerLabel = payload.provider || "unknown";
+  const label = `login tracking (${providerLabel}) for user ${payload.userId}`;
+  void runNonCritical(() => recordUserLogin(payload), label);
 };
 
 export const authOptions: NextAuthOptions = {
@@ -164,7 +160,7 @@ export const authOptions: NextAuthOptions = {
 
         const metadata = extractRequestMetadataFromHeaders(req?.headers);
 
-        await recordUserLoginSafely({
+        queueLoginTracking({
           userId: user.id,
           provider: "credentials",
           ip: metadata.ip,
@@ -188,72 +184,87 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  events: {
-    async signIn({ user, account }) {
-      if (!account || account.provider === "credentials") {
-        return;
-      }
-
-      const metadata = await getRequestMetadataFromContext();
-      const userId = typeof user?.id === "string" ? user.id : null;
-
-      if (!userId) {
-        return;
-      }
-
-      await recordUserLoginSafely({
-        userId,
-        provider: account.provider,
-        ip: metadata.ip,
-        userAgent: metadata.userAgent,
-      });
-    },
-  },
 
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        const email = profile?.email ?? user?.email ?? undefined;
+      try {
+        if (account?.provider === "google") {
+          if (user && typeof user.id === "string" && user.email) {
+            void runNonCritical(
+              () =>
+                emailService.sendWelcomeEmail({
+                  id: user.id,
+                  email: user.email,
+                  name: user.name,
+                }),
+              `welcome email for user ${user.id}`,
+            );
+          }
 
-        if (email) {
-          const existingUser = (await prisma.user.findUnique(
-            {
-              where: { email },
-              select: {
-                id: true,
-                googleCalendarEmail: true,
-              },
-            } as any,
-          )) as { id: string; googleCalendarEmail?: string | null } | null;
+          const email = profile?.email ?? user?.email ?? undefined;
 
-          if (existingUser) {
-            const updateData: Record<string, any> = {};
+          if (email) {
+            try {
+              const existingUser = (await prisma.user.findUnique(
+                {
+                  where: { email },
+                  select: {
+                    id: true,
+                    googleCalendarEmail: true,
+                  },
+                } as any,
+              )) as { id: string; googleCalendarEmail?: string | null } | null;
 
-            if (account.refresh_token) {
-              updateData.googleCalendarRefreshToken = account.refresh_token;
-            }
+              if (existingUser) {
+                const updateData: Record<string, any> = {};
 
-            if (account.access_token) {
-              updateData.googleCalendarAccessToken = account.access_token;
-            }
+                if (account.refresh_token) {
+                  updateData.googleCalendarRefreshToken = account.refresh_token;
+                }
 
-            if (typeof account.expires_at === "number") {
-              updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
-            }
+                if (account.access_token) {
+                  updateData.googleCalendarAccessToken = account.access_token;
+                }
 
-            updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+                if (typeof account.expires_at === "number") {
+                  updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
+                }
 
-            if (Object.keys(updateData).length > 0) {
-              await prisma.user.update({
-                where: { id: existingUser.id },
-                data: updateData,
+                updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+
+                if (Object.keys(updateData).length > 0) {
+                  await prisma.user.update({
+                    where: { id: existingUser.id },
+                    data: updateData,
+                  });
+                }
+              }
+            } catch (googleUpdateError) {
+              console.error("Failed to update Google account details during sign-in", {
+                email,
+                error: googleUpdateError,
               });
             }
           }
         }
-      }
 
-      return true;
+        const provider = account?.provider;
+
+        if (user && typeof user.id === "string" && provider && provider !== "credentials") {
+          const metadata = await getRequestMetadataFromContext();
+          queueLoginTracking({
+            userId: user.id,
+            provider,
+            ip: metadata.ip,
+            userAgent: metadata.userAgent,
+          });
+        }
+
+        return true;
+      } catch (error) {
+        console.error("SignIn callback error:", error);
+        return true;
+      }
     },
 
     async session({ session, token }) {
