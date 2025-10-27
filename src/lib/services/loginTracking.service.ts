@@ -5,6 +5,7 @@ const GEOLOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 interface CacheEntry {
   city: string | null;
+  country: string | null;
   expiresAt: number;
 }
 
@@ -32,10 +33,13 @@ export async function recordUserLogin({
   const startOfToday = startOfDay(now);
   const normalizedIp = normalizeIp(ip);
   let resolvedCity: string | null = null;
+  let resolvedCountry: string | null = null;
 
   if (normalizedIp) {
     try {
-      resolvedCity = await resolveCityForIp(normalizedIp);
+      const geo = await resolveGeoForIp(normalizedIp);
+      resolvedCity = geo.city;
+      resolvedCountry = geo.country;
     } catch (error) {
       console.warn("Failed to resolve geolocation for IP", {
         ip: normalizedIp,
@@ -49,10 +53,10 @@ export async function recordUserLogin({
       await tx.userLoginEvent.create({
         data: {
           userId,
-          provider,
-          ip: normalizedIp,
+          ipAddress: normalizedIp,
           city: resolvedCity,
-          userAgent: userAgent ?? null,
+          country: resolvedCountry,
+          success: true,
         },
       });
 
@@ -88,7 +92,7 @@ export async function recordUserLogin({
 export async function getRecentLoginEvents(userId: string, limit = 20) {
   return prisma.userLoginEvent.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" },
+    orderBy: { timestamp: "desc" },
     take: limit,
   });
 }
@@ -157,12 +161,12 @@ function isIn172PrivateRange(ip: string): boolean {
   return !Number.isNaN(secondOctet) && secondOctet >= 16 && secondOctet <= 31;
 }
 
-async function resolveCityForIp(ip: string): Promise<string | null> {
+async function resolveGeoForIp(ip: string): Promise<{ city: string | null; country: string | null }> {
   const cached = geolocationCache.get(ip);
   const now = Date.now();
 
   if (cached && cached.expiresAt > now) {
-    return cached.city;
+    return { city: cached.city, country: cached.country };
   }
 
   const apiKey = process.env.IPINFO_API_TOKEN;
@@ -172,8 +176,9 @@ async function resolveCityForIp(ip: string): Promise<string | null> {
       console.warn("IPINFO_API_TOKEN is not configured. Geolocation will be skipped.");
       geoApiWarningLogged = true;
     }
-    geolocationCache.set(ip, { city: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return null;
+    const fallback = { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS };
+    geolocationCache.set(ip, fallback);
+    return { city: null, country: null };
   }
 
   try {
@@ -188,18 +193,21 @@ async function resolveCityForIp(ip: string): Promise<string | null> {
         status: response.status,
         statusText: response.statusText,
       });
-      geolocationCache.set(ip, { city: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-      return null;
+      const fallback = { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS };
+      geolocationCache.set(ip, fallback);
+      return { city: null, country: null };
     }
 
-    const payload = (await response.json()) as { city?: string | null };
+    const payload = (await response.json()) as { city?: string | null; country?: string | null };
     const city = payload.city?.trim() || null;
+    const country = payload.country?.trim() || null;
 
-    geolocationCache.set(ip, { city, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return city;
+    geolocationCache.set(ip, { city, country, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
+    return { city, country };
   } catch (error) {
     console.warn("IP geolocation request failed", { ip, error });
-    geolocationCache.set(ip, { city: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return null;
+    const fallback = { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS };
+    geolocationCache.set(ip, fallback);
+    return { city: null, country: null };
   }
 }

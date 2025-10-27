@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
         status: emailResponse.error ? "FAILED" : "SENT",
         error: emailResponse.error?.message || null,
         sentAt: emailResponse.error ? null : new Date(),
-        sentById: session.user.id,
+        sentBy: { connect: { id: session.user.id } },
         gameId: gameIds && gameIds.length === 1 ? gameIds[0] : undefined, // Log single gameId if applicable
       },
     });
