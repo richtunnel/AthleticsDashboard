@@ -28,18 +28,21 @@ export class EmailService {
   async sendEmail(params: SendEmailParams) {
     const { to, cc = [], subject, body, gameId, sentById } = params;
 
-    // Create email log
-    const emailLog = await prisma.emailLog.create({
-      data: {
-        to,
-        cc,
-        subject,
-        body,
-        status: "PENDING",
-        gameId: gameId || null,
-        sentById: sentById || null, // Allow null for system emails
-      },
-    });
+    // Create email log only when we have a sender (system emails skip logging)
+    let emailLog: { id: string } | null = null;
+    if (sentById) {
+      emailLog = await prisma.emailLog.create({
+        data: {
+          to,
+          cc,
+          subject,
+          body,
+          status: "PENDING",
+          gameId: gameId || null,
+          sentBy: { connect: { id: sentById } },
+        },
+      });
+    }
 
     const resend = getResendClientOptional();
     if (!resend) {
@@ -61,24 +64,28 @@ export class EmailService {
       const emailId = result.data?.id || null;
 
       // Update log on success
-      await prisma.emailLog.update({
-        where: { id: emailLog.id },
-        data: {
-          status: "SENT",
-          sentAt: new Date(),
-        },
-      });
+      if (emailLog) {
+        await prisma.emailLog.update({
+          where: { id: emailLog.id },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+          },
+        });
+      }
 
       return { success: true, emailId };
     } catch (error) {
       // Update log on failure
-      await prisma.emailLog.update({
-        where: { id: emailLog.id },
-        data: {
-          status: "FAILED",
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
+      if (emailLog) {
+        await prisma.emailLog.update({
+          where: { id: emailLog.id },
+          data: {
+            status: "FAILED",
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
+      }
 
       throw error;
     }
