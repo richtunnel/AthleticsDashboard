@@ -69,6 +69,8 @@ export function useAuthButton(options: UseAuthButtonOptions = {}) {
             // Small delay to show loading state
             await new Promise((resolve) => setTimeout(resolve, 150));
             router.push(navigationPath);
+            // Reset loading after a short delay to handle cases where navigation doesn't unmount
+            setTimeout(() => setLoading(false), 1000);
             break;
 
           case "custom":

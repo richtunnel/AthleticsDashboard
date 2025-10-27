@@ -15,7 +15,7 @@ export default function HomePageContent() {
     try {
       await signInAuth.executeAction({
         type: "navigation",
-        navigationPath: "/dashboard/games",
+        navigationPath: "/login",
       });
     } catch (error) {
       console.error("Navigation error:", error);
