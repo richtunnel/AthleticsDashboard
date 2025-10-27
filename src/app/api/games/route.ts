@@ -105,6 +105,9 @@ export async function GET(request: NextRequest) {
       case "busTravel":
         orderBy = { busTravel: sortOrder };
         break;
+      case "notes":
+        orderBy = { notes: sortOrder };
+        break;
       default:
         orderBy = { date: "asc" };
     }
@@ -232,6 +235,22 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       break;
     }
 
+    case "notes": {
+      const includeHas = values.includes("Has notes");
+      const includeNone = values.includes("No notes");
+
+      if (!where.AND) {
+        where.AND = [];
+      }
+
+      if (includeHas && !includeNone) {
+        where.AND.push({ notes: { not: null } });
+      } else if (!includeHas && includeNone) {
+        where.AND.push({ notes: null });
+      }
+      break;
+    }
+
     case "date":
       // For date, we'd need to parse the dates
       const dates = values.map((v) => new Date(v));
@@ -347,6 +366,10 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
 
     case "time":
       where.time = buildCondition("time");
+      break;
+
+    case "notes":
+      where.notes = buildCondition("notes");
       break;
 
     default:

@@ -352,6 +352,7 @@ export function GamesTable() {
       status: new Set(),
       location: new Set(),
       busTravel: new Set(),
+      notes: new Set(["Has notes", "No notes"]),
     };
 
     customColumns.forEach((col: any) => {
@@ -1162,8 +1163,6 @@ export function GamesTable() {
                 </Box>
               </TableCell>
 
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>NOTES</TableCell>
-
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
                   <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
@@ -1204,6 +1203,22 @@ export function GamesTable() {
                   </Box>
                 </TableCell>
               ))}
+
+              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  <TableSortLabel active={sortField === "notes"} direction={sortField === "notes" ? sortOrder : "asc"} onClick={() => handleSort("notes")}>
+                    NOTES
+                  </TableSortLabel>
+                  <ColumnFilter
+                    columnId="notes"
+                    columnName="Notes"
+                    columnType="text"
+                    uniqueValues={uniqueValues.notes || []}
+                    currentFilter={columnFilters.notes}
+                    onFilterChange={handleColumnFilterChange}
+                  />
+                </Box>
+              </TableCell>
 
               <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
             </TableRow>
@@ -1309,32 +1324,6 @@ export function GamesTable() {
                     ))}
                   </Select>
                 </TableCell>
-                <TableCell sx={{ py: 1, minWidth: 220 }}>
-                  <TextField
-                    size="small"
-                    multiline
-                    rows={2}
-                    fullWidth
-                    value={newGameData.notes}
-                    onChange={(e) => {
-                      const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                      setNewGameData({ ...newGameData, notes: value });
-                    }}
-                    placeholder="Add notes..."
-                    helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
-                    FormHelperTextProps={{
-                      sx: {
-                        fontSize: 10,
-                        color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
-                      },
-                    }}
-                    sx={{
-                      "& .MuiInputBase-input": {
-                        fontSize: 13,
-                      },
-                    }}
-                  />
-                </TableCell>
                 <TableCell sx={{ py: 1, minWidth: 180 }}>
                   <Stack direction="column" spacing={0.75}>
                     <TextField
@@ -1405,6 +1394,32 @@ export function GamesTable() {
                     />
                   </TableCell>
                 ))}
+                <TableCell sx={{ py: 1, minWidth: 220 }}>
+                  <TextField
+                    size="small"
+                    multiline
+                    rows={2}
+                    fullWidth
+                    value={newGameData.notes}
+                    onChange={(e) => {
+                      const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                      setNewGameData({ ...newGameData, notes: value });
+                    }}
+                    placeholder="Add notes..."
+                    helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
+                    FormHelperTextProps={{
+                      sx: {
+                        fontSize: 10,
+                        color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                </TableCell>
                 <TableCell sx={{ py: 1 }}>
                   <Stack direction="row" spacing={0}>
                     <Tooltip title="Save">
@@ -1425,7 +1440,7 @@ export function GamesTable() {
             {/* Existing Games */}
             {games.length === 0 && !isAddingNew ? (
               <TableRow>
-                <TableCell colSpan={11 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={12 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "Create Game" to add one.
                   </Typography>
