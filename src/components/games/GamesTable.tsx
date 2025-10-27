@@ -602,10 +602,10 @@ export function GamesTable() {
           homeTeamId: game.homeTeamId || game.homeTeam.id,
           isHome: game.isHome,
           status: game.status,
-          notes: game.notes || null,
           opponentId: game.opponentId || game.opponent?.id || null,
           venueId: game.venueId || game.venue?.id || null,
           customData: game.customData || {},
+          notes: game.notes || null,
         };
 
         // Apply the inline edit value based on field
@@ -790,8 +790,8 @@ export function GamesTable() {
       actualArrivalTime: "",
       status: "SCHEDULED",
       venueId: "",
-      notes: "",
       customData: {},
+      notes: "",
     });
   };
 
@@ -824,8 +824,8 @@ export function GamesTable() {
       opponentId: editingGameData.opponentId || editingGameData.opponent?.id || null,
       venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
       status: editingGameData.status,
-      notes: editingGameData.notes || null,
       customData: editingCustomData,
+      notes: editingGameData.notes || null,
     };
 
     updateGameMutation.mutate({ id: editingGameId, data: updateData });
@@ -1653,40 +1653,6 @@ export function GamesTable() {
                         )}
                       </TableCell>
 
-                      {/* Notes */}
-                      <TableCell sx={{ py: 1, minWidth: 220 }}>
-                        <TextField
-                          size="small"
-                          multiline
-                          rows={3}
-                          fullWidth
-                          value={editingGameData.notes || ""}
-                          onChange={(e) => {
-                            const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                            setEditingGameData({ ...editingGameData, notes: value });
-                          }}
-                          placeholder="Add notes..."
-                          helperText={`${editingGameData.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
-                          FormHelperTextProps={{
-                            sx: {
-                              fontSize: 10,
-                              mt: 0.5,
-                              color:
-                                (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT
-                                  ? "error.main"
-                                  : (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
-                                    ? "warning.main"
-                                    : "text.secondary",
-                            },
-                          }}
-                          sx={{
-                            "& .MuiInputBase-input": {
-                              fontSize: 13,
-                            },
-                          }}
-                        />
-                      </TableCell>
-
                       {/* Bus Travel */}
                       <TableCell sx={{ py: 1, minWidth: 180 }}>
                         <Stack direction="column" spacing={0.75}>
@@ -1776,6 +1742,40 @@ export function GamesTable() {
                           />
                         </TableCell>
                       ))}
+
+                      {/* Notes */}
+                      <TableCell sx={{ py: 1, minWidth: 220 }}>
+                        <TextField
+                          size="small"
+                          multiline
+                          rows={3}
+                          fullWidth
+                          value={editingGameData.notes || ""}
+                          onChange={(e) => {
+                            const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                            setEditingGameData({ ...editingGameData, notes: value });
+                          }}
+                          placeholder="Add notes..."
+                          helperText={`${editingGameData.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
+                          FormHelperTextProps={{
+                            sx: {
+                              fontSize: 10,
+                              mt: 0.5,
+                              color:
+                                (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT
+                                  ? "error.main"
+                                  : (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
+                                    ? "warning.main"
+                                    : "text.secondary",
+                            },
+                          }}
+                          sx={{
+                            "& .MuiInputBase-input": {
+                              fontSize: 13,
+                            },
+                          }}
+                        />
+                      </TableCell>
 
                       {/* Save / Cancel Buttons */}
                       <TableCell sx={{ py: 1 }}>
@@ -2079,78 +2079,6 @@ export function GamesTable() {
                       )}
                     </TableCell>
 
-                    {/* Notes Cell - Double-click to edit */}
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        minWidth: 220,
-                        cursor: isInlineEditing && inlineEditState?.field === "notes" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "notes" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "notes")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "notes" ? (
-                        <Box sx={{ py: 1 }}>
-                          <TextareaAutosize
-                            value={inlineEditValue}
-                            onChange={(e) => {
-                              const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                              setInlineEditValue(value);
-                            }}
-                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                            onBlur={() => handleInlineBlur(game)}
-                            autoFocus
-                            minRows={3}
-                            maxRows={6}
-                            placeholder="Add notes..."
-                            disabled={isInlineSaving}
-                            style={{
-                              width: "100%",
-                              fontSize: "13px",
-                              fontFamily: theme.typography.fontFamily,
-                              padding: "8px",
-                              border: `1px solid ${theme.palette.divider}`,
-                              borderRadius: "4px",
-                              resize: "vertical",
-                            }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: 10,
-                              color: getCharacterCounterColor(inlineEditValue.length),
-                              mt: 0.5,
-                              display: "block",
-                            }}
-                          >
-                            {inlineEditValue.length}/{MAX_CHAR_LIMIT}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontSize: 13,
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {getNotesPreview(game.notes)}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
                     {/* Bus Travel */}
                     <TableCell sx={{ py: 2, minWidth: 180 }}>
                       <Stack spacing={0.75}>
@@ -2245,6 +2173,78 @@ export function GamesTable() {
                         </TableCell>
                       );
                     })}
+
+                    {/* Notes Cell - Double-click to edit */}
+                    <TableCell
+                      sx={{
+                        fontSize: 13,
+                        py: 0,
+                        minWidth: 220,
+                        cursor: isInlineEditing && inlineEditState?.field === "notes" ? "default" : "pointer",
+                        bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "transparent",
+                        ...(isInlineEditing &&
+                          inlineEditState?.field === "notes" && {
+                            boxShadow: "inset 0 0 0 1px #DBEAFE",
+                          }),
+                        "&:hover": {
+                          bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "#f5f5f5",
+                        },
+                      }}
+                      onDoubleClick={() => handleDoubleClick(game, "notes")}
+                    >
+                      {isInlineEditing && inlineEditState?.field === "notes" ? (
+                        <Box sx={{ py: 1 }}>
+                          <TextareaAutosize
+                            value={inlineEditValue}
+                            onChange={(e) => {
+                              const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                              setInlineEditValue(value);
+                            }}
+                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                            onBlur={() => handleInlineBlur(game)}
+                            autoFocus
+                            minRows={3}
+                            maxRows={6}
+                            placeholder="Add notes..."
+                            disabled={isInlineSaving}
+                            style={{
+                              width: "100%",
+                              fontSize: "13px",
+                              fontFamily: theme.typography.fontFamily,
+                              padding: "8px",
+                              border: `1px solid ${theme.palette.divider}`,
+                              borderRadius: "4px",
+                              resize: "vertical",
+                            }}
+                          />
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: 10,
+                              color: getCharacterCounterColor(inlineEditValue.length),
+                              mt: 0.5,
+                              display: "block",
+                            }}
+                          >
+                            {inlineEditValue.length}/{MAX_CHAR_LIMIT}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: 13,
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                            }}
+                          >
+                            {getNotesPreview(game.notes)}
+                          </Typography>
+                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
+                        </Box>
+                      )}
+                    </TableCell>
 
                     {/* Actions */}
                     <TableCell sx={{ py: 2 }}>
