@@ -88,6 +88,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isSidebarVisible = mounted ? isLeftNavOpen : true;
+  const isSidebarCollapsed = !isSidebarVisible;
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
@@ -295,7 +296,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       display: "flex",
                       alignItems: "center",
                       whiteSpace: "nowrap",
-                      bgcolor: isActive ? "action.selected" : "transparent",
+                      bgcolor: !isSidebarCollapsed && isActive ? "action.selected" : "transparent",
                       transition: "color 0.2s ease, background-color 0.2s ease",
                       "&::after": {
                         content: '""',
@@ -305,14 +306,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         bottom: 4,
                         height: 2,
                         borderRadius: 999,
-                        backgroundColor: isActive ? "primary.main" : "transparent",
+                        backgroundColor: !isSidebarCollapsed && isActive ? "primary.main" : "transparent",
                         transition: "background-color 0.2s ease",
                       },
                       "&:hover": {
                         color: "primary.main",
                         bgcolor: "action.hover",
                         "&::after": {
-                          backgroundColor: "primary.main",
+                          backgroundColor: !isSidebarCollapsed ? "primary.main" : "transparent",
                         },
                       },
                     }}
