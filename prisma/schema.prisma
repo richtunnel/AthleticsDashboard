@@ -250,8 +250,8 @@ model EmailLog {
   // Relations
   gameId    String?
   game      Game?       @relation(fields: [gameId], references: [id])
-  sentById  String
-  sentBy    User        @relation(fields: [sentById], references: [id])
+  sentById  String?
+  sentBy    User?       @relation(fields: [sentById], references: [id])
 
   @@index([gameId])
   @@index([sentById])
