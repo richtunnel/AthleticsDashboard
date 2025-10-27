@@ -1,54 +1,85 @@
-# Stage 1: Install dependencies
+# Build stage
 FROM node:20-alpine AS deps
+
+# Install dependencies only when needed
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat openssl
+# Copy package files
+COPY package.json yarn.lock* ./
 
-COPY package.json  yarn.lock* ./
+# Copy Prisma schema before installing dependencies
 COPY prisma ./prisma
 
+# Install dependencies
 RUN yarn install --frozen-lockfile
 
-# Stage 2: Build
+# Builder stage
 FROM node:20-alpine AS builder
+
+# Install necessary build tools for native dependencies
+RUN apk add --no-cache libc6-compat python3 make g++
+
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat openssl
-
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy all source files
 COPY . .
 
+# Set build-time environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Generate Prisma with yarn
-RUN yarn prisma generate
+# Generate Prisma client
+RUN npx prisma generate
 
-# Build Next.js with yarn
+# Build Next.js application with standalone output
 RUN yarn build
 
-# Stage 3: Production
+# Production stage
 FROM node:20-alpine AS runner
+
 WORKDIR /app
 
-RUN apk add --no-cache libc6-compat openssl
-
+# Set production environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/yarn.lock ./yarn.lock
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
+# Install minimal runtime dependencies for Prisma
+RUN apk add --no-cache libc6-compat openssl
 
+# Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs && \
-    chown -R nextjs:nodejs /app
+    adduser --system --uid 1001 nextjs
 
+# Copy Prisma schema and generated client
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy public assets
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Copy Next.js standalone output
+# The standalone output includes all necessary dependencies
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
 USER nextjs
 
+# Expose port
 EXPOSE 3000
+ENV PORT=3000
+# ENV HOSTNAME=0.0.0.0
 
-CMD ["sh", "-c", "yarn prisma migrate deploy && yarn start"]
+# # Health check
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+#   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start the application
+# Run migrations before starting the server
+CMD ["node", "server.js"]
