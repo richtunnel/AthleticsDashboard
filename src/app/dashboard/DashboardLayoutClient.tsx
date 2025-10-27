@@ -89,6 +89,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isSidebarVisible = mounted ? isLeftNavOpen : true;
   const isSidebarCollapsed = !isSidebarVisible;
+  const isSidebarOpenForDecorations = isSidebarVisible || mobileOpen;
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
@@ -151,18 +152,29 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <ListItemButton
                 component={Link}
                 href={item.href}
-                selected={isActive}
+                className={isActive ? "active" : undefined}
                 sx={{
                   borderRadius: 1.5,
-                  "&.Mui-selected": {
-                    bgcolor: "primary.main",
-                    color: "white",
-                    "&:hover": { bgcolor: "primary.dark" },
-                    "& .MuiListItemIcon-root": { color: "white" },
+                  borderLeft: "3px solid transparent",
+                  color: "text.secondary",
+                  transition: "color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+                  "&.active": {
+                    color: "primary.main",
+                    borderLeftColor: "primary.main",
+                    ...(isSidebarOpenForDecorations && {
+                      backgroundColor: "action.selected",
+                      boxShadow: (theme) => theme.shadows[1],
+                    }),
+                  },
+                  "&:hover": {
+                    color: "primary.main",
+                    ...(isSidebarOpenForDecorations
+                      ? { backgroundColor: "action.hover" }
+                      : { backgroundColor: "transparent" }),
                   },
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40 }}>
+                <ListItemIcon sx={{ minWidth: 40, color: "inherit", transition: "color 0.2s ease" }}>
                   <Icon sx={{ fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText
@@ -170,6 +182,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   primaryTypographyProps={{
                     fontSize: 14,
                     fontWeight: isActive ? 600 : 400,
+                    color: "inherit",
                   }}
                 />
               </ListItemButton>
@@ -306,14 +319,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                         bottom: 4,
                         height: 2,
                         borderRadius: 999,
-                        backgroundColor: !isSidebarCollapsed && isActive ? "primary.main" : "transparent",
+                        backgroundColor: isActive ? "primary.main" : "transparent",
                         transition: "background-color 0.2s ease",
                       },
                       "&:hover": {
                         color: "primary.main",
-                        bgcolor: "action.hover",
+                        ...(isSidebarCollapsed ? { bgcolor: "transparent" } : { bgcolor: "action.hover" }),
                         "&::after": {
-                          backgroundColor: !isSidebarCollapsed ? "primary.main" : "transparent",
+                          backgroundColor: "primary.main",
                         },
                       },
                     }}
