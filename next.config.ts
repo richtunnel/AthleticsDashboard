@@ -4,9 +4,6 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   transpilePackages: ["react-dropzone", "file-selector"],
 
-  // Enable standalone output for Docker
-  // output: "standalone",
-
   // webpack: (config, { isServer }) => {
   //   if (isServer) {
   //     // SERVER-SIDE CONFIGURATION
