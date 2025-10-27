@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["react-dropzone", "file-selector"],
 
   // Enable standalone output for Docker
-  output: "standalone",
+  // output: "standalone",
 
   // webpack: (config, { isServer }) => {
   //   if (isServer) {
