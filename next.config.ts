@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
 
   // Enable standalone output for Docker
   output: "standalone",
+  experimental: {
+    outputFileTracingIncludes: {
+      "/": ["node_modules/.prisma/**"],
+    },
+  } as any,
 
   // webpack: (config, { isServer }) => {
   //   if (isServer) {
