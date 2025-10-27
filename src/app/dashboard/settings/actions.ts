@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/database/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
-import { Prisma } from "@prisma/client";
+import { ALLOWED_SETTINGS_ROLES, AllowedSettingsRole } from "@/lib/constants/role";
 import bcrypt from "bcryptjs";
 
 type UpdateUserPayload = {
@@ -39,6 +39,32 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
   const image = sanitizeString(payload.image);
   const orgId = sanitizeString(payload.organizationId);
   const orgName = sanitizeString(payload.organizationName);
+
+  // Fetch current user role
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+
+  if (!user) {
+    return { success: false, error: "User not found." };
+  }
+
+  // Restrict role changes for SUPER_ADMIN and VENDOR_READ_ONLY
+  if (user.role === "SUPER_ADMIN" || user.role === "VENDOR_READ_ONLY") {
+    return {
+      success: false,
+      error: "Your role cannot be changed from this page. Contact support for assistance.",
+    };
+  }
+
+  // Validate role
+  if (role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(role as AllowedSettingsRole)) {
+    return {
+      success: false,
+      error: "Invalid role. Must be one of: Athletic Director, Assistant AD, Coach, Staff",
+    };
+  }
 
   // Build the update object, but don't assume organization field type.
   // We'll attempt relation-style update first (connect/connectOrCreate).
@@ -155,5 +181,24 @@ export async function changePassword(payload: ChangePasswordPayload) {
   } catch (err: any) {
     console.error("changePassword error:", err);
     return { success: false, error: "Failed to update password." };
+  }
+}
+
+export async function cleanupRoles() {
+  try {
+    const result = await prisma.user.updateMany({
+      where: {
+        role: { in: ["SUPER_ADMIN", "VENDOR_READ_ONLY"] },
+      },
+      data: {
+        role: "ATHLETIC_DIRECTOR", // Or set to a default like ALLOWED_SETTINGS_ROLES.STAFF
+      },
+    });
+
+    console.log(`Cleaned up ${result.count} users with invalid roles.`);
+    return { success: true, count: result.count };
+  } catch (error: any) {
+    console.error("cleanupRoles error:", error);
+    return { success: false, error: "Failed to clean up roles." };
   }
 }

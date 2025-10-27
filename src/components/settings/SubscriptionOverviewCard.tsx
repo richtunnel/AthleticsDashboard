@@ -54,6 +54,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const [recoveryEmailDialogOpen, setRecoveryEmailDialogOpen] = useState(false);
   const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
   const [optimisticState, setOptimisticState] = useState(subscription);
+  const isRestrictedRole = userRole ? ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(userRole) : "";
 
   useEffect(() => {
     if (!checkoutStatus) {
@@ -268,10 +269,10 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
 
   return (
     <>
-      <Box sx={{ px: 3, pb: 3, pt: 0 }}>
+      <Box sx={{ px: 3, pb: 3 }}>
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1, pt: "12px" }}>
               <CreditCardIcon />
               Billing & Subscription
             </Typography>

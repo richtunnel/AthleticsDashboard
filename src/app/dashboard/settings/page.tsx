@@ -70,8 +70,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           Settings
         </Typography>
 
-        <Card sx={{ mb: 3, boxShadow: "none" }}>
-          <CardContent sx={{ boxShadow: "none" }}>
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
             <Typography variant="h6" gutterBottom>
               Google Calendar Integration
             </Typography>
