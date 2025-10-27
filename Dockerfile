@@ -1,59 +1,85 @@
-# --- STAGE 1: Dependency Installation and Next.js Build (Builder) ---
-# Use a Node base image with Alpine for a smaller initial size.
+# Build stage
+FROM node:20-alpine AS deps
+
+# Install dependencies only when needed
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json yarn.lock* ./
+
+# Copy Prisma schema before installing dependencies
+COPY prisma ./prisma
+
+# Install dependencies
+RUN yarn install --frozen-lockfile
+
+# Builder stage
 FROM node:20-alpine AS builder
 
-# Set the working directory inside the container
+# Install necessary build tools for native dependencies
+RUN apk add --no-cache libc6-compat python3 make g++
+
 WORKDIR /app
 
-# Copy package.json and package-lock.json (or yarn.lock/pnpm-lock.yaml)
-# We copy these first so that the dependency layer can be cached if package files haven't changed.
-COPY package*.json ./
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
-# Install dependencies, including devDependencies needed for the build (Next.js, TypeScript, Prisma).
-RUN npm install
-
-# Copy the rest of the application source code
+# Copy all source files
 COPY . .
 
-# IMPORTANT: Generate the Prisma client. This must happen before the Next.js build.
-# This step does NOT require a live database connection; it only needs the schema file.
-# The generated client is placed in node_modules/.prisma
+# Set build-time environment variables
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
+# Generate Prisma client
 RUN npx prisma generate
 
-# Build the Next.js application. 
-# Because we are using output: 'standalone' (recommended for Docker), 
-# the resulting application is placed in the 'standalone' directory.
-RUN npm run build
+# Build Next.js application with standalone output
+RUN yarn build
 
-
-# --- STAGE 2: Minimal Production Image (Runner) ---
-# Use a minimal Node image again for the final production environment.
+# Production stage
 FROM node:20-alpine AS runner
 
-# Set environment variables for production
-ENV NODE_ENV production
-# Set a default PORT, though DigitalOcean App Platform will inject its own PORT which takes precedence.
-ENV PORT 3000
-
-# Set the working directory to where the standalone server will be located
 WORKDIR /app
 
-# The Next.js standalone output copies all necessary files, including production dependencies,
-# into the /app/.next/standalone directory.
-# Copy the built server, which is the root of the 'standalone' output.
-# The final image will only contain the files needed to run the app, drastically reducing size.
-COPY --from=builder /app/.next/standalone ./
+# Set production environment variables
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy the public folder containing static assets
-COPY --from=builder /app/public ./public
+# Install minimal runtime dependencies for Prisma
+RUN apk add --no-cache libc6-compat openssl
 
-# If you use the experimental `outputFileTracingIncludes` (recommended for Prisma), 
-# you need to copy the generated .prisma directory separately from the Next.js build output.
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# Expose the port (only informative, DO manages the actual port)
-EXPOSE ${PORT}
+# Copy Prisma schema and generated client
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
-# The final command to run the application using the standalone server.js file.
-# DigitalOcean App Platform will execute this command in the environment with injected secrets.
+# Copy public assets
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# Copy Next.js standalone output
+# The standalone output includes all necessary dependencies
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
+
+# Expose port
+EXPOSE 3000
+ENV PORT=3000
+# ENV HOSTNAME=0.0.0.0
+
+# # Health check
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+#   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Start the application
+# Run migrations before starting the server
 CMD ["node", "server.js"]
