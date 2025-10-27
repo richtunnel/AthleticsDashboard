@@ -24,7 +24,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN yarn prisma generate
 
 # Build Next.js with yarn
-RUN yarn build --production
+RUN yarn build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner
