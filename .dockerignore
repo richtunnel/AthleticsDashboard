@@ -1,105 +1,74 @@
-# Dependencies
+# ============================================
+# Docker build context exclusions tailored for this repo
+# ============================================
+
+# Node dependencies (reinstalled inside container)
 node_modules
-.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/cache
-.yarn/unplugged
-.yarn/build-state.yml
-.yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Testing
-coverage
-.nyc_output
-**/*.test.js
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.js
-**/*.spec.ts
-**/*.spec.tsx
-__tests__
-__mocks__
-.jest
+# Yarn 1 cache and state files
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/patches
+!.yarn/versions
 
-# Next.js
+# Next.js build artifacts
 .next
 out
 build
 dist
 
-# Production
+# TypeScript build info
 *.tsbuildinfo
-next-env.d.ts
 
-# Misc
-.DS_Store
-*.pem
-Thumbs.db
+# Environment files (use runtime ENV instead)
+.env*
+!.env.example
+!.env.docker
 
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-lerna-debug.log*
+# Testing artifacts
+coverage
+__tests__
+__mocks__
+.jest
+**/*.test.*
+**/*.spec.*
 
-# Local env files
-.env
-.env*.local
-.env.development
-.env.test
-.env.production
-
-# Vercel
-.vercel
-
-# Git
-.git
-.gitignore
-.gitattributes
-.github
-
-# Documentation
-README.md
-docs
-*.md
-!DOCKER.md
-LICENSE
-CHANGELOG.md
-
-# IDE
+# IDE/editor files
 .vscode
 .idea
 *.swp
 *.swo
-*~
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+*.iml
 
-# OS
+# OS-specific
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Docker
-Dockerfile*
-docker-compose*
-.dockerignore
-docker-scripts.sh
+# Git metadata
+.git
+.gitignore
+.gitattributes
 
-# Deployment configs
+# Documentation (not needed during build)
+README.md
+*.md
+!DOCKER.md
+
+# Deployment configs handled separately
+cloudbuild.yaml
+nixpacks.toml
+.dockerignore
+.dockerignore.local
 .do
 railway.json
-nixpacks.toml
-cloudbuild.yaml
 
-# Other
-.eslintcache
-.stylelintcache
+# Misc
 mock_data.json
 testhandler.ts
 routes-manifest.json
