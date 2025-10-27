@@ -63,6 +63,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modul
 # Copy public assets
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+COPY --from=builder /app/next.config.js ./
+
 # Copy Next.js standalone output
 # The standalone output includes all necessary dependencies
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -74,7 +76,7 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 ENV PORT=3000
-# ENV HOSTNAME=0.0.0.0
+ENV HOSTNAME=0.0.0.0
 
 # # Health check
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
