@@ -1,4 +1,11 @@
-# Dependencies
+# =============================================================================
+# .dockerignore for Next.js 15 + Prisma Production Build
+# =============================================================================
+# This file ensures we don't copy unnecessary files into the Docker image,
+# reducing image size and build time.
+# =============================================================================
+
+# Dependencies (will be installed fresh in container)
 node_modules
 .pnp
 .pnp.js
@@ -6,9 +13,8 @@ node_modules
 .yarn/cache
 .yarn/unplugged
 .yarn/build-state.yml
-.yarn/install-state.gz
 
-# Testing
+# Testing files
 coverage
 .nyc_output
 **/*.test.js
@@ -20,14 +26,16 @@ coverage
 __tests__
 __mocks__
 .jest
+jest.config.js
+jest.setup.js
 
-# Next.js
+# Next.js build output (will be built in container)
 .next
 out
 build
 dist
 
-# Production
+# Build artifacts
 *.tsbuildinfo
 next-env.d.ts
 
@@ -35,39 +43,44 @@ next-env.d.ts
 .DS_Store
 *.pem
 Thumbs.db
+*.log
 
-# Debug
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 lerna-debug.log*
 
-# Local env files
+# Environment files (IMPORTANT: never copy .env files)
 .env
 .env*.local
 .env.development
 .env.test
 .env.production
+.env.docker
 
-# Vercel
+# Vercel deployment
 .vercel
 
-# Git
+# Git files
 .git
 .gitignore
 .gitattributes
 .github
+.github_remove
 
-# Documentation
+# Documentation (don't need in production image)
 README.md
 docs
 *.md
+# Keep Docker-related docs if you want them for reference
 !DOCKER.md
+!DOCKER-*.md
 LICENSE
 CHANGELOG.md
 
-# IDE
+# IDE and editor files
 .vscode
 .idea
 *.swp
@@ -79,27 +92,54 @@ CHANGELOG.md
 *.launch
 .settings/
 *.sublime-workspace
+*.sublime-project
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Docker
-Dockerfile*
+# Docker and local orchestration files (not needed inside image)
 docker-compose*
-.dockerignore
 docker-scripts.sh
+deploy-cloud-run.sh
 
-# Deployment configs
+# Deployment configs (handled externally)
 .do
 railway.json
 nixpacks.toml
 cloudbuild.yaml
 
-# Other
+# Development and build scripts
+scripts/*.md
+
+# Cache files
 .eslintcache
 .stylelintcache
+.cache
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+
+# Mock and test data
 mock_data.json
 testhandler.ts
 routes-manifest.json
+
+# Old migrations (if you want to exclude them)
+# Uncomment if you don't want old migrations in production
+# prisma/migrations_old
+
+# Database files (if running local SQLite for dev)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.old

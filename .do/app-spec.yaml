@@ -1,32 +1,37 @@
-# DigitalOcean App Platform Spec
-# This spec deploys the Athletics Dashboard using Docker
+# =============================================================================
+# Digital Ocean App Platform Specification
+# =============================================================================
+# Comprehensive deployment configuration for Athletics Dashboard
+# Next.js 15 + Prisma + PostgreSQL on Digital Ocean App Platform
+# =============================================================================
 
 name: athletics-dashboard
-region: nyc
+region: nyc  # Change to your preferred region: nyc, sfo, ams, sgp, fra, lon, blr, tor
 
+# =============================================================================
 # Services
+# =============================================================================
 services:
   - name: web
-    # Option 1: Build from Dockerfile in GitHub repo
+    # Build from Dockerfile in your repository
     github:
-      repo: your-org/athletics-dashboard
+      repo: your-org/athletics-dashboard  # Replace with your GitHub repo
       branch: main
       deploy_on_push: true
 
-    # Option 2: Use pre-built image from Container Registry
-    # Uncomment this and comment out 'github' above to use a pre-built image
-    # image:
-    #   registry_type: DOCR  # or DOCKER_HUB, GHCR
-    #   repository: athletics-dashboard
-    #   tag: latest
-
+    # Dockerfile configuration
     dockerfile_path: Dockerfile
+    source_dir: /
 
     # Resource allocation
+    # Choose based on your needs:
+    # - basic-xxs:    512MB RAM, 0.5 vCPU  ($5/mo)  - too small for this app
+    # - basic-xs:     1GB RAM,   1 vCPU    ($12/mo) - minimum for small traffic
+    # - basic-s:      2GB RAM,   1 vCPU    ($25/mo) - recommended for production
+    # - professional-s: 2GB RAM, 1 vCPU   ($35/mo) - better reliability
+    # - professional-m: 4GB RAM, 2 vCPU   ($70/mo) - recommended for production
     instance_count: 1
-    instance_size_slug: professional-s # 2GB RAM, 1 vCPU
-    # instance_size_slug: professional-m  # 4GB RAM, 2 vCPU (recommended)
-    # instance_size_slug: professional-l  # 8GB RAM, 4 vCPU
+    instance_size_slug: professional-s
 
     # Port configuration
     http_port: 3000
@@ -35,43 +40,62 @@ services:
     routes:
       - path: /
 
-    # Health check
+    # Health check configuration
+    # The app has a health check endpoint at /api/health
     health_check:
       http_path: /api/health
-      initial_delay_seconds: 60
-      period_seconds: 30
-      timeout_seconds: 10
-      success_threshold: 1
-      failure_threshold: 3
+      initial_delay_seconds: 60  # Wait 60s after start before first check
+      period_seconds: 30         # Check every 30 seconds
+      timeout_seconds: 10        # Timeout after 10 seconds
+      success_threshold: 1       # 1 success = healthy
+      failure_threshold: 3       # 3 failures = unhealthy (restart)
 
-    # Auto-deploy on push
-    source_dir: /
-
-    # Environment variables
+    # =============================================================================
+    # Environment Variables
+    # =============================================================================
     envs:
-      # Node environment
+      # ---------------------------
+      # Node.js Configuration
+      # ---------------------------
       - key: NODE_ENV
         value: production
         scope: RUN_TIME
 
-      # NextAuth (required)
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=4096"
+        scope: RUN_AND_BUILD_TIME
+
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+        scope: RUN_AND_BUILD_TIME
+
+      # ---------------------------
+      # NextAuth Configuration (REQUIRED)
+      # ---------------------------
       - key: NEXTAUTH_URL
-        value: ${APP_URL} # App Platform provides this automatically
+        value: ${APP_URL}  # Digital Ocean provides this automatically
         scope: RUN_TIME
 
       - key: NEXTAUTH_SECRET
+        # Generate with: openssl rand -base64 32
         value: ${NEXTAUTH_SECRET}
         type: SECRET
         scope: RUN_TIME
 
-      # Database (from managed database component below)
+      # ---------------------------
+      # Database (REQUIRED)
+      # ---------------------------
       - key: DATABASE_URL
+        # Will be populated from managed database component below
         value: ${db.DATABASE_URL}
         type: SECRET
-        scope: RUN_AND_BUILD_TIME
+        scope: RUN_AND_BUILD_TIME  # Needed at build time for Prisma
 
-      # Google OAuth & Calendar
+      # ---------------------------
+      # Google OAuth & Calendar Integration
+      # ---------------------------
       - key: GOOGLE_CALENDAR_CLIENT_ID
+        # Get from: https://console.cloud.google.com/apis/credentials
         value: ${GOOGLE_CALENDAR_CLIENT_ID}
         type: SECRET
         scope: RUN_TIME
@@ -81,74 +105,176 @@ services:
         type: SECRET
         scope: RUN_TIME
 
+      - key: GOOGLE_REDIRECT_URI
+        # Should be: https://your-app.ondigitalocean.app/api/auth/calendar-callback
+        value: ${APP_URL}/api/auth/calendar-callback
+        scope: RUN_TIME
+
       - key: GOOGLE_MAPS_API_KEY
+        # Get from: https://console.cloud.google.com/google/maps-apis
         value: ${GOOGLE_MAPS_API_KEY}
         type: SECRET
         scope: RUN_TIME
 
-      # Email service (Resend)
+      # ---------------------------
+      # Weather API
+      # ---------------------------
+      - key: OPENWEATHER_API_KEY
+        # Get from: https://openweathermap.org/api
+        value: ${OPENWEATHER_API_KEY}
+        type: SECRET
+        scope: RUN_TIME
+
+      # ---------------------------
+      # Email Service (Resend)
+      # ---------------------------
       - key: RESEND_API_KEY
+        # Get from: https://resend.com/api-keys
         value: ${RESEND_API_KEY}
         type: SECRET
         scope: RUN_TIME
 
       - key: EMAIL_FROM
+        # Use your verified domain in Resend
         value: "AD Hub <noreply@yourdomain.com>"
         scope: RUN_TIME
 
-      # OpenAI
+      # ---------------------------
+      # OpenAI Integration
+      # ---------------------------
       - key: OPENAI_API_KEY
+        # Get from: https://platform.openai.com/api-keys
         value: ${OPENAI_API_KEY}
         type: SECRET
         scope: RUN_TIME
 
-      # Weather API
-      - key: OPENWEATHER_API_KEY
-        value: ${OPENWEATHER_API_KEY}
+      # ---------------------------
+      # IP Geolocation (for login tracking)
+      # ---------------------------
+      - key: IPINFO_API_TOKEN
+        # Get from: https://ipinfo.io/
+        value: ${IPINFO_API_TOKEN}
         type: SECRET
         scope: RUN_TIME
 
-      # Stripe (if using)
+      # ---------------------------
+      # Stripe Payment Processing
+      # ---------------------------
       - key: STRIPE_SECRET_KEY
+        # Get from: https://dashboard.stripe.com/apikeys
         value: ${STRIPE_SECRET_KEY}
         type: SECRET
         scope: RUN_TIME
 
       - key: STRIPE_WEBHOOK_SECRET
+        # Get from Stripe webhook settings
         value: ${STRIPE_WEBHOOK_SECRET}
         type: SECRET
         scope: RUN_TIME
 
+      - key: STRIPE_MONTHLY_PRICE_ID
+        value: ${STRIPE_MONTHLY_PRICE_ID}
+        type: SECRET
+        scope: RUN_TIME
+
+      - key: STRIPE_ANNUAL_PRICE_ID
+        value: ${STRIPE_ANNUAL_PRICE_ID}
+        type: SECRET
+        scope: RUN_TIME
+
+      - key: NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+        value: ${STRIPE_MONTHLY_PRICE_ID}
+        scope: RUN_TIME
+
+      - key: NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
+        value: ${STRIPE_ANNUAL_PRICE_ID}
+        scope: RUN_TIME
+
+      # ---------------------------
+      # Public App URL
+      # ---------------------------
+      - key: NEXT_PUBLIC_APP_URL
+        value: ${APP_URL}
+        scope: RUN_TIME
+
+      # ---------------------------
+      # Account Cleanup Automation
+      # ---------------------------
+      - key: CRON_SECRET
+        # Generate a random string for securing cron endpoints
+        value: ${CRON_SECRET}
+        type: SECRET
+        scope: RUN_TIME
+
+      - key: ACCOUNT_DELETION_GRACE_DAYS
+        value: "14"
+        scope: RUN_TIME
+
+      - key: ACCOUNT_DELETION_REMINDER_DAYS
+        value: "7,1"
+        scope: RUN_TIME
+
+# =============================================================================
 # Database
+# =============================================================================
 databases:
   - name: db
     engine: PG
     version: "16"
-    production: true
+    production: true  # Enable daily backups, connection pooling, etc.
     cluster_name: athletics-db-cluster
     db_name: athleticsdb
     db_user: athleticsdb
+    # Connection pooling is enabled by default in production mode
 
-# Jobs (optional - for scheduled tasks)
-jobs:
-  - name: cleanup-job
-    kind: POST_DEPLOY
-    github:
-      repo: your-org/athletics-dashboard
-      branch: main
-    dockerfile_path: Dockerfile
-    run_command: "npx prisma migrate deploy"
-    instance_size_slug: basic-xxs
+# =============================================================================
+# Jobs (Optional)
+# =============================================================================
+# Uncomment to add scheduled jobs or post-deploy hooks
 
-# Alerts (optional)
+# jobs:
+#   # Run migrations after each deployment
+#   - name: post-deploy-migrations
+#     kind: POST_DEPLOY
+#     github:
+#       repo: your-org/athletics-dashboard
+#       branch: main
+#     dockerfile_path: Dockerfile
+#     run_command: "npx prisma migrate deploy"
+#     instance_size_slug: basic-xxs
+#     envs:
+#       - key: DATABASE_URL
+#         value: ${db.DATABASE_URL}
+#         type: SECRET
+#         scope: RUN_TIME
+#
+#   # Scheduled job for cleanup
+#   - name: cleanup-job
+#     kind: PRE_DEPLOY
+#     schedule:
+#       cron: "0 2 * * *"  # Run daily at 2 AM
+#     github:
+#       repo: your-org/athletics-dashboard
+#       branch: main
+#     dockerfile_path: Dockerfile
+#     run_command: "node scripts/cleanup.js"
+#     instance_size_slug: basic-xxs
+
+# =============================================================================
+# Alerts
+# =============================================================================
 alerts:
   - rule: DEPLOYMENT_FAILED
   - rule: DOMAIN_FAILED
   - rule: CPU_UTILIZATION
-    value: 80
+    value: 80  # Alert when CPU > 80%
   - rule: MEM_UTILIZATION
-    value: 80
+    value: 80  # Alert when memory > 80%
+  - rule: RESTART_COUNT
+    value: 5   # Alert when app restarts 5+ times
 
+# =============================================================================
 # Features
+# =============================================================================
 features:
-  - buildpack-stack=ubuntu-22
+  - buildpack-stack=ubuntu-22  # Use Ubuntu 22.04 base
