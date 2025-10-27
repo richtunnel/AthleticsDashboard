@@ -7,15 +7,15 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: "standalone",
 
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // SERVER-SIDE CONFIGURATION
-      // 1. Exclude Prisma from bundling into the server-side code
-      config.externals.push("@prisma/client");
-    }
+  // webpack: (config, { isServer }) => {
+  //   if (isServer) {
+  //     // SERVER-SIDE CONFIGURATION
+  //     // 1. Exclude Prisma from bundling into the server-side code
+  //     config.externals.push("@prisma/client");
+  //   }
 
-    return config;
-  },
+  //   return config;
+  // },
 
   // Bypass ESLint errors during build
   eslint: {
@@ -27,11 +27,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true, // Set to true only if desperate
   },
 
-  // Turbopack settings (Next.js 15)
-  experimental: {
-    turbo: {
-      // Add any turbopack-specific settings here if needed
-    },
+  turbopack: {
+    // ...
   },
 };
 
