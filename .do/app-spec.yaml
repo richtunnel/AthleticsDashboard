@@ -21,6 +21,7 @@ services:
     #   tag: latest
 
     dockerfile_path: Dockerfile
+    run_command: yarn start
 
     # Resource allocation
     instance_count: 1
@@ -39,8 +40,8 @@ services:
     health_check:
       http_path: /api/health
       initial_delay_seconds: 60
-      period_seconds: 30
-      timeout_seconds: 10
+      period_seconds: 10
+      timeout_seconds: 5
       success_threshold: 1
       failure_threshold: 3
 
@@ -66,7 +67,7 @@ services:
 
       # Database (from managed database component below)
       - key: DATABASE_URL
-        value: ${db.DATABASE_URL}
+        value: ${db.DATABASE_URL}?connection_limit=20&pool_timeout=10
         type: SECRET
         scope: RUN_AND_BUILD_TIME
 
@@ -123,22 +124,29 @@ services:
 databases:
   - name: db
     engine: PG
-    version: "16"
+    version: "15"
     production: true
     cluster_name: athletics-db-cluster
     db_name: athleticsdb
     db_user: athleticsdb
 
-# Jobs (optional - for scheduled tasks)
+# Jobs
 jobs:
-  - name: cleanup-job
-    kind: POST_DEPLOY
+  - name: db-migrate
+    kind: PRE_DEPLOY
     github:
       repo: your-org/athletics-dashboard
       branch: main
-    dockerfile_path: Dockerfile
-    run_command: "npx prisma migrate deploy"
+    dockerfile_path: Dockerfile.migrate
     instance_size_slug: basic-xxs
+    envs:
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}?connection_limit=20&pool_timeout=10
+        type: SECRET
+        scope: RUN_TIME
+      - key: NODE_ENV
+        value: production
+        scope: RUN_TIME
 
 # Alerts (optional)
 alerts:

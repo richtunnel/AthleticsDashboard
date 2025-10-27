@@ -211,7 +211,7 @@ Create a `.env.local` file in the root directory with the following variables:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/athletics_dashboard` |
+| `DATABASE_URL` | PostgreSQL connection string (with connection pooling options) | `postgresql://user:password@localhost:5432/athletics_dashboard?schema=public&connection_limit=20&pool_timeout=10` |
 
 ### NextAuth Configuration
 
@@ -357,10 +357,11 @@ When Prisma reports an error such as `P3009` referencing the `20251024000526_new
 | Mark `20251024000526_new_migration` as rolled back | `yarn migrate:resolve:rollback 20251024000526_new_migration` |
 | Mark a migration as applied (only if schema already matches) | `yarn migrate:resolve:applied <migration_id>` |
 | Deploy pending migrations | `yarn migrate:deploy` |
+| Backup + deploy pending migrations | `yarn migrate:backup` |
 | Pre-deployment health check | `yarn migrate:check` |
 | Reset local database (destructive) | `yarn prisma migrate reset` |
 
-These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot.sh` and `scripts/prisma-predeploy-check.sh` for convenience.
+These commands combine direct Prisma CLI invocations with helper scripts (see `scripts/prisma-migration-troubleshoot.sh`, `scripts/prisma-predeploy-check.sh`, and the new safety scripts in `scripts/safe-migrate.sh` and `scripts/backup-before-migrate.sh`).
 
 ### 1. Check the database state
 
@@ -412,6 +413,7 @@ These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot
   yarn migrate:check
   ```
   `scripts/prisma-predeploy-check.sh` exits non-zero when pending migrations or drift are detected so your pipeline can fail fast.
+- Use the safety wrappers when applying migrations manually: `yarn migrate:safe` checks for pending changes and creates a backup at `/tmp`, while `yarn migrate:backup` mirrors the pre-deploy job used in production.
 - Keep migration execution separate from starting the application (e.g., run `yarn migrate:deploy` or `yarn migrate:check` in a dedicated job before launching `yarn start`).
 
 ### 5. Development-only reset option
@@ -454,9 +456,15 @@ Run the production server:
 yarn start
 ```
 
-### Production with Database Migration
+### Production with Pre-deploy Migrations
 
-This command runs migrations before starting the server (useful for deployment):
+Migrations now run in a dedicated pre-deploy job that creates a backup and applies pending changes before the web service boots. To mirror that workflow locally, run:
+
+```bash
+yarn migrate:backup
+```
+
+Once migrations complete successfully, start the production server:
 
 ```bash
 yarn start:prod
@@ -727,19 +735,20 @@ Deploy with PostgreSQL included:
 
 ### DigitalOcean App Platform
 
-DigitalOcean's App Platform can deploy this project directly from the repository or from a container image. When using the Node.js runtime, configure the app with:
+DigitalOcean's App Platform can deploy this project directly from the repository or from a container image. The repo ships with an app spec (`.do/app-spec.yaml` and `.do/app.yaml.diff`) that enables a pre-deploy migration job. When using the Node.js runtime, configure the app with:
 
 1. **Build command:** `yarn prisma generate && yarn build`
-2. **Run command:** `yarn prisma migrate deploy && yarn start`
-3. **Environment:** set `NODE_VERSION` (or `NODEJS_VERSION`) to `20` to match the engine requirements.
-4. **Secrets:** mark `DATABASE_URL` and any variables required during build time as `RUN_AND_BUILD_TIME`. All other secrets (e.g., `NEXTAUTH_SECRET`, OAuth keys) can remain `RUN_TIME`.
-5. **Database:** if you use a managed Postgres instance, append `?sslmode=require` to the `DATABASE_URL` so Prisma can connect over TLS.
-6. **Application URL:** set `NEXTAUTH_URL` to the live app domain (e.g., `https://your-app.ondigitalocean.app` or your custom domain).
-7. **Secrets & APIs:** provide `NEXTAUTH_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `RESEND_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
+2. **Run command:** `yarn start`
+3. **Pre-deploy job:** enable the `db-migrate` job defined in the app spec. It builds from `Dockerfile.migrate`, creates a backup, and runs `yarn prisma migrate deploy` before the web service boots.
+4. **Environment:** set `NODE_VERSION` (or `NODEJS_VERSION`) to `20` to match the engine requirements.
+5. **Secrets:** mark `DATABASE_URL` (with `connection_limit=20&pool_timeout=10`) and any variables required during build time as `RUN_AND_BUILD_TIME`. All other secrets (e.g., `NEXTAUTH_SECRET`, OAuth keys) can remain `RUN_TIME`.
+6. **Database:** if you use a managed Postgres instance, append `?sslmode=require` to the `DATABASE_URL` so Prisma can connect over TLS.
+7. **Application URL:** set `NEXTAUTH_URL` to the live app domain (e.g., `https://your-app.ondigitalocean.app` or your custom domain).
+8. **Secrets & APIs:** provide `NEXTAUTH_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `RESEND_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
 
-After deployment completes, trigger `yarn prisma migrate deploy` (via the start command above) to ensure the database schema is up to date. You can also use the provided `.do/app.yaml` template with `doctl apps update` if you prefer managing the spec through code.
+With the pre-deploy job in place the application container never runs migrations on startup; it simply executes `yarn start`. If you prefer managing the spec through code, apply `.do/app.yaml.diff` with `doctl apps update` as part of your deployment pipeline.
 
-> 💡 **Tip:** Add a dedicated pipeline step (or App Platform pre-deployment job) that runs `yarn migrate:check`. The command exits non-zero when pending migrations or drift are detected so deployments can fail fast before the application starts.
+> 💡 **Tip:** Add a dedicated pipeline step (or reuse the pre-deployment job) that runs `yarn migrate:check`. The command exits non-zero when pending migrations or drift are detected so deployments can fail fast before the application starts.
 
 ### Docker
 
@@ -814,15 +823,20 @@ Ensure these are set in your hosting platform:
 | `yarn dev` | Start development server |
 | `yarn build` | Build production bundle |
 | `yarn start` | Start production server |
-| `yarn start:prod` | Run migrations then start production server |
+| `yarn start:prod` | Start production server (migrations run in pre-deploy job) |
 | `yarn type-check` | Run TypeScript type checking |
 
 ### Database (Prisma)
 
 | Command | Description |
 |---------|-------------|
-| `yarn prisma migrate dev` | Create and apply new migration |
-| `yarn prisma migrate deploy` | Apply migrations in production |
+| `yarn migrate:dev` | Create and apply a new migration in development |
+| `yarn migrate:deploy` | Apply all pending migrations to the target database |
+| `yarn migrate:status` | Inspect migration history and pending migrations |
+| `yarn migrate:safe` | Check for pending migrations, back up, and deploy safely |
+| `yarn migrate:backup` | Run the pre-deploy backup + migrate workflow (used in production jobs) |
+| `yarn db:backup` | Create a plain SQL dump (defaults to `./backups/backup-<timestamp>.sql`) |
+| `yarn db:restore` | Restore a backup created by `yarn db:backup` |
 | `yarn prisma db seed` | Seed database with sample data |
 | `yarn prisma studio` | Open Prisma Studio GUI |
 | `yarn prisma generate` | Generate Prisma Client |

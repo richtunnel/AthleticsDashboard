@@ -51,4 +51,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "yarn prisma migrate deploy && yarn start"]
+CMD ["yarn", "start"]

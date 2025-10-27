@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Install system dependencies required for backups and secure connections
+RUN apk add --no-cache openssl postgresql-client
+
+COPY package.json ./package.json
+COPY yarn.lock* ./
+COPY prisma ./prisma
+COPY scripts/backup-before-migrate.sh ./backup-before-migrate.sh
+
+RUN yarn install --frozen-lockfile --production=false
+RUN chmod +x /app/backup-before-migrate.sh
+
+CMD ["./backup-before-migrate.sh"]
