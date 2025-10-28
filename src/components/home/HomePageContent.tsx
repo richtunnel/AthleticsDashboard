@@ -108,7 +108,7 @@ export default function HomePageContent() {
       </div>
 
       {/* Footer */}
-      <footer
+      {/* <footer
         style={{
           backgroundColor: "var(--background, #fff)",
           borderTop: "1px solid var(--border, #e0e0e0)",
@@ -203,7 +203,7 @@ export default function HomePageContent() {
             &copy; 2025 Athletics Directors Hub. All rights reserved.
           </span>
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }
