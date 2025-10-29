@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
@@ -17,6 +18,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
+import { useTableCopyPaste } from "@/hooks/useTableCopyPaste";
 
 import {
   Box,
@@ -42,7 +44,7 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline, ContentCopy } from "@mui/icons-material";
 import { format } from "date-fns";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
@@ -1202,6 +1204,73 @@ export function GamesTable() {
     }
   };
 
+  const getStatusLabelForCopy = useCallback((status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return "Yes";
+      case "SCHEDULED":
+        return "Pending";
+      case "CANCELLED":
+      case "POSTPONED":
+        return "No";
+      default:
+        return status;
+    }
+  }, []);
+
+  const copyPasteColumns = useMemo(
+    () =>
+      resolvedColumns.map((column) => ({
+        id: column.id,
+        getValue: (game: Game) => {
+          switch (column.id) {
+            case "date":
+              return formatGameDate(game.date);
+            case "sport":
+              return game.homeTeam.sport.name;
+            case "level":
+              return game.homeTeam.level;
+            case "opponent":
+              return game.opponent?.name || "TBD";
+            case "isHome":
+              return game.isHome ? "Home" : "Away";
+            case "time":
+              return game.time || "TBD";
+            case "status":
+              return getStatusLabelForCopy(game.status);
+            case "location":
+              return game.isHome ? "Home Field" : game.venue?.name || "TBD";
+            case "busTravel": {
+              const departure = formatBusTimeDisplay(game.actualDepartureTime);
+              const arrival = formatBusTimeDisplay(game.actualArrivalTime);
+              return `Depart: ${departure} | Arrive: ${arrival}`;
+            }
+            case "notes":
+              return game.notes || "";
+            case "actions":
+              return "";
+            default: {
+              if (column.id.startsWith("custom:")) {
+                const customId = column.id.replace("custom:", "");
+                const customData = (game.customData as Record<string, string | undefined>) || {};
+                return customData[customId] || "";
+              }
+              return "";
+            }
+          }
+        },
+      })),
+    [resolvedColumns, formatGameDate, getStatusLabelForCopy, formatBusTimeDisplay]
+  );
+
+  const { isCellSelected, handleCellClick, handleCellMouseDown, handleCellMouseEnter, handleCellMouseUp, copySelectedCells, hasSelection, clearSelection } =
+    useTableCopyPaste<Game>({
+      data: games,
+      columns: copyPasteColumns,
+      getRowId: (row) => row.id,
+      enabled: games.length > 0 && resolvedColumns.length > 0,
+    });
+
   const renderHeaderCell = (column: ResolvedColumn) => {
     switch (column.id) {
       case "date":
@@ -2061,10 +2130,60 @@ export function GamesTable() {
     }
   };
 
-  const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
+  const renderViewRowCell = (column: ResolvedColumn, game: Game, rowIndex: number, columnIndex: number) => {
+    const createSelectionProps = (isEditing: boolean) => {
+      if (isEditing || column.id === "actions") {
+        return {
+          selectionHandlers: {},
+          selectionStyles: {},
+        } as {
+          selectionHandlers: Record<string, any>;
+          selectionStyles: Record<string, any>;
+        };
+      }
+
+      const selectionStyles = isCellSelected(game.id, column.id)
+        ? {
+            position: "relative" as const,
+            bgcolor: alpha(theme.palette.primary.main, 0.12),
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              inset: 0,
+              border: `2px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+              borderRadius: 6,
+              pointerEvents: "none",
+            },
+          }
+        : {};
+
+      const selectionHandlers = {
+        onMouseDown: (event: ReactMouseEvent<HTMLElement>) => {
+          if (event.button !== 0) return;
+          handleCellMouseDown(game.id, column.id, rowIndex, columnIndex, event);
+        },
+        onMouseEnter: () => {
+          handleCellMouseEnter(game.id, column.id, rowIndex, columnIndex);
+        },
+        onMouseUp: () => {
+          handleCellMouseUp();
+        },
+        onClick: (event: ReactMouseEvent<HTMLElement>) => {
+          if (event.button !== 0) return;
+          handleCellClick(game.id, column.id, rowIndex, columnIndex, event);
+        },
+      };
+
+      return {
+        selectionHandlers,
+        selectionStyles,
+      };
+    };
+
     switch (column.id) {
       case "date": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="date"
@@ -2079,8 +2198,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "date")}
+            {...selectionHandlers}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -2108,20 +2229,25 @@ export function GamesTable() {
           </TableCell>
         );
       }
-      case "sport":
+      case "sport": {
+        const { selectionHandlers, selectionStyles } = createSelectionProps(false);
         return (
-          <TableCell key="sport" sx={{ fontSize: 13, py: 2 }}>
+          <TableCell key="sport" sx={{ fontSize: 13, py: 2, ...selectionStyles }} {...selectionHandlers}>
             {game.homeTeam.sport.name}
           </TableCell>
         );
-      case "level":
+      }
+      case "level": {
+        const { selectionHandlers, selectionStyles } = createSelectionProps(false);
         return (
-          <TableCell key="level" sx={{ fontSize: 13, py: 2 }}>
+          <TableCell key="level" sx={{ fontSize: 13, py: 2, ...selectionStyles }} {...selectionHandlers}>
             {game.homeTeam.level}
           </TableCell>
         );
+      }
       case "opponent": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="opponent"
@@ -2136,8 +2262,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "opponent")}
+            {...selectionHandlers}
           >
             {isEditing ? (
               <Select
@@ -2182,9 +2310,10 @@ export function GamesTable() {
           </TableCell>
         );
       }
-      case "isHome":
+      case "isHome": {
+        const { selectionHandlers, selectionStyles } = createSelectionProps(false);
         return (
-          <TableCell key="isHome" sx={{ py: 2 }}>
+          <TableCell key="isHome" sx={{ py: 2, ...selectionStyles }} {...selectionHandlers}>
             <Chip
               label={game.isHome ? "Home" : "Away"}
               size="small"
@@ -2192,8 +2321,10 @@ export function GamesTable() {
             />
           </TableCell>
         );
+      }
       case "time": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "time";
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="time"
@@ -2208,8 +2339,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "time")}
+            {...selectionHandlers}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -2240,6 +2373,7 @@ export function GamesTable() {
       case "status": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "status";
         const confirmedStatus = getConfirmedStatus(game.status);
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="status"
@@ -2253,8 +2387,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "status")}
+            {...selectionHandlers}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -2295,6 +2431,7 @@ export function GamesTable() {
       }
       case "location": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "location";
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="location"
@@ -2310,8 +2447,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: game.isHome ? "transparent" : isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "location")}
+            {...selectionHandlers}
           >
             {isEditing && !game.isHome ? (
               <Select
@@ -2359,8 +2498,9 @@ export function GamesTable() {
       case "busTravel": {
         const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
         const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
+        const { selectionHandlers, selectionStyles } = createSelectionProps(false);
         return (
-          <TableCell key="busTravel" sx={{ py: 2, minWidth: 180 }}>
+          <TableCell key="busTravel" sx={{ py: 2, minWidth: 180, ...selectionStyles }} {...selectionHandlers}>
             <Stack spacing={0.75}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
@@ -2384,6 +2524,7 @@ export function GamesTable() {
       }
       case "notes": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "notes";
+        const { selectionHandlers, selectionStyles } = createSelectionProps(isEditing);
         return (
           <TableCell
             key="notes"
@@ -2399,8 +2540,10 @@ export function GamesTable() {
               "&:hover": {
                 bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
+              ...selectionStyles,
             }}
             onDoubleClick={() => handleDoubleClick(game, "notes")}
+            {...selectionHandlers}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -2490,6 +2633,8 @@ export function GamesTable() {
           const cellValue = customData[customColumn.id] || "";
           const isCustomEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
 
+          const { selectionHandlers, selectionStyles } = createSelectionProps(isCustomEditing);
+
           return (
             <TableCell
               key={column.id}
@@ -2505,8 +2650,10 @@ export function GamesTable() {
                 "&:hover": {
                   bgcolor: isCustomEditing ? "#fff9e6" : "#f5f5f5",
                 },
+                ...selectionStyles,
               }}
               onDoubleClick={() => handleDoubleClick(game, fieldKey)}
+              {...selectionHandlers}
             >
               {isCustomEditing ? (
                 <Box sx={{ py: 1 }}>
@@ -2566,7 +2713,7 @@ export function GamesTable() {
     );
   };
 
-  const renderGameRow = (game: Game) => {
+  const renderGameRow = (game: Game, rowIndex: number) => {
     const isSelected = selectedGames.has(game.id);
     const isEditing = editingGameId === game.id && editingGameData;
 
@@ -2600,7 +2747,7 @@ export function GamesTable() {
         <TableCell padding="checkbox">
           <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
         </TableCell>
-        {resolvedColumns.map((column) => renderViewRowCell(column, game))}
+        {resolvedColumns.map((column, columnIndex) => renderViewRowCell(column, game, rowIndex, columnIndex))}
       </TableRow>
     );
   };
@@ -2641,7 +2788,7 @@ export function GamesTable() {
             Games Schedule
           </Typography>
           <Typography variant="body2" color="text.primary">
-            Manage your athletic schedules and create your own customized columns.
+            Manage your athletic schedules and create your own customized columns. Click and drag cells to select multiple rows/columns and copy data.
             {activeFilterCount > 0 && (
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
             )}
@@ -2666,7 +2813,24 @@ export function GamesTable() {
                 Show all columns ({hiddenColumnCount} hidden)
               </Button>
             )}
+            {hasSelection && (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Tooltip title="Copy selection (Ctrl/Cmd + C)">
+                  <Button variant="outlined" startIcon={<ContentCopy />} onClick={copySelectedCells} sx={{ textTransform: "none" }}>
+                    Copy selection
+                  </Button>
+                </Tooltip>
+                <Button size="small" variant="text" onClick={clearSelection} sx={{ textTransform: "none" }}>
+                  Clear
+                </Button>
+              </Stack>
+            )}
           </Stack>
+          {hasSelection && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              Tip: Drag across cells or use Shift+Click to highlight multiple cells, then press Ctrl/Cmd + C to copy or use the button above.
+            </Typography>
+          )}
         </Box>
         <Stack direction="row" spacing={2}>
           {selectedGames.size > 0 && (
@@ -2705,6 +2869,10 @@ export function GamesTable() {
           borderColor: "divider",
           borderRadius: 2,
           overflowX: "auto",
+          userSelect: "none",
+          "& .MuiTableCell-root": {
+            userSelect: "text",
+          },
         }}
       >
         <Table size="small">
@@ -2727,7 +2895,7 @@ export function GamesTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              games.map((game: any) => renderGameRow(game))
+              games.map((game: any, index: number) => renderGameRow(game, index))
             )}
           </TableBody>
         </Table>
