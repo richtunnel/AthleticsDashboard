@@ -4,13 +4,14 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
+import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
 import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
 import { QuickAddVenue } from "./QuickAddVenue";
 import { QuickAddTeam } from "./QuickAddTeams";
-import { Sync, ViewColumn, Download, Upload } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -166,6 +167,33 @@ type ConfirmedStatus = {
   color: ChipProps["color"]; // Use MUI's Chip color type
 };
 
+type StaticColumnId = "date" | "sport" | "level" | "opponent" | "isHome" | "time" | "status" | "location" | "busTravel" | "notes" | "actions";
+type ColumnId = StaticColumnId | `custom:${string}`;
+
+interface ColumnStateConfig {
+  id: ColumnId;
+  visible: boolean;
+}
+
+interface TablePreferencesData {
+  order?: ColumnId[];
+  hidden?: ColumnId[];
+  [key: string]: unknown;
+}
+
+interface ColumnPreferencePayload {
+  order: ColumnId[];
+  hidden: ColumnId[];
+}
+
+interface ResolvedColumn {
+  id: ColumnId;
+  customColumn?: any;
+}
+
+const TABLE_PREFERENCES_KEY = "games";
+const STATIC_COLUMN_SEQUENCE: StaticColumnId[] = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", "actions"];
+
 export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -212,6 +240,9 @@ export function GamesTable() {
   const [showAddOpponent, setShowAddOpponent] = useState(false);
   const [showAddVenue, setShowAddVenue] = useState(false);
   const [showAddTeam, setShowAddTeam] = useState(false);
+  const [isColumnPreferencesOpen, setIsColumnPreferencesOpen] = useState(false);
+  const [columnState, setColumnState] = useState<ColumnStateConfig[]>([]);
+  const [initialPreferencesApplied, setInitialPreferencesApplied] = useState(false);
 
   // Inline editing state
   const [inlineEditState, setInlineEditState] = useState<InlineEditState | null>(null);
@@ -256,6 +287,16 @@ export function GamesTable() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
+  }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
+
+  useEffect(() => {
+    if (!initialPreferencesApplied && columnPreferencesResponse !== undefined) {
+      setInitialPreferencesApplied(true);
+    }
+  }, [columnPreferencesResponse, initialPreferencesApplied]);
 
   const {
     data: response,
@@ -326,7 +367,28 @@ export function GamesTable() {
     },
   });
 
+  const { data: columnPreferencesResponse } = useQuery({
+    queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY],
+    queryFn: async () => {
+      const res = await fetch(`/api/user/table-preferences?table=${TABLE_PREFERENCES_KEY}`);
+      if (!res.ok) throw new Error("Failed to fetch column preferences");
+      return res.json();
+    },
+  });
+
   const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
+  const customColumnsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    customColumns.forEach((column: any) => {
+      if (column?.id) {
+        map.set(column.id, column);
+      }
+    });
+    return map;
+  }, [customColumns]);
+
+  const columnPreferencesData = (columnPreferencesResponse?.data || null) as TablePreferencesData | null;
+  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns), [customColumns]);
 
   const games = response?.data?.games || [];
   const pagination: PaginationData = response?.data?.pagination || {
@@ -343,6 +405,32 @@ export function GamesTable() {
 
   const uniqueSports = [...new Set(teams.map((team: any) => team.sport?.name))].filter(Boolean);
   const uniqueLevels = [...new Set(teams.map((team: any) => team.level))].filter(Boolean);
+
+  const levelsBySport = useMemo(() => {
+    const map = new Map<string, string[]>();
+    teams.forEach((team: any) => {
+      const sportName = team.sport?.name;
+      const level = team.level;
+      if (!sportName || !level) return;
+      const existing = map.get(sportName) || [];
+      if (!existing.includes(level)) {
+        existing.push(level);
+        map.set(sportName, existing);
+      }
+    });
+    return map;
+  }, [teams]);
+
+  const getLevelsForSport = useCallback(
+    (sportName?: string | null) => {
+      if (!sportName) {
+        return uniqueLevels;
+      }
+      const levels = levelsBySport.get(sportName);
+      return levels && levels.length > 0 ? levels : uniqueLevels;
+    },
+    [levelsBySport, uniqueLevels]
+  );
 
   const uniqueValues = useMemo(() => {
     const values: Record<string, Set<string>> = {
@@ -382,6 +470,84 @@ export function GamesTable() {
     return result;
   }, [games, customColumns]);
 
+  const getColumnLabel = useCallback(
+    (columnId: ColumnId) => {
+      switch (columnId) {
+        case "date":
+          return "Date";
+        case "sport":
+          return "Sport";
+        case "level":
+          return "Level";
+        case "opponent":
+          return "Opponent";
+        case "isHome":
+          return "Home/Away";
+        case "time":
+          return "Time";
+        case "status":
+          return "Confirmed";
+        case "location":
+          return "Location";
+        case "busTravel":
+          return "Bus Info";
+        case "notes":
+          return "Notes";
+        case "actions":
+          return "Actions";
+        default: {
+          if (columnId.startsWith("custom:")) {
+            const customId = columnId.split(":")[1];
+            return customColumnsMap.get(customId)?.name || "Custom Field";
+          }
+          return "Column";
+        }
+      }
+    },
+    [customColumnsMap]
+  );
+
+  const hiddenColumnCount = useMemo(() => columnState.filter((column) => !column.visible).length, [columnState]);
+
+  const visibleColumns = useMemo(() => columnState.filter((column) => column.visible), [columnState]);
+
+  const resolvedColumns = useMemo(() => {
+    const list: ResolvedColumn[] = [];
+    visibleColumns.forEach((column) => {
+      if (column.id.startsWith("custom:")) {
+        const customId = column.id.split(":")[1];
+        const customColumn = customColumnsMap.get(customId);
+        if (customColumn) {
+          list.push({ id: column.id, customColumn });
+        }
+      } else {
+        list.push({ id: column.id });
+      }
+    });
+    return list;
+  }, [visibleColumns, customColumnsMap]);
+
+  const columnMenuColumns = useMemo(
+    () =>
+      columnState.map((column) => ({
+        id: column.id,
+        label: getColumnLabel(column.id),
+        visible: column.visible,
+      })),
+    [columnState, getColumnLabel]
+  );
+
+  const visibleCustomColumns = useMemo(() => {
+    const visibleIds = new Set(
+      columnState
+        .filter((column) => column.visible && column.id.startsWith("custom:"))
+        .map((column) => column.id.split(":")[1])
+    );
+    return customColumns.filter((column: any) => visibleIds.has(column.id));
+  }, [columnState, customColumns]);
+
+  const visibleColumnIds = useMemo(() => columnState.filter((column) => column.visible).map((column) => column.id), [columnState]);
+
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
@@ -399,6 +565,96 @@ export function GamesTable() {
       addNotification(`Calendar Sync Error: ${error.message}`, "error");
     },
   });
+
+  const savePreferencesMutation = useMutation({
+    mutationFn: async (payload: ColumnPreferencePayload) => {
+      const res = await fetch("/api/user/table-preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: TABLE_PREFERENCES_KEY, preferences: payload }),
+      });
+      if (!res.ok) {
+        let message = "Failed to save column preferences";
+        try {
+          const error = await res.json();
+          message = error?.error || message;
+        } catch (err) {
+          // ignore
+        }
+        throw new Error(message);
+      }
+      return res.json();
+    },
+  });
+
+  const persistColumnPreferences = useCallback(
+    (nextState: ColumnStateConfig[], previousState: ColumnStateConfig[]) => {
+      const payload: ColumnPreferencePayload = {
+        order: nextState.map((column) => column.id),
+        hidden: nextState.filter((column) => !column.visible).map((column) => column.id),
+      };
+      savePreferencesMutation.mutate(payload, {
+        onError: (error: any) => {
+          setColumnState(previousState);
+          addNotification(error?.message || "Failed to save column preferences", "error");
+        },
+      });
+    },
+    [savePreferencesMutation, addNotification]
+  );
+
+  const handleToggleColumnVisibility = useCallback(
+    (columnId: string, visible: boolean) => {
+      if (!isColumnId(columnId)) {
+        return;
+      }
+      setColumnState((prev) => {
+        const previousState = prev.map((column) => ({ ...column }));
+        const nextState = prev.map((column) => (column.id === columnId ? { ...column, visible } : column));
+        const visibleCount = nextState.filter((column) => column.visible).length;
+        if (visibleCount === 0) {
+          addNotification("At least one column must remain visible", "warning");
+          return prev;
+        }
+        persistColumnPreferences(nextState, previousState);
+        return nextState;
+      });
+    },
+    [persistColumnPreferences, addNotification]
+  );
+
+  const handleReorderColumns = useCallback(
+    (order: string[]) => {
+      const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
+      setColumnState((prev) => {
+        const previousState = prev.map((column) => ({ ...column }));
+        const cleanedOrder = validOrder.filter((id) => defaultColumnOrder.includes(id));
+        const nextOrder = [...cleanedOrder];
+        defaultColumnOrder.forEach((id) => {
+          if (!nextOrder.includes(id)) {
+            nextOrder.push(id);
+          }
+        });
+        const visibilityMap = new Map(prev.map((column) => [column.id, column.visible]));
+        const nextState = nextOrder.map((id) => ({
+          id,
+          visible: visibilityMap.get(id) ?? true,
+        }));
+        persistColumnPreferences(nextState, previousState);
+        return nextState;
+      });
+    },
+    [defaultColumnOrder, persistColumnPreferences]
+  );
+
+  const handleShowAllColumns = useCallback(() => {
+    setColumnState((prev) => {
+      const previousState = prev.map((column) => ({ ...column }));
+      const nextState = prev.map((column) => ({ ...column, visible: true }));
+      persistColumnPreferences(nextState, previousState);
+      return nextState;
+    });
+  }, [persistColumnPreferences]);
 
   const handleSyncCalendar = (gameId: string) => {
     syncGameMutation.mutate(gameId);
@@ -722,8 +978,8 @@ export function GamesTable() {
       return;
     }
 
-    ExportService.exportGames(gamesToExport, customColumns);
-  }, [games, customColumns, addNotification]);
+    ExportService.exportGames(gamesToExport, visibleCustomColumns);
+  }, [games, visibleCustomColumns, addNotification]);
 
   const handleImportComplete = useCallback(
     (result: any) => {
@@ -930,6 +1186,7 @@ export function GamesTable() {
     if (typeof window === "undefined") return;
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
+    sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(visibleColumnIds));
     router.push("/dashboard/compose-email");
   };
 
@@ -940,6 +1197,1418 @@ export function GamesTable() {
     } catch (error) {
       return dateString;
     }
+  };
+
+  const renderHeaderCell = (column: ResolvedColumn) => {
+    switch (column.id) {
+      case "date":
+        return (
+          <TableCell key="date" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
+                DATE
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="date"
+                columnName="Date"
+                columnType="date"
+                uniqueValues={uniqueValues.date || []}
+                currentFilter={columnFilters.date}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "sport":
+        return (
+          <TableCell key="sport" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
+                SPORT
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="sport"
+                columnName="Sport"
+                columnType="text"
+                uniqueValues={uniqueValues.sport || []}
+                currentFilter={columnFilters.sport}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "level":
+        return (
+          <TableCell key="level" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
+                LEVEL
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="level"
+                columnName="Level"
+                columnType="text"
+                uniqueValues={uniqueValues.level || []}
+                currentFilter={columnFilters.level}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "opponent":
+        return (
+          <TableCell key="opponent" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
+                OPPONENT
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="opponent"
+                columnName="Opponent"
+                columnType="text"
+                uniqueValues={uniqueValues.opponent || []}
+                currentFilter={columnFilters.opponent}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "isHome":
+        return (
+          <TableCell key="isHome" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
+                H/A
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="isHome"
+                columnName="Home/Away"
+                columnType="select"
+                uniqueValues={["Home", "Away"]}
+                currentFilter={columnFilters.isHome}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "time":
+        return (
+          <TableCell key="time" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
+              TIME
+            </TableSortLabel>
+          </TableCell>
+        );
+      case "status":
+        return (
+          <TableCell key="status" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
+                CONFIRMED
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="status"
+                columnName="Status"
+                columnType="select"
+                uniqueValues={uniqueValues.status || []}
+                currentFilter={columnFilters.status}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "location":
+        return (
+          <TableCell key="location" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "location"} direction={sortField === "location" ? sortOrder : "asc"} onClick={() => handleSort("location")}>
+                LOCATION
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="location"
+                columnName="Location"
+                columnType="text"
+                uniqueValues={uniqueValues.location || []}
+                currentFilter={columnFilters.location}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "busTravel":
+        return (
+          <TableCell key="busTravel" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
+                BUS INFO
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="busTravel"
+                columnName="Bus Travel"
+                columnType="select"
+                uniqueValues={["Yes", "No"]}
+                currentFilter={columnFilters.busTravel}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "notes":
+        return (
+          <TableCell key="notes" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "notes"} direction={sortField === "notes" ? sortOrder : "asc"} onClick={() => handleSort("notes")}>
+                NOTES
+              </TableSortLabel>
+              <ColumnFilter
+                columnId="notes"
+                columnName="Notes"
+                columnType="text"
+                uniqueValues={uniqueValues.notes || []}
+                currentFilter={columnFilters.notes}
+                onFilterChange={handleColumnFilterChange}
+              />
+            </Box>
+          </TableCell>
+        );
+      case "actions":
+        return (
+          <TableCell key="actions" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+            ACTIONS
+          </TableCell>
+        );
+      default:
+        if (column.id.startsWith("custom:")) {
+          const customColumn = column.customColumn;
+          if (!customColumn) {
+            return null;
+          }
+          return (
+            <TableCell
+              key={column.id}
+              sx={{
+                fontWeight: 600,
+                fontSize: 12,
+                py: 2,
+                color: "text.secondary",
+                minWidth: 150,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {customColumn.name?.toUpperCase?.() || "CUSTOM"}
+                <ColumnFilter
+                  columnId={customColumn.id}
+                  columnName={customColumn.name}
+                  columnType="text"
+                  uniqueValues={uniqueValues[customColumn.id] || []}
+                  currentFilter={columnFilters[customColumn.id]}
+                  onFilterChange={handleColumnFilterChange}
+                />
+              </Box>
+            </TableCell>
+          );
+        }
+        return null;
+    }
+  };
+
+  const renderNewRowCell = (column: ResolvedColumn) => {
+    switch (column.id) {
+      case "date":
+        return (
+          <TableCell key="date" sx={{ py: 1 }}>
+            <TextField type="date" size="small" value={newGameData.date} onChange={(e) => setNewGameData({ ...newGameData, date: e.target.value })} sx={{ width: 140 }} InputProps={{ sx: { fontSize: 13 } }} />
+          </TableCell>
+        );
+      case "sport":
+        return (
+          <TableCell key="sport" sx={{ py: 1, minWidth: 180 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Select
+                size="small"
+                value={newGameData.sport}
+                onChange={(e) => {
+                  const sport = e.target.value as string;
+                  setNewGameData((prev) => {
+                    const levels = getLevelsForSport(sport);
+                    const levelIsValid = sport && prev.level ? levels.includes(prev.level) : true;
+                    return {
+                      ...prev,
+                      sport,
+                      level: levelIsValid ? prev.level : "",
+                    };
+                  });
+                }}
+                displayEmpty
+                sx={{ minWidth: 140, fontSize: 13 }}
+              >
+                <MenuItem value="">Select sport</MenuItem>
+                {uniqueSports.map((sport: string) => (
+                  <MenuItem key={sport} value={sport}>
+                    {sport}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Tooltip title="Add new team">
+                <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
+                  <Add fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </TableCell>
+        );
+      case "level":
+        return (
+          <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
+            <Select
+              size="small"
+              value={newGameData.level}
+              onChange={(e) => setNewGameData({ ...newGameData, level: e.target.value as string })}
+              displayEmpty
+              sx={{ minWidth: 140, fontSize: 13 }}
+            >
+              <MenuItem value="">Select level</MenuItem>
+              {getLevelsForSport(newGameData.sport).map((level) => (
+                <MenuItem key={level} value={level}>
+                  {level}
+                </MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        );
+      case "opponent":
+        return (
+          <TableCell key="opponent" sx={{ py: 1 }}>
+            <Select
+              size="small"
+              value={newGameData.opponentId}
+              onChange={(e) => {
+                if (e.target.value === "__add_new__") {
+                  setShowAddOpponent(true);
+                } else {
+                  setNewGameData({ ...newGameData, opponentId: e.target.value as string });
+                }
+              }}
+              sx={{ width: 160, fontSize: 13 }}
+              displayEmpty
+            >
+              <MenuItem value="">TBD</MenuItem>
+              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                + Add New Opponent
+              </MenuItem>
+              {opponents.map((opponent: any) => (
+                <MenuItem key={opponent.id} value={opponent.id}>
+                  {opponent.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        );
+      case "isHome":
+        return (
+          <TableCell key="isHome" sx={{ py: 1 }}>
+            <Select size="small" value={newGameData.isHome ? "home" : "away"} onChange={(e) => setNewGameData({ ...newGameData, isHome: e.target.value === "home" })} sx={{ width: 80, fontSize: 13 }}>
+              <MenuItem value="home">Home</MenuItem>
+              <MenuItem value="away">Away</MenuItem>
+            </Select>
+          </TableCell>
+        );
+      case "time":
+        return (
+          <TableCell key="time" sx={{ py: 1 }}>
+            <TextField type="time" size="small" value={newGameData.time} onChange={(e) => setNewGameData({ ...newGameData, time: e.target.value })} sx={{ width: 100 }} InputProps={{ sx: { fontSize: 13 } }} />
+          </TableCell>
+        );
+      case "status":
+        return (
+          <TableCell key="status" sx={{ py: 1 }}>
+            <Select size="small" value={newGameData.status} onChange={(e) => setNewGameData({ ...newGameData, status: e.target.value as string })} sx={{ width: 110, fontSize: 13 }}>
+              <MenuItem value="SCHEDULED">Pending</MenuItem>
+              <MenuItem value="CONFIRMED">Yes</MenuItem>
+              <MenuItem value="CANCELLED">No</MenuItem>
+            </Select>
+          </TableCell>
+        );
+      case "location":
+        return (
+          <TableCell key="location" sx={{ py: 1, minWidth: 160 }}>
+            {newGameData.isHome ? (
+              <Typography variant="body2" sx={{ fontSize: 13 }}>
+                Home Field
+              </Typography>
+            ) : (
+              <Select
+                size="small"
+                value={newGameData.venueId}
+                onChange={(e) => {
+                  if (e.target.value === "__add_new__") {
+                    setShowAddVenue(true);
+                  } else {
+                    setNewGameData({ ...newGameData, venueId: e.target.value as string });
+                  }
+                }}
+                sx={{ width: 160, fontSize: 13 }}
+                displayEmpty
+              >
+                <MenuItem value="">TBD</MenuItem>
+                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  + Add New Venue
+                </MenuItem>
+                {venues.map((venue: any) => (
+                  <MenuItem key={venue.id} value={venue.id}>
+                    {venue.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          </TableCell>
+        );
+      case "busTravel":
+        return (
+          <TableCell key="busTravel" sx={{ py: 1, minWidth: 180 }}>
+            <Stack direction="column" spacing={0.75}>
+              <TextField
+                type="time"
+                size="small"
+                label="Depart"
+                value={newGameData.actualDepartureTime || ""}
+                onChange={(e) => setNewGameData({ ...newGameData, actualDepartureTime: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
+                  "& .MuiInputLabel-root": { fontSize: 11 },
+                }}
+              />
+              <TextField
+                type="time"
+                size="small"
+                label="Arrive"
+                value={newGameData.actualArrivalTime || ""}
+                onChange={(e) => setNewGameData({ ...newGameData, actualArrivalTime: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
+                  "& .MuiInputLabel-root": { fontSize: 11 },
+                }}
+              />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                  Bus
+                </Typography>
+              </Box>
+            </Stack>
+          </TableCell>
+        );
+      case "notes":
+        return (
+          <TableCell key="notes" sx={{ py: 1, minWidth: 220 }}>
+            <TextField
+              size="small"
+              multiline
+              rows={2}
+              fullWidth
+              value={newGameData.notes}
+              onChange={(e) => {
+                const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                setNewGameData({ ...newGameData, notes: value });
+              }}
+              placeholder="Add notes..."
+              helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
+              FormHelperTextProps={{
+                sx: {
+                  fontSize: 10,
+                  color:
+                    newGameData.notes.length >= MAX_CHAR_LIMIT
+                      ? "error.main"
+                      : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9
+                        ? "warning.main"
+                        : "text.secondary",
+                },
+              }}
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
+                },
+              }}
+            />
+          </TableCell>
+        );
+      case "actions":
+        return (
+          <TableCell key="actions" sx={{ py: 1 }}>
+            <Stack direction="row" spacing={0}>
+              <Tooltip title="Save">
+                <IconButton size="small" color="success" onClick={handleSaveNewGame} disabled={createGameMutation.isPending} sx={{ p: 0.5 }}>
+                  {createGameMutation.isPending ? <CircularProgress size={16} /> : <Check sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cancel">
+                <IconButton size="small" color="error" onClick={handleCancelNewGame} disabled={createGameMutation.isPending} sx={{ p: 0.5 }}>
+                  <Close sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </TableCell>
+        );
+      default:
+        if (column.id.startsWith("custom:")) {
+          const customColumn = column.customColumn;
+          if (!customColumn) return null;
+          return (
+            <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+              <TextField
+                size="small"
+                fullWidth
+                value={newGameData.customData?.[customColumn.id] || ""}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                  setNewGameData((prev) => ({
+                    ...prev,
+                    customData: {
+                      ...(prev.customData || {}),
+                      [customColumn.id]: value,
+                    },
+                  }));
+                }}
+                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontSize: 13,
+                    py: 0.5,
+                  },
+                }}
+              />
+            </TableCell>
+          );
+        }
+        return null;
+    }
+  };
+
+  const renderEditingRowCell = (column: ResolvedColumn, editingGame: Game) => {
+    switch (column.id) {
+      case "date":
+        return (
+          <TableCell key="date" sx={{ py: 1 }}>
+            <TextField
+              type="date"
+              size="small"
+              value={extractDatePart(editingGame.date)}
+              onChange={(e) => {
+                const nextDate = e.target.value;
+                setEditingGameData((prev) => {
+                  if (!prev) return prev;
+                  const departureInput = toTimeInputValue(prev.actualDepartureTime);
+                  const arrivalInput = toTimeInputValue(prev.actualArrivalTime);
+
+                  return {
+                    ...prev,
+                    date: nextDate,
+                    actualDepartureTime: departureInput ? combineDateAndTime(nextDate, departureInput) : null,
+                    actualArrivalTime: arrivalInput ? combineDateAndTime(nextDate, arrivalInput) : null,
+                  };
+                });
+              }}
+              sx={{
+                width: 140,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
+          </TableCell>
+        );
+      case "sport":
+        return (
+          <TableCell key="sport" sx={{ py: 1, minWidth: 180 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Select
+                size="small"
+                value={editingGame.homeTeam.sport.name}
+                onChange={(e) => {
+                  const sport = e.target.value as string;
+                  setEditingGameData((prev) => {
+                    if (!prev) return prev;
+                    const levels = getLevelsForSport(sport);
+                    const levelIsValid = prev.homeTeam.level ? levels.includes(prev.homeTeam.level) : true;
+                    return {
+                      ...prev,
+                      homeTeam: {
+                        ...prev.homeTeam,
+                        sport: {
+                          ...prev.homeTeam.sport,
+                          name: sport,
+                        },
+                        level: levelIsValid ? prev.homeTeam.level : "",
+                      },
+                    };
+                  });
+                }}
+                displayEmpty
+                sx={{ minWidth: 140, fontSize: 13, bgcolor: "transparent" }}
+              >
+                {uniqueSports.map((sport: string) => (
+                  <MenuItem key={sport} value={sport}>
+                    {sport}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Tooltip title="Add new team">
+                <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
+                  <Add fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </TableCell>
+        );
+      case "level":
+        return (
+          <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
+            <Select
+              size="small"
+              value={editingGame.homeTeam.level}
+              onChange={(e) => {
+                const level = e.target.value as string;
+                setEditingGameData((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    homeTeam: {
+                      ...prev.homeTeam,
+                      level,
+                    },
+                  };
+                });
+              }}
+              displayEmpty
+              sx={{ minWidth: 140, fontSize: 13, bgcolor: "transparent" }}
+            >
+              <MenuItem value="">Select level</MenuItem>
+              {getLevelsForSport(editingGame.homeTeam.sport.name).map((level) => (
+                <MenuItem key={level} value={level}>
+                  {level}
+                </MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        );
+      case "opponent":
+        return (
+          <TableCell key="opponent" sx={{ py: 1 }}>
+            <Select
+              size="small"
+              value={editingGame.opponentId || editingGame.opponent?.id || ""}
+              onChange={(e) => {
+                if (e.target.value === "__add_new__") {
+                  setShowAddOpponent(true);
+                } else {
+                  setEditingGameData((prev) => (prev ? { ...prev, opponentId: e.target.value as string } : prev));
+                }
+              }}
+              sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
+              displayEmpty
+            >
+              <MenuItem value="">TBD</MenuItem>
+              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                + Add New Opponent
+              </MenuItem>
+              {opponents.map((opponent: any) => (
+                <MenuItem key={opponent.id} value={opponent.id}>
+                  {opponent.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </TableCell>
+        );
+      case "isHome":
+        return (
+          <TableCell key="isHome" sx={{ py: 1 }}>
+            <Select
+              size="small"
+              value={editingGame.isHome ? "home" : "away"}
+              onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, isHome: e.target.value === "home" } : prev))}
+              sx={{ width: 80, fontSize: 13, bgcolor: "transparent" }}
+            >
+              <MenuItem value="home">Home</MenuItem>
+              <MenuItem value="away">Away</MenuItem>
+            </Select>
+          </TableCell>
+        );
+      case "time":
+        return (
+          <TableCell key="time" sx={{ py: 1 }}>
+            <TextField
+              type="time"
+              size="small"
+              value={editingGame.time || ""}
+              onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, time: e.target.value } : prev))}
+              sx={{
+                width: 100,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
+          </TableCell>
+        );
+      case "status":
+        return (
+          <TableCell key="status" sx={{ py: 1 }}>
+            <Select
+              size="small"
+              value={editingGame.status}
+              onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, status: e.target.value as string } : prev))}
+              sx={{ width: 110, fontSize: 13, bgcolor: "transparent" }}
+            >
+              <MenuItem value="SCHEDULED">Pending</MenuItem>
+              <MenuItem value="CONFIRMED">Yes</MenuItem>
+              <MenuItem value="CANCELLED">No</MenuItem>
+            </Select>
+          </TableCell>
+        );
+      case "location":
+        return (
+          <TableCell key="location" sx={{ py: 1 }}>
+            {editingGame.isHome ? (
+              <Typography variant="body2" sx={{ fontSize: 13 }}>
+                Home Field
+              </Typography>
+            ) : (
+              <Select
+                size="small"
+                value={editingGame.venueId || editingGame.venue?.id || ""}
+                onChange={(e) => {
+                  if (e.target.value === "__add_new__") {
+                    setShowAddVenue(true);
+                  } else {
+                    setEditingGameData((prev) => (prev ? { ...prev, venueId: e.target.value as string } : prev));
+                  }
+                }}
+                sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
+                displayEmpty
+              >
+                <MenuItem value="">TBD</MenuItem>
+                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  + Add New Venue
+                </MenuItem>
+                {venues.map((venue: any) => (
+                  <MenuItem key={venue.id} value={venue.id}>
+                    {venue.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
+          </TableCell>
+        );
+      case "busTravel":
+        return (
+          <TableCell key="busTravel" sx={{ py: 1, minWidth: 180 }}>
+            <Stack direction="column" spacing={0.75}>
+              <TextField
+                type="time"
+                size="small"
+                label="Depart"
+                value={toTimeInputValue(editingGame.actualDepartureTime)}
+                onChange={(e) =>
+                  setEditingGameData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          actualDepartureTime: combineDateAndTime(prev.date, e.target.value),
+                        }
+                      : prev
+                  )
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontSize: 11,
+                    py: 0.25,
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: 11,
+                  },
+                }}
+              />
+              <TextField
+                type="time"
+                size="small"
+                label="Arrive"
+                value={toTimeInputValue(editingGame.actualArrivalTime)}
+                onChange={(e) =>
+                  setEditingGameData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          actualArrivalTime: combineDateAndTime(prev.date, e.target.value),
+                        }
+                      : prev
+                  )
+                }
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontSize: 11,
+                    py: 0.25,
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: 11,
+                  },
+                }}
+              />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Checkbox checked={editingGame.busTravel} onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, busTravel: e.target.checked } : prev))} sx={{ p: 0 }} />
+                <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                  Bus
+                </Typography>
+              </Box>
+            </Stack>
+          </TableCell>
+        );
+      case "notes":
+        return (
+          <TableCell key="notes" sx={{ py: 1, minWidth: 220 }}>
+            <TextField
+              size="small"
+              multiline
+              rows={3}
+              fullWidth
+              value={editingGame.notes || ""}
+              onChange={(e) => {
+                const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                setEditingGameData((prev) => (prev ? { ...prev, notes: value } : prev));
+              }}
+              placeholder="Add notes..."
+              helperText={`${editingGame.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
+              FormHelperTextProps={{
+                sx: {
+                  fontSize: 10,
+                  mt: 0.5,
+                  color:
+                    (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT
+                      ? "error.main"
+                      : (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
+                        ? "warning.main"
+                        : "text.secondary",
+                },
+              }}
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
+                },
+              }}
+            />
+          </TableCell>
+        );
+      case "actions":
+        return (
+          <TableCell key="actions" sx={{ py: 1 }}>
+            <Stack direction="row" spacing={0}>
+              <Tooltip title="Save">
+                <IconButton size="small" color="success" onClick={handleSaveEdit} disabled={updateGameMutation.isPending} sx={{ p: 0.5 }}>
+                  {updateGameMutation.isPending ? <CircularProgress size={16} /> : <Check sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cancel">
+                <IconButton size="small" color="error" onClick={handleCancelEdit} disabled={updateGameMutation.isPending} sx={{ p: 0.5 }}>
+                  <Close sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </TableCell>
+        );
+      default:
+        if (column.id.startsWith("custom:")) {
+          const customColumn = column.customColumn;
+          if (!customColumn) return null;
+          return (
+            <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+              <TextField
+                size="small"
+                fullWidth
+                value={editingCustomData[customColumn.id] || ""}
+                onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
+                }}
+              />
+            </TableCell>
+          );
+        }
+        return null;
+    }
+  };
+
+  const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
+    switch (column.id) {
+      case "date": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
+        return (
+          <TableCell
+            key="date"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "date")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <TextField
+                  type="date"
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%" }}
+                  InputProps={{ sx: { fontSize: 13 } }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {formatGameDate(game.date)}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "sport":
+        return (
+          <TableCell key="sport" sx={{ fontSize: 13, py: 2 }}>
+            {game.homeTeam.sport.name}
+          </TableCell>
+        );
+      case "level":
+        return (
+          <TableCell key="level" sx={{ fontSize: 13, py: 2 }}>
+            {game.homeTeam.level}
+          </TableCell>
+        );
+      case "opponent": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
+        return (
+          <TableCell
+            key="opponent"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "opponent")}
+          >
+            {isEditing ? (
+              <Select
+                size="small"
+                value={inlineEditValue}
+                onChange={(e) => {
+                  if (e.target.value === "__add_new__") {
+                    if (saveTimeoutRef.current) {
+                      clearTimeout(saveTimeoutRef.current);
+                      saveTimeoutRef.current = null;
+                    }
+                    setShowAddOpponent(true);
+                  } else {
+                    handleInlineValueChange(e.target.value as string);
+                  }
+                }}
+                onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                onBlur={() => handleInlineBlur(game)}
+                autoFocus
+                disabled={isInlineSaving}
+                sx={{ width: "100%", fontSize: 13 }}
+                displayEmpty
+              >
+                <MenuItem value="">TBD</MenuItem>
+                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  + Add New Opponent
+                </MenuItem>
+                {opponents.map((opponent: any) => (
+                  <MenuItem key={opponent.id} value={opponent.id}>
+                    {opponent.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {game.opponent?.name || "TBD"}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "isHome":
+        return (
+          <TableCell key="isHome" sx={{ py: 2 }}>
+            <Chip
+              label={game.isHome ? "Home" : "Away"}
+              size="small"
+              sx={{ fontSize: 11, height: 24, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
+            />
+          </TableCell>
+        );
+      case "time": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "time";
+        return (
+          <TableCell
+            key="time"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "time")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <TextField
+                  type="time"
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%" }}
+                  InputProps={{ sx: { fontSize: 13 } }}
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {game.time || "TBD"}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "time" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "status": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "status";
+        const confirmedStatus = getConfirmedStatus(game.status);
+        return (
+          <TableCell
+            key="status"
+            sx={{
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "status")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <Select
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%", fontSize: 13 }}
+                >
+                  <MenuItem value="SCHEDULED">Pending</MenuItem>
+                  <MenuItem value="CONFIRMED">Yes</MenuItem>
+                  <MenuItem value="CANCELLED">No</MenuItem>
+                </Select>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Chip
+                  icon={confirmedStatus.icon}
+                  label={confirmedStatus.label}
+                  size="small"
+                  color={confirmedStatus.color as ChipProps["color"]}
+                  sx={{
+                    fontSize: 11,
+                    height: 24,
+                    fontWeight: 500,
+                    "& .MuiChip-icon": { fontSize: 16 },
+                  }}
+                />
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "status" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "location": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "location";
+        return (
+          <TableCell
+            key="location"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              maxWidth: 180,
+              cursor: game.isHome ? "default" : isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: game.isHome ? "transparent" : isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "location")}
+          >
+            {isEditing && !game.isHome ? (
+              <Select
+                size="small"
+                value={inlineEditValue}
+                onChange={(e) => {
+                  if (e.target.value === "__add_new__") {
+                    if (saveTimeoutRef.current) {
+                      clearTimeout(saveTimeoutRef.current);
+                      saveTimeoutRef.current = null;
+                    }
+                    setShowAddVenue(true);
+                  } else {
+                    handleInlineValueChange(e.target.value as string);
+                  }
+                }}
+                onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                onBlur={() => handleInlineBlur(game)}
+                autoFocus
+                disabled={isInlineSaving}
+                sx={{ width: "100%", fontSize: 13 }}
+                displayEmpty
+              >
+                <MenuItem value="">TBD</MenuItem>
+                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                  + Add New Venue
+                </MenuItem>
+                {venues.map((venue: any) => (
+                  <MenuItem key={venue.id} value={venue.id}>
+                    {venue.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {game.isHome ? "Home Field" : game.venue?.name || "TBD"}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "busTravel": {
+        const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
+        const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
+        return (
+          <TableCell key="busTravel" sx={{ py: 2, minWidth: 180 }}>
+            <Stack spacing={0.75}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                  Depart
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                  {departureDisplay}
+                </Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                  Arrive
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                  {arrivalDisplay}
+                </Typography>
+              </Stack>
+            </Stack>
+          </TableCell>
+        );
+      }
+      case "notes": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "notes";
+        return (
+          <TableCell
+            key="notes"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              minWidth: 220,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "notes")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <TextareaAutosize
+                  value={inlineEditValue}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                    setInlineEditValue(value);
+                  }}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  minRows={3}
+                  maxRows={6}
+                  placeholder="Add notes..."
+                  disabled={isInlineSaving}
+                  style={{
+                    width: "100%",
+                    fontSize: "13px",
+                    fontFamily: theme.typography.fontFamily,
+                    padding: "8px",
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "4px",
+                    resize: "vertical",
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: 10,
+                    color: getCharacterCounterColor(inlineEditValue.length),
+                    mt: 0.5,
+                    display: "block",
+                  }}
+                >
+                  {inlineEditValue.length}/{MAX_CHAR_LIMIT}
+                </Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: 13,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {getNotesPreview(game.notes)}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
+              </Box>
+            )}
+          </TableCell>
+        );
+      }
+      case "actions": {
+        const isSyncingCurrentGame = syncGameMutation.isPending && (syncGameMutation.variables as string | undefined) === game.id;
+        return (
+          <TableCell key="actions" sx={{ py: 2 }}>
+            <Stack direction="row" spacing={0}>
+              <Tooltip title="Edit">
+                <IconButton size="small" onClick={() => handleEditGame(game)} sx={{ p: 0.5 }}>
+                  <Edit sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Sync to Google">
+                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
+                  {isSyncingCurrentGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete">
+                <IconButton size="small" color="error" onClick={() => handleDeleteGame(game)} sx={{ p: 0.5 }}>
+                  <Delete sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </TableCell>
+        );
+      }
+      default:
+        if (column.id.startsWith("custom:")) {
+          const customColumn = column.customColumn;
+          if (!customColumn) return null;
+          const fieldKey = `custom:${customColumn.id}` as InlineEditField;
+          const customData = (game.customData as any) || {};
+          const cellValue = customData[customColumn.id] || "";
+          const isCustomEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
+
+          return (
+            <TableCell
+              key={column.id}
+              sx={{
+                fontSize: 13,
+                py: 0,
+                minWidth: 150,
+                cursor: isCustomEditing ? "default" : "pointer",
+                bgcolor: isCustomEditing ? "#fff9e6" : "transparent",
+                ...(isCustomEditing && {
+                  boxShadow: "inset 0 0 0 1px #DBEAFE",
+                }),
+                "&:hover": {
+                  bgcolor: isCustomEditing ? "#fff9e6" : "#f5f5f5",
+                },
+              }}
+              onDoubleClick={() => handleDoubleClick(game, fieldKey)}
+            >
+              {isCustomEditing ? (
+                <Box sx={{ py: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    value={inlineEditValue}
+                    onChange={(e) => handleInlineValueChange(e.target.value)}
+                    onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                    onBlur={() => handleInlineBlur(game)}
+                    autoFocus
+                    disabled={isInlineSaving}
+                    helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                    FormHelperTextProps={{
+                      sx: {
+                        fontSize: 10,
+                        color: getCharacterCounterColor(inlineEditValue.length),
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                  {inlineEditError && inlineEditState?.field === fieldKey && (
+                    <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
+                      {inlineEditError}
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                  <Typography variant="body2" sx={{ fontSize: 13 }}>
+                    {cellValue || "—"}
+                  </Typography>
+                  {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
+                </Box>
+              )}
+            </TableCell>
+          );
+        }
+        return null;
+    }
+  };
+
+  const renderNewRow = () => {
+    if (!isAddingNew) return null;
+
+    return (
+      <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+        <TableCell padding="checkbox">
+          <Checkbox disabled sx={{ p: 0 }} />
+        </TableCell>
+        {resolvedColumns.map((column) => renderNewRowCell(column))}
+      </TableRow>
+    );
+  };
+
+  const renderGameRow = (game: Game) => {
+    const isSelected = selectedGames.has(game.id);
+    const isEditing = editingGameId === game.id && editingGameData;
+
+    if (isEditing && editingGameData) {
+      return (
+        <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
+          <TableCell padding="checkbox">
+            <Checkbox disabled sx={{ p: 0 }} />
+          </TableCell>
+          {resolvedColumns.map((column) => renderEditingRowCell(column, editingGameData))}
+        </TableRow>
+      );
+    }
+
+    return (
+      <TableRow
+        key={game.id}
+        selected={isSelected}
+        sx={{
+          bgcolor: "white",
+          "&:hover": { bgcolor: "#f8fafc" },
+          transition: "background-color 0.2s",
+          "&.Mui-selected": {
+            bgcolor: "#e3f2fd !important",
+            "&:hover": {
+              bgcolor: "#bbdefb !important",
+            },
+          },
+        }}
+      >
+        <TableCell padding="checkbox">
+          <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
+        </TableCell>
+        {resolvedColumns.map((column) => renderViewRowCell(column, game))}
+      </TableRow>
+    );
   };
 
   const getConfirmedStatus = (status: string) => {
@@ -983,20 +2652,26 @@ export function GamesTable() {
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
-          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap" }}>
             {selectedGames.size > 0 && (
-              <>
-                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                  Send Email ({selectedGames.size})
-                </Button>
-              </>
+              <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                Send Email ({selectedGames.size})
+              </Button>
             )}
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
-            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
-              Add Columns ({customColumns.length})
+            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} sx={{ textTransform: "none" }}>
+              Columns
             </Button>
+            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
+              Custom Columns ({customColumns.length})
+            </Button>
+            {hiddenColumnCount > 0 && (
+              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none" }}>
+                Show all columns ({hiddenColumnCount} hidden)
+              </Button>
+            )}
           </Stack>
         </Box>
         <Stack direction="row" spacing={2}>
@@ -1044,1255 +2719,25 @@ export function GamesTable() {
               <TableCell padding="checkbox" sx={{ py: 2 }}>
                 <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
               </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
-                    DATE
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="date"
-                    columnName="Date"
-                    columnType="date"
-                    uniqueValues={uniqueValues.date || []}
-                    currentFilter={columnFilters.date}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
-                    SPORT
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="sport"
-                    columnName="Sport"
-                    columnType="text"
-                    uniqueValues={uniqueValues.sport || []}
-                    currentFilter={columnFilters.sport}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
-                    LEVEL
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="level"
-                    columnName="Level"
-                    columnType="text"
-                    uniqueValues={uniqueValues.level || []}
-                    currentFilter={columnFilters.level}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
-                    OPPONENT
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="opponent"
-                    columnName="Opponent"
-                    columnType="text"
-                    uniqueValues={uniqueValues.opponent || []}
-                    currentFilter={columnFilters.opponent}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
-                    H/A
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="isHome"
-                    columnName="Home/Away"
-                    columnType="select"
-                    uniqueValues={["Home", "Away"]}
-                    currentFilter={columnFilters.isHome}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
-                  TIME
-                </TableSortLabel>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
-                    CONFIRMED
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="status"
-                    columnName="Status"
-                    columnType="select"
-                    uniqueValues={uniqueValues.status || []}
-                    currentFilter={columnFilters.status}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "location"} direction={sortField === "location" ? sortOrder : "asc"} onClick={() => handleSort("location")}>
-                    LOCATION
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="location"
-                    columnName="Location"
-                    columnType="text"
-                    uniqueValues={uniqueValues.location || []}
-                    currentFilter={columnFilters.location}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
-                    BUS INFO
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="busTravel"
-                    columnName="Bus Travel"
-                    columnType="select"
-                    uniqueValues={["Yes", "No"]}
-                    currentFilter={columnFilters.busTravel}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              {customColumns.map((column: any) => (
-                <TableCell
-                  key={column.id}
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: 12,
-                    py: 2,
-                    color: "text.secondary",
-                    minWidth: 150,
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    {column.name.toUpperCase()}
-                    <ColumnFilter
-                      columnId={column.id}
-                      columnName={column.name}
-                      columnType="text"
-                      uniqueValues={uniqueValues[column.id] || []}
-                      currentFilter={columnFilters[column.id]}
-                      onFilterChange={handleColumnFilterChange}
-                    />
-                  </Box>
-                </TableCell>
-              ))}
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <TableSortLabel active={sortField === "notes"} direction={sortField === "notes" ? sortOrder : "asc"} onClick={() => handleSort("notes")}>
-                    NOTES
-                  </TableSortLabel>
-                  <ColumnFilter
-                    columnId="notes"
-                    columnName="Notes"
-                    columnType="text"
-                    uniqueValues={uniqueValues.notes || []}
-                    currentFilter={columnFilters.notes}
-                    onFilterChange={handleColumnFilterChange}
-                  />
-                </Box>
-              </TableCell>
-
-              <TableCell sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>ACTIONS</TableCell>
+              {resolvedColumns.map((column) => renderHeaderCell(column))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {/* New Game Row */}
-            {isAddingNew && (
-              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                <TableCell padding="checkbox">
-                  <Checkbox disabled sx={{ p: 0 }} />
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <TextField
-                    type="date"
-                    size="small"
-                    value={newGameData.date}
-                    onChange={(e) => setNewGameData({ ...newGameData, date: e.target.value })}
-                    sx={{ width: 140 }}
-                    InputProps={{ sx: { fontSize: 13 } }}
-                  />
-                </TableCell>
-                {/* MERGED CELL for Sport + Level */}
-                <TableCell colSpan={2} sx={{ py: 1 }}>
-                  <Button size="small" variant="outlined" onClick={() => setShowAddTeam(true)} fullWidth sx={{ fontSize: 13, textTransform: "none", justifyContent: "flex-start" }}>
-                    {newGameData.sport && newGameData.level ? `${newGameData.sport} - ${newGameData.level}` : "+ Select Team"}
-                  </Button>
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select
-                    size="small"
-                    value={newGameData.opponentId}
-                    onChange={(e) => {
-                      if (e.target.value === "__add_new__") {
-                        setShowAddOpponent(true);
-                      } else {
-                        setNewGameData({ ...newGameData, opponentId: e.target.value });
-                      }
-                    }}
-                    sx={{ width: 140, fontSize: 13 }}
-                    displayEmpty
-                  >
-                    <MenuItem value="">TBD</MenuItem>
-                    <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                      + Add New Opponent
-                    </MenuItem>
-                    {opponents.map((opponent: any) => (
-                      <MenuItem key={opponent.id} value={opponent.id}>
-                        {opponent.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select
-                    size="small"
-                    value={newGameData.isHome ? "home" : "away"}
-                    onChange={(e) => setNewGameData({ ...newGameData, isHome: e.target.value === "home" })}
-                    sx={{ width: 80, fontSize: 13 }}
-                  >
-                    <MenuItem value="home">Home</MenuItem>
-                    <MenuItem value="away">Away</MenuItem>
-                  </Select>
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <TextField
-                    type="time"
-                    size="small"
-                    value={newGameData.time}
-                    onChange={(e) => setNewGameData({ ...newGameData, time: e.target.value })}
-                    sx={{ width: 100 }}
-                    InputProps={{ sx: { fontSize: 13 } }}
-                  />
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select size="small" value={newGameData.status} onChange={(e) => setNewGameData({ ...newGameData, status: e.target.value })} sx={{ width: 110, fontSize: 13 }}>
-                    <MenuItem value="SCHEDULED">Pending</MenuItem>
-                    <MenuItem value="CONFIRMED">Yes</MenuItem>
-                    <MenuItem value="CANCELLED">No</MenuItem>
-                  </Select>
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Select
-                    size="small"
-                    value={newGameData.venueId}
-                    onChange={(e) => {
-                      if (e.target.value === "__add_new__") {
-                        setShowAddVenue(true);
-                      } else {
-                        setNewGameData({ ...newGameData, venueId: e.target.value });
-                      }
-                    }}
-                    sx={{ width: 140, fontSize: 13 }}
-                    displayEmpty
-                  >
-                    <MenuItem value="">TBD</MenuItem>
-                    <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                      + Add New Venue
-                    </MenuItem>
-                    {venues.map((venue: any) => (
-                      <MenuItem key={venue.id} value={venue.id}>
-                        {venue.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </TableCell>
-                <TableCell sx={{ py: 1, minWidth: 180 }}>
-                  <Stack direction="column" spacing={0.75}>
-                    <TextField
-                      type="time"
-                      size="small"
-                      label="Depart"
-                      value={newGameData.actualDepartureTime || ""}
-                      onChange={(e) => setNewGameData({ ...newGameData, actualDepartureTime: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{
-                        "& .MuiInputBase-input": {
-                          fontSize: 11,
-                          py: 0.25,
-                        },
-                        "& .MuiInputLabel-root": {
-                          fontSize: 11,
-                        },
-                      }}
-                    />
-                    <TextField
-                      type="time"
-                      size="small"
-                      label="Arrive"
-                      value={newGameData.actualArrivalTime || ""}
-                      onChange={(e) => setNewGameData({ ...newGameData, actualArrivalTime: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                      sx={{
-                        "& .MuiInputBase-input": {
-                          fontSize: 11,
-                          py: 0.25,
-                        },
-                        "& .MuiInputLabel-root": {
-                          fontSize: 11,
-                        },
-                      }}
-                    />
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
-                      <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
-                        Bus
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </TableCell>
-                {customColumns.map((column: any) => (
-                  <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      value={newGameData.customData?.[column.id] || ""}
-                      onChange={(e) => {
-                        const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                        setNewGameData({
-                          ...newGameData,
-                          customData: {
-                            ...(newGameData.customData || {}),
-                            [column.id]: value,
-                          },
-                        });
-                      }}
-                      placeholder={`Enter ${column.name.toLowerCase()}`}
-                      sx={{
-                        "& .MuiInputBase-input": {
-                          fontSize: 13,
-                          py: 0.5,
-                        },
-                      }}
-                    />
-                  </TableCell>
-                ))}
-                <TableCell sx={{ py: 1, minWidth: 220 }}>
-                  <TextField
-                    size="small"
-                    multiline
-                    rows={2}
-                    fullWidth
-                    value={newGameData.notes}
-                    onChange={(e) => {
-                      const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                      setNewGameData({ ...newGameData, notes: value });
-                    }}
-                    placeholder="Add notes..."
-                    helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
-                    FormHelperTextProps={{
-                      sx: {
-                        fontSize: 10,
-                        color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
-                      },
-                    }}
-                    sx={{
-                      "& .MuiInputBase-input": {
-                        fontSize: 13,
-                      },
-                    }}
-                  />
-                </TableCell>
-                <TableCell sx={{ py: 1 }}>
-                  <Stack direction="row" spacing={0}>
-                    <Tooltip title="Save">
-                      <IconButton size="small" color="success" onClick={handleSaveNewGame} disabled={createGameMutation.isPending} sx={{ p: 0.5 }}>
-                        {createGameMutation.isPending ? <CircularProgress size={16} /> : <Check sx={{ fontSize: 18 }} />}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Cancel">
-                      <IconButton size="small" color="error" onClick={handleCancelNewGame} disabled={createGameMutation.isPending} sx={{ p: 0.5 }}>
-                        <Close sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            )}
-
-            {/* Existing Games */}
+            {renderNewRow()}
             {games.length === 0 && !isAddingNew ? (
               <TableRow>
-                <TableCell colSpan={12 + customColumns.length} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "Create Game" to add one.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              games.map((game: Game) => {
-                const confirmedStatus = getConfirmedStatus(game.status);
-                const isSelected = selectedGames.has(game.id);
-                const isEditing = editingGameId === game.id;
-                const isInlineEditing = inlineEditState?.gameId === game.id;
-
-                if (isEditing && editingGameData) {
-                  return (
-                    <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
-                      {/* Checkbox */}
-                      <TableCell padding="checkbox">
-                        <Checkbox disabled sx={{ p: 0 }} />
-                      </TableCell>
-
-                      {/* Date */}
-                      <TableCell sx={{ py: 1 }}>
-                        <TextField
-                          type="date"
-                          size="small"
-                          value={extractDatePart(editingGameData.date)}
-                          onChange={(e) => {
-                            const nextDate = e.target.value;
-                            setEditingGameData((prev) => {
-                              if (!prev) return prev;
-                              const departureInput = toTimeInputValue(prev.actualDepartureTime);
-                              const arrivalInput = toTimeInputValue(prev.actualArrivalTime);
-
-                              return {
-                                ...prev,
-                                date: nextDate,
-                                actualDepartureTime: departureInput ? combineDateAndTime(nextDate, departureInput) : null,
-                                actualArrivalTime: arrivalInput ? combineDateAndTime(nextDate, arrivalInput) : null,
-                              };
-                            });
-                          }}
-                          sx={{
-                            width: 140,
-                            "& .MuiOutlinedInput-root": {
-                              bgcolor: "transparent",
-                              "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                              "&:hover fieldset": { borderColor: "primary.main" },
-                              "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                            },
-                          }}
-                          InputProps={{ sx: { fontSize: 13 } }}
-                        />
-                      </TableCell>
-
-                      {/* Sport + Level (merged cell) */}
-                      <TableCell colSpan={2} sx={{ py: 1 }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setShowAddTeam(true)}
-                          fullWidth
-                          sx={{
-                            fontSize: 13,
-                            textTransform: "none",
-                            justifyContent: "flex-start",
-                            bgcolor: "transparent",
-                            "&:hover": { bgcolor: "rgba(0, 0, 0, 0.04)" },
-                          }}
-                        >
-                          {editingGameData.homeTeam.sport.name && editingGameData.homeTeam.level ? `${editingGameData.homeTeam.sport.name} - ${editingGameData.homeTeam.level}` : "+ Select Team"}
-                        </Button>
-                      </TableCell>
-
-                      {/* Opponent */}
-                      <TableCell sx={{ py: 1 }}>
-                        <Select
-                          size="small"
-                          value={editingGameData.opponentId || editingGameData.opponent?.id || ""}
-                          onChange={(e) => {
-                            if (e.target.value === "__add_new__") setShowAddOpponent(true);
-                            else setEditingGameData({ ...editingGameData, opponentId: e.target.value });
-                          }}
-                          sx={{
-                            width: 140,
-                            fontSize: 13,
-                            bgcolor: "transparent",
-                            borderBottom: "#e0e0e0!important",
-                            "& .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "rgba(0, 0, 0, 0.23)",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                          }}
-                          displayEmpty
-                        >
-                          <MenuItem value="">TBD</MenuItem>
-                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                            + Add New Opponent
-                          </MenuItem>
-                          {opponents.map((opponent: any) => (
-                            <MenuItem key={opponent.id} value={opponent.id}>
-                              {opponent.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </TableCell>
-
-                      {/* Home/Away */}
-                      <TableCell sx={{ py: 1 }}>
-                        <Select
-                          size="small"
-                          value={editingGameData.isHome ? "home" : "away"}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, isHome: e.target.value === "home" })}
-                          sx={{
-                            width: 80,
-                            fontSize: 13,
-                            bgcolor: "transparent",
-                            "& .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "rgba(0, 0, 0, 0.23)",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                          }}
-                        >
-                          <MenuItem value="home">Home</MenuItem>
-                          <MenuItem value="away">Away</MenuItem>
-                        </Select>
-                      </TableCell>
-
-                      {/* Time */}
-                      <TableCell sx={{ py: 1 }}>
-                        <TextField
-                          type="time"
-                          size="small"
-                          value={editingGameData.time || ""}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, time: e.target.value })}
-                          sx={{
-                            width: 100,
-                            "& .MuiOutlinedInput-root": {
-                              bgcolor: "transparent",
-                              "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                              "&:hover fieldset": { borderColor: "primary.main" },
-                              "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                            },
-                          }}
-                          InputProps={{ sx: { fontSize: 13 } }}
-                        />
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell sx={{ py: 1 }}>
-                        <Select
-                          size="small"
-                          value={editingGameData.status}
-                          onChange={(e) => setEditingGameData({ ...editingGameData, status: e.target.value })}
-                          sx={{
-                            width: 110,
-                            fontSize: 13,
-                            bgcolor: "transparent",
-                            "& .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "rgba(0, 0, 0, 0.23)",
-                            },
-                            "&:hover .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                            "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                              borderColor: "primary.main",
-                            },
-                          }}
-                        >
-                          <MenuItem value="SCHEDULED">Pending</MenuItem>
-                          <MenuItem value="CONFIRMED">Yes</MenuItem>
-                          <MenuItem value="CANCELLED">No</MenuItem>
-                        </Select>
-                      </TableCell>
-
-                      {/* Venue */}
-                      <TableCell sx={{ py: 1 }}>
-                        {editingGameData.isHome ? (
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            Home Field
-                          </Typography>
-                        ) : (
-                          <Select
-                            size="small"
-                            value={editingGameData.venueId || editingGameData.venue?.id || ""}
-                            onChange={(e) => {
-                              if (e.target.value === "__add_new__") setShowAddVenue(true);
-                              else setEditingGameData({ ...editingGameData, venueId: e.target.value });
-                            }}
-                            sx={{
-                              width: 140,
-                              fontSize: 13,
-                              bgcolor: "transparent",
-                              "& .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "rgba(0, 0, 0, 0.23)",
-                              },
-                              "&:hover .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "primary.main",
-                              },
-                              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                                borderColor: "primary.main",
-                              },
-                            }}
-                            displayEmpty
-                          >
-                            <MenuItem value="">TBD</MenuItem>
-                            <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                              + Add New Venue
-                            </MenuItem>
-                            {venues.map((venue: any) => (
-                              <MenuItem key={venue.id} value={venue.id}>
-                                {venue.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        )}
-                      </TableCell>
-
-                      {/* Bus Travel */}
-                      <TableCell sx={{ py: 1, minWidth: 180 }}>
-                        <Stack direction="column" spacing={0.75}>
-                          <TextField
-                            type="time"
-                            size="small"
-                            label="Depart"
-                            value={toTimeInputValue(editingGameData.actualDepartureTime)}
-                            onChange={(e) =>
-                              setEditingGameData({
-                                ...editingGameData,
-                                actualDepartureTime: combineDateAndTime(editingGameData.date, e.target.value),
-                              })
-                            }
-                            InputLabelProps={{ shrink: true }}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                bgcolor: "transparent",
-                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                                "&:hover fieldset": { borderColor: "primary.main" },
-                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                              },
-                              "& .MuiInputBase-input": {
-                                fontSize: 11,
-                                py: 0.25,
-                              },
-                              "& .MuiInputLabel-root": {
-                                fontSize: 11,
-                              },
-                            }}
-                          />
-                          <TextField
-                            type="time"
-                            size="small"
-                            label="Arrive"
-                            value={toTimeInputValue(editingGameData.actualArrivalTime)}
-                            onChange={(e) =>
-                              setEditingGameData({
-                                ...editingGameData,
-                                actualArrivalTime: combineDateAndTime(editingGameData.date, e.target.value),
-                              })
-                            }
-                            InputLabelProps={{ shrink: true }}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                bgcolor: "transparent",
-                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                                "&:hover fieldset": { borderColor: "primary.main" },
-                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                              },
-                              "& .MuiInputBase-input": {
-                                fontSize: 11,
-                                py: 0.25,
-                              },
-                              "& .MuiInputLabel-root": {
-                                fontSize: 11,
-                              },
-                            }}
-                          />
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                            <Checkbox checked={editingGameData.busTravel} onChange={(e) => setEditingGameData({ ...editingGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
-                            <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
-                              Bus
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </TableCell>
-
-                      {/* Custom Fields */}
-                      {customColumns.map((column: any) => (
-                        <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            value={editingCustomData[column.id] || ""}
-                            onChange={(e) => handleCustomFieldChange(column.id, e.target.value)}
-                            placeholder={`Enter ${column.name.toLowerCase()}`}
-                            sx={{
-                              "& .MuiOutlinedInput-root": {
-                                bgcolor: "transparent",
-                                "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                                "&:hover fieldset": { borderColor: "primary.main" },
-                                "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                              },
-                              "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
-                            }}
-                          />
-                        </TableCell>
-                      ))}
-
-                      {/* Notes */}
-                      <TableCell sx={{ py: 1, minWidth: 220 }}>
-                        <TextField
-                          size="small"
-                          multiline
-                          rows={3}
-                          fullWidth
-                          value={editingGameData.notes || ""}
-                          onChange={(e) => {
-                            const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                            setEditingGameData({ ...editingGameData, notes: value });
-                          }}
-                          placeholder="Add notes..."
-                          helperText={`${editingGameData.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
-                          FormHelperTextProps={{
-                            sx: {
-                              fontSize: 10,
-                              mt: 0.5,
-                              color:
-                                (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT
-                                  ? "error.main"
-                                  : (editingGameData.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
-                                    ? "warning.main"
-                                    : "text.secondary",
-                            },
-                          }}
-                          sx={{
-                            "& .MuiInputBase-input": {
-                              fontSize: 13,
-                            },
-                          }}
-                        />
-                      </TableCell>
-
-                      {/* Save / Cancel Buttons */}
-                      <TableCell sx={{ py: 1 }}>
-                        <Stack direction="row" spacing={0}>
-                          <Tooltip title="Save">
-                            <IconButton size="small" color="success" onClick={handleSaveEdit} disabled={updateGameMutation.isPending} sx={{ p: 0.5 }}>
-                              {updateGameMutation.isPending ? <CircularProgress size={16} /> : <Check sx={{ fontSize: 18 }} />}
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Cancel">
-                            <IconButton size="small" color="error" onClick={handleCancelEdit} disabled={updateGameMutation.isPending} sx={{ p: 0.5 }}>
-                              <Close sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  );
-                }
-
-                const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
-                const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
-
-                return (
-                  <TableRow
-                    key={game.id}
-                    selected={isSelected}
-                    sx={{
-                      bgcolor: "white",
-                      "&:hover": { bgcolor: "#f8fafc" },
-                      transition: "background-color 0.2s",
-                      "&.Mui-selected": {
-                        bgcolor: "#e3f2fd !important",
-                        "&:hover": {
-                          bgcolor: "#bbdefb !important",
-                        },
-                      },
-                    }}
-                  >
-                    <TableCell padding="checkbox">
-                      <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        cursor: isInlineEditing && inlineEditState?.field === "date" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "date" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "date" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "date" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "date")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "date" ? (
-                        <Box sx={{ py: 1 }}>
-                          <TextField
-                            type="date"
-                            size="small"
-                            value={inlineEditValue}
-                            onChange={(e) => handleInlineValueChange(e.target.value)}
-                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                            onBlur={() => handleInlineBlur(game)}
-                            autoFocus
-                            disabled={isInlineSaving}
-                            sx={{ width: "100%" }}
-                            InputProps={{ sx: { fontSize: 13 } }}
-                          />
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            {formatGameDate(game.date)}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.sport.name}</TableCell>
-                    <TableCell sx={{ fontSize: 13, py: 2 }}>{game.homeTeam.level}</TableCell>
-
-                    {/* Opponent Cell - Double-click to edit */}
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        cursor: isInlineEditing && inlineEditState?.field === "opponent" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "opponent" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "opponent" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "opponent")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "opponent" ? (
-                        <Select
-                          size="small"
-                          value={inlineEditValue}
-                          onChange={(e) => {
-                            if (e.target.value === "__add_new__") {
-                              if (saveTimeoutRef.current) {
-                                clearTimeout(saveTimeoutRef.current);
-                                saveTimeoutRef.current = null;
-                              }
-                              setShowAddOpponent(true);
-                            } else {
-                              handleInlineValueChange(e.target.value as string);
-                            }
-                          }}
-                          onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                          onBlur={() => handleInlineBlur(game)}
-                          autoFocus
-                          disabled={isInlineSaving}
-                          sx={{ width: "100%", fontSize: 13 }}
-                          displayEmpty
-                        >
-                          <MenuItem value="">TBD</MenuItem>
-                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                            + Add New Opponent
-                          </MenuItem>
-                          {opponents.map((opponent: any) => (
-                            <MenuItem key={opponent.id} value={opponent.id}>
-                              {opponent.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            {game.opponent?.name || "TBD"}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    {/* Home/Away */}
-                    <TableCell sx={{ py: 2 }}>
-                      <Chip
-                        label={game.isHome ? "Home" : "Away"}
-                        size="small"
-                        sx={{ fontSize: 11, height: 24, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
-                      />
-                    </TableCell>
-
-                    {/* Time Cell - Double-click to edit */}
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        cursor: isInlineEditing && inlineEditState?.field === "time" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "time" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "time" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "time" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "time")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "time" ? (
-                        <Box sx={{ py: 1 }}>
-                          <TextField
-                            type="time"
-                            size="small"
-                            value={inlineEditValue}
-                            onChange={(e) => handleInlineValueChange(e.target.value)}
-                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                            onBlur={() => handleInlineBlur(game)}
-                            autoFocus
-                            disabled={isInlineSaving}
-                            sx={{ width: "100%" }}
-                            InputProps={{ sx: { fontSize: 13 } }}
-                          />
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            {game.time || "TBD"}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "time" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    {/* Confirmed Status Cell - Double-click to edit */}
-                    <TableCell
-                      sx={{
-                        py: 0,
-                        cursor: isInlineEditing && inlineEditState?.field === "status" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "status" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "status" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "status" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "status")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "status" ? (
-                        <Box sx={{ py: 1 }}>
-                          <Select
-                            size="small"
-                            value={inlineEditValue}
-                            onChange={(e) => handleInlineValueChange(e.target.value as string)}
-                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                            onBlur={() => handleInlineBlur(game)}
-                            autoFocus
-                            disabled={isInlineSaving}
-                            sx={{ width: "100%", fontSize: 13 }}
-                          >
-                            <MenuItem value="SCHEDULED">Pending</MenuItem>
-                            <MenuItem value="CONFIRMED">Yes</MenuItem>
-                            <MenuItem value="CANCELLED">No</MenuItem>
-                          </Select>
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                          <Chip
-                            icon={confirmedStatus.icon}
-                            label={confirmedStatus.label}
-                            size="small"
-                            color={confirmedStatus.color as ChipProps["color"]}
-                            sx={{
-                              fontSize: 11,
-                              height: 24,
-                              fontWeight: 500,
-                              "& .MuiChip-icon": { fontSize: 16 },
-                            }}
-                          />
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "status" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    {/* Location Cell - Double-click to edit (only for away games) */}
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        maxWidth: 180,
-                        cursor: game.isHome ? "default" : isInlineEditing && inlineEditState?.field === "location" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "location" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: game.isHome ? "transparent" : isInlineEditing && inlineEditState?.field === "location" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "location")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "location" && !game.isHome ? (
-                        <Select
-                          size="small"
-                          value={inlineEditValue}
-                          onChange={(e) => {
-                            if (e.target.value === "__add_new__") {
-                              if (saveTimeoutRef.current) {
-                                clearTimeout(saveTimeoutRef.current);
-                                saveTimeoutRef.current = null;
-                              }
-                              setShowAddVenue(true);
-                            } else {
-                              handleInlineValueChange(e.target.value as string);
-                            }
-                          }}
-                          onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                          onBlur={() => handleInlineBlur(game)}
-                          autoFocus
-                          disabled={isInlineSaving}
-                          sx={{ width: "100%", fontSize: 13 }}
-                          displayEmpty
-                        >
-                          <MenuItem value="">TBD</MenuItem>
-                          <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                            + Add New Venue
-                          </MenuItem>
-                          {venues.map((venue: any) => (
-                            <MenuItem key={venue.id} value={venue.id}>
-                              {venue.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Typography variant="body2" sx={{ fontSize: 13 }}>
-                            {game.isHome ? "Home Field" : game.venue?.name || "TBD"}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    {/* Bus Travel */}
-                    <TableCell sx={{ py: 2, minWidth: 180 }}>
-                      <Stack spacing={0.75}>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
-                            Depart
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
-                            {departureDisplay}
-                          </Typography>
-                        </Stack>
-                        <Stack direction="row" justifyContent="space-between" alignItems="center">
-                          <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
-                            Arrive
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
-                            {arrivalDisplay}
-                          </Typography>
-                        </Stack>
-                        {/* <Chip
-                          label={game.busTravel ? "Bus Scheduled" : "No Bus"}
-                          size="small"
-                          color={game.busTravel ? "success" : "default"}
-                          sx={{ fontSize: 11, height: 24, fontWeight: 500 }}
-                        /> */}
-                      </Stack>
-                    </TableCell>
-
-                    {/* Custom Columns */}
-                    {customColumns.map((column: any) => {
-                      const customData = (game.customData as any) || {};
-                      const cellValue = customData[column.id] || "";
-                      const fieldKey = `custom:${column.id}` as InlineEditField;
-                      const isCustomEditing = isInlineEditing && inlineEditState?.field === fieldKey;
-
-                      return (
-                        <TableCell
-                          key={column.id}
-                          sx={{
-                            fontSize: 13,
-                            py: 0,
-                            minWidth: 150,
-                            cursor: isCustomEditing ? "default" : "pointer",
-                            bgcolor: isCustomEditing ? "#fff9e6" : "transparent",
-                            ...(isCustomEditing && {
-                              boxShadow: "inset 0 0 0 1px #DBEAFE",
-                            }),
-                            "&:hover": {
-                              bgcolor: isCustomEditing ? "#fff9e6" : "#f5f5f5",
-                            },
-                          }}
-                          onDoubleClick={() => handleDoubleClick(game, fieldKey)}
-                        >
-                          {isCustomEditing ? (
-                            <Box sx={{ py: 1 }}>
-                              <TextField
-                                size="small"
-                                fullWidth
-                                value={inlineEditValue}
-                                onChange={(e) => handleInlineValueChange(e.target.value)}
-                                onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                                onBlur={() => handleInlineBlur(game)}
-                                autoFocus
-                                disabled={isInlineSaving}
-                                helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                                FormHelperTextProps={{
-                                  sx: {
-                                    fontSize: 10,
-                                    color: getCharacterCounterColor(inlineEditValue.length),
-                                  },
-                                }}
-                                sx={{
-                                  "& .MuiInputBase-input": {
-                                    fontSize: 13,
-                                  },
-                                }}
-                              />
-                              {inlineEditError && inlineEditState?.field === fieldKey && (
-                                <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
-                                  {inlineEditError}
-                                </Typography>
-                              )}
-                            </Box>
-                          ) : (
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                              <Typography variant="body2" sx={{ fontSize: 13 }}>
-                                {cellValue || "—"}
-                              </Typography>
-                              {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
-                            </Box>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-
-                    {/* Notes Cell - Double-click to edit */}
-                    <TableCell
-                      sx={{
-                        fontSize: 13,
-                        py: 0,
-                        minWidth: 220,
-                        cursor: isInlineEditing && inlineEditState?.field === "notes" ? "default" : "pointer",
-                        bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "transparent",
-                        ...(isInlineEditing &&
-                          inlineEditState?.field === "notes" && {
-                            boxShadow: "inset 0 0 0 1px #DBEAFE",
-                          }),
-                        "&:hover": {
-                          bgcolor: isInlineEditing && inlineEditState?.field === "notes" ? "#fff9e6" : "#f5f5f5",
-                        },
-                      }}
-                      onDoubleClick={() => handleDoubleClick(game, "notes")}
-                    >
-                      {isInlineEditing && inlineEditState?.field === "notes" ? (
-                        <Box sx={{ py: 1 }}>
-                          <TextareaAutosize
-                            value={inlineEditValue}
-                            onChange={(e) => {
-                              const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                              setInlineEditValue(value);
-                            }}
-                            onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                            onBlur={() => handleInlineBlur(game)}
-                            autoFocus
-                            minRows={3}
-                            maxRows={6}
-                            placeholder="Add notes..."
-                            disabled={isInlineSaving}
-                            style={{
-                              width: "100%",
-                              fontSize: "13px",
-                              fontFamily: theme.typography.fontFamily,
-                              padding: "8px",
-                              border: `1px solid ${theme.palette.divider}`,
-                              borderRadius: "4px",
-                              resize: "vertical",
-                            }}
-                          />
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              fontSize: 10,
-                              color: getCharacterCounterColor(inlineEditValue.length),
-                              mt: 0.5,
-                              display: "block",
-                            }}
-                          >
-                            {inlineEditValue.length}/{MAX_CHAR_LIMIT}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontSize: 13,
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {getNotesPreview(game.notes)}
-                          </Typography>
-                          {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
-                        </Box>
-                      )}
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell sx={{ py: 2 }}>
-                      <Stack direction="row" spacing={0}>
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => handleEditGame(game)} sx={{ p: 0.5 }}>
-                            <Edit sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Sync to Google">
-                          <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
-                            {syncGameMutation.isPending && syncGameMutation.variables === game.id ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => handleDeleteGame(game)} sx={{ p: 0.5 }}>
-                            <Delete sx={{ fontSize: 18 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              games.map((game) => renderGameRow(game))
             )}
           </TableBody>
         </Table>
       </TableContainer>
-
       {/* Pagination */}
       <Box
         sx={{
@@ -2374,6 +2819,15 @@ export function GamesTable() {
         </Box>
       </Box>
 
+      <ColumnPreferencesMenu
+        open={isColumnPreferencesOpen}
+        onClose={() => setIsColumnPreferencesOpen(false)}
+        columns={columnMenuColumns}
+        onToggleVisibility={handleToggleColumnVisibility}
+        onReorder={handleReorderColumns}
+        onShowAll={handleShowAllColumns}
+      />
+
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
       {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
@@ -2437,4 +2891,63 @@ export function GamesTable() {
       />
     </Box>
   );
+}
+
+function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
+  const customIds = customColumns
+    .map((column: any) => column?.id)
+    .filter((id: string | undefined): id is string => Boolean(id))
+    .map((id: string) => `custom:${id}` as ColumnId);
+
+  return [
+    "date",
+    "sport",
+    "level",
+    "opponent",
+    "isHome",
+    "time",
+    "status",
+    "location",
+    "busTravel",
+    ...customIds,
+    "notes",
+    "actions",
+  ];
+}
+
+function isColumnId(value: string): value is ColumnId {
+  return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:");
+}
+
+function deriveColumnState(
+  previous: ColumnStateConfig[],
+  preferences: TablePreferencesData | null,
+  defaultOrder: ColumnId[],
+  initialPreferencesApplied: boolean
+): ColumnStateConfig[] {
+  const hiddenSet = new Set<ColumnId>(
+    Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []
+  );
+
+  let preferredOrder: ColumnId[] = [];
+
+  if (!initialPreferencesApplied && Array.isArray(preferences?.order) && preferences!.order!.length > 0) {
+    preferredOrder = (preferences!.order as ColumnId[]).filter((id) => defaultOrder.includes(id));
+  } else if (previous.length > 0) {
+    preferredOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
+  }
+
+  const finalOrder: ColumnId[] = [...preferredOrder];
+  defaultOrder.forEach((id) => {
+    if (!finalOrder.includes(id)) {
+      finalOrder.push(id);
+    }
+  });
+
+  const visibilityMap = new Map<ColumnId, boolean>(previous.map((column) => [column.id, column.visible]));
+
+  return finalOrder.map((id) => ({
+    id,
+    visible: hiddenSet.has(id) ? false : visibilityMap.has(id) ? visibilityMap.get(id)! : !hiddenSet.has(id),
+  }));
 }
