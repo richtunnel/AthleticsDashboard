@@ -2,6 +2,8 @@ import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
 
+const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
+
 export interface UpcomingCalendarEvent {
   id: string;
   summary: string;
@@ -276,6 +278,7 @@ export class CalendarService {
           },
         },
         opponent: true,
+        awayTeam: true,
         venue: true,
       },
     });
@@ -300,8 +303,9 @@ export class CalendarService {
     const eventEnd = new Date(eventStart);
     eventEnd.setHours(eventEnd.getHours() + 2); // Default 2-hour duration
 
-    const event = {
-      summary: `${game.homeTeam.sport.name} - ${game.opponent?.name || "TBD"}`,
+    const event: calendar_v3.Schema$Event = {
+      status: CALENDAR_EVENT_STATUS_SCHEDULED,
+      summary: this.buildEventSummary(game),
       description: this.buildEventDescription(game),
       location: game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city}, ${game.venue.state}`.trim() : "TBD",
       start: {
@@ -442,6 +446,41 @@ export class CalendarService {
       console.error("Failed to remove from calendar:", error);
       throw error;
     }
+  }
+
+  private buildEventSummary(game: any): string {
+    const primaryTeamName = this.getPrimaryTeamName(game);
+    const opponentName = this.getOpponentTeamName(game);
+    const separator = this.getSummarySeparator(game.homeTeam?.level);
+    return `${primaryTeamName}${separator}${opponentName}`;
+  }
+
+  private getPrimaryTeamName(game: any): string {
+    const teamName = game.homeTeam?.name?.trim();
+    if (teamName) {
+      return teamName;
+    }
+    const sportName = game.homeTeam?.sport?.name?.trim();
+    if (sportName) {
+      return sportName;
+    }
+    return "TBD";
+  }
+
+  private getOpponentTeamName(game: any): string {
+    const opponentName = game.opponent?.name?.trim();
+    if (opponentName) {
+      return opponentName;
+    }
+    const awayTeamName = game.awayTeam?.name?.trim();
+    if (awayTeamName) {
+      return awayTeamName;
+    }
+    return "TBD";
+  }
+
+  private getSummarySeparator(level?: string | null): string {
+    return level?.toString().toUpperCase() === "VARSITY" ? " @ " : " vs ";
   }
 
   private buildEventDescription(game: any): string {
