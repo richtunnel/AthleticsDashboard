@@ -288,16 +288,6 @@ export function GamesTable() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
-  }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
-
-  useEffect(() => {
-    if (!initialPreferencesApplied && columnPreferencesResponse !== undefined) {
-      setInitialPreferencesApplied(true);
-    }
-  }, [columnPreferencesResponse, initialPreferencesApplied]);
-
   const {
     data: response,
     isLoading,
@@ -387,8 +377,21 @@ export function GamesTable() {
     return map;
   }, [customColumns]);
 
-  const columnPreferencesData = (columnPreferencesResponse?.data || null) as TablePreferencesData | null;
+  const columnPreferencesData = useMemo<TablePreferencesData | null>(
+    () => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null,
+    [columnPreferencesResponse?.data]
+  );
   const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns), [customColumns]);
+
+  useEffect(() => {
+    setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
+  }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
+
+  useEffect(() => {
+    if (!initialPreferencesApplied && columnPreferencesResponse !== undefined) {
+      setInitialPreferencesApplied(true);
+    }
+  }, [columnPreferencesResponse, initialPreferencesApplied]);
 
   const games = response?.data?.games || [];
   const pagination: PaginationData = response?.data?.pagination || {
@@ -403,8 +406,19 @@ export function GamesTable() {
   const opponents = opponentsResponse?.data || [];
   const venues = venuesResponse?.data || [];
 
-  const uniqueSports = [...new Set(teams.map((team: any) => team.sport?.name))].filter(Boolean);
-  const uniqueLevels = [...new Set(teams.map((team: any) => team.level))].filter(Boolean);
+  const uniqueSports = useMemo<string[]>(() => {
+    const sports = teams
+      .map((team: any) => team.sport?.name)
+      .filter((sport): sport is string => typeof sport === "string" && sport.length > 0);
+    return Array.from(new Set(sports));
+  }, [teams]);
+
+  const uniqueLevels = useMemo<string[]>(() => {
+    const levels = teams
+      .map((team: any) => team.level)
+      .filter((level): level is string => typeof level === "string" && level.length > 0);
+    return Array.from(new Set(levels));
+  }, [teams]);
 
   const levelsBySport = useMemo(() => {
     const map = new Map<string, string[]>();
