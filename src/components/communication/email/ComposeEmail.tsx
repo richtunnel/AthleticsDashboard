@@ -44,6 +44,7 @@ export default function ComposeEmailPage() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>([]);
   const [recipientCategory, setRecipientCategory] = useState("parents");
   const [customRecipients, setCustomRecipients] = useState("");
   const [subject, setSubject] = useState("Game Schedule Confirmation");
