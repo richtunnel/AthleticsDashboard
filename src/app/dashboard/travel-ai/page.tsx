@@ -206,7 +206,7 @@ export default function TravelAIPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom>
-        Travel AI Recommendations
+        Travel AI Recommendations (BETA Mode)
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
         Generate AI-powered bus departure and arrival times based on real-time traffic and weather conditions.
