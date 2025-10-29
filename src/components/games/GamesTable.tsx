@@ -377,10 +377,7 @@ export function GamesTable() {
     return map;
   }, [customColumns]);
 
-  const columnPreferencesData = useMemo<TablePreferencesData | null>(
-    () => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null,
-    [columnPreferencesResponse?.data]
-  );
+  const columnPreferencesData = useMemo<TablePreferencesData | null>(() => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null, [columnPreferencesResponse?.data]);
   const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns), [customColumns]);
 
   useEffect(() => {
@@ -407,16 +404,12 @@ export function GamesTable() {
   const venues = venuesResponse?.data || [];
 
   const uniqueSports = useMemo<string[]>(() => {
-    const sports = teams
-      .map((team: any) => team.sport?.name)
-      .filter((sport): sport is string => typeof sport === "string" && sport.length > 0);
+    const sports = teams.map((team: any) => team.sport?.name).filter((sport: any): sport is string => typeof sport === "string" && sport.length > 0);
     return Array.from(new Set(sports));
   }, [teams]);
 
   const uniqueLevels = useMemo<string[]>(() => {
-    const levels = teams
-      .map((team: any) => team.level)
-      .filter((level): level is string => typeof level === "string" && level.length > 0);
+    const levels = teams.map((team: any) => team.level).filter((level: any): level is string => typeof level === "string" && level.length > 0);
     return Array.from(new Set(levels));
   }, [teams]);
 
@@ -552,11 +545,7 @@ export function GamesTable() {
   );
 
   const visibleCustomColumns = useMemo(() => {
-    const visibleIds = new Set(
-      columnState
-        .filter((column) => column.visible && column.id.startsWith("custom:"))
-        .map((column) => column.id.split(":")[1])
-    );
+    const visibleIds = new Set(columnState.filter((column) => column.visible && column.id.startsWith("custom:")).map((column) => column.id.split(":")[1]));
     return customColumns.filter((column: any) => visibleIds.has(column.id));
   }, [columnState, customColumns]);
 
@@ -1222,14 +1211,7 @@ export function GamesTable() {
               <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
                 DATE
               </TableSortLabel>
-              <ColumnFilter
-                columnId="date"
-                columnName="Date"
-                columnType="date"
-                uniqueValues={uniqueValues.date || []}
-                currentFilter={columnFilters.date}
-                onFilterChange={handleColumnFilterChange}
-              />
+              <ColumnFilter columnId="date" columnName="Date" columnType="date" uniqueValues={uniqueValues.date || []} currentFilter={columnFilters.date} onFilterChange={handleColumnFilterChange} />
             </Box>
           </TableCell>
         );
@@ -1431,7 +1413,14 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={{ py: 1 }}>
-            <TextField type="date" size="small" value={newGameData.date} onChange={(e) => setNewGameData({ ...newGameData, date: e.target.value })} sx={{ width: 140 }} InputProps={{ sx: { fontSize: 13 } }} />
+            <TextField
+              type="date"
+              size="small"
+              value={newGameData.date}
+              onChange={(e) => setNewGameData({ ...newGameData, date: e.target.value })}
+              sx={{ width: 140 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "sport":
@@ -1474,13 +1463,7 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
-            <Select
-              size="small"
-              value={newGameData.level}
-              onChange={(e) => setNewGameData({ ...newGameData, level: e.target.value as string })}
-              displayEmpty
-              sx={{ minWidth: 140, fontSize: 13 }}
-            >
+            <Select size="small" value={newGameData.level} onChange={(e) => setNewGameData({ ...newGameData, level: e.target.value as string })} displayEmpty sx={{ minWidth: 140, fontSize: 13 }}>
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(newGameData.sport).map((level) => (
                 <MenuItem key={level} value={level}>
@@ -1530,7 +1513,14 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <TextField type="time" size="small" value={newGameData.time} onChange={(e) => setNewGameData({ ...newGameData, time: e.target.value })} sx={{ width: 100 }} InputProps={{ sx: { fontSize: 13 } }} />
+            <TextField
+              type="time"
+              size="small"
+              value={newGameData.time}
+              onChange={(e) => setNewGameData({ ...newGameData, time: e.target.value })}
+              sx={{ width: 100 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "status":
@@ -1632,12 +1622,7 @@ export function GamesTable() {
               FormHelperTextProps={{
                 sx: {
                   fontSize: 10,
-                  color:
-                    newGameData.notes.length >= MAX_CHAR_LIMIT
-                      ? "error.main"
-                      : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9
-                        ? "warning.main"
-                        : "text.secondary",
+                  color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
                 },
               }}
               sx={{
@@ -2019,12 +2004,7 @@ export function GamesTable() {
                 sx: {
                   fontSize: 10,
                   mt: 0.5,
-                  color:
-                    (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT
-                      ? "error.main"
-                      : (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9
-                        ? "warning.main"
-                        : "text.secondary",
+                  color: (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT ? "error.main" : (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
                 },
               }}
               sx={{
@@ -2747,7 +2727,7 @@ export function GamesTable() {
                 </TableCell>
               </TableRow>
             ) : (
-              games.map((game) => renderGameRow(game))
+              games.map((game: any) => renderGameRow(game))
             )}
           </TableBody>
         </Table>
@@ -2913,35 +2893,15 @@ function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
     .filter((id: string | undefined): id is string => Boolean(id))
     .map((id: string) => `custom:${id}` as ColumnId);
 
-  return [
-    "date",
-    "sport",
-    "level",
-    "opponent",
-    "isHome",
-    "time",
-    "status",
-    "location",
-    "busTravel",
-    ...customIds,
-    "notes",
-    "actions",
-  ];
+  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", ...customIds, "notes", "actions"];
 }
 
 function isColumnId(value: string): value is ColumnId {
   return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:");
 }
 
-function deriveColumnState(
-  previous: ColumnStateConfig[],
-  preferences: TablePreferencesData | null,
-  defaultOrder: ColumnId[],
-  initialPreferencesApplied: boolean
-): ColumnStateConfig[] {
-  const hiddenSet = new Set<ColumnId>(
-    Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []
-  );
+function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePreferencesData | null, defaultOrder: ColumnId[], initialPreferencesApplied: boolean): ColumnStateConfig[] {
+  const hiddenSet = new Set<ColumnId>(Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []);
 
   let preferredOrder: ColumnId[] = [];
 
