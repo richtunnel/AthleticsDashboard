@@ -104,7 +104,7 @@ async function syncSubscription(stripeSubscription: Stripe.Subscription, eventId
     orFilters.push({ stripeCustomerId: customerId });
   }
 
-  let existing = await prisma.subscription.findFirst({
+  const existing = await prisma.subscription.findFirst({
     where: { OR: orFilters },
     include: { user: { select: userSelect } },
   });

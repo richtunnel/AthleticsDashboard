@@ -1,6 +1,6 @@
 "use client";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { Box, Paper, Typography, TextField, Button, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Alert, CircularProgress, Divider, Chip } from "@mui/material";
@@ -21,8 +21,10 @@ interface Game {
     };
   };
   opponent?: {
+    id?: string;
     name: string;
   };
+  opponentId?: string;
   venue?: {
     name: string;
   };
@@ -44,11 +46,14 @@ export default function ComposeEmailPage() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
+  const [allGames, setAllGames] = useState<Game[]>([]);
   const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>([]);
   const [recipientCategory, setRecipientCategory] = useState("parents");
   const [customRecipients, setCustomRecipients] = useState("");
   const [subject, setSubject] = useState("Game Schedule Confirmation");
   const [additionalMessage, setAdditionalMessage] = useState("");
+  const [selectedOpponentId, setSelectedOpponentId] = useState<string>("all");
+  const [opponentFilterDisabled, setOpponentFilterDisabled] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -59,9 +64,38 @@ export default function ComposeEmailPage() {
 
     // Load selected games from sessionStorage
     const storedGames = sessionStorage.getItem("selectedGames");
+    const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
+    
     if (storedGames) {
       const games = JSON.parse(storedGames);
+      setAllGames(games);
       setSelectedGames(games);
+
+      // Check if there was an opponent filter applied in the games table
+      if (storedOpponentFilter && storedOpponentFilter !== "null") {
+        try {
+          const opponentFilter = JSON.parse(storedOpponentFilter);
+          // If filter type is "values" and only one opponent is selected, pre-fill and disable
+          if (opponentFilter?.type === "values" && opponentFilter?.values?.length === 1) {
+            const opponentName = opponentFilter.values[0];
+            // Find the opponent ID from the games
+            const gameWithOpponent = games.find((g: Game) => g.opponent?.name === opponentName);
+            if (gameWithOpponent && (gameWithOpponent.opponentId || gameWithOpponent.opponent?.id)) {
+              const opponentId = gameWithOpponent.opponentId || gameWithOpponent.opponent?.id || "";
+              setSelectedOpponentId(opponentId);
+              setOpponentFilterDisabled(true);
+              // Filter games to this opponent
+              const filteredGames = games.filter((g: Game) => {
+                const gameOpponentId = g.opponentId || g.opponent?.id;
+                return gameOpponentId === opponentId;
+              });
+              setSelectedGames(filteredGames);
+            }
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
 
       // Generate default subject based on games
       if (games.length === 1) {
@@ -139,6 +173,35 @@ export default function ComposeEmailPage() {
     }
   };
 
+  const handleOpponentChange = (opponentId: string) => {
+    setSelectedOpponentId(opponentId);
+    
+    if (opponentId === "all") {
+      setSelectedGames(allGames);
+    } else {
+      const filteredGames = allGames.filter((game) => {
+        const gameOpponentId = game.opponentId || game.opponent?.id;
+        return gameOpponentId === opponentId;
+      });
+      setSelectedGames(filteredGames);
+    }
+  };
+
+  const uniqueOpponents = useMemo(() => {
+    const opponentMap = new Map<string, { id: string; name: string }>();
+    
+    allGames.forEach((game) => {
+      const opponentId = game.opponentId || game.opponent?.id;
+      const opponentName = game.opponent?.name;
+      
+      if (opponentId && opponentName && !opponentMap.has(opponentId)) {
+        opponentMap.set(opponentId, { id: opponentId, name: opponentName });
+      }
+    });
+    
+    return Array.from(opponentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allGames]);
+
   const generateEmailPreview = () => {
     if (!mounted) return "Loading preview...";
 
@@ -210,6 +273,9 @@ export default function ComposeEmailPage() {
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
             Selected Games ({selectedGames.length})
+            {selectedOpponentId !== "all" && opponentFilterDisabled && (
+              <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />
+            )}
           </Typography>
           <TableContainer>
             <Table size="small">
@@ -256,6 +322,36 @@ export default function ComposeEmailPage() {
                 </MenuItem>
               ))}
             </TextField>
+
+            {/* Opponent Filter */}
+            {uniqueOpponents.length > 0 && (
+              <TextField
+                select
+                label="Filter by Opponent"
+                value={selectedOpponentId}
+                onChange={(e) => handleOpponentChange(e.target.value)}
+                fullWidth
+                disabled={opponentFilterDisabled}
+                helperText={
+                  opponentFilterDisabled
+                    ? "Opponent filter is already applied from the games table"
+                    : "Select a specific opponent to filter which games are included in the email"
+                }
+              >
+                <MenuItem value="all">All Opponents ({allGames.length} games)</MenuItem>
+                {uniqueOpponents.map((opponent) => {
+                  const gameCount = allGames.filter((g) => {
+                    const gameOpponentId = g.opponentId || g.opponent?.id;
+                    return gameOpponentId === opponent.id;
+                  }).length;
+                  return (
+                    <MenuItem key={opponent.id} value={opponent.id}>
+                      {opponent.name} ({gameCount} {gameCount === 1 ? "game" : "games"})
+                    </MenuItem>
+                  );
+                })}
+              </TextField>
+            )}
 
             {/* Custom Recipients */}
             {recipientCategory === "custom" && (
