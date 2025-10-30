@@ -200,7 +200,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       const dbField = fieldMapping[csvField];
       if (dbField === "skip") return;
 
-      let value = row[csvField];
+      const value = row[csvField];
 
       // Transform specific fields
       switch (dbField) {
