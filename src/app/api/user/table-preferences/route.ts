@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { Prisma } from "@prisma/client";
 
-interface TablePreferencesPayload {
+interface TablePreferencesPayload extends Record<string, Prisma.InputJsonValue | null> {
   order?: string[];
   hidden?: string[];
-  [key: string]: unknown;
 }
 
 const ERROR_RESPONSE = (message: string, status: number = 400) =>
@@ -61,7 +61,7 @@ export async function PUT(request: NextRequest) {
       return ERROR_RESPONSE("Invalid preferences payload", 400);
     }
 
-    const sanitizedPreferences: TablePreferencesPayload = {
+    const sanitizedPreferences: Prisma.InputJsonObject = {
       ...preferences,
       order: Array.isArray(preferences.order) ? preferences.order.map(String) : [],
       hidden: Array.isArray(preferences.hidden) ? preferences.hidden.map(String) : [],
