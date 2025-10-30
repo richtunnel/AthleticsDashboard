@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { travelAIService } from "@/lib/services/travelAI";
 
 export async function GET(request: NextRequest) {
   try {
@@ -489,7 +490,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const game = await prisma.game.create({
+    let game = await prisma.game.create({
       data: {
         ...body,
         createdById: session.user.id,
@@ -502,6 +503,36 @@ export async function POST(request: NextRequest) {
         venue: true,
       },
     });
+
+    // Auto-generate travel recommendation if auto-fill is enabled and travel is required
+    if (game.travelRequired) {
+      try {
+        const travelSettings = await prisma.travelSettings.findUnique({
+          where: { organizationId: session.user.organizationId },
+        });
+
+        if (travelSettings?.autoFillEnabled && game.venue) {
+          await travelAIService.createTravelRecommendation(game.id, session.user.organizationId, { autoApply: true });
+          const refreshedGame = await prisma.game.findUnique({
+            where: { id: game.id },
+            include: {
+              homeTeam: {
+                include: { sport: true },
+              },
+              opponent: true,
+              venue: true,
+            },
+          });
+
+          if (refreshedGame) {
+            game = refreshedGame;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking travel settings:", error);
+        // Don't fail the game creation if auto-fill fails
+      }
+    }
 
     return NextResponse.json(
       {
