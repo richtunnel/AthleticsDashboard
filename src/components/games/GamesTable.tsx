@@ -1229,12 +1229,7 @@ export function GamesTable() {
 
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
 
-    const headers: string[] = [];
     const columnsToInclude = resolvedColumns.filter((col) => col.id !== "actions");
-
-    columnsToInclude.forEach((col) => {
-      headers.push(getColumnLabel(col.id));
-    });
 
     const rows = selectedGamesData.map((game: any) => {
       const row: string[] = [];
@@ -1283,7 +1278,7 @@ export function GamesTable() {
       return row.join("\t");
     });
 
-    const tsvContent = [headers.join("\t"), ...rows].join("\n");
+    const tsvContent = rows.join("\n");
 
     navigator.clipboard.writeText(tsvContent).then(
       () => {
