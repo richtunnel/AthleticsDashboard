@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { Prisma } from "@prisma/client";
 
-interface TablePreferencesPayload extends Record<string, Prisma.InputJsonValue | null> {
+interface TablePreferencesPayload extends Record<string, Prisma.InputJsonValue | undefined> {
   order?: string[];
   hidden?: string[];
 }
