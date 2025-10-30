@@ -2998,7 +2998,9 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
 
   let preferredOrder: ColumnId[] = [];
 
-  if (!initialPreferencesApplied && Array.isArray(preferences?.order) && preferences!.order!.length > 0) {
+  // Apply saved preferences if: (1) we haven't applied them yet OR (2) previous state is empty (initial load)
+  // This ensures preferences are properly loaded on initial mount
+  if ((!initialPreferencesApplied || previous.length === 0) && Array.isArray(preferences?.order) && preferences!.order!.length > 0) {
     preferredOrder = (preferences!.order as ColumnId[]).filter((id) => defaultOrder.includes(id));
   } else if (previous.length > 0) {
     preferredOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
