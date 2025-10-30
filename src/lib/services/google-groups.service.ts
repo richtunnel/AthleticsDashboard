@@ -21,12 +21,21 @@ class GoogleGroupsService {
       const response = await people.contactGroups.list({
         pageSize: 200,
         pageToken,
+        groupFields: "name,groupType,memberCount",
       });
 
       const contactGroups = response.data.contactGroups ?? [];
 
       for (const group of contactGroups) {
         if (!group.resourceName || !group.name) {
+          continue;
+        }
+
+        if (group.groupType !== "USER_CONTACT_GROUP") {
+          continue;
+        }
+
+        if (group.memberCount != null && group.memberCount <= 0) {
           continue;
         }
 

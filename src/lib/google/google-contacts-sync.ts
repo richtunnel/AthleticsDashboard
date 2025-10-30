@@ -6,9 +6,14 @@ export async function getUserContactGroups(accessToken: string) {
   const response = await people.contactGroups.list({
     access_token: accessToken,
     pageSize: 100,
+    groupFields: "name,groupType,memberCount",
   });
 
-  return response.data.contactGroups; // User's Gmail labels/groups
+  const contactGroups = response.data.contactGroups ?? [];
+
+  return contactGroups.filter(
+    (group) => group.groupType === "USER_CONTACT_GROUP" && (group.memberCount == null || group.memberCount > 0)
+  );
 }
 
 export async function getContactGroupMembers(accessToken: string, groupResourceName: string) {
