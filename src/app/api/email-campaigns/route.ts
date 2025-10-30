@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { NextResponse } from "next/server";
+import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -31,6 +32,25 @@ export async function POST(request: Request) {
   const { name, subject, body, groupId } = await request.json();
   if (!name || !subject || !body) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const organization = await prisma.organization.findFirst({
+    where: { users: { some: { id: session.user.id } } },
+    select: { id: true },
+  });
+
+  if (!organization) {
+    return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+  }
+
+  const storageCheckResult = await checkStorageBeforeWrite({
+    organizationId: organization.id,
+    userId: session.user.id,
+    data: { name, subject, body, groupId },
+  });
+
+  if (storageCheckResult) {
+    return storageCheckResult;
   }
 
   const campaign = await prisma.emailCampaign.create({
