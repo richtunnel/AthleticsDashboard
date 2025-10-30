@@ -131,16 +131,19 @@ model TablePreference {
 
 // Organization/School
 model Organization {
-  id             String          @id @default(cuid())
-  name           String
-  district       String?
-  state          String?
-  timezone       String          @default("America/New_York")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  customColumns  CustomColumn[]
-  emailGroups    EmailGroup[]    @relation("OrganizationEmailGroups")
-  travelSettings TravelSettings?
+  id                      String          @id @default(cuid())
+  name                    String
+  district                String?
+  state                   String?
+  timezone                String          @default("America/New_York")
+  storageUsageBytes       BigInt          @default(0)
+  storageQuotaBytes       BigInt          @default(1073741824)
+  lastStorageCalculation  DateTime?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  customColumns           CustomColumn[]
+  emailGroups             EmailGroup[]    @relation("OrganizationEmailGroups")
+  travelSettings          TravelSettings?
 
   // Relations
   users     User[]
