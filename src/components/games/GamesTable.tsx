@@ -233,6 +233,7 @@ export function GamesTable() {
     newGameData,
     updateNewGameData,
     resetNewGameData,
+    setNewGameData,
     editingGameId,
     setEditingGameId,
     editingCustomData,
@@ -1467,14 +1468,7 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={{ py: 1 }}>
-            <TextField
-              type="date"
-              size="small"
-              value={newGameData.date}
-              onChange={(e) => updateNewGameData({ date: e.target.value })}
-              sx={{ width: 140 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+            <TextField type="date" size="small" value={newGameData.date} onChange={(e) => updateNewGameData({ date: e.target.value })} sx={{ width: 140 }} InputProps={{ sx: { fontSize: 13 } }} />
           </TableCell>
         );
       case "sport":
@@ -1564,14 +1558,7 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <TextField
-              type="time"
-              size="small"
-              value={newGameData.time}
-              onChange={(e) => updateNewGameData({ time: e.target.value })}
-              sx={{ width: 100 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+            <TextField type="time" size="small" value={newGameData.time} onChange={(e) => updateNewGameData({ time: e.target.value })} sx={{ width: 100 }} InputProps={{ sx: { fontSize: 13 } }} />
           </TableCell>
         );
       case "status":
