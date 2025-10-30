@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { ColumnFilterValue, ColumnFilters } from "../../../types/filters";
 
 interface GamesFiltersState {
@@ -10,18 +11,25 @@ interface GamesFiltersState {
   clearFilters: () => void;
 }
 
-export const useGamesFiltersStore = create<GamesFiltersState>((set) => ({
-  columnFilters: {},
-  setColumnFilters: (filters) => set({ columnFilters: filters }),
-  updateFilter: (columnId, filter) =>
-    set((state) => {
-      const newFilters = { ...state.columnFilters };
-      if (filter === null) {
-        delete newFilters[columnId];
-      } else {
-        newFilters[columnId] = filter;
-      }
-      return { columnFilters: newFilters };
+export const useGamesFiltersStore = create<GamesFiltersState>()(
+  persist(
+    (set) => ({
+      columnFilters: {},
+      setColumnFilters: (filters) => set({ columnFilters: filters }),
+      updateFilter: (columnId, filter) =>
+        set((state) => {
+          const newFilters = { ...state.columnFilters };
+          if (filter === null) {
+            delete newFilters[columnId];
+          } else {
+            newFilters[columnId] = filter;
+          }
+          return { columnFilters: newFilters };
+        }),
+      clearFilters: () => set({ columnFilters: {} }),
     }),
-  clearFilters: () => set({ columnFilters: {} }),
-}));
+    {
+      name: "games-filters-storage",
+    }
+  )
+);
