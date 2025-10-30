@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { calendarService } from "@/lib/services/calendar.service";
+import { travelAIService } from "@/lib/services/travelAI";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,6 +53,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: {
         id: true,
         customData: true,
+        travelRequired: true,
+        venueId: true,
       },
     });
 
@@ -92,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Update using only the unique ID (after validation)
-    const game = await prisma.game.update({
+    let game = await prisma.game.update({
       where: { id },
       data: updateData,
       include: {
@@ -103,6 +106,41 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         venue: true,
       },
     });
+
+    const currentVenueId = game.venue?.id ?? game.venueId ?? null;
+    const travelRequirementActivated = game.travelRequired && !existingGame.travelRequired;
+    const venueAdded = game.travelRequired && !existingGame.venueId && currentVenueId;
+    const venueChanged = game.travelRequired && existingGame.venueId && currentVenueId && existingGame.venueId !== currentVenueId;
+    const shouldAttemptAutoFill = Boolean(currentVenueId && (travelRequirementActivated || venueAdded || venueChanged));
+
+    if (shouldAttemptAutoFill) {
+      try {
+        const travelSettings = await prisma.travelSettings.findUnique({
+          where: { organizationId: session.user.organizationId },
+        });
+
+        if (travelSettings?.autoFillEnabled) {
+          await travelAIService.createTravelRecommendation(game.id, session.user.organizationId, { autoApply: true });
+          const refreshedGame = await prisma.game.findUnique({
+            where: { id: game.id },
+            include: {
+              homeTeam: {
+                include: { sport: true },
+              },
+              opponent: true,
+              venue: true,
+            },
+          });
+
+          if (refreshedGame) {
+            game = refreshedGame;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking travel settings:", error);
+        // Don't fail the game update if auto-fill fails
+      }
+    }
 
     return NextResponse.json(game);
   } catch (error) {

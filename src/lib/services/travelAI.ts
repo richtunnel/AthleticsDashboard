@@ -160,7 +160,8 @@ export class TravelAIService {
     return segments.filter(Boolean).join(", ");
   }
 
-  async createTravelRecommendation(gameId: string, organizationId: string): Promise<any> {
+  async createTravelRecommendation(gameId: string, organizationId: string, options?: { autoApply?: boolean }): Promise<any> {
+    const autoApply = options?.autoApply ?? false;
     const recommendation = await this.generateBusRecommendation(gameId, organizationId);
 
     const travelRecommendation = await prisma.travelRecommendation.create({
@@ -171,8 +172,23 @@ export class TravelAIService {
         travelDuration: recommendation.travelDuration,
         trafficCondition: recommendation.trafficCondition,
         weatherCondition: recommendation.weatherCondition,
+        addedToGame: autoApply,
+        addedAt: autoApply ? new Date() : null,
       },
     });
+
+    if (autoApply) {
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          recommendedDepartureTime: recommendation.recommendedDeparture,
+          recommendedArrivalTime: recommendation.recommendedArrival,
+          travelTimeMinutes: recommendation.travelDuration,
+          departureTime: recommendation.recommendedDeparture,
+          autoFillBusInfo: true,
+        },
+      });
+    }
 
     return travelRecommendation;
   }
