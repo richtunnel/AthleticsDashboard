@@ -17,6 +17,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
+import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 
 import {
   Box,
@@ -218,40 +219,40 @@ export function GamesTable() {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const {
+    page,
+    rowsPerPage,
+    setPage,
+    setRowsPerPage,
+    sortField,
+    sortOrder,
+    setSortField,
+    setSortOrder,
+    isAddingNew,
+    setIsAddingNew,
+    newGameData,
+    updateNewGameData,
+    resetNewGameData,
+    editingGameId,
+    setEditingGameId,
+    editingCustomData,
+    setEditingCustomData,
+    updateEditingCustomData,
+    resetEditingState,
+    selectedGameIds,
+    setSelectedGameIds,
+    clearSelectedGameIds,
+  } = useGamesTableStore();
 
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newGameData, setNewGameData] = useState<NewGameData>({
-    date: new Date().toISOString().split("T")[0],
-    time: "",
-    sport: "",
-    level: "",
-    opponentId: "",
-    isHome: true,
-    busTravel: false,
-    actualDepartureTime: "",
-    actualArrivalTime: "",
-    status: "SCHEDULED",
-    venueId: "",
-    notes: "",
-    customData: {},
-  });
+  const selectedGames = useMemo(() => new Set(selectedGameIds), [selectedGameIds]);
 
-  const [editingGameId, setEditingGameId] = useState<string | null>(null);
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
-  const [editingCustomData, setEditingCustomData] = useState<{ [key: string]: string }>({});
-
   const [showImportDialog, setShowImportDialog] = useState(false);
 
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
   const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
   const updateFilter = useGamesFiltersStore((state) => state.updateFilter);
 
-  const [sortField, setSortField] = useState<SortField>("date");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
-
-  const [selectedGames, setSelectedGames] = useState<Set<string>>(new Set());
   const [showColumnManager, setShowColumnManager] = useState(false);
 
   const [showAddOpponent, setShowAddOpponent] = useState(false);
@@ -695,22 +696,7 @@ export function GamesTable() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      setIsAddingNew(false);
-      setNewGameData({
-        date: new Date().toISOString().split("T")[0],
-        time: "",
-        sport: "",
-        level: "",
-        opponentId: "",
-        isHome: true,
-        busTravel: false,
-        actualDepartureTime: "",
-        actualArrivalTime: "",
-        status: "SCHEDULED",
-        venueId: "",
-        notes: "",
-        customData: {},
-      });
+      resetNewGameData();
 
       const newGameId = data.data.id;
       syncGameMutation.mutate(newGameId);
@@ -732,9 +718,8 @@ export function GamesTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      setEditingGameId(null);
+      resetEditingState();
       setEditingGameData(null);
-      setEditingCustomData({});
 
       if (editingGameId) {
         syncGameMutation.mutate(editingGameId);
@@ -800,7 +785,7 @@ export function GamesTable() {
     },
     onSuccess: (data: any, gameIds: string[]) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      setSelectedGames(new Set());
+      clearSelectedGameIds();
       const deletedCount = data?.data?.deletedCount ?? gameIds.length;
       addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
 
@@ -1045,31 +1030,13 @@ export function GamesTable() {
     (columnId: string, value: string) => {
       // Enforce character limit
       const limitedValue = value.slice(0, MAX_CHAR_LIMIT);
-      setEditingCustomData((prev) => ({
-        ...prev,
-        [columnId]: limitedValue,
-      }));
+      updateEditingCustomData(columnId, limitedValue);
     },
-    [MAX_CHAR_LIMIT]
+    [MAX_CHAR_LIMIT, updateEditingCustomData]
   );
 
   const handleCancelNewGame = () => {
-    setIsAddingNew(false);
-    setNewGameData({
-      date: new Date().toISOString().split("T")[0],
-      time: "",
-      sport: "",
-      level: "",
-      opponentId: "",
-      isHome: true,
-      busTravel: false,
-      actualDepartureTime: "",
-      actualArrivalTime: "",
-      status: "SCHEDULED",
-      venueId: "",
-      customData: {},
-      notes: "",
-    });
+    resetNewGameData();
   };
 
   const handleEditGame = (game: Game) => {
@@ -1109,9 +1076,8 @@ export function GamesTable() {
   };
 
   const handleCancelEdit = () => {
-    setEditingGameId(null);
+    resetEditingState();
     setEditingGameData(null);
-    setEditingCustomData({});
   };
 
   const handleDeleteGame = (game: Game) => {
@@ -1154,23 +1120,23 @@ export function GamesTable() {
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
-    setSelectedGames(new Set());
+    clearSelectedGameIds();
   };
 
   const handleChangeRowsPerPage = (value: number) => {
     setRowsPerPage(value);
     setPage(0);
-    setSelectedGames(new Set());
+    clearSelectedGameIds();
   };
 
   const handleFirstPage = () => {
     setPage(0);
-    setSelectedGames(new Set());
+    clearSelectedGameIds();
   };
 
   const handleLastPage = () => {
     setPage(pagination.totalPages - 1);
-    setSelectedGames(new Set());
+    clearSelectedGameIds();
   };
 
   const handleSort = (field: SortField) => {
@@ -1185,21 +1151,21 @@ export function GamesTable() {
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const allGameIds = new Set(games.map((game: Game) => game.id)) as any;
-      setSelectedGames(allGameIds);
+      const allGameIds = games.map((game: Game) => game.id);
+      setSelectedGameIds(allGameIds);
     } else {
-      setSelectedGames(new Set());
+      setSelectedGameIds([]);
     }
   };
 
   const handleSelectGame = (gameId: string) => {
-    const newSelected = new Set(selectedGames);
+    const newSelected = new Set(selectedGameIds);
     if (newSelected.has(gameId)) {
       newSelected.delete(gameId);
     } else {
       newSelected.add(gameId);
     }
-    setSelectedGames(newSelected);
+    setSelectedGameIds(Array.from(newSelected));
   };
 
   const handleSendEmail = () => {
@@ -1505,7 +1471,7 @@ export function GamesTable() {
               type="date"
               size="small"
               value={newGameData.date}
-              onChange={(e) => setNewGameData({ ...newGameData, date: e.target.value })}
+              onChange={(e) => updateNewGameData({ date: e.target.value })}
               sx={{ width: 140 }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
@@ -1520,14 +1486,11 @@ export function GamesTable() {
                 value={newGameData.sport}
                 onChange={(e) => {
                   const sport = e.target.value as string;
-                  setNewGameData((prev) => {
-                    const levels = getLevelsForSport(sport);
-                    const levelIsValid = sport && prev.level ? levels.includes(prev.level) : true;
-                    return {
-                      ...prev,
-                      sport,
-                      level: levelIsValid ? prev.level : "",
-                    };
+                  const levels = getLevelsForSport(sport);
+                  const levelIsValid = sport && newGameData.level ? levels.includes(newGameData.level) : true;
+                  updateNewGameData({
+                    sport,
+                    level: levelIsValid ? newGameData.level : "",
                   });
                 }}
                 displayEmpty
@@ -1551,7 +1514,7 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
-            <Select size="small" value={newGameData.level} onChange={(e) => setNewGameData({ ...newGameData, level: e.target.value as string })} displayEmpty sx={{ minWidth: 140, fontSize: 13 }}>
+            <Select size="small" value={newGameData.level} onChange={(e) => updateNewGameData({ level: e.target.value as string })} displayEmpty sx={{ minWidth: 140, fontSize: 13 }}>
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(newGameData.sport).map((level) => (
                 <MenuItem key={level} value={level}>
@@ -1571,7 +1534,7 @@ export function GamesTable() {
                 if (e.target.value === "__add_new__") {
                   setShowAddOpponent(true);
                 } else {
-                  setNewGameData({ ...newGameData, opponentId: e.target.value as string });
+                  updateNewGameData({ opponentId: e.target.value as string });
                 }
               }}
               sx={{ width: 160, fontSize: 13 }}
@@ -1592,7 +1555,7 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <Select size="small" value={newGameData.isHome ? "home" : "away"} onChange={(e) => setNewGameData({ ...newGameData, isHome: e.target.value === "home" })} sx={{ width: 80, fontSize: 13 }}>
+            <Select size="small" value={newGameData.isHome ? "home" : "away"} onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })} sx={{ width: 80, fontSize: 13 }}>
               <MenuItem value="home">Home</MenuItem>
               <MenuItem value="away">Away</MenuItem>
             </Select>
@@ -1605,7 +1568,7 @@ export function GamesTable() {
               type="time"
               size="small"
               value={newGameData.time}
-              onChange={(e) => setNewGameData({ ...newGameData, time: e.target.value })}
+              onChange={(e) => updateNewGameData({ time: e.target.value })}
               sx={{ width: 100 }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
@@ -1614,7 +1577,7 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={{ py: 1 }}>
-            <Select size="small" value={newGameData.status} onChange={(e) => setNewGameData({ ...newGameData, status: e.target.value as string })} sx={{ width: 110, fontSize: 13 }}>
+            <Select size="small" value={newGameData.status} onChange={(e) => updateNewGameData({ status: e.target.value as string })} sx={{ width: 110, fontSize: 13 }}>
               <MenuItem value="SCHEDULED">Pending</MenuItem>
               <MenuItem value="CONFIRMED">Yes</MenuItem>
               <MenuItem value="CANCELLED">No</MenuItem>
@@ -1636,7 +1599,7 @@ export function GamesTable() {
                   if (e.target.value === "__add_new__") {
                     setShowAddVenue(true);
                   } else {
-                    setNewGameData({ ...newGameData, venueId: e.target.value as string });
+                    updateNewGameData({ venueId: e.target.value as string });
                   }
                 }}
                 sx={{ width: 160, fontSize: 13 }}
@@ -1664,7 +1627,7 @@ export function GamesTable() {
                 size="small"
                 label="Depart"
                 value={newGameData.actualDepartureTime || ""}
-                onChange={(e) => setNewGameData({ ...newGameData, actualDepartureTime: e.target.value })}
+                onChange={(e) => updateNewGameData({ actualDepartureTime: e.target.value })}
                 InputLabelProps={{ shrink: true }}
                 sx={{
                   "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
@@ -1676,7 +1639,7 @@ export function GamesTable() {
                 size="small"
                 label="Arrive"
                 value={newGameData.actualArrivalTime || ""}
-                onChange={(e) => setNewGameData({ ...newGameData, actualArrivalTime: e.target.value })}
+                onChange={(e) => updateNewGameData({ actualArrivalTime: e.target.value })}
                 InputLabelProps={{ shrink: true }}
                 sx={{
                   "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
@@ -1684,7 +1647,7 @@ export function GamesTable() {
                 }}
               />
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Checkbox checked={newGameData.busTravel} onChange={(e) => setNewGameData({ ...newGameData, busTravel: e.target.checked })} sx={{ p: 0 }} />
+                <Checkbox checked={newGameData.busTravel} onChange={(e) => updateNewGameData({ busTravel: e.target.checked })} sx={{ p: 0 }} />
                 <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
                   Bus
                 </Typography>
@@ -1703,7 +1666,7 @@ export function GamesTable() {
               value={newGameData.notes}
               onChange={(e) => {
                 const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                setNewGameData({ ...newGameData, notes: value });
+                updateNewGameData({ notes: value });
               }}
               placeholder="Add notes..."
               helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
@@ -1750,13 +1713,12 @@ export function GamesTable() {
                 value={newGameData.customData?.[customColumn.id] || ""}
                 onChange={(e) => {
                   const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                  setNewGameData((prev) => ({
-                    ...prev,
+                  updateNewGameData({
                     customData: {
-                      ...(prev.customData || {}),
+                      ...(newGameData.customData || {}),
                       [customColumn.id]: value,
                     },
-                  }));
+                  });
                 }}
                 placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
                 sx={{
