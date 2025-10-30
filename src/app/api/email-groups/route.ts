@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { Prisma } from "@prisma/client";
+import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 
 const emailGroupInclude = {
   emails: {
@@ -64,6 +65,16 @@ export async function POST(request: NextRequest) {
 
     if (!normalizedName) {
       return NextResponse.json({ error: "Group name cannot be empty" }, { status: 400 });
+    }
+
+    const storageCheckResult = await checkStorageBeforeWrite({
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      data: { name: normalizedName },
+    });
+
+    if (storageCheckResult) {
+      return storageCheckResult;
     }
 
     const created = await prisma.emailGroup.create({

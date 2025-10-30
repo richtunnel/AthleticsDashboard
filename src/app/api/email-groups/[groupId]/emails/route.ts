@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
+import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 
 const emailGroupInclude = {
   emails: {
@@ -83,6 +84,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (normalizedEmails.length === 0) {
       return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
+    }
+
+    const storageCheckResult = await checkStorageBeforeWrite({
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      data: { emails: normalizedEmails },
+    });
+
+    if (storageCheckResult) {
+      return storageCheckResult;
     }
 
     await prisma.emailAddress.createMany({

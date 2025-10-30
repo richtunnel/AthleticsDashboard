@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
+import { updateStorageQuotaForPlanChange } from "@/lib/services/storage.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, email: true, name: true, stripeCustomerId: true, plan: true },
+      select: { id: true, email: true, name: true, stripeCustomerId: true, plan: true, organizationId: true },
     });
 
     if (!user) {
@@ -63,8 +64,13 @@ export async function POST(request: NextRequest) {
         plan: true,
         stripeCustomerId: true,
         trialEnd: true,
+        organizationId: true,
       },
     });
+
+    if (updatedUser.organizationId) {
+      await updateStorageQuotaForPlanChange(updatedUser.organizationId, plan);
+    }
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { travelAIService } from "@/lib/services/travelAI";
+import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 
 export async function GET(request: NextRequest) {
   try {
@@ -409,6 +410,17 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
     const body = await request.json();
+
+    // ✅ CHECK STORAGE LIMIT: Check if organization has space for new data
+    const storageCheckResult = await checkStorageBeforeWrite({
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      data: body,
+    });
+
+    if (storageCheckResult) {
+      return storageCheckResult;
+    }
 
     // ✅ CHECK LIMIT: Max 2500 games per organization
     const gamesCount = await prisma.game.count({
