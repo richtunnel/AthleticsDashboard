@@ -607,6 +607,9 @@ export function GamesTable() {
       }
       return res.json();
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+    },
   });
 
   const persistColumnPreferences = useCallback(
@@ -2945,22 +2948,24 @@ function isColumnId(value: string): value is ColumnId {
 function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePreferencesData | null, defaultOrder: ColumnId[], initialPreferencesApplied: boolean): ColumnStateConfig[] {
   const hiddenSet = new Set<ColumnId>(Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []);
 
-  let preferredOrder: ColumnId[] = [];
+  const preferenceOrder = normalizePreferenceOrder(preferences?.order, defaultOrder);
+  const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
 
-  // Apply saved preferences if: (1) we haven't applied them yet OR (2) previous state is empty (initial load)
-  // This ensures preferences are properly loaded on initial mount
-  if ((!initialPreferencesApplied || previous.length === 0) && Array.isArray(preferences?.order) && preferences!.order!.length > 0) {
-    preferredOrder = (preferences!.order as ColumnId[]).filter((id) => defaultOrder.includes(id));
-  } else if (previous.length > 0) {
-    preferredOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
+  let baseOrder: ColumnId[] = [];
+
+  if (!initialPreferencesApplied || previous.length === 0) {
+    baseOrder = preferenceOrder.length > 0 ? preferenceOrder : previousOrder;
+  } else if (preferenceOrder.length > 0 && !arraysEqual(preferenceOrder, previousOrder)) {
+    baseOrder = preferenceOrder;
+  } else {
+    baseOrder = previousOrder;
   }
 
-  const finalOrder: ColumnId[] = [...preferredOrder];
-  defaultOrder.forEach((id) => {
-    if (!finalOrder.includes(id)) {
-      finalOrder.push(id);
-    }
-  });
+  if (baseOrder.length === 0) {
+    baseOrder = defaultOrder;
+  }
+
+  const finalOrder = mergeWithDefaultOrder(baseOrder, defaultOrder);
 
   const visibilityMap = new Map<ColumnId, boolean>(previous.map((column) => [column.id, column.visible]));
 
@@ -2968,4 +2973,40 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
     id,
     visible: hiddenSet.has(id) ? false : visibilityMap.has(id) ? visibilityMap.get(id)! : !hiddenSet.has(id),
   }));
+}
+
+function normalizePreferenceOrder(order: unknown, defaultOrder: ColumnId[]): ColumnId[] {
+  if (!Array.isArray(order)) {
+    return [];
+  }
+
+  return order
+    .map((value) => String(value) as ColumnId)
+    .filter((id) => defaultOrder.includes(id));
+}
+
+function arraysEqual<T>(a: readonly T[], b: readonly T[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function mergeWithDefaultOrder(order: ColumnId[], defaultOrder: ColumnId[]): ColumnId[] {
+  const merged = [...order];
+
+  defaultOrder.forEach((id) => {
+    if (!merged.includes(id)) {
+      merged.push(id);
+    }
+  });
+
+  return merged;
 }
