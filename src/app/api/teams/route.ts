@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,6 +58,16 @@ export async function POST(request: NextRequest) {
 
     if (teamsCount >= 100) {
       return NextResponse.json({ success: false, error: "Maximum of 100 teams reached for your organization" }, { status: 400 });
+    }
+
+    const storageCheckResult = await checkStorageBeforeWrite({
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      data: body,
+    });
+
+    if (storageCheckResult) {
+      return storageCheckResult;
     }
 
     const team = await prisma.team.create({

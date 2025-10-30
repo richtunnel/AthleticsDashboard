@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { changePlanSchema } from "@/lib/validations/subscription";
+import { updateStorageQuotaForPlanChange } from "@/lib/services/storage.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       where: { id: session.user.id },
       select: {
         id: true,
+        organizationId: true,
         subscription: true,
       },
     });
