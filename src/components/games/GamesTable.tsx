@@ -42,7 +42,7 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline } from "@mui/icons-material";
+import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline, ContentCopy } from "@mui/icons-material";
 import { format } from "date-fns";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
@@ -1188,10 +1188,86 @@ export function GamesTable() {
   const handleSendEmail = () => {
     if (typeof window === "undefined") return;
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
+    const opponentFilter = columnFilters.opponent;
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
     sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(visibleColumnIds));
+    sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
     router.push("/dashboard/compose-email");
   };
+
+  const handleCopySelectedRows = useCallback(() => {
+    if (selectedGames.size === 0) {
+      addNotification("No rows selected to copy", "warning");
+      return;
+    }
+
+    const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
+    
+    const headers: string[] = [];
+    const columnsToInclude = resolvedColumns.filter((col) => col.id !== "actions");
+    
+    columnsToInclude.forEach((col) => {
+      headers.push(getColumnLabel(col.id));
+    });
+
+    const rows = selectedGamesData.map((game) => {
+      const row: string[] = [];
+      columnsToInclude.forEach((col) => {
+        let cellValue = "";
+        switch (col.id) {
+          case "date":
+            cellValue = formatGameDate(game.date);
+            break;
+          case "sport":
+            cellValue = game.homeTeam.sport.name;
+            break;
+          case "level":
+            cellValue = game.homeTeam.level;
+            break;
+          case "opponent":
+            cellValue = game.opponent?.name || "TBD";
+            break;
+          case "isHome":
+            cellValue = game.isHome ? "Home" : "Away";
+            break;
+          case "time":
+            cellValue = game.time || "";
+            break;
+          case "status":
+            cellValue = game.status;
+            break;
+          case "location":
+            cellValue = game.isHome ? "Home Field" : game.venue?.name || "TBD";
+            break;
+          case "busTravel":
+            cellValue = formatBusTimeDisplay(game.actualDepartureTime) + " / " + formatBusTimeDisplay(game.actualArrivalTime);
+            break;
+          case "notes":
+            cellValue = game.notes || "";
+            break;
+          default:
+            if (col.id.startsWith("custom:")) {
+              const customId = col.id.split(":")[1];
+              const customData = (game.customData as any) || {};
+              cellValue = customData[customId] || "";
+            }
+        }
+        row.push(cellValue);
+      });
+      return row.join("\t");
+    });
+
+    const tsvContent = [headers.join("\t"), ...rows].join("\n");
+
+    navigator.clipboard.writeText(tsvContent).then(
+      () => {
+        addNotification(`Copied ${selectedGames.size} row${selectedGames.size > 1 ? "s" : ""} to clipboard`, "success");
+      },
+      () => {
+        addNotification("Failed to copy to clipboard", "error");
+      }
+    );
+  }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
 
   const formatGameDate = (dateString: string) => {
     if (!mounted) return dateString;
@@ -2648,9 +2724,14 @@ export function GamesTable() {
           </Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap" }}>
             {selectedGames.size > 0 && (
-              <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                Send Email ({selectedGames.size})
-              </Button>
+              <>
+                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                  Send Email ({selectedGames.size})
+                </Button>
+                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} sx={{ textTransform: "none" }}>
+                  Copy ({selectedGames.size})
+                </Button>
+              </>
             )}
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
