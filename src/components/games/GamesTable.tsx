@@ -42,7 +42,24 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
-import { CheckCircle, Cancel, Schedule, Edit, Delete, CalendarMonth, Add, Send, NavigateBefore, NavigateNext, FirstPage, LastPage, Check, Close, DeleteOutline, ContentCopy } from "@mui/icons-material";
+import {
+  CheckCircle,
+  Cancel,
+  Schedule,
+  Edit,
+  Delete,
+  CalendarMonth,
+  Add,
+  Send,
+  NavigateBefore,
+  NavigateNext,
+  FirstPage,
+  LastPage,
+  Check,
+  Close,
+  DeleteOutline,
+  ContentCopy,
+} from "@mui/icons-material";
 import { format } from "date-fns";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
@@ -1195,6 +1212,15 @@ export function GamesTable() {
     router.push("/dashboard/compose-email");
   };
 
+  const formatGameDate = (dateString: string) => {
+    if (!mounted) return dateString;
+    try {
+      return format(new Date(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return dateString;
+    }
+  };
+
   const handleCopySelectedRows = useCallback(() => {
     if (selectedGames.size === 0) {
       addNotification("No rows selected to copy", "warning");
@@ -1202,15 +1228,15 @@ export function GamesTable() {
     }
 
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
-    
+
     const headers: string[] = [];
     const columnsToInclude = resolvedColumns.filter((col) => col.id !== "actions");
-    
+
     columnsToInclude.forEach((col) => {
       headers.push(getColumnLabel(col.id));
     });
 
-    const rows = selectedGamesData.map((game) => {
+    const rows = selectedGamesData.map((game: any) => {
       const row: string[] = [];
       columnsToInclude.forEach((col) => {
         let cellValue = "";
@@ -1268,15 +1294,6 @@ export function GamesTable() {
       }
     );
   }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
-
-  const formatGameDate = (dateString: string) => {
-    if (!mounted) return dateString;
-    try {
-      return format(new Date(dateString), "MMM d, yyyy");
-    } catch (error) {
-      return dateString;
-    }
-  };
 
   const renderHeaderCell = (column: ResolvedColumn) => {
     switch (column.id) {
@@ -2723,16 +2740,6 @@ export function GamesTable() {
             )}
           </Typography>
           <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap" }}>
-            {selectedGames.size > 0 && (
-              <>
-                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                  Send Email ({selectedGames.size})
-                </Button>
-                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} sx={{ textTransform: "none" }}>
-                  Copy ({selectedGames.size})
-                </Button>
-              </>
-            )}
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
@@ -2746,6 +2753,16 @@ export function GamesTable() {
               <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none" }}>
                 Show all columns ({hiddenColumnCount} hidden)
               </Button>
+            )}
+            {selectedGames.size > 0 && (
+              <>
+                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                  Send Email ({selectedGames.size})
+                </Button>
+                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} sx={{ textTransform: "none" }}>
+                  Copy ({selectedGames.size})
+                </Button>
+              </>
             )}
           </Stack>
         </Box>
