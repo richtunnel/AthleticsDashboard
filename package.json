@@ -17,6 +17,7 @@
     "migrate:status": "bash ./scripts/prisma-migration-troubleshoot.sh status",
     "migrate:resolve:rollback": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-rolled-back",
     "migrate:resolve:applied": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-applied",
+    "migrate:fix": "bash ./scripts/fix-failed-migration.sh",
     "migrate:check": "bash ./scripts/prisma-predeploy-check.sh",
     "start:prod": "DATABASE_URL='postgresql://adscheduler:AVNS_K8MQ1YWINrYG61lRUi7@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?sslmode=require' yarn migrate:deploy && yarn start",
     "type-check": "tsc --noEmit",
