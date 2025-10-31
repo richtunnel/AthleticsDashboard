@@ -221,18 +221,14 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       break;
 
     case "location":
-      // Handle Home/Away and venue names
-      const hasHome = values.some((v) => v === "Home" || v === "Home Field");
-      const venueNames = values.filter((v) => v !== "Home" && v !== "Home Field" && v !== "TBD");
+      // Handle location text field or venue names
+      const locationValues = values.filter((v) => v !== "TBD");
 
-      if (hasHome && venueNames.length > 0) {
-        where.OR = [{ isHome: true }, { venue: { name: { in: venueNames } } }];
-      } else if (hasHome) {
-        where.isHome = true;
-      } else if (venueNames.length > 0) {
-        where.venue = {
-          name: { in: venueNames },
-        };
+      if (locationValues.length > 0) {
+        where.OR = [
+          { location: { in: locationValues } },
+          { venue: { name: { in: locationValues } } }
+        ];
       }
       break;
 
@@ -349,9 +345,12 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       break;
 
     case "location":
-      where.venue = {
-        name: buildCondition("name"),
-      };
+      // Check both location field and venue name
+      const locationCondition = buildCondition("location");
+      where.OR = [
+        { location: locationCondition },
+        { venue: { name: buildCondition("name") } }
+      ];
       break;
 
     case "busTravel": {
@@ -500,6 +499,11 @@ export async function POST(request: NextRequest) {
     const MAX_CHAR_LIMIT = 2500;
     if (body.notes && typeof body.notes === "string" && body.notes.length > MAX_CHAR_LIMIT) {
       return NextResponse.json({ success: false, error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+    }
+
+    // VALIDATE: location field character limit
+    if (body.location && typeof body.location === "string" && body.location.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json({ success: false, error: `Location field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
     }
 
     // VALIDATE: custom data fields character limits
