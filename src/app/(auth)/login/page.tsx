@@ -160,7 +160,7 @@ function LoginForm() {
               <Box sx={{ mt: 2, textAlign: "center" }}>
                 <Typography variant="body2">
                   Don't have an account?{" "}
-                  <MuiLink component={Link} href="/signup" underline="hover">
+                  <MuiLink component={Link} href="/onboarding/plans" underline="hover">
                     Sign up
                   </MuiLink>
                 </Typography>
