@@ -40,6 +40,7 @@ import {
   Select,
   CircularProgress,
   MenuItem,
+  Skeleton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -2762,7 +2763,21 @@ export function GamesTable() {
           </TableHead>
           <TableBody>
             {renderNewRow()}
-            {games.length === 0 && !isAddingNew ? (
+            {isLoading ? (
+              // Show loading skeleton while data is being fetched
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell padding="checkbox">
+                    <Skeleton variant="rectangular" width={18} height={18} />
+                  </TableCell>
+                  {resolvedColumns.map((column) => (
+                    <TableCell key={`skeleton-${index}-${column.id}`}>
+                      <Skeleton variant="text" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : games.length === 0 && !isAddingNew ? (
               <TableRow>
                 <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
