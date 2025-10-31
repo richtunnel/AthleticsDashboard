@@ -22,6 +22,7 @@ interface Game {
   venue?: {
     name: string;
   };
+  location?: string | null;
   notes?: string;
   customData?: any;
 }
@@ -53,7 +54,7 @@ export class ExportService {
         game.homeTeam.name,
         game.opponent?.name || "",
         game.isHome ? "Home" : "Away",
-        game.isHome ? "" : game.venue?.name || "",
+        game.location || (game.isHome ? "" : game.venue?.name || ""),
         game.status,
         game.busTravel ? "Yes" : "No",
         game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : "",
