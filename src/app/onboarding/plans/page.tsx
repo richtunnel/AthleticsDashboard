@@ -1,25 +1,13 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  ToggleButton,
-  ToggleButtonGroup,
-  Grid,
-  Stack,
-  Divider,
-  useTheme,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import BaseHeader from "@/components/headers/_base";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
@@ -47,12 +35,10 @@ const plans: Plan[] = [
       "Automated Bus & Event scheduling",
       "Import/Export and Sync your spreadsheets",
       "Search, find, group and send schedules",
-      "Real-time data analytics",
       "200+ batch email campaigns",
-      "Advanced reporting and analytics",
-      "Up to 6 individual users",
+      "Real-time reporting and analytics",
       "Basic chat and email support",
-      "2 weeks free trial period",
+      "2 weeks free trial",
     ],
     isFree: true,
   },
@@ -61,14 +47,7 @@ const plans: Plan[] = [
     monthlyPrice: 40,
     annualPrice: 250,
     mostPopular: true,
-    features: [
-      "Everything in Free plan plus...",
-      "50,000+ batch email sends",
-      "Advanced reporting and analytics",
-      "Up to 20 individual users",
-      "Priority chat and email support",
-      "Multi-spreadsheets (Coming soon)",
-    ],
+    features: ["Everything in Free plan plus...", "50,000+ batch email sends", "Up to 10 individual users", "Priority chat and email support"],
     monthlyPriceId: DIRECTORS_MONTHLY_PRICE_ID,
     annualPriceId: DIRECTORS_ANNUAL_PRICE_ID,
   },
@@ -227,6 +206,7 @@ function PricingPlansContent() {
 
   return (
     <>
+      <BaseHeader pt="20px" pl="20px" />
       <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
         <Typography variant="body1">
           <button style={{ cursor: "pointer" }} type="button" className="button" onClick={handleBackClick}>
@@ -318,7 +298,7 @@ function PricingPlansContent() {
                       ${billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                      per month
+                      {billing !== "monthly" ? "per year" : "per month"}
                     </Typography>
 
                     <AuthActionButton
@@ -335,7 +315,8 @@ function PricingPlansContent() {
 
                     {!plan.isFree && !selectedPriceId && !hasActiveSubscription && (
                       <Typography variant="caption" color="error" display="block" sx={{ mb: 2 }}>
-                        This plan is currently unavailable. Please contact support.
+                        This plan is currently unavailable. <br />
+                        Please contact support.
                       </Typography>
                     )}
 

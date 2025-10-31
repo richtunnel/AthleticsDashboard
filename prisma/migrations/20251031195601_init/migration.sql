@@ -13,12 +13,8 @@ CREATE TYPE "Season" AS ENUM ('FALL', 'WINTER', 'SPRING', 'SUMMER');
 -- CreateEnum
 CREATE TYPE "GameStatus" AS ENUM ('SCHEDULED', 'CONFIRMED', 'POSTPONED', 'CANCELLED', 'COMPLETED');
 
--- CreateEnum (conditionally - may already exist from batch email tracking migration)
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'EmailStatus') THEN
-        CREATE TYPE "EmailStatus" AS ENUM ('PENDING', 'SENT', 'FAILED', 'BOUNCED');
-    END IF;
-END $$;
+-- CreateEnum
+CREATE TYPE "EmailStatus" AS ENUM ('PENDING', 'SENT', 'FAILED', 'BOUNCED');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('INCOMPLETE', 'INCOMPLETE_EXPIRED', 'TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'UNPAID');
@@ -123,12 +119,27 @@ CREATE TABLE "CustomColumn" (
 );
 
 -- CreateTable
+CREATE TABLE "TablePreference" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tableKey" TEXT NOT NULL,
+    "preferences" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TablePreference_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Organization" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "district" TEXT,
     "state" TEXT,
     "timezone" TEXT NOT NULL DEFAULT 'America/New_York',
+    "storageUsageBytes" BIGINT NOT NULL DEFAULT 0,
+    "storageQuotaBytes" BIGINT NOT NULL DEFAULT 1073741824,
+    "lastStorageCalculation" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -165,6 +176,7 @@ CREATE TABLE "Game" (
     "time" TEXT,
     "status" "GameStatus" NOT NULL DEFAULT 'SCHEDULED',
     "notes" TEXT,
+    "location" TEXT,
     "isHome" BOOLEAN NOT NULL DEFAULT true,
     "travelRequired" BOOLEAN NOT NULL DEFAULT false,
     "busTravel" BOOLEAN NOT NULL DEFAULT false,
@@ -224,8 +236,13 @@ CREATE TABLE "EmailLog" (
     "sentAt" TIMESTAMP(3),
     "error" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "gameIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "groupId" TEXT,
+    "campaignId" TEXT,
+    "recipientCategory" TEXT,
+    "additionalMessage" TEXT,
     "gameId" TEXT,
-    "sentById" TEXT NOT NULL,
+    "sentById" TEXT,
 
     CONSTRAINT "EmailLog_pkey" PRIMARY KEY ("id")
 );
@@ -466,6 +483,9 @@ CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
 CREATE INDEX "Session_userId_idx" ON "Session"("userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "TablePreference_userId_tableKey_key" ON "TablePreference"("userId", "tableKey");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Sport_name_key" ON "Sport"("name");
 
 -- CreateIndex
@@ -500,6 +520,9 @@ CREATE INDEX "EmailLog_sentById_idx" ON "EmailLog"("sentById");
 
 -- CreateIndex
 CREATE INDEX "EmailLog_createdAt_idx" ON "EmailLog"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "EmailLog_status_idx" ON "EmailLog"("status");
 
 -- CreateIndex
 CREATE INDEX "AccountDeletionReminder_daysBeforeDeletion_idx" ON "AccountDeletionReminder"("daysBeforeDeletion");
@@ -589,6 +612,9 @@ ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId"
 ALTER TABLE "CustomColumn" ADD CONSTRAINT "CustomColumn_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "TablePreference" ADD CONSTRAINT "TablePreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Team" ADD CONSTRAINT "Team_sportId_fkey" FOREIGN KEY ("sportId") REFERENCES "Sport"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -616,7 +642,7 @@ ALTER TABLE "Venue" ADD CONSTRAINT "Venue_organizationId_fkey" FOREIGN KEY ("org
 ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_sentById_fkey" FOREIGN KEY ("sentById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_sentById_fkey" FOREIGN KEY ("sentById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccountDeletionReminder" ADD CONSTRAINT "AccountDeletionReminder_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
