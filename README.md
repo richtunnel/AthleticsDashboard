@@ -347,7 +347,15 @@ Open [http://localhost:5555](http://localhost:5555)
 
 ## 🛡️ Prisma Migration Troubleshooting
 
-When Prisma reports an error such as `P3009` referencing the `20251024000526_new_migration`, the target database still records that migration as failed in the `_prisma_migrations` table. Follow the checklist below to bring the database back to a consistent state and keep future deployments safe.
+When Prisma reports an error such as `P3009`, the target database records that migration as failed in the `_prisma_migrations` table. Follow the checklist below to bring the database back to a consistent state and keep future deployments safe.
+
+### P3009 Error with 20251031195601_init Migration
+
+**⚠️ Special Note**: If you encounter a P3009 error with the `20251031195601_init` migration, this is a known issue that has been **automatically resolved** in the deployment scripts. The error occurs because this is an "init" migration that tries to create tables that already exist from previous migrations.
+
+**Solution**: The `start.sh` and `docker-entrypoint.sh` scripts now automatically detect and fix this error by marking the migration as "applied" when the database schema already matches. Simply redeploy your application and the issue will be resolved automatically.
+
+For manual resolution or more details, see [MIGRATION_P3009_FIX.md](./MIGRATION_P3009_FIX.md).
 
 ### Quick commands
 
@@ -823,6 +831,10 @@ Ensure these are set in your hosting platform:
 |---------|-------------|
 | `yarn prisma migrate dev` | Create and apply new migration |
 | `yarn prisma migrate deploy` | Apply migrations in production |
+| `yarn migrate:status` | Check migration status |
+| `yarn migrate:fix` | Fix failed migrations (P3009 errors) |
+| `yarn migrate:resolve:applied` | Mark a migration as applied |
+| `yarn migrate:resolve:rollback` | Mark a migration as rolled back |
 | `yarn prisma db seed` | Seed database with sample data |
 | `yarn prisma studio` | Open Prisma Studio GUI |
 | `yarn prisma generate` | Generate Prisma Client |
