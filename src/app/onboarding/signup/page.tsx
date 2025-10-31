@@ -83,29 +83,34 @@ function SignupForm() {
         body: JSON.stringify({ name, email, password, plan, phone }),
       });
 
-      const data = await signupRes.json();
-
       if (!signupRes.ok) {
-        setError(data.error || "Failed to create user.");
+        const data = await signupRes.json().catch(() => null);
+        setError(data?.error || "Failed to create user.");
         return;
       }
-
-      const signInRes = await signIn("credentials", {
-        redirect: false,
-        email,
-        password,
-        callbackUrl: `/onboarding/setup?plan=${plan}`,
-      });
-
-      if (signInRes?.error) {
-        setError("Account created but login failed. Please login manually.");
-        setTimeout(() => router.push("/login"), 2000);
-        return;
-      }
-
-      router.replace(`/onboarding/setup?plan=${plan}`);
     } catch (error) {
-      // Error handled by onError callback
+      setError("Failed to create account. Please try again.");
+      return;
+    }
+
+    if (plan) {
+      localStorage.setItem("onboarding_plan", plan);
+    }
+
+    try {
+      await credentialsAuth.executeAction({
+        type: "credentials",
+        credentials: {
+          email,
+          password,
+        },
+      });
+    } catch (error) {
+      if (plan) {
+        localStorage.removeItem("onboarding_plan");
+      }
+      setError("Account created but login failed. Please login manually.");
+      setTimeout(() => router.push("/login"), 2000);
     }
   };
 
