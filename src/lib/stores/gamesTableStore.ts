@@ -16,6 +16,7 @@ interface NewGameData {
   status: string;
   venueId: string;
   notes: string;
+  location: string;
   homeTeamId?: string;
   customData?: { [key: string]: string };
 }
@@ -71,6 +72,7 @@ const getDefaultNewGameData = (): NewGameData => ({
   status: "SCHEDULED",
   venueId: "",
   notes: "",
+  location: "",
   customData: {},
 });
 
