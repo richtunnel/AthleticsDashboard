@@ -59,6 +59,8 @@ export function useAuthButton(options: UseAuthButtonOptions = {}) {
             } else {
               router.push(callbackUrl);
               router.refresh();
+              // Reset loading after a short delay to handle cases where navigation doesn't unmount
+              setTimeout(() => setLoading(false), 1000);
             }
             break;
 
