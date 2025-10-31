@@ -90,6 +90,10 @@ export default function ComposeEmailPage() {
       setSnackbar({ open: true, message: "Campaign sent successfully!", severity: "success" });
       setSubject("");
       setBody("");
+      // Redirect to email logs after a short delay
+      setTimeout(() => {
+        router.push("/dashboard/email-logs");
+      }, 1500);
     },
     onError: (error: Error) => {
       setSnackbar({ open: true, message: error.message, severity: "error" });
