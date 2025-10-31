@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Get total count for pagination
     const total = await prisma.game.count({ where });
+    const totalCount = Number(total);
 
     // Get paginated games
     const games = await prisma.game.findMany({
@@ -136,6 +137,20 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
+    const serializedGames = games.map((game) => ({
+      ...game,
+      homeTeam: {
+        ...game.homeTeam,
+        organization: game.homeTeam.organization
+          ? {
+              ...game.homeTeam.organization,
+              storageUsageBytes: Number(game.homeTeam.organization.storageUsageBytes),
+              storageQuotaBytes: Number(game.homeTeam.organization.storageQuotaBytes),
+            }
+          : null,
+      },
+    }));
+
     // 🔍 DEBUG: Log first game's organization
     if (games.length > 0) {
       console.log("First game org ID:", games[0].homeTeam.organizationId);
@@ -143,16 +158,16 @@ export async function GET(request: NextRequest) {
       console.log("==================");
     }
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json({
       success: true,
       data: {
-        games,
+        games: serializedGames,
         pagination: {
           page,
           limit,
-          total,
+          total: totalCount,
           totalPages,
           hasNext: page < totalPages,
           hasPrev: page > 1,
@@ -484,20 +499,14 @@ export async function POST(request: NextRequest) {
     // VALIDATE: notes field character limit
     const MAX_CHAR_LIMIT = 2500;
     if (body.notes && typeof body.notes === "string" && body.notes.length > MAX_CHAR_LIMIT) {
-      return NextResponse.json(
-        { success: false, error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
     }
 
     // VALIDATE: custom data fields character limits
     if (body.customData && typeof body.customData === "object") {
       for (const [key, value] of Object.entries(body.customData)) {
         if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
-          return NextResponse.json(
-            { success: false, error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
-            { status: 400 }
-          );
+          return NextResponse.json({ success: false, error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
         }
       }
     }
