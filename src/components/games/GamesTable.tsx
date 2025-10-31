@@ -230,6 +230,10 @@ interface ResolvedColumn {
 const TABLE_PREFERENCES_KEY = "games";
 const STATIC_COLUMN_SEQUENCE: StaticColumnId[] = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", "actions"];
 
+const PRESET_SPORTS = ["Boys Basketball", "Girls Basketball", "Boys Flag Football", "Girls Flag Football", "Girls Tennis", "Boys Tennis", "Boys Soccer", "Girls Soccer", "Boys Cross Country"];
+
+const PRESET_LEVELS = ["VARSITY", "JV", "FRESHMAN"];
+
 export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -442,12 +446,14 @@ export function GamesTable() {
 
   const uniqueSports = useMemo<string[]>(() => {
     const sports = teams.map((team: any) => team.sport?.name).filter((sport: any): sport is string => typeof sport === "string" && sport.length > 0);
-    return Array.from(new Set(sports));
+    const allSports = [...new Set([...PRESET_SPORTS, ...sports])];
+    return allSports.sort();
   }, [teams]);
 
   const uniqueLevels = useMemo<string[]>(() => {
     const levels = teams.map((team: any) => team.level).filter((level: any): level is string => typeof level === "string" && level.length > 0);
-    return Array.from(new Set(levels));
+    const allLevels = [...new Set([...PRESET_LEVELS, ...levels])];
+    return allLevels;
   }, [teams]);
 
   const levelsBySport = useMemo(() => {
@@ -471,7 +477,11 @@ export function GamesTable() {
         return uniqueLevels;
       }
       const levels = levelsBySport.get(sportName);
-      return levels && levels.length > 0 ? levels : uniqueLevels;
+      if (levels && levels.length > 0) {
+        const allLevels = [...new Set([...PRESET_LEVELS, ...levels])];
+        return allLevels;
+      }
+      return PRESET_LEVELS;
     },
     [levelsBySport, uniqueLevels]
   );
@@ -1018,12 +1028,62 @@ export function GamesTable() {
     [queryClient, addNotification]
   );
 
-  const handleSaveNewGame = () => {
-    const matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
+  const handleSaveNewGame = async () => {
+    if (!newGameData.sport || !newGameData.level) {
+      addNotification("Please select sport and level", "error");
+      return;
+    }
+
+    let matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
 
     if (!matchingTeam) {
-      addNotification("Please select valid sport and level combination", "error");
-      return;
+      try {
+        const sportRes = await fetch("/api/sports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newGameData.sport,
+            season: "FALL",
+          }),
+        });
+
+        let sportData;
+        if (sportRes.ok) {
+          sportData = await sportRes.json();
+        } else {
+          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(newGameData.sport)}`);
+          if (existingSportRes.ok) {
+            sportData = await existingSportRes.json();
+          } else {
+            throw new Error("Failed to create or find sport");
+          }
+        }
+
+        const sportId = sportData.data?.id || sportData.id;
+
+        const teamRes = await fetch("/api/teams", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${newGameData.sport} ${newGameData.level}`,
+            sportId,
+            level: newGameData.level,
+          }),
+        });
+
+        if (!teamRes.ok) {
+          const error = await teamRes.json();
+          throw new Error(error.error || "Failed to create team");
+        }
+
+        const teamData = await teamRes.json();
+        matchingTeam = teamData.data;
+
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+      } catch (error: any) {
+        addNotification(error.message || "Failed to create team", "error");
+        return;
+      }
     }
 
     const isoDate = new Date(newGameData.date).toISOString();
@@ -1070,10 +1130,69 @@ export function GamesTable() {
     setInlineEditValue("");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingGameData || !editingGameId) return;
 
-    const matchingTeam = teams.find((team: any) => team.sport?.name === editingGameData.homeTeam.sport.name && team.level === editingGameData.homeTeam.level);
+    const sportName = editingGameData.homeTeam.sport.name;
+    const level = editingGameData.homeTeam.level;
+
+    if (!sportName || !level) {
+      addNotification("Please select sport and level", "error");
+      return;
+    }
+
+    let matchingTeam = teams.find((team: any) => team.sport?.name === sportName && team.level === level);
+
+    if (!matchingTeam) {
+      try {
+        const sportRes = await fetch("/api/sports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: sportName,
+            season: "FALL",
+          }),
+        });
+
+        let sportData;
+        if (sportRes.ok) {
+          sportData = await sportRes.json();
+        } else {
+          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(sportName)}`);
+          if (existingSportRes.ok) {
+            sportData = await existingSportRes.json();
+          } else {
+            throw new Error("Failed to create or find sport");
+          }
+        }
+
+        const sportId = sportData.data?.id || sportData.id;
+
+        const teamRes = await fetch("/api/teams", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${sportName} ${level}`,
+            sportId,
+            level: level,
+          }),
+        });
+
+        if (!teamRes.ok) {
+          const error = await teamRes.json();
+          throw new Error(error.error || "Failed to create team");
+        }
+
+        const teamData = await teamRes.json();
+        matchingTeam = teamData.data;
+
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+      } catch (error: any) {
+        addNotification(error.message || "Failed to create team", "error");
+        return;
+      }
+    }
+
     const rawDate = editingGameData.date.split("T")[0];
     const isoDate = new Date(rawDate).toISOString();
 
