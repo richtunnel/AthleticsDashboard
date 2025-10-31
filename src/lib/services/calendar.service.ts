@@ -18,6 +18,29 @@ export interface UpcomingCalendarEvent {
 
 //Google Calendar Sync
 export class CalendarService {
+  private async isCalendarConnected(userId: string): Promise<boolean> {
+    const [account, userTokens] = await Promise.all([
+      prisma.account.findFirst({
+        where: {
+          userId,
+          provider: "google",
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          googleCalendarRefreshToken: true,
+          googleCalendarAccessToken: true,
+        },
+      }),
+    ]);
+
+    const refreshToken = account?.refresh_token ?? userTokens?.googleCalendarRefreshToken ?? undefined;
+    const accessToken = account?.access_token ?? userTokens?.googleCalendarAccessToken ?? undefined;
+
+    return Boolean(refreshToken || accessToken);
+  }
+
   private async getCalendarClient(userId: string) {
     const [account, userTokens] = await Promise.all([
       prisma.account.findFirst({
@@ -112,59 +135,70 @@ export class CalendarService {
   }
 
   async getUpcomingEvents(userId: string, daysAhead = 3): Promise<UpcomingCalendarEvent[]> {
-    const calendar = await this.getCalendarClient(userId);
-
-    const now = new Date();
-    const timeMin = now.toISOString();
-    const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
-
-    const response = await calendar.events.list({
-      calendarId: "primary",
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: 50,
-    });
-
-    const items = response.data.items ?? [];
-    const upcomingEvents: UpcomingCalendarEvent[] = [];
-
-    for (const event of items) {
-      if (event.status === "cancelled") {
-        continue;
+    try {
+      // Check if calendar is connected before proceeding
+      const isConnected = await this.isCalendarConnected(userId);
+      if (!isConnected) {
+        return [];
       }
 
-      const startDate = this.getEventStartDate(event);
+      const calendar = await this.getCalendarClient(userId);
 
-      if (!startDate) {
-        continue;
-      }
+      const now = new Date();
+      const timeMin = now.toISOString();
+      const timeMax = new Date(now.getTime() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
 
-      const details = this.extractDetailsFromDescription(event.description);
-      const startValue = event.start?.dateTime ?? event.start?.date ?? startDate.toISOString();
-      const endValue = event.end?.dateTime ?? event.end?.date ?? null;
-
-      upcomingEvents.push({
-        id: event.id ?? `${startValue}-${event.summary ?? "event"}`,
-        summary: event.summary ?? "Untitled Event",
-        start: startValue,
-        end: endValue,
-        isAllDay: Boolean(event.start?.date && !event.start?.dateTime),
-        location: event.location ?? details.location ?? null,
-        opponent: details.opponent ?? null,
-        description: event.description ?? null,
-        htmlLink: event.htmlLink ?? null,
+      const response = await calendar.events.list({
+        calendarId: "primary",
+        timeMin,
+        timeMax,
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: 50,
       });
+
+      const items = response.data.items ?? [];
+      const upcomingEvents: UpcomingCalendarEvent[] = [];
+
+      for (const event of items) {
+        if (event.status === "cancelled") {
+          continue;
+        }
+
+        const startDate = this.getEventStartDate(event);
+
+        if (!startDate) {
+          continue;
+        }
+
+        const details = this.extractDetailsFromDescription(event.description);
+        const startValue = event.start?.dateTime ?? event.start?.date ?? startDate.toISOString();
+        const endValue = event.end?.dateTime ?? event.end?.date ?? null;
+
+        upcomingEvents.push({
+          id: event.id ?? `${startValue}-${event.summary ?? "event"}`,
+          summary: event.summary ?? "Untitled Event",
+          start: startValue,
+          end: endValue,
+          isAllDay: Boolean(event.start?.date && !event.start?.dateTime),
+          location: event.location ?? details.location ?? null,
+          opponent: details.opponent ?? null,
+          description: event.description ?? null,
+          htmlLink: event.htmlLink ?? null,
+        });
+      }
+
+      upcomingEvents.sort((a, b) => {
+        const aTime = new Date(a.start).getTime();
+        const bTime = new Date(b.start).getTime();
+        return aTime - bTime;
+      });
+
+      return upcomingEvents;
+    } catch (error) {
+      console.error("[Calendar] Error fetching upcoming events:", error);
+      return [];
     }
-
-    upcomingEvents.sort((a, b) => {
-      const aTime = new Date(a.start).getTime();
-      const bTime = new Date(b.start).getTime();
-      return aTime - bTime;
-    });
-
-    return upcomingEvents;
   }
 
   private getEventStartDate(event: calendar_v3.Schema$Event): Date | null {
@@ -260,6 +294,16 @@ export class CalendarService {
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Check if calendar is connected before proceeding
+    const isConnected = await this.isCalendarConnected(userId);
+    if (!isConnected) {
+      return {
+        success: false,
+        skipped: true,
+        message: "Google Calendar not connected",
+      };
     }
 
     // ✅ VALIDATE: Game belongs to user's organization
@@ -373,6 +417,13 @@ export class CalendarService {
 
   async deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
     try {
+      // Check if calendar is connected before proceeding
+      const isConnected = await this.isCalendarConnected(userId);
+      if (!isConnected) {
+        console.info(`[Calendar] Skipping event deletion for ${eventId} - calendar not connected for user ${userId}`);
+        return true;
+      }
+
       console.info(`[Calendar] Attempting to delete event ${eventId} for user ${userId}`);
       const calendar = await this.getCalendarClient(userId);
 
@@ -405,6 +456,16 @@ export class CalendarService {
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Check if calendar is connected before proceeding
+    const isConnected = await this.isCalendarConnected(userId);
+    if (!isConnected) {
+      return {
+        success: false,
+        skipped: true,
+        message: "Google Calendar not connected",
+      };
     }
 
     // ✅ VALIDATE: Game belongs to user's organization
