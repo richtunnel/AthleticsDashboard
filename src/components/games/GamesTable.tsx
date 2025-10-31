@@ -104,6 +104,21 @@ const formatBusTimeDisplay = (dateTime: string | null): string => {
   }
 };
 
+const formatTimeDisplay = (timeString: string | null): string => {
+  if (!timeString) return "TBD";
+  try {
+    // Parse HH:MM format and convert to 12-hour display
+    const [hours, minutes] = timeString.split(":");
+    if (!hours || !minutes) return timeString;
+    const date = new Date();
+    date.setHours(parseInt(hours, 10));
+    date.setMinutes(parseInt(minutes, 10));
+    return format(date, "h:mm a");
+  } catch (error) {
+    return timeString;
+  }
+};
+
 interface Game {
   id: string;
   date: string;
@@ -1222,7 +1237,7 @@ export function GamesTable() {
             cellValue = game.isHome ? "Home" : "Away";
             break;
           case "time":
-            cellValue = game.time || "";
+            cellValue = formatTimeDisplay(game.time);
             break;
           case "status":
             cellValue = game.status;
@@ -2269,7 +2284,7 @@ export function GamesTable() {
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
-                  {game.time || "TBD"}
+                  {formatTimeDisplay(game.time)}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "time" && <CircularProgress size={12} />}
               </Box>
