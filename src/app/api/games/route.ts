@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { travelAIService } from "@/lib/services/travelAI";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
+import { serializeBigInt } from "@/lib/utils/serialize";
 
 export async function GET(request: NextRequest) {
   try {
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    return NextResponse.json({
+    const responsePayload = serializeBigInt({
       success: true,
       data: {
         games: serializedGames,
@@ -174,6 +175,8 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     console.error("Error fetching games:", error);
     return NextResponse.json(
