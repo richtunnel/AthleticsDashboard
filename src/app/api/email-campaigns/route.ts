@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { NextResponse } from "next/server";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
+import { getResendClientOptional } from "@/lib/resend";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -29,8 +30,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, subject, body, groupId } = await request.json();
-  if (!name || !subject || !body) {
+  const { name, subject, body, groupId, sendNow } = await request.json();
+  if (!subject || !body) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
@@ -53,9 +54,77 @@ export async function POST(request: Request) {
     return storageCheckResult;
   }
 
+  // Create campaign record
   const campaign = await prisma.emailCampaign.create({
-    data: { name, subject, body, groupId, userId: session.user.id },
+    data: { 
+      name: name || subject, 
+      subject, 
+      body, 
+      groupId, 
+      userId: session.user.id,
+      sentAt: sendNow ? new Date() : null,
+    },
   });
+
+  // If sendNow is true, send the email immediately
+  if (sendNow && groupId) {
+    const group = await prisma.emailGroup.findUnique({
+      where: { id: groupId },
+      include: { emails: true },
+    });
+
+    if (!group) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
+
+    if (group.emails.length === 0) {
+      return NextResponse.json({ error: "No recipients in group" }, { status: 400 });
+    }
+
+    const toEmails = group.emails.map((e) => e.email);
+
+    // Send via Resend
+    const resend = getResendClientOptional();
+    if (resend) {
+      try {
+        const emailResponse = await resend.emails.send({
+          from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+          to: toEmails,
+          subject,
+          html: body,
+        });
+
+        // Log the email
+        await prisma.emailLog.create({
+          data: {
+            to: toEmails,
+            cc: [],
+            subject,
+            body,
+            status: emailResponse.error ? "FAILED" : "SENT",
+            error: emailResponse.error?.message || null,
+            sentAt: emailResponse.error ? null : new Date(),
+            sentById: session.user.id,
+            campaignId: campaign.id,
+            groupId,
+          },
+        });
+
+        if (emailResponse.error) {
+          return NextResponse.json({ 
+            error: `Campaign created but failed to send: ${emailResponse.error.message}`,
+            campaign,
+          }, { status: 500 });
+        }
+      } catch (error) {
+        console.error("Failed to send campaign email:", error);
+        return NextResponse.json({ 
+          error: "Campaign created but failed to send email",
+          campaign,
+        }, { status: 500 });
+      }
+    }
+  }
 
   return NextResponse.json(campaign);
 }

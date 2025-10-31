@@ -255,24 +255,31 @@ model Venue {
 
 // Email Tracking
 model EmailLog {
-  id        String      @id @default(cuid())
-  to        String[]
-  cc        String[]
-  subject   String
-  body      String      @db.Text
-  status    EmailStatus @default(PENDING)
-  sentAt    DateTime?
-  error     String?     @db.Text
-  createdAt DateTime    @default(now())
+  id                 String      @id @default(cuid())
+  to                 String[]
+  cc                 String[]
+  subject            String
+  body               String      @db.Text
+  status             EmailStatus @default(PENDING)
+  sentAt             DateTime?
+  error              String?     @db.Text
+  createdAt          DateTime    @default(now())
+  // Batch email metadata for re-sending
+  gameIds            String[]    @default([])
+  groupId            String?
+  campaignId         String?
+  recipientCategory  String?
+  additionalMessage  String?     @db.Text
   // Relations
-  gameId    String?
-  game      Game?       @relation(fields: [gameId], references: [id])
-  sentById  String?
-  sentBy    User?       @relation(fields: [sentById], references: [id])
+  gameId             String?
+  game               Game?       @relation(fields: [gameId], references: [id])
+  sentById           String?
+  sentBy             User?       @relation(fields: [sentById], references: [id])
 
   @@index([gameId])
   @@index([sentById])
   @@index([createdAt])
+  @@index([status])
 }
 
 model AccountDeletionReminder {

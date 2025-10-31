@@ -55,6 +55,7 @@ import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { VscGithubProject } from "react-icons/vsc";
 import EmailIcon from "@mui/icons-material/Email";
+import HistoryIcon from "@mui/icons-material/History";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
@@ -69,6 +70,7 @@ const navigation = [
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Manage Emails", href: "/dashboard/email-groups", icon: EmailIcon },
+  { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Account", href: "/dashboard/settings", icon: Settings },
   { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },

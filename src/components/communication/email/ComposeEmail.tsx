@@ -43,7 +43,6 @@ const RECIPIENT_CATEGORIES = [
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
-  const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -65,6 +64,7 @@ export default function ComposeEmailPage() {
     // Load selected games from sessionStorage
     const storedGames = sessionStorage.getItem("selectedGames");
     const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
+    const storedEmailDraft = sessionStorage.getItem("emailDraft");
     
     if (storedGames) {
       const games = JSON.parse(storedGames);
@@ -97,18 +97,32 @@ export default function ComposeEmailPage() {
         }
       }
 
-      // Generate default subject based on games
-      if (games.length === 1) {
-        setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
+      // Check if there's a draft from email logs (re-open & edit)
+      if (storedEmailDraft) {
+        try {
+          const draft = JSON.parse(storedEmailDraft);
+          if (draft.subject) setSubject(draft.subject);
+          if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
+          if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+          // Clear the draft after loading
+          sessionStorage.removeItem("emailDraft");
+        } catch (e) {
+          // Ignore parse errors
+        }
       } else {
-        setSubject(`Game Schedule Confirmation - ${games.length} Games`);
+        // Generate default subject based on games only if no draft
+        if (games.length === 1) {
+          setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
+        } else {
+          setSubject(`Game Schedule Confirmation - ${games.length} Games`);
+        }
       }
     }
   }, [mounted]);
 
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
-      const res = await fetch("/api/email/send-schedule", {
+      const res = await fetch("/api/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(emailData),
@@ -122,10 +136,15 @@ export default function ComposeEmailPage() {
       return res.json();
     },
     onSuccess: () => {
+      addNotification("Email sent successfully!", "success");
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("selectedGames");
+        sessionStorage.removeItem("gamesOpponentFilter");
       }
-      router.push("/dashboard/games");
+      router.push("/dashboard/email-logs");
+    },
+    onError: (error: Error) => {
+      addNotification(`Failed to send email: ${error.message}`, "error");
     },
   });
 
@@ -144,32 +163,6 @@ export default function ComposeEmailPage() {
       return format(new Date(dateString), "EEEE, MMMM d, yyyy");
     } catch (error) {
       return dateString;
-    }
-  };
-
-  const handleSendEmail = async (emailData: any) => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/emails/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailData),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to send email");
-      }
-
-      const result = await res.json();
-
-      addNotification(`Email sent successfully to ${emailData.to.length} recipient${emailData.to.length > 1 ? "s" : ""}!`, "success");
-
-      // Redirect or clear form
-      // router.push("/dashboard/games");
-    } catch (error: any) {
-      addNotification(`Failed to send email: ${error.message}`, "error");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -415,7 +408,21 @@ export default function ComposeEmailPage() {
           <Button variant="outlined" onClick={() => router.back()} disabled={sendEmailMutation.isPending}>
             Cancel
           </Button>
-          <Button variant="contained" startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />} onClick={handleSendEmail} disabled={sendEmailMutation.isPending || !subject}>
+          <Button 
+            variant="contained" 
+            startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />} 
+            onClick={() => {
+              const gameIds = selectedGames.map(g => g.id);
+              sendEmailMutation.mutate({
+                gameIds,
+                subject,
+                additionalMessage,
+                recipientCategory,
+                to: recipientCategory === "custom" ? customRecipients.split(",").map(e => e.trim()).filter(Boolean) : undefined,
+              });
+            }} 
+            disabled={sendEmailMutation.isPending || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
+          >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
           </Button>
         </Box>
