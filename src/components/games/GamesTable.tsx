@@ -1034,7 +1034,7 @@ export function GamesTable() {
       actualDepartureTime: combineDateAndTime(newGameData.date, newGameData.actualDepartureTime),
       actualArrivalTime: combineDateAndTime(newGameData.date, newGameData.actualArrivalTime),
       opponentId: newGameData.opponentId || null,
-      venueId: !newGameData.isHome && newGameData.venueId ? newGameData.venueId : null,
+      venueId: newGameData.venueId || null,
       status: newGameData.status,
       notes: newGameData.notes || null,
       customData: newGameData.customData || {},
@@ -1083,7 +1083,7 @@ export function GamesTable() {
       actualDepartureTime: editingGameData.actualDepartureTime || null,
       actualArrivalTime: editingGameData.actualArrivalTime || null,
       opponentId: editingGameData.opponentId || editingGameData.opponent?.id || null,
-      venueId: !editingGameData.isHome && editingGameData.venueId ? editingGameData.venueId : null,
+      venueId: editingGameData.venueId || editingGameData.venue?.id || null,
       status: editingGameData.status,
       customData: editingCustomData,
       notes: editingGameData.notes || null,
@@ -2393,8 +2393,16 @@ export function GamesTable() {
                 ))}
               </Select>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ fontSize: 13 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: 13,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
                   {game.venue?.name || "TBD"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
@@ -2438,6 +2446,7 @@ export function GamesTable() {
               fontSize: 13,
               py: 0,
               minWidth: 220,
+              maxWidth: 300,
               cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
@@ -2492,8 +2501,9 @@ export function GamesTable() {
                   variant="body2"
                   sx={{
                     fontSize: 13,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
                   {getNotesPreview(game.notes)}
