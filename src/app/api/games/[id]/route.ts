@@ -76,6 +76,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
+    // Validate location field character limit
+    if (updateData.location && typeof updateData.location === "string" && updateData.location.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json(
+        { error: `Location field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+        { status: 400 }
+      );
+    }
+
     // Handle custom data separately (merge with existing)
     if (customData !== undefined) {
       const existingCustomData = (existingGame.customData as any) || {};

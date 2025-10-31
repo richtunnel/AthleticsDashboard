@@ -186,6 +186,7 @@ model Game {
   time                     String?
   status                   GameStatus             @default(SCHEDULED)
   notes                    String?                @db.Text
+  location                 String?                @db.Text
   isHome                   Boolean                @default(true)
   // Travel Information
   travelRequired           Boolean                @default(false)
