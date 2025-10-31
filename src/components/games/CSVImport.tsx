@@ -587,9 +587,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {step === 3 && !isImporting && (
           <>
             <Button onClick={handleReset}>Import Another File</Button>
-            <Button variant="contained" onClick={onClose}>
-              Close
-            </Button>
+            <Link href={"/dashboard/games"}>View</Link>
           </>
         )}
       </DialogActions>
