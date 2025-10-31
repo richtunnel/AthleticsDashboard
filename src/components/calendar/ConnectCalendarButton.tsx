@@ -37,7 +37,7 @@ export function ConnectCalendarButton({ isConnected }: ConnectCalendarButtonProp
           Your Google Calendar is connected
         </Alert>
       ) : (
-        <Button variant="contained" startIcon={<CalendarMonth />} onClick={handleConnect} fullWidth>
+        <Button variant="contained" startIcon={<CalendarMonth />} onClick={handleConnect}>
           Connect Google Calendar
         </Button>
       )}

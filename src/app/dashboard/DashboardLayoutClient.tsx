@@ -272,6 +272,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 alignItems: "center",
                 gap: 0.5,
                 flexGrow: 1,
+                textDecoration: "none",
                 minWidth: 0,
                 overflowX: "auto",
                 pr: 2,

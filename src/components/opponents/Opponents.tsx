@@ -114,7 +114,8 @@ const OpponentCard = memo(({ opponent, isSelected, isEditing, editingId, onEdit,
         cursor: !isEditing ? "pointer" : "default",
         border: isSelected ? "2px solid" : "1px solid",
         borderColor: isSelected ? "primary.main" : "divider",
-        "&:hover": !isEditing ? { boxShadow: 4, borderColor: "primary.light" } : {},
+        boxShadow: "none",
+        "&:hover": !isEditing ? { borderColor: "primary.light" } : {},
         userSelect: "none",
       }}
       onClick={handleCardClick}
