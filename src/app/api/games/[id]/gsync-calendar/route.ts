@@ -23,14 +23,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Call the core sync logic
-    const event = await syncGameToCalendar(id, session.user.id);
+    const result = await syncGameToCalendar(id, session.user.id);
+
+    // Check if calendar sync was skipped due to not being connected
+    if ('skipped' in result && result.skipped) {
+      return NextResponse.json({
+        success: false,
+        skipped: true,
+        error: result.message,
+      }, { status: 400 });
+    }
 
     return NextResponse.json({
       success: true,
       message: "Game synced to Google Calendar.",
       data: {
-        eventId: event.id,
-        htmlLink: event.htmlLink,
+        eventId: result.id,
+        htmlLink: result.htmlLink,
       },
     });
   } catch (error: any) {
