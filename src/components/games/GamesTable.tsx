@@ -493,7 +493,8 @@ export function GamesTable() {
       values.level.add(game.homeTeam.level);
       values.opponent.add(game.opponent?.name || "TBD");
       values.status.add(game.status);
-      values.location.add(game.isHome ? "Home" : game.venue?.name || "TBD");
+      const locationValue = game.venue?.name || "TBD";
+      values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
 
       const customData = (game.customData as any) || {};
@@ -823,9 +824,6 @@ export function GamesTable() {
     (game: Game, field: InlineEditField) => {
       // Prevent editing if row is in full edit mode
       if (editingGameId === game.id) return;
-
-      // Prevent editing location for home games
-      if (field === "location" && game.isHome) return;
 
       let currentValue = "";
 
@@ -1243,7 +1241,7 @@ export function GamesTable() {
             cellValue = game.status;
             break;
           case "location":
-            cellValue = game.isHome ? "Home Field" : game.venue?.name || "TBD";
+            cellValue = game.venue?.name || "TBD";
             break;
           case "busTravel":
             cellValue = formatBusTimeDisplay(game.actualDepartureTime) + " / " + formatBusTimeDisplay(game.actualArrivalTime);
@@ -1932,35 +1930,29 @@ export function GamesTable() {
       case "location":
         return (
           <TableCell key="location" sx={{ py: 1 }}>
-            {editingGame.isHome ? (
-              <Typography variant="body2" sx={{ fontSize: 13 }}>
-                Home Field
-              </Typography>
-            ) : (
-              <Select
-                size="small"
-                value={editingGame.venueId || editingGame.venue?.id || ""}
-                onChange={(e) => {
-                  if (e.target.value === "__add_new__") {
-                    setShowAddVenue(true);
-                  } else {
-                    setEditingGameData((prev) => (prev ? { ...prev, venueId: e.target.value as string } : prev));
-                  }
-                }}
-                sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
-                displayEmpty
-              >
-                <MenuItem value="">TBD</MenuItem>
-                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                  + Add New Venue
+            <Select
+              size="small"
+              value={editingGame.venueId || editingGame.venue?.id || ""}
+              onChange={(e) => {
+                if (e.target.value === "__add_new__") {
+                  setShowAddVenue(true);
+                } else {
+                  setEditingGameData((prev) => (prev ? { ...prev, venueId: e.target.value as string } : prev));
+                }
+              }}
+              sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
+              displayEmpty
+            >
+              <MenuItem value="">TBD</MenuItem>
+              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
+                + Add New Venue
+              </MenuItem>
+              {venues.map((venue: any) => (
+                <MenuItem key={venue.id} value={venue.id}>
+                  {venue.name}
                 </MenuItem>
-                {venues.map((venue: any) => (
-                  <MenuItem key={venue.id} value={venue.id}>
-                    {venue.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
+              ))}
+            </Select>
           </TableCell>
         );
       case "busTravel":
@@ -2357,18 +2349,18 @@ export function GamesTable() {
               fontSize: 13,
               py: 0,
               maxWidth: 180,
-              cursor: game.isHome ? "default" : isEditing ? "default" : "pointer",
+              cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: game.isHome ? "transparent" : isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "location")}
           >
-            {isEditing && !game.isHome ? (
+            {isEditing ? (
               <Select
                 size="small"
                 value={inlineEditValue}
@@ -2403,7 +2395,7 @@ export function GamesTable() {
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
-                  {game.isHome ? "Home Field" : game.venue?.name || "TBD"}
+                  {game.venue?.name || "TBD"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
               </Box>
