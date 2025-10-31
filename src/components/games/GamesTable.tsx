@@ -154,6 +154,7 @@ interface Game {
   };
   venueId?: string;
   notes?: string;
+  location?: string | null;
 }
 
 interface NewGameData {
@@ -169,6 +170,7 @@ interface NewGameData {
   status: string;
   venueId: string;
   notes: string;
+  location: string;
   homeTeamId?: string;
   customData?: { [key: string]: string };
 }
@@ -493,7 +495,7 @@ export function GamesTable() {
       values.level.add(game.homeTeam.level);
       values.opponent.add(game.opponent?.name || "TBD");
       values.status.add(game.status);
-      const locationValue = game.venue?.name || "TBD";
+      const locationValue = game.location || (game.venue?.name || "TBD");
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
 
@@ -837,7 +839,7 @@ export function GamesTable() {
             currentValue = game.opponentId || game.opponent?.id || "";
             break;
           case "location":
-            currentValue = game.venueId || game.venue?.id || "";
+            currentValue = game.location || "";
             break;
           case "date":
             currentValue = extractDatePart(game.date);
@@ -891,7 +893,7 @@ export function GamesTable() {
         if (inlineEditState.field === "opponent") {
           updateData.opponentId = inlineEditValue || null;
         } else if (inlineEditState.field === "location") {
-          updateData.venueId = inlineEditValue || null;
+          updateData.location = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
         } else if (inlineEditState.field === "date") {
           if (inlineEditValue) {
             const nextDate = new Date(inlineEditValue);
@@ -1589,36 +1591,23 @@ export function GamesTable() {
         );
       case "location":
         return (
-          <TableCell key="location" sx={{ py: 1, minWidth: 160 }}>
-            {newGameData.isHome ? (
-              <Typography variant="body2" sx={{ fontSize: 13 }}>
-                Home Field
-              </Typography>
-            ) : (
-              <Select
-                size="small"
-                value={newGameData.venueId}
-                onChange={(e) => {
-                  if (e.target.value === "__add_new__") {
-                    setShowAddVenue(true);
-                  } else {
-                    updateNewGameData({ venueId: e.target.value as string });
-                  }
-                }}
-                sx={{ width: 160, fontSize: 13 }}
-                displayEmpty
-              >
-                <MenuItem value="">TBD</MenuItem>
-                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                  + Add New Venue
-                </MenuItem>
-                {venues.map((venue: any) => (
-                  <MenuItem key={venue.id} value={venue.id}>
-                    {venue.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
+          <TableCell key="location" sx={{ py: 1, minWidth: 180 }}>
+            <TextField
+              size="small"
+              fullWidth
+              value={newGameData.location || ""}
+              onChange={(e) => {
+                const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                updateNewGameData({ location: value });
+              }}
+              placeholder="Enter location..."
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
+                  py: 0.5,
+                },
+              }}
+            />
           </TableCell>
         );
       case "busTravel":
@@ -1929,30 +1918,23 @@ export function GamesTable() {
         );
       case "location":
         return (
-          <TableCell key="location" sx={{ py: 1 }}>
-            <Select
+          <TableCell key="location" sx={{ py: 1, minWidth: 180 }}>
+            <TextField
               size="small"
-              value={editingGame.venueId || editingGame.venue?.id || ""}
+              fullWidth
+              value={editingGame.location || ""}
               onChange={(e) => {
-                if (e.target.value === "__add_new__") {
-                  setShowAddVenue(true);
-                } else {
-                  setEditingGameData((prev) => (prev ? { ...prev, venueId: e.target.value as string } : prev));
-                }
+                const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                setEditingGameData((prev) => (prev ? { ...prev, location: value } : prev));
               }}
-              sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
-              displayEmpty
-            >
-              <MenuItem value="">TBD</MenuItem>
-              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                + Add New Venue
-              </MenuItem>
-              {venues.map((venue: any) => (
-                <MenuItem key={venue.id} value={venue.id}>
-                  {venue.name}
-                </MenuItem>
-              ))}
-            </Select>
+              placeholder="Enter location..."
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
+                  py: 0.5,
+                },
+              }}
+            />
           </TableCell>
         );
       case "busTravel":
@@ -2348,7 +2330,8 @@ export function GamesTable() {
             sx={{
               fontSize: 13,
               py: 0,
-              maxWidth: 180,
+              minWidth: 220,
+              maxWidth: 300,
               cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
@@ -2361,37 +2344,36 @@ export function GamesTable() {
             onDoubleClick={() => handleDoubleClick(game, "location")}
           >
             {isEditing ? (
-              <Select
-                size="small"
-                value={inlineEditValue}
-                onChange={(e) => {
-                  if (e.target.value === "__add_new__") {
-                    if (saveTimeoutRef.current) {
-                      clearTimeout(saveTimeoutRef.current);
-                      saveTimeoutRef.current = null;
-                    }
-                    setShowAddVenue(true);
-                  } else {
-                    handleInlineValueChange(e.target.value as string);
-                  }
-                }}
-                onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                onBlur={() => handleInlineBlur(game)}
-                autoFocus
-                disabled={isInlineSaving}
-                sx={{ width: "100%", fontSize: 13 }}
-                displayEmpty
-              >
-                <MenuItem value="">TBD</MenuItem>
-                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                  + Add New Venue
-                </MenuItem>
-                {venues.map((venue: any) => (
-                  <MenuItem key={venue.id} value={venue.id}>
-                    {venue.name}
-                  </MenuItem>
-                ))}
-              </Select>
+              <Box sx={{ py: 1 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  placeholder="Enter location..."
+                  helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                  FormHelperTextProps={{
+                    sx: {
+                      fontSize: 10,
+                      color: getCharacterCounterColor(inlineEditValue.length),
+                    },
+                  }}
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                    },
+                  }}
+                />
+                {inlineEditError && inlineEditState?.field === "location" && (
+                  <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
+                    {inlineEditError}
+                  </Typography>
+                )}
+              </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                 <Typography
@@ -2403,7 +2385,7 @@ export function GamesTable() {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {game.venue?.name || "TBD"}
+                  {game.location || (game.venue?.name || "—")}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
               </Box>

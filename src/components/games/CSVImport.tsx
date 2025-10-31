@@ -60,6 +60,7 @@ const DATABASE_FIELDS = [
   { value: "level", label: "Level", required: true },
   { value: "opponent", label: "Opponent", required: false },
   { value: "isHome", label: "Home/Away", required: true },
+  { value: "location", label: "Location", required: false },
   { value: "venue", label: "Venue", required: false },
   { value: "status", label: "Status", required: false },
   { value: "busTravel", label: "Bus Travel", required: false },
@@ -130,11 +131,12 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       const normalized = header.toLowerCase().trim();
 
       if (normalized.includes("date")) mapping[header] = "date";
-      else if (normalized.includes("time")) mapping[header] = "time";
+      else if (normalized.includes("time") && !normalized.includes("location")) mapping[header] = "time";
       else if (normalized.includes("sport")) mapping[header] = "sport";
       else if (normalized.includes("level") || normalized.includes("grade")) mapping[header] = "level";
       else if (normalized.includes("opponent") || normalized.includes("vs")) mapping[header] = "opponent";
-      else if (normalized.includes("home") || normalized.includes("away") || normalized.includes("location")) mapping[header] = "isHome";
+      else if (normalized.includes("home") || normalized.includes("away")) mapping[header] = "isHome";
+      else if (normalized === "location" || normalized.includes("game location")) mapping[header] = "location";
       else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
       else if (normalized.includes("status")) mapping[header] = "status";
       else if (normalized.includes("bus") && normalized.includes("travel")) mapping[header] = "busTravel";
@@ -298,9 +300,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
 
   // Download sample CSV template
   const handleDownloadTemplate = () => {
-    const headers = ["date", "time", "sport", "level", "opponent", "location", "venue", "status", "notes"];
+    const headers = ["date", "time", "sport", "level", "opponent", "home_away", "location", "status", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "", "CONFIRMED", "Senior Night"],
+      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "Home Field", "CONFIRMED", "Senior Night"],
       ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "SCHEDULED", ""],
     ];
 
