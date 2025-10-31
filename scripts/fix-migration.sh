@@ -1,0 +1,1 @@
+npx prisma migrate resolve --rolled-back 20251031195601_init
