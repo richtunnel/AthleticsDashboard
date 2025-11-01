@@ -2,22 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-let stripeClient: Stripe | null = null;
-function getStripe(): Stripe {
-  if (!stripeClient) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) {
-      throw new Error("STRIPE_SECRET_KEY is not set");
-    }
-    stripeClient = new Stripe(key, { apiVersion: "2025-09-30.clover" });
-  }
-  return stripeClient;
-}
 
 export async function POST(req: NextRequest) {
   try {
