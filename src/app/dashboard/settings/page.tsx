@@ -8,6 +8,7 @@ import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
 import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
 import { getUserWithSubscription } from "@/lib/services/subscription";
+import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
