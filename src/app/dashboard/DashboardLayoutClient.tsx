@@ -68,11 +68,11 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Manage Teams", href: "/dashboard/opponents", icon: Groups },
-  { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
+  // { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Manage Emails", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Account", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
   { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
 ];
 
