@@ -254,8 +254,12 @@ Create a `.env.local` file in the root directory with the following variables:
 
 | Variable | Description | How to Get |
 |----------|-------------|------------|
-| `STRIPE_SECRET_KEY` | Stripe secret key | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (use `sk_test_` for testing) | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | Stripe Dashboard → Developers → Webhooks |
+| `STRIPE_MONTHLY_PRICE_ID` | Price ID for monthly subscription | Stripe Dashboard → Products |
+| `STRIPE_ANNUAL_PRICE_ID` | Price ID for annual subscription | Stripe Dashboard → Products |
+
+**Testing Stripe Subscriptions**: The application includes comprehensive test mode support. See [STRIPE_TEST_MODE.md](./STRIPE_TEST_MODE.md) for setup instructions, or jump to the [Quick Start Guide](./docs/STRIPE_QUICK_START.md) for a 5-minute setup.
 
 ### Account Cleanup Automation
 
