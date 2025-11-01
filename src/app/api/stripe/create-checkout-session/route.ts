@@ -5,6 +5,12 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
+import { 
+  getTestModeMetadata, 
+  logTestModeInfo, 
+  getTestModeCheckoutOptions,
+  getTrialPeriodDays 
+} from "@/lib/stripe-config";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -25,8 +31,6 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
 
   return mapping;
 })();
-
-const TRIAL_PERIOD_DAYS = 14;
 
 export async function POST(req: NextRequest) {
   try {
@@ -117,7 +121,17 @@ export async function POST(req: NextRequest) {
 
     const now = new Date();
     const trialEligible = !user.hasReceivedFreeTrial;
-    const trialEnd = trialEligible ? new Date(now.getTime() + TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000) : null;
+    const trialPeriodDays = getTrialPeriodDays();
+    const trialEnd = trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null;
+
+    logTestModeInfo("Creating checkout session (by price ID)", {
+      userId: user.id,
+      planType,
+      priceId,
+      trialEligible,
+      trialPeriodDays,
+      customerId,
+    });
 
     const subscriptionRecord = await prisma.subscription.upsert({
       where: { userId: user.id },
@@ -159,17 +173,18 @@ export async function POST(req: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       client_reference_id: user.id,
-      metadata: {
+      metadata: getTestModeMetadata({
         userId: user.id,
         planType,
         subscriptionRecordId: subscriptionRecord.id,
-      },
+      }),
       subscription_data: {
-        metadata: {
+        metadata: getTestModeMetadata({
           userId: user.id,
           planType,
-        },
+        }),
       },
+      ...getTestModeCheckoutOptions(),
     };
 
     if (customerId) {
@@ -181,7 +196,7 @@ export async function POST(req: NextRequest) {
     if (trialEligible) {
       checkoutSessionParams.subscription_data = {
         ...checkoutSessionParams.subscription_data,
-        trial_period_days: TRIAL_PERIOD_DAYS,
+        trial_period_days: trialPeriodDays,
       };
     }
 
@@ -189,6 +204,13 @@ export async function POST(req: NextRequest) {
 
     const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams, {
       idempotencyKey,
+    });
+
+    logTestModeInfo("Checkout session created (by price ID)", {
+      sessionId: checkoutSession.id,
+      customerId,
+      trialEligible,
+      url: checkoutSession.url,
     });
 
     return NextResponse.json({
