@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 import { emailService } from "@/lib/services/email.service";
+import { logTestModeInfo } from "@/lib/stripe-config";
 import type { PlanType, Prisma, SubscriptionStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -58,11 +59,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    logTestModeInfo("Webhook received", {
+      eventType: event.type,
+      eventId: event.id,
+      livemode: event.livemode,
+    });
+
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
+        logTestModeInfo("Processing subscription event", {
+          eventType: event.type,
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          customerId: subscription.customer,
+        });
         const result = await syncSubscription(subscription, event.id, event.type);
         if (result) {
           await maybeSendConfirmationEmail(result, event.type);
@@ -72,10 +85,18 @@ export async function POST(req: NextRequest) {
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
+        logTestModeInfo("Processing payment failure", {
+          invoiceId: invoice.id,
+          customerId: invoice.customer,
+          amount: invoice.amount_due,
+        });
         await handlePaymentFailure(invoice);
         break;
       }
       default:
+        logTestModeInfo("Webhook event ignored (not handled)", {
+          eventType: event.type,
+        });
         break;
     }
   } catch (error) {
