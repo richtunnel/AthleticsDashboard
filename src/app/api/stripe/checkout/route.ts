@@ -4,6 +4,12 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionSchema } from "@/lib/validations/subscription";
+import { 
+  getTestModeMetadata, 
+  logTestModeInfo, 
+  getTestModeCheckoutOptions,
+  getTrialPeriodDays 
+} from "@/lib/stripe-config";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -78,6 +84,15 @@ export async function POST(req: NextRequest) {
 
     const now = new Date();
     const trialEligible = !user.hasReceivedFreeTrial;
+    const trialPeriodDays = getTrialPeriodDays();
+
+    logTestModeInfo("Creating checkout session", {
+      userId: user.id,
+      planType,
+      trialEligible,
+      trialPeriodDays,
+      customerId,
+    });
 
     const subscriptionData = await prisma.subscription.upsert({
       where: { userId: user.id },
@@ -90,7 +105,7 @@ export async function POST(req: NextRequest) {
         priceId,
         status: "INCOMPLETE",
         trialStart: trialEligible ? now : null,
-        trialEnd: trialEligible ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+        trialEnd: trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null,
       },
       update: {
         customerId,
@@ -100,7 +115,7 @@ export async function POST(req: NextRequest) {
         priceId,
         status: "INCOMPLETE",
         trialStart: trialEligible ? now : null,
-        trialEnd: trialEligible ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+        trialEnd: trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null,
       },
     });
 
@@ -115,21 +130,22 @@ export async function POST(req: NextRequest) {
       ],
       success_url: `${req.nextUrl.origin}/onboarding/details?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.nextUrl.origin}/onboarding/plans?canceled=true`,
-      metadata: {
+      metadata: getTestModeMetadata({
         userId: user.id,
         planType,
         subscriptionRecordId: subscriptionData.id,
-      },
+      }),
       subscription_data: {
-        metadata: {
+        metadata: getTestModeMetadata({
           userId: user.id,
           planType,
-        },
+        }),
       },
+      ...getTestModeCheckoutOptions(),
     };
 
     if (trialEligible) {
-      checkoutSessionParams.subscription_data.trial_period_days = 14;
+      checkoutSessionParams.subscription_data.trial_period_days = trialPeriodDays;
     }
 
     const idempotencyKey = `checkout_${user.id}_${planType}_${Date.now()}`;
@@ -140,6 +156,13 @@ export async function POST(req: NextRequest) {
         idempotencyKey,
       }
     );
+
+    logTestModeInfo("Checkout session created", {
+      sessionId: checkoutSession.id,
+      customerId,
+      trialEligible,
+      url: checkoutSession.url,
+    });
 
     return NextResponse.json({
       sessionId: checkoutSession.id,
