@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && DATABASE_URL='://doadmin:AVNS_kF3WPJfBSqruvsJmvlb@db-adhub-postgresql-sfo3-0001-do-user-11349805-0.f.db.ondigitalocean.com:25060/adscheduler?sslmode=require' prisma migrate deploy && next build",
+    "build": "prisma generate && DATABASE_URL='postgresql://doadmin:AVNS_kF3WPJfBSqruvsJmvlb@db-adhub-postgresql-sfo3-0001-do-user-11349805-0.f.db.ondigitalocean.com:25060/adscheduler?sslmode=require' prisma migrate deploy && next build",
     "start": "next start -p 3000 -H 0.0.0.0",
     "tsc": "node ./scripts/run-tsc.mjs",
     "lint": "next lint",
