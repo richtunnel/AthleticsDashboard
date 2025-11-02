@@ -40,9 +40,20 @@ export function getStripeConfig(): StripeConfig {
 }
 
 /**
+ * Checks if a price ID is valid (not a placeholder value)
+ */
+export function isValidPriceId(priceId?: string): boolean {
+  if (!priceId) return false;
+  if (priceId.includes('your_monthly_price_id')) return false;
+  if (priceId.includes('your_annual_price_id')) return false;
+  if (!priceId.startsWith('price_')) return false;
+  return priceId.length > 10;
+}
+
+/**
  * Validates that all required Stripe environment variables are configured
  */
-export function validateStripeConfig(): { valid: boolean; missing: string[] } {
+export function validateStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
   const required = [
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
@@ -51,6 +62,14 @@ export function validateStripeConfig(): { valid: boolean; missing: string[] } {
   ];
 
   const missing = required.filter((key) => !process.env[key]);
+  
+  const invalid: string[] = [];
+  if (process.env.STRIPE_MONTHLY_PRICE_ID && !isValidPriceId(process.env.STRIPE_MONTHLY_PRICE_ID)) {
+    invalid.push('STRIPE_MONTHLY_PRICE_ID');
+  }
+  if (process.env.STRIPE_ANNUAL_PRICE_ID && !isValidPriceId(process.env.STRIPE_ANNUAL_PRICE_ID)) {
+    invalid.push('STRIPE_ANNUAL_PRICE_ID');
+  }
 
   if (missing.length > 0) {
     console.warn(
@@ -58,10 +77,63 @@ export function validateStripeConfig(): { valid: boolean; missing: string[] } {
       `Subscription features will not work correctly.`
     );
   }
+  
+  if (invalid.length > 0) {
+    console.warn(
+      `⚠️  Invalid Stripe environment variables (placeholder values detected): ${invalid.join(', ')}\n` +
+      `Please update these with actual Price IDs from your Stripe dashboard.`
+    );
+  }
 
   return {
-    valid: missing.length === 0,
+    valid: missing.length === 0 && invalid.length === 0,
     missing,
+    invalid,
+  };
+}
+
+/**
+ * Validates client-side Stripe configuration (for use in components)
+ */
+export function validateClientStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
+  const required = [
+    'NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID',
+    'NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID',
+  ];
+
+  const missing: string[] = [];
+  const invalid: string[] = [];
+
+  if (typeof window !== 'undefined') {
+    const monthlyPriceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+    const annualPriceId = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+
+    if (!monthlyPriceId) {
+      missing.push('NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID');
+    } else if (!isValidPriceId(monthlyPriceId)) {
+      invalid.push('NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID');
+    }
+
+    if (!annualPriceId) {
+      missing.push('NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID');
+    } else if (!isValidPriceId(annualPriceId)) {
+      invalid.push('NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID');
+    }
+
+    if (missing.length > 0 || invalid.length > 0) {
+      console.warn(
+        '⚠️  Stripe configuration issues:\n' +
+        (missing.length > 0 ? `Missing: ${missing.join(', ')}\n` : '') +
+        (invalid.length > 0 ? `Invalid/Placeholder: ${invalid.join(', ')}\n` : '') +
+        'See docs/STRIPE_QUICK_START.md for setup instructions.'
+      );
+    }
+  }
+
+  return {
+    valid: missing.length === 0 && invalid.length === 0,
+    missing,
+    invalid,
   };
 }
 
