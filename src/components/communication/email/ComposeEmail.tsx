@@ -41,6 +41,8 @@ const STATIC_RECIPIENT_CATEGORIES = [
   // { value: "staff", label: "Staff Members" },
 ];
 
+const RECEIPT_CATEGORY_PLACEHOLDER = "Select receipt category";
+
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
@@ -48,7 +50,7 @@ export default function ComposeEmailPage() {
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>([]);
-  const [recipientCategory, setRecipientCategory] = useState("parents");
+  const [recipientCategory, setRecipientCategory] = useState<string>("");
   const [customRecipients, setCustomRecipients] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [subject, setSubject] = useState("Game Schedule Confirmation");
@@ -325,7 +327,29 @@ export default function ComposeEmailPage() {
 
           <Stack spacing={3}>
             {/* Recipient Category */}
-            <TextField select label="Recipient Category" value={recipientCategory} onChange={(e) => setRecipientCategory(e.target.value)} fullWidth helperText="Select who should receive this email">
+            <TextField
+              select
+              label="Recipient Category"
+              value={recipientCategory}
+              onChange={(e) => setRecipientCategory(e.target.value)}
+              fullWidth
+              helperText="Select who should receive this email"
+              SelectProps={{
+                displayEmpty: true,
+                renderValue: (selected) => {
+                  if (!selected) {
+                    return <Typography color="text.secondary">{RECEIPT_CATEGORY_PLACEHOLDER}</Typography>;
+                  }
+
+                  const selectedCategory = recipientCategories.find((category) => category.value === selected);
+
+                  return selectedCategory?.label ?? <Typography color="text.secondary">{RECEIPT_CATEGORY_PLACEHOLDER}</Typography>;
+                },
+              }}
+            >
+              <MenuItem value="" disabled>
+                <Typography color="text.secondary">{RECEIPT_CATEGORY_PLACEHOLDER}</Typography>
+              </MenuItem>
               {recipientCategories.map((category) => (
                 <MenuItem key={category.value} value={category.value}>
                   {category.label}
@@ -425,6 +449,10 @@ export default function ComposeEmailPage() {
             variant="contained"
             startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />}
             onClick={() => {
+              if (!recipientCategory) {
+                return;
+              }
+
               const gameIds = selectedGames.map((g) => g.id);
               const isEmailGroup = recipientCategory.startsWith("emailGroup:");
               const groupId = isEmailGroup ? recipientCategory.split(":")[1] : undefined;
@@ -445,7 +473,12 @@ export default function ComposeEmailPage() {
                     : undefined,
               });
             }}
-            disabled={sendEmailMutation.isPending || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
+            disabled={
+              sendEmailMutation.isPending ||
+              !subject ||
+              !recipientCategory ||
+              (recipientCategory === "custom" && !customRecipients.trim())
+            }
           >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
           </Button>
