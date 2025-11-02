@@ -3102,14 +3102,14 @@ export function GamesTable() {
             <>
               {/* Delete Button */}
               <LoadingButton
-                variant="contained"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline />}
+                variant="text"
+                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "red" }} />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
                 size="small"
-                sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                sx={{ paddingLeft: "5px", paddingRight: "5px", textTransform: "none", background: "transparent", boxShadow: 0, "&:hover": { boxShadow: 0 } }}
               >
-                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete (${selectedGames.size})`}
+                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
               </LoadingButton>
             </>
           )}
