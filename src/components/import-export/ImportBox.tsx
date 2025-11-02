@@ -370,16 +370,16 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
               </Paper>
 
               <Box textAlign="center">
-                <Button sx={{ ml: "12px" }} startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
+                <Button sx={{ ml: "12px", marginBottom: "8px" }} startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
                   Download Sample Template
                 </Button>
-                <Button variant="outlined" sx={{ ml: "12px" }}>
+                <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px" }}>
                   <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank">
                     Open Googlesheets&nbsp;
                     <OpenInNewIcon fontSize="small" />
                   </Link>
                 </Button>
-                <Button sx={{ ml: "12px" }} variant="outlined">
+                <Button sx={{ ml: "12px", marginBottom: "8px" }} variant="outlined">
                   <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank">
                     Open excel&nbsp;
                     <OpenInNewIcon />

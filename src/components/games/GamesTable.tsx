@@ -507,7 +507,7 @@ export function GamesTable() {
       values.level.add(game.homeTeam.level);
       values.opponent.add(game.opponent?.name || "TBD");
       values.status.add(game.status);
-      const locationValue = game.location || (game.venue?.name || "TBD");
+      const locationValue = game.location || game.venue?.name || "TBD";
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
 
@@ -909,7 +909,7 @@ export function GamesTable() {
           if (opponentName) {
             // Check if opponent exists
             const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
-            
+
             if (existingOpponent) {
               // Use existing opponent
               updateData.opponentId = existingOpponent.id;
@@ -921,15 +921,15 @@ export function GamesTable() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ name: opponentName }),
                 });
-                
+
                 if (!createRes.ok) {
                   const errorData = await createRes.json();
                   throw new Error(errorData.error || "Failed to create opponent");
                 }
-                
+
                 const newOpponentData = await createRes.json();
                 updateData.opponentId = newOpponentData.data.id;
-                
+
                 // Invalidate opponents query to refresh the list
                 await queryClient.invalidateQueries({ queryKey: ["opponents"] });
               } catch (createError: any) {
@@ -1130,7 +1130,7 @@ export function GamesTable() {
     if (newGameData.opponent && newGameData.opponent.trim()) {
       const opponentName = newGameData.opponent.trim();
       const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
-      
+
       if (existingOpponent) {
         opponentId = existingOpponent.id;
       } else {
@@ -1141,15 +1141,15 @@ export function GamesTable() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: opponentName }),
           });
-          
+
           if (!createRes.ok) {
             const errorData = await createRes.json();
             throw new Error(errorData.error || "Failed to create opponent");
           }
-          
+
           const newOpponentData = await createRes.json();
           opponentId = newOpponentData.data.id;
-          
+
           // Invalidate opponents query to refresh the list
           await queryClient.invalidateQueries({ queryKey: ["opponents"] });
         } catch (createError: any) {
@@ -1272,7 +1272,7 @@ export function GamesTable() {
     if (editingGameData.opponent?.name && editingGameData.opponent.name.trim()) {
       const opponentName = editingGameData.opponent.name.trim();
       const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
-      
+
       if (existingOpponent) {
         opponentId = existingOpponent.id;
       } else {
@@ -1283,15 +1283,15 @@ export function GamesTable() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: opponentName }),
           });
-          
+
           if (!createRes.ok) {
             const errorData = await createRes.json();
             throw new Error(errorData.error || "Failed to create opponent");
           }
-          
+
           const newOpponentData = await createRes.json();
           opponentId = newOpponentData.data.id;
-          
+
           // Invalidate opponents query to refresh the list
           await queryClient.invalidateQueries({ queryKey: ["opponents"] });
         } catch (createError: any) {
@@ -2588,7 +2588,7 @@ export function GamesTable() {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {game.location || (game.venue?.name || "—")}
+                  {game.location || game.venue?.name || "—"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
               </Box>
@@ -2877,7 +2877,9 @@ export function GamesTable() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
+      <Box
+        sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
+      >
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" } }}>
             Games Schedule
@@ -2888,15 +2890,28 @@ export function GamesTable() {
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
-          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
+            {selectedGames.size > 0 && (
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<GradientSendIcon />}
+                onClick={handleSendEmail}
+                size="small"
+                sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+              >
+                Send Email ({selectedGames.size})
+              </Button>
+            )}
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
+
             <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
               Columns
             </Button>
             <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
-              Custom Columns ({customColumns.length})
+              Add Columns ({customColumns.length})
             </Button>
             {hiddenColumnCount > 0 && (
               <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
@@ -2905,10 +2920,14 @@ export function GamesTable() {
             )}
             {selectedGames.size > 0 && (
               <>
-                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                  Send ({selectedGames.size})
-                </Button>
-                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<ContentCopy />}
+                  onClick={handleCopySelectedRows}
+                  size="small"
+                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                >
                   Copy ({selectedGames.size})
                 </Button>
               </>
@@ -2937,7 +2956,14 @@ export function GamesTable() {
             </Button>
           </Tooltip>
           <Tooltip title="Export displayed games to CSV">
-            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleExport}
+              disabled={games.length === 0}
+              size="small"
+              sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+            >
               Export ({games.length})
             </Button>
           </Tooltip>
@@ -3197,9 +3223,7 @@ function normalizePreferenceOrder(order: unknown, defaultOrder: ColumnId[]): Col
     return [];
   }
 
-  return order
-    .map((value) => String(value) as ColumnId)
-    .filter((id) => defaultOrder.includes(id));
+  return order.map((value) => String(value) as ColumnId).filter((id) => defaultOrder.includes(id));
 }
 
 function arraysEqual<T>(a: readonly T[], b: readonly T[]): boolean {
