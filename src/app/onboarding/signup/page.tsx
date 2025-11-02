@@ -9,6 +9,7 @@ import Divider from "@mui/material/Divider";
 import BaseHeader from "@/components/headers/_base";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import Footer from "@/components/layout/Footer";
 
 function SignupForm() {
   const searchParams = useSearchParams();
@@ -119,9 +120,9 @@ function SignupForm() {
   };
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px" />
-      <Box sx={{ maxWidth: 400, mx: "auto", mt: 8, p: 2 }}>
+      <Box sx={{ maxWidth: 400, mx: "auto", mt: 8, p: 2, flex: 1 }}>
         <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
           <Chip
             icon={<DeleteIcon />}
@@ -193,7 +194,8 @@ function SignupForm() {
           </Button>
         </Typography>
       </Box>
-    </>
+      <Footer />
+    </Box>
   );
 }
 
