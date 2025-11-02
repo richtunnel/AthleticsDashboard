@@ -95,6 +95,7 @@ export async function POST(request: Request) {
           sentById: session.user.id,
           campaignId: campaign.id,
           groupId,
+          recipientCategory: "emailGroup",
         });
 
         if (result.failed > 0 && result.success === 0) {
