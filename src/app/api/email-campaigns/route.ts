@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { NextResponse } from "next/server";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 import { getResendClientOptional } from "@/lib/resend";
+import { sendBulkEmail } from "@/lib/utils/bulk-email";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -83,38 +84,36 @@ export async function POST(request: Request) {
 
     const toEmails = group.emails.map((e) => e.email);
 
-    // Send via Resend
+    // Send via Resend using bulk email utility
     const resend = getResendClientOptional();
     if (resend) {
       try {
-        const emailResponse = await resend.emails.send({
-          from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        const result = await sendBulkEmail({
           to: toEmails,
           subject,
           html: body,
+          sentById: session.user.id,
+          campaignId: campaign.id,
+          groupId,
         });
 
-        // Log the email
-        await prisma.emailLog.create({
-          data: {
-            to: toEmails,
-            cc: [],
-            subject,
-            body,
-            status: emailResponse.error ? "FAILED" : "SENT",
-            error: emailResponse.error?.message || null,
-            sentAt: emailResponse.error ? null : new Date(),
-            sentById: session.user.id,
-            campaignId: campaign.id,
-            groupId,
-          },
-        });
-
-        if (emailResponse.error) {
+        if (result.failed > 0 && result.success === 0) {
           return NextResponse.json({ 
-            error: `Campaign created but failed to send: ${emailResponse.error.message}`,
+            error: `Campaign created but failed to send: ${result.errors.map(e => e.error).join("; ")}`,
             campaign,
           }, { status: 500 });
+        }
+
+        if (result.failed > 0) {
+          return NextResponse.json({ 
+            message: `Campaign partially sent: ${result.success} succeeded, ${result.failed} failed`,
+            campaign,
+            result: {
+              success: result.success,
+              failed: result.failed,
+              errors: result.errors,
+            }
+          });
         }
       } catch (error) {
         console.error("Failed to send campaign email:", error);
