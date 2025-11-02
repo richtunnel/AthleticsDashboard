@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import styles from "@/styles/custom.form.module.css";
 import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
 
 interface FormData {
@@ -207,7 +206,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
             {mutation.isError && <Alert severity="error">{mutation.error?.message || `Failed to ${mode === "support" && ticketNumber ? "update" : "submit"}`}</Alert>}
 
             {/* Submit Button */}
-            <Button type="submit" className={styles ? styles.buttonPadding : ""} variant="contained" disabled={mutation.isPending} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
+            <Button type="submit" variant="contained" disabled={mutation.isPending} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
               {mutation.isPending ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
