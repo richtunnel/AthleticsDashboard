@@ -33,6 +33,23 @@
   padding: 0px 40px;
 }
 
+@media all and (max-width: 767px) {
+  .homeHeaderContainer {
+    padding: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .homePageContentContainer {
+    top: 0px;
+    padding: 0px 20px;
+  }
+
+  .ad-hub-logo {
+    font-size: 1.25rem;
+  }
+}
+
 @media all and (max-width: 991px) {
   .loginScreenContainer {
     padding: 40px;
