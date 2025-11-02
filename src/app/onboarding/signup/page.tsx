@@ -144,7 +144,7 @@ function SignupForm() {
         <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
           Sign up with Google
         </AuthActionButton>
-        <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+        <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled sx={{ mb: 2 }}>
           Sign up with Microsoft
         </AuthActionButton>
         <Divider sx={{ my: 3 }}>OR</Divider>
@@ -156,7 +156,18 @@ function SignupForm() {
         </Typography>
         <form onSubmit={handleManualSignup}>
           <TextField fullWidth size="small" label="Full Name" required value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} error={!!error && !name} />
-          <TextField fullWidth size="small" label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} error={!!error && !email} />
+          <TextField
+            fullWidth
+            size="small"
+            label="Email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isLoading}
+            sx={{ mb: 2 }}
+            error={!!error && !email}
+          />
           <TextField fullWidth size="small" label="Phone (Optional)" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={isLoading} sx={{ mb: 2 }} />
           <TextField
             fullWidth
