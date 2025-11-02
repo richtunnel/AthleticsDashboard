@@ -9,6 +9,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
+import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
 export default function HomePageContent() {
   const { data: session, status } = useSession();
@@ -234,7 +235,7 @@ export default function HomePageContent() {
               onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
               onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
             >
-              Need Assistance
+              Chat Support <QuestionAnswerIcon sx={{ color: "#181b38ff" }} />
             </Link>
           </div>
           <div>
