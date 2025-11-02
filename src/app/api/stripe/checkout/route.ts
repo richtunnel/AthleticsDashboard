@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
 
     const { planType } = validationResult.data;
 
+    // Support both server-side and public environment variables for consistency
     const priceId =
       planType === "MONTHLY"
-        ? process.env.STRIPE_MONTHLY_PRICE_ID
-        : process.env.STRIPE_ANNUAL_PRICE_ID;
+        ? (process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID)
+        : (process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID);
 
     if (!priceId) {
       console.error(`Missing price ID for plan type: ${planType}`);
