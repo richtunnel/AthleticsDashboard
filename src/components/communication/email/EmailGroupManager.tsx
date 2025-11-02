@@ -92,7 +92,7 @@ export function EmailGroupManager() {
       setActiveGroupId(group.id);
       setAddingGroupId(group.id);
       showMessage(`Group "${group.name}" created!`);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
     },
     onError: (mutationError: Error) => {
       showMessage(mutationError.message, "error");
@@ -103,7 +103,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; name: string }) => updateEmailGroupName(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
     },
     onError: (mutationError: Error) => {
       showMessage(mutationError.message, "error");
@@ -114,7 +114,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; emails: string[] }) => addEmailsToGroup(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
     },
     onError: () => {
       // Card handles error display, so no message here to avoid duplicates
@@ -125,7 +125,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; emailId: string }) => removeEmailFromGroup(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
     },
     onError: () => {
       // Card handles error display
@@ -136,7 +136,7 @@ export function EmailGroupManager() {
     mutationFn: (groupId: string) => deleteEmailGroup(groupId),
     onSuccess: (_data, groupId) => {
       removeGroupFromCache(groupId);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
 
       if (activeGroupId === groupId) {
         const nextGroups = queryClient.getQueryData<EmailGroup[]>(["email-groups"]);

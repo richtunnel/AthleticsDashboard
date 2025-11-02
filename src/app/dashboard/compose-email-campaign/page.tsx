@@ -74,7 +74,12 @@ export default function ComposeEmailPage() {
     data: groups = [],
     isLoading: groupsLoading,
     error: groupsError,
-  } = useQuery<EmailGroup[], Error>({ queryKey: ["email-groups"], queryFn: fetchEmailGroups });
+  } = useQuery<EmailGroup[], Error>({
+    queryKey: ["email-groups"],
+    queryFn: fetchEmailGroups,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
