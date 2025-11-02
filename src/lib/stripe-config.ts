@@ -1,6 +1,6 @@
 /**
  * Stripe Configuration and Test Mode Utilities
- * 
+ *
  * This module provides centralized configuration for Stripe integration
  * with support for test mode detection and test-specific features.
  */
@@ -19,23 +19,23 @@ export interface StripeConfig {
  */
 export function isStripeTestMode(secretKey?: string): boolean {
   const key = secretKey ?? process.env.STRIPE_SECRET_KEY;
-  return key?.startsWith('sk_test_') ?? false;
+  return key?.startsWith("sk_test_") ?? false;
 }
 
 /**
  * Gets the current Stripe configuration
  */
 export function getStripeConfig(): StripeConfig {
-  const secretKey = process.env.STRIPE_SECRET_KEY ?? '';
+  const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
   const isTestMode = isStripeTestMode(secretKey);
 
   return {
     secretKey,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
-    monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? '',
-    annualPriceId: process.env.STRIPE_ANNUAL_PRICE_ID ?? '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? "",
+    annualPriceId: process.env.STRIPE_ANNUAL_PRICE_ID ?? "",
     isTestMode,
-    testModeWarningEnabled: process.env.NODE_ENV !== 'production' && isTestMode,
+    testModeWarningEnabled: process.env.NODE_ENV !== "production" && isTestMode,
   };
 }
 
@@ -44,9 +44,9 @@ export function getStripeConfig(): StripeConfig {
  */
 export function isValidPriceId(priceId?: string): boolean {
   if (!priceId) return false;
-  if (priceId.includes('your_monthly_price_id')) return false;
-  if (priceId.includes('your_annual_price_id')) return false;
-  if (!priceId.startsWith('price_')) return false;
+  if (priceId.includes("your_monthly_price_id")) return false;
+  if (priceId.includes("your_annual_price_id")) return false;
+  if (!priceId.startsWith("price_")) return false;
   return priceId.length > 10;
 }
 
@@ -54,35 +54,24 @@ export function isValidPriceId(priceId?: string): boolean {
  * Validates that all required Stripe environment variables are configured
  */
 export function validateStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = [
-    'STRIPE_SECRET_KEY',
-    'STRIPE_WEBHOOK_SECRET',
-    'STRIPE_MONTHLY_PRICE_ID',
-    'STRIPE_ANNUAL_PRICE_ID',
-  ];
+  const required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_MONTHLY_PRICE_ID", "STRIPE_ANNUAL_PRICE_ID"];
 
   const missing = required.filter((key) => !process.env[key]);
-  
+
   const invalid: string[] = [];
   if (process.env.STRIPE_MONTHLY_PRICE_ID && !isValidPriceId(process.env.STRIPE_MONTHLY_PRICE_ID)) {
-    invalid.push('STRIPE_MONTHLY_PRICE_ID');
+    invalid.push("STRIPE_MONTHLY_PRICE_ID");
   }
   if (process.env.STRIPE_ANNUAL_PRICE_ID && !isValidPriceId(process.env.STRIPE_ANNUAL_PRICE_ID)) {
-    invalid.push('STRIPE_ANNUAL_PRICE_ID');
+    invalid.push("STRIPE_ANNUAL_PRICE_ID");
   }
 
   if (missing.length > 0) {
-    console.warn(
-      `⚠️  Missing Stripe environment variables: ${missing.join(', ')}\n` +
-      `Subscription features will not work correctly.`
-    );
+    console.warn(`⚠️  Missing Stripe environment variables: ${missing.join(", ")}\n` + `Subscription features will not work correctly.`);
   }
-  
+
   if (invalid.length > 0) {
-    console.warn(
-      `⚠️  Invalid Stripe environment variables (placeholder values detected): ${invalid.join(', ')}\n` +
-      `Please update these with actual Price IDs from your Stripe dashboard.`
-    );
+    console.warn(`⚠️  Invalid Stripe environment variables (placeholder values detected): ${invalid.join(", ")}\n` + `Please update these with actual Price IDs from your Stripe dashboard.`);
   }
 
   return {
@@ -96,36 +85,33 @@ export function validateStripeConfig(): { valid: boolean; missing: string[]; inv
  * Validates client-side Stripe configuration (for use in components)
  */
 export function validateClientStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = [
-    'NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID',
-    'NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID',
-  ];
+  const required = ["NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID", "NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID"];
 
   const missing: string[] = [];
   const invalid: string[] = [];
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const monthlyPriceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
     const annualPriceId = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 
     if (!monthlyPriceId) {
-      missing.push('NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID');
+      missing.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
     } else if (!isValidPriceId(monthlyPriceId)) {
-      invalid.push('NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID');
+      invalid.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
     }
 
     if (!annualPriceId) {
-      missing.push('NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID');
+      missing.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
     } else if (!isValidPriceId(annualPriceId)) {
-      invalid.push('NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID');
+      invalid.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
     }
 
     if (missing.length > 0 || invalid.length > 0) {
       console.warn(
-        '⚠️  Stripe configuration issues:\n' +
-        (missing.length > 0 ? `Missing: ${missing.join(', ')}\n` : '') +
-        (invalid.length > 0 ? `Invalid/Placeholder: ${invalid.join(', ')}\n` : '') +
-        'See docs/STRIPE_QUICK_START.md for setup instructions.'
+        "⚠️  Stripe configuration issues:\n" +
+          (missing.length > 0 ? `Missing: ${missing.join(", ")}\n` : "") +
+          (invalid.length > 0 ? `Invalid/Placeholder: ${invalid.join(", ")}\n` : "") +
+          "See docs/STRIPE_QUICK_START.md for setup instructions."
       );
     }
   }
@@ -142,19 +128,19 @@ export function validateClientStripeConfig(): { valid: boolean; missing: string[
  * Reference: https://stripe.com/docs/testing
  */
 export const TEST_CARDS = {
-  success: '4242424242424242',
-  visa: '4242424242424242',
-  visa_debit: '4000056655665556',
-  mastercard: '5555555555554444',
-  amex: '378282246310005',
-  decline: '4000000000000002',
-  insufficient_funds: '4000000000009995',
-  lost_card: '4000000000009987',
-  stolen_card: '4000000000009979',
-  expired_card: '4000000000000069',
-  incorrect_cvc: '4000000000000127',
-  processing_error: '4000000000000119',
-  requires_authentication: '4000002500003155',
+  success: "4242424242424242",
+  visa: "4242424242424242",
+  visa_debit: "4000056655665556",
+  mastercard: "5555555555554444",
+  amex: "378282246310005",
+  decline: "4000000000000002",
+  insufficient_funds: "4000000000009995",
+  lost_card: "4000000000009987",
+  stolen_card: "4000000000009979",
+  expired_card: "4000000000000069",
+  incorrect_cvc: "4000000000000127",
+  processing_error: "4000000000000119",
+  requires_authentication: "4000002500003155",
 } as const;
 
 /**
@@ -163,15 +149,15 @@ export const TEST_CARDS = {
  */
 export function getTestModeMetadata(additionalMetadata: Record<string, string> = {}) {
   const config = getStripeConfig();
-  
+
   if (!config.isTestMode) {
     return additionalMetadata;
   }
 
   return {
     ...additionalMetadata,
-    test_mode: 'true',
-    test_environment: process.env.NODE_ENV ?? 'development',
+    test_mode: "true",
+    test_environment: process.env.NODE_ENV ?? "development",
     test_timestamp: new Date().toISOString(),
   };
 }
@@ -181,7 +167,7 @@ export function getTestModeMetadata(additionalMetadata: Record<string, string> =
  */
 export function logTestModeInfo(context: string, data?: Record<string, any>) {
   const config = getStripeConfig();
-  
+
   if (!config.isTestMode) {
     return;
   }
@@ -197,7 +183,7 @@ export function logTestModeInfo(context: string, data?: Record<string, any>) {
  */
 export function getTestModeCheckoutOptions() {
   const config = getStripeConfig();
-  
+
   if (!config.isTestMode) {
     return {};
   }
@@ -215,7 +201,7 @@ export function getTestModeCheckoutOptions() {
  */
 export function getTrialPeriodDays(): number {
   const config = getStripeConfig();
-  
+
   // In test mode, you can reduce trial period for faster testing
   // Set STRIPE_TEST_TRIAL_DAYS to override the default 14 days
   if (config.isTestMode && process.env.STRIPE_TEST_TRIAL_DAYS) {
