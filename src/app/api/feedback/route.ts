@@ -8,16 +8,8 @@ import { slackService } from "@/lib/services/slack.service";
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
-    const { subject, message } = body;
+    const { subject, message, name, email } = body;
 
     if (!subject || !message) {
       return NextResponse.json(
@@ -26,11 +18,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // For non-authenticated users, name and email are required
+    if (!session?.user && (!name || !email)) {
+      return NextResponse.json(
+        { success: false, error: "Name and email are required" },
+        { status: 400 }
+      );
+    }
+
+    // Use session data if authenticated, otherwise use provided data
+    const submitterName = session?.user?.name || name || "Unknown";
+    const submitterEmail = session?.user?.email || email || "";
+    const userId = session?.user?.id || null;
+
     const feedback = await prisma.feedbackSubmission.create({
       data: {
-        userId: session.user.id,
-        name: session.user.name || "Unknown",
-        email: session.user.email || "",
+        userId,
+        name: submitterName,
+        email: submitterEmail,
         subject,
         message,
       },
@@ -40,8 +45,8 @@ export async function POST(request: NextRequest) {
     emailService.sendSupportNotificationEmail({
       type: 'feedback',
       submitter: {
-        name: session.user.name || "Unknown",
-        email: session.user.email || "",
+        name: submitterName,
+        email: submitterEmail,
       },
       subject,
       message,
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
     slackService.sendFeedbackNotification({
       time: new Date().toISOString(),
       endpoint: '/api/feedback',
-      customer: `${session.user.name} (${session.user.email})`,
+      customer: `${submitterName} (${submitterEmail})`,
       body: `Subject: ${subject}\n\n${message}`,
       type: 'feedback',
     }).catch(err => console.error('Failed to send Slack notification:', err));
