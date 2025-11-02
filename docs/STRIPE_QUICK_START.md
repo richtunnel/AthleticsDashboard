@@ -14,8 +14,8 @@ STRIPE_SECRET_KEY=sk_test_YOUR_SECRET_KEY
 STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 
 # Get these from https://dashboard.stripe.com/test/products
-STRIPE_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE_ID
-STRIPE_ANNUAL_PRICE_ID=price_YOUR_ANNUAL_PRICE_ID
+NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE_ID
+NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_YOUR_ANNUAL_PRICE_ID
 
 # Public keys (same as above)
 NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE_ID
@@ -78,13 +78,14 @@ yarn dev
 
 ## Essential Test Cards
 
-| Purpose | Card Number |
-|---------|-------------|
-| ✅ Success | `4242 4242 4242 4242` |
-| ❌ Decline | `4000 0000 0000 0002` |
+| Purpose      | Card Number           |
+| ------------ | --------------------- |
+| ✅ Success   | `4242 4242 4242 4242` |
+| ❌ Decline   | `4000 0000 0000 0002` |
 | 🔐 3D Secure | `4000 0025 0000 3155` |
 
 All cards:
+
 - **Expiry**: Any future date
 - **CVC**: Any 3 digits
 - **ZIP**: Any valid ZIP
@@ -92,15 +93,19 @@ All cards:
 ## Common Issues
 
 ### "Webhook signature verification failed"
+
 ➡️ Make sure `STRIPE_WEBHOOK_SECRET` in `.env.local` matches the CLI output
 
 ### "Missing price ID"
-➡️ Check that `STRIPE_MONTHLY_PRICE_ID` and `STRIPE_ANNUAL_PRICE_ID` are set
+
+➡️ Check that `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` and `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID` are set
 
 ### "No test mode logs appearing"
+
 ➡️ Verify your `STRIPE_SECRET_KEY` starts with `sk_test_`
 
 ### Checkout fails silently
+
 ➡️ Check the browser console and server logs for errors
 
 ## Test Mode Features
@@ -124,7 +129,9 @@ All cards:
 ## Monitoring Test Mode
 
 ### Application Logs
+
 Look for these log entries:
+
 ```
 [Stripe Test Mode] Stripe client initialized
 [Stripe Test Mode] Creating checkout session
@@ -133,13 +140,16 @@ Look for these log entries:
 ```
 
 ### Stripe Dashboard
+
 - Payments: https://dashboard.stripe.com/test/payments
 - Subscriptions: https://dashboard.stripe.com/test/subscriptions
 - Webhooks: https://dashboard.stripe.com/test/webhooks
 - Logs: https://dashboard.stripe.com/test/logs
 
 ### Database
+
 Check tables:
+
 - `User` - `stripeCustomerId`, `hasReceivedFreeTrial`
 - `Subscription` - `status`, `stripeSubscriptionId`, trial dates
 
