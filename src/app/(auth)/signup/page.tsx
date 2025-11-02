@@ -8,6 +8,8 @@ import { Google } from "@mui/icons-material";
 import Link from "next/link";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import Footer from "@/components/layout/Footer";
+import BaseHeader from "@/components/headers/_base";
 
 function SignupForm() {
   const router = useRouter();
@@ -110,23 +112,24 @@ function SignupForm() {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          py: 4,
-        }}
-      >
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography component="h1" variant="h5" align="center" gutterBottom>
-            Create Account
-          </Typography>
-          <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-            Sign up for AD Hub
-          </Typography>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <BaseHeader pt="20px" pl="20px" />
+      <Container component="main" maxWidth="xs" sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            py: 4,
+          }}
+        >
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Typography component="h1" variant="h5" align="center" gutterBottom>
+              Create Account
+            </Typography>
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
+              Sign up for AD Hub
+            </Typography>
 
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -214,6 +217,8 @@ function SignupForm() {
         </Paper>
       </Box>
     </Container>
+    <Footer />
+  </Box>
   );
 }
 
