@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
@@ -12,6 +13,18 @@ import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
+
+function isValidPriceId(priceId: string): boolean {
+  if (!priceId) return false;
+  if (priceId.includes("your_monthly_price_id")) return false;
+  if (priceId.includes("your_annual_price_id")) return false;
+  if (!priceId.startsWith("price_")) return false;
+  return priceId.length > 10;
+}
+
+function isPriceConfigured(): boolean {
+  return isValidPriceId(DIRECTORS_MONTHLY_PRICE_ID) && isValidPriceId(DIRECTORS_ANNUAL_PRICE_ID);
+}
 
 type BillingInterval = "monthly" | "annual";
 
@@ -84,6 +97,8 @@ function PricingPlansContent() {
   const checkoutStatus = searchParams.get("checkout");
   const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
   const hasActiveSubscription = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
+  const priceConfigured = isPriceConfigured();
+  const isDevelopment = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
     let isMounted = true;
@@ -161,8 +176,14 @@ function PricingPlansContent() {
 
     const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
 
-    if (!priceId) {
-      setError("This plan is not currently available. Please contact support.");
+    if (!priceId || !isValidPriceId(priceId)) {
+      if (isDevelopment) {
+        setError(
+          `Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${billing === "monthly" ? "MONTHLY" : "ANNUAL"}_PRICE_ID in your .env.local file.`
+        );
+      } else {
+        setError("This plan is not currently available. Please contact support.");
+      }
       return;
     }
 
@@ -227,6 +248,46 @@ function PricingPlansContent() {
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 3 }}>
           <TestModeIndicator variant="banner" />
         </Box>
+
+        {!priceConfigured && isDevelopment && (
+          <Alert
+            severity="error"
+            icon={<SettingsIcon />}
+            sx={{ mt: 3, mb: 3, maxWidth: 800, mx: "auto" }}
+          >
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Stripe Price IDs Not Configured
+            </Typography>
+            <Typography variant="caption" component="div" sx={{ mb: 1 }}>
+              To enable subscription checkout, you need to configure Stripe price IDs in your environment variables:
+            </Typography>
+            <Box
+              component="ul"
+              sx={{
+                fontSize: "0.75rem",
+                pl: 2,
+                my: 1,
+                "& code": {
+                  bgcolor: "rgba(0,0,0,0.1)",
+                  px: 0.5,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  fontFamily: "monospace",
+                },
+              }}
+            >
+              <li>
+                Set <code>NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID</code> in your <code>.env.local</code> file
+              </li>
+              <li>
+                Set <code>NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID</code> in your <code>.env.local</code> file
+              </li>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              See <code>docs/STRIPE_QUICK_START.md</code> for setup instructions.
+            </Typography>
+          </Alert>
+        )}
 
         {showCancelledAlert && (
           <Alert
@@ -320,8 +381,19 @@ function PricingPlansContent() {
 
                     {!plan.isFree && !selectedPriceId && !hasActiveSubscription && (
                       <Typography variant="caption" color="error" display="block" sx={{ mb: 2 }}>
-                        This plan is currently unavailable. <br />
-                        Please contact support.
+                        {isDevelopment ? (
+                          <>
+                            Price ID not configured.
+                            <br />
+                            See banner above for setup instructions.
+                          </>
+                        ) : (
+                          <>
+                            This plan is currently unavailable.
+                            <br />
+                            Please contact support.
+                          </>
+                        )}
                       </Typography>
                     )}
 
