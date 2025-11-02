@@ -29,12 +29,24 @@
 
 .homePageContentContainer {
   position: relative;
-  top: 0px;
+  top: 10px;
   padding: 0px 40px;
 }
 
 @media all and (max-width: 991px) {
   .loginScreenContainer {
     padding: 40px;
+  }
+
+  .homePageContentContainer {
+    top: 0px;
+  }
+}
+
+@media all and (min-width: 1168px) {
+  .homePageContentContainer {
+    position: relative;
+    top: 10px;
+    padding: 0px 40px;
   }
 }
