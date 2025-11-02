@@ -5,13 +5,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
-import { 
-  getTestModeMetadata, 
-  logTestModeInfo, 
-  getTestModeCheckoutOptions,
-  getTrialPeriodDays,
-  getStripeConfig 
-} from "@/lib/stripe-config";
+import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -70,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: isDevelopment
-            ? `Invalid price ID: ${priceId}. Please verify that STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
+            ? `Invalid price ID:. Please verify that STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
             : "Unsupported price. Please contact support.",
         },
         { status: 400 }
@@ -136,13 +130,13 @@ export async function POST(req: NextRequest) {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
         console.error(`Stripe price validation failed: ${priceId}`, priceError);
-        
+
         return NextResponse.json(
           {
             error: isDevelopment
-              ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? 'test' : 'live'} Stripe account.\n\n` +
+              ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? "test" : "live"} Stripe account.\n\n` +
                 `To fix this issue:\n` +
-                `1. Go to your Stripe Dashboard: ${config.isTestMode ? 'https://dashboard.stripe.com/test/products' : 'https://dashboard.stripe.com/products'}\n` +
+                `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
                 `3. Update the following environment variables:\n` +
                 `   - STRIPE_MONTHLY_PRICE_ID\n` +
@@ -249,13 +243,13 @@ export async function POST(req: NextRequest) {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
         console.error(`Stripe price not found: ${priceId}`, stripeError);
-        
+
         return NextResponse.json(
           {
             error: isDevelopment
               ? `The Stripe price ID "${priceId}" does not exist in your Stripe account. Please verify your Stripe configuration:\n\n` +
-                `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? 'https://dashboard.stripe.com/test/products' : 'https://dashboard.stripe.com/products'})\n` +
-                `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? 'test mode' : 'live mode'})\n` +
+                `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"})\n` +
+                `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? "test mode" : "live mode"})\n` +
                 `3. Update STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
@@ -263,7 +257,7 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      
+
       // Re-throw other Stripe errors to be handled by the outer catch
       throw stripeError;
     }
