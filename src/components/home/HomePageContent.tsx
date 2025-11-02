@@ -226,7 +226,7 @@ export default function HomePageContent() {
               Privacy
             </Link>
             <Link
-              href="/dashboard/feedback"
+              href="/feedback"
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
