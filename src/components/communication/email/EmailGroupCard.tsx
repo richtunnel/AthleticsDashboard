@@ -296,12 +296,12 @@ export function EmailGroupCard({
             Add emails to "{group.name}"
           </Typography>
           <TextField
-            multiline
-            minRows={3}
-            fullWidth
             placeholder="Enter emails separated by commas, spaces, or new lines"
             value={emailInput}
             onChange={(event) => setEmailInput(event.target.value)}
+            multiline
+            minRows={3}
+            fullWidth
           />
 
           {inputError && (
