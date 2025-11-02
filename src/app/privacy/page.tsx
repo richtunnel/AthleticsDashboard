@@ -12,7 +12,7 @@ export default function PrivacyPage() {
           Privacy Policy
         </Typography>
         <Typography variant="body1" paragraph>
-          At Athletics Dashboard, we are committed to protecting your privacy and ensuring the security of your data. This Privacy Policy explains how we collect, use, disclose, and protect your
+          At Athletic Directors Hub, we are committed to protecting your privacy and ensuring the security of your data. This Privacy Policy explains how we collect, use, disclose, and protect your
           information when you use our platform.
         </Typography>
 
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
         <Typography variant="body1" paragraph>
           We use your information to:
           <ul>
-            <li>Provide and improve the Athletics Dashboard services.</li>
+            <li>Provide and improve the Athletic Directors Hub services.</li>
             <li>Authenticate users and manage accounts.</li>
             <li>Communicate with you about updates, support, or account-related matters.</li>
             <li>Ensure compliance with school policies and applicable laws, such as FERPA.</li>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           5. Student Data and FERPA Compliance
         </Typography>
         <Typography variant="body1" paragraph>
-          The Athletics Dashboard complies with the Family Educational Rights and Privacy Act (FERPA). We do not collect or store student personally identifiable information (PII) unless explicitly
+          The Athletic Directors Hub complies with the Family Educational Rights and Privacy Act (FERPA). We do not collect or store student personally identifiable information (PII) unless explicitly
           provided by you and necessary for the platform's functionality. You are responsible for ensuring that any student data shared complies with FERPA and other applicable laws.
         </Typography>
 
@@ -106,8 +106,8 @@ export default function PrivacyPage() {
           9. Changes to Privacy Policy
         </Typography>
         <Typography variant="body1" paragraph>
-          We may update this Privacy Policy. Significant changes will be communicated via email or through the platform. Continued use of the Athletics Dashboard after changes constitutes acceptance
-          of the new policy.
+          We may update this Privacy Policy. Significant changes will be communicated via email or through the platform. Continued use of the Athletic Directors Hub after changes constitutes
+          acceptance of the new policy.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
