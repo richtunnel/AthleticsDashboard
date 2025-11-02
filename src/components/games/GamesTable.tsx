@@ -1173,6 +1173,7 @@ export function GamesTable() {
       venueId: newGameData.venueId || null,
       status: newGameData.status,
       notes: newGameData.notes || null,
+      location: newGameData.location || null,
       customData: newGameData.customData || {},
     };
 
@@ -1316,6 +1317,7 @@ export function GamesTable() {
       status: editingGameData.status,
       customData: editingCustomData,
       notes: editingGameData.notes || null,
+      location: editingGameData.location || null,
     };
 
     updateGameMutation.mutate({ id: editingGameId, data: updateData });
