@@ -9,6 +9,7 @@ interface NewGameData {
   sport: string;
   level: string;
   opponentId: string;
+  opponent?: string;
   isHome: boolean;
   busTravel: boolean;
   actualDepartureTime: string;
