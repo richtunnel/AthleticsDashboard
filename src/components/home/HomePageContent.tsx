@@ -8,17 +8,26 @@ import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import { useSession } from "next-auth/react";
 
 export default function HomePageContent() {
+  const { data: session, status } = useSession();
   const signInAuth = useAuthButton();
   const getStartedAuth = useAuthButton();
 
   const handleSignIn = async () => {
     try {
-      await signInAuth.executeAction({
-        type: "navigation",
-        navigationPath: "/login",
-      });
+      if (status === "authenticated" && session) {
+        await signInAuth.executeAction({
+          type: "navigation",
+          navigationPath: "/dashboard",
+        });
+      } else {
+        await signInAuth.executeAction({
+          type: "navigation",
+          navigationPath: "/login",
+        });
+      }
     } catch (error) {
       console.error("Navigation error:", error);
     }

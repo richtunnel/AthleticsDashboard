@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
 import { Google } from "@mui/icons-material";
@@ -8,10 +8,12 @@ import Link from "next/link";
 import BaseHeader from "@/components/headers/_base";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import { useSession } from "next-auth/react";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
@@ -21,6 +23,12 @@ function LoginForm() {
   const errorParam = searchParams.get("error");
   const resetSuccess = searchParams.get("reset");
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push(callbackUrl);
+    }
+  }, [status, session, router, callbackUrl]);
 
   const googleAuth = useAuthButton({
     callbackUrl,
