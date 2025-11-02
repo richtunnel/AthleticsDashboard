@@ -13,8 +13,11 @@ export const dynamic = "force-dynamic";
 
 const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
   const mapping: Record<string, "MONTHLY" | "ANNUAL"> = {};
-  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID;
-  const annual = process.env.STRIPE_ANNUAL_PRICE_ID;
+  
+  // Support both server-side and public environment variables
+  // This ensures the frontend and backend use consistent price IDs
+  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  const annual = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 
   if (monthly) {
     mapping[monthly] = "MONTHLY";
