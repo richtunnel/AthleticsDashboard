@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
+import { emailService } from "@/lib/services/email.service";
+import { slackService } from "@/lib/services/slack.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,6 +42,27 @@ export async function POST(request: NextRequest) {
         status: "OPEN",
       },
     });
+
+    // Send email notification to support (non-blocking)
+    emailService.sendSupportNotificationEmail({
+      type: 'ticket',
+      submitter: {
+        name: session.user.name || "Unknown",
+        email: session.user.email || "",
+      },
+      subject,
+      message: description,
+      ticketNumber,
+    }).catch(err => console.error('Failed to send support email:', err));
+
+    // Send Slack notification (non-blocking)
+    slackService.sendFeedbackNotification({
+      time: new Date().toISOString(),
+      endpoint: '/api/support',
+      customer: `${session.user.name} (${session.user.email})`,
+      body: `Ticket: ${ticketNumber}\nSubject: ${subject}\n\n${description}`,
+      type: 'ticket',
+    }).catch(err => console.error('Failed to send Slack notification:', err));
 
     return NextResponse.json(
       {

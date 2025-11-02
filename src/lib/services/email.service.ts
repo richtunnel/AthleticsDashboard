@@ -447,6 +447,50 @@ export class EmailService {
     });
   }
 
+  async sendSupportNotificationEmail(params: {
+    type: 'feedback' | 'ticket';
+    submitter: { name: string; email: string };
+    subject: string;
+    message: string;
+    ticketNumber?: string;
+  }): Promise<void> {
+    const resend = getResendClientOptional();
+    if (!resend) {
+      console.warn('Email service not configured. Support notification not sent.');
+      return;
+    }
+
+    const { type, submitter, subject, message, ticketNumber } = params;
+    const typeLabel = type === 'feedback' ? 'Feedback' : 'Support Ticket';
+    const ticketInfo = ticketNumber ? ` (${ticketNumber})` : '';
+    
+    const body = `
+      <h2>New ${typeLabel} Submission${ticketInfo}</h2>
+      <p><strong>From:</strong> ${submitter.name} (${submitter.email})</p>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <h3>Message:</h3>
+      <div style="background-color: #f3f4f6; padding: 15px; border-left: 3px solid #2563eb;">
+        ${message.replace(/\n/g, '<br>')}
+      </div>
+      <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">
+        Submitted at: ${new Date().toLocaleString()}
+      </p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        to: ['support@athleticdirectorhub.com'],
+        subject: `New ${typeLabel}: ${subject}`,
+        html: this.buildHtmlEmail(body),
+      });
+      console.log('Support notification email sent successfully');
+    } catch (error) {
+      console.error('Failed to send support notification email:', error);
+      // Don't throw - this is a non-critical feature
+    }
+  }
+
   private buildHtmlEmail(body: string): string {
     return `
       <!DOCTYPE html>

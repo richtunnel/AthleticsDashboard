@@ -83,6 +83,16 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        logTestModeInfo("Processing successful payment", {
+          invoiceId: invoice.id,
+          customerId: invoice.customer,
+          amount: invoice.amount_paid,
+        });
+        await handlePaymentSuccess(invoice);
+        break;
+      }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         logTestModeInfo("Processing payment failure", {
@@ -91,6 +101,15 @@ export async function POST(req: NextRequest) {
           amount: invoice.amount_due,
         });
         await handlePaymentFailure(invoice);
+        break;
+      }
+      case "customer.created": {
+        const customer = event.data.object as Stripe.Customer;
+        logTestModeInfo("Processing customer created", {
+          customerId: customer.id,
+          email: customer.email,
+        });
+        await handleCustomerCreated(customer);
         break;
       }
       default:
@@ -471,4 +490,76 @@ function getStripeCustomerId(customer: string | Stripe.Customer | Stripe.Deleted
   }
 
   return typeof customer === "string" ? customer : customer.id;
+}
+
+async function handlePaymentSuccess(invoice: Stripe.Invoice) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
+    return;
+  }
+
+  const subscriptionRecord = await prisma.subscription.findFirst({
+    where: { stripeSubscriptionId: subscriptionId },
+    include: { user: { select: userSelect } },
+  });
+
+  const user = subscriptionRecord?.user;
+  if (!user?.email) {
+    return;
+  }
+
+  const line = invoice.lines?.data?.[0] as InvoiceLineWithPrice | undefined;
+  const planNickname = line?.price?.nickname ?? line?.price?.lookup_key ?? null;
+  const billingCycle = planNickname?.toLowerCase().includes('annual') || planNickname?.toLowerCase().includes('year') 
+    ? 'annual' 
+    : planNickname?.toLowerCase().includes('month') 
+    ? 'monthly' 
+    : 'unknown';
+
+  console.info('stripe.webhook.payment_success', {
+    subscriptionId: subscriptionRecord?.id,
+    userId: user.id,
+    billingCycle,
+    amount: invoice.amount_paid,
+    invoiceId: invoice.id,
+  });
+}
+
+async function handleCustomerCreated(customer: Stripe.Customer) {
+  const email = customer.email;
+  if (!email) {
+    console.warn('Customer created without email', { customerId: customer.id });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: userSelect,
+  });
+
+  if (!user) {
+    console.warn('Customer created but no user found', { 
+      customerId: customer.id, 
+      email 
+    });
+    return;
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      stripeCustomerId: customer.id,
+    },
+  });
+
+  const userPlan = user.plan?.toLowerCase() || 'free';
+  const isFreePlan = userPlan === 'free' || userPlan === 'free_plan' || !user.plan;
+
+  console.info('stripe.webhook.customer_created', {
+    customerId: customer.id,
+    userId: user.id,
+    email: user.email,
+    plan: user.plan,
+    isFreePlan,
+  });
 }
