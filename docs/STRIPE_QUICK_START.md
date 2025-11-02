@@ -14,10 +14,12 @@ STRIPE_SECRET_KEY=sk_test_YOUR_SECRET_KEY
 STRIPE_WEBHOOK_SECRET=whsec_YOUR_WEBHOOK_SECRET
 
 # Get these from https://dashboard.stripe.com/test/products
+# Note: You can set either the server-side OR the public versions (or both).
+# The backend will automatically detect and use whichever is configured.
 STRIPE_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE_ID
 STRIPE_ANNUAL_PRICE_ID=price_YOUR_ANNUAL_PRICE_ID
 
-# Public keys (same as above)
+# Public keys (required for frontend, but backend can also use these if server-side vars not set)
 NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_YOUR_MONTHLY_PRICE_ID
 NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_YOUR_ANNUAL_PRICE_ID
 
