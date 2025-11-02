@@ -3,16 +3,8 @@
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  TextField,
-  Typography,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import styles from "@/styles/custom.form.module.css";
+import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
 
 interface FormData {
   name: string;
@@ -32,16 +24,7 @@ interface SupportFeedbackFormProps {
   onSuccess?: () => void;
 }
 
-export function SupportFeedbackForm({
-  mode,
-  userName,
-  userEmail,
-  ticketNumber,
-  initialSubject = "",
-  initialDescription = "",
-  isPublic = false,
-  onSuccess,
-}: SupportFeedbackFormProps) {
+export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, initialSubject = "", initialDescription = "", isPublic = false, onSuccess }: SupportFeedbackFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const {
@@ -221,19 +204,10 @@ export function SupportFeedbackForm({
             )}
 
             {/* Error Message */}
-            {mutation.isError && (
-              <Alert severity="error">
-                {mutation.error?.message || `Failed to ${mode === "support" && ticketNumber ? "update" : "submit"}`}
-              </Alert>
-            )}
+            {mutation.isError && <Alert severity="error">{mutation.error?.message || `Failed to ${mode === "support" && ticketNumber ? "update" : "submit"}`}</Alert>}
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={mutation.isPending}
-              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
-            >
+            <Button type="submit" className={styles ? styles.buttonPadding : ""} variant="contained" disabled={mutation.isPending} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
               {mutation.isPending ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />

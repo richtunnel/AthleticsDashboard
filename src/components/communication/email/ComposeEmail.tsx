@@ -34,12 +34,11 @@ interface Game {
 }
 
 const STATIC_RECIPIENT_CATEGORIES = [
-  { value: "parents", label: "Parents/Guardians" },
-  { value: "opponent", label: "Opponent Athletic Directors" },
-  { value: "assigners", label: "Officials/Assigners" },
-  { value: "coaches", label: "Coaches" },
-  { value: "staff", label: "Staff Members" },
   { value: "custom", label: "Custom Recipients" },
+  // { value: "opponent", label: "Opponent Athletic Directors" },
+  // { value: "assigners", label: "Officials/Assigners" },
+  // { value: "coaches", label: "Coaches" },
+  // { value: "staff", label: "Staff Members" },
 ];
 
 export default function ComposeEmailPage() {
@@ -57,10 +56,7 @@ export default function ComposeEmailPage() {
   const [selectedOpponentId, setSelectedOpponentId] = useState<string>("all");
   const [opponentFilterDisabled, setOpponentFilterDisabled] = useState(false);
 
-  const {
-    data: emailGroups = [],
-    isLoading: emailGroupsLoading,
-  } = useQuery<EmailGroup[], Error>({
+  const { data: emailGroups = [], isLoading: emailGroupsLoading } = useQuery<EmailGroup[], Error>({
     queryKey: ["email-groups"],
     queryFn: fetchEmailGroups,
     refetchOnMount: true,
@@ -89,7 +85,7 @@ export default function ComposeEmailPage() {
     const storedGames = sessionStorage.getItem("selectedGames");
     const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
     const storedEmailDraft = sessionStorage.getItem("emailDraft");
-    
+
     if (storedGames) {
       const games = JSON.parse(storedGames);
       setAllGames(games);
@@ -192,7 +188,7 @@ export default function ComposeEmailPage() {
 
   const handleOpponentChange = (opponentId: string) => {
     setSelectedOpponentId(opponentId);
-    
+
     if (opponentId === "all") {
       setSelectedGames(allGames);
     } else {
@@ -206,16 +202,16 @@ export default function ComposeEmailPage() {
 
   const uniqueOpponents = useMemo(() => {
     const opponentMap = new Map<string, { id: string; name: string }>();
-    
+
     allGames.forEach((game) => {
       const opponentId = game.opponentId || game.opponent?.id;
       const opponentName = game.opponent?.name;
-      
+
       if (opponentId && opponentName && !opponentMap.has(opponentId)) {
         opponentMap.set(opponentId, { id: opponentId, name: opponentName });
       }
     });
-    
+
     return Array.from(opponentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allGames]);
 
@@ -289,10 +285,7 @@ export default function ComposeEmailPage() {
         {/* Selected Games Summary */}
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Selected Games ({selectedGames.length})
-            {selectedOpponentId !== "all" && opponentFilterDisabled && (
-              <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />
-            )}
+            Selected Games ({selectedGames.length}){selectedOpponentId !== "all" && opponentFilterDisabled && <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />}
           </Typography>
           <TableContainer>
             <Table size="small">
@@ -349,11 +342,7 @@ export default function ComposeEmailPage() {
                 onChange={(e) => handleOpponentChange(e.target.value)}
                 fullWidth
                 disabled={opponentFilterDisabled}
-                helperText={
-                  opponentFilterDisabled
-                    ? "Opponent filter is already applied from the games table"
-                    : "Select a specific opponent to filter which games are included in the email"
-                }
+                helperText={opponentFilterDisabled ? "Opponent filter is already applied from the games table" : "Select a specific opponent to filter which games are included in the email"}
               >
                 <MenuItem value="all">All Opponents ({allGames.length} games)</MenuItem>
                 {uniqueOpponents.map((opponent) => {
@@ -432,11 +421,11 @@ export default function ComposeEmailPage() {
           <Button variant="outlined" onClick={() => router.back()} disabled={sendEmailMutation.isPending}>
             Cancel
           </Button>
-          <Button 
-            variant="contained" 
-            startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />} 
+          <Button
+            variant="contained"
+            startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />}
             onClick={() => {
-              const gameIds = selectedGames.map(g => g.id);
+              const gameIds = selectedGames.map((g) => g.id);
               const isEmailGroup = recipientCategory.startsWith("emailGroup:");
               const groupId = isEmailGroup ? recipientCategory.split(":")[1] : undefined;
               const actualCategory = isEmailGroup ? "emailGroup" : recipientCategory;
@@ -447,14 +436,16 @@ export default function ComposeEmailPage() {
                 additionalMessage,
                 recipientCategory: actualCategory,
                 groupId,
-                to: recipientCategory === "custom" ? customRecipients.split(",").map(e => e.trim()).filter(Boolean) : undefined,
+                to:
+                  recipientCategory === "custom"
+                    ? customRecipients
+                        .split(",")
+                        .map((e) => e.trim())
+                        .filter(Boolean)
+                    : undefined,
               });
-            }} 
-            disabled={
-              sendEmailMutation.isPending || 
-              !subject || 
-              (recipientCategory === "custom" && !customRecipients.trim())
-            }
+            }}
+            disabled={sendEmailMutation.isPending || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
           >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
           </Button>
