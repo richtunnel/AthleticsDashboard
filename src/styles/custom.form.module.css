@@ -1,0 +1,11 @@
+@media all and (min-width: 665px) {
+  .supportContainer {
+    min-width: 600px !important;
+  }
+}
+
+@media all and (max-width: 768px) {
+  .supportContainer {
+    width: 100% !important;
+  }
+}

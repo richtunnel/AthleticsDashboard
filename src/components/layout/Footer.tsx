@@ -117,7 +117,7 @@ export default function Footer() {
           Privacy
         </Link>
         <Link
-          href="/feedback"
+          href="/support"
           style={{
             color: "var(--text-secondary)",
             fontSize: "0.875rem",
