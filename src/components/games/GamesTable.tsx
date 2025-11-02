@@ -164,6 +164,7 @@ interface NewGameData {
   sport: string;
   level: string;
   opponentId: string;
+  opponent?: string;
   isHome: boolean;
   busTravel: boolean;
   actualDepartureTime: string;
@@ -847,7 +848,7 @@ export function GamesTable() {
       } else {
         switch (field) {
           case "opponent":
-            currentValue = game.opponentId || game.opponent?.id || "";
+            currentValue = game.opponent?.name || "";
             break;
           case "location":
             currentValue = game.location || "";
@@ -898,11 +899,49 @@ export function GamesTable() {
           venueId: game.venueId || game.venue?.id || null,
           customData: game.customData || {},
           notes: game.notes || null,
+          location: game.location || null,
         };
 
         // Apply the inline edit value based on field
         if (inlineEditState.field === "opponent") {
-          updateData.opponentId = inlineEditValue || null;
+          // Handle opponent name with auto-create if needed
+          const opponentName = inlineEditValue.trim();
+          if (opponentName) {
+            // Check if opponent exists
+            const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
+            
+            if (existingOpponent) {
+              // Use existing opponent
+              updateData.opponentId = existingOpponent.id;
+            } else {
+              // Create new opponent
+              try {
+                const createRes = await fetch("/api/opponents", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name: opponentName }),
+                });
+                
+                if (!createRes.ok) {
+                  const errorData = await createRes.json();
+                  throw new Error(errorData.error || "Failed to create opponent");
+                }
+                
+                const newOpponentData = await createRes.json();
+                updateData.opponentId = newOpponentData.data.id;
+                
+                // Invalidate opponents query to refresh the list
+                await queryClient.invalidateQueries({ queryKey: ["opponents"] });
+              } catch (createError: any) {
+                addNotification(`Error creating opponent: ${createError.message}`, "error");
+                setIsInlineSaving(false);
+                return;
+              }
+            }
+          } else {
+            // Empty string means clear opponent
+            updateData.opponentId = null;
+          }
         } else if (inlineEditState.field === "location") {
           updateData.location = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
         } else if (inlineEditState.field === "date") {
@@ -954,7 +993,7 @@ export function GamesTable() {
         setIsInlineSaving(false);
       }
     },
-    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT]
+    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents]
   );
 
   const handleInlineKeyDown = useCallback(
@@ -1086,6 +1125,40 @@ export function GamesTable() {
       }
     }
 
+    // Handle opponent - create if needed
+    let opponentId = newGameData.opponentId || null;
+    if (newGameData.opponent && newGameData.opponent.trim()) {
+      const opponentName = newGameData.opponent.trim();
+      const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
+      
+      if (existingOpponent) {
+        opponentId = existingOpponent.id;
+      } else {
+        // Create new opponent
+        try {
+          const createRes = await fetch("/api/opponents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: opponentName }),
+          });
+          
+          if (!createRes.ok) {
+            const errorData = await createRes.json();
+            throw new Error(errorData.error || "Failed to create opponent");
+          }
+          
+          const newOpponentData = await createRes.json();
+          opponentId = newOpponentData.data.id;
+          
+          // Invalidate opponents query to refresh the list
+          await queryClient.invalidateQueries({ queryKey: ["opponents"] });
+        } catch (createError: any) {
+          addNotification(`Error creating opponent: ${createError.message}`, "error");
+          return;
+        }
+      }
+    }
+
     const isoDate = new Date(newGameData.date).toISOString();
 
     const gameData = {
@@ -1096,7 +1169,7 @@ export function GamesTable() {
       busTravel: newGameData.busTravel,
       actualDepartureTime: combineDateAndTime(newGameData.date, newGameData.actualDepartureTime),
       actualArrivalTime: combineDateAndTime(newGameData.date, newGameData.actualArrivalTime),
-      opponentId: newGameData.opponentId || null,
+      opponentId: opponentId,
       venueId: newGameData.venueId || null,
       status: newGameData.status,
       notes: newGameData.notes || null,
@@ -1193,6 +1266,40 @@ export function GamesTable() {
       }
     }
 
+    // Handle opponent - create if needed
+    let opponentId = editingGameData.opponentId || editingGameData.opponent?.id || null;
+    if (editingGameData.opponent?.name && editingGameData.opponent.name.trim()) {
+      const opponentName = editingGameData.opponent.name.trim();
+      const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
+      
+      if (existingOpponent) {
+        opponentId = existingOpponent.id;
+      } else {
+        // Create new opponent
+        try {
+          const createRes = await fetch("/api/opponents", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: opponentName }),
+          });
+          
+          if (!createRes.ok) {
+            const errorData = await createRes.json();
+            throw new Error(errorData.error || "Failed to create opponent");
+          }
+          
+          const newOpponentData = await createRes.json();
+          opponentId = newOpponentData.data.id;
+          
+          // Invalidate opponents query to refresh the list
+          await queryClient.invalidateQueries({ queryKey: ["opponents"] });
+        } catch (createError: any) {
+          addNotification(`Error creating opponent: ${createError.message}`, "error");
+          return;
+        }
+      }
+    }
+
     const rawDate = editingGameData.date.split("T")[0];
     const isoDate = new Date(rawDate).toISOString();
 
@@ -1204,7 +1311,7 @@ export function GamesTable() {
       busTravel: editingGameData.busTravel,
       actualDepartureTime: editingGameData.actualDepartureTime || null,
       actualArrivalTime: editingGameData.actualArrivalTime || null,
-      opponentId: editingGameData.opponentId || editingGameData.opponent?.id || null,
+      opponentId: opponentId,
       venueId: editingGameData.venueId || editingGameData.venue?.id || null,
       status: editingGameData.status,
       customData: editingCustomData,
@@ -1659,29 +1766,14 @@ export function GamesTable() {
       case "opponent":
         return (
           <TableCell key="opponent" sx={{ py: 1 }}>
-            <Select
+            <TextField
               size="small"
-              value={newGameData.opponentId}
-              onChange={(e) => {
-                if (e.target.value === "__add_new__") {
-                  setShowAddOpponent(true);
-                } else {
-                  updateNewGameData({ opponentId: e.target.value as string });
-                }
-              }}
-              sx={{ width: 160, fontSize: 13 }}
-              displayEmpty
-            >
-              <MenuItem value="">TBD</MenuItem>
-              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                + Add New Opponent
-              </MenuItem>
-              {opponents.map((opponent: any) => (
-                <MenuItem key={opponent.id} value={opponent.id}>
-                  {opponent.name}
-                </MenuItem>
-              ))}
-            </Select>
+              value={newGameData.opponent || ""}
+              onChange={(e) => updateNewGameData({ opponent: e.target.value })}
+              placeholder="Enter opponent name..."
+              sx={{ width: 180 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "isHome":
@@ -1961,29 +2053,30 @@ export function GamesTable() {
       case "opponent":
         return (
           <TableCell key="opponent" sx={{ py: 1 }}>
-            <Select
+            <TextField
               size="small"
-              value={editingGame.opponentId || editingGame.opponent?.id || ""}
+              value={editingGame.opponent?.name || ""}
               onChange={(e) => {
-                if (e.target.value === "__add_new__") {
-                  setShowAddOpponent(true);
-                } else {
-                  setEditingGameData((prev) => (prev ? { ...prev, opponentId: e.target.value as string } : prev));
-                }
+                setEditingGameData((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    opponent: { ...prev.opponent, name: e.target.value },
+                  };
+                });
               }}
-              sx={{ width: 160, fontSize: 13, bgcolor: "transparent" }}
-              displayEmpty
-            >
-              <MenuItem value="">TBD</MenuItem>
-              <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                + Add New Opponent
-              </MenuItem>
-              {opponents.map((opponent: any) => (
-                <MenuItem key={opponent.id} value={opponent.id}>
-                  {opponent.name}
-                </MenuItem>
-              ))}
-            </Select>
+              placeholder="Enter opponent name..."
+              sx={{
+                width: 180,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "isHome":
@@ -2277,6 +2370,7 @@ export function GamesTable() {
             sx={{
               fontSize: 13,
               py: 0,
+              minWidth: 180,
               cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
@@ -2289,39 +2383,26 @@ export function GamesTable() {
             onDoubleClick={() => handleDoubleClick(game, "opponent")}
           >
             {isEditing ? (
-              <Select
-                size="small"
-                value={inlineEditValue}
-                onChange={(e) => {
-                  if (e.target.value === "__add_new__") {
-                    if (saveTimeoutRef.current) {
-                      clearTimeout(saveTimeoutRef.current);
-                      saveTimeoutRef.current = null;
-                    }
-                    setShowAddOpponent(true);
-                  } else {
-                    handleInlineValueChange(e.target.value as string);
-                  }
-                }}
-                onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                onBlur={() => handleInlineBlur(game)}
-                autoFocus
-                disabled={isInlineSaving}
-                sx={{ width: "100%", fontSize: 13 }}
-                displayEmpty
-              >
-                <MenuItem value="">TBD</MenuItem>
-                <MenuItem value="__add_new__" sx={{ color: "primary.main", fontWeight: 600 }}>
-                  + Add New Opponent
-                </MenuItem>
-                {opponents.map((opponent: any) => (
-                  <MenuItem key={opponent.id} value={opponent.id}>
-                    {opponent.name}
-                  </MenuItem>
-                ))}
-              </Select>
+              <Box sx={{ py: 1 }}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  placeholder="Enter opponent name..."
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                    },
+                  }}
+                />
+              </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {game.opponent?.name || "TBD"}
                 </Typography>
