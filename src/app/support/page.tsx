@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import { SupportFeedbackForm } from "@/components/support/SupportFeedbackForm";
 import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
+import styles from "@/styles/custom.form.module.css";
 
 export default async function PublicFeedbackPage() {
   const session = await getServerSession(authOptions);
@@ -12,17 +13,18 @@ export default async function PublicFeedbackPage() {
     <>
       <BaseHeader pt="20px" pl="20px" />
       <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-        <Box sx={{ px: 3, py: 3, maxWidth: 900, mx: "auto", flex: 1 }}>
+        <Box className={`${styles.supportContainer}`} sx={{ px: 3, py: 3, maxWidth: "100%", mx: "auto", flex: 1 }}>
           <Box sx={{ mb: 4 }}>
             <Typography variant="h4" sx={{ mb: 1 }}>
-              Share Your Feedback
+              We are here to help.
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              We value your feedback! Please let us know how we can improve your experience.
+              We value your time and will respond within 48 hours! <br />
+              Please let us know how we can improve your experience.
             </Typography>
           </Box>
 
-          <SupportFeedbackForm mode="feedback" userName={session?.user?.name || ""} userEmail={session?.user?.email || ""} isPublic={!session?.user} />
+          <SupportFeedbackForm mode="support" userName={session?.user?.name || ""} userEmail={session?.user?.email || ""} isPublic={!session?.user} />
         </Box>
         <Footer />
       </Box>
