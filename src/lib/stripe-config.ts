@@ -29,11 +29,16 @@ export function getStripeConfig(): StripeConfig {
   const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
   const isTestMode = isStripeTestMode(secretKey);
 
+  // Support both server-side and public environment variables for consistency
+  // This ensures frontend and backend use the same price IDs
+  const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID || "";
+  const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID || "";
+
   return {
     secretKey,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "",
-    annualPriceId: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "",
+    monthlyPriceId,
+    annualPriceId,
     isTestMode,
     testModeWarningEnabled: process.env.NODE_ENV !== "production" && isTestMode,
   };
@@ -54,16 +59,26 @@ export function isValidPriceId(priceId?: string): boolean {
  * Validates that all required Stripe environment variables are configured
  */
 export function validateStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID", "NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID"];
-
+  const required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"];
   const missing = required.filter((key) => !process.env[key]);
 
-  const invalid: string[] = [];
-  if (process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID && !isValidPriceId(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID)) {
-    invalid.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
+  // Check for price IDs in both server-side and public variables
+  const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+
+  if (!monthlyPriceId) {
+    missing.push("STRIPE_MONTHLY_PRICE_ID or NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
   }
-  if (process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID && !isValidPriceId(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID)) {
-    invalid.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
+  if (!annualPriceId) {
+    missing.push("STRIPE_ANNUAL_PRICE_ID or NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
+  }
+
+  const invalid: string[] = [];
+  if (monthlyPriceId && !isValidPriceId(monthlyPriceId)) {
+    invalid.push("STRIPE_MONTHLY_PRICE_ID/NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
+  }
+  if (annualPriceId && !isValidPriceId(annualPriceId)) {
+    invalid.push("STRIPE_ANNUAL_PRICE_ID/NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
   }
 
   if (missing.length > 0) {
