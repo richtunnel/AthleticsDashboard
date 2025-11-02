@@ -10,18 +10,18 @@ export function getStripe(): Stripe {
       // Do NOT construct Stripe without a key; only throw when actually used
       throw new Error("STRIPE_SECRET_KEY is not set");
     }
-    
+
     const testMode = isStripeTestMode(key);
-    
-    stripeSingleton = new Stripe(key, { 
-      apiVersion: "2025-10-29.clover",
+
+    stripeSingleton = new Stripe(key, {
+      apiVersion: "2025-09-30.clover",
       typescript: true,
       appInfo: {
         name: "AD Hub",
         version: "1.0.0",
       },
     });
-    
+
     // Log when initializing in test mode
     if (testMode) {
       logTestModeInfo("Stripe client initialized", {
