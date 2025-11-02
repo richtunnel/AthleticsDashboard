@@ -2583,7 +2583,7 @@ export function GamesTable() {
             <Chip
               label={game.isHome ? "Home" : "Away"}
               size="small"
-              sx={{ fontSize: 11, height: 24, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
+              sx={{ fontSize: 11, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
             />
           </TableCell>
         );
@@ -2677,7 +2677,6 @@ export function GamesTable() {
                   color={confirmedStatus.color as ChipProps["color"]}
                   sx={{
                     fontSize: 11,
-                    height: 24,
                     fontWeight: 500,
                     "& .MuiChip-icon": { fontSize: 16 },
                   }}
@@ -3050,7 +3049,7 @@ export function GamesTable() {
           <Typography variant="body2" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
             {activeFilterCount > 0 && (
-              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
+              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
           <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
