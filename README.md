@@ -39,6 +39,7 @@ AthleticsDashboard is a powerful sports management platform built to solve the c
 ### Problem It Solves
 
 Athletic directors juggle numerous responsibilities across multiple sports, teams, and venues. This application consolidates:
+
 - ✅ Complex scheduling across seasons and sports
 - ✅ Communication with coaches, staff, and vendors
 - ✅ Travel coordination and budget tracking
@@ -49,6 +50,7 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 ## ✨ Key Features
 
 ### 🗓️ Game Scheduling Workspace
+
 - **Inline CRUD operations** - Create, read, update, and delete games directly in the interface
 - **Advanced filtering** - Filter by sport, team level, date range, status, and custom fields
 - **Custom columns** - Add organization-specific data fields to game records
@@ -56,18 +58,21 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 - **Bulk operations** - Update multiple games simultaneously
 
 ### 📊 Management Modules
+
 - **Team Management** - Organize teams by sport, level (Varsity, JV, Freshman), and gender
 - **Opponent Management** - Maintain opponent database with contact info, colors, and mascots
 - **Venue Management** - Track locations with addresses, coordinates, and venue-specific notes
 - **User Roles** - Control access with roles: Super Admin, Athletic Director, Assistant AD, Coach, Staff, Vendor
 
 ### 📅 Google Calendar Integration
+
 - **Two-way sync** - Automatically sync games to Google Calendar
 - **Real-time updates** - Changes in the app reflect in Google Calendar
 - **Bulk sync** - Sync entire seasons or filtered game sets
 - **OAuth authentication** - Secure Google account integration
 
 ### 📧 Communication Tools
+
 - **Bulk email campaigns** - Send updates to coaches, staff, or custom groups
 - **Email groups** - Organize contacts into reusable distribution lists
 - **Game notifications** - Automated alerts for schedule changes
@@ -75,24 +80,28 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 - **Rich HTML emails** - Professional, branded email templates
 
 ### 📁 Data Management
+
 - **CSV import** - Bulk import games from spreadsheets
 - **CSV export** - Export schedules for reporting and sharing
 - **Data validation** - Ensure data integrity during import
 - **Mock data seeding** - Quick setup with sample data
 
 ### 🤖 AI-Powered Features
+
 - **Travel recommendations** - OpenAI generates optimal departure times and bus requirements
 - **Cost estimation** - Automatic calculation of travel expenses
 - **Conflict detection** - AI identifies scheduling conflicts and venue overlaps
 - **Smart scheduling** - Suggestions based on historical data and constraints
 
 ### 📈 Analytics Dashboard
+
 - **Upcoming games summary** - Quick view of next week's schedule
 - **Travel metrics** - Budget tracking and distance calculations
 - **Team performance** - Win/loss records and season progress
 - **Custom reports** - Generate insights specific to your organization
 
 ### 💳 Subscription Management
+
 - **Stripe integration** - Secure payment processing
 - **Multiple plans** - Free trial, Standard, and Business tiers
 - **Customer portal** - Self-service subscription management
@@ -101,6 +110,7 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **[Next.js 15](https://nextjs.org/)** - React framework with App Router
 - **[React 19](https://react.dev/)** - UI library
 - **[TypeScript](https://www.typescriptlang.org/)** - Type-safe JavaScript
@@ -112,18 +122,21 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 - **[date-fns](https://date-fns.org/)** - Date utilities
 
 ### Backend
+
 - **[Next.js API Routes](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)** - Serverless API endpoints
 - **[Prisma ORM](https://www.prisma.io/)** - Database toolkit
 - **[Knex.js](https://knexjs.org/)** - SQL query builder
 - **[PostgreSQL](https://www.postgresql.org/)** - Relational database
 
 ### Authentication & Authorization
+
 - **[NextAuth.js](https://next-auth.js.org/)** - Authentication library
 - **Google OAuth** - Social login
 - **Credentials Provider** - Email/password authentication
 - **bcryptjs** - Password hashing
 
 ### Integrations
+
 - **[Google Calendar API](https://developers.google.com/calendar)** - Calendar synchronization
 - **[Google Maps API](https://developers.google.com/maps)** - Travel time calculations
 - **[Resend](https://resend.com/)** - Transactional email service
@@ -131,6 +144,7 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 - **[Stripe](https://stripe.com/)** - Payment processing
 
 ### Developer Tools
+
 - **[ESLint](https://eslint.org/)** - Code linting
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS
 - **[Docker](https://www.docker.com/)** - Containerization (optional)
@@ -145,6 +159,7 @@ Before you begin, ensure you have the following installed:
 - **Git** version control ([Download](https://git-scm.com/downloads))
 
 ### External Service Accounts (Required for full functionality)
+
 - Google Cloud Platform account (for OAuth and Calendar API)
 - Resend account (for email services)
 - OpenAI account (for AI features)
@@ -209,70 +224,70 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ### Database Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
+| Variable       | Description                  | Example                                                         |
+| -------------- | ---------------------------- | --------------------------------------------------------------- |
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:password@localhost:5432/athletics_dashboard` |
 
 ### NextAuth Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXTAUTH_SECRET` | Secret key for NextAuth.js (generate with `openssl rand -base64 32`) | `your-secret-key-here` |
-| `NEXTAUTH_URL` | Base URL of your application | `http://localhost:3000` |
+| Variable          | Description                                                          | Example                 |
+| ----------------- | -------------------------------------------------------------------- | ----------------------- |
+| `NEXTAUTH_SECRET` | Secret key for NextAuth.js (generate with `openssl rand -base64 32`) | `your-secret-key-here`  |
+| `NEXTAUTH_URL`    | Base URL of your application                                         | `http://localhost:3000` |
 
 ### Login Tracking Geolocation
 
-| Variable | Description | How to Get |
-|----------|-------------|------------|
+| Variable           | Description                                                 | How to Get                                        |
+| ------------------ | ----------------------------------------------------------- | ------------------------------------------------- |
 | `IPINFO_API_TOKEN` | API token for IPInfo used to resolve login city information | [IPinfo Account](https://ipinfo.io/account/token) |
 
 ### Google OAuth & Calendar
 
-| Variable | Description | How to Get |
-|----------|-------------|------------|
-| `GOOGLE_CALENDAR_CLIENT_ID` | Google OAuth 2.0 Client ID | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials |
-| `GOOGLE_CALENDAR_CLIENT_SECRET` | Google OAuth 2.0 Client Secret | Same as above |
-| `GOOGLE_REDIRECT_URI` | Authorized OAuth callback URL registered with Google | Typically `http://localhost:3000/api/auth/calendar-callback` in development |
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key for distance calculations | Google Cloud Console → APIs & Services → Enable Maps JavaScript API |
+| Variable                        | Description                                          | How to Get                                                                                |
+| ------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GOOGLE_CALENDAR_CLIENT_ID`     | Google OAuth 2.0 Client ID                           | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | Google OAuth 2.0 Client Secret                       | Same as above                                                                             |
+| `GOOGLE_REDIRECT_URI`           | Authorized OAuth callback URL registered with Google | Typically `http://localhost:3000/api/auth/calendar-callback` in development               |
+| `GOOGLE_MAPS_API_KEY`           | Google Maps API key for distance calculations        | Google Cloud Console → APIs & Services → Enable Maps JavaScript API                       |
 
 ### Email Service (Resend)
 
-| Variable | Description | How to Get |
-|----------|-------------|------------|
+| Variable         | Description                       | How to Get                                      |
+| ---------------- | --------------------------------- | ----------------------------------------------- |
 | `RESEND_API_KEY` | Resend API key for sending emails | [Resend Dashboard](https://resend.com/api-keys) |
-| `EMAIL_FROM` | Sender email address | `"AD Hub <noreply@yourdomain.com>"` |
+| `EMAIL_FROM`     | Sender email address              | `"AD Hub <noreply@yourdomain.com>"`             |
 
 **Welcome Email Feature**: The application automatically sends a branded welcome email to new users when they sign up (both manual signup and Google OAuth). The welcome email introduces the product and provides next steps for getting started. If `RESEND_API_KEY` is not configured, the signup process continues normally but the welcome email won't be sent (a warning is logged).
 
 ### OpenAI
 
-| Variable | Description | How to Get |
-|----------|-------------|------------|
+| Variable         | Description                    | How to Get                                              |
+| ---------------- | ------------------------------ | ------------------------------------------------------- |
 | `OPENAI_API_KEY` | OpenAI API key for AI features | [OpenAI API Keys](https://platform.openai.com/api-keys) |
 
 ### Stripe Payment Processing
 
-| Variable | Description | How to Get |
-|----------|-------------|------------|
-| `STRIPE_SECRET_KEY` | Stripe secret key (use `sk_test_` for testing) | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | Stripe Dashboard → Developers → Webhooks |
-| `STRIPE_MONTHLY_PRICE_ID` | Price ID for monthly subscription | Stripe Dashboard → Products |
-| `STRIPE_ANNUAL_PRICE_ID` | Price ID for annual subscription | Stripe Dashboard → Products |
+| Variable                              | Description                                    | How to Get                                               |
+| ------------------------------------- | ---------------------------------------------- | -------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                   | Stripe secret key (use `sk_test_` for testing) | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
+| `STRIPE_WEBHOOK_SECRET`               | Stripe webhook signing secret                  | Stripe Dashboard → Developers → Webhooks                 |
+| `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` | Price ID for monthly subscription              | Stripe Dashboard → Products                              |
+| `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`  | Price ID for annual subscription               | Stripe Dashboard → Products                              |
 
 **Testing Stripe Subscriptions**: The application includes comprehensive test mode support. See [STRIPE_TEST_MODE.md](./STRIPE_TEST_MODE.md) for setup instructions, or jump to the [Quick Start Guide](./docs/STRIPE_QUICK_START.md) for a 5-minute setup.
 
 ### Account Cleanup Automation
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `CRON_SECRET` | Shared secret required to trigger the scheduled cleanup endpoint | `super-secure-cron-token` |
-| `ACCOUNT_DELETION_GRACE_DAYS` | Number of days after cancellation before data is permanently deleted (defaults to 14) | `14` |
-| `ACCOUNT_DELETION_REMINDER_DAYS` | Comma-separated list of reminder offsets before deletion (defaults to `7,1`) | `7,1` |
+| Variable                         | Description                                                                           | Example                   |
+| -------------------------------- | ------------------------------------------------------------------------------------- | ------------------------- |
+| `CRON_SECRET`                    | Shared secret required to trigger the scheduled cleanup endpoint                      | `super-secure-cron-token` |
+| `ACCOUNT_DELETION_GRACE_DAYS`    | Number of days after cancellation before data is permanently deleted (defaults to 14) | `14`                      |
+| `ACCOUNT_DELETION_REMINDER_DAYS` | Comma-separated list of reminder offsets before deletion (defaults to `7,1`)          | `7,1`                     |
 
 ### Other
 
-| Variable | Description | Values |
-|----------|-------------|--------|
+| Variable   | Description      | Values                                 |
+| ---------- | ---------------- | -------------------------------------- |
 | `NODE_ENV` | Environment mode | `development`, `production`, or `test` |
 
 > **Note:** Never commit `.env.local` to version control. Use `.env.example` as a template.
@@ -282,12 +297,14 @@ Create a `.env.local` file in the root directory with the following variables:
 ### PostgreSQL Installation
 
 #### macOS (using Homebrew)
+
 ```bash
 brew install postgresql@14
 brew services start postgresql@14
 ```
 
 #### Ubuntu/Debian
+
 ```bash
 sudo apt update
 sudo apt install postgresql postgresql-contrib
@@ -295,6 +312,7 @@ sudo systemctl start postgresql
 ```
 
 #### Windows
+
 Download and install from [postgresql.org](https://www.postgresql.org/download/windows/)
 
 ### Create the Database
@@ -327,6 +345,7 @@ yarn prisma migrate deploy
 ### Seed Data
 
 The seed script populates your database with:
+
 - Sample organization (Central High School)
 - Default user (dev@example.com)
 - Sports (Football, Basketball, Soccer, Volleyball, Baseball, Softball)
@@ -355,14 +374,14 @@ When Prisma reports an error such as `P3009` referencing the `20251024000526_new
 
 ### Quick commands
 
-| Task | Command |
-|------|---------|
-| Check migration status | `yarn migrate:status` |
-| Mark `20251024000526_new_migration` as rolled back | `yarn migrate:resolve:rollback 20251024000526_new_migration` |
-| Mark a migration as applied (only if schema already matches) | `yarn migrate:resolve:applied <migration_id>` |
-| Deploy pending migrations | `yarn migrate:deploy` |
-| Pre-deployment health check | `yarn migrate:check` |
-| Reset local database (destructive) | `yarn prisma migrate reset` |
+| Task                                                         | Command                                                      |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Check migration status                                       | `yarn migrate:status`                                        |
+| Mark `20251024000526_new_migration` as rolled back           | `yarn migrate:resolve:rollback 20251024000526_new_migration` |
+| Mark a migration as applied (only if schema already matches) | `yarn migrate:resolve:applied <migration_id>`                |
+| Deploy pending migrations                                    | `yarn migrate:deploy`                                        |
+| Pre-deployment health check                                  | `yarn migrate:check`                                         |
+| Reset local database (destructive)                           | `yarn prisma migrate reset`                                  |
 
 These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot.sh` and `scripts/prisma-predeploy-check.sh` for convenience.
 
@@ -421,9 +440,11 @@ These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot
 ### 5. Development-only reset option
 
 For local environments you can drop and recreate the database from scratch:
+
 ```bash
 yarn prisma migrate reset
 ```
+
 Do **not** use this in production because all data will be lost. Instead, resolve or roll back the problematic migration as shown above.
 
 ### 6. Include a runtime health check
@@ -568,6 +589,7 @@ The games page (`/dashboard/games`) is the heart of the application:
 ### Google Calendar Synchronization
 
 How it works:
+
 1. User connects Google account via OAuth 2.0
 2. App requests Calendar API permissions
 3. Games can be synced individually or in bulk
@@ -577,6 +599,7 @@ How it works:
 ### AI Travel Recommendations
 
 Using OpenAI's GPT-4 model:
+
 1. Input: Game details, venue location, team size
 2. Processing: AI calculates optimal departure time, bus count, and costs
 3. Output: Comprehensive travel plan with reasoning
@@ -585,6 +608,7 @@ Using OpenAI's GPT-4 model:
 ### Email Campaign System
 
 Features:
+
 - Create reusable email groups
 - Compose rich HTML emails
 - Send to teams, coaches, or custom lists
@@ -594,12 +618,14 @@ Features:
 ### CSV Import/Export
 
 Import games from spreadsheets:
+
 - Drag-and-drop CSV files
 - Column mapping interface
 - Data validation and error reporting
 - Bulk create games from external sources
 
 Export schedules:
+
 - Filter games to export
 - Download as CSV
 - Share with coaches and staff
@@ -608,11 +634,13 @@ Export schedules:
 ## 🛣️ API Routes
 
 ### Authentication
+
 - `POST /api/auth/[...nextauth]` - NextAuth.js handlers (login, logout, session)
 - `GET /api/auth/calendar-connect` - Initiate Google Calendar OAuth
 - `GET /api/auth/callback/google` - OAuth callback handler
 
 ### Games
+
 - `GET /api/games` - List all games (with filters)
 - `POST /api/games` - Create new game
 - `GET /api/games/[id]` - Get game by ID
@@ -620,12 +648,14 @@ Export schedules:
 - `DELETE /api/games/[id]` - Delete game
 
 ### Teams
+
 - `GET /api/teams` - List all teams
 - `POST /api/teams` - Create team
 - `PUT /api/teams/[id]` - Update team
 - `DELETE /api/teams/[id]` - Delete team
 
 ### Opponents
+
 - `GET /api/opponents` - List opponents
 - `POST /api/opponents` - Create opponent
 - `PUT /api/opponents/[id]` - Update opponent
@@ -633,35 +663,42 @@ Export schedules:
 - `PUT /api/opponents/reorder` - Update sort order
 
 ### Venues
+
 - `GET /api/venues` - List venues
 - `POST /api/venues` - Create venue
 - `PUT /api/venues/[id]` - Update venue
 - `DELETE /api/venues/[id]` - Delete venue
 
 ### Calendar
+
 - `POST /api/calendar/sync` - Sync single game to Google Calendar
 - `POST /api/calendar/sync-all` - Sync all games
 - `DELETE /api/calendar/unsync/[id]` - Remove game from calendar
 
 ### Email
+
 - `POST /api/email/send` - Send email
 - `GET /api/email-campaigns` - List campaigns
 - `POST /api/email-campaigns` - Create campaign
 - `POST /api/email-campaigns/[id]/send` - Send campaign
 
 ### Import/Export
+
 - `POST /api/import` - Import games from CSV
 - `GET /api/export` - Export games to CSV
 
 ### AI Features
+
 - `POST /api/travel-recommendations` - Get AI travel recommendations
 - `GET /api/detection/conflicts` - Detect scheduling conflicts
 
 ### Stripe
+
 - `POST /api/stripe/webhook` - Stripe webhook handler
 - `POST /api/stripe/portal` - Create customer portal session
 
 ### Maintenance & Automation
+
 - `POST /api/cron/account-cleanup` - Secure cron entry point that sends deletion reminders and removes accounts once the grace period has expired. Requires the `x-cron-secret` header to match `CRON_SECRET`.
 
 ## 🧹 Automated Account Cleanup
@@ -669,6 +706,7 @@ Export schedules:
 The cleanup endpoint enforces the 14-day grace period after cancellation, sends reminder emails, and deletes expired accounts. Configure your hosting provider's scheduler to call it with a shared secret.
 
 ### Trigger Details
+
 - **Method:** `POST`
 - **Endpoint:** `https://<your-domain>/api/cron/account-cleanup`
 - **Headers:**
@@ -678,6 +716,7 @@ The cleanup endpoint enforces the 14-day grace period after cancellation, sends 
 - **Recommended cadence:** Once per day (e.g., `0 6 * * *`) so 7-day and 1-day reminders are delivered predictably.
 
 ### Example (Vercel Cron)
+
 ```json
 {
   "path": "/api/cron/account-cleanup",
@@ -691,6 +730,7 @@ The cleanup endpoint enforces the 14-day grace period after cancellation, sends 
 ```
 
 ### Example (Railway)
+
 1. Open **Deployments → Cron Jobs → New Cron Job**
 2. Set the schedule to `0 6 * * *` (adjust for your timezone)
 3. Choose **POST** and the path `/api/cron/account-cleanup`
@@ -698,6 +738,7 @@ The cleanup endpoint enforces the 14-day grace period after cancellation, sends 
 5. Save — Railway will now invoke the job daily
 
 ### Customisation
+
 - Adjust `ACCOUNT_DELETION_GRACE_DAYS` if you need a longer or shorter grace period
 - Tweak `ACCOUNT_DELETION_REMINDER_DAYS` (comma separated) to send additional reminders
 - The response payload logs counts of reminders sent, deletions, Stripe cancellations, and any errors for auditing
@@ -792,6 +833,7 @@ docker-compose up -d
 ```
 
 **📦 Optimizations:**
+
 - Multi-stage build with 3 stages (deps, builder, runner)
 - Next.js standalone output mode for minimal bundle
 - Alpine Linux base (~300-400MB final image)
@@ -804,6 +846,7 @@ docker-compose up -d
 ### Environment Variables for Production
 
 Ensure these are set in your hosting platform:
+
 - `DATABASE_URL` (production database)
 - `NEXTAUTH_SECRET` (secure random string)
 - `NEXTAUTH_URL` (your production URL)
@@ -813,39 +856,39 @@ Ensure these are set in your hosting platform:
 
 ### Development & Build
 
-| Command | Description |
-|---------|-------------|
-| `yarn dev` | Start development server |
-| `yarn build` | Build production bundle |
-| `yarn start` | Start production server |
+| Command           | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `yarn dev`        | Start development server                    |
+| `yarn build`      | Build production bundle                     |
+| `yarn start`      | Start production server                     |
 | `yarn start:prod` | Run migrations then start production server |
-| `yarn type-check` | Run TypeScript type checking |
+| `yarn type-check` | Run TypeScript type checking                |
 
 ### Database (Prisma)
 
-| Command | Description |
-|---------|-------------|
-| `yarn prisma migrate dev` | Create and apply new migration |
+| Command                      | Description                    |
+| ---------------------------- | ------------------------------ |
+| `yarn prisma migrate dev`    | Create and apply new migration |
 | `yarn prisma migrate deploy` | Apply migrations in production |
-| `yarn prisma db seed` | Seed database with sample data |
-| `yarn prisma studio` | Open Prisma Studio GUI |
-| `yarn prisma generate` | Generate Prisma Client |
+| `yarn prisma db seed`        | Seed database with sample data |
+| `yarn prisma studio`         | Open Prisma Studio GUI         |
+| `yarn prisma generate`       | Generate Prisma Client         |
 
 ### Docker
 
-| Command | Description |
-|---------|-------------|
-| `yarn docker:build` | Build Docker image |
-| `yarn docker:build:prod` | Build Docker image without cache |
-| `yarn docker:run` | Run container (interactive) |
-| `yarn docker:run:detached` | Run container in background |
-| `yarn docker:stop` | Stop and remove container |
-| `yarn docker:logs` | View container logs |
-| `yarn docker:shell` | Open shell in container |
-| `yarn docker:compose:up` | Start all services with Docker Compose |
-| `yarn docker:compose:down` | Stop all Docker Compose services |
-| `yarn docker:compose:logs` | View Docker Compose logs |
-| `yarn docker:compose:build` | Rebuild Docker Compose services |
+| Command                     | Description                            |
+| --------------------------- | -------------------------------------- |
+| `yarn docker:build`         | Build Docker image                     |
+| `yarn docker:build:prod`    | Build Docker image without cache       |
+| `yarn docker:run`           | Run container (interactive)            |
+| `yarn docker:run:detached`  | Run container in background            |
+| `yarn docker:stop`          | Stop and remove container              |
+| `yarn docker:logs`          | View container logs                    |
+| `yarn docker:shell`         | Open shell in container                |
+| `yarn docker:compose:up`    | Start all services with Docker Compose |
+| `yarn docker:compose:down`  | Stop all Docker Compose services       |
+| `yarn docker:compose:logs`  | View Docker Compose logs               |
+| `yarn docker:compose:build` | Rebuild Docker Compose services        |
 
 ## 🤝 Contributing
 
