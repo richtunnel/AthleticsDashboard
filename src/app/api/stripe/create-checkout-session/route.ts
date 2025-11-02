@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: isDevelopment
-            ? `Invalid price ID:. Please verify that STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
+            ? `Invalid price ID:. Please verify that NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
             : "Unsupported price. Please contact support.",
         },
         { status: 400 }
@@ -142,8 +142,8 @@ export async function POST(req: NextRequest) {
                 `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
                 `3. Update the following environment variables:\n` +
-                `   - STRIPE_MONTHLY_PRICE_ID\n` +
-                `   - STRIPE_ANNUAL_PRICE_ID\n` +
+                `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
+                `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n` +
                 `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
                 `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n\n` +
                 `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
               ? `The Stripe price ID "${priceId}" does not exist in your Stripe account. Please verify your Stripe configuration:\n\n` +
                 `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"})\n` +
                 `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? "test mode" : "live mode"})\n` +
-                `3. Update STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
+                `3. Update NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
           },

@@ -3,6 +3,7 @@
 ## Problem
 
 Users were encountering the error message:
+
 ```
 This plan is currently unavailable.
 Please contact support
@@ -13,10 +14,12 @@ This error occurred when Stripe price IDs were not properly configured in the en
 ## Root Cause
 
 The application requires two environment variables to enable subscription checkout:
+
 - `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID`
 - `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`
 
 These variables were either:
+
 1. Not set at all
 2. Set to placeholder values (e.g., `price_your_monthly_price_id`)
 3. Not properly loaded by the application
@@ -26,6 +29,7 @@ These variables were either:
 ### 1. Enhanced Validation (`src/lib/stripe-config.ts`)
 
 Added validation functions to detect invalid price IDs:
+
 - `isValidPriceId()`: Checks if a price ID is valid (not empty, not a placeholder, starts with `price_`)
 - `validateClientStripeConfig()`: Client-side validation for NEXT_PUBLIC variables
 - Enhanced `validateStripeConfig()`: Now detects both missing and invalid (placeholder) values
@@ -33,17 +37,20 @@ Added validation functions to detect invalid price IDs:
 ### 2. Improved User Experience (`src/app/onboarding/plans/page.tsx`)
 
 **Development Mode:**
+
 - Shows a clear configuration banner when price IDs are missing/invalid
 - Provides specific instructions on which environment variables to set
 - References the setup documentation (`docs/STRIPE_QUICK_START.md`)
 - Displays helpful error messages that indicate exactly what's misconfigured
 
 **Production Mode:**
+
 - Maintains the generic "contact support" message to avoid exposing configuration details
 
 ### 3. Better Error Messages (`src/app/api/stripe/create-checkout-session/route.ts`)
 
 Enhanced the checkout session creation endpoint to:
+
 - Detect invalid price IDs server-side
 - Return detailed error messages in development
 - Maintain security by keeping generic messages in production
@@ -64,18 +71,21 @@ Enhanced the checkout session creation endpoint to:
 ### Validation Criteria
 
 A price ID is considered **valid** if it:
+
 - Is not empty
 - Does not contain placeholder text (`your_monthly_price_id`, `your_annual_price_id`)
 - Starts with `price_` (Stripe's price ID prefix)
 - Is longer than 10 characters
 
 ### Example Valid Price IDs
+
 ```
 price_1QLhDEKlABCDEFGHIJKLMNOP  ✓
 price_1234567890abc             ✓
 ```
 
 ### Example Invalid Price IDs
+
 ```
                                 ✗ (empty)
 price_your_monthly_price_id     ✗ (placeholder)
@@ -106,8 +116,8 @@ NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_your_actual_monthly_id
 NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_your_actual_annual_id
 
 # Also set server-side variables
-STRIPE_MONTHLY_PRICE_ID=price_your_actual_monthly_id
-STRIPE_ANNUAL_PRICE_ID=price_your_actual_annual_id
+NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_your_actual_monthly_id
+NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_your_actual_annual_id
 ```
 
 ### 3. Restart the Application
@@ -133,15 +143,15 @@ yarn dev
 The validation functions can be tested independently:
 
 ```javascript
-import { isValidPriceId } from '@/lib/stripe-config';
+import { isValidPriceId } from "@/lib/stripe-config";
 
 // Should return false
-isValidPriceId('');
-isValidPriceId('price_your_monthly_price_id');
-isValidPriceId('invalid_prefix');
+isValidPriceId("");
+isValidPriceId("price_your_monthly_price_id");
+isValidPriceId("invalid_prefix");
 
 // Should return true
-isValidPriceId('price_1QLhDEKlABCDEFGHIJKLMNOP');
+isValidPriceId("price_1QLhDEKlABCDEFGHIJKLMNOP");
 ```
 
 ### Test the User Experience
