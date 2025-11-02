@@ -60,8 +60,8 @@ To fix this issue:
 1. Go to your Stripe Dashboard: https://dashboard.stripe.com/test/products
 2. Create or locate your subscription products and copy the Price IDs
 3. Update the following environment variables:
-   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
-   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
+   - STRIPE_MONTHLY_PRICE_ID
+   - STRIPE_ANNUAL_PRICE_ID
    - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
    - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
 
