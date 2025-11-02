@@ -235,7 +235,7 @@ export default function HomePageContent() {
               onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
               onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
             >
-              Chat Support <QuestionAnswerIcon sx={{ color: "#181b38ff" }} />
+              Chat Support <QuestionAnswerIcon sx={{ color: "var(--text-secondary)" }} />
             </Link>
           </div>
           <div>
@@ -246,7 +246,7 @@ export default function HomePageContent() {
                 fontWeight: 400,
               }}
             >
-              &copy; {new Date().getFullYear()} Athletic Directors Hub. All rights reserved.
+              &copy; {new Date().getFullYear()} Athletic Director Hub. All rights reserved.
             </span>
           </div>
         </footer>
