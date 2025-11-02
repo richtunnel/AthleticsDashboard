@@ -191,7 +191,7 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
-type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | `custom:${string}`;
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | `custom:${string}`;
 
 interface InlineEditState {
   gameId: string;
@@ -865,6 +865,12 @@ export function GamesTable() {
           case "notes":
             currentValue = game.notes || "";
             break;
+          case "sport":
+            currentValue = game.homeTeam.sport.name;
+            break;
+          case "level":
+            currentValue = game.homeTeam.level;
+            break;
         }
       }
 
@@ -958,6 +964,75 @@ export function GamesTable() {
         } else if (inlineEditState.field === "notes") {
           // Enforce character limit
           updateData.notes = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
+        } else if (inlineEditState.field === "sport" || inlineEditState.field === "level") {
+          // Handle sport or level change - need to find or create matching team
+          const newSport = inlineEditState.field === "sport" ? inlineEditValue : game.homeTeam.sport.name;
+          const newLevel = inlineEditState.field === "level" ? inlineEditValue : game.homeTeam.level;
+
+          if (!newSport || !newLevel) {
+            addNotification("Sport and level are required", "error");
+            setIsInlineSaving(false);
+            return;
+          }
+
+          // Find matching team
+          let matchingTeam = teams.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
+
+          if (!matchingTeam) {
+            // Create team if it doesn't exist
+            try {
+              // First, ensure sport exists
+              const sportRes = await fetch("/api/sports", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: newSport,
+                  season: "FALL",
+                }),
+              });
+
+              let sportData;
+              if (sportRes.ok) {
+                sportData = await sportRes.json();
+              } else {
+                const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(newSport)}`);
+                if (existingSportRes.ok) {
+                  sportData = await existingSportRes.json();
+                } else {
+                  throw new Error("Failed to create or find sport");
+                }
+              }
+
+              const sportId = sportData.data?.id || sportData.id;
+
+              // Create team
+              const teamRes = await fetch("/api/teams", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  name: `${newSport} ${newLevel}`,
+                  sportId,
+                  level: newLevel,
+                }),
+              });
+
+              if (!teamRes.ok) {
+                const error = await teamRes.json();
+                throw new Error(error.error || "Failed to create team");
+              }
+
+              const teamData = await teamRes.json();
+              matchingTeam = teamData.data;
+
+              await queryClient.invalidateQueries({ queryKey: ["teams"] });
+            } catch (createError: any) {
+              addNotification(`Error creating team: ${createError.message}`, "error");
+              setIsInlineSaving(false);
+              return;
+            }
+          }
+
+          updateData.homeTeamId = matchingTeam.id;
         } else if (inlineEditState.field.startsWith("custom:")) {
           // Handle custom column editing
           const columnId = inlineEditState.field.replace("custom:", "");
@@ -993,7 +1068,7 @@ export function GamesTable() {
         setIsInlineSaving(false);
       }
     },
-    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents]
+    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents, teams]
   );
 
   const handleInlineKeyDown = useCallback(
@@ -2352,18 +2427,106 @@ export function GamesTable() {
           </TableCell>
         );
       }
-      case "sport":
+      case "sport": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "sport";
         return (
-          <TableCell key="sport" sx={{ fontSize: 13, py: 2 }}>
-            {game.homeTeam.sport.name}
+          <TableCell
+            key="sport"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "sport")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <Select
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%", fontSize: 13 }}
+                >
+                  {uniqueSports.map((sport: string) => (
+                    <MenuItem key={sport} value={sport}>
+                      {sport}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {game.homeTeam.sport.name}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "sport" && <CircularProgress size={12} />}
+              </Box>
+            )}
           </TableCell>
         );
-      case "level":
+      }
+      case "level": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "level";
+        const currentSport = inlineEditState?.gameId === game.id && inlineEditState.field === "sport" ? inlineEditValue : game.homeTeam.sport.name;
+        const levelsForCurrentSport = getLevelsForSport(currentSport);
         return (
-          <TableCell key="level" sx={{ fontSize: 13, py: 2 }}>
-            {game.homeTeam.level}
+          <TableCell
+            key="level"
+            sx={{
+              fontSize: 13,
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "level")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <Select
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%", fontSize: 13 }}
+                >
+                  {levelsForCurrentSport.map((level: string) => (
+                    <MenuItem key={level} value={level}>
+                      {level}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {game.homeTeam.level}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "level" && <CircularProgress size={12} />}
+              </Box>
+            )}
           </TableCell>
         );
+      }
       case "opponent": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
         return (
