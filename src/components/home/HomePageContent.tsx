@@ -50,7 +50,7 @@ export default function HomePageContent() {
 
           <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/athleticdirectorhub"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -66,7 +66,7 @@ export default function HomePageContent() {
               <FaInstagram />
             </a>
             <a
-              href="https://facebook.com"
+              href="https://facebook.com/athleticdirectorhub"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -82,7 +82,7 @@ export default function HomePageContent() {
               <FaFacebook />
             </a>
             <a
-              href="https://x.com"
+              href="https://x.com/athleticdirectorhub"
               target="_blank"
               rel="noopener noreferrer"
               style={{
