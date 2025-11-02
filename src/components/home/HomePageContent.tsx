@@ -36,8 +36,8 @@ export default function HomePageContent() {
   };
 
   return (
-    <div className="grid h-screen grid-cols-[1fr_1.2fr] text-left">
-      <div className="relative h-full">
+    <div className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left">
+      <div className="relative h-full lg:block hidden">
         <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
       </div>
 
@@ -100,15 +100,15 @@ export default function HomePageContent() {
           </div>
         </div>
 
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center px-4">
           <div className={styles.homePageContentContainer}>
-            <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
+            <h3 className="text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
               Athletic <br /> Directors Hub
             </h3>
             <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
               A smart spreadsheet allowing athletic directors to automate, process and manage athletic schedules with ease.
             </p>
-            <div className="d-flex flex content-center items-center gap-4">
+            <div className="flex flex-col sm:flex-row content-center items-center gap-4">
               <AuthActionButton
                 onClick={handleSignIn}
                 loading={signInAuth.loading}
@@ -157,14 +157,14 @@ export default function HomePageContent() {
 
         <footer
           style={{
-            padding: "1.5rem 2rem",
+            padding: "1.5rem 1rem",
             display: "flex",
             flexDirection: "column",
             gap: "1rem",
             alignItems: "center",
           }}
         >
-          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
             <Link
               href="/about"
               target="_blank"
