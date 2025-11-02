@@ -59,7 +59,7 @@ export default function TermsPage() {
         </Typography>
         <Typography variant="body1" paragraph>
           You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account. Notify us immediately at{" "}
-          <Link href="mailto:support@athleticsdashboard.com">support@athleticsdashboard.com</Link> if you suspect unauthorized access.
+          <Link href="mailto:support@athleticdirectorhub.com">support@athleticdirectorhub.com</Link> if you suspect unauthorized access.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
@@ -98,7 +98,7 @@ export default function TermsPage() {
           10. Contact Us
         </Typography>
         <Typography variant="body1" paragraph>
-          For questions or concerns about these Terms, please contact us at <Link href="mailto:support@athleticsdashboard.com">support@athleticsdashboard.com</Link>.
+          For questions or concerns about these Terms, please contact us at <Link href="mailto:support@athleticdirectorhub.com">support@athleticdirectorhub.com</Link>.
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 4 }}>
