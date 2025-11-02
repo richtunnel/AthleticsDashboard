@@ -2877,45 +2877,45 @@ export function GamesTable() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Box sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" } }}>
             Games Schedule
           </Typography>
-          <Typography variant="body2" color="text.primary">
+          <Typography variant="body2" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
             {activeFilterCount > 0 && (
               <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1, color: "#000" }} onDelete={() => setColumnFilters({})} />
             )}
           </Typography>
-          <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap" }}>
-            <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 1 }}>
+            <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
-            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} sx={{ textTransform: "none" }}>
+            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
               Columns
             </Button>
-            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} sx={{ textTransform: "none" }}>
+            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Custom Columns ({customColumns.length})
             </Button>
             {hiddenColumnCount > 0 && (
-              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none" }}>
+              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
                 Show all columns ({hiddenColumnCount} hidden)
               </Button>
             )}
             {selectedGames.size > 0 && (
               <>
-                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-                  Send Email ({selectedGames.size})
+                <Button variant="contained" color="primary" startIcon={<GradientSendIcon />} onClick={handleSendEmail} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                  Send ({selectedGames.size})
                 </Button>
-                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} sx={{ textTransform: "none" }}>
+                <Button variant="outlined" color="primary" startIcon={<ContentCopy />} onClick={handleCopySelectedRows} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
                   Copy ({selectedGames.size})
                 </Button>
               </>
             )}
           </Stack>
         </Box>
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
           {selectedGames.size > 0 && (
             <>
               {/* Delete Button */}
@@ -2924,6 +2924,7 @@ export function GamesTable() {
                 startIcon={!bulkDeleteMutation.isPending && <DeleteOutline />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
+                size="small"
                 sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete (${selectedGames.size})`}
@@ -2931,12 +2932,12 @@ export function GamesTable() {
             </>
           )}
           <Tooltip title="Import games from CSV">
-            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} sx={{ textTransform: "none" }}>
+            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} size="small" sx={{ textTransform: "none" }}>
               Import
             </Button>
           </Tooltip>
           <Tooltip title="Export displayed games to CSV">
-            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} sx={{ textTransform: "none" }}>
+            <Button variant="outlined" startIcon={<Download />} onClick={handleExport} disabled={games.length === 0} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Export ({games.length})
             </Button>
           </Tooltip>
