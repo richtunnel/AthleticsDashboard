@@ -96,24 +96,6 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           textTransform: "none",
           fontWeight: 600,
           letterSpacing: 0.2,
-          minHeight: 44,
-          paddingBlock: theme.spacing(1.25),
-          paddingInline: theme.spacing(2.5),
-        },
-        sizeSmall: {
-          minHeight: 36,
-          paddingBlock: theme.spacing(0.75),
-          paddingInline: theme.spacing(1.5),
-        },
-        sizeMedium: {
-          minHeight: 44,
-          paddingBlock: theme.spacing(1.25),
-          paddingInline: theme.spacing(2.5),
-        },
-        sizeLarge: {
-          minHeight: 48,
-          paddingBlock: theme.spacing(1.5),
-          paddingInline: theme.spacing(3),
         },
         contained: {
           boxShadow: "none",
@@ -172,7 +154,6 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         root: {
           borderRadius: 8,
           fontWeight: 500,
-          minHeight: 36,
         },
         filled: {
           backgroundColor: alpha(primaryMain, 0.12),
@@ -250,16 +231,11 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         root: {
           borderRadius: 12,
           backgroundColor: "#FFFFFF",
-          minHeight: 44,
           "& input": {
             fontSize: "0.95rem",
-            paddingBlock: theme.spacing(1.5),
-            paddingInline: theme.spacing(1.75),
           },
           "& textarea": {
             fontSize: "0.95rem",
-            paddingBlock: theme.spacing(1.5),
-            paddingInline: theme.spacing(1.75),
           },
           "& fieldset": {
             borderColor: alpha(theme.palette.text.secondary, 0.18),
@@ -271,9 +247,6 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
             borderColor: primaryMain,
             borderWidth: 1.5,
           },
-        },
-        input: {
-          minHeight: 24,
         },
       },
     },
