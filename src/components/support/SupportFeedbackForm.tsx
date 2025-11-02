@@ -16,6 +16,7 @@ import {
 
 interface FormData {
   name: string;
+  email: string;
   subject: string;
   description: string;
 }
@@ -23,18 +24,22 @@ interface FormData {
 interface SupportFeedbackFormProps {
   mode: "support" | "feedback";
   userName?: string;
+  userEmail?: string;
   ticketNumber?: string;
   initialSubject?: string;
   initialDescription?: string;
+  isPublic?: boolean;
   onSuccess?: () => void;
 }
 
 export function SupportFeedbackForm({
   mode,
   userName,
+  userEmail,
   ticketNumber,
   initialSubject = "",
   initialDescription = "",
+  isPublic = false,
   onSuccess,
 }: SupportFeedbackFormProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -47,6 +52,7 @@ export function SupportFeedbackForm({
   } = useForm<FormData>({
     defaultValues: {
       name: userName || "",
+      email: userEmail || "",
       subject: initialSubject,
       description: initialDescription,
     },
@@ -56,10 +62,11 @@ export function SupportFeedbackForm({
   useEffect(() => {
     reset({
       name: userName || "",
+      email: userEmail || "",
       subject: initialSubject,
       description: initialDescription,
     });
-  }, [userName, initialSubject, initialDescription, reset]);
+  }, [userName, userEmail, initialSubject, initialDescription, reset]);
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -90,6 +97,7 @@ export function SupportFeedbackForm({
         payload = {
           subject: data.subject,
           message: data.description,
+          ...(isPublic && { name: data.name, email: data.email }),
         };
       }
 
@@ -115,6 +123,7 @@ export function SupportFeedbackForm({
         setSuccessMessage("Thank you for your feedback!");
         reset({
           name: userName || "",
+          email: userEmail || "",
           subject: "",
           description: "",
         });
@@ -133,16 +142,44 @@ export function SupportFeedbackForm({
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Name Field - Read Only */}
+            {/* Name Field */}
             <TextField
               label="Name"
-              {...register("name")}
+              {...register("name", {
+                ...(isPublic && {
+                  required: "Name is required",
+                  minLength: {
+                    value: 2,
+                    message: "Name must be at least 2 characters",
+                  },
+                }),
+              })}
               fullWidth
-              disabled
+              disabled={!isPublic}
               InputProps={{
-                readOnly: true,
+                readOnly: !isPublic,
               }}
+              error={!!errors.name}
+              helperText={errors.name?.message}
             />
+
+            {/* Email Field - Only show for public users */}
+            {isPublic && (
+              <TextField
+                label="Email"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                })}
+                fullWidth
+                type="email"
+                error={!!errors.email}
+                helperText={errors.email?.message}
+              />
+            )}
 
             {/* Subject Field */}
             <TextField
