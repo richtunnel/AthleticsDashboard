@@ -65,9 +65,12 @@ export async function POST(req: NextRequest) {
 
     if (!planType) {
       console.error("Attempted to create checkout session with unknown price ID", priceId);
+      const isDevelopment = process.env.NODE_ENV !== "production";
       return NextResponse.json(
         {
-          error: "Unsupported price. Please contact support.",
+          error: isDevelopment
+            ? `Invalid price ID: ${priceId}. Please verify that STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
+            : "Unsupported price. Please contact support.",
         },
         { status: 400 }
       );
