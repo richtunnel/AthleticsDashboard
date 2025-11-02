@@ -172,7 +172,7 @@ export default function HomePageContent() {
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
-                fontWeight: 500,
+                fontWeight: 400,
                 textDecoration: "none",
                 transition: "color 0.2s ease",
               }}
@@ -188,7 +188,7 @@ export default function HomePageContent() {
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
-                fontWeight: 500,
+                fontWeight: 400,
                 textDecoration: "none",
                 transition: "color 0.2s ease",
               }}
@@ -204,7 +204,7 @@ export default function HomePageContent() {
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
-                fontWeight: 500,
+                fontWeight: 400,
                 textDecoration: "none",
                 transition: "color 0.2s ease",
               }}
@@ -218,7 +218,7 @@ export default function HomePageContent() {
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
-                fontWeight: 500,
+                fontWeight: 400,
                 textDecoration: "none",
                 transition: "color 0.2s ease",
               }}
