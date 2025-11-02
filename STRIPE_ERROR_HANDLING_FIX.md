@@ -10,6 +10,7 @@ POST /api/stripe/create-checkout-session 500
 ```
 
 This occurred when:
+
 1. The price ID configured in environment variables doesn't exist in the Stripe account
 2. The environment is using test mode keys but price IDs from a different Stripe account
 3. The price IDs were deleted from Stripe after being configured
@@ -43,6 +44,7 @@ try {
 ### 2. Enhanced Error Messages
 
 The error messages now:
+
 - Show the exact price ID that's missing
 - Indicate whether the app is in test or live mode
 - Provide direct links to the appropriate Stripe Dashboard
@@ -50,6 +52,7 @@ The error messages now:
 - Reference the setup documentation (`docs/STRIPE_QUICK_START.md`)
 
 **Development Mode Example:**
+
 ```
 The Stripe price ID "price_1SOxlkPoFQ98Rxs6M7QvtUhM" does not exist in your test Stripe account.
 
@@ -57,8 +60,8 @@ To fix this issue:
 1. Go to your Stripe Dashboard: https://dashboard.stripe.com/test/products
 2. Create or locate your subscription products and copy the Price IDs
 3. Update the following environment variables:
-   - STRIPE_MONTHLY_PRICE_ID
-   - STRIPE_ANNUAL_PRICE_ID
+   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
+   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
    - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID
    - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID
 
@@ -68,6 +71,7 @@ See docs/STRIPE_QUICK_START.md for detailed setup instructions.
 ```
 
 **Production Mode:**
+
 ```
 This subscription plan is not currently available. Please contact support for assistance.
 ```
@@ -111,8 +115,9 @@ Changed the response status from **500 (Internal Server Error)** to **400 (Bad R
 To test the fix:
 
 1. Set an invalid price ID in your environment:
+
    ```bash
-   STRIPE_MONTHLY_PRICE_ID=price_invalid_test_id
+   NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_invalid_test_id
    ```
 
 2. Attempt to create a checkout session by selecting a plan on `/onboarding/plans`
