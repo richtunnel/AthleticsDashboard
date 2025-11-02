@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "../../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
+import { FaInstagram, FaFacebook } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 
@@ -39,19 +41,19 @@ export default function HomePageContent() {
         <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
       </div>
 
-      <div>
+      <div className="flex flex-col h-full">
         <div className={styles.homeHeaderContainer}>
           <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
             adhub
             <VscGithubProject />
           </Link>
 
-          <Link href="/" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
+          <Link href="/dashboard/feedback" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
             Need Help?
           </Link>
         </div>
 
-        <div className="flex h-full items-center justify-center">
+        <div className="flex flex-1 items-center justify-center">
           <div className={styles.homePageContentContainer}>
             <h3 className="text-5xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>
               Athletic <br /> Directors Hub
@@ -105,105 +107,122 @@ export default function HomePageContent() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      {/* <footer
-        style={{
-          backgroundColor: "var(--background, #fff)",
-          borderTop: "1px solid var(--border, #e0e0e0)",
-          padding: "1.5rem 2rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-          <Link
-            href="/terms"
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              textDecoration: "none",
-              transition: "color 0.2s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-          >
-            Terms
-          </Link>
-          <Link
-            href="/policy"
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              textDecoration: "none",
-              transition: "color 0.2s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-          >
-            Policy
-          </Link>
-          <Link
-            href="/company"
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              textDecoration: "none",
-              transition: "color 0.2s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-          >
-            Company
-          </Link>
-          <Link
-            href="/waitlist"
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              textDecoration: "none",
-              transition: "color 0.2s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-          >
-            Waitlist
-          </Link>
-          <Link
-            href="/contact"
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              textDecoration: "none",
-              transition: "color 0.2s ease",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-          >
-            Contact Us
-          </Link>
-        </div>
-        <div>
-          <span
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "0.875rem",
-              fontWeight: 400,
-            }}
-          >
-            &copy; 2025 Athletics Directors Hub. All rights reserved.
-          </span>
-        </div>
-      </footer> */}
+        <footer
+          style={{
+            padding: "1.5rem 2rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+          }}
+        >
+          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
+            <Link
+              href="/about"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                textDecoration: "none",
+                transition: "color 0.2s ease",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              About Us
+            </Link>
+            <Link
+              href="/terms"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                textDecoration: "none",
+                transition: "color 0.2s ease",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                textDecoration: "none",
+                transition: "color 0.2s ease",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              Privacy
+            </Link>
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+              <a
+                href="https://instagram.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--text-secondary)",
+                  fontSize: "1.25rem",
+                  transition: "color 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+              >
+                <FaInstagram />
+              </a>
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--text-secondary)",
+                  fontSize: "1.25rem",
+                  transition: "color 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+              >
+                <FaFacebook />
+              </a>
+              <a
+                href="https://x.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "var(--text-secondary)",
+                  fontSize: "1.25rem",
+                  transition: "color 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+              >
+                <FaXTwitter />
+              </a>
+            </div>
+          </div>
+          <div>
+            <span
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.75rem",
+                fontWeight: 400,
+              }}
+            >
+              &copy; {new Date().getFullYear()} Athletic Directors Hub. All rights reserved.
+            </span>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
