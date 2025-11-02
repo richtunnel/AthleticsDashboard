@@ -4,13 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionSchema } from "@/lib/validations/subscription";
-import { 
-  getTestModeMetadata, 
-  logTestModeInfo, 
-  getTestModeCheckoutOptions,
-  getTrialPeriodDays,
-  getStripeConfig 
-} from "@/lib/stripe-config";
+import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -27,25 +21,16 @@ export async function POST(req: NextRequest) {
     const validationResult = createCheckoutSessionSchema.safeParse(body);
 
     if (!validationResult.success) {
-      return NextResponse.json(
-        { error: "Invalid request", details: validationResult.error.format() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid request", details: validationResult.error.format() }, { status: 400 });
     }
 
     const { planType } = validationResult.data;
 
-    const priceId =
-      planType === "MONTHLY"
-        ? process.env.STRIPE_MONTHLY_PRICE_ID
-        : process.env.STRIPE_ANNUAL_PRICE_ID;
+    const priceId = planType === "MONTHLY" ? process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID : process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 
     if (!priceId) {
       console.error(`Missing price ID for plan type: ${planType}`);
-      return NextResponse.json(
-        { error: "Subscription plan configuration error. Please contact support." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Subscription plan configuration error. Please contact support." }, { status: 500 });
     }
 
     const user = await prisma.user.findUnique({
@@ -74,17 +59,17 @@ export async function POST(req: NextRequest) {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
         console.error(`Stripe price validation failed: ${priceId}`, priceError);
-        
+
         return NextResponse.json(
           {
             error: isDevelopment
-              ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? 'test' : 'live'} Stripe account.\n\n` +
+              ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? "test" : "live"} Stripe account.\n\n` +
                 `To fix this issue:\n` +
-                `1. Go to your Stripe Dashboard: ${config.isTestMode ? 'https://dashboard.stripe.com/test/products' : 'https://dashboard.stripe.com/products'}\n` +
+                `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
                 `3. Update the following environment variables:\n` +
-                `   - STRIPE_MONTHLY_PRICE_ID\n` +
-                `   - STRIPE_ANNUAL_PRICE_ID\n\n` +
+                `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
+                `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n\n` +
                 `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
                 `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
@@ -183,33 +168,30 @@ export async function POST(req: NextRequest) {
 
     let checkoutSession;
     try {
-      checkoutSession = await stripe.checkout.sessions.create(
-        checkoutSessionParams,
-        {
-          idempotencyKey,
-        }
-      );
+      checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams, {
+        idempotencyKey,
+      });
     } catch (stripeError: any) {
       // Handle Stripe-specific errors with better messages
       if (stripeError.type === "StripeInvalidRequestError" && stripeError.code === "resource_missing") {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
         console.error(`Stripe price not found: ${priceId}`, stripeError);
-        
+
         return NextResponse.json(
           {
             error: isDevelopment
               ? `The Stripe price ID "${priceId}" does not exist in your Stripe account. Please verify your Stripe configuration:\n\n` +
-                `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? 'https://dashboard.stripe.com/test/products' : 'https://dashboard.stripe.com/products'})\n` +
-                `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? 'test mode' : 'live mode'})\n` +
-                `3. Update STRIPE_MONTHLY_PRICE_ID and STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
+                `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"})\n` +
+                `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? "test mode" : "live mode"})\n` +
+                `3. Update NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
           },
           { status: 400 }
         );
       }
-      
+
       // Re-throw other Stripe errors to be handled by the outer catch
       throw stripeError;
     }

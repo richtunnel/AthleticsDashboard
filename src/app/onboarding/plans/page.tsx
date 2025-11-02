@@ -179,9 +179,7 @@ function PricingPlansContent() {
 
     if (!priceId || !isValidPriceId(priceId)) {
       if (isDevelopment) {
-        setError(
-          `Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${billing === "monthly" ? "MONTHLY" : "ANNUAL"}_PRICE_ID in your .env.local file.`
-        );
+        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${billing === "monthly" ? "MONTHLY" : "ANNUAL"}_PRICE_ID in your .env.local file.`);
       } else {
         setError("This plan is not currently available. Please contact support.");
       }
@@ -251,11 +249,7 @@ function PricingPlansContent() {
         </Box>
 
         {!priceConfigured && isDevelopment && (
-          <Alert
-            severity="error"
-            icon={<SettingsIcon />}
-            sx={{ mt: 3, mb: 3, maxWidth: 800, mx: "auto" }}
-          >
+          <Alert severity="error" icon={<SettingsIcon />} sx={{ mt: 3, mb: 3, maxWidth: 800, mx: "auto" }}>
             <Typography variant="body2" fontWeight={600} gutterBottom>
               Stripe Price IDs Not Configured
             </Typography>
