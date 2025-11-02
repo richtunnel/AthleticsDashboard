@@ -69,8 +69,11 @@ export async function POST(request: Request) {
 
   // If sendNow is true, send the email immediately
   if (sendNow && groupId) {
-    const group = await prisma.emailGroup.findUnique({
-      where: { id: groupId },
+    const group = await prisma.emailGroup.findFirst({
+      where: { 
+        id: groupId,
+        organizationId: organization.id
+      },
       include: { emails: true },
     });
 
