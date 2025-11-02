@@ -66,17 +66,17 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   return (
     <>
-      <Box sx={{ px: 3, pb: 3, pt: 0 }}>
-        <Typography sx={{ mb: 1 }} variant="h5">
+      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+        <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
           Settings
         </Typography>
 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
               Google Calendar Integration
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
               Connect your Google Calendar to automatically sync games and events.
             </Typography>
             <ConnectCalendarButton isConnected={isCalendarConnected} />
@@ -95,14 +95,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         userPlan={user.plan}
         checkoutStatus={checkoutStatus}
       />
-      <Box sx={{ p: 3 }}>
-        <Typography sx={{ mb: 1 }} variant="h5">
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
           Account Details
         </Typography>
 
         <AccountDetailsForm user={user} />
       </Box>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
       </Box>
     </>

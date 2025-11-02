@@ -258,7 +258,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }}
           >
             {/* Drawer Toggle (Mobile) */}
-            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ display: { sm: "none" }, color: "text.primary" }}>
+            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ display: { sm: "none" }, color: "text.primary", mr: 1 }}>
               <MenuIcon />
             </IconButton>
 
@@ -333,16 +333,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
           {/* Google Calendar Button */}
           <Tooltip title={calendarTooltip}>
-            <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: 1 }} color="default" aria-label="Open Google Calendar">
+            <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: { xs: 0.5, sm: 1 } }} color="default" aria-label="Open Google Calendar">
               <CalendarMonth />
             </IconButton>
           </Tooltip>
 
           {/* Referral Share Button */}
-          <ReferralShareButton />
+          <Box sx={{ display: { xs: "none", sm: "block" } }}>
+            <ReferralShareButton />
+          </Box>
 
           {/* Notifications */}
-          <IconButton onClick={handleNotificationClick} sx={{ mr: 2 }} color="default">
+          <IconButton onClick={handleNotificationClick} sx={{ mr: { xs: 0.5, sm: 2 } }} color="default">
             <Badge badgeContent={unreadCount} color="error">
               <Notifications />
             </Badge>
@@ -356,7 +358,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
           >
-            <Paper sx={{ width: 380, maxHeight: 500 }}>
+            <Paper sx={{ width: { xs: "calc(100vw - 32px)", sm: 380 }, maxWidth: 380, maxHeight: 500 }}>
               <Box
                 sx={{
                   p: 2,
@@ -542,7 +544,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }}
       >
         <Toolbar />
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
           {children}
         </Container>
       </Box>
