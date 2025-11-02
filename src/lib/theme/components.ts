@@ -54,8 +54,14 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           borderRadius: 10,
           paddingBlock: theme.spacing(1),
           paddingInline: theme.spacing(2),
+          minHeight: 44,
           color: theme.palette.text.secondary,
           transition: "all 0.2s ease",
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(2.5),
+          },
           "&:hover": {
             backgroundColor: hoverOverlay,
             color: theme.palette.text.primary,
@@ -95,6 +101,46 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           textTransform: "none",
           fontWeight: 600,
           letterSpacing: 0.2,
+          minHeight: 44,
+          paddingBlock: theme.spacing(1.25),
+          paddingInline: theme.spacing(2.5),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(3),
+            fontSize: "1rem",
+          },
+        },
+        sizeSmall: {
+          minHeight: 36,
+          paddingBlock: theme.spacing(0.75),
+          paddingInline: theme.spacing(1.5),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 44,
+            paddingBlock: theme.spacing(1.25),
+            paddingInline: theme.spacing(2),
+          },
+        },
+        sizeMedium: {
+          minHeight: 44,
+          paddingBlock: theme.spacing(1.25),
+          paddingInline: theme.spacing(2.5),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(3),
+          },
+        },
+        sizeLarge: {
+          minHeight: 48,
+          paddingBlock: theme.spacing(1.5),
+          paddingInline: theme.spacing(3),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 52,
+            paddingBlock: theme.spacing(1.75),
+            paddingInline: theme.spacing(3.5),
+            fontSize: "1.0625rem",
+          },
         },
         contained: {
           boxShadow: "none",
@@ -123,9 +169,47 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           borderRadius: 10,
           color: theme.palette.text.secondary,
           transition: "all 0.2s ease",
+          minWidth: 44,
+          minHeight: 44,
+          padding: theme.spacing(1),
+          [theme.breakpoints.down("sm")]: {
+            minWidth: 48,
+            minHeight: 48,
+            padding: theme.spacing(1.5),
+          },
           "&:hover": {
             backgroundColor: hoverOverlay,
             color: theme.palette.text.primary,
+          },
+        },
+        sizeSmall: {
+          minWidth: 36,
+          minHeight: 36,
+          padding: theme.spacing(0.75),
+          [theme.breakpoints.down("sm")]: {
+            minWidth: 44,
+            minHeight: 44,
+            padding: theme.spacing(1.25),
+          },
+        },
+        sizeMedium: {
+          minWidth: 44,
+          minHeight: 44,
+          padding: theme.spacing(1),
+          [theme.breakpoints.down("sm")]: {
+            minWidth: 48,
+            minHeight: 48,
+            padding: theme.spacing(1.5),
+          },
+        },
+        sizeLarge: {
+          minWidth: 48,
+          minHeight: 48,
+          padding: theme.spacing(1.5),
+          [theme.breakpoints.down("sm")]: {
+            minWidth: 52,
+            minHeight: 52,
+            padding: theme.spacing(1.75),
           },
         },
       },
@@ -135,9 +219,44 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         root: {
           borderRadius: 8,
           fontWeight: 500,
+          minHeight: 36,
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 40,
+            fontSize: "0.9375rem",
+          },
         },
         filled: {
           backgroundColor: alpha(primaryMain, 0.12),
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          minHeight: 24,
+          paddingBlock: theme.spacing(1.5),
+          paddingInline: theme.spacing(1.75),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 28,
+            paddingBlock: theme.spacing(1.75),
+            paddingInline: theme.spacing(2),
+            fontSize: "1rem",
+          },
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          minHeight: 44,
+          paddingBlock: theme.spacing(1.25),
+          paddingInline: theme.spacing(2),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(2.5),
+            fontSize: "1rem",
+          },
         },
       },
     },
@@ -194,8 +313,27 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         root: {
           borderRadius: 12,
           backgroundColor: "#FFFFFF",
+          minHeight: 44,
           "& input": {
             fontSize: "0.95rem",
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(1.75),
+            [theme.breakpoints.down("sm")]: {
+              fontSize: "1rem",
+              paddingBlock: theme.spacing(1.75),
+              paddingInline: theme.spacing(2),
+              minHeight: 48,
+            },
+          },
+          "& textarea": {
+            fontSize: "0.95rem",
+            paddingBlock: theme.spacing(1.5),
+            paddingInline: theme.spacing(1.75),
+            [theme.breakpoints.down("sm")]: {
+              fontSize: "1rem",
+              paddingBlock: theme.spacing(1.75),
+              paddingInline: theme.spacing(2),
+            },
           },
           "& fieldset": {
             borderColor: alpha(theme.palette.text.secondary, 0.18),
@@ -206,6 +344,15 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           "&.Mui-focused fieldset": {
             borderColor: primaryMain,
             borderWidth: 1.5,
+          },
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+          },
+        },
+        input: {
+          minHeight: 24,
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 28,
           },
         },
       },
@@ -290,6 +437,16 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           textTransform: "none",
           minHeight: 42,
           fontWeight: 500,
+          minWidth: 44,
+          paddingBlock: theme.spacing(1.5),
+          paddingInline: theme.spacing(2),
+          [theme.breakpoints.down("sm")]: {
+            minHeight: 48,
+            minWidth: 48,
+            paddingBlock: theme.spacing(1.75),
+            paddingInline: theme.spacing(2.5),
+            fontSize: "0.9375rem",
+          },
         },
       },
     },
