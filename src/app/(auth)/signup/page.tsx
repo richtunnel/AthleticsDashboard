@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { Suspense, useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
 import { Google } from "@mui/icons-material";
@@ -12,6 +12,7 @@ import { AuthActionButton } from "@/components/auth/AuthActionButton";
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -22,6 +23,12 @@ function SignupForm() {
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const referrerEmail = searchParams.get("ref") ? decodeURIComponent(searchParams.get("ref")!) : null;
+
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.push(callbackUrl);
+    }
+  }, [status, session, router, callbackUrl]);
 
   const googleAuth = useAuthButton({
     callbackUrl,
