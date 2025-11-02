@@ -112,7 +112,7 @@ export default function HomePageContent() {
 
         <div className="flex flex-1 items-center justify-center px-4">
           <div className={styles.homePageContentContainer}>
-            <h3 className="text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
+            <h3 className="HomePageTitle text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
               Athletic <br /> Directors Hub
             </h3>
             <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
@@ -122,6 +122,7 @@ export default function HomePageContent() {
               <AuthActionButton
                 onClick={handleSignIn}
                 loading={signInAuth.loading}
+                classname={styles.signInButton}
                 disabled={getStartedAuth.loading}
                 variant="contained"
                 sx={{
@@ -132,6 +133,7 @@ export default function HomePageContent() {
                   borderRadius: "0.75rem",
                   px: 4,
                   py: 1.5,
+                  fontSize: "1.05rem",
                   transition: "transform 0.2s ease",
                   "&:hover": {
                     transform: "translateY(-2px)",

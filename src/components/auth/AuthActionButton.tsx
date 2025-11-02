@@ -12,6 +12,7 @@ interface AuthActionButtonProps {
   variant?: "text" | "outlined" | "contained";
   color?: "inherit" | "primary" | "secondary" | "success" | "error" | "info" | "warning";
   size?: "small" | "medium" | "large";
+  classname?: string;
   fullWidth?: boolean;
   type?: "button" | "submit" | "reset";
   sx?: SxProps<Theme>;
@@ -22,6 +23,7 @@ export function AuthActionButton({
   loading = false,
   disabled = false,
   onClick,
+  classname,
   children,
   startIcon,
   endIcon,
@@ -37,6 +39,7 @@ export function AuthActionButton({
 
   return (
     <Button
+      className={classname}
       variant={variant}
       color={color}
       size={size}

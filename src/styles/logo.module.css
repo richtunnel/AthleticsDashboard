@@ -33,7 +33,7 @@
   padding: 0px 40px;
 }
 
-@media all and (max-width: 767px) {
+@media all and (max-width: 768px) {
   .homeHeaderContainer {
     padding: 16px;
     gap: 12px;
@@ -45,8 +45,16 @@
     padding: 0px 20px;
   }
 
+  .signInButton {
+    width: 100% !important;
+  }
+
+  .homePageContentContainer h3 {
+    font-size: 3rem !important;
+  }
+
   .ad-hub-logo {
-    font-size: 1.25rem;
+    font-size: 1.85rem !important;
   }
 }
 
@@ -57,6 +65,7 @@
 
   .homePageContentContainer {
     top: 0px;
+    text-align: center !important;
   }
 }
 
