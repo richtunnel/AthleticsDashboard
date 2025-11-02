@@ -2,11 +2,12 @@
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Box, Paper, Typography, TextField, Button, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Alert, CircularProgress, Divider, Chip } from "@mui/material";
 import { ArrowBack, Send } from "@mui/icons-material";
 import { format } from "date-fns";
-import { BulkEmailDropdown } from "./BulkEmailDropdown";
+import { fetchEmailGroups } from "@/lib/api/emailGroups";
+import type { EmailGroup } from "./types";
 
 interface Game {
   id: string;
@@ -32,13 +33,12 @@ interface Game {
   notes?: string;
 }
 
-const RECIPIENT_CATEGORIES = [
+const STATIC_RECIPIENT_CATEGORIES = [
   { value: "parents", label: "Parents/Guardians" },
   { value: "opponent", label: "Opponent Athletic Directors" },
   { value: "assigners", label: "Officials/Assigners" },
   { value: "coaches", label: "Coaches" },
   { value: "staff", label: "Staff Members" },
-  { value: "emailGroup", label: "Email Group (Bulk)" },
   { value: "custom", label: "Custom Recipients" },
 ];
 
@@ -56,6 +56,27 @@ export default function ComposeEmailPage() {
   const [additionalMessage, setAdditionalMessage] = useState("");
   const [selectedOpponentId, setSelectedOpponentId] = useState<string>("all");
   const [opponentFilterDisabled, setOpponentFilterDisabled] = useState(false);
+
+  const {
+    data: emailGroups = [],
+    isLoading: emailGroupsLoading,
+  } = useQuery<EmailGroup[], Error>({
+    queryKey: ["email-groups"],
+    queryFn: fetchEmailGroups,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
+  const recipientCategories = useMemo(() => {
+    const emailGroupCategories = emailGroups.map((group) => ({
+      value: `emailGroup:${group.id}`,
+      label: `${group.name} (${group._count.emails} emails)`,
+      groupId: group.id,
+      isEmailGroup: true,
+    }));
+
+    return [...STATIC_RECIPIENT_CATEGORIES, ...emailGroupCategories];
+  }, [emailGroups]);
 
   useEffect(() => {
     setMounted(true);
@@ -312,7 +333,7 @@ export default function ComposeEmailPage() {
           <Stack spacing={3}>
             {/* Recipient Category */}
             <TextField select label="Recipient Category" value={recipientCategory} onChange={(e) => setRecipientCategory(e.target.value)} fullWidth helperText="Select who should receive this email">
-              {RECIPIENT_CATEGORIES.map((category) => (
+              {recipientCategories.map((category) => (
                 <MenuItem key={category.value} value={category.value}>
                   {category.label}
                 </MenuItem>
@@ -347,18 +368,6 @@ export default function ComposeEmailPage() {
                   );
                 })}
               </TextField>
-            )}
-
-            {/* Email Group Selection */}
-            {recipientCategory === "emailGroup" && (
-              <BulkEmailDropdown
-                value={selectedGroupId}
-                onChange={setSelectedGroupId}
-                label="Select Email Group"
-                helperText="Choose a bulk email group to send to all members"
-                required
-                allowEmpty={false}
-              />
             )}
 
             {/* Custom Recipients */}
@@ -428,20 +437,23 @@ export default function ComposeEmailPage() {
             startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />} 
             onClick={() => {
               const gameIds = selectedGames.map(g => g.id);
+              const isEmailGroup = recipientCategory.startsWith("emailGroup:");
+              const groupId = isEmailGroup ? recipientCategory.split(":")[1] : undefined;
+              const actualCategory = isEmailGroup ? "emailGroup" : recipientCategory;
+
               sendEmailMutation.mutate({
                 gameIds,
                 subject,
                 additionalMessage,
-                recipientCategory,
-                groupId: recipientCategory === "emailGroup" ? selectedGroupId : undefined,
+                recipientCategory: actualCategory,
+                groupId,
                 to: recipientCategory === "custom" ? customRecipients.split(",").map(e => e.trim()).filter(Boolean) : undefined,
               });
             }} 
             disabled={
               sendEmailMutation.isPending || 
               !subject || 
-              (recipientCategory === "custom" && !customRecipients.trim()) ||
-              (recipientCategory === "emailGroup" && !selectedGroupId)
+              (recipientCategory === "custom" && !customRecipients.trim())
             }
           >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}

@@ -153,8 +153,11 @@ export async function POST(request: NextRequest) {
 
       // Determine recipients
       if (groupId) {
-        const group = await prisma.emailGroup.findUnique({
-          where: { id: groupId, userId: session.user.id },
+        const group = await prisma.emailGroup.findFirst({
+          where: { 
+            id: groupId, 
+            organizationId: session.user.organizationId 
+          },
           include: { emails: true },
         });
         if (!group) {
@@ -170,8 +173,11 @@ export async function POST(request: NextRequest) {
     }
     // Case 2: Email campaign
     else if (campaignId) {
-      campaign = await prisma.emailCampaign.findUnique({
-        where: { id: campaignId, userId: session.user.id },
+      campaign = await prisma.emailCampaign.findFirst({
+        where: { 
+          id: campaignId, 
+          userId: session.user.id 
+        },
         include: { group: { include: { emails: true } } },
       });
       if (!campaign || !campaign.group) {
