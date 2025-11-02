@@ -16,7 +16,7 @@ export function ImportGroupsButton() {
       setLastError(null); // Clear any previous error
       if (result.success) {
         // Invalidate the query that fetches email groups to refresh the list
-        queryClient.invalidateQueries({ queryKey: ["email-groups"] });
+        queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
         // Optionally, you might have a query for all user data/settings
         queryClient.invalidateQueries({ queryKey: ["user-data"] });
       } else {
