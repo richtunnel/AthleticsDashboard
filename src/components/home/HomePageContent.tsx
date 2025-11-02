@@ -9,7 +9,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
-import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import Footer from "@/components/layout/Footer";
 
 export default function HomePageContent() {
   const { data: session, status } = useSession();
@@ -167,91 +167,7 @@ export default function HomePageContent() {
           </div>
         </div>
 
-        <footer
-          style={{
-            padding: "1.5rem 1rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: "1rem",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-            <Link
-              href="/about"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "0.875rem",
-                fontWeight: 400,
-                textDecoration: "none",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              About Us
-            </Link>
-            <Link
-              href="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "0.875rem",
-                fontWeight: 400,
-                textDecoration: "none",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              Terms
-            </Link>
-            <Link
-              href="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "0.875rem",
-                fontWeight: 400,
-                textDecoration: "none",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/feedback"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "0.875rem",
-                fontWeight: 400,
-                textDecoration: "none",
-                transition: "color 0.2s ease",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              Chat Support <QuestionAnswerIcon sx={{ color: "var(--text-secondary)" }} />
-            </Link>
-          </div>
-          <div>
-            <span
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "0.75rem",
-                fontWeight: 400,
-              }}
-            >
-              &copy; {new Date().getFullYear()} Athletic Director Hub. All rights reserved.
-            </span>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

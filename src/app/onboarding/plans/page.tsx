@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import BaseHeader from "@/components/headers/_base";
 import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
+import Footer from "@/components/layout/Footer";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
@@ -227,9 +228,9 @@ function PricingPlansContent() {
   };
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px" />
-      <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
+      <Box sx={{ py: 4, px: 2, textAlign: "center", flex: 1 }}>
         <Typography variant="body1">
           <button style={{ cursor: "pointer" }} type="button" className="button" onClick={handleBackClick}>
             <span>
@@ -414,7 +415,8 @@ function PricingPlansContent() {
           })}
         </Grid>
       </Box>
-    </>
+      <Footer />
+    </Box>
   );
 }
 

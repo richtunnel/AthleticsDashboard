@@ -9,6 +9,7 @@ import BaseHeader from "@/components/headers/_base";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
+import Footer from "@/components/layout/Footer";
 
 function LoginForm() {
   const router = useRouter();
@@ -86,13 +87,12 @@ function LoginForm() {
   const displayError = error || (errorParam === "OAuthSignin" ? "Failed to sign in with Google. Please try again." : "");
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px" />
 
-      <Container component="main" maxWidth="xs">
+      <Container component="main" maxWidth="xs" sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <Box
           sx={{
-            minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
@@ -177,7 +177,8 @@ function LoginForm() {
           </Paper>
         </Box>
       </Container>
-    </>
+      <Footer />
+    </Box>
   );
 }
 
