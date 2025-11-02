@@ -32,8 +32,8 @@ export function getStripeConfig(): StripeConfig {
   return {
     secretKey,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-    monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? "",
-    annualPriceId: process.env.STRIPE_ANNUAL_PRICE_ID ?? "",
+    monthlyPriceId: process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "",
+    annualPriceId: process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "",
     isTestMode,
     testModeWarningEnabled: process.env.NODE_ENV !== "production" && isTestMode,
   };
@@ -54,16 +54,16 @@ export function isValidPriceId(priceId?: string): boolean {
  * Validates that all required Stripe environment variables are configured
  */
 export function validateStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_MONTHLY_PRICE_ID", "STRIPE_ANNUAL_PRICE_ID"];
+  const required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID", "NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID"];
 
   const missing = required.filter((key) => !process.env[key]);
 
   const invalid: string[] = [];
-  if (process.env.STRIPE_MONTHLY_PRICE_ID && !isValidPriceId(process.env.STRIPE_MONTHLY_PRICE_ID)) {
-    invalid.push("STRIPE_MONTHLY_PRICE_ID");
+  if (process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID && !isValidPriceId(process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID)) {
+    invalid.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
   }
-  if (process.env.STRIPE_ANNUAL_PRICE_ID && !isValidPriceId(process.env.STRIPE_ANNUAL_PRICE_ID)) {
-    invalid.push("STRIPE_ANNUAL_PRICE_ID");
+  if (process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID && !isValidPriceId(process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID)) {
+    invalid.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
   }
 
   if (missing.length > 0) {

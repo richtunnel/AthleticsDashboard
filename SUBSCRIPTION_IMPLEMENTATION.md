@@ -5,6 +5,7 @@ This document describes the subscription and checkout flow implementation for th
 ## Overview
 
 The subscription system uses Stripe Checkout for payment processing and implements a production-ready subscription flow with:
+
 - Monthly and annual plan options
 - Trial eligibility tracking
 - Subscription lifecycle management
@@ -16,6 +17,7 @@ The subscription system uses Stripe Checkout for payment processing and implemen
 ### Database Schema
 
 #### Subscription Model
+
 ```prisma
 model Subscription {
   id                    String              @id @default(cuid())
@@ -38,22 +40,26 @@ model Subscription {
 ```
 
 #### User Model Updates
+
 - Added `hasReceivedFreeTrial` boolean flag (default: false)
 - Maintains relation to `Subscription` model
 
 ### API Routes
 
 #### POST /api/stripe/checkout
+
 Creates a Stripe Checkout Session for subscription signup.
 
 **Request Body:**
+
 ```typescript
 {
-  planType: "MONTHLY" | "ANNUAL"
+  planType: "MONTHLY" | "ANNUAL";
 }
 ```
 
 **Response:**
+
 ```typescript
 {
   sessionId: string;
@@ -63,6 +69,7 @@ Creates a Stripe Checkout Session for subscription signup.
 ```
 
 **Features:**
+
 - Creates/updates Subscription record with status "INCOMPLETE"
 - Checks trial eligibility based on `hasReceivedFreeTrial` flag
 - Creates Stripe customer if needed
@@ -70,9 +77,11 @@ Creates a Stripe Checkout Session for subscription signup.
 - Includes metadata for webhook processing
 
 #### POST /api/stripe/cancel
+
 Cancels an active subscription.
 
 **Request Body:**
+
 ```typescript
 {
   immediately?: boolean; // default: false
@@ -80,6 +89,7 @@ Cancels an active subscription.
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean;
@@ -93,21 +103,25 @@ Cancels an active subscription.
 ```
 
 **Behavior:**
+
 - If `immediately` is false: cancels at end of billing period
 - If `immediately` is true: cancels immediately
 - Updates local Subscription record
 
 #### POST /api/stripe/change-plan
+
 Changes subscription plan type (monthly ↔ annual).
 
 **Request Body:**
+
 ```typescript
 {
-  planType: "MONTHLY" | "ANNUAL"
+  planType: "MONTHLY" | "ANNUAL";
 }
 ```
 
 **Response:**
+
 ```typescript
 {
   success: boolean;
@@ -117,14 +131,17 @@ Changes subscription plan type (monthly ↔ annual).
 ```
 
 **Features:**
+
 - Uses proration for immediate plan changes
 - Updates price ID in Stripe
 - Syncs changes to local Subscription record
 
 #### POST /api/stripe/portal
+
 Generates a Stripe Customer Portal URL.
 
 **Response:**
+
 ```typescript
 {
   url: string;
@@ -132,14 +149,17 @@ Generates a Stripe Customer Portal URL.
 ```
 
 **Features:**
+
 - Creates portal session for subscription management
 - Returns to `/dashboard/settings` after portal actions
 - Auto-creates customer if needed
 
 #### POST /api/stripe/webhook
+
 Handles Stripe webhook events.
 
 **Supported Events:**
+
 - `checkout.session.completed` - Completes subscription setup
 - `customer.subscription.updated` - Syncs subscription changes
 - `customer.subscription.deleted` - Handles cancellations
@@ -153,25 +173,28 @@ Required environment variables:
 # Stripe Configuration
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
-STRIPE_MONTHLY_PRICE_ID=price_your_monthly_price_id
-STRIPE_ANNUAL_PRICE_ID=price_your_annual_price_id
+NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID=price_your_monthly_price_id
+NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID=price_your_annual_price_id
 ```
 
 ## Onboarding Flow
 
 ### Plans Page (`/onboarding/plans`)
+
 1. User selects billing frequency (monthly/annual)
 2. User clicks "Get started" on a plan
 3. For free trial: redirects to `/onboarding/signup?plan=free_trial_plan`
 4. For paid plans: calls `/api/stripe/checkout` and redirects to Stripe
 
 ### Checkout Process
+
 1. User lands on Stripe Checkout page
 2. Enters payment information
 3. On success: redirects to `/onboarding/details?session_id={CHECKOUT_SESSION_ID}`
 4. On cancel: redirects to `/onboarding/plans?canceled=true`
 
 ### Webhook Processing
+
 1. Stripe sends `checkout.session.completed` event
 2. Webhook handler updates Subscription record with:
    - Stripe subscription ID
@@ -186,12 +209,14 @@ STRIPE_ANNUAL_PRICE_ID=price_your_annual_price_id
 ## Trial Eligibility
 
 ### Rules
+
 - Users are eligible for a 14-day trial if `hasReceivedFreeTrial` is false
 - Trial eligibility is checked during checkout session creation
 - Once a user receives a trial, `hasReceivedFreeTrial` is set to true
 - Trial flag is set by webhook when subscription enters trialing state
 
 ### UI Messaging
+
 - Plans page should display trial availability
 - Checkout should inform users if they're not eligible for trial
 - Settings page should show trial end date during trial period
@@ -199,6 +224,7 @@ STRIPE_ANNUAL_PRICE_ID=price_your_annual_price_id
 ## Subscription States
 
 ### Status Enum Values
+
 - `INCOMPLETE` - Checkout started but not completed
 - `INCOMPLETE_EXPIRED` - Checkout expired without completion
 - `TRIALING` - In trial period
@@ -208,6 +234,7 @@ STRIPE_ANNUAL_PRICE_ID=price_your_annual_price_id
 - `UNPAID` - Multiple payment failures
 
 ### State Transitions
+
 ```
 INCOMPLETE → TRIALING → ACTIVE
 INCOMPLETE → ACTIVE (no trial)
@@ -220,12 +247,14 @@ PAST_DUE → UNPAID (too many failures)
 ## Error Handling
 
 ### Client-Side
+
 - Loading states during API calls
 - User-friendly error messages
 - Retry mechanisms for transient failures
 - Fallback to plans page on critical errors
 
 ### Server-Side
+
 - Zod validation for all request bodies
 - Comprehensive error logging
 - Graceful degradation for missing config
@@ -235,6 +264,7 @@ PAST_DUE → UNPAID (too many failures)
 ## Testing Checklist
 
 ### Checkout Flow
+
 - [ ] Monthly plan creates checkout session
 - [ ] Annual plan creates checkout session
 - [ ] Trial is applied for new users
@@ -244,18 +274,21 @@ PAST_DUE → UNPAID (too many failures)
 - [ ] User record updated with plan and trial info
 
 ### Cancellation
+
 - [ ] Cancel at period end works
 - [ ] Immediate cancel works
 - [ ] Subscription record updated
 - [ ] User can resubscribe after cancel
 
 ### Plan Changes
+
 - [ ] Monthly to annual upgrade works
 - [ ] Annual to monthly downgrade works
 - [ ] Proration calculated correctly
 - [ ] Subscription record updated
 
 ### Portal
+
 - [ ] Portal URL generated
 - [ ] User can manage payment methods
 - [ ] User can view invoices
