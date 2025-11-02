@@ -43,7 +43,12 @@ export function BulkEmailDropdown({
     data: groups = [],
     isLoading,
     isError,
-  } = useQuery<EmailGroup[], Error>({ queryKey: ["email-groups"], queryFn: fetchEmailGroups });
+  } = useQuery<EmailGroup[], Error>({
+    queryKey: ["email-groups"],
+    queryFn: fetchEmailGroups,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
 
   const handleChange = (event: SelectChangeEvent<string>) => {
     onChange(event.target.value);
