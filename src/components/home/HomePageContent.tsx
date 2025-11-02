@@ -48,9 +48,56 @@ export default function HomePageContent() {
             <VscGithubProject />
           </Link>
 
-          <Link href="/dashboard/feedback" style={{ color: "var(--text-secondary)", fontWeight: 600 }}>
-            Need Help?
-          </Link>
+          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+            <a
+              href="https://instagram.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "1.25rem",
+                transition: "color 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              <FaInstagram />
+            </a>
+            <a
+              href="https://facebook.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "1.25rem",
+                transition: "color 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              <FaFacebook />
+            </a>
+            <a
+              href="https://x.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "1.25rem",
+                transition: "color 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              <FaXTwitter />
+            </a>
+          </div>
         </div>
 
         <div className="flex flex-1 items-center justify-center">
@@ -114,6 +161,7 @@ export default function HomePageContent() {
             display: "flex",
             flexDirection: "column",
             gap: "1rem",
+            alignItems: "center",
           }}
         >
           <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -159,56 +207,20 @@ export default function HomePageContent() {
             >
               Privacy
             </Link>
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "var(--text-secondary)",
-                  fontSize: "1.25rem",
-                  transition: "color 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-              >
-                <FaInstagram />
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "var(--text-secondary)",
-                  fontSize: "1.25rem",
-                  transition: "color 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-              >
-                <FaFacebook />
-              </a>
-              <a
-                href="https://x.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: "var(--text-secondary)",
-                  fontSize: "1.25rem",
-                  transition: "color 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-              >
-                <FaXTwitter />
-              </a>
-            </div>
+            <Link
+              href="/dashboard/feedback"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+                textDecoration: "none",
+                transition: "color 0.2s ease",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            >
+              Need Assistance
+            </Link>
           </div>
           <div>
             <span
