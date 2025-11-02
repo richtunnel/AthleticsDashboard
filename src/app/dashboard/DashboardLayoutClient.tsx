@@ -317,6 +317,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       "&:hover": {
                         color: "primary.main",
                         bgcolor: "action.hover",
+                        textDecoration: "none",
                         "&::after": {
                           backgroundColor: "primary.main",
                         },
