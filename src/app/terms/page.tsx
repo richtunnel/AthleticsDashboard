@@ -12,15 +12,15 @@ export default function TermsPage() {
           Terms of Service
         </Typography>
         <Typography variant="body1" paragraph>
-          Welcome to the Athletics Dashboard. By using our platform, you agree to comply with and be bound by the following Terms of Service ("Terms"). Please read these Terms carefully. If you do not
-          agree with these Terms, you must not use our platform.
+          Welcome to the Athletic Directors Hub. By using our platform, you agree to comply with and be bound by the following Terms of Service ("Terms"). Please read these Terms carefully. If you do
+          not agree with these Terms, you must not use our platform.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
           1. Acceptance of Terms
         </Typography>
         <Typography variant="body1" paragraph>
-          By accessing or using the Athletics Dashboard, you confirm that you are an authorized representative of a school or athletic organization (e.g., an athletic director, coach, or
+          By accessing or using the Athletic Directors Hub, you confirm that you are an authorized representative of a school or athletic organization (e.g., an athletic director, coach, or
           administrator) and agree to these Terms on behalf of yourself and your organization.
         </Typography>
 
@@ -28,16 +28,16 @@ export default function TermsPage() {
           2. Accurate Information
         </Typography>
         <Typography variant="body1" paragraph>
-          You agree to provide accurate, complete, and current information when using the Athletics Dashboard, including but not limited to school name, team name, mascot, and other details. Providing
-          false, misleading, or fraudulent information is strictly prohibited and may result in immediate account termination.
+          You agree to provide accurate, complete, and current information when using the Athletic Directors Hub, including but not limited to school name, team name, mascot, and other details.
+          Providing false, misleading, or fraudulent information is strictly prohibited and may result in immediate account termination.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
           3. Appropriate Use and Conduct
         </Typography>
         <Typography variant="body1" paragraph>
-          The Athletics Dashboard is intended for managing school athletic programs. You agree to use the platform in a manner consistent with school policies, codes of conduct, and applicable laws.
-          Prohibited activities include:
+          The Athletic Directors Hub is intended for managing school athletic programs. You agree to use the platform in a manner consistent with school policies, codes of conduct, and applicable
+          laws. Prohibited activities include:
           <ul>
             <li>Using the platform to misrepresent your school or team.</li>
             <li>Engaging in harassment, bullying, or discriminatory behavior.</li>
@@ -50,7 +50,7 @@ export default function TermsPage() {
           4. Data Ownership and Use
         </Typography>
         <Typography variant="body1" paragraph>
-          You retain ownership of the data you provide (e.g., school details, team rosters). However, by submitting data, you grant Athletics Dashboard a non-exclusive, royalty-free license to use,
+          You retain ownership of the data you provide (e.g., school details, team rosters). However, by submitting data, you grant Athletic Directors Hub a non-exclusive, royalty-free license to use,
           store, and process this data to provide our services. You are responsible for ensuring that all data complies with applicable laws, including student privacy regulations (e.g., FERPA).
         </Typography>
 
@@ -82,15 +82,15 @@ export default function TermsPage() {
           8. Limitation of Liability
         </Typography>
         <Typography variant="body1" paragraph>
-          The Athletics Dashboard is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the platform, including data loss, unauthorized access,
-          or service interruptions.
+          The Athletic Directors Hub is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the platform, including data loss, unauthorized
+          access, or service interruptions.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
           9. Changes to Terms
         </Typography>
         <Typography variant="body1" paragraph>
-          We may update these Terms at any time. You will be notified of significant changes via email or through the platform. Continued use of the Athletics Dashboard after changes constitutes
+          We may update these Terms at any time. You will be notified of significant changes via email or through the platform. Continued use of the Athletic Directors Hub after changes constitutes
           acceptance of the new Terms.
         </Typography>
 
