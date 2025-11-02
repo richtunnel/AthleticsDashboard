@@ -167,6 +167,8 @@ export default function HomePageContent() {
           <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
             <Link
               href="/about"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
@@ -181,6 +183,8 @@ export default function HomePageContent() {
             </Link>
             <Link
               href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
@@ -195,6 +199,8 @@ export default function HomePageContent() {
             </Link>
             <Link
               href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 color: "var(--text-secondary)",
                 fontSize: "0.875rem",
