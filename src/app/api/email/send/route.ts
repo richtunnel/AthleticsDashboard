@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
+import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
 
 interface Game {
   id: string;
@@ -188,7 +189,18 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Either gameIds or campaignId is required");
     }
 
-    // Send email via Resend
+    // Validate emails
+    const { valid: validEmails, invalid: invalidEmails } = validateBulkEmails(toEmails);
+    
+    if (invalidEmails.length > 0) {
+      return ApiResponse.error(`Invalid email addresses: ${invalidEmails.join(", ")}`, 400);
+    }
+
+    if (validEmails.length === 0) {
+      return ApiResponse.error("No valid email addresses provided", 400);
+    }
+
+    // Send emails using bulk email utility
     const resend = getResendClientOptional();
     if (!resend) {
       console.warn("Resend API key missing — skipping email sending.");
@@ -197,46 +209,47 @@ export async function POST(request: NextRequest) {
         message: "Email service not configured. (Skipped during build)",
       });
     }
-    const emailResponse = await resend.emails.send({
-      from: "no-reply@yourdomain.com", // Replace with your verified Resend domain
-      to: toEmails,
+
+    const result = await sendBulkEmail({
+      to: validEmails,
       subject,
       html: emailBody,
-    });
-
-    // Log the email in EmailLog
-    const emailLog = await prisma.emailLog.create({
-      data: {
-        to: toEmails,
-        cc: [],
-        subject,
-        body: emailBody,
-        status: emailResponse.error ? "FAILED" : "SENT",
-        error: emailResponse.error?.message || null,
-        sentAt: emailResponse.error ? null : new Date(),
-        sentById: session.user.id,
-        gameId: gameIds && gameIds.length === 1 ? gameIds[0] : undefined, // Log single gameId if applicable
-        gameIds: gameIds || [],
-        groupId: groupId || null,
-        campaignId: campaignId || null,
-        recipientCategory: recipientCategory || null,
-        additionalMessage: additionalMessage || null,
-      },
+      sentById: session.user.id,
+      gameIds: gameIds || [],
+      groupId: groupId || null,
+      campaignId: campaignId || null,
+      recipientCategory: recipientCategory || null,
+      additionalMessage: additionalMessage || null,
     });
 
     // Update campaign sentAt if campaignId was provided
-    if (campaignId && !emailResponse.error) {
+    if (campaignId && result.success > 0) {
       await prisma.emailCampaign.update({
         where: { id: campaignId },
         data: { sentAt: new Date() },
       });
     }
 
-    if (emailResponse.error) {
-      return ApiResponse.error(`Failed to send: ${emailResponse.error.message}`, 500);
+    if (result.failed > 0 && result.success === 0) {
+      return ApiResponse.error(
+        `Failed to send all emails. Errors: ${result.errors.map(e => `${e.email}: ${e.error}`).join("; ")}`,
+        500
+      );
     }
 
-    return ApiResponse.success({ message: "Email sent successfully", emailLog });
+    const message = result.failed > 0 
+      ? `Partially sent: ${result.success} succeeded, ${result.failed} failed`
+      : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
+
+    return ApiResponse.success({ 
+      message,
+      result: {
+        success: result.success,
+        failed: result.failed,
+        errors: result.errors,
+        emailLogIds: result.emailLogIds,
+      }
+    });
   } catch (error) {
     return handleApiError(error);
   }
