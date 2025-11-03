@@ -73,6 +73,7 @@
     "react-hook-form": "^7.64.0",
     "react-icons": "^5.5.0",
     "react-sortablejs": "^6.1.4",
+    "recharts": "^3.3.0",
     "resend": "^6.1.2",
     "sortablejs": "^1.15.6",
     "stripe": "^19.1.0",

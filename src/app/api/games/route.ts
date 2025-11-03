@@ -131,6 +131,7 @@ export async function GET(request: NextRequest) {
         awayTeam: true,
         opponent: true,
         venue: true,
+        expense: true,
       },
       orderBy,
       skip: (page - 1) * limit,

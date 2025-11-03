@@ -225,6 +225,7 @@ model Game {
   createdBy                User                   @relation("GameCreator", fields: [createdById], references: [id])
   emailLogs                EmailLog[]
   travelRecommendations    TravelRecommendation[]
+  expense                  GameExpense?
 
   @@index([homeTeamId])
   @@index([awayTeamId])
@@ -362,6 +363,22 @@ model TravelRecommendation {
   addedAt              DateTime?
   createdAt            DateTime  @default(now())
 
+  @@index([gameId])
+}
+
+model GameExpense {
+  id            String   @id @default(cuid())
+  gameId        String
+  game          Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  travelExpense Float    @default(0)
+  foodExpense   Float    @default(0)
+  clothesExpense Float   @default(0)
+  giftsExpense  Float    @default(0)
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([gameId])
   @@index([gameId])
 }
 

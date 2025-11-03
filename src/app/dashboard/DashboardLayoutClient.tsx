@@ -50,6 +50,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpOutline,
+  AttachMoney,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -73,6 +74,7 @@ const navigation = [
   // { name: "My Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Manage Emails", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
+  { name: "Expenses", href: "/dashboard/expenses", icon: AttachMoney },
   { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
   { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
