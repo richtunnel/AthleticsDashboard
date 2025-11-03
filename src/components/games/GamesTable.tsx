@@ -2906,13 +2906,13 @@ export function GamesTable() {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "busTravel";
         const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
         const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
-        
+
         // Parse the inline edit value for busTravel (only if editing this field)
         const parts = isEditing ? inlineEditValue.split("|") : [];
         const editDepartureTime = parts[0] || "";
         const editArrivalTime = parts[1] || "";
         const editBusTravel = parts[2] === "true";
-        
+
         return (
           <TableCell
             key="busTravel"
@@ -3303,17 +3303,12 @@ export function GamesTable() {
               Create Game
             </Button>
 
-            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
-              Columns
-            </Button>
             <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Add Columns ({customColumns.length})
             </Button>
-            {hiddenColumnCount > 0 && (
-              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
-                Show all columns ({hiddenColumnCount} hidden)
-              </Button>
-            )}
+            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
+              Columns
+            </Button>
             {selectedGames.size > 0 && (
               <>
                 <Button
@@ -3327,6 +3322,11 @@ export function GamesTable() {
                   Copy ({selectedGames.size})
                 </Button>
               </>
+            )}
+            {hiddenColumnCount > 0 && (
+              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+                Show all columns ({hiddenColumnCount} hidden)
+              </Button>
             )}
           </Stack>
         </Box>
