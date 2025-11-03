@@ -1431,6 +1431,37 @@ export function GamesTable() {
     }
   };
 
+  const handleDuplicateGame = async (game: Game) => {
+    try {
+      const gameData = {
+        date: new Date(game.date.split("T")[0]).toISOString(),
+        time: game.time || null,
+        homeTeamId: game.homeTeamId || game.homeTeam.id,
+        isHome: game.isHome,
+        busTravel: game.busTravel,
+        actualDepartureTime: game.actualDepartureTime || null,
+        actualArrivalTime: game.actualArrivalTime || null,
+        opponentId: game.opponentId || game.opponent?.id || null,
+        venueId: game.venueId || game.venue?.id || null,
+        status: game.status,
+        notes: game.notes || null,
+        location: game.location || null,
+        customData: game.customData || {},
+      };
+
+      createGameMutation.mutate(gameData, {
+        onSuccess: () => {
+          addNotification("Game duplicated successfully", "success");
+        },
+        onError: (error: any) => {
+          addNotification(error?.message || "Failed to duplicate game", "error");
+        },
+      });
+    } catch (error: any) {
+      addNotification(error?.message || "Failed to duplicate game", "error");
+    }
+  };
+
   const handleBulkDelete = () => {
     const count = selectedGames.size;
 
@@ -3067,6 +3098,11 @@ export function GamesTable() {
               <Tooltip title="Edit">
                 <IconButton size="small" onClick={() => handleEditGame(game)} sx={{ p: 0.5 }}>
                   <Edit sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Duplicate">
+                <IconButton size="small" onClick={() => handleDuplicateGame(game)} disabled={createGameMutation.isPending} sx={{ p: 0.5 }}>
+                  <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Sync to Google">
