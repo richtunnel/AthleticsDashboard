@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
+import { trackMixpanelEvent } from "@/lib/mixpanel";
 
 interface FormData {
   name: string;
@@ -96,13 +97,35 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
 
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (response) => {
+      const submittedData = mutation.variables;
+
       if (mode === "support" && ticketNumber) {
         setSuccessMessage("Support ticket updated successfully!");
+        trackMixpanelEvent("Support Ticket Updated", {
+          ticketNumber,
+          subject: submittedData?.subject,
+        });
       } else if (mode === "support") {
-        setSuccessMessage(`Support ticket created successfully! Ticket number: ${data.data.ticketNumber}`);
+        const createdTicketNumber = response?.data?.ticketNumber;
+
+        setSuccessMessage(
+          createdTicketNumber
+            ? `Support ticket created successfully! Ticket number: ${createdTicketNumber}`
+            : "Support ticket created successfully!"
+        );
+
+        trackMixpanelEvent("Support Ticket Created", {
+          ticketNumber: createdTicketNumber,
+          subject: submittedData?.subject,
+        });
       } else {
         setSuccessMessage("Thank you for your feedback!");
+        trackMixpanelEvent("Feedback Submitted", {
+          subject: submittedData?.subject,
+          isPublic,
+          providedContact: Boolean(submittedData?.email),
+        });
         reset({
           name: userName || "",
           email: userEmail || "",
