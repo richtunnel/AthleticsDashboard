@@ -396,6 +396,10 @@ export const authOptions: NextAuthOptions = {
           return baseUrl;
         }
 
+        if (resolvedUrl.pathname.startsWith("/onboarding")) {
+          return `${baseUrl}/dashboard`;
+        }
+
         if (resolvedUrl.pathname.startsWith("/dashboard")) {
           return resolvedUrl.toString();
         }
