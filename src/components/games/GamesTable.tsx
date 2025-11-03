@@ -61,6 +61,7 @@ import {
   Close,
   DeleteOutline,
   ContentCopy,
+  VisibilityOff,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 
@@ -1145,8 +1146,8 @@ export function GamesTable() {
       return;
     }
 
-    ExportService.exportGames(gamesToExport, visibleCustomColumns);
-  }, [games, visibleCustomColumns, addNotification]);
+    ExportService.exportGames(gamesToExport, customColumns, visibleColumnIds);
+  }, [games, customColumns, visibleColumnIds, addNotification]);
 
   const handleImportComplete = useCallback(
     (result: any) => {
@@ -1607,6 +1608,11 @@ export function GamesTable() {
                 DATE
               </TableSortLabel>
               <ColumnFilter columnId="date" columnName="Date" columnType="date" uniqueValues={uniqueValues.date || []} currentFilter={columnFilters.date} onFilterChange={handleColumnFilterChange} />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("date", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1625,6 +1631,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.sport}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("sport", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1643,6 +1654,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.level}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("level", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1661,6 +1677,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.opponent}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("opponent", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1679,15 +1700,27 @@ export function GamesTable() {
                 currentFilter={columnFilters.isHome}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("isHome", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
       case "time":
         return (
           <TableCell key="time" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-            <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
-              TIME
-            </TableSortLabel>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
+                TIME
+              </TableSortLabel>
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("time", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </TableCell>
         );
       case "status":
@@ -1705,6 +1738,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.status}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("status", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1723,6 +1761,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.location}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("location", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1741,6 +1784,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.busTravel}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("busTravel", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1759,6 +1807,11 @@ export function GamesTable() {
                 currentFilter={columnFilters.notes}
                 onFilterChange={handleColumnFilterChange}
               />
+              <Tooltip title="Hide column">
+                <IconButton size="small" onClick={() => handleToggleColumnVisibility("notes", false)} sx={{ ml: 0.5, p: 0.25 }}>
+                  <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                </IconButton>
+              </Tooltip>
             </Box>
           </TableCell>
         );
@@ -1795,6 +1848,11 @@ export function GamesTable() {
                   currentFilter={columnFilters[customColumn.id]}
                   onFilterChange={handleColumnFilterChange}
                 />
+                <Tooltip title="Hide column">
+                  <IconButton size="small" onClick={() => handleToggleColumnVisibility(column.id, false)} sx={{ ml: 0.5, p: 0.25 }}>
+                    <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </TableCell>
           );
