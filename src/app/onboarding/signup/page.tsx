@@ -23,17 +23,17 @@ function SignupForm() {
   const [error, setError] = useState("");
 
   const googleAuth = useAuthButton({
-    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    callbackUrl: `/dashboard`,
     onError: (err) => setError(err),
   });
 
   const azureAuth = useAuthButton({
-    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    callbackUrl: `/dashboard`,
     onError: (err) => setError(err),
   });
 
   const credentialsAuth = useAuthButton({
-    callbackUrl: `/onboarding/setup?plan=${plan}`,
+    callbackUrl: `/dashboard`,
     onError: (err) => setError(err),
   });
 
@@ -41,9 +41,6 @@ function SignupForm() {
 
   const handleGoogleLogin = async () => {
     setError("");
-    if (plan) {
-      localStorage.setItem("onboarding_plan", plan);
-    }
     try {
       await googleAuth.executeAction({ type: "google" });
     } catch (error) {
@@ -53,9 +50,6 @@ function SignupForm() {
 
   const handleMicrosoftLogin = async () => {
     setError("");
-    if (plan) {
-      localStorage.setItem("onboarding_plan", plan);
-    }
     try {
       await azureAuth.executeAction({ type: "azure-ad" });
     } catch (error) {
@@ -94,10 +88,6 @@ function SignupForm() {
       return;
     }
 
-    if (plan) {
-      localStorage.setItem("onboarding_plan", plan);
-    }
-
     try {
       await credentialsAuth.executeAction({
         type: "credentials",
@@ -107,9 +97,6 @@ function SignupForm() {
         },
       });
     } catch (error) {
-      if (plan) {
-        localStorage.removeItem("onboarding_plan");
-      }
       setError("Account created but login failed. Please login manually.");
       setTimeout(() => router.push("/login"), 2000);
     }
