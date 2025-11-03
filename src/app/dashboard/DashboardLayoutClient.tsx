@@ -49,6 +49,7 @@ import {
   Analytics,
   ChevronLeft,
   ChevronRight,
+  HelpOutline,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -61,6 +62,7 @@ import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
+import SupportModal from "@/components/support/SupportModal";
 
 const DRAWER_WIDTH = 240;
 
@@ -82,6 +84,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [supportModalOpen, setSupportModalOpen] = useState(false);
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
   const { isLeftNavOpen, toggleLeftNav } = useNavigationStore();
   const [mounted, setMounted] = useState(false);
@@ -455,6 +458,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <MenuItem
                 onClick={() => {
                   handleClose();
+                  setSupportModalOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <HelpOutline fontSize="small" />
+                </ListItemIcon>
+                Help
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  handleClose();
                   signOut({ callbackUrl: "/?postLogout=true" });
                 }}
               >
@@ -548,6 +562,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </Container>
       </Box>
+
+      {/* Support Modal */}
+      <SupportModal 
+        open={supportModalOpen} 
+        onClose={() => setSupportModalOpen(false)} 
+        userName={session?.user?.name || undefined}
+      />
     </Box>
   );
 }
