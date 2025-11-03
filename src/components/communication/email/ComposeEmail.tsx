@@ -47,7 +47,7 @@ export default function ComposeEmailPage() {
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
-  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>([]);
+  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(["date", "sport", "level", "opponent", "location", "status"]);
   const [recipientCategory, setRecipientCategory] = useState("parents");
   const [customRecipients, setCustomRecipients] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
@@ -85,6 +85,16 @@ export default function ComposeEmailPage() {
     const storedGames = sessionStorage.getItem("selectedGames");
     const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
     const storedEmailDraft = sessionStorage.getItem("emailDraft");
+    const storedVisibleColumns = sessionStorage.getItem("gamesTableVisibleColumns");
+
+    if (storedVisibleColumns) {
+      try {
+        const visibleCols = JSON.parse(storedVisibleColumns);
+        setVisibleColumnIds(visibleCols);
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
 
     if (storedGames) {
       const games = JSON.parse(storedGames);
@@ -291,25 +301,31 @@ export default function ComposeEmailPage() {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: "#f8fafc" }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Sport</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Level</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Opponent</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>}
+                  {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600 }}>Sport</TableCell>}
+                  {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600 }}>Level</TableCell>}
+                  {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600 }}>Opponent</TableCell>}
+                  {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>}
+                  {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>}
+                  {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600 }}>Time</TableCell>}
+                  {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600 }}>Notes</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {selectedGames.map((game) => (
                   <TableRow key={game.id}>
-                    <TableCell>{formatGameDate(game.date)}</TableCell>
-                    <TableCell>{game.homeTeam.sport.name}</TableCell>
-                    <TableCell>{game.homeTeam.level}</TableCell>
-                    <TableCell>{game.opponent?.name || "TBD"}</TableCell>
-                    <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>
-                    <TableCell>
-                      <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
-                    </TableCell>
+                    {visibleColumnIds.includes("date") && <TableCell>{formatGameDate(game.date)}</TableCell>}
+                    {visibleColumnIds.includes("sport") && <TableCell>{game.homeTeam.sport.name}</TableCell>}
+                    {visibleColumnIds.includes("level") && <TableCell>{game.homeTeam.level}</TableCell>}
+                    {visibleColumnIds.includes("opponent") && <TableCell>{game.opponent?.name || "TBD"}</TableCell>}
+                    {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
+                    {visibleColumnIds.includes("status") && (
+                      <TableCell>
+                        <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
+                      </TableCell>
+                    )}
+                    {visibleColumnIds.includes("time") && <TableCell>{game.time || "TBD"}</TableCell>}
+                    {visibleColumnIds.includes("notes") && <TableCell>{game.notes || ""}</TableCell>}
                   </TableRow>
                 ))}
               </TableBody>
