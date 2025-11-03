@@ -36,39 +36,110 @@ export class ExportService {
   /**
    * Export games to CSV format
    */
-  static exportToCSV(games: Game[], customColumns: CustomColumn[] = []): string {
-    // Define base headers
-    const baseHeaders = ["Date", "Time", "Sport", "Level", "Team", "Opponent", "Location", "Venue", "Status", "Bus Travel", "Departure Time", "Arrival Time", "Notes"];
+  static exportToCSV(games: Game[], customColumns: CustomColumn[] = [], visibleColumnIds?: string[]): string {
+    // Define base column mapping
+    const baseColumnMap = new Map<string, { header: string; getValue: (game: Game) => string }>([
+      ["date", { header: "Date", getValue: (game) => format(new Date(game.date), "yyyy-MM-dd") }],
+      ["time", { header: "Time", getValue: (game) => game.time || "" }],
+      ["sport", { header: "Sport", getValue: (game) => game.homeTeam.sport.name }],
+      ["level", { header: "Level", getValue: (game) => game.homeTeam.level }],
+      ["team", { header: "Team", getValue: (game) => game.homeTeam.name }],
+      ["opponent", { header: "Opponent", getValue: (game) => game.opponent?.name || "" }],
+      ["isHome", { header: "Location", getValue: (game) => (game.isHome ? "Home" : "Away") }],
+      ["location", { header: "Venue", getValue: (game) => game.location || (game.isHome ? "" : game.venue?.name || "") }],
+      ["status", { header: "Status", getValue: (game) => game.status }],
+      [
+        "busTravel",
+        {
+          header: "Bus Travel",
+          getValue: (game) => (game.busTravel ? "Yes" : "No"),
+        },
+      ],
+      [
+        "busTravel_departure",
+        {
+          header: "Departure Time",
+          getValue: (game) => (game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : ""),
+        },
+      ],
+      [
+        "busTravel_arrival",
+        {
+          header: "Arrival Time",
+          getValue: (game) => (game.actualArrivalTime ? format(new Date(game.actualArrivalTime), "h:mm a") : ""),
+        },
+      ],
+      ["notes", { header: "Notes", getValue: (game) => game.notes || "" }],
+    ]);
 
-    // Add custom column headers
-    const customHeaders = customColumns.map((col) => col.name);
-    const allHeaders = [...baseHeaders, ...customHeaders];
+    // Filter columns based on visibility if provided
+    let columnsToInclude: string[] = [];
+    if (visibleColumnIds && visibleColumnIds.length > 0) {
+      // Build columns list from visible column IDs
+      visibleColumnIds.forEach((colId) => {
+        if (colId === "actions") return; // Skip actions column
+        if (colId.startsWith("custom:")) {
+          columnsToInclude.push(colId);
+        } else {
+          // For base columns, add them
+          columnsToInclude.push(colId);
+        }
+      });
+    } else {
+      // If no visibility filter, include all base columns
+      columnsToInclude = ["date", "time", "sport", "level", "team", "opponent", "isHome", "location", "status", "busTravel", "notes"];
+      // Add all custom columns
+      customColumns.forEach((col) => {
+        columnsToInclude.push(`custom:${col.id}`);
+      });
+    }
+
+    // Build headers
+    const headers: string[] = [];
+    columnsToInclude.forEach((colId) => {
+      if (colId.startsWith("custom:")) {
+        const customId = colId.split(":")[1];
+        const customCol = customColumns.find((col) => col.id === customId);
+        if (customCol) {
+          headers.push(customCol.name);
+        }
+      } else if (colId === "busTravel") {
+        // BusTravel includes multiple columns
+        headers.push("Bus Travel");
+        headers.push("Departure Time");
+        headers.push("Arrival Time");
+      } else {
+        const baseCol = baseColumnMap.get(colId);
+        if (baseCol) {
+          headers.push(baseCol.header);
+        }
+      }
+    });
 
     // Convert games to CSV rows
     const rows = games.map((game) => {
-      const baseRow = [
-        format(new Date(game.date), "yyyy-MM-dd"),
-        game.time || "",
-        game.homeTeam.sport.name,
-        game.homeTeam.level,
-        game.homeTeam.name,
-        game.opponent?.name || "",
-        game.isHome ? "Home" : "Away",
-        game.location || (game.isHome ? "" : game.venue?.name || ""),
-        game.status,
-        game.busTravel ? "Yes" : "No",
-        game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : "",
-        game.actualArrivalTime ? format(new Date(game.actualArrivalTime), "h:mm a") : "",
-        game.notes || "",
-      ];
-
-      // Add custom column values
-      const customValues = customColumns.map((col) => {
-        const customData = game.customData || {};
-        return customData[col.id] || "";
+      const row: string[] = [];
+      columnsToInclude.forEach((colId) => {
+        if (colId.startsWith("custom:")) {
+          const customId = colId.split(":")[1];
+          const customData = game.customData || {};
+          row.push(customData[customId] || "");
+        } else if (colId === "busTravel") {
+          // BusTravel includes multiple values
+          row.push(game.busTravel ? "Yes" : "No");
+          row.push(game.actualDepartureTime ? format(new Date(game.actualDepartureTime), "h:mm a") : "");
+          row.push(game.actualArrivalTime ? format(new Date(game.actualArrivalTime), "h:mm a") : "");
+        } else if (colId === "team") {
+          // Special handling for team which isn't a direct column in the table
+          row.push(game.homeTeam.name);
+        } else {
+          const baseCol = baseColumnMap.get(colId);
+          if (baseCol) {
+            row.push(baseCol.getValue(game));
+          }
+        }
       });
-
-      return [...baseRow, ...customValues];
+      return row;
     });
 
     // Escape CSV values
@@ -80,7 +151,7 @@ export class ExportService {
     };
 
     // Build CSV content
-    const csvContent = [allHeaders.map(escapeCSV).join(","), ...rows.map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))].join("\n");
+    const csvContent = [headers.map(escapeCSV).join(","), ...rows.map((row) => row.map((cell) => escapeCSV(String(cell))).join(","))].join("\n");
 
     return csvContent;
   }
@@ -103,8 +174,8 @@ export class ExportService {
   /**
    * Export and download games
    */
-  static exportGames(games: Game[], customColumns: CustomColumn[] = []): void {
-    const csv = this.exportToCSV(games, customColumns);
+  static exportGames(games: Game[], customColumns: CustomColumn[] = [], visibleColumnIds?: string[]): void {
+    const csv = this.exportToCSV(games, customColumns, visibleColumnIds);
     const timestamp = format(new Date(), "yyyy-MM-dd");
     const filename = `games_export_${timestamp}.csv`;
     this.downloadCSV(csv, filename);
