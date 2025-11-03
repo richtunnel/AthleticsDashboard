@@ -191,7 +191,7 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
-type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | `custom:${string}`;
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}`;
 
 interface InlineEditState {
   gameId: string;
@@ -871,6 +871,13 @@ export function GamesTable() {
           case "level":
             currentValue = game.homeTeam.level;
             break;
+          case "isHome":
+            currentValue = game.isHome ? "home" : "away";
+            break;
+          case "busTravel":
+            // For busTravel, we'll use a special format: "departureTime|arrivalTime|busTravel"
+            currentValue = `${toTimeInputValue(game.actualDepartureTime)}|${toTimeInputValue(game.actualArrivalTime)}|${game.busTravel}`;
+            break;
         }
       }
 
@@ -964,6 +971,17 @@ export function GamesTable() {
         } else if (inlineEditState.field === "notes") {
           // Enforce character limit
           updateData.notes = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
+        } else if (inlineEditState.field === "isHome") {
+          updateData.isHome = inlineEditValue === "home";
+        } else if (inlineEditState.field === "busTravel") {
+          // Parse the busTravel format: "departureTime|arrivalTime|busTravel"
+          const parts = inlineEditValue.split("|");
+          const departureTime = parts[0] || "";
+          const arrivalTime = parts[1] || "";
+          const busTravel = parts[2] === "true";
+          updateData.actualDepartureTime = combineDateAndTime(game.date, departureTime);
+          updateData.actualArrivalTime = combineDateAndTime(game.date, arrivalTime);
+          updateData.busTravel = busTravel;
         } else if (inlineEditState.field === "sport" || inlineEditState.field === "level") {
           // Handle sport or level change - need to find or create matching team
           const newSport = inlineEditState.field === "sport" ? inlineEditValue : game.homeTeam.sport.name;
@@ -2577,16 +2595,53 @@ export function GamesTable() {
           </TableCell>
         );
       }
-      case "isHome":
+      case "isHome": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "isHome";
         return (
-          <TableCell key="isHome" sx={{ py: 2 }}>
-            <Chip
-              label={game.isHome ? "Home" : "Away"}
-              size="small"
-              sx={{ fontSize: 11, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
-            />
+          <TableCell
+            key="isHome"
+            sx={{
+              py: 0,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "isHome")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <Select
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%", fontSize: 13 }}
+                >
+                  <MenuItem value="home">Home</MenuItem>
+                  <MenuItem value="away">Away</MenuItem>
+                </Select>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                <Chip
+                  label={game.isHome ? "Home" : "Away"}
+                  size="small"
+                  sx={{ fontSize: 11, fontWeight: 500, backgroundColor: game.isHome ? "#0f172a" : "#e3e3e7", color: game.isHome ? "#e3e3e7" : "#0f172a" }}
+                />
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "isHome" && <CircularProgress size={12} />}
+              </Box>
+            )}
           </TableCell>
         );
+      }
       case "time": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "time";
         return (
@@ -2759,28 +2814,113 @@ export function GamesTable() {
         );
       }
       case "busTravel": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "busTravel";
         const departureDisplay = formatBusTimeDisplay(game.actualDepartureTime);
         const arrivalDisplay = formatBusTimeDisplay(game.actualArrivalTime);
+        
+        // Parse the inline edit value for busTravel (only if editing this field)
+        const parts = isEditing ? inlineEditValue.split("|") : [];
+        const editDepartureTime = parts[0] || "";
+        const editArrivalTime = parts[1] || "";
+        const editBusTravel = parts[2] === "true";
+        
         return (
-          <TableCell key="busTravel" sx={{ py: 2, minWidth: 180 }}>
-            <Stack spacing={0.75}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
-                  Depart
-                </Typography>
-                <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
-                  {departureDisplay}
-                </Typography>
-              </Stack>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
-                  Arrive
-                </Typography>
-                <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
-                  {arrivalDisplay}
-                </Typography>
-              </Stack>
-            </Stack>
+          <TableCell
+            key="busTravel"
+            sx={{
+              py: 0,
+              minWidth: 180,
+              cursor: isEditing ? "default" : "pointer",
+              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              ...(isEditing && {
+                boxShadow: "inset 0 0 0 1px #DBEAFE",
+              }),
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={() => handleDoubleClick(game, "busTravel")}
+          >
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <Stack direction="column" spacing={0.75}>
+                  <TextField
+                    type="time"
+                    size="small"
+                    label="Depart"
+                    value={editDepartureTime}
+                    onChange={(e) => {
+                      const newValue = `${e.target.value}|${editArrivalTime}|${editBusTravel}`;
+                      handleInlineValueChange(newValue);
+                    }}
+                    onBlur={() => handleInlineBlur(game)}
+                    disabled={isInlineSaving}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
+                      "& .MuiInputLabel-root": { fontSize: 11 },
+                    }}
+                  />
+                  <TextField
+                    type="time"
+                    size="small"
+                    label="Arrive"
+                    value={editArrivalTime}
+                    onChange={(e) => {
+                      const newValue = `${editDepartureTime}|${e.target.value}|${editBusTravel}`;
+                      handleInlineValueChange(newValue);
+                    }}
+                    onBlur={() => handleInlineBlur(game)}
+                    disabled={isInlineSaving}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
+                      "& .MuiInputLabel-root": { fontSize: 11 },
+                    }}
+                  />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Checkbox
+                      checked={editBusTravel}
+                      onChange={(e) => {
+                        const newValue = `${editDepartureTime}|${editArrivalTime}|${e.target.checked}`;
+                        handleInlineValueChange(newValue);
+                      }}
+                      sx={{ p: 0 }}
+                      disabled={isInlineSaving}
+                    />
+                    <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                      Bus
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            ) : (
+              <Box sx={{ py: 2 }}>
+                <Stack spacing={0.75}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                      Depart
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                      {departureDisplay}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                      Arrive
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                      {arrivalDisplay}
+                    </Typography>
+                  </Stack>
+                  {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "busTravel" && (
+                    <Box sx={{ display: "flex", justifyContent: "center" }}>
+                      <CircularProgress size={12} />
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+            )}
           </TableCell>
         );
       }
