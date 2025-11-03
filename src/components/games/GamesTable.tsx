@@ -717,11 +717,11 @@ export function GamesTable() {
   };
 
   const createGameMutation = useMutation({
-    mutationFn: async (gameData: any) => {
+    mutationFn: async (params: { gameData: any; skipCalendarSync?: boolean }) => {
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(gameData),
+        body: JSON.stringify(params.gameData),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -729,12 +729,15 @@ export function GamesTable() {
       }
       return res.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: any, variables: { gameData: any; skipCalendarSync?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       resetNewGameData();
 
       const newGameId = data.data.id;
-      syncGameMutation.mutate(newGameId);
+      // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
+      if (!variables.skipCalendarSync) {
+        syncGameMutation.mutate(newGameId);
+      }
     },
   });
 
@@ -1271,7 +1274,7 @@ export function GamesTable() {
       customData: newGameData.customData || {},
     };
 
-    createGameMutation.mutate(gameData);
+    createGameMutation.mutate({ gameData });
   };
 
   const handleCustomFieldChange = useCallback(
@@ -1449,14 +1452,17 @@ export function GamesTable() {
         customData: game.customData || {},
       };
 
-      createGameMutation.mutate(gameData, {
-        onSuccess: () => {
-          addNotification("Game duplicated successfully", "success");
-        },
-        onError: (error: any) => {
-          addNotification(error?.message || "Failed to duplicate game", "error");
-        },
-      });
+      createGameMutation.mutate(
+        { gameData, skipCalendarSync: true },
+        {
+          onSuccess: () => {
+            addNotification("Game duplicated successfully", "success");
+          },
+          onError: (error: any) => {
+            addNotification(error?.message || "Failed to duplicate game", "error");
+          },
+        }
+      );
     } catch (error: any) {
       addNotification(error?.message || "Failed to duplicate game", "error");
     }
