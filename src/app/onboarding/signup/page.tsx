@@ -23,7 +23,6 @@ function SignupForm() {
   const [error, setError] = useState("");
 
   const googleAuth = useAuthButton({
-    callbackUrl: `/dashboard`,
     onError: (err) => setError(err),
   });
 
@@ -42,7 +41,11 @@ function SignupForm() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      await googleAuth.executeAction({ type: "google" });
+      const consentUrl = `/onboarding/google-consent?mode=signup&callbackUrl=${encodeURIComponent('/dashboard')}`;
+      await googleAuth.executeAction({ 
+        type: "navigation",
+        navigationPath: consentUrl
+      });
     } catch (error) {
       // Error handled by onError callback
     }
