@@ -32,7 +32,6 @@ function LoginForm() {
   }, [status, session, router, callbackUrl]);
 
   const googleAuth = useAuthButton({
-    callbackUrl,
     onError: (err) => setError(err),
   });
 
@@ -78,7 +77,11 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      await googleAuth.executeAction({ type: "google" });
+      const consentUrl = `/onboarding/google-consent?mode=login&callbackUrl=${encodeURIComponent(callbackUrl)}`;
+      await googleAuth.executeAction({ 
+        type: "navigation",
+        navigationPath: consentUrl
+      });
     } catch (error) {
       // Error already handled by onError callback
     }
