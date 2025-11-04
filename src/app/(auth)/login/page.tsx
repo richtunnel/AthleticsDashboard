@@ -35,13 +35,18 @@ function LoginForm() {
     onError: (err) => setError(err),
   });
 
+  const microsoftAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
   const credentialsAuth = useAuthButton({
     callbackUrl,
     onError: (err) => {
       if (err === "No user found with this email") {
         setError("No account found with this email. Please sign up first.");
-      } else if (err === "Please sign in with Google") {
-        setError("This account uses Google sign-in. Please use the Google button below.");
+      } else if (err === "Please sign in with Google or Microsoft") {
+        setError("This account uses OAuth sign-in. Please use the Google or Microsoft button above.");
       } else if (err === "Invalid password") {
         setError("Incorrect password");
       } else {
@@ -50,7 +55,7 @@ function LoginForm() {
     },
   });
 
-  const isLoading = googleAuth.loading || credentialsAuth.loading;
+  const isLoading = googleAuth.loading || microsoftAuth.loading || credentialsAuth.loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +92,18 @@ function LoginForm() {
     }
   };
 
-  const displayError = error || (errorParam === "OAuthSignin" ? "Failed to sign in with Google. Please try again." : "");
+  const handleMicrosoftLogin = async () => {
+    setError("");
+    try {
+      await microsoftAuth.executeAction({ 
+        type: "azure-ad"
+      });
+    } catch (error) {
+      // Error already handled by onError callback
+    }
+  };
+
+  const displayError = error || (errorParam === "OAuthSignin" ? "Failed to sign in with OAuth. Please try again." : "");
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -122,8 +138,12 @@ function LoginForm() {
               </Alert>
             )}
 
-            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
               Sign in with Google
+            </AuthActionButton>
+
+            <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={microsoftAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+              Sign in with Microsoft
             </AuthActionButton>
 
             <Divider sx={{ my: 2 }}>OR</Divider>

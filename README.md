@@ -131,7 +131,8 @@ Athletic directors juggle numerous responsibilities across multiple sports, team
 ### Authentication & Authorization
 
 - **[NextAuth.js](https://next-auth.js.org/)** - Authentication library
-- **Google OAuth** - Social login
+- **Google OAuth** - Social login with Google accounts
+- **Microsoft OAuth (Azure AD)** - Social login with Microsoft accounts
 - **Credentials Provider** - Email/password authentication
 - **bcryptjs** - Password hashing
 
@@ -249,6 +250,23 @@ Create a `.env.local` file in the root directory with the following variables:
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | Google OAuth 2.0 Client Secret                       | Same as above                                                                             |
 | `GOOGLE_REDIRECT_URI`           | Authorized OAuth callback URL registered with Google | Typically `http://localhost:3000/api/auth/calendar-callback` in development               |
 | `GOOGLE_MAPS_API_KEY`           | Google Maps API key for distance calculations        | Google Cloud Console → APIs & Services → Enable Maps JavaScript API                       |
+
+### Microsoft OAuth (Azure AD)
+
+| Variable                  | Description                                  | How to Get                                                                                                                               |
+| ------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_AD_CLIENT_ID`      | Azure AD Application (client) ID             | [Azure Portal](https://portal.azure.com/) → Azure Active Directory → App registrations → New registration → Copy Application (client) ID |
+| `AZURE_AD_CLIENT_SECRET`  | Azure AD Client Secret                       | Same app registration → Certificates & secrets → New client secret                                                                       |
+| `AZURE_AD_TENANT_ID`      | Azure AD Tenant ID (use "common" for multi-tenant) | Same app registration → Overview → Copy Directory (tenant) ID, or use "common" to allow any Microsoft account                            |
+
+**Setting up Microsoft OAuth:**
+1. Go to [Azure Portal](https://portal.azure.com/) and navigate to Azure Active Directory
+2. Click "App registrations" → "New registration"
+3. Name your application (e.g., "Athletics Dashboard")
+4. For redirect URI, select "Web" and enter: `http://localhost:3000/api/auth/callback/azure-ad` (development) or `https://yourdomain.com/api/auth/callback/azure-ad` (production)
+5. After registration, copy the Application (client) ID to `AZURE_AD_CLIENT_ID`
+6. Go to "Certificates & secrets" → "New client secret" → Copy the value to `AZURE_AD_CLIENT_SECRET`
+7. For tenant ID, either copy your Directory (tenant) ID or use "common" to allow sign-in from any Microsoft account
 
 ### Email Service (Resend)
 
