@@ -1959,7 +1959,13 @@ export function GamesTable() {
                   });
                 }}
                 displayEmpty
-                sx={{ minWidth: 140, fontSize: 13 }}
+                sx={{ 
+                  minWidth: 140, 
+                  fontSize: 13,
+                  "& .MuiSelect-select": {
+                    paddingBottom: "6px"
+                  }
+                }}
               >
                 <MenuItem value="">Select sport</MenuItem>
                 {uniqueSports.map((sport: string) => (
@@ -1979,7 +1985,19 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
-            <Select size="small" value={newGameData.level} onChange={(e) => updateNewGameData({ level: e.target.value as string })} displayEmpty sx={{ minWidth: 140, fontSize: 13 }}>
+            <Select 
+              size="small" 
+              value={newGameData.level} 
+              onChange={(e) => updateNewGameData({ level: e.target.value as string })} 
+              displayEmpty 
+              sx={{ 
+                minWidth: 140, 
+                fontSize: 13,
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
+            >
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(newGameData.sport).map((level) => (
                 <MenuItem key={level} value={level}>
@@ -2005,7 +2023,18 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <Select size="small" value={newGameData.isHome ? "home" : "away"} onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })} sx={{ width: 80, fontSize: 13 }}>
+            <Select 
+              size="small" 
+              value={newGameData.isHome ? "home" : "away"} 
+              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })} 
+              sx={{ 
+                width: 80, 
+                fontSize: 13,
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
+            >
               <MenuItem value="home">Home</MenuItem>
               <MenuItem value="away">Away</MenuItem>
             </Select>
@@ -2020,7 +2049,18 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={{ py: 1 }}>
-            <Select size="small" value={newGameData.status} onChange={(e) => updateNewGameData({ status: e.target.value as string })} sx={{ width: 110, fontSize: 13 }}>
+            <Select 
+              size="small" 
+              value={newGameData.status} 
+              onChange={(e) => updateNewGameData({ status: e.target.value as string })} 
+              sx={{ 
+                width: 110, 
+                fontSize: 13,
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
+            >
               <MenuItem value="SCHEDULED">Pending</MenuItem>
               <MenuItem value="CONFIRMED">Yes</MenuItem>
               <MenuItem value="CANCELLED">No</MenuItem>
@@ -2229,7 +2269,14 @@ export function GamesTable() {
                   });
                 }}
                 displayEmpty
-                sx={{ minWidth: 140, fontSize: 13, bgcolor: "transparent" }}
+                sx={{ 
+                  minWidth: 140, 
+                  fontSize: 13, 
+                  bgcolor: "transparent",
+                  "& .MuiSelect-select": {
+                    paddingBottom: "6px"
+                  }
+                }}
               >
                 {uniqueSports.map((sport: string) => (
                   <MenuItem key={sport} value={sport}>
@@ -2265,7 +2312,14 @@ export function GamesTable() {
                 });
               }}
               displayEmpty
-              sx={{ minWidth: 140, fontSize: 13, bgcolor: "transparent" }}
+              sx={{ 
+                minWidth: 140, 
+                fontSize: 13, 
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
             >
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(editingGame.homeTeam.sport.name).map((level) => (
@@ -2312,7 +2366,14 @@ export function GamesTable() {
               size="small"
               value={editingGame.isHome ? "home" : "away"}
               onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, isHome: e.target.value === "home" } : prev))}
-              sx={{ width: 80, fontSize: 13, bgcolor: "transparent" }}
+              sx={{ 
+                width: 80, 
+                fontSize: 13, 
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
             >
               <MenuItem value="home">Home</MenuItem>
               <MenuItem value="away">Away</MenuItem>
@@ -2347,7 +2408,14 @@ export function GamesTable() {
               size="small"
               value={editingGame.status}
               onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, status: e.target.value as string } : prev))}
-              sx={{ width: 110, fontSize: 13, bgcolor: "transparent" }}
+              sx={{ 
+                width: 110, 
+                fontSize: 13, 
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px"
+                }
+              }}
             >
               <MenuItem value="SCHEDULED">Pending</MenuItem>
               <MenuItem value="CONFIRMED">Yes</MenuItem>
