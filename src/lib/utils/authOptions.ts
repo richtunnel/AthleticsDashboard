@@ -397,6 +397,9 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (resolvedUrl.pathname.startsWith("/onboarding")) {
+          if (resolvedUrl.pathname === "/onboarding/plans" || resolvedUrl.pathname === "/onboarding/details") {
+            return resolvedUrl.toString();
+          }
           return `${baseUrl}/dashboard`;
         }
 
@@ -418,6 +421,20 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
+  },
+
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" 
+        ? "__Secure-next-auth.session-token" 
+        : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   },
 
   pages: {
