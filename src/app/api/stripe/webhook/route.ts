@@ -286,6 +286,44 @@ async function handlePaymentFailure(invoice: Stripe.Invoice) {
   }
 
   const planName = derivePlanName(null, invoice);
+
+  // Save failed payment to database
+  try {
+    const line = invoice.lines?.data?.[0] as InvoiceLineWithPrice | undefined;
+    const planNickname = line?.price?.nickname ?? line?.price?.lookup_key ?? planName;
+    const billingCycle = planNickname?.toLowerCase().includes('annual') || planNickname?.toLowerCase().includes('year') 
+      ? 'annual' 
+      : planNickname?.toLowerCase().includes('month') 
+      ? 'monthly' 
+      : 'unknown';
+
+    await prisma.payment.upsert({
+      where: { stripeInvoiceId: invoice.id },
+      create: {
+        userId: user.id,
+        stripeInvoiceId: invoice.id,
+        stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null,
+        stripeSubscriptionId: subscriptionId,
+        amount: invoice.amount_due ?? 0,
+        currency: invoice.currency ?? 'usd',
+        status: 'failed',
+        description: line?.description ?? null,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+        receiptUrl: null,
+        planName: planNickname,
+        billingCycle,
+        paidAt: null,
+      },
+      update: {
+        status: 'failed',
+        amount: invoice.amount_due ?? 0,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to save failed payment record', error);
+  }
+
   await emailService.sendSubscriptionEmail({
     type: "payment_failure",
     user: {
@@ -515,6 +553,41 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
     : planNickname?.toLowerCase().includes('month') 
     ? 'monthly' 
     : 'unknown';
+
+  // Save payment to database
+  try {
+    await prisma.payment.upsert({
+      where: { stripeInvoiceId: invoice.id },
+      create: {
+        userId: user.id,
+        stripeInvoiceId: invoice.id,
+        stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null,
+        stripeSubscriptionId: subscriptionId,
+        amount: invoice.amount_paid ?? 0,
+        currency: invoice.currency ?? 'usd',
+        status: invoice.status ?? 'paid',
+        description: line?.description ?? null,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+        receiptUrl: invoice.charge && typeof invoice.charge === 'string' 
+          ? null 
+          : (invoice.charge as any)?.receipt_url ?? null,
+        planName: planNickname,
+        billingCycle,
+        paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+      },
+      update: {
+        status: invoice.status ?? 'paid',
+        amount: invoice.amount_paid ?? 0,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+        receiptUrl: invoice.charge && typeof invoice.charge === 'string' 
+          ? null 
+          : (invoice.charge as any)?.receipt_url ?? null,
+        paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to save payment record', error);
+  }
 
   console.info('stripe.webhook.payment_success', {
     subscriptionId: subscriptionRecord?.id,
