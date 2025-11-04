@@ -64,6 +64,7 @@ model User {
   referredBy               Referral[]                @relation("UserReferredBy")
   rewardPoints             RewardPoints?             @relation("UserRewardPoints")
   tablePreferences         TablePreference[]
+  payments                 Payment[]                 @relation("UserPayments")
 
   @@index([organizationId])
   @@map("User")
@@ -105,6 +106,30 @@ model StripeWebhookEvent {
   processedAt DateTime @default(now())
 
   @@map("StripeWebhookEvent")
+}
+
+model Payment {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation("UserPayments", fields: [userId], references: [id], onDelete: Cascade)
+  stripeInvoiceId     String   @unique
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+  amount              Int      // Amount in cents
+  currency            String   @default("usd")
+  status              String   // paid, failed, pending, etc.
+  description         String?
+  invoiceUrl          String?
+  receiptUrl          String?
+  planName            String?
+  billingCycle        String?
+  paidAt              DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@map("Payment")
 }
 
 model CustomColumn {
