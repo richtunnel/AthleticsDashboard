@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
@@ -30,7 +31,7 @@ const customAdapter = {
           name: user.name,
           metadata: {
             plan: plan,
-            source: "google_oauth",
+            source: "oauth",
           },
         });
         stripeCustomerId = customer.id;
@@ -120,6 +121,13 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
+    AzureADProvider({
+      clientId: process.env.AZURE_AD_CLIENT_ID ?? "",
+      clientSecret: process.env.AZURE_AD_CLIENT_SECRET ?? "",
+      tenantId: process.env.AZURE_AD_TENANT_ID ?? "common",
+      allowDangerousEmailAccountLinking: true,
+    }),
+
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -149,7 +157,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (!user.hashedPassword) {
-          throw new Error("Please sign in with Google");
+          throw new Error("Please sign in with Google or Microsoft");
         }
 
         const isValid = await bcrypt.compare(credentials.password, user.hashedPassword);
@@ -245,6 +253,20 @@ export const authOptions: NextAuthOptions = {
                 error: googleUpdateError,
               });
             }
+          }
+        }
+
+        if (account?.provider === "azure-ad") {
+          if (user && typeof user.id === "string" && user.email) {
+            void runNonCritical(
+              () =>
+                emailService.sendWelcomeEmail({
+                  id: user.id,
+                  email: user.email,
+                  name: user.name,
+                }),
+              `welcome email for user ${user.id}`,
+            );
           }
         }
 
