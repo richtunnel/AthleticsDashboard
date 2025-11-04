@@ -292,7 +292,12 @@ export function GamesTable() {
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [inlineEditError, setInlineEditError] = useState<string | null>(null);
   const [isInlineSaving, setIsInlineSaving] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Autosave mechanism - batched and debounced
+  const pendingChangesRef = useRef<Map<string, Record<string, any>>>(new Map());
+  const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const savingGamesRef = useRef<Set<string>>(new Set());
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -892,20 +897,29 @@ export function GamesTable() {
     [editingGameId]
   );
 
-  const saveInlineEdit = useCallback(
-    async (game: Game) => {
-      if (!inlineEditState || isInlineSaving) return;
-      if (inlineEditError) return;
-
-      // Clear any pending timeouts
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
+  // Batched autosave function - handles multiple field changes efficiently
+  const executeBatchedSave = useCallback(
+    async (gameId: string, game: Game) => {
+      const pendingChanges = pendingChangesRef.current.get(gameId);
+      if (!pendingChanges || Object.keys(pendingChanges).length === 0) return;
+      
+      // Skip if already saving this game
+      if (savingGamesRef.current.has(gameId)) return;
+      
+      // Cancel any pending request for this game
+      const existingController = abortControllersRef.current.get(gameId);
+      if (existingController) {
+        existingController.abort();
       }
-
+      
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllersRef.current.set(gameId, abortController);
+      savingGamesRef.current.add(gameId);
       setIsInlineSaving(true);
 
       try {
+        // Build base update data
         const updateData: any = {
           date: new Date(game.date.split("T")[0]).toISOString(),
           time: game.time || null,
@@ -919,100 +933,76 @@ export function GamesTable() {
           location: game.location || null,
         };
 
-        // Apply the inline edit value based on field
-        if (inlineEditState.field === "opponent") {
-          // Handle opponent name with auto-create if needed
-          const opponentName = inlineEditValue.trim();
-          if (opponentName) {
-            // Check if opponent exists
-            const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
-
-            if (existingOpponent) {
-              // Use existing opponent
-              updateData.opponentId = existingOpponent.id;
-            } else {
-              // Create new opponent
-              try {
+        // Apply all pending changes
+        for (const [field, value] of Object.entries(pendingChanges)) {
+          if (field === "opponent") {
+            const opponentName = value.trim();
+            if (opponentName) {
+              const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
+              if (existingOpponent) {
+                updateData.opponentId = existingOpponent.id;
+              } else {
                 const createRes = await fetch("/api/opponents", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ name: opponentName }),
+                  signal: abortController.signal,
                 });
-
                 if (!createRes.ok) {
                   const errorData = await createRes.json();
                   throw new Error(errorData.error || "Failed to create opponent");
                 }
-
                 const newOpponentData = await createRes.json();
                 updateData.opponentId = newOpponentData.data.id;
-
-                // Invalidate opponents query to refresh the list
                 await queryClient.invalidateQueries({ queryKey: ["opponents"] });
-              } catch (createError: any) {
-                addNotification(`Error creating opponent: ${createError.message}`, "error");
-                setIsInlineSaving(false);
-                return;
+              }
+            } else {
+              updateData.opponentId = null;
+            }
+          } else if (field === "location") {
+            updateData.location = value.slice(0, MAX_CHAR_LIMIT) || null;
+          } else if (field === "date") {
+            if (value) {
+              const nextDate = new Date(value);
+              if (!Number.isNaN(nextDate.getTime())) {
+                updateData.date = nextDate.toISOString();
               }
             }
-          } else {
-            // Empty string means clear opponent
-            updateData.opponentId = null;
-          }
-        } else if (inlineEditState.field === "location") {
-          updateData.location = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
-        } else if (inlineEditState.field === "date") {
-          if (inlineEditValue) {
-            const nextDate = new Date(inlineEditValue);
-            if (!Number.isNaN(nextDate.getTime())) {
-              updateData.date = nextDate.toISOString();
+          } else if (field === "time") {
+            updateData.time = value || null;
+          } else if (field === "status") {
+            updateData.status = value;
+          } else if (field === "notes") {
+            updateData.notes = value.slice(0, MAX_CHAR_LIMIT) || null;
+          } else if (field === "isHome") {
+            updateData.isHome = value === "home";
+          } else if (field === "busTravel") {
+            const parts = value.split("|");
+            const departureTime = parts[0] || "";
+            const arrivalTime = parts[1] || "";
+            const busTravel = parts[2] === "true";
+            updateData.actualDepartureTime = combineDateAndTime(game.date, departureTime);
+            updateData.actualArrivalTime = combineDateAndTime(game.date, arrivalTime);
+            updateData.busTravel = busTravel;
+          } else if (field === "sport" || field === "level") {
+            const newSport = field === "sport" ? value : game.homeTeam.sport.name;
+            const newLevel = field === "level" ? value : game.homeTeam.level;
+            
+            if (!newSport || !newLevel) {
+              addNotification("Sport and level are required", "error");
+              continue;
             }
-          }
-        } else if (inlineEditState.field === "time") {
-          updateData.time = inlineEditValue || null;
-        } else if (inlineEditState.field === "status") {
-          updateData.status = inlineEditValue;
-        } else if (inlineEditState.field === "notes") {
-          // Enforce character limit
-          updateData.notes = inlineEditValue.slice(0, MAX_CHAR_LIMIT) || null;
-        } else if (inlineEditState.field === "isHome") {
-          updateData.isHome = inlineEditValue === "home";
-        } else if (inlineEditState.field === "busTravel") {
-          // Parse the busTravel format: "departureTime|arrivalTime|busTravel"
-          const parts = inlineEditValue.split("|");
-          const departureTime = parts[0] || "";
-          const arrivalTime = parts[1] || "";
-          const busTravel = parts[2] === "true";
-          updateData.actualDepartureTime = combineDateAndTime(game.date, departureTime);
-          updateData.actualArrivalTime = combineDateAndTime(game.date, arrivalTime);
-          updateData.busTravel = busTravel;
-        } else if (inlineEditState.field === "sport" || inlineEditState.field === "level") {
-          // Handle sport or level change - need to find or create matching team
-          const newSport = inlineEditState.field === "sport" ? inlineEditValue : game.homeTeam.sport.name;
-          const newLevel = inlineEditState.field === "level" ? inlineEditValue : game.homeTeam.level;
-
-          if (!newSport || !newLevel) {
-            addNotification("Sport and level are required", "error");
-            setIsInlineSaving(false);
-            return;
-          }
-
-          // Find matching team
-          let matchingTeam = teams.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
-
-          if (!matchingTeam) {
-            // Create team if it doesn't exist
-            try {
-              // First, ensure sport exists
+            
+            let matchingTeam = teams.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
+            
+            if (!matchingTeam) {
               const sportRes = await fetch("/api/sports", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: newSport,
-                  season: "FALL",
-                }),
+                body: JSON.stringify({ name: newSport, season: "FALL" }),
+                signal: abortController.signal,
               });
-
+              
               let sportData;
               if (sportRes.ok) {
                 sportData = await sportRes.json();
@@ -1024,51 +1014,40 @@ export function GamesTable() {
                   throw new Error("Failed to create or find sport");
                 }
               }
-
+              
               const sportId = sportData.data?.id || sportData.id;
-
-              // Create team
               const teamRes = await fetch("/api/teams", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  name: `${newSport} ${newLevel}`,
-                  sportId,
-                  level: newLevel,
-                }),
+                body: JSON.stringify({ name: `${newSport} ${newLevel}`, sportId, level: newLevel }),
+                signal: abortController.signal,
               });
-
+              
               if (!teamRes.ok) {
                 const error = await teamRes.json();
                 throw new Error(error.error || "Failed to create team");
               }
-
+              
               const teamData = await teamRes.json();
               matchingTeam = teamData.data;
-
               await queryClient.invalidateQueries({ queryKey: ["teams"] });
-            } catch (createError: any) {
-              addNotification(`Error creating team: ${createError.message}`, "error");
-              setIsInlineSaving(false);
-              return;
             }
+            
+            updateData.homeTeamId = matchingTeam.id;
+          } else if (field.startsWith("custom:")) {
+            const columnId = field.replace("custom:", "");
+            updateData.customData = {
+              ...updateData.customData,
+              [columnId]: value.slice(0, MAX_CHAR_LIMIT),
+            };
           }
-
-          updateData.homeTeamId = matchingTeam.id;
-        } else if (inlineEditState.field.startsWith("custom:")) {
-          // Handle custom column editing
-          const columnId = inlineEditState.field.replace("custom:", "");
-          const existingCustomData = (game.customData as any) || {};
-          updateData.customData = {
-            ...existingCustomData,
-            [columnId]: inlineEditValue.slice(0, MAX_CHAR_LIMIT), // Also apply limit to custom fields
-          };
         }
 
-        const res = await fetch(`/api/games/${game.id}`, {
+        const res = await fetch(`/api/games/${gameId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updateData),
+          signal: abortController.signal,
         });
 
         if (!res.ok) {
@@ -1077,61 +1056,118 @@ export function GamesTable() {
         }
 
         await queryClient.invalidateQueries({ queryKey: ["games"] });
-
+        
+        // Clear pending changes for this game
+        pendingChangesRef.current.delete(gameId);
+        
         // Sync to calendar after successful update
-        syncGameMutation.mutate(game.id);
+        syncGameMutation.mutate(gameId);
 
         setInlineEditState(null);
         setInlineEditValue("");
         setInlineEditError(null);
       } catch (error: any) {
+        if (error.name === 'AbortError') {
+          // Request was cancelled, ignore
+          return;
+        }
         addNotification(`Error updating game: ${error.message}`, "error");
       } finally {
+        savingGamesRef.current.delete(gameId);
+        abortControllersRef.current.delete(gameId);
         setIsInlineSaving(false);
       }
     },
-    [inlineEditState, inlineEditValue, inlineEditError, isInlineSaving, queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents, teams]
+    [queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents, teams]
+  );
+
+  // Schedule autosave with debouncing and batching
+  const scheduleAutosave = useCallback(
+    (gameId: string, field: InlineEditField, value: string, game: Game, immediate: boolean = false) => {
+      // Add change to pending changes
+      const existingChanges = pendingChangesRef.current.get(gameId) || {};
+      existingChanges[field] = value;
+      pendingChangesRef.current.set(gameId, existingChanges);
+      
+      // Clear existing timeout for this game
+      const existingTimeout = saveTimeoutRef.current.get(gameId);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+      
+      // Schedule save with debounce (or immediate if specified)
+      const delay = immediate ? 0 : 1500; // 1.5 second debounce for better batching
+      const timeoutId = setTimeout(() => {
+        executeBatchedSave(gameId, game);
+        saveTimeoutRef.current.delete(gameId);
+      }, delay);
+      
+      saveTimeoutRef.current.set(gameId, timeoutId);
+    },
+    [executeBatchedSave]
   );
 
   const handleInlineKeyDown = useCallback(
     (e: React.KeyboardEvent, game: Game) => {
-      if (e.key === "Enter" && inlineEditState?.field !== "notes") {
-        // Don't save on Enter for notes field (textarea)
+      if (!inlineEditState) return;
+      
+      if (e.key === "Enter" && inlineEditState.field !== "notes") {
+        // Save immediately on Enter (except for notes textarea)
         e.preventDefault();
-        saveInlineEdit(game);
+        scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
       } else if (e.key === "Escape") {
         e.preventDefault();
+        // Cancel pending saves and clear state
+        const timeout = saveTimeoutRef.current.get(game.id);
+        if (timeout) {
+          clearTimeout(timeout);
+          saveTimeoutRef.current.delete(game.id);
+        }
+        pendingChangesRef.current.delete(game.id);
         setInlineEditState(null);
         setInlineEditValue("");
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = null;
-        }
       }
     },
-    [saveInlineEdit, inlineEditState]
+    [inlineEditState, inlineEditValue, scheduleAutosave]
   );
 
   const handleInlineBlur = useCallback(
     (game: Game) => {
-      // Debounce the save to prevent rapid consecutive updates
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        saveInlineEdit(game);
-      }, 300);
+      if (!inlineEditState) return;
+      // Save immediately on blur
+      scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
     },
-    [saveInlineEdit]
+    [inlineEditState, inlineEditValue, scheduleAutosave]
+  );
+  
+  // Trigger autosave as user types (debounced)
+  const handleInlineChange = useCallback(
+    (value: string, game: Game) => {
+      if (!inlineEditState) return;
+      
+      // Update UI immediately (optimistic update)
+      handleInlineValueChange(value);
+      
+      // Schedule batched save with debounce
+      scheduleAutosave(game.id, inlineEditState.field, value, game, false);
+    },
+    [inlineEditState, handleInlineValueChange, scheduleAutosave]
   );
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts and abort controllers on unmount
   useEffect(() => {
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      // Clear all timeouts
+      saveTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
+      saveTimeoutRef.current.clear();
+      
+      // Abort all pending requests
+      abortControllersRef.current.forEach((controller) => controller.abort());
+      abortControllersRef.current.clear();
+      
+      // Clear pending changes
+      pendingChangesRef.current.clear();
+      savingGamesRef.current.clear();
     };
   }, []);
 
@@ -2515,20 +2551,20 @@ export function GamesTable() {
             onDoubleClick={() => handleDoubleClick(game, "date")}
           >
             {isEditing ? (
-              <Box sx={{ py: 1 }}>
-                <TextField
-                  type="date"
-                  size="small"
-                  value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value)}
-                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                  onBlur={() => handleInlineBlur(game)}
-                  autoFocus
-                  disabled={isInlineSaving}
-                  sx={{ width: "100%" }}
-                  InputProps={{ sx: { fontSize: 13 } }}
-                />
-              </Box>
+            <Box sx={{ py: 1 }}>
+              <TextField
+                type="date"
+                size="small"
+                value={inlineEditValue}
+                onChange={(e) => handleInlineChange(e.target.value, game)}
+                onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                onBlur={() => handleInlineBlur(game)}
+                autoFocus
+                disabled={isInlineSaving}
+                sx={{ width: "100%" }}
+                InputProps={{ sx: { fontSize: 13 } }}
+              />
+            </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
@@ -2564,7 +2600,7 @@ export function GamesTable() {
                 <Select
                   size="small"
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onChange={(e) => handleInlineChange(e.target.value as string, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2615,7 +2651,7 @@ export function GamesTable() {
                 <Select
                   size="small"
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onChange={(e) => handleInlineChange(e.target.value as string, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2666,7 +2702,7 @@ export function GamesTable() {
                   size="small"
                   fullWidth
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onChange={(e) => handleInlineChange(e.target.value, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2713,7 +2749,7 @@ export function GamesTable() {
                 <Select
                   size="small"
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onChange={(e) => handleInlineChange(e.target.value as string, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2762,7 +2798,7 @@ export function GamesTable() {
                   type="time"
                   size="small"
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onChange={(e) => handleInlineChange(e.target.value, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2806,7 +2842,7 @@ export function GamesTable() {
                 <Select
                   size="small"
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value as string)}
+                  onChange={(e) => handleInlineChange(e.target.value as string, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2864,7 +2900,7 @@ export function GamesTable() {
                   size="small"
                   fullWidth
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineValueChange(e.target.value)}
+                  onChange={(e) => handleInlineChange(e.target.value, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
@@ -2946,7 +2982,7 @@ export function GamesTable() {
                     value={editDepartureTime}
                     onChange={(e) => {
                       const newValue = `${e.target.value}|${editArrivalTime}|${editBusTravel}`;
-                      handleInlineValueChange(newValue);
+                      handleInlineChange(newValue, game);
                     }}
                     onBlur={() => handleInlineBlur(game)}
                     disabled={isInlineSaving}
@@ -2963,7 +2999,7 @@ export function GamesTable() {
                     value={editArrivalTime}
                     onChange={(e) => {
                       const newValue = `${editDepartureTime}|${e.target.value}|${editBusTravel}`;
-                      handleInlineValueChange(newValue);
+                      handleInlineChange(newValue, game);
                     }}
                     onBlur={() => handleInlineBlur(game)}
                     disabled={isInlineSaving}
@@ -2978,7 +3014,7 @@ export function GamesTable() {
                       checked={editBusTravel}
                       onChange={(e) => {
                         const newValue = `${editDepartureTime}|${editArrivalTime}|${e.target.checked}`;
-                        handleInlineValueChange(newValue);
+                        handleInlineChange(newValue, game);
                       }}
                       sx={{ p: 0 }}
                       disabled={isInlineSaving}
@@ -3046,7 +3082,7 @@ export function GamesTable() {
                   value={inlineEditValue}
                   onChange={(e) => {
                     const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                    setInlineEditValue(value);
+                    handleInlineChange(value, game);
                   }}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
@@ -3158,7 +3194,7 @@ export function GamesTable() {
                     size="small"
                     fullWidth
                     value={inlineEditValue}
-                    onChange={(e) => handleInlineValueChange(e.target.value)}
+                    onChange={(e) => handleInlineChange(e.target.value, game)}
                     onKeyDown={(e) => handleInlineKeyDown(e, game)}
                     onBlur={() => handleInlineBlur(game)}
                     autoFocus
