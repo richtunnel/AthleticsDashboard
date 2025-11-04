@@ -13,7 +13,7 @@ function GoogleConsentForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
-  
+
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const mode = searchParams.get("mode") || "signup";
 
@@ -61,16 +61,14 @@ function GoogleConsentForm() {
               <CalendarMonth sx={{ fontSize: 48, color: "primary.main" }} />
             </Box>
           </Box>
-
           <Typography component="h1" variant="h4" align="center" gutterBottom sx={{ fontWeight: "bold" }}>
             Calendar Integration Permissions
-          </Typography>
-
-          <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4, fontSize: "1.1rem" }}>
+          </Typography>{" "}
+          <br />
+          {/* <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 1, fontSize: "1.1rem" }}>
             ADHub needs access to your Google Calendar to sync your game schedule seamlessly
-          </Typography>
-
-          <Alert severity="info" sx={{ mb: 4 }}>
+          </Typography> */}
+          <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
               Why we need these permissions:
             </Typography>
@@ -78,79 +76,43 @@ function GoogleConsentForm() {
               To provide you with automatic calendar synchronization and keep your schedule up-to-date across all your devices, ADHub requires certain Google Calendar permissions.
             </Typography>
           </Alert>
-
-          <Typography variant="h6" gutterBottom sx={{ mt: 3, mb: 2, fontWeight: "bold" }}>
-            What ADHub will be able to do:
+          <Typography variant="h6" gutterBottom sx={{ mt: 3, mb: 1, fontWeight: "bold" }}>
+            How our calendar sync will help you:
           </Typography>
-
-          <List sx={{ mb: 3 }}>
-            <ListItem sx={{ py: 2 }}>
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    bgcolor: "success.light",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Add sx={{ color: "success.main" }} />
-                </Box>
-              </ListItemIcon>
+          <List sx={{ mb: 1 }}>
+            <ListItem sx={{ py: 1 }}>
               <ListItemText
-                primary={<Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>Create Events</Typography>}
+                primary={
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                    Create Events
+                  </Typography>
+                }
                 secondary="Automatically add games and events to your Google Calendar when you schedule them in ADHub"
               />
             </ListItem>
 
-            <ListItem sx={{ py: 2 }}>
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    bgcolor: "warning.light",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Edit sx={{ color: "warning.main" }} />
-                </Box>
-              </ListItemIcon>
+            <ListItem sx={{ py: 1 }}>
               <ListItemText
-                primary={<Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>Edit Events</Typography>}
+                primary={
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                    Edit Events
+                  </Typography>
+                }
                 secondary="Update game times, locations, and details in your calendar when you make changes in ADHub"
               />
             </ListItem>
 
-            <ListItem sx={{ py: 2 }}>
-              <ListItemIcon>
-                <Box
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    bgcolor: "error.light",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Delete sx={{ color: "error.main" }} />
-                </Box>
-              </ListItemIcon>
+            <ListItem sx={{ py: 1 }}>
               <ListItemText
-                primary={<Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>Delete Events</Typography>}
+                primary={
+                  <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                    Delete Events
+                  </Typography>
+                }
                 secondary="Remove cancelled games from your calendar automatically when you delete them in ADHub"
               />
             </ListItem>
           </List>
-
           <Alert severity="success" icon={<Security />} sx={{ mb: 4 }}>
             <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
               Your data is secure
@@ -159,38 +121,20 @@ function GoogleConsentForm() {
               We only access calendar events that ADHub creates. Your personal calendar data remains private, and you can revoke these permissions at any time from your Google account settings.
             </Typography>
           </Alert>
-
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
           )}
-
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <AuthActionButton
-              fullWidth
-              variant="contained"
-              size="large"
-              startIcon={<Google />}
-              onClick={handleContinueWithGoogle}
-              loading={googleAuth.loading}
-              sx={{ py: 1.5 }}
-            >
+            <AuthActionButton fullWidth variant="contained" size="large" startIcon={<Google />} onClick={handleContinueWithGoogle} loading={googleAuth.loading} sx={{ py: 1.5 }}>
               Continue with Google
             </AuthActionButton>
 
-            <AuthActionButton
-              fullWidth
-              variant="outlined"
-              size="large"
-              onClick={handleGoBack}
-              disabled={googleAuth.loading}
-              sx={{ py: 1.5 }}
-            >
+            <AuthActionButton fullWidth variant="outlined" size="large" onClick={handleGoBack} disabled={googleAuth.loading} sx={{ py: 1.5 }}>
               Go Back
             </AuthActionButton>
           </Box>
-
           <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 3 }}>
             By continuing, you agree to grant ADHub the necessary permissions to manage your calendar events.
           </Typography>
