@@ -302,7 +302,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const handleDownloadTemplate = () => {
     const headers = ["date", "time", "sport", "level", "opponent", "home_away", "location", "status", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "Home Field", "CONFIRMED", "Senior Night"],
+      ["2024-01-15", "15:00", "Basketball", "Varsity", "Lincoln High", "Home", "Home Field", "CONFIRMED", "Senior Night"],
       ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "SCHEDULED", ""],
     ];
 
