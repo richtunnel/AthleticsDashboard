@@ -1710,9 +1710,9 @@ export function GamesTable() {
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      // Create a date object using UTC values
-      const utcDate = new Date(Date.UTC(year, month, day));
-      return format(utcDate, "MMM d, yyyy");
+      // Format using UTC components directly to avoid timezone conversion issues
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${monthNames[month]} ${day}, ${year}`;
     } catch (error) {
       return dateString;
     }
