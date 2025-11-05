@@ -37,6 +37,16 @@ import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibili
 import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
+const dateStringToUTCISOString = (dateValue: string): string => {
+  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
+  // This avoids timezone issues by explicitly creating date at noon UTC
+  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+  const [year, month, day] = datePart.split("-").map(Number);
+  // Create date at noon UTC to avoid any date boundary issues
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return utcDate.toISOString();
+};
+
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
   onClose?: () => void;
@@ -205,7 +215,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       // Transform specific fields
       switch (dbField) {
         case "date":
-          transformed.date = value ? new Date(value as string).toISOString() : null;
+          transformed.date = value ? dateStringToUTCISOString(value as string) : null;
           break;
         case "isHome":
           const normalized = String(value).toLowerCase().trim();
