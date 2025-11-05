@@ -78,6 +78,16 @@ const extractDatePart = (dateValue: string): string => {
   return dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
 };
 
+const dateStringToUTCISOString = (dateValue: string): string => {
+  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
+  // This avoids timezone issues by explicitly creating date at noon UTC
+  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+  const [year, month, day] = datePart.split("-").map(Number);
+  // Create date at noon UTC to avoid any date boundary issues
+  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return utcDate.toISOString();
+};
+
 const toTimeInputValue = (dateTime: string | null): string => {
   if (!dateTime) return "";
   const parsed = new Date(dateTime);
@@ -999,7 +1009,7 @@ export function GamesTable() {
       try {
         // Build base update data
         const updateData: any = {
-          date: new Date(game.date.split("T")[0]).toISOString(),
+          date: dateStringToUTCISOString(game.date),
           time: game.time || null,
           homeTeamId: game.homeTeamId || game.homeTeam.id,
           isHome: game.isHome,
@@ -1041,10 +1051,7 @@ export function GamesTable() {
             updateData.location = value.slice(0, MAX_CHAR_LIMIT) || null;
           } else if (field === "date") {
             if (value) {
-              const nextDate = new Date(value);
-              if (!Number.isNaN(nextDate.getTime())) {
-                updateData.date = nextDate.toISOString();
-              }
+              updateData.date = dateStringToUTCISOString(value);
             }
           } else if (field === "time") {
             updateData.time = value || null;
@@ -1394,7 +1401,7 @@ export function GamesTable() {
       }
     }
 
-    const isoDate = new Date(newGameData.date).toISOString();
+    const isoDate = dateStringToUTCISOString(newGameData.date);
 
     const gameData = {
       date: isoDate,
@@ -1536,8 +1543,7 @@ export function GamesTable() {
       }
     }
 
-    const rawDate = editingGameData.date.split("T")[0];
-    const isoDate = new Date(rawDate).toISOString();
+    const isoDate = dateStringToUTCISOString(editingGameData.date);
 
     const updateData = {
       date: isoDate,
@@ -1575,7 +1581,7 @@ export function GamesTable() {
   const handleDuplicateGame = async (game: Game) => {
     try {
       const gameData = {
-        date: new Date(game.date.split("T")[0]).toISOString(),
+        date: dateStringToUTCISOString(game.date),
         time: game.time || null,
         homeTeamId: game.homeTeamId || game.homeTeam.id,
         isHome: game.isHome,
