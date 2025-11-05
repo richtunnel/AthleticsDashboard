@@ -38,6 +38,7 @@ model User {
   calendarTokenExpiry        DateTime?
   googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
+  autoCalendarSyncEnabled    Boolean   @default(false) // Enable/disable automatic calendar sync on game creation/update
   city                       String?
   lastLoginAt                DateTime?
   lastLoginDate              DateTime?

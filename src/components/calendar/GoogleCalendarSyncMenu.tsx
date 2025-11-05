@@ -101,7 +101,7 @@ function GoogleCalendarSyncMenuContent() {
             <CheckCircleOutline sx={{ mr: 1 }} /> Connected
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Automatic and manual sync is enabled.
+            Manual sync is always available. Configure auto-sync in Settings.
           </Typography>
           <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ mt: 2, textTransform: "none", width: "fit-content" }}>
             Disconnect Calendar
@@ -110,7 +110,7 @@ function GoogleCalendarSyncMenuContent() {
       ) : (
         <Stack spacing={1}>
           <Typography variant="body2" color="text.secondary">
-            Connect your account to enable automatic and manual game synchronization.
+            Connect your account to enable game synchronization.
           </Typography>
           <Button variant="contained" color="primary" startIcon={<FaGoogle />} onClick={handleConnect} sx={{ mt: 2, textTransform: "none", width: "fit-content" }}>
             Connect Gmail Account
