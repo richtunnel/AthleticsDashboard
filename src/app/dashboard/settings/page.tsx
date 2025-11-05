@@ -9,6 +9,7 @@ import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
 import { getUserWithSubscription } from "@/lib/services/subscription";
 import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
+import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -77,9 +78,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               Google Calendar Integration
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Connect your Google Calendar to automatically sync games and events.
+              Connect your Google Calendar to sync games and events.
             </Typography>
             <ConnectCalendarButton isConnected={isCalendarConnected} />
+            {isCalendarConnected && (
+              <Box sx={{ mt: 3, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
+                <AutoCalendarSyncToggle />
+              </Box>
+            )}
           </CardContent>
         </Card>
       </Box>
