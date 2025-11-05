@@ -2180,13 +2180,8 @@ export function GamesTable() {
                 updateNewGameData({ location: value });
               }}
               placeholder="Enter location..."
-              sx={{
-                width: 180,
-                "& .MuiInputBase-input": {
-                  fontSize: 13,
-                  py: 0.5,
-                },
-              }}
+              sx={{ width: 180 }}
+              InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
         );
@@ -2538,11 +2533,14 @@ export function GamesTable() {
               placeholder="Enter location..."
               sx={{
                 width: 180,
-                "& .MuiInputBase-input": {
-                  fontSize: 13,
-                  py: 0.5,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
                 },
               }}
+              InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
         );
