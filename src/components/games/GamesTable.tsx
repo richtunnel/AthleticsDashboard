@@ -3516,7 +3516,25 @@ export function GamesTable() {
           <Typography variant="body2" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
             {activeFilterCount > 0 && (
-              <Chip label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} size="small" color="primary" sx={{ ml: 1 }} onDelete={() => setColumnFilters({})} />
+              <Chip 
+                label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} 
+                size="small" 
+                onDelete={() => setColumnFilters({})} 
+                sx={{ 
+                  ml: 1, 
+                  bgcolor: 'black', 
+                  color: 'white',
+                  '& .MuiChip-deleteIcon': {
+                    color: 'white',
+                    '&:hover': {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                    },
+                  },
+                  '&:hover': { 
+                    bgcolor: 'rgba(0, 0, 0, 0.8)',
+                  },
+                }} 
+              />
             )}
           </Typography>
           <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
