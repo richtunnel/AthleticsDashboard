@@ -152,7 +152,15 @@ export default function EmailLogDetailPage() {
 
   const formatGameDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "MMM d, yyyy");
+      // Parse the date as UTC to avoid timezone shifts
+      const date = new Date(dateString);
+      // Extract the UTC date parts to ensure consistent display
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+      // Format using UTC components directly to avoid timezone conversion issues
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${monthNames[month]} ${day}, ${year}`;
     } catch (error) {
       return dateString;
     }
