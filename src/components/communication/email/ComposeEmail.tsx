@@ -48,10 +48,10 @@ export default function ComposeEmailPage() {
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(["date", "sport", "level", "opponent", "location", "status"]);
-  const [recipientCategory, setRecipientCategory] = useState("parents");
+  const [recipientCategory, setRecipientCategory] = useState("");
   const [customRecipients, setCustomRecipients] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
-  const [subject, setSubject] = useState("Game Schedule Confirmation");
+  const [subject, setSubject] = useState("");
   const [additionalMessage, setAdditionalMessage] = useState("");
   const [selectedOpponentId, setSelectedOpponentId] = useState<string>("all");
   const [opponentFilterDisabled, setOpponentFilterDisabled] = useState(false);
@@ -341,7 +341,16 @@ export default function ComposeEmailPage() {
 
           <Stack spacing={3}>
             {/* Recipient Category */}
-            <TextField select label="Recipient Category" value={recipientCategory} onChange={(e) => setRecipientCategory(e.target.value)} fullWidth helperText="Select who should receive this email">
+            <TextField 
+              select 
+              label="Recipient Category" 
+              value={recipientCategory} 
+              onChange={(e) => setRecipientCategory(e.target.value)} 
+              fullWidth 
+              required
+              error={!recipientCategory}
+              helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
+            >
               {recipientCategories.map((category) => (
                 <MenuItem key={category.value} value={category.value}>
                   {category.label}
@@ -390,7 +399,15 @@ export default function ComposeEmailPage() {
             )}
 
             {/* Subject */}
-            <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required />
+            <TextField 
+              label="Subject" 
+              value={subject} 
+              onChange={(e) => setSubject(e.target.value)} 
+              fullWidth 
+              required 
+              error={!subject}
+              helperText={!subject ? "Subject is required" : ""}
+            />
 
             {/* Additional Message */}
             <TextField
@@ -461,7 +478,7 @@ export default function ComposeEmailPage() {
                     : undefined,
               });
             }}
-            disabled={sendEmailMutation.isPending || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
+            disabled={sendEmailMutation.isPending || !recipientCategory || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
           >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
           </Button>
