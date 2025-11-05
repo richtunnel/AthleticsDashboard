@@ -181,7 +181,15 @@ export default function ComposeEmailPage() {
   const formatGameDate = (dateString: string) => {
     if (!mounted) return dateString;
     try {
-      return format(new Date(dateString), "MMM d, yyyy");
+      // Parse the date as UTC to avoid timezone shifts
+      const date = new Date(dateString);
+      // Extract the UTC date parts to ensure consistent display
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+      // Format using UTC components directly to avoid timezone conversion issues
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${monthNames[month]} ${day}, ${year}`;
     } catch (error) {
       return dateString;
     }
@@ -190,7 +198,18 @@ export default function ComposeEmailPage() {
   const formatFullDate = (dateString: string) => {
     if (!mounted) return dateString;
     try {
-      return format(new Date(dateString), "EEEE, MMMM d, yyyy");
+      // Parse the date as UTC to avoid timezone shifts
+      const date = new Date(dateString);
+      // Extract the UTC date parts to ensure consistent display
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+      // Format using UTC components directly to avoid timezone conversion issues
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const utcDate = new Date(Date.UTC(year, month, day));
+      const dayOfWeek = dayNames[utcDate.getUTCDay()];
+      return `${dayOfWeek}, ${monthNames[month]} ${day}, ${year}`;
     } catch (error) {
       return dateString;
     }
