@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { generateReferralLink } from "@/lib/services/referral.service";
+import { normalizeBrowserUrl } from "@/lib/utils/url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const baseUrl = request.nextUrl.origin;
+    const baseUrl = normalizeBrowserUrl(request.nextUrl.origin);
     const referralLink = await generateReferralLink(session.user.id, baseUrl);
 
     return NextResponse.json({ referralLink }, { status: 200 });

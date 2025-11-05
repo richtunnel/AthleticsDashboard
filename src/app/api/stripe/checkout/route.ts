@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionSchema } from "@/lib/validations/subscription";
 import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
+import { normalizeBrowserUrl } from "@/lib/utils/url";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -139,6 +140,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+
     const checkoutSessionParams: any = {
       customer: customerId,
       mode: "subscription",
@@ -148,8 +151,8 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${req.nextUrl.origin}/onboarding/details?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.nextUrl.origin}/onboarding/plans?canceled=true`,
+      success_url: `${baseUrl}/onboarding/details?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/onboarding/plans?canceled=true`,
       metadata: getTestModeMetadata({
         userId: user.id,
         planType,

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
 import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
+import { normalizeBrowserUrl } from "@/lib/utils/url";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -189,7 +190,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+    const baseUrl = normalizeBrowserUrl(rawBaseUrl);
+    
     const successUrl = `${baseUrl}/dashboard/settings?checkout=success`;
     const cancelUrl = `${baseUrl}/onboarding/plans?checkout=cancelled`;
 
