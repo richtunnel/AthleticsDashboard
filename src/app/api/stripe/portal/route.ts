@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
+import { normalizeBrowserUrl } from "@/lib/utils/url";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +53,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const returnUrl = `${req.nextUrl.origin}/dashboard/settings`;
+    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+    const returnUrl = `${baseUrl}/dashboard/settings`;
 
     const portal = await stripe.billingPortal.sessions.create({
       customer: customerId!,
