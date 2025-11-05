@@ -39,7 +39,17 @@ export class ExportService {
   static exportToCSV(games: Game[], customColumns: CustomColumn[] = [], visibleColumnIds?: string[]): string {
     // Define base column mapping
     const baseColumnMap = new Map<string, { header: string; getValue: (game: Game) => string }>([
-      ["date", { header: "Date", getValue: (game) => format(new Date(game.date), "yyyy-MM-dd") }],
+      ["date", { 
+        header: "Date", 
+        getValue: (game) => {
+          // Extract UTC date parts to avoid timezone shifts
+          const date = new Date(game.date);
+          const year = date.getUTCFullYear();
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+      }],
       ["time", { header: "Time", getValue: (game) => game.time || "" }],
       ["sport", { header: "Sport", getValue: (game) => game.homeTeam.sport.name }],
       ["level", { header: "Level", getValue: (game) => game.homeTeam.level }],
