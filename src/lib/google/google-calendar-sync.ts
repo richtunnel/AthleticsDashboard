@@ -133,7 +133,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 function buildEventSummary(game: any): string {
   const primaryTeamName = getPrimaryTeamName(game);
   const opponentName = getOpponentTeamName(game);
-  const separator = getSummarySeparator(game.homeTeam?.level);
+  const separator = getSummarySeparator(game.isHome);
   return `${primaryTeamName}${separator}${opponentName}`;
 }
 
@@ -161,8 +161,8 @@ function getOpponentTeamName(game: any): string {
   return "TBD";
 }
 
-function getSummarySeparator(level?: string | null): string {
-  return level?.toString().toUpperCase() === "VARSITY" ? " @ " : " vs ";
+function getSummarySeparator(isHome?: boolean): string {
+  return isHome ? " vs " : " @ ";
 }
 
 function buildEventDescription(game: any): string {
