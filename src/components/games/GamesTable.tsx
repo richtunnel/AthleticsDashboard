@@ -360,20 +360,6 @@ export function GamesTable() {
   const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const savingGamesRef = useRef<Set<string>>(new Set());
-  
-  // Refs to avoid stale closures
-  const opponentsRef = useRef(opponents);
-  const teamsRef = useRef(teams);
-  const gamesRef = useRef(games);
-  
-  useEffect(() => {
-    opponentsRef.current = opponents;
-    teamsRef.current = teams;
-  }, [opponents, teams]);
-  
-  useEffect(() => {
-    gamesRef.current = games;
-  }, [games]);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -526,6 +512,20 @@ export function GamesTable() {
   const teams = teamsResponse?.data || [];
   const opponents = opponentsResponse?.data || [];
   const venues = venuesResponse?.data || [];
+
+  // Refs to avoid stale closures
+  const opponentsRef = useRef(opponents);
+  const teamsRef = useRef(teams);
+  const gamesRef = useRef(games);
+  
+  useEffect(() => {
+    opponentsRef.current = opponents;
+    teamsRef.current = teams;
+  }, [opponents, teams]);
+  
+  useEffect(() => {
+    gamesRef.current = games;
+  }, [games]);
 
   const uniqueSports = useMemo<string[]>(() => {
     const sports = teams.map((team: any) => team.sport?.name).filter((sport: any): sport is string => typeof sport === "string" && sport.length > 0);
