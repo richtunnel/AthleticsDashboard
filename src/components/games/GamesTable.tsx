@@ -1704,7 +1704,15 @@ export function GamesTable() {
   const formatGameDate = (dateString: string) => {
     if (!mounted) return dateString;
     try {
-      return format(new Date(dateString), "MMM d, yyyy");
+      // Parse the date as UTC to avoid timezone shifts
+      const date = new Date(dateString);
+      // Extract the UTC date parts to ensure consistent display
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth();
+      const day = date.getUTCDate();
+      // Create a date object using UTC values
+      const utcDate = new Date(Date.UTC(year, month, day));
+      return format(utcDate, "MMM d, yyyy");
     } catch (error) {
       return dateString;
     }
