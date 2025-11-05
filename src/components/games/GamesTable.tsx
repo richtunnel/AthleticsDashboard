@@ -360,6 +360,20 @@ export function GamesTable() {
   const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const savingGamesRef = useRef<Set<string>>(new Set());
+  
+  // Refs to avoid stale closures
+  const opponentsRef = useRef(opponents);
+  const teamsRef = useRef(teams);
+  const gamesRef = useRef(games);
+  
+  useEffect(() => {
+    opponentsRef.current = opponents;
+    teamsRef.current = teams;
+  }, [opponents, teams]);
+  
+  useEffect(() => {
+    gamesRef.current = games;
+  }, [games]);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -1002,7 +1016,7 @@ export function GamesTable() {
           if (field === "opponent") {
             const opponentName = value.trim();
             if (opponentName) {
-              const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
+              const existingOpponent = opponentsRef.current.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
               if (existingOpponent) {
                 updateData.opponentId = existingOpponent.id;
               } else {
@@ -1057,7 +1071,7 @@ export function GamesTable() {
               continue;
             }
             
-            let matchingTeam = teams.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
+            let matchingTeam = teamsRef.current.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
             
             if (!matchingTeam) {
               const sportRes = await fetch("/api/sports", {
@@ -1152,12 +1166,12 @@ export function GamesTable() {
         setIsInlineSaving(false);
       }
     },
-    [queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT, opponents, teams]
+    [queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT]
   );
 
   // Schedule autosave with debouncing and batching
   const scheduleAutosave = useCallback(
-    (gameId: string, field: InlineEditField, value: string, game: Game, immediate: boolean = false) => {
+    (gameId: string, field: InlineEditField, value: string, gameData: Game, immediate: boolean = false) => {
       // Add change to pending changes
       const existingChanges = pendingChangesRef.current.get(gameId) || {};
       existingChanges[field] = value;
@@ -1175,8 +1189,11 @@ export function GamesTable() {
       }
       
       // Schedule save with debounce (or immediate if specified)
-      const delay = immediate ? 0 : 1500; // 1.5 second debounce for better batching
+      const delay = immediate ? 0 : 800; // 800ms debounce for responsive auto-save
       const timeoutId = setTimeout(() => {
+        // Get the latest game data from ref to avoid stale closures
+        const latestGame = gamesRef.current.find((g: Game) => g.id === gameId);
+        const game = latestGame || gameData; // Fallback to the passed data if not found
         executeBatchedSave(gameId, game);
         saveTimeoutRef.current.delete(gameId);
       }, delay);
