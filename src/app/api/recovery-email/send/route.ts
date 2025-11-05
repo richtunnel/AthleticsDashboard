@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getResendClient } from "@/lib/resend";
+import { normalizeBrowserUrl } from "@/lib/utils/url";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Send verification email
-    const verificationUrl = `${req.nextUrl.origin}/verify-recovery-email?token=${token}`;
+    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+    const verificationUrl = `${baseUrl}/verify-recovery-email?token=${token}`;
     
     try {
       const resend = getResendClient();
