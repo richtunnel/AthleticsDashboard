@@ -157,10 +157,16 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
         onClick={handleOpen}
         sx={{
           ml: 0.5,
-          color: hasActiveFilter ? "primary.main" : "action.active",
+          color: hasActiveFilter ? "rgb(200, 0, 0)" : "action.active",
         }}
       >
-        <FilterList fontSize="small" />
+        <FilterList 
+          fontSize="small" 
+          sx={{ 
+            fontWeight: hasActiveFilter ? 700 : 400,
+            fill: hasActiveFilter ? "rgb(200, 0, 0)" : undefined,
+          }} 
+        />
       </IconButton>
 
       <Popover
