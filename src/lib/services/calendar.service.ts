@@ -512,7 +512,7 @@ export class CalendarService {
   private buildEventSummary(game: any): string {
     const primaryTeamName = this.getPrimaryTeamName(game);
     const opponentName = this.getOpponentTeamName(game);
-    const separator = this.getSummarySeparator(game.homeTeam?.level);
+    const separator = this.getSummarySeparator(game.isHome);
     return `${primaryTeamName}${separator}${opponentName}`;
   }
 
@@ -540,8 +540,8 @@ export class CalendarService {
     return "TBD";
   }
 
-  private getSummarySeparator(level?: string | null): string {
-    return level?.toString().toUpperCase() === "VARSITY" ? " @ " : " vs ";
+  private getSummarySeparator(isHome?: boolean): string {
+    return isHome ? " vs " : " @ ";
   }
 
   private buildEventDescription(game: any): string {
