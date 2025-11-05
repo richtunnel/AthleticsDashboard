@@ -1969,7 +1969,7 @@ export function GamesTable() {
         );
       case "notes":
         return (
-          <TableCell key="notes" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 220 }}>
+          <TableCell key="notes" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 180 }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <TableSortLabel active={sortField === "notes"} direction={sortField === "notes" ? sortOrder : "asc"} onClick={() => handleSort("notes")}>
                 NOTES
@@ -2171,10 +2171,9 @@ export function GamesTable() {
         );
       case "location":
         return (
-          <TableCell key="location" sx={{ py: 1, minWidth: 180 }}>
+          <TableCell key="location" sx={{ py: 1 }}>
             <TextField
               size="small"
-              fullWidth
               value={newGameData.location || ""}
               onChange={(e) => {
                 const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -2182,6 +2181,7 @@ export function GamesTable() {
               }}
               placeholder="Enter location..."
               sx={{
+                width: 180,
                 "& .MuiInputBase-input": {
                   fontSize: 13,
                   py: 0.5,
@@ -2229,12 +2229,11 @@ export function GamesTable() {
         );
       case "notes":
         return (
-          <TableCell key="notes" sx={{ py: 1, minWidth: 220 }}>
+          <TableCell key="notes" sx={{ py: 1 }}>
             <TextField
               size="small"
               multiline
               rows={2}
-              fullWidth
               value={newGameData.notes}
               onChange={(e) => {
                 const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -2249,6 +2248,7 @@ export function GamesTable() {
                 },
               }}
               sx={{
+                width: 180,
                 "& .MuiInputBase-input": {
                   fontSize: 13,
                 },
@@ -2527,10 +2527,9 @@ export function GamesTable() {
         );
       case "location":
         return (
-          <TableCell key="location" sx={{ py: 1, minWidth: 180 }}>
+          <TableCell key="location" sx={{ py: 1 }}>
             <TextField
               size="small"
-              fullWidth
               value={editingGame.location || ""}
               onChange={(e) => {
                 const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -2538,6 +2537,7 @@ export function GamesTable() {
               }}
               placeholder="Enter location..."
               sx={{
+                width: 180,
                 "& .MuiInputBase-input": {
                   fontSize: 13,
                   py: 0.5,
@@ -2625,12 +2625,11 @@ export function GamesTable() {
         );
       case "notes":
         return (
-          <TableCell key="notes" sx={{ py: 1, minWidth: 220 }}>
+          <TableCell key="notes" sx={{ py: 1 }}>
             <TextField
               size="small"
               multiline
               rows={3}
-              fullWidth
               value={editingGame.notes || ""}
               onChange={(e) => {
                 const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -2646,6 +2645,7 @@ export function GamesTable() {
                 },
               }}
               sx={{
+                width: 180,
                 "& .MuiInputBase-input": {
                   fontSize: 13,
                 },
@@ -3058,8 +3058,7 @@ export function GamesTable() {
             sx={{
               fontSize: 13,
               py: 0,
-              minWidth: 220,
-              maxWidth: 300,
+              minWidth: 180,
               cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
@@ -3242,8 +3241,7 @@ export function GamesTable() {
             sx={{
               fontSize: 13,
               py: 0,
-              minWidth: 220,
-              maxWidth: 300,
+              minWidth: 180,
               cursor: isEditing ? "default" : "pointer",
               bgcolor: isEditing ? "#fff9e6" : "transparent",
               ...(isEditing && {
