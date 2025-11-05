@@ -1,125 +1,45 @@
-# Summary of Changes - Stripe Plan Unavailable Fix
+# Date Picker Off-By-One Bug Fix - Summary
 
 ## Issue
-Users encountered the error "This plan is currently unavailable. Please contact support" when Stripe price IDs were not properly configured.
+Date picker selections were saving incorrect dates (off by one day). Selecting November 2nd would sometimes save as November 1st or 3rd depending on the user's timezone.
 
-## Changes Made
+## Root Cause
+JavaScript's `new Date(dateString).toISOString()` creates dates at midnight in the local timezone and then converts to UTC, causing date shifts across timezone boundaries.
 
-### 1. Enhanced Price ID Validation (`src/lib/stripe-config.ts`)
+## Solution
+Created a timezone-safe helper function `dateStringToUTCISOString()` that:
+1. Parses the date components (year, month, day) from the date string
+2. Creates a UTC date explicitly at noon (12:00 UTC)
+3. Returns the ISO string representation
 
-**Added:**
-- `isValidPriceId(priceId?: string): boolean` - Validates price IDs aren't empty, placeholders, or malformed
-- `validateClientStripeConfig()` - Client-side validation for NEXT_PUBLIC environment variables
+This ensures dates remain consistent regardless of timezone.
 
-**Modified:**
-- `validateStripeConfig()` - Now returns `{ valid, missing, invalid }` to distinguish between missing and invalid (placeholder) values
-- Added console warnings for invalid/placeholder price IDs
+## Files Modified
 
-### 2. Improved User Experience (`src/app/onboarding/plans/page.tsx`)
+### 1. src/components/games/GamesTable.tsx
+- Added `dateStringToUTCISOString()` helper function
+- Fixed 5 date conversion points:
+  - Inline editing (executeBatchedSave)
+  - Adding new games
+  - Saving edited games
+  - Duplicating games
+  - Initial date setup
 
-**Added:**
-- `isValidPriceId()` function for client-side validation
-- `isPriceConfigured()` helper to check if both price IDs are valid
-- Configuration banner in development mode that:
-  - Alerts developers when price IDs are not configured
-  - Provides specific environment variable names to set
-  - Links to setup documentation
-- Enhanced error messages that distinguish between development and production environments
-- Import for `SettingsIcon` from MUI
+### 2. src/components/games/CSVImport.tsx
+- Added helper function
+- Fixed CSV date import parsing
 
-**Modified:**
-- Plan selection logic now validates price IDs before creating checkout session
-- Error messages are context-aware (detailed in dev, generic in prod)
-- Card display shows helpful "Price ID not configured" message in development
+### 3. src/components/opponents/Opponents.tsx
+- Added helper function
+- Fixed game creation from opponents page
 
-### 3. Better API Error Handling (`src/app/api/stripe/create-checkout-session/route.ts`)
+### 4. src/components/import-export/ImportBox.tsx
+- Added helper function
+- Fixed CSV import date parsing
 
-**Modified:**
-- Checkout session creation now provides detailed error messages in development
-- Maintains generic "contact support" messages in production for security
-
-### 4. Documentation
-
-**Added:**
-- `STRIPE_CONFIG_FIX.md` - Comprehensive documentation of the fix, including:
-  - Problem description
-  - Root cause analysis
-  - Solution details
-  - Setup instructions
-  - Testing guide
-  - Migration information
-
-## User-Facing Changes
-
-### Development Mode (NODE_ENV !== 'production')
-- **New:** Red configuration banner when price IDs are missing/invalid
-- **New:** Clear instructions on which environment variables to set
-- **New:** Reference to `docs/STRIPE_QUICK_START.md` for setup
-- **Improved:** Error messages show exactly which variable is misconfigured
-
-### Production Mode
-- **Maintained:** Generic "contact support" messages (no config details exposed)
-- **No breaking changes:** Existing functionality preserved
-
-## Technical Details
-
-### Validation Logic
-A price ID is considered valid if:
-1. Not empty
-2. Does not contain placeholder text (`your_monthly_price_id`, etc.)
-3. Starts with `price_` (Stripe's standard prefix)
-4. Is longer than 10 characters
-
-### Example Valid Price IDs
-```
-price_1QLhDEKlABCDEFGHIJKLMNOP
-price_1234567890abc
-```
-
-### Example Invalid Price IDs
-```
-""                              (empty)
-"price_your_monthly_price_id"  (placeholder)
-"invalid_123456789"            (wrong prefix)
-"price_123"                    (too short)
-```
-
-## Testing
-
-### Manual Testing Checklist
-- [ ] With missing config in dev mode, see configuration banner
-- [ ] With invalid config in dev mode, see helpful error messages
-- [ ] With valid config, plans work normally
-- [ ] In production mode, see generic messages only
-- [ ] Checkout flow works with valid price IDs
-
-### Automated Testing
-No existing tests were found. Consider adding:
-- Unit tests for `isValidPriceId()`
-- Integration tests for plan selection flow
-- E2E tests for checkout with valid/invalid config
-
-## Migration Impact
-
-- **Database:** No changes required
-- **API:** No breaking changes
-- **Environment Variables:** No new required variables (same as before)
-- **Dependencies:** No new dependencies added
-
-## Rollback
-
-If needed, revert these commits. The changes are purely additive (validation + messaging).
-
-## Future Improvements
-
-1. Add setup wizard for first-time Stripe configuration
-2. Server-side API endpoint to verify Stripe config
-3. Automated tests for validation logic
-4. Environment-specific test price ID defaults
-5. Health check endpoint that includes Stripe config status
-
-## Related Documentation
-
-- [STRIPE_QUICK_START.md](./docs/STRIPE_QUICK_START.md)
-- [STRIPE_TEST_MODE_GUIDE.md](./docs/STRIPE_TEST_MODE_GUIDE.md)
-- [STRIPE_CONFIG_FIX.md](./STRIPE_CONFIG_FIX.md)
+## Impact
+✅ Date picker now saves the exact date selected
+✅ CSV imports handle dates correctly
+✅ Game duplication preserves correct dates
+✅ All date operations are timezone-independent
+✅ No breaking changes to API or database schema
