@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { travelAIService } from "@/lib/services/travelAI";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
+import { calendarService } from "@/lib/services/calendar.service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -557,6 +558,21 @@ export async function POST(request: NextRequest) {
         console.error("Error checking travel settings:", error);
         // Don't fail the game creation if auto-fill fails
       }
+    }
+
+    // Auto-sync to calendar if enabled
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { autoCalendarSyncEnabled: true },
+      });
+
+      if (user?.autoCalendarSyncEnabled) {
+        await calendarService.syncGameToCalendar(game.id, session.user.id);
+      }
+    } catch (error) {
+      console.error("Error auto-syncing to calendar:", error);
+      // Don't fail the game creation if auto-sync fails
     }
 
     return NextResponse.json(

@@ -150,6 +150,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
+    // Auto-sync to calendar if enabled and game is already synced
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { autoCalendarSyncEnabled: true },
+      });
+
+      if (user?.autoCalendarSyncEnabled && game.googleCalendarEventId) {
+        await calendarService.syncGameToCalendar(game.id, session.user.id);
+      }
+    } catch (error) {
+      console.error("Error auto-syncing to calendar:", error);
+      // Don't fail the game update if auto-sync fails
+    }
+
     return NextResponse.json(game);
   } catch (error) {
     console.error("Error updating game:", error);
