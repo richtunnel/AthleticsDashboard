@@ -164,7 +164,8 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
       styleOverrides: {
         select: {
           minHeight: 24,
-          paddingBlock: theme.spacing(1.5),
+          paddingTop: theme.spacing(1.5),
+          paddingBottom: "6px",
           paddingInline: theme.spacing(1.75),
         },
       },
