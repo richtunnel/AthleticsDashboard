@@ -13,11 +13,11 @@ export const dynamic = "force-dynamic";
 
 const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
   const mapping: Record<string, "MONTHLY" | "ANNUAL"> = {};
-  
+
   // Support both server-side and public environment variables
   // This ensures the frontend and backend use consistent price IDs
-  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  const annual = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  const monthly = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  const annual = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 
   if (monthly) {
     mapping[monthly] = "MONTHLY";
@@ -144,8 +144,6 @@ export async function POST(req: NextRequest) {
                 `3. Update the following environment variables:\n` +
                 `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
                 `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n` +
-                `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
-                `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n\n` +
                 `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
                 `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
