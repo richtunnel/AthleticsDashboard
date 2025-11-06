@@ -392,7 +392,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
               </Typography>
               {recoveryEmail ? (
                 <Box>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" component="div">
                     Recovery email: {recoveryEmail.email}
                     {recoveryEmail.verified && <Chip label="Verified" color="success" size="small" sx={{ ml: 1 }} />}
                     {!recoveryEmail.verified && <Chip label="Not Verified" color="warning" size="small" sx={{ ml: 1 }} />}
