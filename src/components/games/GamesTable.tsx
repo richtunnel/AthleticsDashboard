@@ -3651,7 +3651,7 @@ export function GamesTable() {
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" } }}>
             Games Schedule
           </Typography>
-          <Typography variant="body2" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+          <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
             {activeFilterCount > 0 && (
               <Chip 
