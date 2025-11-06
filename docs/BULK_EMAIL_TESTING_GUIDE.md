@@ -22,7 +22,7 @@ This guide explains how to safely test the bulk email functionality in the Athle
 ✅ **Rate Limiting** - Built-in delays to respect Resend API limits  
 ✅ **Error Recovery** - Continues sending even if some emails fail  
 ✅ **Detailed Logging** - Individual email logs for tracking and debugging  
-✅ **Email Validation** - Prevents invalid emails from causing failures  
+✅ **Email Validation** - Prevents invalid emails from causing failures
 
 ## Testing Workflows
 
@@ -82,16 +82,19 @@ This is the safest way to test bulk emails as you have full control over the rec
 ### 3. Testing Different Volumes
 
 #### Small Volume (1-10 emails)
+
 - Create a small test group with 1-10 addresses
 - Send and verify all arrive within seconds
 - Check Email Logs for all individual entries
 
 #### Medium Volume (10-50 emails)
+
 - Create a test group with 10-50 addresses
 - Send and verify batch processing
 - Should complete within 1-2 minutes
 
 #### Large Volume (50+ emails)
+
 - Create a test group with 50+ addresses
 - Emails will be sent in batches of 50
 - Each batch has a 1-second delay
@@ -133,13 +136,14 @@ If you see failed emails:
 
 ```bash
 # .env or .env.local
-RESEND_API_KEY=re_xxxxxxxxxxxxx
+NEXT_PUBLIC_RESEND_API_KEY=re_xxxxxxxxxxxxx
 EMAIL_FROM="Athletic Director Hub <noreply@yourdomain.com>"
 ```
 
 ### Resend Dashboard
 
 Monitor your email sending in the Resend dashboard:
+
 1. Visit [resend.com/emails](https://resend.com/emails)
 2. View real-time delivery status
 3. Check bounce rates and errors
@@ -148,11 +152,13 @@ Monitor your email sending in the Resend dashboard:
 ## Rate Limits
 
 ### Free Tier
+
 - 100 emails per day
 - 10 emails per second
 - Good for testing and small schools
 
 ### Paid Tier (Growth)
+
 - 50,000 emails per month
 - 50 emails per second
 - Suitable for medium to large schools
@@ -238,11 +244,13 @@ Before going live with bulk emails:
 ## Support and Documentation
 
 ### Resend Documentation
+
 - [Resend Getting Started](https://resend.com/docs/introduction)
 - [Resend API Reference](https://resend.com/docs/api-reference/introduction)
 - [Rate Limits](https://resend.com/docs/api-reference/introduction#rate-limit)
 
 ### Email Testing Tools
+
 - [Mailtrap](https://mailtrap.io) - Email sandbox
 - [MailHog](https://github.com/mailhog/MailHog) - Local email testing
 - [Temp Mail](https://temp-mail.org) - Temporary email addresses
@@ -250,22 +258,28 @@ Before going live with bulk emails:
 ## Troubleshooting Common Issues
 
 ### "Email service not configured"
-**Solution**: Set `RESEND_API_KEY` in your environment variables
+
+**Solution**: Set `NEXT_PUBLIC_RESEND_API_KEY` in your environment variables
 
 ### "Invalid email addresses"
+
 **Solution**: Check email format. Must be valid format: `user@domain.com`
 
 ### "Rate limit exceeded"
+
 **Solution**: Wait a few minutes or upgrade Resend plan. Our batching should prevent this.
 
 ### Emails not arriving
-**Solution**: 
+
+**Solution**:
+
 1. Check Email Logs for SENT status
 2. Check spam/junk folder
 3. Verify domain in Resend dashboard
 4. Check Resend dashboard for bounces
 
 ### Some emails sent, others failed
+
 **Solution**: This is expected behavior. Check Email Logs for specific failures and fix invalid addresses.
 
 ## Production Deployment Checklist
@@ -284,6 +298,7 @@ Before deploying to production:
 ## Questions?
 
 If you encounter issues not covered in this guide:
+
 1. Check the Email Logs for detailed error messages
 2. Check Resend dashboard for API errors
 3. Review environment variables configuration

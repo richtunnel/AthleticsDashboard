@@ -17,6 +17,7 @@ This guide covers building, running, and deploying the Athletics Dashboard appli
 ## Overview
 
 The Docker setup uses a multi-stage build process optimized for:
+
 - **Reduced memory usage** during builds (4GB limit)
 - **Smaller image size** (<500MB target)
 - **Faster builds** with layer caching
@@ -180,6 +181,7 @@ docker stop athletics-app && docker rm athletics-app
 ### With Docker Compose
 
 The `docker-compose.yml` provides a complete local environment with:
+
 - Application server
 - PostgreSQL database
 - Adminer (database management UI)
@@ -208,6 +210,7 @@ docker-compose down -v
 ```
 
 Access points:
+
 - **Application**: http://localhost:3000
 - **Adminer**: http://localhost:8080
 
@@ -236,7 +239,7 @@ GOOGLE_CALENDAR_CLIENT_SECRET="your-client-secret"
 GOOGLE_MAPS_API_KEY="your-maps-api-key"
 
 # Email (Resend)
-RESEND_API_KEY="re_your_api_key"
+NEXT_PUBLIC_RESEND_API_KEY="re_your_api_key"
 EMAIL_FROM="AD Hub <noreply@yourdomain.com>"
 
 # AI Features
@@ -344,28 +347,28 @@ Example `.do/app.yaml`:
 name: athletics-dashboard
 region: nyc
 services:
-- name: web
-  image:
-    registry_type: DOCR
-    repository: athletics-dashboard
-    tag: latest
-  instance_count: 1
-  instance_size_slug: professional-s
-  http_port: 3000
-  routes:
-  - path: /
-  health_check:
-    http_path: /api/health
-  envs:
-  - key: NODE_ENV
-    value: production
-  - key: DATABASE_URL
-    value: ${db.DATABASE_URL}
-    type: SECRET
+  - name: web
+    image:
+      registry_type: DOCR
+      repository: athletics-dashboard
+      tag: latest
+    instance_count: 1
+    instance_size_slug: professional-s
+    http_port: 3000
+    routes:
+      - path: /
+    health_check:
+      http_path: /api/health
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+        type: SECRET
 databases:
-- name: db
-  engine: PG
-  version: "16"
+  - name: db
+    engine: PG
+    version: "16"
 ```
 
 ### AWS (ECS/Fargate)
@@ -407,6 +410,7 @@ az container create \
 5. Deploy
 
 Configuration:
+
 - **Docker Command**: (leave empty, uses CMD from Dockerfile)
 - **Plan**: Starter or higher (2GB+ RAM)
 - **Region**: Choose nearest to users
@@ -432,6 +436,7 @@ The Docker build is optimized for memory-constrained environments:
 ### Memory Usage
 
 Expected memory usage:
+
 - **Build time**: ~2-4GB peak
 - **Runtime**: ~300-500MB idle, ~1-2GB under load
 - **Image size**: ~300-400MB
@@ -439,6 +444,7 @@ Expected memory usage:
 ### If You Encounter OOM Errors
 
 1. **Increase platform memory limits**:
+
    ```yaml
    # docker-compose.yml
    deploy:
@@ -448,6 +454,7 @@ Expected memory usage:
    ```
 
 2. **Reduce Next.js build concurrency**:
+
    ```bash
    # Add to environment
    NODE_OPTIONS="--max-old-space-size=3072"
@@ -458,13 +465,14 @@ Expected memory usage:
    - App Platform: Use external CI/CD like GitHub Actions
 
 4. **Split build and deploy**:
+
    ```bash
    # Build locally or in CI with more resources
    docker build -t athletics-dashboard:latest .
-   
+
    # Push to registry
    docker push your-registry/athletics-dashboard:latest
-   
+
    # Deploy from registry (no build needed)
    ```
 
@@ -651,10 +659,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Build Docker image
         run: docker build -t athletics-dashboard:${{ github.sha }} .
-      
+
       - name: Push to registry
         run: |
           echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USERNAME }} --password-stdin
@@ -672,6 +680,7 @@ jobs:
 ## Support
 
 For issues:
+
 - Docker setup: See this guide
 - Application: See main README.md
 - Deployment: Check platform-specific docs
