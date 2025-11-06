@@ -196,18 +196,18 @@ export function CalendarPreviewWidget() {
                           }
                           secondary={
                             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" component="span">
                                 {formatGameTime(startDate, game.time)}
                               </Typography>
                               {game.homeTeam.level && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="text.secondary" component="span">
                                   Level:{" "}
                                   <Typography component="span" color="text.primary">
                                     {game.homeTeam.level}
                                   </Typography>
                                 </Typography>
                               )}
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" component="span">
                                 Location:{" "}
                                 <Typography component="span" color="text.primary">
                                   {game.isHome ? "Home" : game.venue?.name || "TBD"}
@@ -215,6 +215,7 @@ export function CalendarPreviewWidget() {
                               </Typography>
                             </Box>
                           }
+                          secondaryTypographyProps={{ component: 'div' }}
                         />
                       </ListItem>
                       {gameIndex < group.items.length - 1 && <Divider component="li" sx={{ ml: 2 }} />}
