@@ -465,7 +465,7 @@ This will trigger trial-ending webhooks and allow testing subscription transitio
 
 **Solution**:
 
-1. Check `RESEND_API_KEY` is configured
+1. Check `NEXT_PUBLIC_RESEND_API_KEY` is configured
 2. Verify email service is not in test mode
 3. Check Resend dashboard for email logs
 4. In test mode, emails might be sent to a test inbox

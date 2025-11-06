@@ -5,6 +5,7 @@ This document describes the feedback submission, support ticket, and notificatio
 ## Overview
 
 The system provides:
+
 1. Feedback submission with automatic notifications
 2. Support ticket creation with automatic notifications
 3. Automatic cleanup of old feedback and tickets
@@ -16,6 +17,7 @@ The system provides:
 ### 1. Feedback Submissions
 
 When a user submits feedback through `/api/feedback`:
+
 - **Database Storage**: Feedback is stored in the `FeedbackSubmission` table
 - **Email Notification**: An email is sent to `support@athleticdirectorhub.com`
 - **Slack Notification**: A formatted message is sent to the feedback Slack channel
@@ -24,6 +26,7 @@ When a user submits feedback through `/api/feedback`:
 ### 2. Support Tickets
 
 When a user creates a support ticket through `/api/support`:
+
 - **Database Storage**: Ticket is stored in the `SupportTicket` table with a unique ticket number
 - **Email Notification**: An email is sent to `support@athleticdirectorhub.com`
 - **Slack Notification**: A formatted message is sent to the feedback Slack channel
@@ -32,12 +35,14 @@ When a user creates a support ticket through `/api/support`:
 ### 3. Slack Notifications
 
 Slack notifications include:
+
 - **Time**: ISO timestamp of submission
 - **Endpoint**: The API endpoint that was called
 - **Customer**: User name and email
 - **Body**: The feedback/ticket content
 
 Example Slack message:
+
 ```
 🎫 New Support Ticket
 Time: 2024-01-15T10:30:00.000Z
@@ -52,6 +57,7 @@ I'm having trouble scheduling games...
 ### 4. Email Notifications
 
 Email notifications are sent to `support@athleticdirectorhub.com` with:
+
 - Formatted HTML email
 - Submitter information
 - Full message content
@@ -66,7 +72,7 @@ Add these to your `.env` file:
 
 ```bash
 # Existing email configuration
-RESEND_API_KEY="re_your_resend_api_key"
+NEXT_PUBLIC_RESEND_API_KEY="re_your_NEXT_PUBLIC_RESEND_API_KEY"
 EMAIL_FROM="AD Hub <noreply@yourdomain.com>"
 
 # New Slack webhook URL
@@ -90,6 +96,7 @@ CRON_SECRET="your-shared-cron-secret"
 ### Automatic Cleanup
 
 The system includes a cron job endpoint (`/api/cron/cleanup-feedback`) that:
+
 - Runs daily (recommended: 2 AM UTC)
 - Deletes feedback submissions older than 90 days
 - Deletes closed/resolved support tickets older than 90 days
@@ -114,6 +121,7 @@ curl -X POST \
 Submit user feedback.
 
 **Request:**
+
 ```json
 {
   "subject": "Feature Request",
@@ -122,6 +130,7 @@ Submit user feedback.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -139,6 +148,7 @@ Submit user feedback.
 Create a support ticket.
 
 **Request:**
+
 ```json
 {
   "subject": "Need help with scheduling",
@@ -147,6 +157,7 @@ Create a support ticket.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -166,11 +177,13 @@ Create a support ticket.
 Cleanup old feedback and tickets (requires CRON_SECRET).
 
 **Headers:**
+
 ```
 Authorization: Bearer YOUR_CRON_SECRET
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -182,6 +195,7 @@ Authorization: Bearer YOUR_CRON_SECRET
 ## Error Handling
 
 All notification failures are logged but don't block the main operations:
+
 - If email sending fails, the error is logged and the request continues
 - If Slack notification fails, the error is logged and the request continues
 - This ensures that user-facing operations always complete successfully
@@ -218,6 +232,7 @@ curl -X POST http://localhost:3000/api/cron/cleanup-feedback \
 ### Logs
 
 All operations are logged with structured data:
+
 - `console.log`: Successful operations
 - `console.warn`: Non-critical warnings
 - `console.error`: Errors that need attention
@@ -233,7 +248,7 @@ All operations are logged with structured data:
 
 ### Emails not being sent
 
-1. Check `RESEND_API_KEY` is set correctly
+1. Check `NEXT_PUBLIC_RESEND_API_KEY` is set correctly
 2. Verify `EMAIL_FROM` domain is verified in Resend
 3. Check application logs for errors
 

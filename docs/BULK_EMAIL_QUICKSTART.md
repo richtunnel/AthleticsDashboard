@@ -3,6 +3,7 @@
 ## 5-Minute Testing Workflow
 
 ### Prerequisites
+
 - Resend API key configured in `.env`
 - Application running locally or deployed
 
@@ -21,10 +22,10 @@
    ```
    Click "Add Email" for each:
    - your-email+test1@gmail.com
-   - your-email+test2@gmail.com  
+   - your-email+test2@gmail.com
    - your-email+test3@gmail.com
    ```
-   *Note: Gmail ignores everything after the `+` so all emails arrive in your inbox*
+   _Note: Gmail ignores everything after the `+` so all emails arrive in your inbox_
 
 ### Step 2: Test Game Schedule Email (2 minutes)
 
@@ -85,6 +86,7 @@ All 3 emails arrive separately in inbox
 ## Expected Results
 
 ### ✅ Success Indicators
+
 - Email Logs show individual entries for each recipient
 - Each entry has "SENT" status
 - Each email arrives in your inbox
@@ -92,7 +94,8 @@ All 3 emails arrive separately in inbox
 - Total emails = number of recipients
 
 ### ❌ Failure Indicators (and fixes)
-- "Email service not configured" → Set `RESEND_API_KEY` in `.env`
+
+- "Email service not configured" → Set `NEXT_PUBLIC_RESEND_API_KEY` in `.env`
 - "No recipients in group" → Add emails to the group
 - "Invalid email addresses" → Check email format
 - Some emails FAILED → Check Email Logs for specific errors
@@ -100,7 +103,9 @@ All 3 emails arrive separately in inbox
 ## Testing Larger Volumes
 
 ### 10 Recipients
+
 Create 10 test emails using Gmail aliases:
+
 ```
 your-email+test1@gmail.com
 your-email+test2@gmail.com
@@ -109,7 +114,9 @@ your-email+test10@gmail.com
 ```
 
 ### 50+ Recipients
+
 For larger tests, consider:
+
 1. Using [Mailtrap.io](https://mailtrap.io) test inbox
 2. Creating multiple real test accounts
 3. Using temporary email services (for testing only)
@@ -129,12 +136,12 @@ Before using with real email groups:
 
 ## Quick Reference
 
-| Feature | Location | Purpose |
-|---------|----------|---------|
-| Email Groups | Dashboard > Email Groups | Manage recipient lists |
-| Game Schedule Emails | Games > Send Email | Send schedules to groups |
-| Email Campaigns | Dashboard > Compose Email Campaign | Send custom messages to groups |
-| Email Logs | Dashboard > Email Logs | Track all sent emails |
+| Feature              | Location                           | Purpose                        |
+| -------------------- | ---------------------------------- | ------------------------------ |
+| Email Groups         | Dashboard > Email Groups           | Manage recipient lists         |
+| Game Schedule Emails | Games > Send Email                 | Send schedules to groups       |
+| Email Campaigns      | Dashboard > Compose Email Campaign | Send custom messages to groups |
+| Email Logs           | Dashboard > Email Logs             | Track all sent emails          |
 
 ## Next Steps
 
@@ -146,6 +153,7 @@ Before using with real email groups:
 ## Support
 
 For issues or questions:
+
 1. Check Email Logs for detailed error messages
 2. Review [Bulk Email Testing Guide](./BULK_EMAIL_TESTING_GUIDE.md)
 3. Check Resend dashboard for API errors
