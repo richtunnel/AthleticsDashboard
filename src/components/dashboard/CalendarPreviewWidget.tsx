@@ -7,9 +7,13 @@ import { Alert, Box, Button, Card, CardContent, CardHeader, CircularProgress, Di
 import RefreshIcon from "@mui/icons-material/Refresh";
 import LaunchIcon from "@mui/icons-material/Launch";
 import EventNoteIcon from "@mui/icons-material/EventNote";
+import MinimizeIcon from "@mui/icons-material/Minimize";
+import CloseIcon from "@mui/icons-material/Close";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
+import { useDashboardPreferencesStore } from "@/lib/stores/dashboardPreferencesStore";
 
 const REFRESH_INTERVAL_MS = 1000 * 60 * 5;
 
@@ -49,6 +53,7 @@ interface GroupedEvents {
 export function CalendarPreviewWidget() {
   const { data: session } = useSession();
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
+  const { calendarWidgetState, setCalendarWidgetState } = useDashboardPreferencesStore();
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
@@ -104,6 +109,37 @@ export function CalendarPreviewWidget() {
 
   const errorMessage = error instanceof Error ? error.message : "Failed to load upcoming games.";
 
+  // If hidden, show a compact button to show the calendar
+  if (calendarWidgetState === "hidden") {
+    return (
+      <Box
+        sx={{
+          display: { xs: "none", md: "block" },
+          minWidth: { md: 320 },
+          maxWidth: { md: 360 },
+          position: { md: "sticky" },
+          top: { md: 96 },
+          alignSelf: { md: "flex-start" },
+        }}
+      >
+        <Button
+          variant="outlined"
+          startIcon={<EventNoteIcon />}
+          onClick={() => setCalendarWidgetState("full")}
+          fullWidth
+          sx={{ py: 1.5 }}
+        >
+          Show Calendar
+        </Button>
+      </Box>
+    );
+  }
+
+  // Get the first game for minimized view
+  const firstGame = calendarWidgetState === "minimized" && groupedEvents.length > 0 
+    ? groupedEvents[0].items[0] 
+    : null;
+
   return (
     <Box
       sx={{
@@ -119,9 +155,9 @@ export function CalendarPreviewWidget() {
         <CardHeader
           avatar={<EventNoteIcon color="primary" />}
           title="Upcoming Games"
-          subheader="Next 3 days from your schedule"
+          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next 3 days from your schedule"}
           action={
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Tooltip title={calendarTooltip}>
                 <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" size="small" aria-label="Open Google Calendar">
                   <LaunchIcon fontSize="small" />
@@ -133,6 +169,24 @@ export function CalendarPreviewWidget() {
                     {isFetching ? <CircularProgress size={16} /> : <RefreshIcon fontSize="small" />}
                   </IconButton>
                 </span>
+              </Tooltip>
+              {calendarWidgetState === "full" ? (
+                <Tooltip title="Minimize">
+                  <IconButton onClick={() => setCalendarWidgetState("minimized")} size="small" aria-label="Minimize calendar">
+                    <MinimizeIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Expand">
+                  <IconButton onClick={() => setCalendarWidgetState("full")} size="small" aria-label="Expand calendar">
+                    <ExpandMoreIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title="Hide calendar">
+                <IconButton onClick={() => setCalendarWidgetState("hidden")} size="small" aria-label="Hide calendar">
+                  <CloseIcon fontSize="small" />
+                </IconButton>
               </Tooltip>
             </Box>
           }
@@ -165,6 +219,53 @@ export function CalendarPreviewWidget() {
                 Synchronize your schedule or add games to see them here.
               </Typography>
             </Box>
+          ) : calendarWidgetState === "minimized" && firstGame ? (
+            <List disablePadding>
+              <ListItem
+                alignItems="flex-start"
+                disableGutters
+                secondaryAction={
+                  firstGame.game.googleCalendarHtmlLink ? (
+                    <Tooltip title="Open event in Google Calendar">
+                      <IconButton edge="end" component="a" href={firstGame.game.googleCalendarHtmlLink} target="_blank" rel="noopener noreferrer" size="small" aria-label="Open event in Google Calendar">
+                        <LaunchIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : undefined
+                }
+                sx={{ py: 1.5, px: 0 }}
+              >
+                <ListItemText
+                  primary={
+                    <Typography variant="body1" fontWeight={600} sx={{ mb: 0.5 }}>
+                      {firstGame.game.homeTeam.sport.name} - {firstGame.game.opponent?.name || "TBD"}
+                    </Typography>
+                  }
+                  secondary={
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                      <Typography variant="body2" color="text.secondary" component="span">
+                        {formatGameTime(firstGame.startDate, firstGame.game.time)}
+                      </Typography>
+                      {firstGame.game.homeTeam.level && (
+                        <Typography variant="body2" color="text.secondary" component="span">
+                          Level:{" "}
+                          <Typography component="span" color="text.primary">
+                            {firstGame.game.homeTeam.level}
+                          </Typography>
+                        </Typography>
+                      )}
+                      <Typography variant="body2" color="text.secondary" component="span">
+                        Location:{" "}
+                        <Typography component="span" color="text.primary">
+                          {firstGame.game.isHome ? "Home" : firstGame.game.venue?.name || "TBD"}
+                        </Typography>
+                      </Typography>
+                    </Box>
+                  }
+                  secondaryTypographyProps={{ component: 'div' }}
+                />
+              </ListItem>
+            </List>
           ) : (
             groupedEvents.map((group, groupIndex) => (
               <Box key={group.key} sx={{ pb: groupIndex < groupedEvents.length - 1 ? 2 : 0 }}>
