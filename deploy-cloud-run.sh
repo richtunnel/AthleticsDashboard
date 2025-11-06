@@ -68,7 +68,7 @@ echo "  --region $REGION \\"
 echo "  --set-secrets DATABASE_URL=database-url:latest,\\"
 echo "NEXTAUTH_SECRET=nextauth-secret:latest,\\"
 echo "GOOGLE_CALENDAR_CLIENT_SECRET=google-calendar-secret:latest,\\"
-echo "RESEND_API_KEY=resend-api-key:latest,\\"
+echo "NEXT_PUBLIC_RESEND_API_KEY=resend-api-key:latest,\\"
 echo "OPENAI_API_KEY=openai-api-key:latest"
 echo ""
 

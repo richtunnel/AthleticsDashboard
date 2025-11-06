@@ -23,12 +23,12 @@ interface SendBulkEmailParams {
 /**
  * Send bulk emails using Resend batch API with proper error handling and individual tracking.
  * This prevents email addresses from being exposed to each other and provides detailed tracking.
- * 
+ *
  * Resend batch API sends individual emails to each recipient.
- * Rate limits: 
+ * Rate limits:
  * - Free tier: 100 emails/day, 10 emails/second
  * - Paid tier: varies by plan
- * 
+ *
  * @param params - Bulk email parameters
  * @returns Result with success/failure counts and email log IDs
  */
@@ -37,7 +37,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
 
   const resend = getResendClientOptional();
   if (!resend) {
-    throw new Error("Email service not configured. Please set RESEND_API_KEY.");
+    throw new Error("Email service not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
   }
 
   const result: BulkEmailResult = {
@@ -54,10 +54,10 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
   // Process emails in batches
   for (let i = 0; i < to.length; i += BATCH_SIZE) {
     const batch = to.slice(i, i + BATCH_SIZE);
-    
+
     // Add delay between batches (except for first batch)
     if (i > 0) {
-      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+      await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
     }
 
     // Send each email individually using Resend batch API

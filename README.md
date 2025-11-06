@@ -252,12 +252,12 @@ Create a `.env.local` file in the root directory with the following variables:
 
 ### Email Service (Resend)
 
-| Variable         | Description                       | How to Get                                      |
-| ---------------- | --------------------------------- | ----------------------------------------------- |
-| `RESEND_API_KEY` | Resend API key for sending emails | [Resend Dashboard](https://resend.com/api-keys) |
-| `EMAIL_FROM`     | Sender email address              | `"AD Hub <noreply@yourdomain.com>"`             |
+| Variable                     | Description                       | How to Get                                      |
+| ---------------------------- | --------------------------------- | ----------------------------------------------- |
+| `NEXT_PUBLIC_RESEND_API_KEY` | Resend API key for sending emails | [Resend Dashboard](https://resend.com/api-keys) |
+| `EMAIL_FROM`                 | Sender email address              | `"AD Hub <noreply@yourdomain.com>"`             |
 
-**Welcome Email Feature**: The application automatically sends a branded welcome email to new users when they sign up (both manual signup and Google OAuth). The welcome email introduces the product and provides next steps for getting started. If `RESEND_API_KEY` is not configured, the signup process continues normally but the welcome email won't be sent (a warning is logged).
+**Welcome Email Feature**: The application automatically sends a branded welcome email to new users when they sign up (both manual signup and Google OAuth). The welcome email introduces the product and provides next steps for getting started. If `NEXT_PUBLIC_RESEND_API_KEY` is not configured, the signup process continues normally but the welcome email won't be sent (a warning is logged).
 
 ### OpenAI
 
@@ -780,7 +780,7 @@ DigitalOcean's App Platform can deploy this project directly from the repository
 4. **Secrets:** mark `DATABASE_URL` and any variables required during build time as `RUN_AND_BUILD_TIME`. All other secrets (e.g., `NEXTAUTH_SECRET`, OAuth keys) can remain `RUN_TIME`.
 5. **Database:** if you use a managed Postgres instance, append `?sslmode=require` to the `DATABASE_URL` so Prisma can connect over TLS.
 6. **Application URL:** set `NEXTAUTH_URL` to the live app domain (e.g., `https://your-app.ondigitalocean.app` or your custom domain).
-7. **Secrets & APIs:** provide `NEXTAUTH_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `RESEND_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
+7. **Secrets & APIs:** provide `NEXTAUTH_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `NEXT_PUBLIC_RESEND_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET`.
 
 After deployment completes, trigger `yarn prisma migrate deploy` (via the start command above) to ensure the database schema is up to date. You can also use the provided `.do/app.yaml` template with `doctl apps update` if you prefer managing the spec through code.
 

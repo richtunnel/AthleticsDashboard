@@ -18,7 +18,7 @@ substitutions:
   _GOOGLE_CALENDAR_CLIENT_SECRET_SECRET: GOOGLE_CALENDAR_CLIENT_SECRET # Secret name for the Google Calendar OAuth client secret
   _GOOGLE_MAPS_API_KEY_SECRET: GOOGLE_MAPS_API_KEY # Secret name for the Google Maps API key
   _OPENWEATHER_API_KEY_SECRET: OPENWEATHER_API_KEY # Secret name for the OpenWeather API key
-  _RESEND_API_KEY_SECRET: RESEND_API_KEY # Secret name for the Resend API key
+  _NEXT_PUBLIC_RESEND_API_KEY_SECRET: NEXT_PUBLIC_RESEND_API_KEY # Secret name for the Resend API key
   _OPENAI_API_KEY_SECRET: OPENAI_API_KEY # Secret name for the OpenAI API key
   _STRIPE_SECRET_KEY_SECRET: STRIPE_SECRET_KEY # Secret name for the Stripe secret key
   _STRIPE_WEBHOOK_SECRET_SECRET: STRIPE_WEBHOOK_SECRET # Secret name for the Stripe webhook signing secret
@@ -51,29 +51,29 @@ steps:
     args:
       - -c
       - |
-          set -euo pipefail
+        set -euo pipefail
 
-          # Secrets referenced below must exist in Secret Manager (names provided via substitutions).
-          gcloud run deploy ${_SERVICE_NAME} \
-            --project $PROJECT_ID \
-            --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA \
-            --region ${_SERVICE_REGION} \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-env-vars=NODE_ENV=production \
-            --set-env-vars=NEXTAUTH_URL=${_NEXTAUTH_URL} \
-            --set-env-vars=GOOGLE_REDIRECT_URI=${_GOOGLE_REDIRECT_URI} \
-            --set-env-vars=EMAIL_FROM="${_EMAIL_FROM}" \
-            --set-secrets=DATABASE_URL=${_DATABASE_SECRET}:latest \
-            --set-secrets=NEXTAUTH_SECRET=${_NEXTAUTH_SECRET}:latest \
-            --set-secrets=GOOGLE_CALENDAR_CLIENT_ID=${_GOOGLE_CALENDAR_CLIENT_ID_SECRET}:latest \
-            --set-secrets=GOOGLE_CALENDAR_CLIENT_SECRET=${_GOOGLE_CALENDAR_CLIENT_SECRET_SECRET}:latest \
-            --set-secrets=GOOGLE_MAPS_API_KEY=${_GOOGLE_MAPS_API_KEY_SECRET}:latest \
-            --set-secrets=OPENWEATHER_API_KEY=${_OPENWEATHER_API_KEY_SECRET}:latest \
-            --set-secrets=RESEND_API_KEY=${_RESEND_API_KEY_SECRET}:latest \
-            --set-secrets=OPENAI_API_KEY=${_OPENAI_API_KEY_SECRET}:latest \
-            --set-secrets=STRIPE_SECRET_KEY=${_STRIPE_SECRET_KEY_SECRET}:latest \
-            --set-secrets=STRIPE_WEBHOOK_SECRET=${_STRIPE_WEBHOOK_SECRET_SECRET}:latest
+        # Secrets referenced below must exist in Secret Manager (names provided via substitutions).
+        gcloud run deploy ${_SERVICE_NAME} \
+          --project $PROJECT_ID \
+          --image ${_LOCATION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA \
+          --region ${_SERVICE_REGION} \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars=NODE_ENV=production \
+          --set-env-vars=NEXTAUTH_URL=${_NEXTAUTH_URL} \
+          --set-env-vars=GOOGLE_REDIRECT_URI=${_GOOGLE_REDIRECT_URI} \
+          --set-env-vars=EMAIL_FROM="${_EMAIL_FROM}" \
+          --set-secrets=DATABASE_URL=${_DATABASE_SECRET}:latest \
+          --set-secrets=NEXTAUTH_SECRET=${_NEXTAUTH_SECRET}:latest \
+          --set-secrets=GOOGLE_CALENDAR_CLIENT_ID=${_GOOGLE_CALENDAR_CLIENT_ID_SECRET}:latest \
+          --set-secrets=GOOGLE_CALENDAR_CLIENT_SECRET=${_GOOGLE_CALENDAR_CLIENT_SECRET_SECRET}:latest \
+          --set-secrets=GOOGLE_MAPS_API_KEY=${_GOOGLE_MAPS_API_KEY_SECRET}:latest \
+          --set-secrets=OPENWEATHER_API_KEY=${_OPENWEATHER_API_KEY_SECRET}:latest \
+          --set-secrets=NEXT_PUBLIC_RESEND_API_KEY=${_NEXT_PUBLIC_RESEND_API_KEY_SECRET}:latest \
+          --set-secrets=OPENAI_API_KEY=${_OPENAI_API_KEY_SECRET}:latest \
+          --set-secrets=STRIPE_SECRET_KEY=${_STRIPE_SECRET_KEY_SECRET}:latest \
+          --set-secrets=STRIPE_WEBHOOK_SECRET=${_STRIPE_WEBHOOK_SECRET_SECRET}:latest
 
 images:
   # Registers the image built in this pipeline as the build artifact. Keep in sync with the build/push steps.

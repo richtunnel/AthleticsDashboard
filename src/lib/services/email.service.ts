@@ -43,7 +43,7 @@ export class EmailService {
 
     const resend = getResendClientOptional();
     if (!resend) {
-      throw new Error("Email service not configured. Please set RESEND_API_KEY.");
+      throw new Error("Email service not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
     }
 
     try {
@@ -131,7 +131,7 @@ export class EmailService {
       const resend = getResendClientOptional();
 
       if (!resend) {
-        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
+        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set NEXT_PUBLIC_RESEND_API_KEY.`);
         return;
       }
 
@@ -284,7 +284,7 @@ export class EmailService {
 
   private buildWelcomeEmailTemplate(user: { id: string; email: string; name?: string | null }): { subject: string; body: string } {
     const greeting = `<p>${user.name ? `Hi ${user.name}` : "Hi there"},</p>`;
-    
+
     const body = `
       ${greeting}
       <p>Welcome to <strong>Athletic Director Hub</strong>! We're excited to help you streamline your athletic program management.</p>
@@ -323,7 +323,7 @@ export class EmailService {
       
       <p>Best regards,<br>The Athletic Director Hub Team</p>
     `;
-    
+
     return {
       subject: "Welcome to Athletic Director Hub 🏆",
       body,
@@ -341,9 +341,7 @@ export class EmailService {
     const periodEnd = this.formatDisplayDate(params.currentPeriodEnd);
     const cancellationDate = this.formatDisplayDate(params.cancellationDate ?? params.currentPeriodEnd ?? null);
     const dueDate = this.formatDisplayDate(params.dueDate);
-    const invoiceLink = params.invoiceUrl
-      ? `<p><a href="${params.invoiceUrl}" style="color: #2563eb;">View latest invoice</a></p>`
-      : "";
+    const invoiceLink = params.invoiceUrl ? `<p><a href="${params.invoiceUrl}" style="color: #2563eb;">View latest invoice</a></p>` : "";
 
     switch (type) {
       case "confirmation": {
@@ -361,9 +359,7 @@ export class EmailService {
         };
       }
       case "cancellation": {
-        const scheduleLine = cancellationDate
-          ? `<p>Your access will remain available until <strong>${cancellationDate}</strong>.</p>`
-          : "<p>Your access has been removed immediately.</p>";
+        const scheduleLine = cancellationDate ? `<p>Your access will remain available until <strong>${cancellationDate}</strong>.</p>` : "<p>Your access has been removed immediately.</p>";
         const body = `
           ${greeting}
           <p>We've processed your request to cancel your ${planDescription}.</p>
@@ -395,9 +391,7 @@ export class EmailService {
       }
       case "trial_ending":
       default: {
-        const trialLine = periodEnd
-          ? `<p>Your trial will end on <strong>${periodEnd}</strong>.</p>`
-          : "<p>Your trial is ending soon.</p>";
+        const trialLine = periodEnd ? `<p>Your trial will end on <strong>${periodEnd}</strong>.</p>` : "<p>Your trial is ending soon.</p>";
         const body = `
           ${greeting}
           ${trialLine}
@@ -447,30 +441,24 @@ export class EmailService {
     });
   }
 
-  async sendSupportNotificationEmail(params: {
-    type: 'feedback' | 'ticket';
-    submitter: { name: string; email: string };
-    subject: string;
-    message: string;
-    ticketNumber?: string;
-  }): Promise<void> {
+  async sendSupportNotificationEmail(params: { type: "feedback" | "ticket"; submitter: { name: string; email: string }; subject: string; message: string; ticketNumber?: string }): Promise<void> {
     const resend = getResendClientOptional();
     if (!resend) {
-      console.warn('Email service not configured. Support notification not sent.');
+      console.warn("Email service not configured. Support notification not sent.");
       return;
     }
 
     const { type, submitter, subject, message, ticketNumber } = params;
-    const typeLabel = type === 'feedback' ? 'Feedback' : 'Support Ticket';
-    const ticketInfo = ticketNumber ? ` (${ticketNumber})` : '';
-    
+    const typeLabel = type === "feedback" ? "Feedback" : "Support Ticket";
+    const ticketInfo = ticketNumber ? ` (${ticketNumber})` : "";
+
     const body = `
       <h2>New ${typeLabel} Submission${ticketInfo}</h2>
       <p><strong>From:</strong> ${submitter.name} (${submitter.email})</p>
       <p><strong>Subject:</strong> ${subject}</p>
       <h3>Message:</h3>
       <div style="background-color: #f3f4f6; padding: 15px; border-left: 3px solid #2563eb;">
-        ${message.replace(/\n/g, '<br>')}
+        ${message.replace(/\n/g, "<br>")}
       </div>
       <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">
         Submitted at: ${new Date().toLocaleString()}
@@ -480,13 +468,13 @@ export class EmailService {
     try {
       await resend.emails.send({
         from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
-        to: ['support@athleticdirectorhub.com'],
+        to: ["support@athleticdirectorhub.com"],
         subject: `New ${typeLabel}: ${subject}`,
         html: this.buildHtmlEmail(body),
       });
-      console.log('Support notification email sent successfully');
+      console.log("Support notification email sent successfully");
     } catch (error) {
-      console.error('Failed to send support notification email:', error);
+      console.error("Failed to send support notification email:", error);
       // Don't throw - this is a non-critical feature
     }
   }

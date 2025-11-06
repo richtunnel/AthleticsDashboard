@@ -44,7 +44,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET}
 
       # Email (if using Resend)
-      # RESEND_API_KEY: ${RESEND_API_KEY}
+      # NEXT_PUBLIC_RESEND_API_KEY: ${NEXT_PUBLIC_RESEND_API_KEY}
 
       # Stripe (if using)
       # STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}

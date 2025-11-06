@@ -87,8 +87,8 @@ services:
         scope: RUN_TIME
 
       # Email service (Resend)
-      - key: RESEND_API_KEY
-        value: ${RESEND_API_KEY}
+      - key: NEXT_PUBLIC_RESEND_API_KEY
+        value: ${NEXT_PUBLIC_RESEND_API_KEY}
         type: SECRET
         scope: RUN_TIME
 

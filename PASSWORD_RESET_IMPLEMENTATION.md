@@ -101,26 +101,31 @@ Migration file: `prisma/migrations/20251023002532_add_password_reset_fields/migr
 ## Security Features
 
 ### Token Security
+
 - Tokens are 32-byte random strings (256 bits of entropy)
 - Tokens are hashed with bcrypt before storage (same as passwords)
 - Tokens expire after 1 hour
 - Tokens are single-use (cleared after successful reset)
 
 ### Rate Limiting
+
 - Maximum 3 reset attempts per email within 15 minutes
 - Prevents brute force attacks and email spam
 
 ### Email Enumeration Prevention
+
 - Same success message shown whether user exists or not
 - Prevents attackers from discovering valid email addresses
 
 ### Password Requirements
+
 - Minimum 8 characters
 - Must contain at least one letter
 - Must contain at least one number
 - Password strength indicator guides users to create strong passwords
 
 ### Additional Security
+
 - All database queries use parameterized inputs
 - Email addresses are normalized (lowercased and trimmed)
 - Google OAuth users without passwords are handled gracefully
@@ -129,6 +134,7 @@ Migration file: `prisma/migrations/20251023002532_add_password_reset_fields/migr
 ## Email Templates
 
 ### Password Reset Request Email
+
 - Clear subject line: "Reset Your Password - AD Hub"
 - Prominent reset button
 - Plain text link as alternative
@@ -136,6 +142,7 @@ Migration file: `prisma/migrations/20251023002532_add_password_reset_fields/migr
 - Security notice if user didn't request reset
 
 ### Password Reset Confirmation Email
+
 - Subject: "Password Successfully Reset - AD Hub"
 - Success confirmation
 - Link to sign in
@@ -149,7 +156,7 @@ The following environment variables are required:
 
 ```env
 # Resend email service
-RESEND_API_KEY=your_resend_api_key
+NEXT_PUBLIC_RESEND_API_KEY=your_NEXT_PUBLIC_RESEND_API_KEY
 
 # Email sender address
 EMAIL_FROM="AD Hub <noreply@yourdomain.com>"
@@ -163,13 +170,14 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
 1. Sign up for a Resend account at https://resend.com
 2. Get your API key from the dashboard
 3. Set up domain verification for production
-4. Add RESEND_API_KEY to environment variables
+4. Add NEXT_PUBLIC_RESEND_API_KEY to environment variables
 
 ## Testing
 
 ### Manual Testing
 
 1. **Forgot Password Flow:**
+
    ```
    - Go to /login
    - Click "Forgot password?"
@@ -179,6 +187,7 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
    ```
 
 2. **Password Reset Flow:**
+
    ```
    - Click reset link from email
    - Enter new password
@@ -211,6 +220,7 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
 ## UI/UX Features
 
 ### Forgot Password Page
+
 - Clean, centered layout matching login page
 - Email input with validation
 - Loading state during submission
@@ -220,6 +230,7 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
 - Link to login page after success
 
 ### Reset Password Page
+
 - Token validation with loading state
 - Password strength indicator:
   - Visual progress bar
@@ -232,6 +243,7 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
 - Error screen for invalid tokens with action button
 
 ### Login Page Updates
+
 - "Forgot password?" link below password field
 - Success alert when redirected after reset
 - Maintains existing Google and email login flows
@@ -239,12 +251,14 @@ NEXTAUTH_URL=http://localhost:3000  # or your production URL
 ## Password Strength Calculation
 
 The password strength indicator evaluates:
+
 - Length: 8+ chars (25 points), 12+ chars (additional 25 points)
 - Mixed case: Both upper and lower (25 points)
 - Numbers: Contains digits (15 points)
 - Special characters: Contains symbols (10 points)
 
 Strength levels:
+
 - Weak: < 40 points (red)
 - Fair: 40-69 points (yellow)
 - Good: 70-89 points (green)
@@ -283,15 +297,18 @@ Potential improvements for future iterations:
 ### Troubleshooting
 
 **Emails not sending:**
-- Check RESEND_API_KEY is set correctly
+
+- Check NEXT_PUBLIC_RESEND_API_KEY is set correctly
 - Verify domain in Resend dashboard
 - Check email service logs for errors
 
 **Rate limiting issues:**
+
 - Clear rate limit: restart server (in-memory store)
 - For production: implement Redis-based rate limiting
 
 **Token validation failures:**
+
 - Check system clock synchronization (for expiry)
 - Verify database has resetToken and resetTokenExpiry columns
 
