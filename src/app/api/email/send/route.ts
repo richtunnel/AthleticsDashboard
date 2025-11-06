@@ -51,13 +51,13 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   // Table header
   html += "<thead>";
   html += '<tr style="background-color: #23252a; color: white;">';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Date</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Time</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Sport</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Level</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Opponent</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Location</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600;">Status</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Date</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Time</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Sport</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Level</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Opponent</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Location</th>';
+  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Status</th>';
   html += "</tr>";
   html += "</thead>";
 
@@ -66,22 +66,22 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   games.forEach((game, index) => {
     const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
     html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-    html += `<td style="padding: 12px;">${format(new Date(game.date), "EEE, MMM d, yyyy")}</td>`;
-    html += `<td style="padding: 12px;">${game.time || "TBD"}</td>`;
-    html += `<td style="padding: 12px;">${game.homeTeam.sport.name}</td>`;
-    html += `<td style="padding: 12px;">${game.homeTeam.level}</td>`;
-    html += `<td style="padding: 12px;">${game.opponent?.name || "TBD"}</td>`;
-    html += `<td style="padding: 12px;">${game.isHome ? "<strong>Home</strong>" : game.venue?.name || "TBD"}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${format(new Date(game.date), "EEE, MMM d, yyyy")}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.time || "TBD"}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.homeTeam.sport.name}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.homeTeam.level}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.opponent?.name || "TBD"}</td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.isHome ? "<strong>Home</strong>" : game.venue?.name || "TBD"}</td>`;
 
     // Status with color
     const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
-    html += `<td style="padding: 12px;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${game.status}</span></td>`;
+    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${game.status}</span></td>`;
     html += "</tr>";
 
     // Add notes row if present
     if (game.notes) {
       html += `<tr style="background-color: ${bgColor};">`;
-      html += `<td colspan="7" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic;">`;
+      html += `<td colspan="7" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
       html += `<strong>Note:</strong> ${game.notes}`;
       html += "</td>";
       html += "</tr>";
