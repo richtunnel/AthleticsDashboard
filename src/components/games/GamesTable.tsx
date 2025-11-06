@@ -62,6 +62,7 @@ import {
   DeleteOutline,
   ContentCopy,
   VisibilityOff,
+  Restore,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 
@@ -226,12 +227,14 @@ interface ColumnStateConfig {
 interface TablePreferencesData {
   order?: ColumnId[];
   hidden?: ColumnId[];
+  columnTitles?: Record<string, string>;
   [key: string]: unknown;
 }
 
 interface ColumnPreferencePayload {
   order: ColumnId[];
   hidden: ColumnId[];
+  columnTitles?: Record<string, string>;
 }
 
 interface ResolvedColumn {
@@ -353,6 +356,11 @@ export function GamesTable() {
   const [isColumnPreferencesOpen, setIsColumnPreferencesOpen] = useState(false);
   const [columnState, setColumnState] = useState<ColumnStateConfig[]>([]);
   const [initialPreferencesApplied, setInitialPreferencesApplied] = useState(false);
+
+  // Column title editing state
+  const [editingColumnId, setEditingColumnId] = useState<ColumnId | null>(null);
+  const [editingColumnTitle, setEditingColumnTitle] = useState<string>("");
+  const [customColumnTitles, setCustomColumnTitles] = useState<Record<string, string>>({});
 
   // Inline editing state
   const [inlineEditState, setInlineEditState] = useState<InlineEditState | null>(null);
@@ -510,6 +518,13 @@ export function GamesTable() {
     }
   }, [columnPreferencesResponse, initialPreferencesApplied]);
 
+  // Load custom column titles from preferences
+  useEffect(() => {
+    if (columnPreferencesData?.columnTitles) {
+      setCustomColumnTitles(columnPreferencesData.columnTitles);
+    }
+  }, [columnPreferencesData]);
+
   const games = response?.data?.games || [];
   const pagination: PaginationData = response?.data?.pagination || {
     page: 1,
@@ -620,6 +635,12 @@ export function GamesTable() {
 
   const getColumnLabel = useCallback(
     (columnId: ColumnId) => {
+      // Check for custom title first
+      if (customColumnTitles[columnId]) {
+        return customColumnTitles[columnId];
+      }
+
+      // Return default label
       switch (columnId) {
         case "date":
           return "Date";
@@ -652,7 +673,7 @@ export function GamesTable() {
         }
       }
     },
-    [customColumnsMap]
+    [customColumnsMap, customColumnTitles]
   );
 
   const hiddenColumnCount = useMemo(() => columnState.filter((column) => !column.visible).length, [columnState]);
@@ -735,10 +756,11 @@ export function GamesTable() {
   });
 
   const persistColumnPreferences = useCallback(
-    (nextState: ColumnStateConfig[], previousState: ColumnStateConfig[]) => {
+    (nextState: ColumnStateConfig[], previousState: ColumnStateConfig[], updatedColumnTitles?: Record<string, string>) => {
       const payload: ColumnPreferencePayload = {
         order: nextState.map((column) => column.id),
         hidden: nextState.filter((column) => !column.visible).map((column) => column.id),
+        columnTitles: updatedColumnTitles !== undefined ? updatedColumnTitles : customColumnTitles,
       };
       savePreferencesMutation.mutate(payload, {
         onError: (error: any) => {
@@ -747,7 +769,7 @@ export function GamesTable() {
         },
       });
     },
-    [savePreferencesMutation, addNotification]
+    [savePreferencesMutation, addNotification, customColumnTitles]
   );
 
   const handleToggleColumnVisibility = useCallback(
@@ -802,6 +824,43 @@ export function GamesTable() {
       return nextState;
     });
   }, [persistColumnPreferences]);
+
+  // Column title editing handlers
+  const handleEditColumnTitle = useCallback((columnId: ColumnId) => {
+    const currentTitle = getColumnLabel(columnId);
+    setEditingColumnId(columnId);
+    setEditingColumnTitle(currentTitle);
+  }, [getColumnLabel]);
+
+  const handleSaveColumnTitle = useCallback(() => {
+    if (!editingColumnId) return;
+
+    const trimmedTitle = editingColumnTitle.trim();
+    if (!trimmedTitle) {
+      addNotification("Column title cannot be empty", "warning");
+      return;
+    }
+
+    const updatedTitles = { ...customColumnTitles, [editingColumnId]: trimmedTitle };
+    setCustomColumnTitles(updatedTitles);
+    persistColumnPreferences(columnState, columnState, updatedTitles);
+    setEditingColumnId(null);
+    setEditingColumnTitle("");
+    addNotification("Column title updated", "success");
+  }, [editingColumnId, editingColumnTitle, customColumnTitles, columnState, persistColumnPreferences, addNotification]);
+
+  const handleCancelEditColumnTitle = useCallback(() => {
+    setEditingColumnId(null);
+    setEditingColumnTitle("");
+  }, []);
+
+  const handleResetColumnTitle = useCallback((columnId: ColumnId) => {
+    const updatedTitles = { ...customColumnTitles };
+    delete updatedTitles[columnId];
+    setCustomColumnTitles(updatedTitles);
+    persistColumnPreferences(columnState, columnState, updatedTitles);
+    addNotification("Column title reset to default", "success");
+  }, [customColumnTitles, columnState, persistColumnPreferences, addNotification]);
 
   const handleSyncCalendar = (gameId: string) => {
     syncGameMutation.mutate(gameId);
@@ -1787,16 +1846,111 @@ export function GamesTable() {
     );
   }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
 
+  // Helper to render editable column title
+  const renderEditableColumnTitle = (columnId: ColumnId, defaultLabel: string, sortable: boolean = false, sortFieldValue?: SortField) => {
+    const isEditing = editingColumnId === columnId;
+    const displayLabel = getColumnLabel(columnId);
+    const hasCustomTitle = customColumnTitles[columnId] !== undefined;
+
+    if (isEditing) {
+      return (
+        <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+          <TextField
+            size="small"
+            value={editingColumnTitle}
+            onChange={(e) => setEditingColumnTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSaveColumnTitle();
+              } else if (e.key === "Escape") {
+                handleCancelEditColumnTitle();
+              }
+            }}
+            onBlur={handleSaveColumnTitle}
+            autoFocus
+            sx={{
+              "& .MuiInputBase-input": {
+                fontSize: 12,
+                fontWeight: 600,
+                py: 0.5,
+                px: 1,
+                textTransform: "uppercase",
+              },
+              minWidth: 100,
+            }}
+          />
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, position: "relative", group: 1 }}>
+        {sortable && sortFieldValue ? (
+          <TableSortLabel
+            active={sortField === sortFieldValue}
+            direction={sortField === sortFieldValue ? sortOrder : "asc"}
+            onClick={() => handleSort(sortFieldValue)}
+          >
+            {displayLabel.toUpperCase()}
+          </TableSortLabel>
+        ) : (
+          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>
+            {displayLabel.toUpperCase()}
+          </Typography>
+        )}
+        <Tooltip title="Edit column title">
+          <IconButton
+            size="small"
+            onClick={() => handleEditColumnTitle(columnId)}
+            sx={{
+              p: 0.25,
+              opacity: 0,
+              transition: "opacity 0.2s",
+              ".MuiTableCell-root:hover &": {
+                opacity: 0.6,
+              },
+              "&:hover": {
+                opacity: 1,
+              },
+            }}
+          >
+            <Edit sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+        {hasCustomTitle && (
+          <Tooltip title="Reset to default">
+            <IconButton
+              size="small"
+              onClick={() => handleResetColumnTitle(columnId)}
+              sx={{
+                p: 0.25,
+                opacity: 0,
+                transition: "opacity 0.2s",
+                ".MuiTableCell-root:hover &": {
+                  opacity: 0.6,
+                },
+                "&:hover": {
+                  opacity: 1,
+                },
+              }}
+            >
+              <Restore sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+    );
+  };
+
   const renderHeaderCell = (column: ResolvedColumn) => {
     switch (column.id) {
       case "date":
         return (
           <TableCell key="date" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "date"} direction={sortField === "date" ? sortOrder : "asc"} onClick={() => handleSort("date")}>
-                DATE
-              </TableSortLabel>
-              <ColumnFilter columnId="date" columnName="Date" columnType="date" uniqueValues={uniqueValues.date || []} currentFilter={columnFilters.date} onFilterChange={handleColumnFilterChange} />
+              {renderEditableColumnTitle("date", "Date", true, "date")}
+              <ColumnFilter columnId="date" columnName={getColumnLabel("date")} columnType="date" uniqueValues={uniqueValues.date || []} currentFilter={columnFilters.date} onFilterChange={handleColumnFilterChange} />
               <Tooltip title="Hide column">
                 <IconButton size="small" onClick={() => handleToggleColumnVisibility("date", false)} sx={{ ml: 0.5, p: 0.25 }}>
                   <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
@@ -1809,12 +1963,10 @@ export function GamesTable() {
         return (
           <TableCell key="sport" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "sport"} direction={sortField === "sport" ? sortOrder : "asc"} onClick={() => handleSort("sport")}>
-                SPORT
-              </TableSortLabel>
+              {renderEditableColumnTitle("sport", "Sport", true, "sport")}
               <ColumnFilter
                 columnId="sport"
-                columnName="Sport"
+                columnName={getColumnLabel("sport")}
                 columnType="text"
                 uniqueValues={uniqueValues.sport || []}
                 currentFilter={columnFilters.sport}
@@ -1832,12 +1984,10 @@ export function GamesTable() {
         return (
           <TableCell key="level" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "level"} direction={sortField === "level" ? sortOrder : "asc"} onClick={() => handleSort("level")}>
-                LEVEL
-              </TableSortLabel>
+              {renderEditableColumnTitle("level", "Level", true, "level")}
               <ColumnFilter
                 columnId="level"
-                columnName="Level"
+                columnName={getColumnLabel("level")}
                 columnType="text"
                 uniqueValues={uniqueValues.level || []}
                 currentFilter={columnFilters.level}
@@ -1855,12 +2005,10 @@ export function GamesTable() {
         return (
           <TableCell key="opponent" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "opponent"} direction={sortField === "opponent" ? sortOrder : "asc"} onClick={() => handleSort("opponent")}>
-                OPPONENT
-              </TableSortLabel>
+              {renderEditableColumnTitle("opponent", "Opponent", true, "opponent")}
               <ColumnFilter
                 columnId="opponent"
-                columnName="Opponent"
+                columnName={getColumnLabel("opponent")}
                 columnType="text"
                 uniqueValues={uniqueValues.opponent || []}
                 currentFilter={columnFilters.opponent}
@@ -1878,12 +2026,10 @@ export function GamesTable() {
         return (
           <TableCell key="isHome" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "isHome"} direction={sortField === "isHome" ? sortOrder : "asc"} onClick={() => handleSort("isHome")}>
-                H/A
-              </TableSortLabel>
+              {renderEditableColumnTitle("isHome", "Home/Away", true, "isHome")}
               <ColumnFilter
                 columnId="isHome"
-                columnName="Home/Away"
+                columnName={getColumnLabel("isHome")}
                 columnType="select"
                 uniqueValues={["Home", "Away"]}
                 currentFilter={columnFilters.isHome}
@@ -1901,9 +2047,7 @@ export function GamesTable() {
         return (
           <TableCell key="time" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "time"} direction={sortField === "time" ? sortOrder : "asc"} onClick={() => handleSort("time")}>
-                TIME
-              </TableSortLabel>
+              {renderEditableColumnTitle("time", "Time", true, "time")}
               <Tooltip title="Hide column">
                 <IconButton size="small" onClick={() => handleToggleColumnVisibility("time", false)} sx={{ ml: 0.5, p: 0.25 }}>
                   <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
@@ -1916,12 +2060,10 @@ export function GamesTable() {
         return (
           <TableCell key="status" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "status"} direction={sortField === "status" ? sortOrder : "asc"} onClick={() => handleSort("status")}>
-                CONFIRMED
-              </TableSortLabel>
+              {renderEditableColumnTitle("status", "Confirmed", true, "status")}
               <ColumnFilter
                 columnId="status"
-                columnName="Status"
+                columnName={getColumnLabel("status")}
                 columnType="select"
                 uniqueValues={uniqueValues.status || []}
                 currentFilter={columnFilters.status}
@@ -1939,12 +2081,10 @@ export function GamesTable() {
         return (
           <TableCell key="location" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "location"} direction={sortField === "location" ? sortOrder : "asc"} onClick={() => handleSort("location")}>
-                LOCATION
-              </TableSortLabel>
+              {renderEditableColumnTitle("location", "Location", true, "location")}
               <ColumnFilter
                 columnId="location"
-                columnName="Location"
+                columnName={getColumnLabel("location")}
                 columnType="text"
                 uniqueValues={uniqueValues.location || []}
                 currentFilter={columnFilters.location}
@@ -1962,12 +2102,10 @@ export function GamesTable() {
         return (
           <TableCell key="busTravel" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "busTravel"} direction={sortField === "busTravel" ? sortOrder : "asc"} onClick={() => handleSort("busTravel")}>
-                BUS INFO
-              </TableSortLabel>
+              {renderEditableColumnTitle("busTravel", "Bus Info", true, "busTravel")}
               <ColumnFilter
                 columnId="busTravel"
-                columnName="Bus Travel"
+                columnName={getColumnLabel("busTravel")}
                 columnType="select"
                 uniqueValues={["Yes", "No"]}
                 currentFilter={columnFilters.busTravel}
@@ -1985,12 +2123,10 @@ export function GamesTable() {
         return (
           <TableCell key="notes" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 180 }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
-              <TableSortLabel active={sortField === "notes"} direction={sortField === "notes" ? sortOrder : "asc"} onClick={() => handleSort("notes")}>
-                NOTES
-              </TableSortLabel>
+              {renderEditableColumnTitle("notes", "Notes", true, "notes")}
               <ColumnFilter
                 columnId="notes"
-                columnName="Notes"
+                columnName={getColumnLabel("notes")}
                 columnType="text"
                 uniqueValues={uniqueValues.notes || []}
                 currentFilter={columnFilters.notes}
@@ -2007,7 +2143,9 @@ export function GamesTable() {
       case "actions":
         return (
           <TableCell key="actions" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-            ACTIONS
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              {renderEditableColumnTitle("actions", "Actions", false)}
+            </Box>
           </TableCell>
         );
       default:
@@ -2028,10 +2166,10 @@ export function GamesTable() {
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                {customColumn.name?.toUpperCase?.() || "CUSTOM"}
+                {renderEditableColumnTitle(column.id, customColumn.name || "Custom", false)}
                 <ColumnFilter
                   columnId={customColumn.id}
-                  columnName={customColumn.name}
+                  columnName={getColumnLabel(column.id)}
                   columnType="text"
                   uniqueValues={uniqueValues[customColumn.id] || []}
                   currentFilter={columnFilters[customColumn.id]}
