@@ -3,7 +3,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Box, Paper, Typography, TextField, Button, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Alert, CircularProgress, Divider, Chip } from "@mui/material";
+import { Box, Paper, Typography, TextField, Button, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Alert, CircularProgress, Divider, Chip, useMediaQuery } from "@mui/material";
 import { ArrowBack, Send } from "@mui/icons-material";
 import { format } from "date-fns";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
@@ -44,6 +44,7 @@ const STATIC_RECIPIENT_CATEGORIES = [
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
+  const isWideScreen = useMediaQuery('(min-width:1180px)');
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -244,32 +245,81 @@ export default function ComposeEmailPage() {
     return Array.from(opponentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [allGames]);
 
+  const escapeHtml = (text: string) => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
   const generateEmailPreview = () => {
-    if (!mounted) return "Loading preview...";
+    if (!mounted) return "<p>Loading preview...</p>";
 
-    let preview = "";
+    let html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">';
 
+    // Add heading
+    html += '<h2 style="color: #23252a; margin-bottom: 16px;">Game Schedule Confirmation</h2>';
+
+    // Add additional message if present
     if (additionalMessage) {
-      preview += `${additionalMessage}\n\n`;
+      html += `<div style="margin-bottom: 24px; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #23252a; border-radius: 4px;">`;
+      html += `<p style="margin: 0; white-space: pre-wrap;">${escapeHtml(additionalMessage)}</p>`;
+      html += "</div>";
     }
 
-    preview += "Game Schedule Details:\n\n";
+    // Add games table
+    html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
 
+    // Table header
+    html += "<thead>";
+    html += '<tr style="background-color: #23252a; color: white;">';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Date</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Time</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Sport</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Level</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Opponent</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Location</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Status</th>';
+    html += "</tr>";
+    html += "</thead>";
+
+    // Table body
+    html += "<tbody>";
     selectedGames.forEach((game, index) => {
-      preview += `Game ${index + 1}:\n`;
-      preview += `Date: ${formatFullDate(game.date)}\n`;
-      preview += `Time: ${game.time || "TBD"}\n`;
-      preview += `Sport: ${game.homeTeam.sport.name} (${game.homeTeam.level})\n`;
-      preview += `Opponent: ${game.opponent?.name || "TBD"}\n`;
-      preview += `Location: ${game.isHome ? "Home" : game.venue?.name || "TBD"}\n`;
-      preview += `Status: ${game.status}\n`;
-      if (game.notes) {
-        preview += `Notes: ${game.notes}\n`;
-      }
-      preview += "\n";
-    });
+      const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
+      html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(formatFullDate(game.date))}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.time || "TBD")}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.homeTeam.sport.name)}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.homeTeam.level)}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.opponent?.name || "TBD")}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD")}</td>`;
 
-    return preview;
+      // Status with color
+      const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span></td>`;
+      html += "</tr>";
+
+      // Add notes row if present
+      if (game.notes) {
+        html += `<tr style="background-color: ${bgColor};">`;
+        html += `<td colspan="7" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
+        html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
+        html += "</td>";
+        html += "</tr>";
+      }
+    });
+    html += "</tbody>";
+    html += "</table>";
+
+    // Add footer with contact information
+    html += '<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">';
+    html += '<p style="color: #6b7280; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>';
+    html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>';
+    html += "</div>";
+
+    html += "</div>";
+
+    return html;
   };
 
   if (!mounted) {
@@ -311,145 +361,150 @@ export default function ComposeEmailPage() {
       </Box>
 
       <Stack spacing={3}>
-        {/* Selected Games Summary */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Selected Games ({selectedGames.length}){selectedOpponentId !== "all" && opponentFilterDisabled && <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />}
-          </Typography>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#f8fafc" }}>
-                  {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>}
-                  {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600 }}>Sport</TableCell>}
-                  {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600 }}>Level</TableCell>}
-                  {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600 }}>Opponent</TableCell>}
-                  {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>}
-                  {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>}
-                  {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600 }}>Time</TableCell>}
-                  {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600 }}>Notes</TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {selectedGames.map((game) => (
-                  <TableRow key={game.id}>
-                    {visibleColumnIds.includes("date") && <TableCell>{formatGameDate(game.date)}</TableCell>}
-                    {visibleColumnIds.includes("sport") && <TableCell>{game.homeTeam.sport.name}</TableCell>}
-                    {visibleColumnIds.includes("level") && <TableCell>{game.homeTeam.level}</TableCell>}
-                    {visibleColumnIds.includes("opponent") && <TableCell>{game.opponent?.name || "TBD"}</TableCell>}
-                    {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
-                    {visibleColumnIds.includes("status") && (
-                      <TableCell>
-                        <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
-                      </TableCell>
-                    )}
-                    {visibleColumnIds.includes("time") && <TableCell>{game.time || "TBD"}</TableCell>}
-                    {visibleColumnIds.includes("notes") && <TableCell>{game.notes || ""}</TableCell>}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
+        {/* Two-column layout for wide screens, stacked for smaller screens */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: isWideScreen ? 'row' : 'column', 
+          gap: 3,
+          width: '100%'
+        }}>
+          {/* Selected Games Summary - Left Column */}
+          <Box sx={{ flex: isWideScreen ? 1 : 'none', width: '100%' }}>
+            <Paper sx={{ p: 3, height: "100%" }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Selected Games ({selectedGames.length}){selectedOpponentId !== "all" && opponentFilterDisabled && <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />}
+              </Typography>
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                      {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>}
+                      {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600 }}>Sport</TableCell>}
+                      {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600 }}>Level</TableCell>}
+                      {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600 }}>Opponent</TableCell>}
+                      {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>}
+                      {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>}
+                      {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600 }}>Time</TableCell>}
+                      {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600 }}>Notes</TableCell>}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {selectedGames.map((game) => (
+                      <TableRow key={game.id}>
+                        {visibleColumnIds.includes("date") && <TableCell>{formatGameDate(game.date)}</TableCell>}
+                        {visibleColumnIds.includes("sport") && <TableCell>{game.homeTeam.sport.name}</TableCell>}
+                        {visibleColumnIds.includes("level") && <TableCell>{game.homeTeam.level}</TableCell>}
+                        {visibleColumnIds.includes("opponent") && <TableCell>{game.opponent?.name || "TBD"}</TableCell>}
+                        {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
+                        {visibleColumnIds.includes("status") && (
+                          <TableCell>
+                            <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
+                          </TableCell>
+                        )}
+                        {visibleColumnIds.includes("time") && <TableCell>{game.time || "TBD"}</TableCell>}
+                        {visibleColumnIds.includes("notes") && <TableCell>{game.notes || ""}</TableCell>}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
 
-        {/* Email Composition */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
-            Email Details
-          </Typography>
+          {/* Email Composition - Right Column */}
+          <Box sx={{ flex: isWideScreen ? 1 : 'none', width: '100%' }}>
+            <Paper sx={{ p: 3, height: "100%" }}>
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                Email Details
+              </Typography>
 
-          <Stack spacing={3}>
-            {/* Recipient Category */}
-            <TextField 
-              select 
-              label="Recipient Category" 
-              value={recipientCategory} 
-              onChange={(e) => setRecipientCategory(e.target.value)} 
-              fullWidth 
-              required
-              error={!recipientCategory}
-              helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
-              InputLabelProps={{
-                sx: {
-                  '&.MuiInputLabel-shrink': {
-                    transform: 'translate(14px, -9px) scale(0.75)',
-                  }
-                }
-              }}
-            >
-              {recipientCategories.map((category) => (
-                <MenuItem key={category.value} value={category.value}>
-                  {category.label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            {/* Opponent Filter */}
-            {uniqueOpponents.length > 0 && (
-              <TextField
-                select
-                label="Filter by Opponent"
-                value={selectedOpponentId}
-                onChange={(e) => handleOpponentChange(e.target.value)}
-                fullWidth
-                disabled={opponentFilterDisabled}
-                helperText={opponentFilterDisabled ? "Opponent filter is already applied from the games table" : "Select a specific opponent to filter which games are included in the email"}
-              >
-                <MenuItem value="all">All Opponents ({allGames.length} games)</MenuItem>
-                {uniqueOpponents.map((opponent) => {
-                  const gameCount = allGames.filter((g) => {
-                    const gameOpponentId = g.opponentId || g.opponent?.id;
-                    return gameOpponentId === opponent.id;
-                  }).length;
-                  return (
-                    <MenuItem key={opponent.id} value={opponent.id}>
-                      {opponent.name} ({gameCount} {gameCount === 1 ? "game" : "games"})
+              <Stack spacing={3}>
+                {/* Recipient Category */}
+                <TextField 
+                  select 
+                  label="Recipient Category" 
+                  value={recipientCategory} 
+                  onChange={(e) => setRecipientCategory(e.target.value)} 
+                  fullWidth 
+                  required
+                  error={!recipientCategory}
+                  helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
+                >
+                  {recipientCategories.map((category) => (
+                    <MenuItem key={category.value} value={category.value}>
+                      {category.label}
                     </MenuItem>
-                  );
-                })}
-              </TextField>
-            )}
+                  ))}
+                </TextField>
 
-            {/* Custom Recipients */}
-            {recipientCategory === "custom" && (
-              <TextField
-                label="Email Addresses"
-                value={customRecipients}
-                onChange={(e) => setCustomRecipients(e.target.value)}
-                fullWidth
-                multiline
-                rows={2}
-                placeholder="email1@example.com, email2@example.com"
-                helperText="Enter email addresses separated by commas"
-              />
-            )}
+                {/* Opponent Filter */}
+                {uniqueOpponents.length > 0 && (
+                  <TextField
+                    select
+                    label="Filter by Opponent"
+                    value={selectedOpponentId}
+                    onChange={(e) => handleOpponentChange(e.target.value)}
+                    fullWidth
+                    disabled={opponentFilterDisabled}
+                    helperText={opponentFilterDisabled ? "Opponent filter is already applied from the games table" : "Select a specific opponent to filter which games are included in the email"}
+                  >
+                    <MenuItem value="all">All Opponents ({allGames.length} games)</MenuItem>
+                    {uniqueOpponents.map((opponent) => {
+                      const gameCount = allGames.filter((g) => {
+                        const gameOpponentId = g.opponentId || g.opponent?.id;
+                        return gameOpponentId === opponent.id;
+                      }).length;
+                      return (
+                        <MenuItem key={opponent.id} value={opponent.id}>
+                          {opponent.name} ({gameCount} {gameCount === 1 ? "game" : "games"})
+                        </MenuItem>
+                      );
+                    })}
+                  </TextField>
+                )}
 
-            {/* Subject */}
-            <TextField 
-              label="Subject" 
-              value={subject} 
-              onChange={(e) => setSubject(e.target.value)} 
-              fullWidth 
-              required 
-              error={!subject}
-              helperText={!subject ? "Subject is required" : ""}
-            />
+                {/* Custom Recipients */}
+                {recipientCategory === "custom" && (
+                  <TextField
+                    label="Email Addresses"
+                    value={customRecipients}
+                    onChange={(e) => setCustomRecipients(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="email1@example.com, email2@example.com"
+                    helperText="Enter email addresses separated by commas"
+                  />
+                )}
 
-            {/* Additional Message */}
-            <TextField
-              label="Additional Message (Optional)"
-              value={additionalMessage}
-              onChange={(e) => setAdditionalMessage(e.target.value)}
-              fullWidth
-              multiline
-              rows={4}
-              placeholder="Add any additional information or instructions..."
-              helperText="This message will appear at the top of the email"
-            />
-          </Stack>
-        </Paper>
+                {/* Subject */}
+                <TextField 
+                  label="Subject" 
+                  value={subject} 
+                  onChange={(e) => setSubject(e.target.value)} 
+                  fullWidth 
+                  required 
+                  error={!subject}
+                  helperText={!subject ? "Subject is required" : ""}
+                />
 
-        {/* Email Preview */}
+                {/* Additional Message */}
+                <TextField
+                  label="Additional Message (Optional)"
+                  value={additionalMessage}
+                  onChange={(e) => setAdditionalMessage(e.target.value)}
+                  fullWidth
+                  multiline
+                  rows={4}
+                  placeholder="Add any additional information or instructions..."
+                  helperText="This message will appear at the top of the email"
+                />
+              </Stack>
+            </Paper>
+          </Box>
+        </Box>
+
+        {/* Email Preview - Full Width Below */}
         <Paper sx={{ p: 3, bgcolor: "#f8fafc" }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
             Email Preview
@@ -461,15 +516,11 @@ export default function ComposeEmailPage() {
               borderRadius: 1,
               border: "1px solid",
               borderColor: "divider",
-              fontFamily: "monospace",
-              fontSize: 13,
-              whiteSpace: "pre-wrap",
               maxHeight: 400,
               overflow: "auto",
             }}
-          >
-            {generateEmailPreview()}
-          </Box>
+            dangerouslySetInnerHTML={{ __html: generateEmailPreview() }}
+          />
         </Paper>
 
         {/* Error Display */}
