@@ -24,7 +24,7 @@ import {
   Alert,
   TablePagination,
 } from "@mui/material";
-import { Visibility, Refresh, CheckCircle, Error, Schedule, Edit } from "@mui/icons-material";
+import { Visibility, Refresh, CheckCircle, Error as ErrorIcon, Schedule, Edit } from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface EmailLog {
@@ -152,7 +152,7 @@ export default function EmailLogsPage() {
       case "SENT":
         return <CheckCircle fontSize="small" color="success" />;
       case "FAILED":
-        return <Error fontSize="small" color="error" />;
+        return <ErrorIcon fontSize="small" color="error" />;
       case "PENDING":
         return <Schedule fontSize="small" color="warning" />;
       default:
