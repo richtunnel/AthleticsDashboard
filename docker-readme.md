@@ -136,16 +136,16 @@ docker system prune -a --volumes
 
 Key environment variables to configure:
 
-| Variable               | Description                  | Required |
-| ---------------------- | ---------------------------- | -------- |
-| `DATABASE_URL`         | PostgreSQL connection string | Yes      |
-| `NEXTAUTH_URL`         | Your application URL         | Yes      |
-| `NEXTAUTH_SECRET`      | Secret for NextAuth.js       | Yes      |
-| `GOOGLE_CLIENT_ID`     | Google OAuth client ID       | Optional |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret   | Optional |
-| `RESEND_API_KEY`       | Resend email service API key | Optional |
-| `STRIPE_SECRET_KEY`    | Stripe secret key            | Optional |
-| `OPENAI_API_KEY`       | OpenAI API key               | Optional |
+| Variable                     | Description                  | Required |
+| ---------------------------- | ---------------------------- | -------- |
+| `DATABASE_URL`               | PostgreSQL connection string | Yes      |
+| `NEXTAUTH_URL`               | Your application URL         | Yes      |
+| `NEXTAUTH_SECRET`            | Secret for NextAuth.js       | Yes      |
+| `GOOGLE_CLIENT_ID`           | Google OAuth client ID       | Optional |
+| `GOOGLE_CLIENT_SECRET`       | Google OAuth client secret   | Optional |
+| `NEXT_PUBLIC_RESEND_API_KEY` | Resend email service API key | Optional |
+| `STRIPE_SECRET_KEY`          | Stripe secret key            | Optional |
+| `OPENAI_API_KEY`             | OpenAI API key               | Optional |
 
 ## Database Access
 

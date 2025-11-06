@@ -28,7 +28,7 @@ services:
       - key: DATABASE_URL
         scope: RUN_AND_BUILD_TIME
         type: SECRET
-      - key: RESEND_API_KEY
+      - key: NEXT_PUBLIC_RESEND_API_KEY
         scope: RUN_TIME
         type: SECRET
       - key: GOOGLE_CLIENT_ID

@@ -8,7 +8,7 @@ This checklist documents the steps required to manually validate the enhanced St
 - The application running locally (`yarn dev`) with the following environment variables configured:
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
-  - `RESEND_API_KEY`
+  - `NEXT_PUBLIC_RESEND_API_KEY`
   - `NEXTAUTH_URL` (used for portal links in emails)
 - PostgreSQL database migrated with the latest Prisma schema (`yarn prisma migrate deploy`).
 - Access to the database (e.g., `psql` or Prisma Studio) to inspect `Subscription`, `User`, and `StripeWebhookEvent` tables.
@@ -30,6 +30,7 @@ This checklist documents the steps required to manually validate the enhanced St
 ## Event Scenarios
 
 ### 1. Checkout Session Completion
+
 - Create a checkout session in test mode and complete it via the Stripe-hosted page.
 - Expectation:
   - `Subscription.status` is `trialing` or `active` with appropriate period dates.
@@ -37,6 +38,7 @@ This checklist documents the steps required to manually validate the enhanced St
   - Confirmation email "Your … subscription is confirmed" is delivered.
 
 ### 2. Subscription Created / Activated
+
 - Trigger `customer.subscription.created` (e.g., via Stripe dashboard or CLI):
   ```bash
   stripe trigger customer.subscription.created
@@ -44,6 +46,7 @@ This checklist documents the steps required to manually validate the enhanced St
 - Expectation: same as checkout completion if the subscription transitioned into `active`/`trialing`; confirmation email fires once.
 
 ### 3. Subscription Updated (Plan Change)
+
 - Change the subscription plan in the Stripe dashboard.
 - Expectation:
   - `Subscription.planPriceId`, `planLookupKey`, and `planNickname` update.
@@ -51,6 +54,7 @@ This checklist documents the steps required to manually validate the enhanced St
   - No duplicate confirmation email unless status transitioned from non-active to active.
 
 ### 4. Cancellation Scheduled (cancel at period end)
+
 - Schedule a cancellation:
   ```bash
   stripe subscriptions update <sub_id> --cancel-at-period-end true
@@ -61,6 +65,7 @@ This checklist documents the steps required to manually validate the enhanced St
   - Cancellation email with grace-period messaging delivered once.
 
 ### 5. Immediate Cancellation / Deletion
+
 - Cancel immediately:
   ```bash
   stripe subscriptions cancel <sub_id>
@@ -71,6 +76,7 @@ This checklist documents the steps required to manually validate the enhanced St
   - Cancellation confirmation email delivered.
 
 ### 6. Payment Failure
+
 - Simulate payment failure:
   ```bash
   stripe trigger invoice.payment_failed
@@ -81,6 +87,7 @@ This checklist documents the steps required to manually validate the enhanced St
   - Payment failure email sent with portal link, due date (if provided), and invoice URL.
 
 ### 7. Trial Ending Reminder
+
 - Trigger the trial-ending event:
   ```bash
   stripe trigger customer.subscription.trial_will_end
@@ -90,10 +97,12 @@ This checklist documents the steps required to manually validate the enhanced St
   - Trial reminder email delivered referencing the upcoming date.
 
 ## Duplicate Event Guard
+
 - Re-deliver any prior event using the Stripe CLI (e.g., copy the event `id` and call `stripe events resend <id>`).
 - Expectation: webhook returns 200 but skips processing; no duplicate DB updates or emails occur, and log output shows "duplicate" handling.
 
 ## Error Handling Smoke Test
+
 - Temporarily change `STRIPE_WEBHOOK_SECRET` locally to an invalid value and resend an event.
 - Expectation: endpoint responds with HTTP 400 and logs `stripe.webhook.signature_verification_failed`; no DB changes occur.
 

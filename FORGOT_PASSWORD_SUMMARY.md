@@ -2,21 +2,13 @@
 
 ## What Was Implemented
 
-✅ Complete forgot password and password reset flow
-✅ Email notifications via Resend
-✅ Secure token generation and validation
-✅ Password strength indicator
-✅ Rate limiting protection
-✅ Material UI components matching existing design
-✅ Database schema updates
-✅ Migration files
+✅ Complete forgot password and password reset flow ✅ Email notifications via Resend ✅ Secure token generation and validation ✅ Password strength indicator ✅ Rate limiting protection ✅ Material UI components matching existing design ✅ Database schema updates ✅ Migration files
 
 ## New Pages
 
 1. **Forgot Password Page:** `/forgot-password`
    - Enter email to receive reset link
    - Rate limited to prevent abuse
-   
 2. **Password Reset Page:** `/reset-password?token=xxx&email=xxx`
    - Validate token and email
    - Enter new password with strength indicator
@@ -29,6 +21,7 @@
 ## Database Changes
 
 Added to User model:
+
 - `resetToken` (String, optional) - Hashed token
 - `resetTokenExpiry` (DateTime, optional) - Token expiration time
 
@@ -42,7 +35,7 @@ src/app/(auth)/forgot-password/
 └── actions.ts        # Server actions for reset request
 
 src/app/(auth)/reset-password/
-├── page.tsx          # Reset password UI  
+├── page.tsx          # Reset password UI
 └── actions.ts        # Server actions for password reset
 
 prisma/migrations/20251023002532_add_password_reset_fields/
@@ -59,7 +52,7 @@ src/app/(auth)/login/page.tsx         # Added forgot password link
 ## Environment Variables Required
 
 ```env
-RESEND_API_KEY=your_api_key          # Required
+NEXT_PUBLIC_RESEND_API_KEY=your_api_key          # Required
 EMAIL_FROM="AD Hub <noreply@...>"    # Optional (has default)
 NEXTAUTH_URL=http://localhost:3000   # Required for reset links
 ```
@@ -83,11 +76,13 @@ NEXTAUTH_URL=http://localhost:3000   # Required for reset links
 ## User Flow
 
 ### Request Reset
+
 1. User clicks "Forgot password?" on login
 2. Enters email address
 3. Receives email with reset link (if account exists)
 
 ### Reset Password
+
 1. User clicks link in email
 2. System validates token
 3. User enters new password
@@ -121,6 +116,7 @@ NEXTAUTH_URL=http://localhost:3000   # Required for reset links
    - Add to environment variables
 
 2. **Run Migration:**
+
    ```bash
    npx prisma migrate deploy
    ```
