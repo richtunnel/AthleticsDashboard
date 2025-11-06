@@ -24,14 +24,7 @@ import {
   Alert,
   TablePagination,
 } from "@mui/material";
-import {
-  Visibility,
-  Refresh,
-  CheckCircle,
-  Error,
-  Schedule,
-  Edit,
-} from "@mui/icons-material";
+import { Visibility, Refresh, CheckCircle, Error, Schedule, Edit } from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface EmailLog {
@@ -128,7 +121,7 @@ export default function EmailLogsPage() {
     try {
       const res = await fetch(`/api/email-logs/${logId}`);
       if (!res.ok) throw new Error("Failed to load email log");
-      
+
       const data = await res.json();
       const log = data.data.log;
       const games = data.data.games;
@@ -136,11 +129,14 @@ export default function EmailLogsPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
-        sessionStorage.setItem("emailDraft", JSON.stringify({
-          subject: log.subject,
-          additionalMessage: log.additionalMessage || "",
-          recipientCategory: log.recipientCategory || "parents",
-        }));
+        sessionStorage.setItem(
+          "emailDraft",
+          JSON.stringify({
+            subject: log.subject,
+            additionalMessage: log.additionalMessage || "",
+            recipientCategory: log.recipientCategory || "parents",
+          })
+        );
         router.push("/dashboard/compose-email");
       } else {
         alert("No games associated with this email to re-send");
@@ -165,12 +161,12 @@ export default function EmailLogsPage() {
   };
 
   const getStatusChip = (status: string) => {
-    const statusConfig: Record<string, { color: "success" | "error" | "warning" | "default", label: string }> = {
+    const statusConfig: Record<string, { color: "success" | "error" | "warning" | "default"; label: string }> = {
       SENT: { color: "success", label: "Sent" },
       FAILED: { color: "error", label: "Failed" },
       PENDING: { color: "warning", label: "Pending" },
     };
-    
+
     const config = statusConfig[status] || { color: "default" as const, label: status };
     return <Chip label={config.label} color={config.color} size="small" />;
   };
@@ -222,12 +218,7 @@ export default function EmailLogsPage() {
             <MenuItem value="PENDING">Pending</MenuItem>
           </TextField>
 
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={() => refetch()}
-            size="small"
-          >
+          <Button variant="outlined" startIcon={<Refresh />} onClick={() => refetch()} size="small">
             Refresh
           </Button>
         </Stack>
@@ -264,30 +255,18 @@ export default function EmailLogsPage() {
                       </TableCell>
                       <TableCell>{getStatusChip(log.status)}</TableCell>
                       <TableCell>
-                        {log.gameIds && log.gameIds.length > 0 ? (
-                          <Chip label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} size="small" variant="outlined" />
-                        ) : (
-                          "—"
-                        )}
+                        {log.gameIds && log.gameIds.length > 0 ? <Chip label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} size="small" variant="outlined" /> : "—"}
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1}>
                           <Tooltip title="View Details">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewDetails(log.id)}
-                              color="primary"
-                            >
+                            <IconButton size="small" onClick={() => handleViewDetails(log.id)} color="primary">
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>
                           {log.gameIds && log.gameIds.length > 0 && (
                             <Tooltip title="Re-open & Edit">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleReopenEdit(log.id)}
-                                color="secondary"
-                              >
+                              <IconButton size="small" onClick={() => handleReopenEdit(log.id)} color="secondary">
                                 <Edit fontSize="small" />
                               </IconButton>
                             </Tooltip>
