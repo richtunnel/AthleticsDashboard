@@ -98,13 +98,11 @@ function GoogleCalendarSyncMenuContent() {
 
       {isConnected ? (
         <Stack spacing={2}>
-          <Typography color="success.main" sx={{ display: "flex", alignItems: "center", fontWeight: "bold" }}>
-            <Box sx={{ width: "100%", maxWidth: "1280px" }}>
-              <Alert sx={{ width: "100%" }} severity="success" icon={<CheckCircle />}>
-                Your Google Calendar is connected
-              </Alert>
-            </Box>
-          </Typography>
+          <Box sx={{ width: "100%", maxWidth: "1280px" }}>
+            <Alert sx={{ width: "100%" }} severity="success" icon={<CheckCircle />}>
+              Your Google Calendar is connected
+            </Alert>
+          </Box>
           <Typography variant="body2" color="text.secondary">
             Manual sync is always available from the games table.
           </Typography>
