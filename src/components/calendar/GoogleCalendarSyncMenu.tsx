@@ -8,6 +8,7 @@ import { CalendarMonth, CheckCircleOutline, LinkOff } from "@mui/icons-material"
 import { FaGoogle } from "react-icons/fa";
 import { IconButton } from "@mui/material";
 import Link from "next/link";
+import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -96,14 +97,17 @@ function GoogleCalendarSyncMenuContent() {
       </Suspense>
 
       {isConnected ? (
-        <Stack spacing={1}>
+        <Stack spacing={2}>
           <Typography color="success.main" sx={{ display: "flex", alignItems: "center", fontWeight: "bold" }}>
             <CheckCircleOutline sx={{ mr: 1 }} /> Connected
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manual sync is always available. Configure auto-sync in Settings.
+            Manual sync is always available from the games table.
           </Typography>
-          <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ mt: 2, textTransform: "none", width: "fit-content" }}>
+          <Box sx={{ pt: 2, pb: 1, borderTop: "1px solid", borderColor: "divider" }}>
+            <AutoCalendarSyncToggle />
+          </Box>
+          <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content" }}>
             Disconnect Calendar
           </Button>
         </Stack>
