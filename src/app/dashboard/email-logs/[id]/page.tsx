@@ -138,7 +138,7 @@ export default function EmailLogDetailPage() {
     };
 
     const config = statusConfig[status] || { color: "default" as const, label: status, icon: null };
-    return <Chip label={config.label} color={config.color} icon={config.icon as any} />;
+    return <Chip label={config.label} color={config.color} {...(config.icon && { icon: config.icon })} />;
   };
 
   const formatDate = (dateString: string | null) => {
