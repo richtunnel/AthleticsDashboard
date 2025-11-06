@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } from "@mui/material";
-import { CalendarMonth, CheckCircleOutline, LinkOff } from "@mui/icons-material";
+import { CalendarMonth, CheckCircleOutline, CheckCircle, LinkOff } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
 import { IconButton } from "@mui/material";
 import Link from "next/link";
@@ -99,12 +99,20 @@ function GoogleCalendarSyncMenuContent() {
       {isConnected ? (
         <Stack spacing={2}>
           <Typography color="success.main" sx={{ display: "flex", alignItems: "center", fontWeight: "bold" }}>
-            <CheckCircleOutline sx={{ mr: 1 }} /> Connected
+            <Box sx={{ width: "100%", maxWidth: "1280px" }}>
+              <Alert sx={{ width: "100%" }} severity="success" icon={<CheckCircle />}>
+                Your Google Calendar is connected
+              </Alert>
+            </Box>
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Manual sync is always available from the games table.
           </Typography>
           <Box sx={{ pt: 2, pb: 1, borderTop: "1px solid", borderColor: "divider" }}>
+            <Typography variant="h6" sx={{ pb: 2 }}>
+              Calendar Sync Options
+            </Typography>
+
             <AutoCalendarSyncToggle />
           </Box>
           <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content" }}>
