@@ -157,15 +157,15 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
         onClick={handleOpen}
         sx={{
           ml: 0.5,
-          color: hasActiveFilter ? "rgb(200, 0, 0)" : "action.active",
+          color: hasActiveFilter ? "primary.main" : "action.active",
+          bgcolor: hasActiveFilter ? "rgba(25, 118, 210, 0.08)" : "transparent",
+          "&:hover": {
+            bgcolor: hasActiveFilter ? "rgba(25, 118, 210, 0.15)" : "rgba(0, 0, 0, 0.04)",
+          },
         }}
       >
         <FilterList 
           fontSize="small" 
-          sx={{ 
-            fontWeight: hasActiveFilter ? 700 : 400,
-            fill: hasActiveFilter ? "rgb(200, 0, 0)" : undefined,
-          }} 
         />
       </IconButton>
 
