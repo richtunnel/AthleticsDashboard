@@ -22,6 +22,7 @@ import {
   ListItemText,
   Chip,
 } from "@mui/material";
+import { useTheme, alpha } from "@mui/material/styles";
 import { FilterList, Close, Search, Check } from "@mui/icons-material";
 import type { ColumnFilterValue, FilterCondition } from "@/types/filters";
 
@@ -51,6 +52,7 @@ const CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean;
 };
 
 export function ColumnFilter({ columnId, columnName, columnType = "text", uniqueValues = [], currentFilter, onFilterChange }: ColumnFilterProps) {
+  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [filterTab, setFilterTab] = useState<"condition" | "values">("values");
   const [searchTerm, setSearchTerm] = useState("");
@@ -158,9 +160,9 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
         sx={{
           ml: 0.5,
           color: hasActiveFilter ? "primary.main" : "action.active",
-          bgcolor: hasActiveFilter ? "rgba(25, 118, 210, 0.08)" : "transparent",
+          bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.08) : "transparent",
           "&:hover": {
-            bgcolor: hasActiveFilter ? "rgba(25, 118, 210, 0.15)" : "rgba(0, 0, 0, 0.04)",
+            bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.active, 0.04),
           },
         }}
       >
