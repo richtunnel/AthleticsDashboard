@@ -5,7 +5,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getResendClientOptional } from "@/lib/resend";
 
-// Rate limiting store (in production, use Redis)
+// TODO: Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
 
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
@@ -32,7 +32,7 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
     // Rate limiting check
     const now = Date.now();
     const rateLimit = rateLimitStore.get(normalizedEmail);
-    
+
     if (rateLimit) {
       if (now - rateLimit.timestamp < RATE_LIMIT_WINDOW) {
         if (rateLimit.count >= RATE_LIMIT_MAX_ATTEMPTS) {
