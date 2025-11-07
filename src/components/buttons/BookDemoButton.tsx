@@ -7,7 +7,7 @@ interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "ta
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Schedule live demo", sx, ...props }: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Schedule Live Demo", sx, ...props }: BookDemoButtonProps) {
   return (
     <Button
       variant="contained"
@@ -25,13 +25,14 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com", c
         py: 1.5,
         fontWeight: 600,
         textTransform: "none",
-        fontSize: "1rem",
+        fontSize: "0.85rem",
         transition: "all 0.2s ease",
         boxShadow: "0 4px 12px rgba(206, 255, 119, 0.3)",
         "&:hover": {
           backgroundColor: "#b8e660",
+          color: "#000",
           transform: "translateY(-2px)",
-          boxShadow: "0 6px 16px rgba(206, 255, 119, 0.4)",
+          boxShadow: "0 6px 16px rgba(206, 255, 119, 0.1)",
         },
         "&:active": {
           transform: "translateY(0px)",
