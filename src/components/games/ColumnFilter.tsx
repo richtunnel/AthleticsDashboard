@@ -159,10 +159,10 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
         onClick={handleOpen}
         sx={{
           ml: 0.5,
-          color: hasActiveFilter ? "primary.main" : "action.active",
-          bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.08) : "transparent",
+          color: hasActiveFilter ? "common.black" : "action.active",
+          bgcolor: hasActiveFilter ? alpha(theme.palette.common.black, 0.08) : "transparent",
           "&:hover": {
-            bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.active, 0.04),
+            bgcolor: hasActiveFilter ? alpha(theme.palette.common.black, 0.15) : alpha(theme.palette.action.active, 0.04),
           },
         }}
       >
