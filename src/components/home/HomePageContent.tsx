@@ -4,12 +4,11 @@ import Link from "next/link";
 import Image from "next/image";
 import styles from "../../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
-import { FaInstagram, FaFacebook } from "react-icons/fa";
-import { FaXTwitter } from "react-icons/fa6";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
+import BookDemoButton from "@/components/buttons/BookDemoButton";
 
 export default function HomePageContent() {
   const { data: session, status } = useSession();
@@ -58,56 +57,14 @@ export default function HomePageContent() {
             <VscGithubProject />
           </Link>
 
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <a
-              href="https://www.instagram.com/athleticdirectorhub"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "1.25rem",
-                transition: "color 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              <FaInstagram />
-            </a>
-            <a
-              href="https://facebook.com/athleticdirectorhub"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "1.25rem",
-                transition: "color 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              <FaFacebook />
-            </a>
-            <a
-              href="https://x.com/athleticdirectorhub"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                color: "var(--text-secondary)",
-                fontSize: "1.25rem",
-                transition: "color 0.2s ease",
-                display: "flex",
-                alignItems: "center",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-            >
-              <FaXTwitter />
-            </a>
-          </div>
+          <BookDemoButton 
+            calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"}
+            sx={{
+              px: 3,
+              py: 1,
+              fontSize: "0.95rem",
+            }}
+          />
         </div>
 
         <div className="flex flex-1 items-center justify-center px-4">
