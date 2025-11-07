@@ -12,10 +12,12 @@ The application includes a reusable `BookDemoButton` component that integrates w
 `/src/components/buttons/BookDemoButton.tsx`
 
 ### Features
-- Opens Calendly scheduling page in a new browser tab/window
+- Opens Calendly scheduling page in a new page using target="_blank"
 - Fully customizable styling through Material UI `sx` prop
 - Round button design with custom brand colors
-- Simple and reliable implementation with no modal conflicts
+- Proper security attributes (rel="noopener noreferrer")
+- Accessible link-based implementation
+- Simple and reliable with no modal conflicts
 
 ### Default Styling
 - Background color: `#ceff77` (lime green)
@@ -64,9 +66,9 @@ import BookDemoButton from "@/components/buttons/BookDemoButton";
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `calendlyUrl` | `string` | `"https://calendly.com"` | The full URL to your Calendly booking page |
-| `children` | `ReactNode` | `"Book a demo"` | The button text/content |
+| `children` | `ReactNode` | `"Schedule live demo"` | The button text/content |
 | `sx` | `SxProps` | Custom styles | Material UI sx prop for custom styling |
-| `...props` | `ButtonProps` | - | All other Material UI Button props (except `onClick`) |
+| `...props` | `ButtonProps` | - | All other Material UI Button props (except `onClick`, `href`, `target`, `rel`) |
 
 ## Environment Configuration
 
@@ -98,9 +100,10 @@ The button appears below the text "or get an assist from one of our experts" to 
 
 ## How It Works
 
-1. When the button is clicked, it opens the Calendly URL in a new browser tab/window
-2. The new window is opened with `noopener,noreferrer` security attributes
-3. This approach avoids any modal overlay conflicts with your site's design and ensures a consistent, reliable user experience
+1. The button is rendered as an anchor link with `target="_blank"` attribute
+2. When clicked, it opens the Calendly URL in a new browser tab/window
+3. Security attributes `rel="noopener noreferrer"` protect against security vulnerabilities
+4. This approach is accessible, SEO-friendly, and avoids any modal overlay conflicts with your site's design
 
 ## Calendly Setup
 
@@ -151,9 +154,10 @@ The component works in all modern browsers that support:
 
 ## Security Considerations
 
-- The component uses `noopener,noreferrer` when opening Calendly in a new tab for security
-- The Calendly script is loaded from the official Calendly CDN
-- No sensitive data is passed to Calendly through the widget
+- The component uses `rel="noopener noreferrer"` attributes for security when opening links in new tabs
+- `noopener` prevents the new page from accessing the `window.opener` property
+- `noreferrer` prevents the browser from sending the referrer information
+- No sensitive data is passed to Calendly through the link
 
 ## Troubleshooting
 
