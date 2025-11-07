@@ -384,13 +384,13 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                   Download Sample Template
                 </Button>
                 <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px" }}>
-                  <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank">
+                  <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank" style={{ color: "inherit" }}>
                     Open Googlesheets&nbsp;
                     <OpenInNewIcon fontSize="small" />
                   </Link>
                 </Button>
                 <Button sx={{ ml: "12px", marginBottom: "8px" }} variant="outlined">
-                  <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank">
+                  <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank" style={{ color: "inherit" }}>
                     Open excel&nbsp;
                     <OpenInNewIcon />
                   </Link>
