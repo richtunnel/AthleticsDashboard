@@ -3631,7 +3631,25 @@ export function GamesTable() {
   const isAllSelected = games.length > 0 && selectedGames.size === games.length;
   const isIndeterminate = selectedGames.size > 0 && selectedGames.size < games.length;
 
-  const activeFilterCount = Object.keys(columnFilters).length;
+  const activeFilterCount = Object.values(columnFilters).filter((filter) => {
+    if (filter.type === "condition") {
+      // For condition filters, check if we have a condition set
+      // is_empty and is_not_empty don't need a value
+      if (filter.condition === "is_empty" || filter.condition === "is_not_empty") {
+        return true;
+      }
+      // between needs both value and secondValue
+      if (filter.condition === "between") {
+        return !!(filter.value && filter.secondValue);
+      }
+      // Other conditions need at least a value
+      return !!(filter.condition && filter.value);
+    } else if (filter.type === "values") {
+      // For values filters, check if we have at least one selected value
+      return !!(filter.values && filter.values.length > 0);
+    }
+    return false;
+  }).length;
 
   if (isLoading && !mounted) {
     return (
@@ -3696,7 +3714,7 @@ export function GamesTable() {
               Add Columns ({customColumns.length})
             </Button>
             <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
-              Columns
+              Columns ({visibleColumnIds.length})
             </Button>
             {selectedGames.size > 0 && (
               <>
