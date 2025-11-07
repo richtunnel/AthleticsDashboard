@@ -53,6 +53,7 @@ const CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean;
 
 export function ColumnFilter({ columnId, columnName, columnType = "text", uniqueValues = [], currentFilter, onFilterChange }: ColumnFilterProps) {
   const theme = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [filterTab, setFilterTab] = useState<"condition" | "values">("values");
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,6 +63,11 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
   const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set());
 
   const isOpen = Boolean(anchorEl);
+
+  // Ensure hydration is complete before checking filters
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Initialize from currentFilter
   useEffect(() => {
@@ -149,7 +155,8 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
     handleClose();
   };
 
-  const hasActiveFilter = currentFilter !== null && currentFilter !== undefined;
+  // Only check for active filters after client-side hydration to avoid SSR mismatch
+  const hasActiveFilter = mounted && currentFilter !== null && currentFilter !== undefined;
   const conditionConfig = CONDITION_OPTIONS[selectedCondition];
 
   return (
