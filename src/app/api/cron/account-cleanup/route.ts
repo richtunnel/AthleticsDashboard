@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { DAY_IN_MS, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
-const emailFrom = process.env.EMAIL_FROM || "AD Hub <noreply@yourdomain.com>";
+const emailFrom = process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>";
 const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
 
 export const runtime = "nodejs";
@@ -170,9 +170,7 @@ export async function POST(req: NextRequest) {
         const key = String(windowDays);
         summary.reminderBreakdown[key] = (summary.reminderBreakdown[key] ?? 0) + 1;
 
-        console.log(
-          `[AccountCleanup] Reminder sent to user ${user.id} (${user.email}) for ${countdownLabel} before deletion scheduled at ${deletionScheduledAt.toISOString()}`,
-        );
+        console.log(`[AccountCleanup] Reminder sent to user ${user.id} (${user.email}) for ${countdownLabel} before deletion scheduled at ${deletionScheduledAt.toISOString()}`);
       } catch (error) {
         const errorMessage = `Failed to send reminder to user ${user.id}: ${getErrorMessage(error)}`;
         console.error(`[AccountCleanup] ${errorMessage}`);
@@ -242,10 +240,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      await prisma.$transaction([
-        prisma.accountDeletionReminder.deleteMany({ where: { userId: user.id } }),
-        prisma.user.delete({ where: { id: user.id } }),
-      ]);
+      await prisma.$transaction([prisma.accountDeletionReminder.deleteMany({ where: { userId: user.id } }), prisma.user.delete({ where: { id: user.id } })]);
 
       summary.accountsDeleted += 1;
       if (subscriptionCancelled) {
@@ -261,9 +256,7 @@ export async function POST(req: NextRequest) {
   }
 
   const durationMs = Date.now() - runStartedAt.getTime();
-  console.log(
-    `[AccountCleanup] Job completed in ${durationMs}ms. Reminders: ${summary.remindersSent}, Deletions: ${summary.accountsDeleted}, Errors: ${summary.errors.length}`,
-  );
+  console.log(`[AccountCleanup] Job completed in ${durationMs}ms. Reminders: ${summary.remindersSent}, Deletions: ${summary.accountsDeleted}, Errors: ${summary.errors.length}`);
 
   return NextResponse.json(
     {
@@ -271,7 +264,7 @@ export async function POST(req: NextRequest) {
       durationMs,
       ...summary,
     },
-    { status: 200 },
+    { status: 200 }
   );
 }
 
@@ -318,14 +311,7 @@ function formatDateTime(date: Date, timezone?: string | null) {
   }
 }
 
-function buildReminderEmailHtml(params: {
-  recipientName: string;
-  organizationName: string;
-  countdownLabel: string;
-  deletionDate: string;
-  appBaseUrl: string;
-  gracePeriodDays: number;
-}) {
+function buildReminderEmailHtml(params: { recipientName: string; organizationName: string; countdownLabel: string; deletionDate: string; appBaseUrl: string; gracePeriodDays: number }) {
   const { recipientName, organizationName, countdownLabel, deletionDate, appBaseUrl: baseUrl, gracePeriodDays } = params;
   const manageUrl = `${baseUrl.replace(/\/$/, "")}/dashboard/settings`;
   const graceLabel = gracePeriodDays === 1 ? "1 day" : `${gracePeriodDays} days`;
@@ -387,31 +373,20 @@ function buildReminderEmailHtml(params: {
       <div class="container">
         <h1>Account deletion scheduled (${countdownLabel} remaining)</h1>
         <p>Hi ${escapeHtml(recipientName)},</p>
-        <p>This is a friendly reminder that the AthleticsDashboard account for ${escapeHtml(
-          organizationName,
-        )} is scheduled for permanent deletion on <strong>${escapeHtml(deletionDate)}</strong>.</p>
+        <p>This is a friendly reminder that the AthleticsDashboard account for ${escapeHtml(organizationName)} is scheduled for permanent deletion on <strong>${escapeHtml(deletionDate)}</strong>.</p>
         <p class="highlight">Your data will be permanently removed after this time.</p>
         <p>If you wish to keep your account active, please log back in and reactivate your subscription before the deletion date.</p>
         <a class="cta" href="${manageUrl}">Review account settings</a>
         <p style="margin-top: 24px;">If you have any questions or need assistance, reply to this email or contact our support team.</p>
         <div class="footer">
-          <p>This notification was sent because account cancellation was requested. The ${escapeHtml(
-            graceLabel,
-          )} grace period allows you to reactivate your subscription before data is removed.</p>
+          <p>This notification was sent because account cancellation was requested. The ${escapeHtml(graceLabel)} grace period allows you to reactivate your subscription before data is removed.</p>
         </div>
       </div>
     </body>
   </html>`;
 }
 
-function buildReminderEmailText(params: {
-  recipientName: string;
-  organizationName: string;
-  countdownLabel: string;
-  deletionDate: string;
-  appBaseUrl: string;
-  gracePeriodDays: number;
-}) {
+function buildReminderEmailText(params: { recipientName: string; organizationName: string; countdownLabel: string; deletionDate: string; appBaseUrl: string; gracePeriodDays: number }) {
   const { recipientName, organizationName, countdownLabel, deletionDate, appBaseUrl: baseUrl, gracePeriodDays } = params;
   const manageUrl = `${baseUrl.replace(/\/$/, "")}/dashboard/settings`;
   const graceLabel = gracePeriodDays === 1 ? "1 day" : `${gracePeriodDays} days`;

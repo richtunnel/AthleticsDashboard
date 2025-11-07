@@ -70,12 +70,7 @@ export async function validateResetToken(token: string, email: string): Promise<
   }
 }
 
-export async function resetPassword(
-  token: string,
-  email: string,
-  newPassword: string,
-  confirmPassword: string
-): Promise<ResetPasswordResult> {
+export async function resetPassword(token: string, email: string, newPassword: string, confirmPassword: string): Promise<ResetPasswordResult> {
   try {
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -151,7 +146,7 @@ export async function resetPassword(
     if (resend) {
       try {
         await resend.emails.send({
-          from: process.env.EMAIL_FROM || "AD Hub <noreply@yourdomain.com>",
+          from: process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>",
           to: normalizedEmail,
           subject: "Password Successfully Reset - AD Hub",
           html: buildPasswordResetConfirmationEmail(user.name || "there"),

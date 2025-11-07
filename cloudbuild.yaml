@@ -11,7 +11,7 @@ substitutions:
   _NEXT_PUBLIC_APP_URL: https://athleticsdashboard.example.com # Public app URL for Next.js build-time config
   _NEXTAUTH_URL: https://athleticsdashboard.example.com # Production NextAuth URL (must match domain)
   _GOOGLE_REDIRECT_URI: https://athleticsdashboard.example.com/api/auth/calendar-callback # Google OAuth redirect URI hosted on Cloud Run
-  _EMAIL_FROM: "AD Hub <noreply@yourdomain.com>" # Default "from" email address for Resend
+  _EMAIL_FROM: "AD Hub <noreply@athleticdirectorhub.com>" # Default "from" email address for Resend
   _DATABASE_SECRET: DATABASE_URL # Secret Manager secret name for the DATABASE_URL connection string
   _NEXTAUTH_SECRET: NEXTAUTH_SECRET # Secret Manager secret name for the NextAuth secret
   _GOOGLE_CALENDAR_CLIENT_ID_SECRET: GOOGLE_CALENDAR_CLIENT_ID # Secret name for the Google Calendar OAuth client ID

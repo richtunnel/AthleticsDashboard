@@ -49,7 +49,7 @@ export class EmailService {
     try {
       // Send email via Resend
       const result = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
         to,
         cc,
         subject,
@@ -139,7 +139,7 @@ export class EmailService {
       const html = this.buildHtmlEmail(body);
 
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
         to: [user.email],
         subject,
         html,
@@ -467,7 +467,7 @@ export class EmailService {
 
     try {
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@yourdomain.com>",
+        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
         to: ["support@athleticdirectorhub.com"],
         subject: `New ${typeLabel}: ${subject}`,
         html: this.buildHtmlEmail(body),
