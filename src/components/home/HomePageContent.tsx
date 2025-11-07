@@ -10,6 +10,8 @@ import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 
+const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
+
 export default function HomePageContent() {
   const { data: session, status } = useSession();
   const signInAuth = useAuthButton();
@@ -58,7 +60,7 @@ export default function HomePageContent() {
           </Link>
 
           <BookDemoButton 
-            calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"}
+            calendlyUrl={CALENDLY_URL}
             sx={{
               px: 3,
               py: 1,
