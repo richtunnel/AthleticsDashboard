@@ -38,7 +38,8 @@ This will run the cleanup job daily at 2:00 AM UTC.
 #### Option 2: Using External Cron Service (e.g., cron-job.org, EasyCron)
 
 Configure the external service with:
-- URL: `https://yourdomain.com/api/cron/cleanup-feedback`
+
+- URL: `https://athleticdirectorhub.com/api/cron/cleanup-feedback`
 - Method: POST
 - Schedule: Daily at 2:00 AM
 - Headers: `Authorization: Bearer YOUR_CRON_SECRET`
@@ -52,8 +53,8 @@ name: Cleanup Feedback and Tickets
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Daily at 2 AM UTC
-  workflow_dispatch:  # Allow manual trigger
+    - cron: "0 2 * * *" # Daily at 2 AM UTC
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   cleanup:
@@ -63,7 +64,7 @@ jobs:
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://yourdomain.com/api/cron/cleanup-feedback
+            https://athleticdirectorhub.com/api/cron/cleanup-feedback
 ```
 
 ### Testing

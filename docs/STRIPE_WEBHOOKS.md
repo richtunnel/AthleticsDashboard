@@ -101,7 +101,7 @@ Triggered when a new customer is created in Stripe.
 
 1. Go to **Developers** → **Webhooks** in your Stripe dashboard
 2. Click **Add endpoint**
-3. Enter your webhook URL: `https://yourdomain.com/api/stripe/webhook`
+3. Enter your webhook URL: `https://athleticdirectorhub.com/api/stripe/webhook`
 4. Select the following events to listen to:
    - `customer.subscription.created`
    - `customer.subscription.updated`
