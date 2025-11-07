@@ -2,12 +2,13 @@
 
 import { Button, ButtonProps } from "@mui/material";
 import { useEffect } from "react";
+import DateRangeIcon from "@mui/icons-material/DateRange";
 
 interface BookDemoButtonProps extends Omit<ButtonProps, "onClick"> {
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Book a demo", sx, ...props }: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Schedule live demo", sx, ...props }: BookDemoButtonProps) {
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://assets.calendly.com/assets/external/widget.js";
@@ -59,7 +60,8 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com", c
       }}
       {...props}
     >
-      {children}
+      {children}&nbsp;&nbsp;
+      <DateRangeIcon />
     </Button>
   );
 }
