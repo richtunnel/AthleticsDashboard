@@ -351,9 +351,6 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           backgroundColor: theme.palette.background.default,
           color: theme.palette.text.primary,
         },
-        "*": {
-          transition: "background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease",
-        },
         "*::-webkit-scrollbar": {
           width: "8px",
           height: "8px",
