@@ -1,89 +1,159 @@
-# Google Forms Integration for Feedback
+# Google Forms Integration - Implementation Summary
 
-This document explains how to integrate Google Forms with your feedback form.
+This document summarizes the Google Forms integration for the feedback feature.
 
 ## Overview
 
-The application supports embedding Google Forms as an alternative to the built-in feedback form. When configured, both the public feedback page (`/feedback`) and the dashboard feedback page (`/dashboard/feedback`) will display the embedded Google Form instead of the custom form.
+The application now supports embedding Google Forms as an alternative to the built-in feedback form. When configured, users can submit feedback through an embedded Google Form instead of the custom form.
 
-## Setup Instructions
+## What Was Changed
 
-### 1. Create a Google Form
+### New Files
 
-1. Go to [Google Forms](https://forms.google.com/)
-2. Create a new form or use an existing one
-3. Add your desired fields (e.g., Name, Email, Subject, Message)
-4. Configure form settings as needed
+1. **`/src/components/support/GoogleFeedbackForm.tsx`**
+   - New React component for embedding Google Forms
+   - Handles URL conversion to embedded format
+   - Provides fallback options for unsupported URL formats
+   - Fully responsive design with Material-UI styling
 
-### 2. Get the Form URL
+2. **`/docs/GOOGLE_FORMS_INTEGRATION.md`**
+   - Comprehensive documentation for the integration
+   - Setup instructions and configuration guide
+   - Feature overview and benefits
 
-1. Click the "Send" button in your Google Form
-2. Click the link icon (🔗) to get the shareable link
-3. Copy the full URL (it should look like `https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform`)
+3. **`/docs/google-forms-example.md`**
+   - Quick start guide with step-by-step instructions
+   - Form field recommendations
+   - Troubleshooting tips
+   - Advanced usage examples (pre-filled responses, notifications)
 
-### 3. Configure Environment Variable
+### Modified Files
 
-Add the following to your `.env` file:
+1. **`/src/app/feedback/page.tsx`**
+   - Added conditional rendering to use Google Form when configured
+   - Falls back to custom form when `GOOGLE_FORMS_FEEDBACK_URL` is not set
+   - Maintains existing functionality for authenticated and public users
+
+2. **`/src/app/dashboard/feedback/page.tsx`**
+   - Added conditional rendering for authenticated users
+   - Preserves breadcrumb navigation
+   - Falls back to custom form when environment variable is not set
+
+3. **`/.env.example`**
+   - Added `GOOGLE_FORMS_FEEDBACK_URL` environment variable with documentation
+   - Includes example URL format
+
+## How It Works
+
+### Configuration
+
+The integration is controlled by a single environment variable:
 
 ```bash
 GOOGLE_FORMS_FEEDBACK_URL="https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform"
 ```
 
-Replace `YOUR_FORM_ID` with your actual form ID.
+### Behavior
 
-### 4. Restart Your Application
+**When `GOOGLE_FORMS_FEEDBACK_URL` is set:**
+- Both `/feedback` and `/dashboard/feedback` pages display the embedded Google Form
+- The custom form is completely hidden
+- Users interact with the Google Form without leaving the application
 
-After setting the environment variable, restart your Next.js application for the changes to take effect.
+**When `GOOGLE_FORMS_FEEDBACK_URL` is not set or empty:**
+- Pages fall back to the existing custom feedback form
+- All existing functionality remains intact (database storage, email/Slack notifications)
 
-## Features
+### Component Features
 
-### Automatic Embedding
+The `GoogleFeedbackForm` component provides:
 
-The component automatically converts Google Forms URLs to embedded format by adding the `embedded=true` parameter.
+- **Automatic Embedding:** Converts Google Forms URLs to embedded format
+- **Responsive Design:** Adapts to different screen sizes (800px on mobile, 1000px on desktop)
+- **Fallback Options:** "Open in New Tab" button for cases where embedding fails
+- **Error Handling:** Gracefully handles iframe loading errors
+- **Customizable:** Props for title, description, and URL
 
-### Fallback Options
+## Pages Affected
 
-- If the form cannot be embedded (e.g., due to CORS restrictions or shortened URLs), users are provided with a button to open the form in a new tab
-- If the environment variable is not set, the application falls back to the built-in custom feedback form
+### Public Feedback Page (`/feedback`)
+- Used by both authenticated and unauthenticated users
+- Displays embedded Google Form when configured
+- Maintains Footer and BaseHeader components
 
-### User Experience
+### Dashboard Feedback Page (`/dashboard/feedback`)
+- Used by authenticated users only
+- Displays embedded Google Form when configured
+- Maintains breadcrumb navigation
+- Requires authentication (redirects to `/login` if not authenticated)
 
-- The embedded form is fully responsive and adjusts to different screen sizes
-- Users can interact with the Google Form without leaving your application
-- An "Open in New Tab" button is provided for users who prefer to fill out the form in a separate window
+## Support Page Not Affected
 
-## Supported URL Formats
+The support page (`/support` and `/dashboard/support`) continues to use the custom form because:
+- Support tickets need to be tracked in the database
+- Integration with Slack and email notifications is required
+- Support ticket numbers need to be generated
 
-The integration supports the following Google Forms URL formats:
+## Benefits
 
-- `https://docs.google.com/forms/d/e/FORM_ID/viewform`
-- `https://docs.google.com/forms/d/FORM_ID/viewform`
+### For Users
+- Familiar Google Forms interface
+- May already be logged into Google account for faster submission
+- Can save partial responses (if enabled in form settings)
 
-**Note:** Shortened URLs (e.g., `https://forms.gle/XXXXX`) cannot be embedded and will show the fallback option to open in a new tab.
+### For Administrators
+- Easy form management through Google Forms interface
+- Built-in spam protection
+- Direct integration with Google Sheets
+- Advanced features (conditional logic, file uploads, etc.)
+- No need to maintain custom form code
 
-## Viewing Responses
+### For Developers
+- Simple configuration (one environment variable)
+- No database schema changes required
+- Existing custom form remains available as fallback
+- Clean separation of concerns
 
-All form responses will be stored in your Google Forms account. You can view and manage them by:
+## Testing Checklist
 
-1. Opening your form in Google Forms
-2. Clicking the "Responses" tab
-3. Viewing responses in the form or exporting to Google Sheets
+- [ ] Verify embedded form displays correctly on `/feedback`
+- [ ] Verify embedded form displays correctly on `/dashboard/feedback`
+- [ ] Test form submission and verify responses in Google Forms
+- [ ] Test "Open in New Tab" button functionality
+- [ ] Verify fallback to custom form when environment variable is not set
+- [ ] Test with authenticated user
+- [ ] Test with unauthenticated user (public page)
+- [ ] Verify responsive design on mobile devices
+- [ ] Test with different Google Forms URL formats
+- [ ] Verify support pages still use custom form
 
-## Disabling Google Forms Integration
+## Future Enhancements
 
-To revert to the built-in custom feedback form:
+Potential improvements for future iterations:
 
-1. Remove or comment out the `GOOGLE_FORMS_FEEDBACK_URL` environment variable
-2. Restart your application
+1. **Hybrid Mode:** Show both Google Form and custom form with tabs
+2. **Pre-fill Data:** Auto-populate user name/email in Google Form URL
+3. **Analytics:** Track form view/submission metrics
+4. **A/B Testing:** Randomly show Google Form vs custom form to compare conversion rates
+5. **Multiple Forms:** Support different forms for different purposes (feedback, bug reports, feature requests)
 
-## Benefits of Using Google Forms
+## Rollback Plan
 
-- **Familiar Interface:** Users may already be familiar with Google Forms
-- **Spam Protection:** Google Forms includes built-in spam protection
-- **Easy Response Management:** View and export responses directly in Google Sheets
-- **Form Logic:** Use Google Forms' advanced features like conditional sections and response validation
-- **No Database Storage:** Responses are stored in Google's infrastructure
+To revert to the original implementation:
 
-## Keeping Both Options
+1. Remove the `GOOGLE_FORMS_FEEDBACK_URL` environment variable
+2. Restart the application
+3. Optionally delete the following files:
+   - `/src/components/support/GoogleFeedbackForm.tsx`
+   - `/docs/GOOGLE_FORMS_INTEGRATION.md`
+   - `/docs/google-forms-example.md`
+   - This document
 
-If you want to offer both options to users, you can modify the pages to display both the Google Form and a link to the built-in form, or vice versa. The current implementation uses Google Forms as the primary option when configured.
+All existing functionality will work as before since the custom form is preserved.
+
+## Support
+
+For questions or issues:
+- See `/docs/GOOGLE_FORMS_INTEGRATION.md` for detailed documentation
+- See `/docs/google-forms-example.md` for quick start guide
+- Check the troubleshooting section in the example guide
