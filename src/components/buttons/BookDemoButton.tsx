@@ -1,7 +1,6 @@
 "use client";
 
 import { Button, ButtonProps } from "@mui/material";
-import { useEffect } from "react";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 
 interface BookDemoButtonProps extends Omit<ButtonProps, "onClick"> {
@@ -9,26 +8,8 @@ interface BookDemoButtonProps extends Omit<ButtonProps, "onClick"> {
 }
 
 export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Schedule live demo", sx, ...props }: BookDemoButtonProps) {
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://assets.calendly.com/assets/external/widget.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      const existingScript = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
-      if (existingScript) {
-        existingScript.remove();
-      }
-    };
-  }, []);
-
   const handleClick = () => {
-    if (typeof window !== "undefined" && (window as any).Calendly) {
-      (window as any).Calendly.initPopupWidget({ url: calendlyUrl });
-    } else {
-      window.open(calendlyUrl, "_blank", "noopener,noreferrer");
-    }
+    window.open(calendlyUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
