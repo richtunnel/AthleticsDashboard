@@ -12,11 +12,10 @@ The application includes a reusable `BookDemoButton` component that integrates w
 `/src/components/buttons/BookDemoButton.tsx`
 
 ### Features
-- Loads Calendly widget script dynamically
-- Opens Calendly scheduling page in a popup modal
-- Falls back to opening URL in a new tab if script fails to load
+- Opens Calendly scheduling page in a new browser tab/window
 - Fully customizable styling through Material UI `sx` prop
 - Round button design with custom brand colors
+- Simple and reliable implementation with no modal conflicts
 
 ### Default Styling
 - Background color: `#ceff77` (lime green)
@@ -99,11 +98,9 @@ The button appears below the text "or get an assist from one of our experts" to 
 
 ## How It Works
 
-1. When the component mounts, it dynamically loads the Calendly widget script
-2. When the button is clicked:
-   - If the Calendly widget loaded successfully, it opens the scheduling page in a popup modal
-   - If the widget failed to load, it opens the Calendly URL in a new browser tab
-3. The script is cleaned up when the component unmounts to prevent memory leaks
+1. When the button is clicked, it opens the Calendly URL in a new browser tab/window
+2. The new window is opened with `noopener,noreferrer` security attributes
+3. This approach avoids any modal overlay conflicts with your site's design and ensures a consistent, reliable user experience
 
 ## Calendly Setup
 
@@ -160,16 +157,16 @@ The component works in all modern browsers that support:
 
 ## Troubleshooting
 
-### Button Opens New Tab Instead of Popup
-- Check browser console for script loading errors
-- Ensure popup blockers are disabled
-- Verify the Calendly URL is correct
-
 ### Button Does Nothing
 - Check that the `NEXT_PUBLIC_CALENDLY_URL` environment variable is set correctly
 - Ensure the Calendly URL starts with `https://calendly.com/`
 - Verify your Calendly event is published and active
+- Check if popup blockers are preventing the new window from opening
 
 ### Styling Issues
 - Check that custom `sx` props are valid Material UI styles
 - Ensure color values are in valid CSS format (hex, rgb, rgba, etc.)
+
+### New Window is Blocked
+- Some browsers or extensions may block new windows/tabs by default
+- Users may need to allow popups for your site in their browser settings
