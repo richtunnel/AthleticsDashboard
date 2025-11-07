@@ -123,8 +123,8 @@ export function ColumnFilter({ columnId, columnName, columnType = "text", unique
 
   const handleApplyFilter = () => {
     if (filterTab === "values") {
-      if (selectedValues.size === 0 || selectedValues.size === uniqueValues.length) {
-        // No filter or all selected = clear filter
+      if (selectedValues.size === 0) {
+        // No values selected = clear filter
         onFilterChange(columnId, null);
       } else {
         onFilterChange(columnId, {
