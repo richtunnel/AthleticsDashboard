@@ -10,11 +10,12 @@ This directory contains reusable button components used throughout the applicati
 A round, branded button that integrates with Calendly for scheduling demos and meetings.
 
 **Features:**
-- Opens Calendly in a new browser tab/window
+- Opens Calendly in a new page using target="_blank"
 - Custom brand colors (#0f172a background, #ceff77 text)
 - Round button design (50px border radius)
 - Hover animations and effects
-- Simple and reliable implementation
+- Proper security attributes (rel="noopener noreferrer")
+- Accessible link-based implementation
 
 **Usage:**
 ```tsx
