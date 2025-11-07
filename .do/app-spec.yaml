@@ -93,7 +93,7 @@ services:
         scope: RUN_TIME
 
       - key: EMAIL_FROM
-        value: "AD Hub <noreply@yourdomain.com>"
+        value: "AD Hub <noreply@athleticdirectorhub.com>"
         scope: RUN_TIME
 
       # OpenAI

@@ -137,7 +137,7 @@ If you see failed emails:
 ```bash
 # .env or .env.local
 NEXT_PUBLIC_RESEND_API_KEY=re_xxxxxxxxxxxxx
-EMAIL_FROM="Athletic Director Hub <noreply@yourdomain.com>"
+EMAIL_FROM="Athletic Director Hub <noreply@athleticdirectorhub.com>"
 ```
 
 ### Resend Dashboard
