@@ -11,6 +11,7 @@ import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import BaseHeader from "@/components/headers/_base";
 import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
 import Footer from "@/components/layout/Footer";
+import BookDemoButton from "@/components/buttons/BookDemoButton";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
@@ -243,6 +244,10 @@ function PricingPlansContent() {
         <Typography variant="body1" color="text.secondary" gutterBottom>
           or get an assist from one of our experts
         </Typography>
+
+        <Box sx={{ mt: 2, mb: 3 }}>
+          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"} />
+        </Box>
 
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 3 }}>
           <TestModeIndicator variant="banner" />
