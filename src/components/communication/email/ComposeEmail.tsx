@@ -44,7 +44,7 @@ const STATIC_RECIPIENT_CATEGORIES = [
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
-  const isWideScreen = useMediaQuery('(min-width:1180px)');
+  const isWideScreen = useMediaQuery('(min-width:1260px)');
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -254,7 +254,7 @@ export default function ComposeEmailPage() {
   const generateEmailPreview = () => {
     if (!mounted) return "<p>Loading preview...</p>";
 
-    let html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">';
+    let html = '<div style="font-family: Arial, sans-serif; max-width: 1180px; margin: 0 auto;">';
 
     // Add heading
     html += '<h2 style="color: #23252a; margin-bottom: 16px;">Game Schedule Confirmation</h2>';
@@ -267,18 +267,18 @@ export default function ComposeEmailPage() {
     }
 
     // Add games table
-    html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
+    html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem;">';
 
     // Table header
     html += "<thead>";
     html += '<tr style="background-color: #23252a; color: white;">';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Date</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Time</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Sport</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Level</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Opponent</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Location</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Status</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Date</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Time</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Sport</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Level</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Opponent</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Location</th>';
+    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Status</th>';
     html += "</tr>";
     html += "</thead>";
 
@@ -287,16 +287,16 @@ export default function ComposeEmailPage() {
     selectedGames.forEach((game, index) => {
       const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
       html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(formatFullDate(game.date))}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.time || "TBD")}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.homeTeam.sport.name)}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.homeTeam.level)}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${escapeHtml(game.opponent?.name || "TBD")}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD")}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(formatFullDate(game.date))}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.time || "TBD")}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.homeTeam.sport.name)}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.homeTeam.level)}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.opponent?.name || "TBD")}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD")}</td>`;
 
       // Status with color
       const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span></td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span></td>`;
       html += "</tr>";
 
       // Add notes row if present
@@ -369,40 +369,40 @@ export default function ComposeEmailPage() {
           width: '100%'
         }}>
           {/* Selected Games Summary - Left Column */}
-          <Box sx={{ flex: isWideScreen ? 1 : 'none', width: '100%' }}>
+          <Box sx={{ flex: isWideScreen ? 1.5 : 'none', width: '100%' }}>
             <Paper sx={{ p: 3, height: "100%" }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 Selected Games ({selectedGames.length}){selectedOpponentId !== "all" && opponentFilterDisabled && <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />}
               </Typography>
-              <TableContainer>
-                <Table size="small">
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#f8fafc" }}>
-                      {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>}
-                      {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600 }}>Sport</TableCell>}
-                      {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600 }}>Level</TableCell>}
-                      {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600 }}>Opponent</TableCell>}
-                      {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>}
-                      {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>}
-                      {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600 }}>Time</TableCell>}
-                      {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600 }}>Notes</TableCell>}
+                      {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Date</TableCell>}
+                      {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Sport</TableCell>}
+                      {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Level</TableCell>}
+                      {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Opponent</TableCell>}
+                      {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Location</TableCell>}
+                      {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Status</TableCell>}
+                      {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Time</TableCell>}
+                      {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Notes</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {selectedGames.map((game) => (
                       <TableRow key={game.id}>
-                        {visibleColumnIds.includes("date") && <TableCell>{formatGameDate(game.date)}</TableCell>}
-                        {visibleColumnIds.includes("sport") && <TableCell>{game.homeTeam.sport.name}</TableCell>}
-                        {visibleColumnIds.includes("level") && <TableCell>{game.homeTeam.level}</TableCell>}
-                        {visibleColumnIds.includes("opponent") && <TableCell>{game.opponent?.name || "TBD"}</TableCell>}
-                        {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
+                        {visibleColumnIds.includes("date") && <TableCell sx={{ fontSize: '0.85rem' }}>{formatGameDate(game.date)}</TableCell>}
+                        {visibleColumnIds.includes("sport") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.homeTeam.sport.name}</TableCell>}
+                        {visibleColumnIds.includes("level") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.homeTeam.level}</TableCell>}
+                        {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.opponent?.name || "TBD"}</TableCell>}
+                        {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontSize: '0.85rem' }}>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
                         {visibleColumnIds.includes("status") && (
-                          <TableCell>
+                          <TableCell sx={{ fontSize: '0.85rem' }}>
                             <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
                           </TableCell>
                         )}
-                        {visibleColumnIds.includes("time") && <TableCell>{game.time || "TBD"}</TableCell>}
-                        {visibleColumnIds.includes("notes") && <TableCell>{game.notes || ""}</TableCell>}
+                        {visibleColumnIds.includes("time") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.time || "TBD"}</TableCell>}
+                        {visibleColumnIds.includes("notes") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.notes || ""}</TableCell>}
                       </TableRow>
                     ))}
                   </TableBody>
