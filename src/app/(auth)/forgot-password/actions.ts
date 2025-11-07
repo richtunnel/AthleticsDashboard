@@ -92,7 +92,7 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
 
       try {
         await resend.emails.send({
-          from: process.env.EMAIL_FROM || "AD Hub <noreply@yourdomain.com>",
+          from: process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>",
           to: normalizedEmail,
           subject: "Reset Your Password - AD Hub",
           html: buildPasswordResetEmail(user.name || "there", resetUrl),

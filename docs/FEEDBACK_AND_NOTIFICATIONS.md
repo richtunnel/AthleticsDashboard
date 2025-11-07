@@ -73,7 +73,7 @@ Add these to your `.env` file:
 ```bash
 # Existing email configuration
 NEXT_PUBLIC_RESEND_API_KEY="re_your_NEXT_PUBLIC_RESEND_API_KEY"
-EMAIL_FROM="AD Hub <noreply@yourdomain.com>"
+EMAIL_FROM="AD Hub <noreply@athleticdirectorhub.com>"
 
 # New Slack webhook URL
 SLACK_FEEDBACK_WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
@@ -111,7 +111,7 @@ You can manually trigger cleanup by calling:
 ```bash
 curl -X POST \
   -H "Authorization: Bearer YOUR_CRON_SECRET" \
-  https://yourdomain.com/api/cron/cleanup-feedback
+  https://athleticdirectorhub.com/api/cron/cleanup-feedback
 ```
 
 ## API Endpoints
