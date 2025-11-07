@@ -14,22 +14,14 @@ export default async function FeedbackPage() {
     redirect("/login");
   }
 
-  const googleFormsUrl = process.env.GOOGLE_FORMS_FEEDBACK_URL;
+  const googleFormsUrl = process.env.NEXT_PUBLIC_GOOGLE_FORMS_FEEDBACK_URL || "";
 
   return (
     <>
       <Box sx={{ px: 3, py: 3 }}>
         {/* Breadcrumbs */}
-        <Breadcrumbs
-          separator={<NavigateNextIcon fontSize="small" />}
-          sx={{ mb: 2 }}
-        >
-          <MuiLink
-            component={Link}
-            href="/dashboard"
-            underline="hover"
-            color="inherit"
-          >
+        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2 }}>
+          <MuiLink component={Link} href="/dashboard" underline="hover" color="inherit">
             Dashboard
           </MuiLink>
           <Typography color="text.primary">Feedback</Typography>
@@ -50,10 +42,7 @@ export default async function FeedbackPage() {
               </Typography>
             </Box>
 
-            <SupportFeedbackForm
-              mode="feedback"
-              userName={session.user.name || "Unknown"}
-            />
+            <SupportFeedbackForm mode="feedback" userName={session.user.name || "Unknown"} />
           </>
         )}
       </Box>

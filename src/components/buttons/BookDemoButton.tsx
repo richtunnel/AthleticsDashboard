@@ -3,16 +3,11 @@
 import { Button, ButtonProps } from "@mui/material";
 import { useEffect } from "react";
 
-interface BookDemoButtonProps extends Omit<ButtonProps, 'onClick'> {
+interface BookDemoButtonProps extends Omit<ButtonProps, "onClick"> {
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ 
-  calendlyUrl = "https://calendly.com", 
-  children = "Book a demo",
-  sx,
-  ...props 
-}: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Book a demo", sx, ...props }: BookDemoButtonProps) {
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://assets.calendly.com/assets/external/widget.js";
@@ -40,8 +35,10 @@ export default function BookDemoButton({
       variant="contained"
       onClick={handleClick}
       sx={{
-        backgroundColor: "#ceff77",
-        color: "#0f172a",
+        // backgroundColor: "",
+        // color: "#0f172a",
+        backgroundColor: "#0f172a",
+        color: "#ceff77",
         borderRadius: "50px",
         px: 4,
         py: 1.5,

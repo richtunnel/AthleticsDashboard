@@ -86,7 +86,7 @@ function GoogleCalendarSyncMenuContent() {
     <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
       <Typography variant="h6">Google Calendar Sync</Typography>
       <Typography variant="overline" gutterBottom>
-        <Link href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" color="default">
+        <Link href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" color="primary.main">
           View Calendar
         </Link>
       </Typography>
