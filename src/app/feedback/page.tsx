@@ -8,7 +8,7 @@ import BaseHeader from "@/components/headers/_base";
 
 export default async function PublicFeedbackPage() {
   const session = await getServerSession(authOptions);
-  const googleFormsUrl = process.env.GOOGLE_FORMS_FEEDBACK_URL;
+  const googleFormsUrl = process.env.NEXT_PUBLIC_GOOGLE_FORMS_FEEDBACK_URL;
 
   return (
     <>
