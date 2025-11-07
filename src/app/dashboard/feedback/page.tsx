@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { Box, Typography, Breadcrumbs, Link as MuiLink } from "@mui/material";
 import Link from "next/link";
 import { SupportFeedbackForm } from "@/components/support/SupportFeedbackForm";
+import { GoogleFeedbackForm } from "@/components/support/GoogleFeedbackForm";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
 export default async function FeedbackPage() {
@@ -12,6 +13,8 @@ export default async function FeedbackPage() {
   if (!session?.user) {
     redirect("/login");
   }
+
+  const googleFormsUrl = process.env.GOOGLE_FORMS_FEEDBACK_URL;
 
   return (
     <>
@@ -32,21 +35,27 @@ export default async function FeedbackPage() {
           <Typography color="text.primary">Feedback</Typography>
         </Breadcrumbs>
 
-        {/* Page Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" sx={{ mb: 1 }}>
-            Share Your Feedback
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            We value your feedback! Please let us know how we can improve your experience.
-          </Typography>
-        </Box>
-
         {/* Form */}
-        <SupportFeedbackForm
-          mode="feedback"
-          userName={session.user.name || "Unknown"}
-        />
+        {googleFormsUrl ? (
+          <GoogleFeedbackForm formUrl={googleFormsUrl} />
+        ) : (
+          <>
+            {/* Page Header */}
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="h4" sx={{ mb: 1 }}>
+                Share Your Feedback
+              </Typography>
+              <Typography variant="body1" color="text.secondary">
+                We value your feedback! Please let us know how we can improve your experience.
+              </Typography>
+            </Box>
+
+            <SupportFeedbackForm
+              mode="feedback"
+              userName={session.user.name || "Unknown"}
+            />
+          </>
+        )}
       </Box>
     </>
   );
