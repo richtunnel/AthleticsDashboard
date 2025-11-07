@@ -3,19 +3,18 @@
 import { Button, ButtonProps } from "@mui/material";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 
-interface BookDemoButtonProps extends Omit<ButtonProps, "onClick"> {
+interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "target" | "rel"> {
   calendlyUrl?: string;
 }
 
 export default function BookDemoButton({ calendlyUrl = "https://calendly.com", children = "Schedule live demo", sx, ...props }: BookDemoButtonProps) {
-  const handleClick = () => {
-    window.open(calendlyUrl, "_blank", "noopener,noreferrer");
-  };
-
   return (
     <Button
       variant="contained"
-      onClick={handleClick}
+      component="a"
+      href={calendlyUrl}
+      target="_blank"
+      rel="noopener noreferrer"
       sx={{
         // backgroundColor: "",
         // color: "#0f172a",
