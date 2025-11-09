@@ -893,6 +893,11 @@ export function GamesTable() {
 
   const updateGameMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      // Validate data is not empty
+      if (!data || Object.keys(data).length === 0) {
+        throw new Error("Cannot update game with empty data");
+      }
+      
       const res = await fetch(`/api/games/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1185,6 +1190,13 @@ export function GamesTable() {
               [columnId]: value.slice(0, MAX_CHAR_LIMIT),
             };
           }
+        }
+
+        // Validate that updateData is not empty
+        if (!updateData || Object.keys(updateData).length === 0) {
+          console.warn(`Skipping empty update for game ${gameId}`);
+          pendingChangesRef.current.delete(gameId);
+          return;
         }
 
         const res = await fetch(`/api/games/${gameId}`, {

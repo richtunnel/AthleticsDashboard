@@ -40,7 +40,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const session = await requireAuth();
     const { id } = await params;
-    const body = await request.json();
+    
+    // Handle empty or malformed request body
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      console.error("Error parsing request body:", error);
+      return NextResponse.json(
+        { error: "Invalid request body. Expected valid JSON." },
+        { status: 400 }
+      );
+    }
+
+    // Validate that body is not empty
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json(
+        { error: "Request body cannot be empty" },
+        { status: 400 }
+      );
+    }
 
     // ✅ VALIDATE: Game belongs to user's organization
     const existingGame = await prisma.game.findFirst({
