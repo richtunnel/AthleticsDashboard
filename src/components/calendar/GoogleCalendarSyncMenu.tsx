@@ -7,6 +7,7 @@ import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } fro
 import { CalendarMonth, CheckCircleOutline, CheckCircle, LinkOff } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
 import { IconButton } from "@mui/material";
+import styles from "@/styles/override.module.css";
 import Link from "next/link";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 
@@ -85,8 +86,8 @@ function GoogleCalendarSyncMenuContent() {
   return (
     <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
       <Typography variant="h6">Google Calendar Sync</Typography>
-      <Typography variant="overline" gutterBottom>
-        <Link href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" color="primary.main">
+      <Typography variant="overline" gutterBottom sx={{ color: "#000" }}>
+        <Link className={`${styles.linkColorOverride}`} href="https://calendar.google.com" target="_blank" rel="noopener noreferrer">
           View Calendar
         </Link>
       </Typography>
