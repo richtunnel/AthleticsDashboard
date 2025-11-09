@@ -9,6 +9,7 @@
   --surface-selected: rgba(65, 105, 225, 0.08);
   --surface-hover: rgba(65, 105, 225, 0.08);
   --text-primary: #0f172a;
+  --main-blue: #181b38ff;
   --text-secondary: #475569;
   --border-color: rgba(15, 23, 42, 0.08);
   --accent: #ceff77;
@@ -49,9 +50,9 @@ body {
     sans-serif;
 }
 
-a {
+/* a {
   color: var(--accent);
-}
+} */
 
 a:hover {
   text-decoration: underline;
