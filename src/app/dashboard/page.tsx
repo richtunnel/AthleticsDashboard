@@ -6,6 +6,7 @@ import { CalendarPreviewWidget } from "@/components/dashboard/CalendarPreviewWid
 import { ImportBox } from "@/components/import-export/ImportBox";
 import { useRouter } from "next/navigation";
 import { getSession } from "next-auth/react";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -20,8 +21,13 @@ export default function DashboardPage() {
     <div className="space-y-6 md:space-y-8">
       <div>
         <h2 className="text-3xl font-bold mb-2">Import your spreadsheets</h2>
-        <p className="text-gray-600 text-sm md:text-base">Import your CSV game schedules and navigate to game center to create, manage, update, email and automate your schedules. </p>
-        <p className="text-gray-600 text-sm md:text-base">You can also make updates to your game schedule inside game center and download it back to it's original CSV format.</p>
+        <p className="text-gray-600 text-sm md:text-base">
+          Import your CSV game schedules below and navigate to{" "}
+          <Link color="(var(--main-blue))" href="dashboard/games">
+            <b>Game Center</b>
+          </Link>{" "}
+          to create, manage, update, email and automate your game schedules.
+        </p>
         <br />
       </div>
 
