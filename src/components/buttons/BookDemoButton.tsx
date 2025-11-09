@@ -19,7 +19,7 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com/ath
         // backgroundColor: "",
         // color: "#0f172a",
         backgroundColor: "#181b38ff",
-        color: "#ceff77",
+        color: "#fff",
         borderRadius: "50px",
         px: 4,
         py: 1.5,
@@ -27,7 +27,7 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com/ath
         textTransform: "none",
         fontSize: "0.85rem",
         transition: "all 0.2s ease",
-        boxShadow: "0 4px 12px rgba(206, 255, 119, 0.3)",
+        boxShadow: "none",
         "&:hover": {
           backgroundColor: "#b8e660",
           color: "#000",
