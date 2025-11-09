@@ -24,6 +24,7 @@ declare module "next-auth" {
       lastLoginAt?: Date | null;
       lastLoginDate?: Date | null;
       dailyLoginCount?: number;
+      assignedTeamId?: string | null;
     } & DefaultSession["user"];
   }
 
@@ -45,6 +46,7 @@ declare module "next-auth" {
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;
+    assignedTeamId?: string | null;
   }
 }
 
@@ -66,5 +68,6 @@ declare module "next-auth/jwt" {
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;
+    assignedTeamId?: string | null;
   }
 }

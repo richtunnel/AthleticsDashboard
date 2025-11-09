@@ -78,15 +78,15 @@ export function CalendarPreviewWidget() {
         }
       });
 
-      // Only fetch upcoming games (next 3 days)
+      // Only fetch upcoming games (next 7 days/week)
       const now = new Date();
-      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      const oneWeekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       
-      // Add date filter for next 3 days
+      // Add date filter for next week
       params.append("filter_date_type", "condition");
       params.append("filter_date_condition", "between");
       params.append("filter_date_value", now.toISOString().split('T')[0]);
-      params.append("filter_date_secondValue", threeDaysFromNow.toISOString().split('T')[0]);
+      params.append("filter_date_secondValue", oneWeekFromNow.toISOString().split('T')[0]);
 
       // Sort by date ascending
       params.append("sortBy", "date");
@@ -155,7 +155,7 @@ export function CalendarPreviewWidget() {
         <CardHeader
           avatar={<EventNoteIcon color="primary" />}
           title="Upcoming Games"
-          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next 3 days from your schedule"}
+          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next week from your schedule"}
           action={
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Tooltip title={calendarTooltip}>

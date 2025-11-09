@@ -141,6 +141,11 @@ export const authOptions: NextAuthOptions = {
                 timezone: true,
               },
             },
+            assignedTeam: {
+              select: {
+                id: true,
+              },
+            },
           },
         });
 
@@ -175,6 +180,7 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           organizationId: user.organizationId || undefined,
           organization: user.organization || undefined,
+          assignedTeamId: user.assignedTeamId || undefined,
           googleCalendarRefreshToken: user.googleCalendarRefreshToken ?? undefined,
           googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
@@ -277,6 +283,7 @@ export const authOptions: NextAuthOptions = {
           name: "",
           timezone: "America/New_York",
         };
+        session.user.assignedTeamId = token.assignedTeamId;
         session.user.googleCalendarRefreshToken = token.googleCalendarRefreshToken;
         session.user.googleCalendarAccessToken = token.googleCalendarAccessToken;
         session.user.calendarTokenExpiry = token.calendarTokenExpiry;
@@ -307,6 +314,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.organizationId = user.organizationId;
         token.organization = user.organization;
+        token.assignedTeamId = user.assignedTeamId ?? undefined;
         token.googleCalendarRefreshToken = user.googleCalendarRefreshToken ?? undefined;
         token.googleCalendarAccessToken = user.googleCalendarAccessToken ?? undefined;
         token.calendarTokenExpiry = user.calendarTokenExpiry ?? undefined;
@@ -328,6 +336,7 @@ export const authOptions: NextAuthOptions = {
                   timezone: true,
                 },
               },
+              assignedTeamId: true,
               googleCalendarRefreshToken: true,
               googleCalendarAccessToken: true,
               calendarTokenExpiry: true,
@@ -340,6 +349,7 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.organizationId = dbUser.organizationId;
           token.organization = dbUser.organization || undefined;
+          token.assignedTeamId = dbUser.assignedTeamId ?? undefined;
           token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
@@ -361,6 +371,7 @@ export const authOptions: NextAuthOptions = {
                   timezone: true,
                 },
               },
+              assignedTeamId: true,
               googleCalendarRefreshToken: true,
               googleCalendarAccessToken: true,
               calendarTokenExpiry: true,
@@ -373,6 +384,7 @@ export const authOptions: NextAuthOptions = {
           token.role = dbUser.role;
           token.organizationId = dbUser.organizationId;
           token.organization = dbUser.organization || undefined;
+          token.assignedTeamId = dbUser.assignedTeamId ?? undefined;
           token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
