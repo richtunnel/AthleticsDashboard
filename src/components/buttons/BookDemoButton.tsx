@@ -7,7 +7,7 @@ interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "ta
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Schedule Live Demo", sx, ...props }: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Schedule Demo", sx, ...props }: BookDemoButtonProps) {
   return (
     <Button
       variant="contained"
@@ -18,7 +18,7 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com/ath
       sx={{
         // backgroundColor: "",
         // color: "#0f172a",
-        backgroundColor: "#0f172a",
+        backgroundColor: "#181b38ff",
         color: "#ceff77",
         borderRadius: "50px",
         px: 4,
