@@ -18,6 +18,7 @@ import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
+import { AISchedulerAssistant } from "@/components/ai-scheduler/AISchedulerAssistant";
 
 import {
   Box,
@@ -3721,6 +3722,8 @@ export function GamesTable() {
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
+
+            <AISchedulerAssistant />
 
             <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Add Columns ({customColumns.length})

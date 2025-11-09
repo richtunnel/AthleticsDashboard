@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
       },
     };
 
+    // If user is a coach, filter by their assigned team
+    if (session.user.role === "COACH" && session.user.assignedTeamId) {
+      where.homeTeamId = session.user.assignedTeamId;
+    }
+
     const travelRequiredParam = searchParams.get("travelRequired");
     if (travelRequiredParam === "true") {
       where.travelRequired = true;
