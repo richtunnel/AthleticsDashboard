@@ -59,7 +59,7 @@ export default function HomePageContent() {
             <VscGithubProject />
           </Link>
 
-          <BookDemoButton 
+          <BookDemoButton
             calendlyUrl={CALENDLY_URL}
             sx={{
               px: 3,
@@ -75,7 +75,7 @@ export default function HomePageContent() {
               Athletic <br /> Directors Hub
             </h3>
             <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
-              A smart spreadsheet allowing athletic directors to automate, process and manage athletic schedules with ease.
+              Save time by doing what you never could with spreadsheets like seamless automation, email campaigning, data filtering, real-time bus events and more .
             </p>
             <div className="flex flex-col sm:flex-row content-center items-center gap-4">
               <AuthActionButton
