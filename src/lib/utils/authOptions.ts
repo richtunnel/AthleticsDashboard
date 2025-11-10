@@ -8,6 +8,7 @@ import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTrack
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
+import { trackServerEvent } from "@/lib/analytics/mixpanel.server";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -74,6 +75,19 @@ const customAdapter = {
           }),
         `welcome email for user ${newUser.id}`,
       );
+    }
+
+    // Track Google signup in Mixpanel
+    try {
+      trackServerEvent("User Signup", {
+        distinct_id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        plan: newUser.plan,
+        signup_method: "google",
+      });
+    } catch (mixpanelError) {
+      console.error("Failed to track Google signup in Mixpanel:", mixpanelError);
     }
 
     return newUser;

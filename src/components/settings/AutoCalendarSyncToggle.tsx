@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box, Typography, Switch, FormControlLabel, Alert, CircularProgress } from "@mui/material";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 async function fetchAutoSyncSetting() {
   const res = await fetch("/api/user/calendar-auto-sync");
@@ -31,9 +32,13 @@ export function AutoCalendarSyncToggle() {
 
   const mutation = useMutation({
     mutationFn: updateAutoSyncSetting,
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["autoCalendarSync"] });
       setError(null);
+      trackEvent("Calendar Auto-Sync Toggled", {
+        enabled: variables,
+        source: "settings",
+      });
     },
     onError: (err: Error) => {
       setError(err.message);

@@ -9,6 +9,7 @@ import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
 
@@ -37,6 +38,10 @@ export default function HomePageContent() {
 
   const handleGetStarted = async () => {
     try {
+      trackEvent("Get Started Clicked", {
+        source: "homepage",
+        user_status: status === "authenticated" ? "authenticated" : "unauthenticated",
+      });
       await getStartedAuth.executeAction({
         type: "navigation",
         navigationPath: "/onboarding/plans",
@@ -61,6 +66,7 @@ export default function HomePageContent() {
 
           <BookDemoButton
             calendlyUrl={CALENDLY_URL}
+            source="homepage_header"
             sx={{
               px: 3,
               py: 1,

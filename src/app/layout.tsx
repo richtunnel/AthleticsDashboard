@@ -21,9 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   useEffect(() => {
-    if (process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL !== "http://localhost:3000") {
-      initMixpanel();
-    }
+    initMixpanel();
   }, []);
 
   return (

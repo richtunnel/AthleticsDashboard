@@ -3,6 +3,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import bcrypt from "bcryptjs";
 import { trackReferral } from "@/lib/services/referral.service";
+import { trackServerEvent } from "@/lib/analytics/mixpanel.server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,6 +83,20 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+
+    // Track signup in Mixpanel
+    try {
+      trackServerEvent("User Signup", {
+        distinct_id: user.id,
+        email: normalizedEmail,
+        name,
+        plan: user.plan,
+        signup_method: "manual",
+        has_referrer: !!referrerEmail,
+      });
+    } catch (mixpanelError) {
+      console.error("[Signup] Failed to track in Mixpanel:", mixpanelError);
+    }
 
     // Track referral if referrerEmail is provided
     if (referrerEmail) {

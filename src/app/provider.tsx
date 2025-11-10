@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MUIThemeProvider } from "./theme-provider";
 import { useState } from "react";
+import { MixpanelIdentifier } from "@/components/analytics/MixpanelIdentifier";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -21,7 +22,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MUIThemeProvider>
       <SessionProvider>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <MixpanelIdentifier />
+          {children}
+        </QueryClientProvider>
       </SessionProvider>
     </MUIThemeProvider>
   );
