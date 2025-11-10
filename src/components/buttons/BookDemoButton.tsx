@@ -7,7 +7,7 @@ interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "ta
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Schedule Demo", sx, ...props }: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Book a Demo", sx, ...props }: BookDemoButtonProps) {
   return (
     <Button
       variant="contained"
