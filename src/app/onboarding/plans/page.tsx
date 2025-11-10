@@ -12,6 +12,7 @@ import BaseHeader from "@/components/headers/_base";
 import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
@@ -155,6 +156,14 @@ function PricingPlansContent() {
   const handleSelectPlan = async (plan: Plan, planKey: string) => {
     setError(null);
 
+    trackEvent("Get Started Clicked", {
+      source: "plans_page",
+      plan_name: plan.name,
+      plan_type: plan.isFree ? "free" : billing,
+      plan_price: billing === "monthly" ? plan.monthlyPrice : plan.annualPrice,
+      user_status: sessionStatus === "authenticated" ? "authenticated" : "unauthenticated",
+    });
+
     if (plan.isFree) {
       router.push("/onboarding/signup?plan=free_trial_plan");
       return;
@@ -246,7 +255,7 @@ function PricingPlansContent() {
         </Typography>
 
         <Box sx={{ mt: 2, mb: 3 }}>
-          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"} />
+          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"} source="plans_page" />
         </Box>
 
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 3 }}>

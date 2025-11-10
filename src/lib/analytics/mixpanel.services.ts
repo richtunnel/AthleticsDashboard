@@ -19,8 +19,30 @@ export const initMixpanel = () => {
 
 export const trackEvent = (event: string, properties?: Record<string, any>) => {
   try {
+    if (!MIXPANEL_TOKEN) return;
     mixpanel.track(event, properties);
   } catch (err) {
     console.error("Mixpanel track error:", err);
+  }
+};
+
+export const identifyUser = (userId: string, userProperties?: Record<string, any>) => {
+  try {
+    if (!MIXPANEL_TOKEN) return;
+    mixpanel.identify(userId);
+    if (userProperties) {
+      mixpanel.people.set(userProperties);
+    }
+  } catch (err) {
+    console.error("Mixpanel identify error:", err);
+  }
+};
+
+export const setUserProperties = (properties: Record<string, any>) => {
+  try {
+    if (!MIXPANEL_TOKEN) return;
+    mixpanel.people.set(properties);
+  } catch (err) {
+    console.error("Mixpanel set properties error:", err);
   }
 };

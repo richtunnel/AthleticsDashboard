@@ -18,6 +18,7 @@ import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 import {
   Box,
@@ -1352,6 +1353,9 @@ export function GamesTable() {
   }, []);
 
   const handleNewGame = () => {
+    trackEvent("Create Game Clicked", {
+      source: "games_table",
+    });
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
@@ -1764,6 +1768,10 @@ export function GamesTable() {
 
   const handleSendEmail = () => {
     if (typeof window === "undefined") return;
+    trackEvent("Send Email Clicked", {
+      source: "games_table",
+      games_selected: selectedGames.size,
+    });
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
     const opponentFilter = columnFilters.opponent;
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
@@ -3722,7 +3730,19 @@ export function GamesTable() {
               Create Game
             </Button>
 
-            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+            <Button
+              variant="outlined"
+              startIcon={<ViewColumn />}
+              onClick={() => {
+                trackEvent("Add Columns Clicked", {
+                  source: "games_table",
+                  custom_columns_count: customColumns.length,
+                });
+                setShowColumnManager(true);
+              }}
+              size="small"
+              sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+            >
               Add Columns ({customColumns.length})
             </Button>
             <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
