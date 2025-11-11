@@ -8,6 +8,7 @@ import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTrack
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
+import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -75,6 +76,28 @@ const customAdapter = {
         `welcome email for user ${newUser.id}`,
       );
     }
+
+    // Track Google OAuth signup in Mixpanel (non-blocking)
+    void runNonCritical(
+      () => {
+        trackServerEvent("User Signup", {
+          distinct_id: newUser.id,
+          signup_method: "google",
+          plan: newUser.plan,
+          email: newUser.email,
+          name: newUser.name,
+        });
+        identifyServerUser(newUser.id, {
+          $email: newUser.email,
+          $name: newUser.name,
+          plan: newUser.plan,
+          role: newUser.role,
+          signup_method: "google",
+          signup_date: new Date().toISOString(),
+        });
+      },
+      `mixpanel tracking for user ${newUser.id}`,
+    );
 
     return newUser;
   },
