@@ -12,6 +12,7 @@ import BaseHeader from "@/components/headers/_base";
 import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
 const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
@@ -154,6 +155,15 @@ function PricingPlansContent() {
 
   const handleSelectPlan = async (plan: Plan, planKey: string) => {
     setError(null);
+
+    // Track Get Started button click
+    trackEvent("Get Started Clicked", {
+      source: "onboarding_plans",
+      plan_name: plan.name,
+      plan_type: plan.isFree ? "free_trial" : "paid",
+      billing_interval: plan.isFree ? "trial" : billing,
+      price: billing === "monthly" ? plan.monthlyPrice : plan.annualPrice,
+    });
 
     if (plan.isFree) {
       router.push("/onboarding/signup?plan=free_trial_plan");

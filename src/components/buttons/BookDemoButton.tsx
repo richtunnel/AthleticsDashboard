@@ -2,12 +2,20 @@
 
 import { Button, ButtonProps } from "@mui/material";
 import DateRangeIcon from "@mui/icons-material/DateRange";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "target" | "rel"> {
   calendlyUrl?: string;
 }
 
 export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Book a Demo", sx, ...props }: BookDemoButtonProps) {
+  const handleClick = () => {
+    trackEvent("Book Demo Clicked", {
+      source: "book_demo_button",
+      calendly_url: calendlyUrl,
+    });
+  };
+
   return (
     <Button
       variant="contained"
@@ -15,6 +23,7 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com/ath
       href={calendlyUrl}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={handleClick}
       sx={{
         // backgroundColor: "",
         // color: "#0f172a",
