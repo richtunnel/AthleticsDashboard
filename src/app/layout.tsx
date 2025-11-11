@@ -4,6 +4,7 @@ import { Providers } from "./provider";
 import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
 import { MixpanelProvider } from "./mixpanel.provider";
+import { Suspense } from "react";
 
 import "./globals.css";
 
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <MixpanelProvider />
-          <AnalyticsProvider />
+          <Suspense fallback={null}>
+            <AnalyticsProvider />
+          </Suspense>
           {children}
         </Providers>
       </body>
