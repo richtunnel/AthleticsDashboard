@@ -1,12 +1,9 @@
-"use client";
-
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "./provider";
-import { useEffect } from "react";
-import { initMixpanel } from "@/lib/analytics/mixpanel.services";
 import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
+import { MixpanelProvider } from "./mixpanel.provider";
 
 import "./globals.css";
 
@@ -22,12 +19,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production" && process.env.NEXTAUTH_URL !== "http://localhost:3000") {
-      initMixpanel();
-    }
-  }, []);
-
   return (
     <html lang="en">
       <head>
@@ -46,6 +37,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
+          <MixpanelProvider />
           <AnalyticsProvider />
           {children}
         </Providers>
