@@ -3,6 +3,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import bcrypt from "bcryptjs";
 import { trackReferral } from "@/lib/services/referral.service";
+import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,6 +93,29 @@ export async function POST(request: NextRequest) {
         console.error("[Signup] Failed to track referral:", referralError);
         // Don't fail signup if referral tracking fails
       }
+    }
+
+    // Track signup event in Mixpanel
+    try {
+      trackServerEvent("User Signup", {
+        distinct_id: user.id,
+        signup_method: "email",
+        plan: user.plan,
+        email: normalizedEmail,
+        name: user.name,
+        has_referrer: !!referrerEmail,
+      });
+      identifyServerUser(user.id, {
+        $email: normalizedEmail,
+        $name: user.name,
+        plan: user.plan,
+        role: user.role,
+        signup_method: "email",
+        signup_date: new Date().toISOString(),
+      });
+    } catch (mixpanelError) {
+      console.error("[Signup] Failed to track Mixpanel event:", mixpanelError);
+      // Don't fail signup if tracking fails
     }
 
     return NextResponse.json(
