@@ -1,7 +1,6 @@
 import mixpanel from "mixpanel-browser";
 
 const MIXPANEL_TOKEN = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN! || "";
-if (!MIXPANEL_TOKEN && process.env.NEXTAUTH_URL !== "http://localhost:3000") throw new Error("Missing MIXPANEL_SERVICE_SECRET");
 
 let isInitialized = false;
 
