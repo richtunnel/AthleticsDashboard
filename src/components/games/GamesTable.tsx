@@ -18,6 +18,7 @@ import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 import {
   Box,
@@ -1352,6 +1353,10 @@ export function GamesTable() {
   }, []);
 
   const handleNewGame = () => {
+    trackEvent("Create Game Clicked", {
+      source: "games_table",
+      action: "create_game_button",
+    });
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
@@ -1764,12 +1769,26 @@ export function GamesTable() {
 
   const handleSendEmail = () => {
     if (typeof window === "undefined") return;
+    trackEvent("Send Email Clicked", {
+      source: "games_table",
+      action: "send_email_button",
+      selected_games_count: selectedGames.size,
+    });
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
     const opponentFilter = columnFilters.opponent;
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
     sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(visibleColumnIds));
     sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
     router.push("/dashboard/compose-email");
+  };
+
+  const handleAddColumnsClick = () => {
+    trackEvent("Add Columns Clicked", {
+      source: "games_table",
+      action: "add_columns_button",
+      current_custom_columns_count: customColumns.length,
+    });
+    setShowColumnManager(true);
   };
 
   const formatGameDate = (dateString: string) => {
@@ -3722,7 +3741,7 @@ export function GamesTable() {
               Create Game
             </Button>
 
-            <Button variant="outlined" startIcon={<ViewColumn />} onClick={() => setShowColumnManager(true)} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+            <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Add Columns ({customColumns.length})
             </Button>
             <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>

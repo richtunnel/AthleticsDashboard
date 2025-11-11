@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Switch, FormControlLabel, Typography, Stack, Paper } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { toggleAutoFill } from "@/app/dashboard/travel-ai/actions";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface AutoFillToggleProps {
   initialValue: boolean;
@@ -34,6 +35,11 @@ export function AutoFillToggle({ initialValue }: AutoFillToggleProps) {
       }
 
       setLastSavedValue(checked);
+      trackEvent("AI Bus Info Toggled", {
+        source: "travel_ai_page",
+        feature: "ai_bus_autofill",
+        enabled: checked,
+      });
       queryClient.setQueryData(["travel-settings"], (prev: any) => {
         if (!prev || typeof prev !== "object") {
           return prev;
