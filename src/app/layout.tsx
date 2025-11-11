@@ -5,6 +5,8 @@ import { Inter } from "next/font/google";
 import { Providers } from "./provider";
 import { useEffect } from "react";
 import { initMixpanel } from "@/lib/analytics/mixpanel.services";
+import Script from "next/script";
+import { AnalyticsProvider } from "./AnalyticsProvider";
 
 import "./globals.css";
 
@@ -31,9 +33,22 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        {/* Google Analytics Script */}
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
+          `}
+        </Script>
       </head>
       <body className={inter.className}>
-        <Providers>{children}</Providers>
+        <Providers>
+          <AnalyticsProvider />
+          {children}
+        </Providers>
       </body>
     </html>
   );
