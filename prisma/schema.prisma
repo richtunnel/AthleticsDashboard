@@ -109,12 +109,13 @@ model StripeWebhookEvent {
 }
 
 model CustomColumn {
-  id             String       @id @default(uuid())
+  id             String           @id @default(uuid())
   name           String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  type           CustomColumnType @default(TEXT)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model TablePreference {
@@ -550,6 +551,13 @@ enum ReferralStatus {
   PENDING   // Link shared but not clicked/signed up
   SIGNED_UP // User created account
   REWARDED  // Points awarded to referrer
+}
+
+enum CustomColumnType {
+  TEXT      // Simple text input
+  TIME      // Time picker (HH:MM format)
+  DROPDOWN  // Dropdown/select options
+  DATETIME  // Date and time picker for departure/arrival
 }
 
 // Referral System

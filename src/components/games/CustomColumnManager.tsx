@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, ListItemText, IconButton, Typography, Box, Alert, Chip, Stack } from "@mui/material";
-import { Add, Delete, ViewColumn, Close } from "@mui/icons-material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, ListItemText, IconButton, Typography, Box, Alert, Chip, Stack, Paper, ToggleButtonGroup, ToggleButton, Tooltip } from "@mui/material";
+import { Add, Delete, ViewColumn, Close, Schedule, TextFields, ArrowDropDownCircle, DirectionsBus } from "@mui/icons-material";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 
 interface CustomColumnManagerProps {
@@ -11,9 +11,39 @@ interface CustomColumnManagerProps {
   onClose: () => void;
 }
 
+type ColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
+
+const COLUMN_TYPES = [
+  {
+    value: "TEXT" as ColumnType,
+    label: "Text",
+    icon: <TextFields />,
+    description: "Simple text field like opponents",
+  },
+  {
+    value: "TIME" as ColumnType,
+    label: "Time",
+    icon: <Schedule />,
+    description: "Time picker like the time column",
+  },
+  {
+    value: "DROPDOWN" as ColumnType,
+    label: "Dropdown",
+    icon: <ArrowDropDownCircle />,
+    description: "Dropdown option like home/away",
+  },
+  {
+    value: "DATETIME" as ColumnType,
+    label: "Dept/Arr",
+    icon: <DirectionsBus />,
+    description: "Date & time for bus departure/arrival",
+  },
+];
+
 export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps) {
   const queryClient = useQueryClient();
   const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnType, setNewColumnType] = useState<ColumnType>("TEXT");
   const [error, setError] = useState("");
 
   // Fetch custom columns
@@ -31,11 +61,11 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
 
   // Create column mutation
   const createColumnMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, type }: { name: string; type: ColumnType }) => {
       const res = await fetch("/api/organizations/custom-columns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, type }),
       });
 
       if (!res.ok) {
@@ -49,6 +79,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setNewColumnName("");
+      setNewColumnType("TEXT");
       setError("");
     },
     onError: (error: any) => {
@@ -83,7 +114,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       return;
     }
 
-    createColumnMutation.mutate(newColumnName.trim());
+    createColumnMutation.mutate({ name: newColumnName.trim(), type: newColumnType });
   };
 
   const handleDeleteColumn = (columnId: string) => {
@@ -118,9 +149,63 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
 
           {/* Add new column */}
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
               Add New Column
             </Typography>
+            
+            {/* Column Type Selector */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="caption" sx={{ mb: 1, display: "block", color: "text.secondary" }}>
+                Select Column Type
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+                {COLUMN_TYPES.map((type) => (
+                  <Tooltip key={type.value} title={type.description} arrow placement="top">
+                    <Paper
+                      onClick={() => setNewColumnType(type.value)}
+                      sx={{
+                        p: 1.5,
+                        cursor: "pointer",
+                        border: 2,
+                        borderColor: newColumnType === type.value ? "primary.main" : "divider",
+                        bgcolor: newColumnType === type.value ? "primary.50" : "background.paper",
+                        transition: "all 0.2s ease",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 0.5,
+                        minWidth: 90,
+                        "&:hover": {
+                          borderColor: "primary.main",
+                          bgcolor: newColumnType === type.value ? "primary.50" : "action.hover",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          color: newColumnType === type.value ? "primary.main" : "text.secondary",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {type.icon}
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: newColumnType === type.value ? 600 : 400,
+                          color: newColumnType === type.value ? "primary.main" : "text.primary",
+                        }}
+                      >
+                        {type.label}
+                      </Typography>
+                    </Paper>
+                  </Tooltip>
+                ))}
+              </Stack>
+            </Box>
+
             <Stack direction="row" spacing={1}>
               <TextField
                 fullWidth
@@ -175,23 +260,35 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
               </Box>
             ) : (
               <List sx={{ maxHeight: 300, overflow: "auto", border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
-                {customColumns.map((column: any) => (
-                  <ListItem
-                    key={column.id}
-                    secondaryAction={
-                      <IconButton edge="end" color="error" onClick={() => handleDeleteColumn(column.id)} disabled={deleteColumnMutation.isPending}>
-                        <Delete />
-                      </IconButton>
-                    }
-                    sx={{
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      "&:last-child": { borderBottom: "none" },
-                    }}
-                  >
-                    <ListItemText primary={column.name} secondary={`Created ${new Date(column.createdAt).toLocaleDateString()}`} />
-                  </ListItem>
-                ))}
+                {customColumns.map((column: any) => {
+                  const columnTypeInfo = COLUMN_TYPES.find((t) => t.value === column.type) || COLUMN_TYPES[0];
+                  return (
+                    <ListItem
+                      key={column.id}
+                      secondaryAction={
+                        <IconButton edge="end" color="error" onClick={() => handleDeleteColumn(column.id)} disabled={deleteColumnMutation.isPending}>
+                          <Delete />
+                        </IconButton>
+                      }
+                      sx={{
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        "&:last-child": { borderBottom: "none" },
+                      }}
+                    >
+                      <Box sx={{ mr: 2, color: "primary.main" }}>{columnTypeInfo.icon}</Box>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            {column.name}
+                            <Chip label={columnTypeInfo.label} size="small" variant="outlined" />
+                          </Box>
+                        }
+                        secondary={`Created ${new Date(column.createdAt).toLocaleDateString()}`}
+                      />
+                    </ListItem>
+                  );
+                })}
               </List>
             )}
           </Box>
