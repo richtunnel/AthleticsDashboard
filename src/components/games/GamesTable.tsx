@@ -133,6 +133,17 @@ const formatTimeDisplay = (timeString: string | null): string => {
   }
 };
 
+type CustomColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
+
+interface CustomColumn {
+  id: string;
+  name: string;
+  type: CustomColumnType;
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface Game {
   id: string;
   date: string;
@@ -2453,31 +2464,102 @@ export function GamesTable() {
         );
       default:
         if (column.id.startsWith("custom:")) {
-          const customColumn = column.customColumn;
+          const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
+          const columnType = customColumn.type || "TEXT";
+          
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
-              <TextField
-                size="small"
-                fullWidth
-                value={newGameData.customData?.[customColumn.id] || ""}
-                onChange={(e) => {
-                  const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                  updateNewGameData({
-                    customData: {
-                      ...(newGameData.customData || {}),
-                      [customColumn.id]: value,
+              {columnType === "TIME" ? (
+                <TextField
+                  type="time"
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customColumn.id] || ""}
+                  onChange={(e) => {
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customColumn.id]: e.target.value,
+                      },
+                    });
+                  }}
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      py: 0.5,
                     },
-                  });
-                }}
-                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
-                sx={{
-                  "& .MuiInputBase-input": {
+                  }}
+                />
+              ) : columnType === "DATETIME" ? (
+                <TextField
+                  type="datetime-local"
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customColumn.id] || ""}
+                  onChange={(e) => {
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customColumn.id]: e.target.value,
+                      },
+                    });
+                  }}
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      py: 0.5,
+                    },
+                  }}
+                />
+              ) : columnType === "DROPDOWN" ? (
+                <Select
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customColumn.id] || ""}
+                  onChange={(e) => {
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customColumn.id]: e.target.value,
+                      },
+                    });
+                  }}
+                  displayEmpty
+                  sx={{
                     fontSize: 13,
-                    py: 0.5,
-                  },
-                }}
-              />
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Select option</em>
+                  </MenuItem>
+                  <MenuItem value="Option 1">Option 1</MenuItem>
+                  <MenuItem value="Option 2">Option 2</MenuItem>
+                  <MenuItem value="Option 3">Option 3</MenuItem>
+                </Select>
+              ) : (
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customColumn.id] || ""}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customColumn.id]: value,
+                      },
+                    });
+                  }}
+                  placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      py: 0.5,
+                    },
+                  }}
+                />
+              )}
             </TableCell>
           );
         }
@@ -2853,26 +2935,86 @@ export function GamesTable() {
         );
       default:
         if (column.id.startsWith("custom:")) {
-          const customColumn = column.customColumn;
+          const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
+          const columnType = customColumn.type || "TEXT";
+          
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
-              <TextField
-                size="small"
-                fullWidth
-                value={editingCustomData[customColumn.id] || ""}
-                onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
-                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
+              {columnType === "TIME" ? (
+                <TextField
+                  type="time"
+                  size="small"
+                  fullWidth
+                  value={editingCustomData[customColumn.id] || ""}
+                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "transparent",
+                      "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                      "&:hover fieldset": { borderColor: "primary.main" },
+                      "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    },
+                    "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
+                  }}
+                />
+              ) : columnType === "DATETIME" ? (
+                <TextField
+                  type="datetime-local"
+                  size="small"
+                  fullWidth
+                  value={editingCustomData[customColumn.id] || ""}
+                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "transparent",
+                      "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                      "&:hover fieldset": { borderColor: "primary.main" },
+                      "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    },
+                    "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
+                  }}
+                />
+              ) : columnType === "DROPDOWN" ? (
+                <Select
+                  size="small"
+                  fullWidth
+                  value={editingCustomData[customColumn.id] || ""}
+                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value as string)}
+                  displayEmpty
+                  sx={{
+                    fontSize: 13,
                     bgcolor: "transparent",
                     "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
                     "&:hover fieldset": { borderColor: "primary.main" },
                     "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                  },
-                  "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
-                }}
-              />
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Select option</em>
+                  </MenuItem>
+                  <MenuItem value="Option 1">Option 1</MenuItem>
+                  <MenuItem value="Option 2">Option 2</MenuItem>
+                  <MenuItem value="Option 3">Option 3</MenuItem>
+                </Select>
+              ) : (
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={editingCustomData[customColumn.id] || ""}
+                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                  placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "transparent",
+                      "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                      "&:hover fieldset": { borderColor: "primary.main" },
+                      "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    },
+                    "& .MuiInputBase-input": { fontSize: 13, py: 0.5 },
+                  }}
+                />
+              )}
             </TableCell>
           );
         }
@@ -3522,12 +3664,29 @@ export function GamesTable() {
       }
       default:
         if (column.id.startsWith("custom:")) {
-          const customColumn = column.customColumn;
+          const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
           const fieldKey = `custom:${customColumn.id}` as InlineEditField;
           const customData = (game.customData as any) || {};
           const cellValue = customData[customColumn.id] || "";
           const isCustomEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
+          const columnType = customColumn.type || "TEXT";
+
+          // Format display value based on column type
+          const displayValue = (() => {
+            if (!cellValue) return "—";
+            if (columnType === "TIME") {
+              return formatTimeDisplay(cellValue);
+            }
+            if (columnType === "DATETIME") {
+              try {
+                return format(new Date(cellValue), "MMM d, h:mm a");
+              } catch {
+                return cellValue;
+              }
+            }
+            return cellValue;
+          })();
 
           return (
             <TableCell
@@ -3549,28 +3708,85 @@ export function GamesTable() {
             >
               {isCustomEditing ? (
                 <Box sx={{ py: 1 }}>
-                  <TextField
-                    size="small"
-                    fullWidth
-                    value={inlineEditValue}
-                    onChange={(e) => handleInlineChange(e.target.value, game)}
-                    onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                    onBlur={() => handleInlineBlur(game)}
-                    autoFocus
-                    disabled={isInlineSaving}
-                    helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                    FormHelperTextProps={{
-                      sx: {
-                        fontSize: 10,
-                        color: getCharacterCounterColor(inlineEditValue.length),
-                      },
-                    }}
-                    sx={{
-                      "& .MuiInputBase-input": {
+                  {columnType === "TIME" ? (
+                    <TextField
+                      type="time"
+                      size="small"
+                      fullWidth
+                      value={inlineEditValue}
+                      onChange={(e) => handleInlineChange(e.target.value, game)}
+                      onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                      onBlur={() => handleInlineBlur(game)}
+                      autoFocus
+                      disabled={isInlineSaving}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 13,
+                        },
+                      }}
+                    />
+                  ) : columnType === "DATETIME" ? (
+                    <TextField
+                      type="datetime-local"
+                      size="small"
+                      fullWidth
+                      value={inlineEditValue}
+                      onChange={(e) => handleInlineChange(e.target.value, game)}
+                      onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                      onBlur={() => handleInlineBlur(game)}
+                      autoFocus
+                      disabled={isInlineSaving}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 13,
+                        },
+                      }}
+                    />
+                  ) : columnType === "DROPDOWN" ? (
+                    <Select
+                      size="small"
+                      fullWidth
+                      value={inlineEditValue}
+                      onChange={(e) => handleInlineChange(e.target.value as string, game)}
+                      onBlur={() => handleInlineBlur(game)}
+                      autoFocus
+                      disabled={isInlineSaving}
+                      displayEmpty
+                      sx={{
                         fontSize: 13,
-                      },
-                    }}
-                  />
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>Select option</em>
+                      </MenuItem>
+                      <MenuItem value="Option 1">Option 1</MenuItem>
+                      <MenuItem value="Option 2">Option 2</MenuItem>
+                      <MenuItem value="Option 3">Option 3</MenuItem>
+                    </Select>
+                  ) : (
+                    <TextField
+                      size="small"
+                      fullWidth
+                      value={inlineEditValue}
+                      onChange={(e) => handleInlineChange(e.target.value, game)}
+                      onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                      onBlur={() => handleInlineBlur(game)}
+                      autoFocus
+                      disabled={isInlineSaving}
+                      helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                      FormHelperTextProps={{
+                        sx: {
+                          fontSize: 10,
+                          color: getCharacterCounterColor(inlineEditValue.length),
+                        },
+                      }}
+                      sx={{
+                        "& .MuiInputBase-input": {
+                          fontSize: 13,
+                        },
+                      }}
+                    />
+                  )}
                   {inlineEditError && inlineEditState?.field === fieldKey && (
                     <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
                       {inlineEditError}
@@ -3581,7 +3797,7 @@ export function GamesTable() {
               ) : (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
                   <Typography variant="body2" sx={{ fontSize: 13 }}>
-                    {cellValue || "—"}
+                    {displayValue}
                   </Typography>
                   {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
                 </Box>
