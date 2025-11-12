@@ -10,6 +10,7 @@ import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverview
 import { getUserWithSubscription } from "@/lib/services/subscription";
 import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
+import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -110,6 +111,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       </Box>
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+      </Box>
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <DeleteAccountSection />
       </Box>
     </>
   );
