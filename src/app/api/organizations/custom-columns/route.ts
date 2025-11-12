@@ -27,10 +27,15 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await requireAuth();
-    const { name } = await request.json();
+    const { name, type = "TEXT" } = await request.json();
 
     if (!name?.trim()) {
       return new Response(JSON.stringify({ error: "Column name is required" }), { status: 400 });
+    }
+
+    const validTypes = ["TEXT", "TIME", "DROPDOWN", "DATETIME"];
+    if (!validTypes.includes(type)) {
+      return new Response(JSON.stringify({ error: "Invalid column type" }), { status: 400 });
     }
 
     const organization = await prisma.organization.findUnique({
@@ -51,6 +56,7 @@ export async function POST(request: Request) {
     const newColumn = await prisma.customColumn.create({
       data: {
         name: name.trim(),
+        type: type as any,
         organizationId: organization.id,
       },
     });
