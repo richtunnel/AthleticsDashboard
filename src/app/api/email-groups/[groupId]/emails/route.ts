@@ -96,17 +96,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return storageCheckResult;
     }
 
-    await prisma.emailAddress.createMany({
-      data: normalizedEmails.map((email) => ({ email, groupId })),
-      skipDuplicates: true,
+    // Check for existing emails to provide feedback on duplicates
+    const existingEmails = await prisma.emailAddress.findMany({
+      where: {
+        groupId,
+        email: {
+          in: normalizedEmails,
+        },
+      },
+      select: {
+        email: true,
+      },
     });
+
+    const existingEmailSet = new Set(existingEmails.map((e) => e.email));
+    const newEmails = normalizedEmails.filter((email) => !existingEmailSet.has(email));
+    const duplicateEmails = normalizedEmails.filter((email) => existingEmailSet.has(email));
+
+    // Only create emails that don't already exist
+    if (newEmails.length > 0) {
+      await prisma.emailAddress.createMany({
+        data: newEmails.map((email) => ({ email, groupId })),
+      });
+    }
 
     const updated = await prisma.emailGroup.findUnique({
       where: { id: groupId },
       include: emailGroupInclude,
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      ...updated,
+      addedCount: newEmails.length,
+      duplicateCount: duplicateEmails.length,
+      duplicates: duplicateEmails,
+    });
   } catch (error) {
     console.error("Error adding emails to group", error);
 
