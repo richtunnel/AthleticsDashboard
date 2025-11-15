@@ -10,6 +10,9 @@ import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverview
 import { getUserWithSubscription } from "@/lib/services/subscription";
 import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
+import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
+import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
+import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 
 interface SettingsPageProps {
@@ -87,6 +90,27 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 <AutoCalendarSyncToggle />
               </Box>
             )}
+          </CardContent>
+        </Card>
+
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              AI Features
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Enable or disable AI-powered features to enhance your scheduling workflow.
+            </Typography>
+            
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <AISchedulerToggle />
+              <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+                <AITravelTimesToggle />
+              </Box>
+              <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+                <AIEmailGenerationToggle />
+              </Box>
+            </Box>
           </CardContent>
         </Card>
       </Box>
