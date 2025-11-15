@@ -39,6 +39,9 @@ model User {
   googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
   autoCalendarSyncEnabled    Boolean   @default(false) // Enable/disable automatic calendar sync on game creation/update
+  aiSchedulerEnabled         Boolean   @default(false) // Enable/disable AI-powered scheduling suggestions
+  aiTravelTimesEnabled       Boolean   @default(false) // Enable/disable AI-powered travel time calculations with traffic and weather
+  aiEmailGenerationEnabled   Boolean   @default(false) // Enable/disable AI-powered email generation
   city                       String?
   lastLoginAt                DateTime?
   lastLoginDate              DateTime?
