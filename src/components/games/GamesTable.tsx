@@ -280,31 +280,31 @@ const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
     switch (status) {
       case "pending":
         return {
-          icon: <Schedule sx={{ fontSize: 16 }} />,
+          icon: <Schedule sx={{ fontSize: 14 }} />,
           text: "Changes pending...",
-          bgcolor: alpha("#2196f3", 0.08),
-          color: "#2196f3",
+          bgcolor: alpha("#2196f3", 0.95),
+          color: "#fff",
         };
       case "saving":
         return {
-          icon: <CircularProgress size={14} />,
+          icon: <CircularProgress size={12} sx={{ color: "#fff" }} />,
           text: "Saving changes...",
-          bgcolor: alpha("#2196f3", 0.08),
-          color: "#2196f3",
+          bgcolor: alpha("#2196f3", 0.95),
+          color: "#fff",
         };
       case "saved":
         return {
-          icon: <CheckCircle sx={{ fontSize: 16 }} />,
+          icon: <CheckCircle sx={{ fontSize: 14 }} />,
           text: "All changes saved",
-          bgcolor: alpha("#4caf50", 0.08),
-          color: "#4caf50",
+          bgcolor: alpha("#4caf50", 0.95),
+          color: "#fff",
         };
       case "error":
         return {
-          icon: <Cancel sx={{ fontSize: 16 }} />,
+          icon: <Cancel sx={{ fontSize: 14 }} />,
           text: "Error saving changes",
-          bgcolor: alpha("#f44336", 0.08),
-          color: "#f44336",
+          bgcolor: alpha("#f44336", 0.95),
+          color: "#fff",
         };
       default:
         return null;
@@ -317,22 +317,38 @@ const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
   return (
     <Box
       sx={{
+        position: "fixed",
+        top: 80,
+        right: 24,
+        zIndex: 9999,
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
         gap: 1,
         py: 0.75,
         px: 2,
         bgcolor: config.bgcolor,
-        borderBottom: `1px solid ${alpha(config.color, 0.2)}`,
+        color: config.color,
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
         transition: "all 0.3s ease",
+        animation: "slideInRight 0.3s ease",
+        "@keyframes slideInRight": {
+          from: {
+            transform: "translateX(100%)",
+            opacity: 0,
+          },
+          to: {
+            transform: "translateX(0)",
+            opacity: 1,
+          },
+        },
       }}
     >
       {config.icon}
       <Typography
         variant="body2"
         sx={{
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 500,
           color: config.color,
         }}
@@ -1121,6 +1137,9 @@ export function GamesTable() {
     },
   });
 
+  // Track original value to prevent unnecessary saves
+  const originalInlineValueRef = useRef<string>("");
+
   // Inline editing handlers
   const handleDoubleClick = useCallback(
     (game: Game, field: InlineEditField) => {
@@ -1171,6 +1190,7 @@ export function GamesTable() {
 
       setInlineEditState({ gameId: game.id, field });
       setInlineEditValue(currentValue);
+      originalInlineValueRef.current = currentValue; // Store original value
       setInlineEditError(null);
       setSaveStatus("idle");
     },
@@ -1419,7 +1439,16 @@ export function GamesTable() {
       if (e.key === "Enter" && inlineEditState.field !== "notes") {
         // Save immediately on Enter (except for notes textarea)
         e.preventDefault();
-        scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+        
+        // Only save if value has actually changed
+        if (inlineEditValue !== originalInlineValueRef.current) {
+          scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+        } else {
+          // No changes, just exit edit mode quietly
+          setInlineEditState(null);
+          setInlineEditValue("");
+          setSaveStatus("idle");
+        }
       } else if (e.key === "Escape") {
         e.preventDefault();
         // Cancel pending saves and clear state
@@ -1440,8 +1469,17 @@ export function GamesTable() {
   const handleInlineBlur = useCallback(
     (game: Game) => {
       if (!inlineEditState) return;
-      // Save immediately on blur
-      scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+      
+      // Only save if value has actually changed
+      if (inlineEditValue !== originalInlineValueRef.current) {
+        // Save immediately on blur
+        scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+      } else {
+        // No changes, just exit edit mode quietly
+        setInlineEditState(null);
+        setInlineEditValue("");
+        setSaveStatus("idle");
+      }
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
   );
