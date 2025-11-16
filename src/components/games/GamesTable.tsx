@@ -6,6 +6,7 @@ import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
 import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
+import { CustomTimePicker } from "../ui/CustomTimePicker";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
@@ -2342,19 +2343,10 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <TextField 
-              type="time" 
-              size="small" 
-              value={newGameData.time} 
-              onChange={(e) => updateNewGameData({ time: e.target.value })} 
-              sx={{ width: 100 }} 
-              InputProps={{ 
-                sx: { fontSize: 13 },
-                inputProps: {
-                  step: 300, // 5 minute intervals
-                  pattern: "[0-9]{2}:[0-9]{2}",
-                }
-              }} 
+            <CustomTimePicker
+              value={newGameData.time}
+              onChange={(value) => updateNewGameData({ time: value })}
+              size="small"
             />
           </TableCell>
         );
@@ -2761,27 +2753,10 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <TextField
-              type="time"
-              size="small"
+            <CustomTimePicker
               value={editingGame.time || ""}
-              onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, time: e.target.value } : prev))}
-              sx={{
-                width: 100,
-                "& .MuiOutlinedInput-root": {
-                  bgcolor: "transparent",
-                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                  "&:hover fieldset": { borderColor: "primary.main" },
-                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                },
-              }}
-              InputProps={{ 
-                sx: { fontSize: 13 },
-                inputProps: {
-                  step: 300, // 5 minute intervals
-                  pattern: "[0-9]{2}:[0-9]{2}",
-                }
-              }}
+              onChange={(value) => setEditingGameData((prev) => (prev ? { ...prev, time: value } : prev))}
+              size="small"
             />
           </TableCell>
         );
@@ -3314,23 +3289,13 @@ export function GamesTable() {
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-                <TextField
-                  type="time"
-                  size="small"
+                <CustomTimePicker
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineChange(e.target.value, game)}
-                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onChange={(value) => handleInlineChange(value, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
                   disabled={isInlineSaving}
-                  sx={{ width: "100%" }}
-                  InputProps={{ 
-                    sx: { fontSize: 13 },
-                    inputProps: {
-                      step: 300, // 5 minute intervals
-                      pattern: "[0-9]{2}:[0-9]{2}",
-                    }
-                  }}
+                  size="small"
                 />
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
