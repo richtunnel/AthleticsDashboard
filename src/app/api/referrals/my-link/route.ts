@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const baseUrl = normalizeBrowserUrl(request.nextUrl.origin);
+    const baseUrl = process.env.NEXTAUTH_URL || "";
     const referralLink = await generateReferralLink(session.user.id, baseUrl);
 
     return NextResponse.json({ referralLink }, { status: 200 });
