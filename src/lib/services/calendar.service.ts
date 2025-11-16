@@ -338,13 +338,19 @@ export class CalendarService {
     const timezone = game.homeTeam.organization.timezone || "America/New_York";
 
     // Prepare event data
-    const eventStart = new Date(game.date);
+    // Safari-friendly date parsing: extract date components from ISO string
+    const dateStr = game.date.includes('T') ? game.date.split('T')[0] : game.date;
+    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+    
+    // Create date in local timezone (Safari-compatible)
+    const eventStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+    
     if (game.time) {
       const [hours, minutes] = game.time.split(":");
       eventStart.setHours(parseInt(hours), parseInt(minutes));
     }
 
-    const eventEnd = new Date(eventStart);
+    const eventEnd = new Date(eventStart.getTime());
     eventEnd.setHours(eventEnd.getHours() + 2); // Default 2-hour duration
 
     const event: calendar_v3.Schema$Event = {
