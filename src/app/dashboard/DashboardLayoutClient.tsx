@@ -558,7 +558,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }}
       >
         <Toolbar />
-        <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 } }}>
+        <Container
+          maxWidth={false}
+          sx={{
+            py: { xs: 2, sm: 3, md: 4 },
+            px: { xs: 2, sm: 3 },
+            maxWidth: {
+              xs: "100%",
+              sm: isSidebarVisible ? "1536px" : "1936px",
+            },
+            mx: "auto",
+          }}
+        >
           {children}
         </Container>
       </Box>
