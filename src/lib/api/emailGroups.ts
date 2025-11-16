@@ -1,4 +1,4 @@
-import type { EmailGroup } from "@/components/communication/email/types";
+import type { EmailGroup, AddEmailsResponse } from "@/components/communication/email/types";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -52,14 +52,14 @@ export async function deleteEmailGroup(groupId: string): Promise<void> {
   await handleResponse(response);
 }
 
-export async function addEmailsToGroup(payload: { groupId: string; emails: string[] }): Promise<EmailGroup> {
+export async function addEmailsToGroup(payload: { groupId: string; emails: string[] }): Promise<AddEmailsResponse> {
   const response = await fetch(`/api/email-groups/${payload.groupId}/emails`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ emails: payload.emails }),
   });
 
-  return handleResponse<EmailGroup>(response);
+  return handleResponse<AddEmailsResponse>(response);
 }
 
 export async function removeEmailFromGroup(payload: { groupId: string; emailId: string }): Promise<EmailGroup> {
