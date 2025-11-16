@@ -1289,7 +1289,7 @@ export function GamesTable() {
       }
 
       // Schedule save with debounce (or immediate if specified)
-      const delay = immediate ? 0 : 800; // 800ms debounce for responsive auto-save
+      const delay = immediate ? 0 : 10000; // 10 seconds debounce to prevent premature auto-save during editing
       const timeoutId = setTimeout(() => {
         // Get the latest game data from ref to avoid stale closures
         const latestGame = gamesRef.current.find((g: Game) => g.id === gameId);
