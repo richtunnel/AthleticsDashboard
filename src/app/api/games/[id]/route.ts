@@ -86,6 +86,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updateData: any = { ...regularData };
 
+    // Normalize time field - convert empty strings to null and validate format
+    if ('time' in updateData) {
+      if (updateData.time === "" || updateData.time === null || updateData.time === undefined) {
+        updateData.time = null;
+      } else if (typeof updateData.time === 'string') {
+        const trimmedTime = updateData.time.trim();
+        if (trimmedTime === "") {
+          updateData.time = null;
+        } else {
+          // Validate time format (HH:MM)
+          const timePattern = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (!timePattern.test(trimmedTime)) {
+            return NextResponse.json(
+              { error: "Invalid time format. Expected HH:MM (e.g., 14:30)" },
+              { status: 400 }
+            );
+          }
+          updateData.time = trimmedTime;
+        }
+      }
+    }
+
     // Validate notes field character limit
     const MAX_CHAR_LIMIT = 2500;
     if (updateData.notes && typeof updateData.notes === "string" && updateData.notes.length > MAX_CHAR_LIMIT) {
