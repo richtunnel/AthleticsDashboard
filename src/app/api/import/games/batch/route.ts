@@ -6,8 +6,8 @@ import { TeamLevel, GameStatus } from "../../../../../../types/main.types";
 interface ImportGameData {
   date: string;
   time?: string | null;
-  sport: string;
-  level: string;
+  sport?: string;
+  level?: string;
   opponent?: string | null;
   isHome: boolean;
   venue?: string | null;
@@ -76,22 +76,26 @@ export async function POST(request: NextRequest) {
       const gameData = games[i] as ImportGameData;
 
       try {
-        // Validate required fields
-        if (!gameData.date || !gameData.sport || !gameData.level) {
-          errors.push(`Row ${i + 1}: Missing required fields (date, sport, or level)`);
+        // Validate required fields - only date is required
+        if (!gameData.date) {
+          errors.push(`Row ${i + 1}: Missing required field (date)`);
           failedCount++;
           continue;
         }
 
+        // Use provided sport/level or fall back to defaults
+        const sportName = gameData.sport || "Unknown Sport";
+        const levelValue = gameData.level || "VARSITY";
+
         // Normalize level and status to enum values
-        const normalizedLevel = normalizeLevel(gameData.level);
+        const normalizedLevel = normalizeLevel(levelValue);
         const normalizedStatus = normalizeStatus(gameData.status);
 
         // Find or create sport
         let sport = await prisma.sport.findFirst({
           where: {
             name: {
-              equals: gameData.sport,
+              equals: sportName,
               mode: "insensitive",
             },
           },
@@ -100,7 +104,7 @@ export async function POST(request: NextRequest) {
         if (!sport) {
           sport = await prisma.sport.create({
             data: {
-              name: gameData.sport,
+              name: sportName,
               season: "FALL", // Default season
             },
           });
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
         if (!team) {
           team = await prisma.team.create({
             data: {
-              name: `${gameData.sport} ${normalizedLevel}`,
+              name: `${sportName} ${normalizedLevel}`,
               sportId: sport.id,
               level: normalizedLevel,
               organizationId: session.user.organizationId,
