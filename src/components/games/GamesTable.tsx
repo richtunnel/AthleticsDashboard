@@ -1510,8 +1510,24 @@ export function GamesTable() {
   );
 
   const handleSaveNewGame = async () => {
-    if (!newGameData.sport || !newGameData.level) {
-      addNotification("Please select sport and level", "error");
+    // Validate required fields and provide specific error messages
+    if (!newGameData.date) {
+      addNotification("Date is required. Please enter a valid date.", "error");
+      return;
+    }
+
+    if (!newGameData.sport) {
+      addNotification("Sport is required. Please select a sport.", "error");
+      return;
+    }
+
+    if (!newGameData.level) {
+      addNotification("Level is required. Please select a level.", "error");
+      return;
+    }
+
+    if (!newGameData.status) {
+      addNotification("Status is required. Please select a status (Confirmed).", "error");
       return;
     }
 
@@ -1649,11 +1665,27 @@ export function GamesTable() {
   const handleSaveEdit = async () => {
     if (!editingGameData || !editingGameId) return;
 
+    // Validate required fields and provide specific error messages
+    if (!editingGameData.date) {
+      addNotification("Date is required. Please enter a valid date.", "error");
+      return;
+    }
+
     const sportName = editingGameData.homeTeam.sport.name;
     const level = editingGameData.homeTeam.level;
 
-    if (!sportName || !level) {
-      addNotification("Please select sport and level", "error");
+    if (!sportName) {
+      addNotification("Sport is required. Please select a sport.", "error");
+      return;
+    }
+
+    if (!level) {
+      addNotification("Level is required. Please select a level.", "error");
+      return;
+    }
+
+    if (!editingGameData.status) {
+      addNotification("Status is required. Please select a status (Confirmed).", "error");
       return;
     }
 
