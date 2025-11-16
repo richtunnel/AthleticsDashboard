@@ -29,7 +29,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import { LoadingButton } from "@/components/utils/LoadingButton";
-import type { EmailGroup } from "./types";
+import type { EmailGroup, AddEmailsResponse } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,7 +41,7 @@ interface EmailGroupCardProps {
   isAddingEmails: boolean;
   onToggleAddEmails: () => void;
   onSelect: () => void;
-  onAddEmails: (emails: string[]) => Promise<void>;
+  onAddEmails: (emails: string[]) => Promise<AddEmailsResponse>;
   addEmailsLoading: boolean;
   onRemoveEmail: (emailId: string) => Promise<void>;
   removeEmailLoadingId: string | null;
@@ -105,9 +105,31 @@ export function EmailGroupCard({
     setInputError(null);
 
     try {
-      await onAddEmails(normalized);
+      const result = await onAddEmails(normalized);
       setEmailInput("");
-      onShowMessage(`${normalized.length} email${normalized.length > 1 ? "s" : ""} added to ${group.name}`);
+      
+      // Handle response with duplicate detection
+      const addedCount = result.addedCount;
+      const duplicateCount = result.duplicateCount;
+      
+      if (typeof addedCount === "number" && typeof duplicateCount === "number") {
+        if (addedCount > 0 && duplicateCount > 0) {
+          onShowMessage(
+            `${addedCount} email${addedCount > 1 ? "s" : ""} added. ${duplicateCount} duplicate${duplicateCount > 1 ? "s were" : " was"} not saved (already in group).`,
+            "warning"
+          );
+        } else if (addedCount > 0 && duplicateCount === 0) {
+          onShowMessage(`${addedCount} email${addedCount > 1 ? "s" : ""} added to ${group.name}`);
+        } else if (addedCount === 0 && duplicateCount > 0) {
+          onShowMessage(
+            `No emails added. All ${duplicateCount} email${duplicateCount > 1 ? "s are" : " is"} already in this group.`,
+            "warning"
+          );
+        }
+      } else {
+        // Fallback for old response format
+        onShowMessage(`${normalized.length} email${normalized.length > 1 ? "s" : ""} added to ${group.name}`);
+      }
     } catch (error) {
       if (error instanceof Error) {
         setInputError(error.message);

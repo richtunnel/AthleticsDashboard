@@ -14,3 +14,9 @@ export interface EmailGroup {
     emails: number;
   };
 }
+
+export interface AddEmailsResponse extends EmailGroup {
+  addedCount?: number;
+  duplicateCount?: number;
+  duplicates?: string[];
+}
