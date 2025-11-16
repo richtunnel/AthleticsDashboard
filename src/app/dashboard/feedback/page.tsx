@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SupportFeedbackForm } from "@/components/support/SupportFeedbackForm";
 import { GoogleFeedbackForm } from "@/components/support/GoogleFeedbackForm";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import { getFirstName } from "@/lib/utils/name";
 
 export default async function FeedbackPage() {
   const session = await getServerSession(authOptions);
@@ -42,7 +43,7 @@ export default async function FeedbackPage() {
               </Typography>
             </Box>
 
-            <SupportFeedbackForm mode="feedback" userName={session.user.name || "Unknown"} />
+            <SupportFeedbackForm mode="feedback" userName={getFirstName(session.user.name) || "Unknown"} />
           </>
         )}
       </Box>
