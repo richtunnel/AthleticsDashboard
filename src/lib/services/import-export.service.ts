@@ -98,12 +98,51 @@ export class ImportExportService {
           row[header] = values[index] || "";
         });
 
-        // Find matching team
-        const team = teams.find((t: any) => t.sport.name === row["Sport"] && t.level === row["Level"] && (row["Team"] ? t.name === row["Team"] : true));
-
-        if (!team) {
-          errors.push(`Line ${i + 1}: Team not found for ${row["Sport"]} ${row["Level"]}`);
+        // Parse date - only required field
+        const date = new Date(row["Date"]);
+        if (isNaN(date.getTime())) {
+          errors.push(`Line ${i + 1}: Invalid or missing date`);
           continue;
+        }
+
+        // Find matching team, or use defaults if sport/level not provided
+        let team = teams.find((t: any) => 
+          t.sport.name === (row["Sport"] || "Unknown Sport") && 
+          t.level === (row["Level"] || "VARSITY") && 
+          (row["Team"] ? t.name === row["Team"] : true)
+        );
+
+        // If team not found, create a default sport and team
+        if (!team) {
+          const sportName = row["Sport"] || "Unknown Sport";
+          const levelValue = row["Level"] || "VARSITY";
+          
+          let sport = await prisma.sport.findFirst({
+            where: {
+              name: {
+                equals: sportName,
+                mode: "insensitive",
+              },
+            },
+          });
+
+          if (!sport) {
+            sport = await prisma.sport.create({
+              data: {
+                name: sportName,
+                season: "FALL",
+              },
+            });
+          }
+
+          team = await prisma.team.create({
+            data: {
+              name: `${sportName} ${levelValue}`,
+              sportId: sport.id,
+              level: levelValue as any,
+              organizationId,
+            },
+          });
         }
 
         // Find opponent
@@ -111,13 +150,6 @@ export class ImportExportService {
 
         // Find venue
         const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
-
-        // Parse date
-        const date = new Date(row["Date"]);
-        if (isNaN(date.getTime())) {
-          errors.push(`Line ${i + 1}: Invalid date format`);
-          continue;
-        }
 
         // Create game
         await prisma.game.create({
