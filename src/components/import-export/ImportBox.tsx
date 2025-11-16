@@ -43,36 +43,88 @@ const dateStringToUTCISOString = (dateValue: string): string => {
     throw new Error(`Invalid date value: ${dateValue}`);
   }
 
-  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue.trim();
+  let dateStr = dateValue.trim();
 
-  // Split and validate the date parts
-  const parts = datePart.split("-");
-  if (parts.length !== 3) {
-    throw new Error(`Invalid date format: ${dateValue}. Expected format: YYYY-MM-DD`);
+  // Handle date ranges: "Dec. 18 - 22 2025" -> take first date "Dec. 18 2025"
+  // Split on common range separators (-, —, to, through) and take the first part
+  if (dateStr.includes(" - ") || dateStr.includes(" — ") || dateStr.includes(" to ")) {
+    dateStr = dateStr.split(/\s*[-—]\s*/)[0].trim();
+    // Add back the year if it was at the end: "Dec. 18 - 22 2025" -> "Dec. 18" + "2025"
+    const yearMatch = dateValue.match(/\b(20\d{2}|19\d{2})\b/);
+    if (yearMatch && !dateStr.includes(yearMatch[0])) {
+      dateStr = `${dateStr} ${yearMatch[0]}`;
+    }
   }
 
-  const [year, month, day] = parts.map(Number);
+  // Month name mappings
+  const monthMap: { [key: string]: number } = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+  };
 
-  // Validate that all parts are valid numbers
-  if (isNaN(year) || isNaN(month) || isNaN(day)) {
-    throw new Error(`Invalid date components in: ${dateValue}`);
+  // Try parsing as YYYY-MM-DD first
+  if (/^\d{4}-\d{1,2}-\d{1,2}/.test(dateStr)) {
+    const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const parts = datePart.split("-");
+    const [year, month, day] = parts.map(Number);
+
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+      if (!isNaN(utcDate.getTime())) {
+        return utcDate.toISOString();
+      }
+    }
   }
 
-  // Validate reasonable ranges
-  if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
-    throw new Error(`Date values out of range: ${dateValue}`);
+  // Try parsing month name formats: "Dec. 18, 2025" or "December 18 2025"
+  const monthNameRegex = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\.?\s+(\d{1,2})[,\s]+(\d{4})\b/i;
+  const match = dateStr.match(monthNameRegex);
+
+  if (match) {
+    const monthName = match[1].toLowerCase().replace(".", "");
+    const day = parseInt(match[2]);
+    const year = parseInt(match[3]);
+    const month = monthMap[monthName];
+
+    if (month && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
+      const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+      if (!isNaN(utcDate.getTime())) {
+        return utcDate.toISOString();
+      }
+    }
   }
 
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-
-  // Check if the date is valid
-  if (isNaN(utcDate.getTime())) {
-    throw new Error(`Invalid date created from: ${dateValue}`);
+  // Try JavaScript's native Date parser as fallback
+  const parsedDate = new Date(dateStr);
+  if (!isNaN(parsedDate.getTime())) {
+    // Convert to UTC at noon to avoid timezone issues
+    const utcDate = new Date(Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 12, 0, 0, 0));
+    return utcDate.toISOString();
   }
 
-  return utcDate.toISOString();
+  throw new Error(`Unable to parse date: ${dateValue}`);
 };
 
 interface CSVImportProps {
