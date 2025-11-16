@@ -43,6 +43,8 @@ interface EmailGroupCardProps {
   onSelect: () => void;
   onAddEmails: (emails: string[]) => Promise<AddEmailsResponse>;
   addEmailsLoading: boolean;
+  onUpdateEmail: (emailId: string, email: string) => Promise<void>;
+  updateEmailLoadingId: string | null;
   onRemoveEmail: (emailId: string) => Promise<void>;
   removeEmailLoadingId: string | null;
   onRename: (name: string) => Promise<void>;
@@ -60,6 +62,8 @@ export function EmailGroupCard({
   onSelect,
   onAddEmails,
   addEmailsLoading,
+  onUpdateEmail,
+  updateEmailLoadingId,
   onRemoveEmail,
   removeEmailLoadingId,
   onRename,
@@ -73,6 +77,8 @@ export function EmailGroupCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(group.name);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [editingEmailValue, setEditingEmailValue] = useState("");
 
   useEffect(() => {
     setEditValue(group.name);
@@ -167,6 +173,37 @@ export function EmailGroupCard({
       onShowMessage(`Deleted group "${group.name}"`, "success");
     } catch {
       // Keep dialog open; error feedback handled upstream
+    }
+  };
+
+  const handleUpdateEmail = async (emailId: string, currentEmail: string) => {
+    const trimmedEmail = editingEmailValue.trim().toLowerCase();
+
+    if (!trimmedEmail) {
+      onShowMessage("Email cannot be empty", "error");
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      onShowMessage("Invalid email format", "error");
+      return;
+    }
+
+    if (trimmedEmail === currentEmail.toLowerCase()) {
+      setEditingEmailId(null);
+      setEditingEmailValue("");
+      return;
+    }
+
+    try {
+      await onUpdateEmail(emailId, trimmedEmail);
+      setEditingEmailId(null);
+      setEditingEmailValue("");
+      onShowMessage(`Updated email to ${trimmedEmail}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        onShowMessage(error.message, "error");
+      }
     }
   };
 
@@ -371,21 +408,71 @@ export function EmailGroupCard({
                 <ListItem
                   key={address.id}
                   secondaryAction={
-                    <Tooltip title="Remove email">
-                      <span>
+                    editingEmailId === address.id ? (
+                      <Stack direction="row" spacing={0.5}>
                         <IconButton
-                          edge="end"
-                          aria-label="remove"
-                          onClick={() => handleRemoveEmail(address.id, address.email)}
-                          disabled={removeEmailLoadingId === address.id}
+                          size="small"
+                          color="primary"
+                          onClick={() => handleUpdateEmail(address.id, address.email)}
+                          disabled={updateEmailLoadingId === address.id}
                         >
-                          {removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CloseIcon fontSize="small" />}
+                          {updateEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
                         </IconButton>
-                      </span>
-                    </Tooltip>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditingEmailId(null);
+                            setEditingEmailValue("");
+                          }}
+                          disabled={updateEmailLoadingId === address.id}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" spacing={0.5}>
+                        <Tooltip title="Edit email">
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                setEditingEmailId(address.id);
+                                setEditingEmailValue(address.email);
+                              }}
+                              disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="Remove email">
+                          <span>
+                            <IconButton
+                              edge="end"
+                              aria-label="remove"
+                              onClick={() => handleRemoveEmail(address.id, address.email)}
+                              disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
+                            >
+                              {removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CloseIcon fontSize="small" />}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </Stack>
+                    )
                   }
                 >
-                  <ListItemText primary={address.email} />
+                  {editingEmailId === address.id ? (
+                    <TextField
+                      size="small"
+                      value={editingEmailValue}
+                      onChange={(e) => setEditingEmailValue(e.target.value)}
+                      autoFocus
+                      fullWidth
+                      sx={{ mr: 2 }}
+                    />
+                  ) : (
+                    <ListItemText primary={address.email} />
+                  )}
                 </ListItem>
               ))}
             </List>
