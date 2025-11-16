@@ -8,6 +8,7 @@ import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
 import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
 import { CustomTimePicker } from "../ui/CustomTimePicker";
 import { CellContentDialog } from "./CellContentDialog";
+import { TimeEditModal } from "./TimeEditModal";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
@@ -423,6 +424,9 @@ export function GamesTable() {
 
   // Cell content expansion dialog state
   const [expandedCell, setExpandedCell] = useState<{ gameId: string; columnId: ColumnId; content: string; title: string } | null>(null);
+
+  // Time edit modal state
+  const [timeEditModal, setTimeEditModal] = useState<{ open: boolean; gameId: string; time: string; gameInfo?: { date: string; opponent?: string } } | null>(null);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -1135,9 +1139,8 @@ export function GamesTable() {
             currentValue = extractDatePart(game.date);
             break;
           case "time":
-            // Ensure time is properly formatted (HH:MM) or empty string
-            currentValue = game.time && typeof game.time === "string" ? game.time.trim() : "";
-            break;
+            // Time field no longer supports inline editing - use modal instead
+            return;
           case "status":
             currentValue = game.status;
             break;
@@ -1997,6 +2000,42 @@ export function GamesTable() {
       }
     );
   }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
+
+  // Time edit modal handlers
+  const handleTimeClick = useCallback((game: Game) => {
+    // Don't open modal if in full edit mode
+    if (editingGameId === game.id) return;
+
+    const formattedDate = formatGameDate(game.date);
+    setTimeEditModal({
+      open: true,
+      gameId: game.id,
+      time: game.time || "",
+      gameInfo: {
+        date: formattedDate,
+        opponent: game.opponent?.name,
+      },
+    });
+  }, [editingGameId, formatGameDate]);
+
+  const handleTimeModalSave = useCallback(
+    async (time: string) => {
+      if (!timeEditModal) return;
+
+      const gameId = timeEditModal.gameId;
+      const game = games.find((g) => g.id === gameId);
+      if (!game) return;
+
+      // Save the time update
+      scheduleAutosave(gameId, "time", time, game, true);
+      setTimeEditModal(null);
+    },
+    [timeEditModal, games, scheduleAutosave]
+  );
+
+  const handleTimeModalClose = useCallback(() => {
+    setTimeEditModal(null);
+  }, []);
 
   // Helper to render editable column title
   const renderEditableColumnTitle = (columnId: ColumnId, defaultLabel: string, sortable: boolean = false, sortFieldValue?: SortField) => {
@@ -3411,23 +3450,19 @@ export function GamesTable() {
         );
       }
       case "time": {
-        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "time";
         return (
           <TableCell
             key="time"
             sx={{
               fontSize: 13,
               py: 0,
-              cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
-              ...(isEditing && {
-                boxShadow: "inset 0 0 0 1px #DBEAFE",
-              }),
+              cursor: "pointer",
+              bgcolor: "transparent",
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: "#f5f5f5",
               },
             }}
-            onDoubleClick={() => handleDoubleClick(game, "time")}
+            onClick={() => handleTimeClick(game)}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -4341,6 +4376,17 @@ export function GamesTable() {
         title={expandedCell?.title || ""}
         content={expandedCell?.content || ""}
       />
+
+      {/* Time Edit Modal */}
+      {timeEditModal && (
+        <TimeEditModal
+          open={timeEditModal.open}
+          onClose={handleTimeModalClose}
+          onSave={handleTimeModalSave}
+          initialValue={timeEditModal.time}
+          gameInfo={timeEditModal.gameInfo}
+        />
+      )}
     </Box>
   );
 }
