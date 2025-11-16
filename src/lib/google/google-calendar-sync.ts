@@ -60,7 +60,9 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 
   // Prepare event data
   // Safari-friendly date parsing: extract date components from ISO string
-  const dateStr = game.date.includes('T') ? game.date.split('T')[0] : game.date;
+  // Handle both Date objects and strings
+  const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
+  const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
   const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
   
   // Create date in local timezone (Safari-compatible)
