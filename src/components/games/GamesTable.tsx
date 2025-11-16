@@ -266,59 +266,79 @@ const PRESET_SPORTS = ["Boys Basketball", "Girls Basketball", "Boys Flag Footbal
 
 const PRESET_LEVELS = ["VARSITY", "JV", "FRESHMAN"];
 
-// Save Status Indicator Component
+// Save Status Banner Component - displays at top of table
 type SaveStatusType = "idle" | "pending" | "saving" | "saved" | "error";
 
-interface SaveStatusIndicatorProps {
+interface SaveStatusBannerProps {
   status: SaveStatusType;
 }
 
-const SaveStatusIndicator: React.FC<SaveStatusIndicatorProps> = ({ status }) => {
+const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
   if (status === "idle") return null;
+
+  const getStatusConfig = () => {
+    switch (status) {
+      case "pending":
+        return {
+          icon: <Schedule sx={{ fontSize: 16 }} />,
+          text: "Changes pending...",
+          bgcolor: alpha("#2196f3", 0.08),
+          color: "#2196f3",
+        };
+      case "saving":
+        return {
+          icon: <CircularProgress size={14} />,
+          text: "Saving changes...",
+          bgcolor: alpha("#2196f3", 0.08),
+          color: "#2196f3",
+        };
+      case "saved":
+        return {
+          icon: <CheckCircle sx={{ fontSize: 16 }} />,
+          text: "All changes saved",
+          bgcolor: alpha("#4caf50", 0.08),
+          color: "#4caf50",
+        };
+      case "error":
+        return {
+          icon: <Cancel sx={{ fontSize: 16 }} />,
+          text: "Error saving changes",
+          bgcolor: alpha("#f44336", 0.08),
+          color: "#f44336",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const config = getStatusConfig();
+  if (!config) return null;
 
   return (
     <Box
       sx={{
         display: "flex",
         alignItems: "center",
-        gap: 0.5,
-        fontSize: 11,
-        color: status === "saved" ? "success.main" : status === "error" ? "error.main" : "text.secondary",
-        mt: 0.5,
+        justifyContent: "center",
+        gap: 1,
+        py: 0.75,
+        px: 2,
+        bgcolor: config.bgcolor,
+        borderBottom: `1px solid ${alpha(config.color, 0.2)}`,
+        transition: "all 0.3s ease",
       }}
     >
-      {status === "pending" && (
-        <>
-          <Schedule sx={{ fontSize: 14 }} />
-          <Typography variant="caption" sx={{ fontSize: 11 }}>
-            Pending...
-          </Typography>
-        </>
-      )}
-      {status === "saving" && (
-        <>
-          <CircularProgress size={12} />
-          <Typography variant="caption" sx={{ fontSize: 11 }}>
-            Saving...
-          </Typography>
-        </>
-      )}
-      {status === "saved" && (
-        <>
-          <CheckCircle sx={{ fontSize: 14 }} />
-          <Typography variant="caption" sx={{ fontSize: 11, fontWeight: 500 }}>
-            Saved
-          </Typography>
-        </>
-      )}
-      {status === "error" && (
-        <>
-          <Cancel sx={{ fontSize: 14 }} />
-          <Typography variant="caption" sx={{ fontSize: 11 }}>
-            Error
-          </Typography>
-        </>
-      )}
+      {config.icon}
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: config.color,
+        }}
+      >
+        {config.text}
+      </Typography>
     </Box>
   );
 };
@@ -1372,7 +1392,7 @@ export function GamesTable() {
       }
 
       // Schedule save with debounce (or immediate if specified)
-      const delay = immediate ? 0 : 10000; // 10 seconds debounce to prevent premature auto-save during editing
+      const delay = immediate ? 0 : 45000; // 45 seconds debounce - data persists so no need to rush auto-save
       const timeoutId = setTimeout(() => {
         // Get the latest game data from ref to avoid stale closures
         const latestGame = gamesRef.current.find((g: Game) => g.id === gameId);
@@ -3222,7 +3242,6 @@ export function GamesTable() {
                   sx={{ width: "100%" }}
                   InputProps={{ sx: { fontSize: 13 } }}
                 />
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3272,7 +3291,6 @@ export function GamesTable() {
                     </MenuItem>
                   ))}
                 </Select>
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3324,7 +3342,6 @@ export function GamesTable() {
                     </MenuItem>
                   ))}
                 </Select>
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3365,7 +3382,6 @@ export function GamesTable() {
                     },
                   }}
                 />
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3419,7 +3435,6 @@ export function GamesTable() {
                   <MenuItem value="home">Home</MenuItem>
                   <MenuItem value="away">Away</MenuItem>
                 </Select>
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3449,11 +3464,25 @@ export function GamesTable() {
             }}
             onClick={() => handleTimeClick(game)}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-              <Typography variant="body2" sx={{ fontSize: 13 }}>
-                {formatTimeDisplay(game.time)}
-              </Typography>
-            </Box>
+            {isEditing ? (
+              <Box sx={{ py: 1 }}>
+                <CustomTimePicker
+                  value={inlineEditValue}
+                  onChange={(value) => handleInlineChange(value, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  size="small"
+                />
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  {formatTimeDisplay(game.time)}
+                </Typography>
+                {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "time" && <CircularProgress size={12} />}
+              </Box>
+            )}
           </TableCell>
         );
       }
@@ -3492,7 +3521,6 @@ export function GamesTable() {
                   <MenuItem value="CONFIRMED">Yes</MenuItem>
                   <MenuItem value="CANCELLED">No</MenuItem>
                 </Select>
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3553,7 +3581,6 @@ export function GamesTable() {
                     {inlineEditError}
                   </Typography>
                 )}
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3653,7 +3680,6 @@ export function GamesTable() {
                       Bus
                     </Typography>
                   </Box>
-                  <SaveStatusIndicator status={saveStatus} />
                 </Stack>
               </Box>
             ) : (
@@ -3732,7 +3758,6 @@ export function GamesTable() {
                 >
                   {inlineEditValue.length}/{MAX_CHAR_LIMIT}
                 </Typography>
-                <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3912,7 +3937,6 @@ export function GamesTable() {
                       {inlineEditError}
                     </Typography>
                   )}
-                  <SaveStatusIndicator status={saveStatus} />
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -4139,6 +4163,9 @@ export function GamesTable() {
           </Tooltip>
         </Stack>
       </Box>
+
+      {/* Save Status Banner */}
+      <SaveStatusBanner status={saveStatus} />
 
       {/* Table */}
       <TableContainer
