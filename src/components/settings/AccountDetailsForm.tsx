@@ -5,6 +5,7 @@ import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgre
 import Autocomplete from "@mui/material/Autocomplete";
 import { updateUserDetails } from "@/app/dashboard/settings/actions";
 import { ALLOWED_SETTINGS_ROLES, ROLE_OPTIONS, AllowedSettingsRole } from "@/lib/constants/role";
+import { getFirstName } from "@/lib/utils/name";
 
 type OrgOption = { id: string; name: string };
 
@@ -129,7 +130,7 @@ export default function AccountDetailsForm({ user }: Props) {
         <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
           <Avatar src={form.image || undefined} alt={form.name || ""} />
           <Box>
-            <Typography variant="subtitle1">{form.name || "Unnamed"}</Typography>
+            <Typography variant="subtitle1">{getFirstName(form.name) || "Unnamed"}</Typography>
             <Typography variant="body2" color="text.secondary">
               {form.email}
             </Typography>
