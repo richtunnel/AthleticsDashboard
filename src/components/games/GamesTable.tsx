@@ -7,6 +7,7 @@ import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
 import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
 import { CustomTimePicker } from "../ui/CustomTimePicker";
+import { CellContentDialog } from "./CellContentDialog";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
@@ -241,6 +242,7 @@ interface TablePreferencesData {
   order?: ColumnId[];
   hidden?: ColumnId[];
   columnTitles?: Record<string, string>;
+  columnWidths?: Record<string, number>;
   [key: string]: unknown;
 }
 
@@ -248,6 +250,7 @@ interface ColumnPreferencePayload {
   order: ColumnId[];
   hidden: ColumnId[];
   columnTitles?: Record<string, string>;
+  columnWidths?: Record<string, number>;
 }
 
 interface ResolvedColumn {
@@ -392,9 +395,21 @@ export function GamesTable() {
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const savingGamesRef = useRef<Set<string>>(new Set());
 
+  // Column resizing state
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [resizingColumn, setResizingColumn] = useState<ColumnId | null>(null);
+  const resizeStartX = useRef<number>(0);
+  const resizeStartWidth = useRef<number>(0);
+
+  // Cell content expansion dialog state
+  const [expandedCell, setExpandedCell] = useState<{ gameId: string; columnId: ColumnId; content: string; title: string } | null>(null);
+
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
+  const MIN_COLUMN_WIDTH = 100;
+  const MAX_COLUMN_WIDTH = 600;
+  const DEFAULT_COLUMN_WIDTH = 150;
 
   const getCharacterCounterColor = (length: number) => {
     if (length >= MAX_CHAR_LIMIT) {
@@ -535,6 +550,13 @@ export function GamesTable() {
   useEffect(() => {
     if (columnPreferencesData?.columnTitles) {
       setCustomColumnTitles(columnPreferencesData.columnTitles);
+    }
+  }, [columnPreferencesData]);
+
+  // Load column widths from preferences
+  useEffect(() => {
+    if (columnPreferencesData?.columnWidths) {
+      setColumnWidths(columnPreferencesData.columnWidths);
     }
   }, [columnPreferencesData]);
 
@@ -769,11 +791,12 @@ export function GamesTable() {
   });
 
   const persistColumnPreferences = useCallback(
-    (nextState: ColumnStateConfig[], previousState: ColumnStateConfig[], updatedColumnTitles?: Record<string, string>) => {
+    (nextState: ColumnStateConfig[], previousState: ColumnStateConfig[], updatedColumnTitles?: Record<string, string>, updatedColumnWidths?: Record<string, number>) => {
       const payload: ColumnPreferencePayload = {
         order: nextState.map((column) => column.id),
         hidden: nextState.filter((column) => !column.visible).map((column) => column.id),
         columnTitles: updatedColumnTitles !== undefined ? updatedColumnTitles : customColumnTitles,
+        columnWidths: updatedColumnWidths !== undefined ? updatedColumnWidths : columnWidths,
       };
       savePreferencesMutation.mutate(payload, {
         onError: (error: any) => {
@@ -782,7 +805,7 @@ export function GamesTable() {
         },
       });
     },
-    [savePreferencesMutation, addNotification, customColumnTitles]
+    [savePreferencesMutation, addNotification, customColumnTitles, columnWidths]
   );
 
   const handleToggleColumnVisibility = useCallback(
@@ -880,6 +903,63 @@ export function GamesTable() {
     },
     [customColumnTitles, columnState, persistColumnPreferences, addNotification]
   );
+
+  // Column resizing handlers
+  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: ColumnId) => {
+    e.preventDefault();
+    setResizingColumn(columnId);
+    resizeStartX.current = e.clientX;
+    const currentWidth = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+    resizeStartWidth.current = currentWidth;
+  }, [columnWidths, DEFAULT_COLUMN_WIDTH]);
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    if (!resizingColumn) return;
+    
+    const deltaX = e.clientX - resizeStartX.current;
+    const newWidth = Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, resizeStartWidth.current + deltaX));
+    
+    setColumnWidths(prev => ({
+      ...prev,
+      [resizingColumn]: newWidth
+    }));
+  }, [resizingColumn, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]);
+
+  const handleResizeEnd = useCallback(() => {
+    if (resizingColumn) {
+      // Save the new width to preferences
+      const updatedWidths = { ...columnWidths };
+      persistColumnPreferences(columnState, columnState, customColumnTitles, updatedWidths);
+      setResizingColumn(null);
+    }
+  }, [resizingColumn, columnWidths, columnState, customColumnTitles, persistColumnPreferences]);
+
+  // Add global mouse event listeners for column resizing
+  useEffect(() => {
+    if (resizingColumn) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+      };
+    }
+  }, [resizingColumn, handleResizeMove, handleResizeEnd]);
+
+  // Cell expansion handlers
+  const handleCellClick = useCallback((gameId: string, columnId: ColumnId, content: string, title: string) => {
+    // Only show dialog for columns with potentially long content
+    const expandableColumns: ColumnId[] = ['notes', 'location', 'opponent'];
+    const isCustomColumn = columnId.startsWith('custom:');
+    
+    if (expandableColumns.includes(columnId) || isCustomColumn) {
+      setExpandedCell({ gameId, columnId, content, title });
+    }
+  }, []);
+
+  const handleCloseExpandedCell = useCallback(() => {
+    setExpandedCell(null);
+  }, []);
 
   const handleSyncCalendar = (gameId: string) => {
     syncGameMutation.mutate(gameId);
@@ -1989,11 +2069,51 @@ export function GamesTable() {
     );
   };
 
+  const getColumnWidth = useCallback((columnId: ColumnId) => {
+    return columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+  }, [columnWidths, DEFAULT_COLUMN_WIDTH]);
+
+  const renderResizeHandle = useCallback((columnId: ColumnId) => {
+    return (
+      <Box
+        onMouseDown={(e) => handleResizeStart(e, columnId)}
+        sx={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '8px',
+          cursor: 'col-resize',
+          userSelect: 'none',
+          zIndex: 1,
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+          },
+          '&:active': {
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          },
+        }}
+      />
+    );
+  }, [handleResizeStart]);
+
   const renderHeaderCell = (column: ResolvedColumn) => {
+    const columnWidth = getColumnWidth(column.id);
+    const cellSx = {
+      fontWeight: 600,
+      fontSize: 12,
+      py: 2,
+      color: "text.secondary",
+      position: 'relative' as const,
+      width: columnWidth,
+      minWidth: MIN_COLUMN_WIDTH,
+      maxWidth: MAX_COLUMN_WIDTH,
+    };
+
     switch (column.id) {
       case "date":
         return (
-          <TableCell key="date" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="date" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("date", "Date", true, "date")}
               <ColumnFilter
@@ -2010,11 +2130,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("date")}
           </TableCell>
         );
       case "sport":
         return (
-          <TableCell key="sport" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="sport" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("sport", "Sport", true, "sport")}
               <ColumnFilter
@@ -2031,11 +2152,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("sport")}
           </TableCell>
         );
       case "level":
         return (
-          <TableCell key="level" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="level" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("level", "Level", true, "level")}
               <ColumnFilter
@@ -2052,11 +2174,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("level")}
           </TableCell>
         );
       case "opponent":
         return (
-          <TableCell key="opponent" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="opponent" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("opponent", "Opponent", true, "opponent")}
               <ColumnFilter
@@ -2073,11 +2196,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("opponent")}
           </TableCell>
         );
       case "isHome":
         return (
-          <TableCell key="isHome" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="isHome" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("isHome", "Home/Away", true, "isHome")}
               <ColumnFilter
@@ -2094,11 +2218,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("isHome")}
           </TableCell>
         );
       case "time":
         return (
-          <TableCell key="time" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="time" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("time", "Time", true, "time")}
               <Tooltip title="Hide column">
@@ -2107,11 +2232,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("time")}
           </TableCell>
         );
       case "status":
         return (
-          <TableCell key="status" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="status" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("status", "Confirmed", true, "status")}
               <ColumnFilter
@@ -2128,11 +2254,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("status")}
           </TableCell>
         );
       case "location":
         return (
-          <TableCell key="location" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="location" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("location", "Location", true, "location")}
               <ColumnFilter
@@ -2149,11 +2276,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("location")}
           </TableCell>
         );
       case "busTravel":
         return (
-          <TableCell key="busTravel" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", whiteSpace: "nowrap" }}>
+          <TableCell key="busTravel" sx={{ ...cellSx, whiteSpace: "nowrap" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("busTravel", "Bus Info", true, "busTravel")}
               <ColumnFilter
@@ -2170,11 +2298,12 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("busTravel")}
           </TableCell>
         );
       case "notes":
         return (
-          <TableCell key="notes" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary", minWidth: 180 }}>
+          <TableCell key="notes" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("notes", "Notes", true, "notes")}
               <ColumnFilter
@@ -2191,12 +2320,14 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             </Box>
+            {renderResizeHandle("notes")}
           </TableCell>
         );
       case "actions":
         return (
-          <TableCell key="actions" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
+          <TableCell key="actions" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
+            {renderResizeHandle("actions")}
           </TableCell>
         );
       default:
@@ -2206,16 +2337,7 @@ export function GamesTable() {
             return null;
           }
           return (
-            <TableCell
-              key={column.id}
-              sx={{
-                fontWeight: 600,
-                fontSize: 12,
-                py: 2,
-                color: "text.secondary",
-                minWidth: 150,
-              }}
-            >
+            <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 {renderEditableColumnTitle(column.id, customColumn.name || "Custom", false)}
                 <ColumnFilter
@@ -2232,6 +2354,7 @@ export function GamesTable() {
                   </IconButton>
                 </Tooltip>
               </Box>
+              {renderResizeHandle(column.id)}
             </TableCell>
           );
         }
@@ -3016,6 +3139,26 @@ export function GamesTable() {
     }
   };
 
+  const getDataCellSx = useCallback((columnId: ColumnId, isEditing: boolean, additionalSx?: any) => {
+    const columnWidth = getColumnWidth(columnId);
+    return {
+      fontSize: 13,
+      py: 0,
+      width: columnWidth,
+      minWidth: MIN_COLUMN_WIDTH,
+      maxWidth: MAX_COLUMN_WIDTH,
+      cursor: isEditing ? "default" : "pointer",
+      bgcolor: isEditing ? "#fff9e6" : "transparent",
+      ...(isEditing && {
+        boxShadow: "inset 0 0 0 1px #DBEAFE",
+      }),
+      "&:hover": {
+        bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+      },
+      ...additionalSx,
+    };
+  }, [getColumnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]);
+
   const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
     switch (column.id) {
       case "date": {
@@ -3023,18 +3166,7 @@ export function GamesTable() {
         return (
           <TableCell
             key="date"
-            sx={{
-              fontSize: 13,
-              py: 0,
-              cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
-              ...(isEditing && {
-                boxShadow: "inset 0 0 0 1px #DBEAFE",
-              }),
-              "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-              },
-            }}
+            sx={getDataCellSx("date", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "date")}
           >
             {isEditing ? (
@@ -3168,23 +3300,13 @@ export function GamesTable() {
       }
       case "opponent": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
+        const opponentName = game.opponent?.name || "TBD";
         return (
           <TableCell
             key="opponent"
-            sx={{
-              fontSize: 13,
-              py: 0,
-              minWidth: 180,
-              cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
-              ...(isEditing && {
-                boxShadow: "inset 0 0 0 1px #DBEAFE",
-              }),
-              "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-              },
-            }}
+            sx={getDataCellSx("opponent", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "opponent")}
+            onClick={() => !isEditing && handleCellClick(game.id, "opponent", opponentName, "Opponent")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -3208,8 +3330,16 @@ export function GamesTable() {
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-                <Typography variant="body2" sx={{ fontSize: 13 }}>
-                  {game.opponent?.name || "TBD"}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: 13,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {opponentName}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
               </Box>
@@ -3365,23 +3495,13 @@ export function GamesTable() {
       }
       case "location": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "location";
+        const locationText = game.location || game.venue?.name || "—";
         return (
           <TableCell
             key="location"
-            sx={{
-              fontSize: 13,
-              py: 0,
-              minWidth: 180,
-              cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
-              ...(isEditing && {
-                boxShadow: "inset 0 0 0 1px #DBEAFE",
-              }),
-              "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-              },
-            }}
+            sx={getDataCellSx("location", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "location")}
+            onClick={() => !isEditing && handleCellClick(game.id, "location", locationText, "Location")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -3426,7 +3546,7 @@ export function GamesTable() {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {game.location || game.venue?.name || "—"}
+                  {locationText}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
               </Box>
@@ -3548,23 +3668,13 @@ export function GamesTable() {
       }
       case "notes": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "notes";
+        const notesText = game.notes || "";
         return (
           <TableCell
             key="notes"
-            sx={{
-              fontSize: 13,
-              py: 0,
-              minWidth: 180,
-              cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
-              ...(isEditing && {
-                boxShadow: "inset 0 0 0 1px #DBEAFE",
-              }),
-              "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-              },
-            }}
+            sx={getDataCellSx("notes", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "notes")}
+            onClick={() => !isEditing && handleCellClick(game.id, "notes", notesText, "Notes")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -3615,7 +3725,7 @@ export function GamesTable() {
                     textOverflow: "ellipsis",
                   }}
                 >
-                  {getNotesPreview(game.notes)}
+                  {getNotesPreview(notesText)}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
               </Box>
@@ -4210,6 +4320,14 @@ export function GamesTable() {
             });
           }
         }}
+      />
+
+      {/* Cell Content Dialog for viewing full content */}
+      <CellContentDialog
+        open={expandedCell !== null}
+        onClose={handleCloseExpandedCell}
+        title={expandedCell?.title || ""}
+        content={expandedCell?.content || ""}
       />
     </Box>
   );
