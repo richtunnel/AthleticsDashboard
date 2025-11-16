@@ -60,9 +60,15 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 
   // Prepare event data
   const eventStart = new Date(game.date);
-  if (game.time) {
-    const [hours, minutes] = game.time.split(":");
-    eventStart.setHours(parseInt(hours), parseInt(minutes));
+  if (game.time && typeof game.time === 'string' && game.time.trim()) {
+    const timeParts = game.time.trim().split(":");
+    if (timeParts.length >= 2) {
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        eventStart.setHours(hours, minutes, 0, 0);
+      }
+    }
   }
 
   const eventEnd = new Date(eventStart);

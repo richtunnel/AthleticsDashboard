@@ -1028,7 +1028,8 @@ export function GamesTable() {
             currentValue = extractDatePart(game.date);
             break;
           case "time":
-            currentValue = game.time || "";
+            // Ensure time is properly formatted (HH:MM) or empty string
+            currentValue = game.time && typeof game.time === 'string' ? game.time.trim() : "";
             break;
           case "status":
             currentValue = game.status;
@@ -1130,7 +1131,9 @@ export function GamesTable() {
               updateData.date = dateStringToUTCISOString(value);
             }
           } else if (field === "time") {
-            updateData.time = value || null;
+            // Normalize time value - convert empty strings to null and trim whitespace
+            const trimmedTime = typeof value === 'string' ? value.trim() : value;
+            updateData.time = trimmedTime || null;
           } else if (field === "status") {
             updateData.status = value;
           } else if (field === "notes") {
@@ -2339,7 +2342,20 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <TextField type="time" size="small" value={newGameData.time} onChange={(e) => updateNewGameData({ time: e.target.value })} sx={{ width: 100 }} InputProps={{ sx: { fontSize: 13 } }} />
+            <TextField 
+              type="time" 
+              size="small" 
+              value={newGameData.time} 
+              onChange={(e) => updateNewGameData({ time: e.target.value })} 
+              sx={{ width: 100 }} 
+              InputProps={{ 
+                sx: { fontSize: 13 },
+                inputProps: {
+                  step: 300, // 5 minute intervals
+                  pattern: "[0-9]{2}:[0-9]{2}",
+                }
+              }} 
+            />
           </TableCell>
         );
       case "status":
@@ -2759,7 +2775,13 @@ export function GamesTable() {
                   "&.Mui-focused fieldset": { borderColor: "primary.main" },
                 },
               }}
-              InputProps={{ sx: { fontSize: 13 } }}
+              InputProps={{ 
+                sx: { fontSize: 13 },
+                inputProps: {
+                  step: 300, // 5 minute intervals
+                  pattern: "[0-9]{2}:[0-9]{2}",
+                }
+              }}
             />
           </TableCell>
         );
@@ -3302,7 +3324,13 @@ export function GamesTable() {
                   autoFocus
                   disabled={isInlineSaving}
                   sx={{ width: "100%" }}
-                  InputProps={{ sx: { fontSize: 13 } }}
+                  InputProps={{ 
+                    sx: { fontSize: 13 },
+                    inputProps: {
+                      step: 300, // 5 minute intervals
+                      pattern: "[0-9]{2}:[0-9]{2}",
+                    }
+                  }}
                 />
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
