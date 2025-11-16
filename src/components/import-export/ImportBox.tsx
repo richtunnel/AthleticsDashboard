@@ -140,7 +140,9 @@ const DATABASE_FIELDS = [
   { value: "opponent", label: "Opponent", required: false },
   { value: "isHome", label: "Home/Away", required: false },
   { value: "venue", label: "Venue", required: false },
+  { value: "location", label: "Location", required: false },
   { value: "status", label: "Status", required: false },
+  { value: "confirmed", label: "Confirmed", required: false },
   { value: "notes", label: "Notes", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
@@ -213,8 +215,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       else if (normalized.includes("level") || normalized.includes("grade")) mapping[header] = "level";
       else if (normalized.includes("opponent") || normalized.includes("vs")) mapping[header] = "opponent";
       else if (normalized.includes("home") || normalized.includes("away")) mapping[header] = "isHome";
-      else if (normalized.includes("venue") || normalized.includes("site") || normalized.includes("location")) mapping[header] = "venue";
-      else if (normalized.includes("status") || normalized.includes("confirmed")) mapping[header] = "confirmed";
+      else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
+      else if (normalized.includes("location")) mapping[header] = "location";
+      else if (normalized === "status") mapping[header] = "status";
+      else if (normalized.includes("confirmed")) mapping[header] = "confirmed";
       else if (normalized.includes("note")) mapping[header] = "notes";
       else mapping[header] = "skip";
     });
@@ -311,6 +315,13 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           };
           transformed.status = statusMap[String(value).toLowerCase()] || "SCHEDULED";
           break;
+        case "confirmed":
+          if (value) {
+            const normalized = String(value).toLowerCase().trim();
+            const isConfirmed = normalized === "confirmed" || normalized === "yes" || normalized === "true" || normalized === "1";
+            transformed.status = isConfirmed ? "CONFIRMED" : "SCHEDULED";
+          }
+          break;
         default:
           transformed[dbField] = value || null;
       }
@@ -389,10 +400,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
 
   // Download sample CSV template
   const handleDownloadTemplate = () => {
-    const headers = ["date", "time", "sport", "level", "opponent", "location", "venue", "status", "notes"];
+    const headers = ["date", "time", "sport", "level", "opponent", "home_away", "venue", "location", "status", "confirmed", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "CONFIRMED", "Senior Night"],
-      ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "SCHEDULED", ""],
+      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "Main Gym", "123 Main St", "CONFIRMED", "yes", "Senior Night"],
+      ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "456 Oak Ave", "SCHEDULED", "no", ""],
     ];
 
     const csv = [headers.join(","), ...sampleData.map((row) => row.join(","))].join("\n");
