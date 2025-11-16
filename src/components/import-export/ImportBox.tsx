@@ -69,10 +69,10 @@ interface FieldMapping {
 const DATABASE_FIELDS = [
   { value: "date", label: "Date", required: true },
   { value: "time", label: "Time", required: false },
-  { value: "sport", label: "Sport", required: true },
-  { value: "level", label: "Level", required: true },
+  { value: "sport", label: "Sport", required: false },
+  { value: "level", label: "Level", required: false },
   { value: "opponent", label: "Opponent", required: false },
-  { value: "isHome", label: "Home/Away", required: true },
+  { value: "isHome", label: "Home/Away", required: false },
   { value: "venue", label: "Venue", required: false },
   { value: "status", label: "Status", required: false },
   { value: "notes", label: "Notes", required: false },
@@ -204,7 +204,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
 
   // Transform CSV data to game format
   const transformData = (row: ParsedRow): any => {
-    const transformed: any = {};
+    const transformed: any = {
+      // Set defaults for optional fields
+      isHome: true, // Default to home game
+    };
 
     Object.keys(fieldMapping).forEach((csvField) => {
       const dbField = fieldMapping[csvField];
@@ -218,8 +221,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           transformed.date = value ? dateStringToUTCISOString(value as string) : null;
           break;
         case "isHome":
-          const normalized = String(value).toLowerCase().trim();
-          transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes";
+          if (value) {
+            const normalized = String(value).toLowerCase().trim();
+            transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes" || normalized === "true";
+          }
           break;
         case "status":
           const statusMap: any = {
