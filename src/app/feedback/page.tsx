@@ -5,6 +5,7 @@ import { SupportFeedbackForm } from "@/components/support/SupportFeedbackForm";
 import { GoogleFeedbackForm } from "@/components/support/GoogleFeedbackForm";
 import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
+import { getFirstName } from "@/lib/utils/name";
 
 export default async function PublicFeedbackPage() {
   const session = await getServerSession(authOptions);
@@ -27,7 +28,7 @@ export default async function PublicFeedbackPage() {
                   We value your feedback! Please let us know how we can improve your experience.
                 </Typography>
               </Box>
-              <SupportFeedbackForm mode="feedback" userName={session?.user?.name || ""} userEmail={session?.user?.email || ""} isPublic={!session?.user} />
+              <SupportFeedbackForm mode="feedback" userName={getFirstName(session?.user?.name) || ""} userEmail={session?.user?.email || ""} isPublic={!session?.user} />
             </>
           )}
         </Box>
