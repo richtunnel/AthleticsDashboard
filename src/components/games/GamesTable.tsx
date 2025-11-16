@@ -380,12 +380,12 @@ export function GamesTable() {
   const [inlineEditValue, setInlineEditValue] = useState<string>("");
   const [inlineEditError, setInlineEditError] = useState<string | null>(null);
   const [isInlineSaving, setIsInlineSaving] = useState(false);
-  
+
   // Save status tracking for visual indicators
   type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Autosave mechanism - batched and debounced
   const pendingChangesRef = useRef<Map<string, Record<string, any>>>(new Map());
   const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -555,12 +555,12 @@ export function GamesTable() {
   const opponentsRef = useRef(opponents);
   const teamsRef = useRef(teams);
   const gamesRef = useRef(games);
-  
+
   useEffect(() => {
     opponentsRef.current = opponents;
     teamsRef.current = teams;
   }, [opponents, teams]);
-  
+
   useEffect(() => {
     gamesRef.current = games;
   }, [games]);
@@ -839,11 +839,14 @@ export function GamesTable() {
   }, [persistColumnPreferences]);
 
   // Column title editing handlers
-  const handleEditColumnTitle = useCallback((columnId: ColumnId) => {
-    const currentTitle = getColumnLabel(columnId);
-    setEditingColumnId(columnId);
-    setEditingColumnTitle(currentTitle);
-  }, [getColumnLabel]);
+  const handleEditColumnTitle = useCallback(
+    (columnId: ColumnId) => {
+      const currentTitle = getColumnLabel(columnId);
+      setEditingColumnId(columnId);
+      setEditingColumnTitle(currentTitle);
+    },
+    [getColumnLabel]
+  );
 
   const handleSaveColumnTitle = useCallback(() => {
     if (!editingColumnId) return;
@@ -867,13 +870,16 @@ export function GamesTable() {
     setEditingColumnTitle("");
   }, []);
 
-  const handleResetColumnTitle = useCallback((columnId: ColumnId) => {
-    const updatedTitles = { ...customColumnTitles };
-    delete updatedTitles[columnId];
-    setCustomColumnTitles(updatedTitles);
-    persistColumnPreferences(columnState, columnState, updatedTitles);
-    addNotification("Column title reset to default", "success");
-  }, [customColumnTitles, columnState, persistColumnPreferences, addNotification]);
+  const handleResetColumnTitle = useCallback(
+    (columnId: ColumnId) => {
+      const updatedTitles = { ...customColumnTitles };
+      delete updatedTitles[columnId];
+      setCustomColumnTitles(updatedTitles);
+      persistColumnPreferences(columnState, columnState, updatedTitles);
+      addNotification("Column title reset to default", "success");
+    },
+    [customColumnTitles, columnState, persistColumnPreferences, addNotification]
+  );
 
   const handleSyncCalendar = (gameId: string) => {
     syncGameMutation.mutate(gameId);
@@ -910,7 +916,7 @@ export function GamesTable() {
       if (!data || Object.keys(data).length === 0) {
         throw new Error("Cannot update game with empty data");
       }
-      
+
       const res = await fetch(`/api/games/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -1030,7 +1036,7 @@ export function GamesTable() {
             break;
           case "time":
             // Ensure time is properly formatted (HH:MM) or empty string
-            currentValue = game.time && typeof game.time === 'string' ? game.time.trim() : "";
+            currentValue = game.time && typeof game.time === "string" ? game.time.trim() : "";
             break;
           case "status":
             currentValue = game.status;
@@ -1067,16 +1073,16 @@ export function GamesTable() {
     async (gameId: string, game: Game) => {
       const pendingChanges = pendingChangesRef.current.get(gameId);
       if (!pendingChanges || Object.keys(pendingChanges).length === 0) return;
-      
+
       // Skip if already saving this game
       if (savingGamesRef.current.has(gameId)) return;
-      
+
       // Cancel any pending request for this game
       const existingController = abortControllersRef.current.get(gameId);
       if (existingController) {
         existingController.abort();
       }
-      
+
       // Create new abort controller for this request
       const abortController = new AbortController();
       abortControllersRef.current.set(gameId, abortController);
@@ -1133,7 +1139,7 @@ export function GamesTable() {
             }
           } else if (field === "time") {
             // Normalize time value - convert empty strings to null and trim whitespace
-            const trimmedTime = typeof value === 'string' ? value.trim() : value;
+            const trimmedTime = typeof value === "string" ? value.trim() : value;
             updateData.time = trimmedTime || null;
           } else if (field === "status") {
             updateData.status = value;
@@ -1152,14 +1158,14 @@ export function GamesTable() {
           } else if (field === "sport" || field === "level") {
             const newSport = field === "sport" ? value : game.homeTeam.sport.name;
             const newLevel = field === "level" ? value : game.homeTeam.level;
-            
+
             if (!newSport || !newLevel) {
               addNotification("Sport and level are required", "error");
               continue;
             }
-            
+
             let matchingTeam = teamsRef.current.find((team: any) => team.sport?.name === newSport && team.level === newLevel);
-            
+
             if (!matchingTeam) {
               const sportRes = await fetch("/api/sports", {
                 method: "POST",
@@ -1167,7 +1173,7 @@ export function GamesTable() {
                 body: JSON.stringify({ name: newSport, season: "FALL" }),
                 signal: abortController.signal,
               });
-              
+
               let sportData;
               if (sportRes.ok) {
                 sportData = await sportRes.json();
@@ -1179,7 +1185,7 @@ export function GamesTable() {
                   throw new Error("Failed to create or find sport");
                 }
               }
-              
+
               const sportId = sportData.data?.id || sportData.id;
               const teamRes = await fetch("/api/teams", {
                 method: "POST",
@@ -1187,17 +1193,17 @@ export function GamesTable() {
                 body: JSON.stringify({ name: `${newSport} ${newLevel}`, sportId, level: newLevel }),
                 signal: abortController.signal,
               });
-              
+
               if (!teamRes.ok) {
                 const error = await teamRes.json();
                 throw new Error(error.error || "Failed to create team");
               }
-              
+
               const teamData = await teamRes.json();
               matchingTeam = teamData.data;
               await queryClient.invalidateQueries({ queryKey: ["teams"] });
             }
-            
+
             updateData.homeTeamId = matchingTeam.id;
           } else if (field.startsWith("custom:")) {
             const columnId = field.replace("custom:", "");
@@ -1228,10 +1234,10 @@ export function GamesTable() {
         }
 
         await queryClient.invalidateQueries({ queryKey: ["games"] });
-        
+
         // Clear pending changes for this game
         pendingChangesRef.current.delete(gameId);
-        
+
         // Sync to calendar after successful update
         syncGameMutation.mutate(gameId);
 
@@ -1248,7 +1254,7 @@ export function GamesTable() {
         setInlineEditValue("");
         setInlineEditError(null);
       } catch (error: any) {
-        if (error.name === 'AbortError') {
+        if (error.name === "AbortError") {
           // Request was cancelled, ignore
           return;
         }
@@ -1270,18 +1276,18 @@ export function GamesTable() {
       const existingChanges = pendingChangesRef.current.get(gameId) || {};
       existingChanges[field] = value;
       pendingChangesRef.current.set(gameId, existingChanges);
-      
+
       // Clear existing timeout for this game
       const existingTimeout = saveTimeoutRef.current.get(gameId);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
       }
-      
+
       // Set pending status if not immediate
       if (!immediate) {
         setSaveStatus("pending");
       }
-      
+
       // Schedule save with debounce (or immediate if specified)
       const delay = immediate ? 0 : 800; // 800ms debounce for responsive auto-save
       const timeoutId = setTimeout(() => {
@@ -1291,7 +1297,7 @@ export function GamesTable() {
         executeBatchedSave(gameId, game);
         saveTimeoutRef.current.delete(gameId);
       }, delay);
-      
+
       saveTimeoutRef.current.set(gameId, timeoutId);
     },
     [executeBatchedSave]
@@ -1300,7 +1306,7 @@ export function GamesTable() {
   const handleInlineKeyDown = useCallback(
     (e: React.KeyboardEvent, game: Game) => {
       if (!inlineEditState) return;
-      
+
       if (e.key === "Enter" && inlineEditState.field !== "notes") {
         // Save immediately on Enter (except for notes textarea)
         e.preventDefault();
@@ -1330,15 +1336,15 @@ export function GamesTable() {
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
   );
-  
+
   // Trigger autosave as user types (debounced)
   const handleInlineChange = useCallback(
     (value: string, game: Game) => {
       if (!inlineEditState) return;
-      
+
       // Update UI immediately (optimistic update)
       handleInlineValueChange(value);
-      
+
       // Schedule batched save with debounce
       scheduleAutosave(game.id, inlineEditState.field, value, game, false);
     },
@@ -1351,16 +1357,16 @@ export function GamesTable() {
       // Clear all timeouts
       saveTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
       saveTimeoutRef.current.clear();
-      
+
       // Clear save status timeout
       if (saveStatusTimeoutRef.current) {
         clearTimeout(saveStatusTimeoutRef.current);
       }
-      
+
       // Abort all pending requests
       abortControllersRef.current.forEach((controller) => controller.abort());
       abortControllersRef.current.clear();
-      
+
       // Clear pending changes
       pendingChangesRef.current.clear();
       savingGamesRef.current.clear();
@@ -1933,17 +1939,11 @@ export function GamesTable() {
     return (
       <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
-          <TableSortLabel
-            active={sortField === sortFieldValue}
-            direction={sortField === sortFieldValue ? sortOrder : "asc"}
-            onClick={() => handleSort(sortFieldValue)}
-          >
+          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
             {displayLabel.toUpperCase()}
           </TableSortLabel>
         ) : (
-          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>
-            {displayLabel.toUpperCase()}
-          </Typography>
+          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>{displayLabel.toUpperCase()}</Typography>
         )}
         <Tooltip title="Edit column title">
           <IconButton
@@ -1996,7 +1996,14 @@ export function GamesTable() {
           <TableCell key="date" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("date", "Date", true, "date")}
-              <ColumnFilter columnId="date" columnName={getColumnLabel("date")} columnType="date" uniqueValues={uniqueValues.date || []} currentFilter={columnFilters.date} onFilterChange={handleColumnFilterChange} />
+              <ColumnFilter
+                columnId="date"
+                columnName={getColumnLabel("date")}
+                columnType="date"
+                uniqueValues={uniqueValues.date || []}
+                currentFilter={columnFilters.date}
+                onFilterChange={handleColumnFilterChange}
+              />
               <Tooltip title="Hide column">
                 <IconButton size="small" onClick={() => handleToggleColumnVisibility("date", false)} sx={{ ml: 0.5, p: 0.25 }}>
                   <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
@@ -2189,9 +2196,7 @@ export function GamesTable() {
       case "actions":
         return (
           <TableCell key="actions" sx={{ fontWeight: 600, fontSize: 12, py: 2, color: "text.secondary" }}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              {renderEditableColumnTitle("actions", "Actions", false)}
-            </Box>
+            <Box sx={{ display: "flex", alignItems: "center" }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
           </TableCell>
         );
       default:
@@ -2259,12 +2264,12 @@ export function GamesTable() {
                   });
                 }}
                 displayEmpty
-                sx={{ 
-                  minWidth: 140, 
+                sx={{
+                  minWidth: 140,
                   fontSize: 13,
                   "& .MuiSelect-select": {
-                    paddingBottom: "6px"
-                  }
+                    paddingBottom: "6px",
+                  },
                 }}
               >
                 <MenuItem value="">Select sport</MenuItem>
@@ -2285,17 +2290,17 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
-            <Select 
-              size="small" 
-              value={newGameData.level} 
-              onChange={(e) => updateNewGameData({ level: e.target.value as string })} 
-              displayEmpty 
-              sx={{ 
-                minWidth: 140, 
+            <Select
+              size="small"
+              value={newGameData.level}
+              onChange={(e) => updateNewGameData({ level: e.target.value as string })}
+              displayEmpty
+              sx={{
+                minWidth: 140,
                 fontSize: 13,
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="">Select level</MenuItem>
@@ -2323,16 +2328,16 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <Select 
-              size="small" 
-              value={newGameData.isHome ? "home" : "away"} 
-              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })} 
-              sx={{ 
-                width: 80, 
+            <Select
+              size="small"
+              value={newGameData.isHome ? "home" : "away"}
+              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })}
+              sx={{
+                width: 80,
                 fontSize: 13,
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="home">Home</MenuItem>
@@ -2343,26 +2348,22 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <CustomTimePicker
-              value={newGameData.time}
-              onChange={(value) => updateNewGameData({ time: value })}
-              size="small"
-            />
+            <CustomTimePicker value={newGameData.time} onChange={(value) => updateNewGameData({ time: value })} size="small" />
           </TableCell>
         );
       case "status":
         return (
           <TableCell key="status" sx={{ py: 1 }}>
-            <Select 
-              size="small" 
-              value={newGameData.status} 
-              onChange={(e) => updateNewGameData({ status: e.target.value as string })} 
-              sx={{ 
-                width: 110, 
+            <Select
+              size="small"
+              value={newGameData.status}
+              onChange={(e) => updateNewGameData({ status: e.target.value as string })}
+              sx={{
+                width: 110,
                 fontSize: 13,
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="SCHEDULED">Pending</MenuItem>
@@ -2475,7 +2476,7 @@ export function GamesTable() {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
           const columnType = customColumn.type || "TEXT";
-          
+
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
               {columnType === "TIME" ? (
@@ -2639,13 +2640,13 @@ export function GamesTable() {
                   });
                 }}
                 displayEmpty
-                sx={{ 
-                  minWidth: 140, 
-                  fontSize: 13, 
+                sx={{
+                  minWidth: 140,
+                  fontSize: 13,
                   bgcolor: "transparent",
                   "& .MuiSelect-select": {
-                    paddingBottom: "6px"
-                  }
+                    paddingBottom: "6px",
+                  },
                 }}
               >
                 {uniqueSports.map((sport: string) => (
@@ -2682,13 +2683,13 @@ export function GamesTable() {
                 });
               }}
               displayEmpty
-              sx={{ 
-                minWidth: 140, 
-                fontSize: 13, 
+              sx={{
+                minWidth: 140,
+                fontSize: 13,
                 bgcolor: "transparent",
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="">Select level</MenuItem>
@@ -2736,13 +2737,13 @@ export function GamesTable() {
               size="small"
               value={editingGame.isHome ? "home" : "away"}
               onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, isHome: e.target.value === "home" } : prev))}
-              sx={{ 
-                width: 80, 
-                fontSize: 13, 
+              sx={{
+                width: 80,
+                fontSize: 13,
                 bgcolor: "transparent",
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="home">Home</MenuItem>
@@ -2753,11 +2754,7 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={{ py: 1 }}>
-            <CustomTimePicker
-              value={editingGame.time || ""}
-              onChange={(value) => setEditingGameData((prev) => (prev ? { ...prev, time: value } : prev))}
-              size="small"
-            />
+            <CustomTimePicker value={editingGame.time || ""} onChange={(value) => setEditingGameData((prev) => (prev ? { ...prev, time: value } : prev))} size="small" />
           </TableCell>
         );
       case "status":
@@ -2767,13 +2764,13 @@ export function GamesTable() {
               size="small"
               value={editingGame.status}
               onChange={(e) => setEditingGameData((prev) => (prev ? { ...prev, status: e.target.value as string } : prev))}
-              sx={{ 
-                width: 110, 
-                fontSize: 13, 
+              sx={{
+                width: 110,
+                fontSize: 13,
                 bgcolor: "transparent",
                 "& .MuiSelect-select": {
-                  paddingBottom: "6px"
-                }
+                  paddingBottom: "6px",
+                },
               }}
             >
               <MenuItem value="SCHEDULED">Pending</MenuItem>
@@ -2935,7 +2932,7 @@ export function GamesTable() {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
           const columnType = customColumn.type || "TEXT";
-          
+
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
               {columnType === "TIME" ? (
@@ -3041,21 +3038,21 @@ export function GamesTable() {
             onDoubleClick={() => handleDoubleClick(game, "date")}
           >
             {isEditing ? (
-            <Box sx={{ py: 1 }}>
-              <TextField
-                type="date"
-                size="small"
-                value={inlineEditValue}
-                onChange={(e) => handleInlineChange(e.target.value, game)}
-                onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                onBlur={() => handleInlineBlur(game)}
-                autoFocus
-                disabled={isInlineSaving}
-                sx={{ width: "100%" }}
-                InputProps={{ sx: { fontSize: 13 } }}
-              />
-              <SaveStatusIndicator status={saveStatus} />
-            </Box>
+              <Box sx={{ py: 1 }}>
+                <TextField
+                  type="date"
+                  size="small"
+                  value={inlineEditValue}
+                  onChange={(e) => handleInlineChange(e.target.value, game)}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  sx={{ width: "100%" }}
+                  InputProps={{ sx: { fontSize: 13 } }}
+                />
+                <SaveStatusIndicator status={saveStatus} />
+              </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
@@ -3208,14 +3205,14 @@ export function GamesTable() {
                   }}
                 />
                 <SaveStatusIndicator status={saveStatus} />
-                </Box>
-                ) : (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {game.opponent?.name || "TBD"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
-                </Box>
+              </Box>
             )}
           </TableCell>
         );
@@ -3417,9 +3414,9 @@ export function GamesTable() {
                   </Typography>
                 )}
                 <SaveStatusIndicator status={saveStatus} />
-                </Box>
-                ) : (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -3432,7 +3429,7 @@ export function GamesTable() {
                   {game.location || game.venue?.name || "—"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
-                </Box>
+              </Box>
             )}
           </TableCell>
         );
@@ -3518,9 +3515,9 @@ export function GamesTable() {
                   </Box>
                   <SaveStatusIndicator status={saveStatus} />
                 </Stack>
-                </Box>
-                ) : (
-                <Box sx={{ py: 0 }}>
+              </Box>
+            ) : (
+              <Box sx={{ py: 0 }}>
                 <Stack spacing={0.75}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
@@ -3544,7 +3541,7 @@ export function GamesTable() {
                     </Box>
                   )}
                 </Stack>
-                </Box>
+              </Box>
             )}
           </TableCell>
         );
@@ -3606,9 +3603,9 @@ export function GamesTable() {
                   {inlineEditValue.length}/{MAX_CHAR_LIMIT}
                 </Typography>
                 <SaveStatusIndicator status={saveStatus} />
-                </Box>
-                ) : (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -3621,7 +3618,7 @@ export function GamesTable() {
                   {getNotesPreview(game.notes)}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
-                </Box>
+              </Box>
             )}
           </TableCell>
         );
@@ -3641,7 +3638,7 @@ export function GamesTable() {
                   <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sync to Google">
+              <Tooltip title="Sync to Calendar">
                 <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
                   {isSyncingCurrentGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
                 </IconButton>
@@ -3786,14 +3783,14 @@ export function GamesTable() {
                     </Typography>
                   )}
                   <SaveStatusIndicator status={saveStatus} />
-                  </Box>
-                  ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                   <Typography variant="body2" sx={{ fontSize: 13 }}>
                     {displayValue}
                   </Typography>
                   {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
-                  </Box>
+                </Box>
               )}
             </TableCell>
           );
@@ -3912,24 +3909,24 @@ export function GamesTable() {
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
             {activeFilterCount > 0 && (
-              <Chip 
-                label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`} 
-                size="small" 
-                onDelete={() => setColumnFilters({})} 
-                sx={{ 
-                  ml: 1, 
-                  bgcolor: 'black', 
-                  color: 'white',
-                  '& .MuiChip-deleteIcon': {
-                    color: 'white',
-                    '&:hover': {
-                      color: 'rgba(255, 255, 255, 0.7)',
+              <Chip
+                label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`}
+                size="small"
+                onDelete={() => setColumnFilters({})}
+                sx={{
+                  ml: 1,
+                  bgcolor: "black",
+                  color: "white",
+                  "& .MuiChip-deleteIcon": {
+                    color: "white",
+                    "&:hover": {
+                      color: "rgba(255, 255, 255, 0.7)",
                     },
                   },
-                  '&:hover': { 
-                    bgcolor: 'rgba(0, 0, 0, 0.8)',
+                  "&:hover": {
+                    bgcolor: "rgba(0, 0, 0, 0.8)",
                   },
-                }} 
+                }}
               />
             )}
           </Typography>
