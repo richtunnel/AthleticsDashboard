@@ -2508,7 +2508,7 @@ export function GamesTable() {
                   </MenuItem>
                 ))}
               </Select>
-              <Tooltip title="Add new team">
+              <Tooltip title="Add new sport">
                 <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
                   <Add fontSize="small" />
                 </IconButton>
@@ -2884,7 +2884,7 @@ export function GamesTable() {
                   </MenuItem>
                 ))}
               </Select>
-              <Tooltip title="Add new team">
+              <Tooltip title="Add new sport">
                 <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
                   <Add fontSize="small" />
                 </IconButton>
@@ -3404,11 +3404,7 @@ export function GamesTable() {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
         const opponentName = game.opponent?.name || "TBD";
         return (
-          <TableCell
-            key="opponent"
-            sx={getDataCellSx("opponent", isEditing)}
-            onDoubleClick={() => handleDoubleClick(game, "opponent")}
-          >
+          <TableCell key="opponent" sx={getDataCellSx("opponent", isEditing)} onDoubleClick={() => handleDoubleClick(game, "opponent")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
                 <TextField
@@ -3591,11 +3587,7 @@ export function GamesTable() {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "location";
         const locationText = game.location || game.venue?.name || "—";
         return (
-          <TableCell
-            key="location"
-            sx={getDataCellSx("location", isEditing)}
-            onDoubleClick={() => handleDoubleClick(game, "location")}
-          >
+          <TableCell key="location" sx={getDataCellSx("location", isEditing)} onDoubleClick={() => handleDoubleClick(game, "location")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
                 <TextField
@@ -3761,11 +3753,7 @@ export function GamesTable() {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "notes";
         const notesText = game.notes || "";
         return (
-          <TableCell
-            key="notes"
-            sx={getDataCellSx("notes", isEditing)}
-            onDoubleClick={() => handleDoubleClick(game, "notes")}
-          >
+          <TableCell key="notes" sx={getDataCellSx("notes", isEditing)} onDoubleClick={() => handleDoubleClick(game, "notes")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
                 <TextField
@@ -3870,11 +3858,7 @@ export function GamesTable() {
           })();
 
           return (
-            <TableCell
-              key={column.id}
-              sx={getDataCellSx(column.id, isCustomEditing)}
-              onDoubleClick={() => handleDoubleClick(game, fieldKey)}
-            >
+            <TableCell key={column.id} sx={getDataCellSx(column.id, isCustomEditing)} onDoubleClick={() => handleDoubleClick(game, fieldKey)}>
               {isCustomEditing ? (
                 <Box sx={{ py: 1 }}>
                   {columnType === "TIME" ? (
