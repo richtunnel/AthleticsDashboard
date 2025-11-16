@@ -496,6 +496,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Normalize time field - convert empty strings to null and validate format
+    if ('time' in body) {
+      if (body.time === "" || body.time === null || body.time === undefined) {
+        body.time = null;
+      } else if (typeof body.time === 'string') {
+        const trimmedTime = body.time.trim();
+        if (trimmedTime === "") {
+          body.time = null;
+        } else {
+          // Validate time format (HH:MM)
+          const timePattern = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (!timePattern.test(trimmedTime)) {
+            return NextResponse.json({ success: false, error: "Invalid time format. Expected HH:MM (e.g., 14:30)" }, { status: 400 });
+          }
+          body.time = trimmedTime;
+        }
+      }
+    }
+
     // VALIDATE: notes field character limit
     const MAX_CHAR_LIMIT = 2500;
     if (body.notes && typeof body.notes === "string" && body.notes.length > MAX_CHAR_LIMIT) {
