@@ -7,6 +7,7 @@ import { MixpanelProvider } from "./mixpanel.provider";
 import { Suspense } from "react";
 
 import "./globals.css";
+import "../styles/sortable-drag-drop.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
