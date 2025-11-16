@@ -10,6 +10,8 @@ import {
   Stack,
   Paper,
   useTheme,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import {
   Schedule as ScheduleIcon,
@@ -39,7 +41,20 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
   const [hours, setHours] = useState<number>(0);
   const [minutes, setMinutes] = useState<number>(0);
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
+  const [inputValue, setInputValue] = useState<string>("");
+  const [inputError, setInputError] = useState<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const formatDisplayTime = (timeValue?: string) => {
+    const timeToFormat = timeValue ?? value;
+    if (!timeToFormat) return "TBD";
+    const [h, m] = timeToFormat.split(":").map(Number);
+    if (isNaN(h) || isNaN(m)) return "TBD";
+    const isPM = h >= 12;
+    const displayHours = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${displayHours}:${m.toString().padStart(2, "0")} ${isPM ? "PM" : "AM"}`;
+  };
 
   // Parse the initial value
   useEffect(() => {
@@ -50,9 +65,11 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
         setPeriod(isPM ? "PM" : "AM");
         setHours(h === 0 ? 12 : h > 12 ? h - 12 : h);
         setMinutes(m);
+        setInputValue(formatDisplayTime(value));
       }
     } else {
-      // Default to current time
+      setInputValue("");
+      // Default to current time for picker
       const now = new Date();
       const h = now.getHours();
       const isPM = h >= 12;
@@ -64,10 +81,65 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
 
   // Auto-focus behavior
   useEffect(() => {
-    if (autoFocus && containerRef.current) {
-      containerRef.current.focus();
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
     }
   }, [autoFocus]);
+
+  const parseTimeInput = (input: string): string | null => {
+    if (!input || input.toLowerCase() === "tbd") {
+      return "";
+    }
+
+    const normalized = input.trim().toLowerCase();
+
+    // Match various time formats
+    // HH:MM AM/PM or H:MM AM/PM (e.g., "3:30 PM", "03:30 pm")
+    const format12Hour = normalized.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+    if (format12Hour) {
+      let h = parseInt(format12Hour[1], 10);
+      const m = parseInt(format12Hour[2], 10);
+      const period = format12Hour[3];
+      
+      if (h < 1 || h > 12 || m < 0 || m > 59) {
+        return null;
+      }
+      
+      if (period === "pm" && h !== 12) h += 12;
+      if (period === "am" && h === 12) h = 0;
+      
+      return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    }
+
+    // HH:MM 24-hour format (e.g., "15:30", "3:30")
+    const format24Hour = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    if (format24Hour) {
+      const h = parseInt(format24Hour[1], 10);
+      const m = parseInt(format24Hour[2], 10);
+      
+      if (h < 0 || h > 23 || m < 0 || m > 59) {
+        return null;
+      }
+      
+      return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    }
+
+    // HHMM format (e.g., "1530", "330")
+    const formatCompact = normalized.match(/^(\d{1,4})$/);
+    if (formatCompact) {
+      const digits = formatCompact[1].padStart(4, "0");
+      const h = parseInt(digits.slice(0, 2), 10);
+      const m = parseInt(digits.slice(2, 4), 10);
+      
+      if (h < 0 || h > 23 || m < 0 || m > 59) {
+        return null;
+      }
+      
+      return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    }
+
+    return null;
+  };
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     if (!disabled) {
@@ -77,9 +149,6 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
 
   const handleClose = () => {
     setAnchorEl(null);
-    if (onBlur) {
-      onBlur();
-    }
   };
 
   const handleApply = () => {
@@ -93,7 +162,63 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
     
     const timeString = `${h24.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
     onChange(timeString);
+    setInputValue(formatDisplayTime(timeString));
+    setInputError("");
     handleClose();
+  };
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setInputValue(newValue);
+    setInputError("");
+  };
+
+  const handleInputBlur = () => {
+    const parsed = parseTimeInput(inputValue);
+    
+    if (parsed === "") {
+      // Empty or "TBD" - clear the time
+      onChange("");
+      setInputValue("");
+      setInputError("");
+    } else if (parsed === null) {
+      // Invalid format
+      setInputError("Invalid time format");
+      // Revert to previous value
+      if (value) {
+        setInputValue(formatDisplayTime(value));
+      } else {
+        setInputValue("");
+      }
+    } else {
+      // Valid time
+      onChange(parsed);
+      setInputValue(formatDisplayTime(parsed));
+      setInputError("");
+    }
+    
+    if (onBlur) {
+      onBlur();
+    }
+  };
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleInputBlur();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      // Revert to previous value
+      if (value) {
+        setInputValue(formatDisplayTime(value));
+      } else {
+        setInputValue("");
+      }
+      setInputError("");
+      if (onBlur) {
+        onBlur();
+      }
+    }
   };
 
   const handleHoursChange = (delta: number) => {
@@ -114,52 +239,53 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
     });
   };
 
-  const formatDisplayTime = () => {
-    if (!value) return "TBD";
-    const [h, m] = value.split(":").map(Number);
-    if (isNaN(h) || isNaN(m)) return "TBD";
-    const isPM = h >= 12;
-    const displayHours = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${displayHours}:${m.toString().padStart(2, "0")} ${isPM ? "PM" : "AM"}`;
-  };
-
   const open = Boolean(anchorEl);
   const id = open ? "time-picker-popover" : undefined;
 
   return (
     <Box ref={containerRef} sx={{ width: "100%" }}>
-      <Box
-        onClick={handleOpen}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          px: 1.5,
-          py: size === "small" ? 0.75 : 1,
-          border: "1px solid",
-          borderColor: disabled ? "action.disabled" : "divider",
-          borderRadius: 1,
-          cursor: disabled ? "not-allowed" : "pointer",
-          bgcolor: disabled ? "action.disabledBackground" : "background.paper",
-          "&:hover": {
-            borderColor: disabled ? "action.disabled" : "primary.main",
-            bgcolor: disabled ? "action.disabledBackground" : "action.hover",
-          },
-          transition: "all 0.2s",
-        }}
-      >
-        <ScheduleIcon sx={{ fontSize: 18, color: disabled ? "action.disabled" : "action.active" }} />
-        <Typography
-          variant="body2"
-          sx={{
+      <TextField
+        inputRef={inputRef}
+        size="small"
+        fullWidth
+        value={inputValue}
+        onChange={handleInputChange}
+        onBlur={handleInputBlur}
+        onKeyDown={handleInputKeyDown}
+        disabled={disabled}
+        placeholder="Enter time (e.g., 3:30 PM)"
+        error={!!inputError}
+        helperText={inputError}
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">
+              <IconButton
+                size="small"
+                onClick={handleOpen}
+                disabled={disabled}
+                edge="end"
+                sx={{ mr: -0.5 }}
+              >
+                <ScheduleIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </InputAdornment>
+          ),
+          sx: {
             fontSize: size === "small" ? 13 : 14,
-            color: disabled ? "text.disabled" : "text.primary",
-            flex: 1,
-          }}
-        >
-          {formatDisplayTime()}
-        </Typography>
-      </Box>
+          },
+        }}
+        FormHelperTextProps={{
+          sx: { fontSize: 10, mt: 0.5 },
+        }}
+        sx={{
+          "& .MuiOutlinedInput-root": {
+            bgcolor: "transparent",
+            "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+            "&:hover fieldset": { borderColor: "primary.main" },
+            "&.Mui-focused fieldset": { borderColor: "primary.main" },
+          },
+        }}
+      />
 
       <Popover
         id={id}
