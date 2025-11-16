@@ -3408,7 +3408,6 @@ export function GamesTable() {
             key="opponent"
             sx={getDataCellSx("opponent", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "opponent")}
-            onClick={() => !isEditing && handleCellClick(game.id, "opponent", opponentName, "Opponent")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -3596,7 +3595,6 @@ export function GamesTable() {
             key="location"
             sx={getDataCellSx("location", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "location")}
-            onClick={() => !isEditing && handleCellClick(game.id, "location", locationText, "Location")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
@@ -3767,11 +3765,12 @@ export function GamesTable() {
             key="notes"
             sx={getDataCellSx("notes", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "notes")}
-            onClick={() => !isEditing && handleCellClick(game.id, "notes", notesText, "Notes")}
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-                <TextareaAutosize
+                <TextField
+                  size="small"
+                  fullWidth
                   value={inlineEditValue}
                   onChange={(e) => {
                     const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -3780,31 +3779,21 @@ export function GamesTable() {
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
-                  minRows={3}
-                  maxRows={6}
-                  placeholder="Add notes..."
                   disabled={isInlineSaving}
-                  style={{
-                    width: "100%",
-                    fontSize: "13px",
-                    fontFamily: theme.typography.fontFamily,
-                    padding: "8px",
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: "4px",
-                    resize: "vertical",
+                  placeholder="Add notes..."
+                  helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                  FormHelperTextProps={{
+                    sx: {
+                      fontSize: 10,
+                      color: getCharacterCounterColor(inlineEditValue.length),
+                    },
+                  }}
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                    },
                   }}
                 />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: 10,
-                    color: getCharacterCounterColor(inlineEditValue.length),
-                    mt: 0.5,
-                    display: "block",
-                  }}
-                >
-                  {inlineEditValue.length}/{MAX_CHAR_LIMIT}
-                </Typography>
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -3883,19 +3872,7 @@ export function GamesTable() {
           return (
             <TableCell
               key={column.id}
-              sx={{
-                fontSize: 13,
-                py: 0,
-                minWidth: 150,
-                cursor: isCustomEditing ? "default" : "pointer",
-                bgcolor: isCustomEditing ? "#fff9e6" : "transparent",
-                ...(isCustomEditing && {
-                  boxShadow: "inset 0 0 0 1px #DBEAFE",
-                }),
-                "&:hover": {
-                  bgcolor: isCustomEditing ? "#fff9e6" : "#f5f5f5",
-                },
-              }}
+              sx={getDataCellSx(column.id, isCustomEditing)}
               onDoubleClick={() => handleDoubleClick(game, fieldKey)}
             >
               {isCustomEditing ? (
@@ -3987,7 +3964,15 @@ export function GamesTable() {
                 </Box>
               ) : (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-                  <Typography variant="body2" sx={{ fontSize: 13 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 13,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {displayValue}
                   </Typography>
                   {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
