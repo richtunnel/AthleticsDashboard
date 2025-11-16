@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
-import { ColumnFilter, ColumnFilterValue } from "./ColumnFilter";
+import { ColumnFilterDragDrop, ColumnFilterValue } from "./ColumnFilterDragDrop";
 import { CustomTimePicker } from "../ui/CustomTimePicker";
 import { CellContentDialog } from "./CellContentDialog";
 import { TimeEditModal } from "./TimeEditModal";
@@ -2260,7 +2260,7 @@ export function GamesTable() {
           <TableCell key="date" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("date", "Date", true, "date")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="date"
                 columnName={getColumnLabel("date")}
                 columnType="date"
@@ -2282,7 +2282,7 @@ export function GamesTable() {
           <TableCell key="sport" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("sport", "Sport", true, "sport")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="sport"
                 columnName={getColumnLabel("sport")}
                 columnType="text"
@@ -2304,7 +2304,7 @@ export function GamesTable() {
           <TableCell key="level" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("level", "Level", true, "level")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="level"
                 columnName={getColumnLabel("level")}
                 columnType="text"
@@ -2326,7 +2326,7 @@ export function GamesTable() {
           <TableCell key="opponent" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("opponent", "Opponent", true, "opponent")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="opponent"
                 columnName={getColumnLabel("opponent")}
                 columnType="text"
@@ -2348,7 +2348,7 @@ export function GamesTable() {
           <TableCell key="isHome" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("isHome", "Home/Away", true, "isHome")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="isHome"
                 columnName={getColumnLabel("isHome")}
                 columnType="select"
@@ -2384,7 +2384,7 @@ export function GamesTable() {
           <TableCell key="status" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("status", "Confirmed", true, "status")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="status"
                 columnName={getColumnLabel("status")}
                 columnType="select"
@@ -2406,7 +2406,7 @@ export function GamesTable() {
           <TableCell key="location" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("location", "Location", true, "location")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="location"
                 columnName={getColumnLabel("location")}
                 columnType="text"
@@ -2428,7 +2428,7 @@ export function GamesTable() {
           <TableCell key="busTravel" sx={{ ...cellSx, whiteSpace: "nowrap" }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("busTravel", "Bus Info", true, "busTravel")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="busTravel"
                 columnName={getColumnLabel("busTravel")}
                 columnType="select"
@@ -2450,7 +2450,7 @@ export function GamesTable() {
           <TableCell key="notes" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("notes", "Notes", true, "notes")}
-              <ColumnFilter
+              <ColumnFilterDragDrop
                 columnId="notes"
                 columnName={getColumnLabel("notes")}
                 columnType="text"
@@ -2484,7 +2484,7 @@ export function GamesTable() {
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 {renderEditableColumnTitle(column.id, customColumn.name || "Custom", false)}
-                <ColumnFilter
+                <ColumnFilterDragDrop
                   columnId={customColumn.id}
                   columnName={getColumnLabel(column.id)}
                   columnType="text"

@@ -1,0 +1,107 @@
+/* Sortable.js Drag & Drop Smooth Animations - Browser Compatible */
+
+/* Ghost element (preview of item being dragged) */
+.sortable-ghost {
+  opacity: 0.4 !important;
+  background: #e3f2fd !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Chosen element (the item being dragged) */
+.sortable-chosen {
+  opacity: 1 !important;
+  cursor: grabbing !important;
+}
+
+/* Element being dragged */
+.sortable-drag {
+  opacity: 0.9 !important;
+  cursor: grabbing !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  transform: rotate(2deg) scale(1.02) !important;
+  transition: none !important;
+}
+
+/* Fallback class for browsers without native drag support */
+.sortable-fallback {
+  opacity: 0.95 !important;
+  cursor: grabbing !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+  transform: rotate(3deg) scale(1.05) !important;
+  z-index: 9999 !important;
+  position: fixed !important;
+  pointer-events: none !important;
+}
+
+/* Smooth transitions for items rearranging */
+.sortable-list-item {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Hover state for drag items */
+.drag-item-hover {
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Browser-specific fixes for smooth dragging */
+
+/* Safari */
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .sortable-drag,
+  .sortable-fallback {
+    -webkit-transform: rotate(2deg) scale(1.02);
+  }
+}
+
+/* Firefox */
+@-moz-document url-prefix() {
+  .sortable-drag {
+    transition: none;
+  }
+}
+
+/* Chrome/Edge - hardware acceleration */
+@supports (transform: translateZ(0)) {
+  .sortable-drag,
+  .sortable-fallback {
+    transform: translateZ(0) rotate(2deg) scale(1.02);
+    will-change: transform;
+  }
+}
+
+/* Touch device optimization */
+@media (pointer: coarse) {
+  .sortable-drag,
+  .sortable-fallback {
+    transform: rotate(1deg) scale(1.05);
+  }
+}
+
+/* Prevent text selection during drag */
+.sortable-drag *,
+.sortable-fallback *,
+.sortable-chosen * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth drop animation */
+@keyframes dropAnimation {
+  0% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.sortable-list-item.dropped {
+  animation: dropAnimation 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
