@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@mui/material";
+import { getFirstName } from "@/lib/utils/name";
 import FeedbackIcon from "@mui/icons-material/Feedback";
 
 import {
@@ -441,11 +442,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {/* User Menu */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" } }}>
-              {session?.user?.name || "loading..."}
+              {getFirstName(session?.user?.name) || "loading..."}
             </Typography>
             <IconButton onClick={handleMenu} sx={{ p: 0 }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
-                {(session?.user?.name || "D")[0]}
+                {(getFirstName(session?.user?.name) || "D")[0]}
               </Avatar>
             </IconButton>
             <Menu
