@@ -3496,6 +3496,7 @@ export function GamesTable() {
         );
       }
       case "time": {
+        const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "time";
         return (
           <TableCell
             key="time"
