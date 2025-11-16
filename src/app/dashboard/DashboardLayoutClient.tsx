@@ -442,7 +442,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {/* User Menu */}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" } }}>
-              {getFirstName(session?.user?.name) || "loading..."}
+              {getFirstName(session?.user?.name) ? `Hey ${getFirstName(session?.user?.name)}` : "loading..."}
             </Typography>
             <IconButton onClick={handleMenu} sx={{ p: 0 }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
