@@ -344,16 +344,32 @@ export class CalendarService {
     const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
     const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
     
-    // Create date in local timezone (Safari-compatible)
-    const eventStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+    // Parse time components (HH:mm format)
+    let hours = 12; // Default to noon if no time specified
+    let minutes = 0;
     
-    if (game.time) {
-      const [hours, minutes] = game.time.split(":");
-      eventStart.setHours(parseInt(hours), parseInt(minutes));
+    if (game.time && typeof game.time === 'string' && game.time.trim()) {
+      const timeParts = game.time.trim().split(":");
+      if (timeParts.length >= 2) {
+        const parsedHours = parseInt(timeParts[0], 10);
+        const parsedMinutes = parseInt(timeParts[1], 10);
+        if (!isNaN(parsedHours) && !isNaN(parsedMinutes) && parsedHours >= 0 && parsedHours <= 23 && parsedMinutes >= 0 && parsedMinutes <= 59) {
+          hours = parsedHours;
+          minutes = parsedMinutes;
+        }
+      }
     }
 
-    const eventEnd = new Date(eventStart.getTime());
-    eventEnd.setHours(eventEnd.getHours() + 2); // Default 2-hour duration
+    // Format as local datetime string for Google Calendar (YYYY-MM-DDTHH:mm:ss)
+    // This represents the local time in the specified timezone WITHOUT UTC conversion
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
+    
+    // Calculate end time (2 hours later)
+    const endHours = hours + 2;
+    const endDay = endHours >= 24 ? day + 1 : day;
+    const normalizedEndHours = endHours % 24;
+    const endDateTime = `${year}-${pad(month)}-${pad(endDay)}T${pad(normalizedEndHours)}:${pad(minutes)}:00`;
 
     const event: calendar_v3.Schema$Event = {
       status: CALENDAR_EVENT_STATUS_SCHEDULED,
@@ -361,11 +377,11 @@ export class CalendarService {
       description: this.buildEventDescription(game),
       location: game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city}, ${game.venue.state}`.trim() : "TBD",
       start: {
-        dateTime: eventStart.toISOString(),
+        dateTime: startDateTime,
         timeZone: timezone,
       },
       end: {
-        dateTime: eventEnd.toISOString(),
+        dateTime: endDateTime,
         timeZone: timezone,
       },
       reminders: {
