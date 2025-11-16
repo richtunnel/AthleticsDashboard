@@ -38,12 +38,40 @@ import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
+  // Handle null/undefined/empty values
+  if (!dateValue || typeof dateValue !== "string") {
+    throw new Error(`Invalid date value: ${dateValue}`);
+  }
+
   // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
+  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue.trim();
+
+  // Split and validate the date parts
+  const parts = datePart.split("-");
+  if (parts.length !== 3) {
+    throw new Error(`Invalid date format: ${dateValue}. Expected format: YYYY-MM-DD`);
+  }
+
+  const [year, month, day] = parts.map(Number);
+
+  // Validate that all parts are valid numbers
+  if (isNaN(year) || isNaN(month) || isNaN(day)) {
+    throw new Error(`Invalid date components in: ${dateValue}`);
+  }
+
+  // Validate reasonable ranges
+  if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`Date values out of range: ${dateValue}`);
+  }
+
   // Create date at noon UTC to avoid any date boundary issues
   const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+
+  // Check if the date is valid
+  if (isNaN(utcDate.getTime())) {
+    throw new Error(`Invalid date created from: ${dateValue}`);
+  }
+
   return utcDate.toISOString();
 };
 
@@ -218,7 +246,16 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       // Transform specific fields
       switch (dbField) {
         case "date":
-          transformed.date = value ? dateStringToUTCISOString(value as string) : null;
+          if (value) {
+            try {
+              transformed.date = dateStringToUTCISOString(value as string);
+            } catch (error) {
+              console.error(`Date conversion error for value "${value}":`, error);
+              transformed.date = null; // or skip this row entirely
+            }
+          } else {
+            transformed.date = null;
+          }
           break;
         case "isHome":
           if (value) {
