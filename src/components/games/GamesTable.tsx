@@ -3057,7 +3057,7 @@ export function GamesTable() {
               <SaveStatusIndicator status={saveStatus} />
             </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {formatGameDate(game.date)}
                 </Typography>
@@ -3107,7 +3107,7 @@ export function GamesTable() {
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {game.homeTeam.sport.name}
                 </Typography>
@@ -3159,7 +3159,7 @@ export function GamesTable() {
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {game.homeTeam.level}
                 </Typography>
@@ -3208,14 +3208,14 @@ export function GamesTable() {
                   }}
                 />
                 <SaveStatusIndicator status={saveStatus} />
-              </Box>
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                </Box>
+                ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {game.opponent?.name || "TBD"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "opponent" && <CircularProgress size={12} />}
-              </Box>
+                </Box>
             )}
           </TableCell>
         );
@@ -3256,7 +3256,7 @@ export function GamesTable() {
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Chip
                   label={game.isHome ? "Home" : "Away"}
                   size="small"
@@ -3300,7 +3300,7 @@ export function GamesTable() {
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {formatTimeDisplay(game.time)}
                 </Typography>
@@ -3348,7 +3348,7 @@ export function GamesTable() {
                 <SaveStatusIndicator status={saveStatus} />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Chip
                   icon={confirmedStatus.icon}
                   label={confirmedStatus.label}
@@ -3417,9 +3417,9 @@ export function GamesTable() {
                   </Typography>
                 )}
                 <SaveStatusIndicator status={saveStatus} />
-              </Box>
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                </Box>
+                ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -3432,7 +3432,7 @@ export function GamesTable() {
                   {game.location || game.venue?.name || "—"}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "location" && <CircularProgress size={12} />}
-              </Box>
+                </Box>
             )}
           </TableCell>
         );
@@ -3518,9 +3518,9 @@ export function GamesTable() {
                   </Box>
                   <SaveStatusIndicator status={saveStatus} />
                 </Stack>
-              </Box>
-            ) : (
-              <Box sx={{ py: 2 }}>
+                </Box>
+                ) : (
+                <Box sx={{ py: 0 }}>
                 <Stack spacing={0.75}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
@@ -3544,7 +3544,7 @@ export function GamesTable() {
                     </Box>
                   )}
                 </Stack>
-              </Box>
+                </Box>
             )}
           </TableCell>
         );
@@ -3606,9 +3606,9 @@ export function GamesTable() {
                   {inlineEditValue.length}/{MAX_CHAR_LIMIT}
                 </Typography>
                 <SaveStatusIndicator status={saveStatus} />
-              </Box>
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                </Box>
+                ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography
                   variant="body2"
                   sx={{
@@ -3621,7 +3621,7 @@ export function GamesTable() {
                   {getNotesPreview(game.notes)}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "notes" && <CircularProgress size={12} />}
-              </Box>
+                </Box>
             )}
           </TableCell>
         );
@@ -3629,7 +3629,7 @@ export function GamesTable() {
       case "actions": {
         const isSyncingCurrentGame = syncGameMutation.isPending && (syncGameMutation.variables as string | undefined) === game.id;
         return (
-          <TableCell key="actions" sx={{ py: 2 }}>
+          <TableCell key="actions" sx={{ py: 0 }}>
             <Stack direction="row" spacing={0}>
               <Tooltip title="Edit">
                 <IconButton size="small" onClick={() => handleEditGame(game)} sx={{ p: 0.5 }}>
@@ -3786,14 +3786,14 @@ export function GamesTable() {
                     </Typography>
                   )}
                   <SaveStatusIndicator status={saveStatus} />
-                </Box>
-              ) : (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 2 }}>
+                  </Box>
+                  ) : (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                   <Typography variant="body2" sx={{ fontSize: 13 }}>
                     {displayValue}
                   </Typography>
                   {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
-                </Box>
+                  </Box>
               )}
             </TableCell>
           );
@@ -4027,7 +4027,7 @@ export function GamesTable() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "#f8fafc" }}>
-              <TableCell padding="checkbox" sx={{ py: 2 }}>
+              <TableCell padding="checkbox" sx={{ py: 0 }}>
                 <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
               </TableCell>
               {resolvedColumns.map((column) => renderHeaderCell(column))}
