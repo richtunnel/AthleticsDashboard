@@ -929,25 +929,31 @@ export function GamesTable() {
   );
 
   // Column resizing handlers
-  const handleResizeStart = useCallback((e: React.MouseEvent, columnId: ColumnId) => {
-    e.preventDefault();
-    setResizingColumn(columnId);
-    resizeStartX.current = e.clientX;
-    const currentWidth = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
-    resizeStartWidth.current = currentWidth;
-  }, [columnWidths, DEFAULT_COLUMN_WIDTH]);
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent, columnId: ColumnId) => {
+      e.preventDefault();
+      setResizingColumn(columnId);
+      resizeStartX.current = e.clientX;
+      const currentWidth = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+      resizeStartWidth.current = currentWidth;
+    },
+    [columnWidths, DEFAULT_COLUMN_WIDTH]
+  );
 
-  const handleResizeMove = useCallback((e: MouseEvent) => {
-    if (!resizingColumn) return;
-    
-    const deltaX = e.clientX - resizeStartX.current;
-    const newWidth = Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, resizeStartWidth.current + deltaX));
-    
-    setColumnWidths(prev => ({
-      ...prev,
-      [resizingColumn]: newWidth
-    }));
-  }, [resizingColumn, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]);
+  const handleResizeMove = useCallback(
+    (e: MouseEvent) => {
+      if (!resizingColumn) return;
+
+      const deltaX = e.clientX - resizeStartX.current;
+      const newWidth = Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, resizeStartWidth.current + deltaX));
+
+      setColumnWidths((prev) => ({
+        ...prev,
+        [resizingColumn]: newWidth,
+      }));
+    },
+    [resizingColumn, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]
+  );
 
   const handleResizeEnd = useCallback(() => {
     if (resizingColumn) {
@@ -961,11 +967,11 @@ export function GamesTable() {
   // Add global mouse event listeners for column resizing
   useEffect(() => {
     if (resizingColumn) {
-      document.addEventListener('mousemove', handleResizeMove);
-      document.addEventListener('mouseup', handleResizeEnd);
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
       return () => {
-        document.removeEventListener('mousemove', handleResizeMove);
-        document.removeEventListener('mouseup', handleResizeEnd);
+        document.removeEventListener("mousemove", handleResizeMove);
+        document.removeEventListener("mouseup", handleResizeEnd);
       };
     }
   }, [resizingColumn, handleResizeMove, handleResizeEnd]);
@@ -973,9 +979,9 @@ export function GamesTable() {
   // Cell expansion handlers
   const handleCellClick = useCallback((gameId: string, columnId: ColumnId, content: string, title: string) => {
     // Only show dialog for columns with potentially long content
-    const expandableColumns: ColumnId[] = ['notes', 'location', 'opponent'];
-    const isCustomColumn = columnId.startsWith('custom:');
-    
+    const expandableColumns: ColumnId[] = ["notes", "location", "opponent"];
+    const isCustomColumn = columnId.startsWith("custom:");
+
     if (expandableColumns.includes(columnId) || isCustomColumn) {
       setExpandedCell({ gameId, columnId, content, title });
     }
@@ -2034,28 +2040,31 @@ export function GamesTable() {
   }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
 
   // Time edit modal handlers
-  const handleTimeClick = useCallback((game: Game) => {
-    // Don't open modal if in full edit mode
-    if (editingGameId === game.id) return;
+  const handleTimeClick = useCallback(
+    (game: Game) => {
+      // Don't open modal if in full edit mode
+      if (editingGameId === game.id) return;
 
-    const formattedDate = formatGameDate(game.date);
-    setTimeEditModal({
-      open: true,
-      gameId: game.id,
-      time: game.time || "",
-      gameInfo: {
-        date: formattedDate,
-        opponent: game.opponent?.name,
-      },
-    });
-  }, [editingGameId, formatGameDate]);
+      const formattedDate = formatGameDate(game.date);
+      setTimeEditModal({
+        open: true,
+        gameId: game.id,
+        time: game.time || "",
+        gameInfo: {
+          date: formattedDate,
+          opponent: game.opponent?.name,
+        },
+      });
+    },
+    [editingGameId, formatGameDate]
+  );
 
   const handleTimeModalSave = useCallback(
     async (time: string) => {
       if (!timeEditModal) return;
 
       const gameId = timeEditModal.gameId;
-      const game = games.find((g) => g.id === gameId);
+      const game = games.find((g: any) => g.id === gameId);
       if (!game) return;
 
       // Save the time update
@@ -2160,33 +2169,39 @@ export function GamesTable() {
     );
   };
 
-  const getColumnWidth = useCallback((columnId: ColumnId) => {
-    return columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
-  }, [columnWidths, DEFAULT_COLUMN_WIDTH]);
+  const getColumnWidth = useCallback(
+    (columnId: ColumnId) => {
+      return columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+    },
+    [columnWidths, DEFAULT_COLUMN_WIDTH]
+  );
 
-  const renderResizeHandle = useCallback((columnId: ColumnId) => {
-    return (
-      <Box
-        onMouseDown={(e) => handleResizeStart(e, columnId)}
-        sx={{
-          position: 'absolute',
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: '8px',
-          cursor: 'col-resize',
-          userSelect: 'none',
-          zIndex: 1,
-          '&:hover': {
-            backgroundColor: 'rgba(0, 0, 0, 0.1)',
-          },
-          '&:active': {
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-          },
-        }}
-      />
-    );
-  }, [handleResizeStart]);
+  const renderResizeHandle = useCallback(
+    (columnId: ColumnId) => {
+      return (
+        <Box
+          onMouseDown={(e) => handleResizeStart(e, columnId)}
+          sx={{
+            position: "absolute",
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: "8px",
+            cursor: "col-resize",
+            userSelect: "none",
+            zIndex: 1,
+            "&:hover": {
+              backgroundColor: "rgba(0, 0, 0, 0.1)",
+            },
+            "&:active": {
+              backgroundColor: "rgba(0, 0, 0, 0.2)",
+            },
+          }}
+        />
+      );
+    },
+    [handleResizeStart]
+  );
 
   const renderHeaderCell = (column: ResolvedColumn) => {
     const columnWidth = getColumnWidth(column.id);
@@ -2195,7 +2210,7 @@ export function GamesTable() {
       fontSize: 12,
       py: 2,
       color: "text.secondary",
-      position: 'relative' as const,
+      position: "relative" as const,
       width: columnWidth,
       minWidth: MIN_COLUMN_WIDTH,
       maxWidth: MAX_COLUMN_WIDTH,
@@ -3230,36 +3245,35 @@ export function GamesTable() {
     }
   };
 
-  const getDataCellSx = useCallback((columnId: ColumnId, isEditing: boolean, additionalSx?: any) => {
-    const columnWidth = getColumnWidth(columnId);
-    return {
-      fontSize: 13,
-      py: 0,
-      width: columnWidth,
-      minWidth: MIN_COLUMN_WIDTH,
-      maxWidth: MAX_COLUMN_WIDTH,
-      cursor: isEditing ? "default" : "pointer",
-      bgcolor: isEditing ? "#fff9e6" : "transparent",
-      ...(isEditing && {
-        boxShadow: "inset 0 0 0 1px #DBEAFE",
-      }),
-      "&:hover": {
-        bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-      },
-      ...additionalSx,
-    };
-  }, [getColumnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]);
+  const getDataCellSx = useCallback(
+    (columnId: ColumnId, isEditing: boolean, additionalSx?: any) => {
+      const columnWidth = getColumnWidth(columnId);
+      return {
+        fontSize: 13,
+        py: 0,
+        width: columnWidth,
+        minWidth: MIN_COLUMN_WIDTH,
+        maxWidth: MAX_COLUMN_WIDTH,
+        cursor: isEditing ? "default" : "pointer",
+        bgcolor: isEditing ? "#fff9e6" : "transparent",
+        ...(isEditing && {
+          boxShadow: "inset 0 0 0 1px #DBEAFE",
+        }),
+        "&:hover": {
+          bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+        },
+        ...additionalSx,
+      };
+    },
+    [getColumnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]
+  );
 
   const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
     switch (column.id) {
       case "date": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
         return (
-          <TableCell
-            key="date"
-            sx={getDataCellSx("date", isEditing)}
-            onDoubleClick={() => handleDoubleClick(game, "date")}
-          >
+          <TableCell key="date" sx={getDataCellSx("date", isEditing)} onDoubleClick={() => handleDoubleClick(game, "date")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
                 <TextField
@@ -4402,23 +4416,10 @@ export function GamesTable() {
       />
 
       {/* Cell Content Dialog for viewing full content */}
-      <CellContentDialog
-        open={expandedCell !== null}
-        onClose={handleCloseExpandedCell}
-        title={expandedCell?.title || ""}
-        content={expandedCell?.content || ""}
-      />
+      <CellContentDialog open={expandedCell !== null} onClose={handleCloseExpandedCell} title={expandedCell?.title || ""} content={expandedCell?.content || ""} />
 
       {/* Time Edit Modal */}
-      {timeEditModal && (
-        <TimeEditModal
-          open={timeEditModal.open}
-          onClose={handleTimeModalClose}
-          onSave={handleTimeModalSave}
-          initialValue={timeEditModal.time}
-          gameInfo={timeEditModal.gameInfo}
-        />
-      )}
+      {timeEditModal && <TimeEditModal open={timeEditModal.open} onClose={handleTimeModalClose} onSave={handleTimeModalSave} initialValue={timeEditModal.time} gameInfo={timeEditModal.gameInfo} />}
     </Box>
   );
 }
