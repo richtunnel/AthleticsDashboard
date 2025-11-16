@@ -38,25 +38,20 @@ import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
-  // Handle null/undefined/empty values
   if (!dateValue || typeof dateValue !== "string") {
     throw new Error(`Invalid date value: ${dateValue}`);
   }
 
   let dateStr = dateValue.trim();
 
-  // Handle date ranges: "Dec. 18 - 22 2025" -> take first date "Dec. 18 2025"
-  // Split on common range separators (-, —, to, through) and take the first part
   if (dateStr.includes(" - ") || dateStr.includes(" — ") || dateStr.includes(" to ")) {
     dateStr = dateStr.split(/\s*[-—]\s*/)[0].trim();
-    // Add back the year if it was at the end: "Dec. 18 - 22 2025" -> "Dec. 18" + "2025"
     const yearMatch = dateValue.match(/\b(20\d{2}|19\d{2})\b/);
     if (yearMatch && !dateStr.includes(yearMatch[0])) {
       dateStr = `${dateStr} ${yearMatch[0]}`;
     }
   }
 
-  // Month name mappings
   const monthMap: { [key: string]: number } = {
     jan: 1,
     january: 1,
@@ -84,22 +79,18 @@ const dateStringToUTCISOString = (dateValue: string): string => {
     december: 12,
   };
 
-  // Try parsing as YYYY-MM-DD first
+  // YYYY-MM-DD
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(dateStr)) {
     const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
-    const parts = datePart.split("-");
-    const [year, month, day] = parts.map(Number);
+    const [year, month, day] = datePart.split("-").map(Number);
 
-    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-      const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-      if (!isNaN(utcDate.getTime())) {
-        return utcDate.toISOString();
-      }
-    }
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    return utcDate.toISOString().split("T")[0];
   }
 
-  // Try parsing month name formats: "Dec. 18, 2025" or "December 18 2025"
+  // Month name formats
   const monthNameRegex = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\.?\s+(\d{1,2})[,\s]+(\d{4})\b/i;
+
   const match = dateStr.match(monthNameRegex);
 
   if (match) {
@@ -108,20 +99,15 @@ const dateStringToUTCISOString = (dateValue: string): string => {
     const year = parseInt(match[3]);
     const month = monthMap[monthName];
 
-    if (month && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
-      const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-      if (!isNaN(utcDate.getTime())) {
-        return utcDate.toISOString();
-      }
-    }
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    return utcDate.toISOString().split("T")[0];
   }
 
-  // Try JavaScript's native Date parser as fallback
+  // Fallback: native Date
   const parsedDate = new Date(dateStr);
   if (!isNaN(parsedDate.getTime())) {
-    // Convert to UTC at noon to avoid timezone issues
     const utcDate = new Date(Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 12, 0, 0, 0));
-    return utcDate.toISOString();
+    return utcDate.toISOString().split("T")[0];
   }
 
   throw new Error(`Unable to parse date: ${dateValue}`);
@@ -226,9 +212,9 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       else if (normalized.includes("sport")) mapping[header] = "sport";
       else if (normalized.includes("level") || normalized.includes("grade")) mapping[header] = "level";
       else if (normalized.includes("opponent") || normalized.includes("vs")) mapping[header] = "opponent";
-      else if (normalized.includes("home") || normalized.includes("away") || normalized.includes("location")) mapping[header] = "isHome";
-      else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
-      else if (normalized.includes("status")) mapping[header] = "status";
+      else if (normalized.includes("home") || normalized.includes("away")) mapping[header] = "isHome";
+      else if (normalized.includes("venue") || normalized.includes("site") || normalized.includes("location")) mapping[header] = "venue";
+      else if (normalized.includes("status") || normalized.includes("confirmed")) mapping[header] = "confirmed";
       else if (normalized.includes("note")) mapping[header] = "notes";
       else mapping[header] = "skip";
     });
@@ -405,7 +391,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
   const handleDownloadTemplate = () => {
     const headers = ["date", "time", "sport", "level", "opponent", "location", "venue", "status", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "", "CONFIRMED", "Senior Night"],
+      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "CONFIRMED", "Senior Night"],
       ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "SCHEDULED", ""],
     ];
 
