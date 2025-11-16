@@ -62,6 +62,16 @@ export async function addEmailsToGroup(payload: { groupId: string; emails: strin
   return handleResponse<AddEmailsResponse>(response);
 }
 
+export async function updateEmailInGroup(payload: { groupId: string; emailId: string; email: string }): Promise<EmailGroup> {
+  const response = await fetch(`/api/email-groups/${payload.groupId}/emails/${payload.emailId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: payload.email }),
+  });
+
+  return handleResponse<EmailGroup>(response);
+}
+
 export async function removeEmailFromGroup(payload: { groupId: string; emailId: string }): Promise<EmailGroup> {
   const response = await fetch(`/api/email-groups/${payload.groupId}/emails/${payload.emailId}`, {
     method: "DELETE",

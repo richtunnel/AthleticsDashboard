@@ -24,6 +24,7 @@ import {
   fetchEmailGroups,
   removeEmailFromGroup,
   updateEmailGroupName,
+  updateEmailInGroup,
 } from "@/lib/api/emailGroups";
 
 type SnackbarState = {
@@ -118,6 +119,17 @@ export function EmailGroupManager() {
     },
     onError: () => {
       // Card handles error display, so no message here to avoid duplicates
+    },
+  });
+
+  const updateEmailMutation = useMutation({
+    mutationFn: (payload: { groupId: string; emailId: string; email: string }) => updateEmailInGroup(payload),
+    onSuccess: (group) => {
+      updateCacheWithGroup(group);
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+    },
+    onError: () => {
+      // Card handles error display
     },
   });
 
@@ -249,6 +261,14 @@ export function EmailGroupManager() {
                   await addEmailsMutation.mutateAsync({ groupId: group.id, emails });
                 }}
                 addEmailsLoading={addEmailsMutation.isPending && addEmailsMutation.variables?.groupId === group.id}
+                onUpdateEmail={async (emailId, email) => {
+                  await updateEmailMutation.mutateAsync({ groupId: group.id, emailId, email });
+                }}
+                updateEmailLoadingId={
+                  updateEmailMutation.isPending && updateEmailMutation.variables?.groupId === group.id
+                    ? updateEmailMutation.variables?.emailId ?? null
+                    : null
+                }
                 onRemoveEmail={async (emailId) => {
                   await removeEmailMutation.mutateAsync({ groupId: group.id, emailId });
                 }}
