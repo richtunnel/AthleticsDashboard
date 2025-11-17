@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, Stack, Typography, Chip, IconButton, Tooltip, Button, Box } from "@mui/material";
 import { DirectionsBus, Schedule, WbSunny, Traffic, LocationOn, CalendarMonth, Undo } from "@mui/icons-material";
 import { format, formatDistance } from "date-fns";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 interface Game {
   id: string;
@@ -135,7 +136,7 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
                 {game.homeTeam.sport.name} - {game.opponent?.name || "TBD"}
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1 }}>
-                <Chip label={game.homeTeam.level} size="small" />
+                <Chip label={formatLevelDisplay(game.homeTeam.level)} size="small" />
                 <Chip icon={<CalendarMonth />} label={format(gameDate, "MMM dd, yyyy")} size="small" variant="outlined" />
                 {game.time && <Chip icon={<Schedule />} label={game.time} size="small" variant="outlined" />}
               </Stack>

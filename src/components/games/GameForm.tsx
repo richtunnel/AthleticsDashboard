@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 // Define the form data type explicitly - don't rely on Zod inference
 interface GameFormData {
@@ -254,7 +255,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
                 <option value="">Select team</option>
                 {teams.map((team: any) => (
                   <option key={team.id} value={team.id}>
-                    {team.sport?.name} - {team.level} ({team.name})
+                    {team.sport?.name} - {formatLevelDisplay(team.level)} ({team.name})
                   </option>
                 ))}
               </select>
