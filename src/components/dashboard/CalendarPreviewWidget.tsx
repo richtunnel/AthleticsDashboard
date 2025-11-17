@@ -14,6 +14,7 @@ import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useDashboardPreferencesStore } from "@/lib/stores/dashboardPreferencesStore";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 const REFRESH_INTERVAL_MS = 1000 * 60 * 5;
 
@@ -250,7 +251,7 @@ export function CalendarPreviewWidget() {
                         <Typography variant="body2" color="text.secondary" component="span">
                           Level:{" "}
                           <Typography component="span" color="text.primary">
-                            {firstGame.game.homeTeam.level}
+                            {formatLevelDisplay(firstGame.game.homeTeam.level)}
                           </Typography>
                         </Typography>
                       )}
@@ -304,7 +305,7 @@ export function CalendarPreviewWidget() {
                                 <Typography variant="body2" color="text.secondary" component="span">
                                   Level:{" "}
                                   <Typography component="span" color="text.primary">
-                                    {game.homeTeam.level}
+                                    {formatLevelDisplay(game.homeTeam.level)}
                                   </Typography>
                                 </Typography>
                               )}

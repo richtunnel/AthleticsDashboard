@@ -22,6 +22,7 @@ import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 import {
   Box,
@@ -2552,7 +2553,7 @@ export function GamesTable() {
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(newGameData.sport).map((level) => (
                 <MenuItem key={level} value={level}>
-                  {level}
+                  {formatLevelDisplay(level)}
                 </MenuItem>
               ))}
             </Select>
@@ -2941,7 +2942,7 @@ export function GamesTable() {
               <MenuItem value="">Select level</MenuItem>
               {getLevelsForSport(editingGame.homeTeam.sport.name).map((level) => (
                 <MenuItem key={level} value={level}>
-                  {level}
+                  {formatLevelDisplay(level)}
                 </MenuItem>
               ))}
             </Select>
@@ -3401,7 +3402,7 @@ export function GamesTable() {
                 >
                   {levelsForCurrentSport.map((level: string) => (
                     <MenuItem key={level} value={level}>
-                      {level}
+                      {formatLevelDisplay(level)}
                     </MenuItem>
                   ))}
                 </Select>
@@ -3409,7 +3410,7 @@ export function GamesTable() {
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
-                  {game.homeTeam.level}
+                  {formatLevelDisplay(game.homeTeam.level)}
                 </Typography>
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "level" && <CircularProgress size={12} />}
               </Box>

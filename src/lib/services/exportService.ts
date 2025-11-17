@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { formatLevelDisplay } from "../utils/formatters";
 
 interface Game {
   id: string;
@@ -52,7 +53,7 @@ export class ExportService {
       }],
       ["time", { header: "Time", getValue: (game) => game.time || "" }],
       ["sport", { header: "Sport", getValue: (game) => game.homeTeam.sport.name }],
-      ["level", { header: "Level", getValue: (game) => game.homeTeam.level }],
+      ["level", { header: "Level", getValue: (game) => formatLevelDisplay(game.homeTeam.level) }],
       ["team", { header: "Team", getValue: (game) => game.homeTeam.name }],
       ["opponent", { header: "Opponent", getValue: (game) => game.opponent?.name || "" }],
       ["isHome", { header: "Location", getValue: (game) => (game.isHome ? "Home" : "Away") }],
