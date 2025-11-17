@@ -2155,7 +2155,7 @@ export function GamesTable() {
     }
 
     return (
-      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, position: "relative", group: 1 }}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
           <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
             {displayLabel.toUpperCase()}
@@ -2182,27 +2182,6 @@ export function GamesTable() {
             <Edit sx={{ fontSize: 14 }} />
           </IconButton>
         </Tooltip>
-        {hasCustomTitle && (
-          <Tooltip title="Reset to default">
-            <IconButton
-              size="small"
-              onClick={() => handleResetColumnTitle(columnId)}
-              sx={{
-                p: 0.25,
-                opacity: 0,
-                transition: "opacity 0.2s",
-                ".MuiTableCell-root:hover &": {
-                  opacity: 0.6,
-                },
-                "&:hover": {
-                  opacity: 1,
-                },
-              }}
-            >
-              <Restore sx={{ fontSize: 14 }} />
-            </IconButton>
-          </Tooltip>
-        )}
       </Box>
     );
   };
@@ -2246,7 +2225,7 @@ export function GamesTable() {
     const cellSx = {
       fontWeight: 600,
       fontSize: 12,
-      py: 2,
+      py: 1,
       color: "text.secondary",
       position: "relative" as const,
       width: columnWidth,
