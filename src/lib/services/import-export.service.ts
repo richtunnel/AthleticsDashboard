@@ -1,5 +1,6 @@
 import { prisma } from "../database/prisma";
 import { format } from "date-fns";
+import { formatLevelDisplay } from "../utils/formatters";
 
 export class ImportExportService {
   async exportGamesToCSV(organizationId: string): Promise<string> {
@@ -43,7 +44,7 @@ export class ImportExportService {
       format(new Date(game.date), "yyyy-MM-dd"),
       game.time || "",
       game.homeTeam.sport.name,
-      game.homeTeam.level,
+      formatLevelDisplay(game.homeTeam.level),
       game.homeTeam.name,
       game.opponent?.name || "",
       game.isHome ? "Home" : "Away",
@@ -189,7 +190,7 @@ export class ImportExportService {
 
     const headers = ["Team Name", "Sport", "Level", "Gender"];
 
-    const rows = teams.map((team: any) => [team.name, team.sport.name, team.level, team.gender || ""]);
+    const rows = teams.map((team: any) => [team.name, team.sport.name, formatLevelDisplay(team.level), team.gender || ""]);
 
     return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
   }
