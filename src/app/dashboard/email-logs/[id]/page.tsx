@@ -32,6 +32,7 @@ import {
   Send,
 } from "@mui/icons-material";
 import { format } from "date-fns";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 interface EmailLog {
   id: string;
@@ -332,7 +333,7 @@ export default function EmailLogDetailPage() {
                     <TableRow key={game.id} hover>
                       <TableCell>{formatGameDate(game.date)}</TableCell>
                       <TableCell>{game.homeTeam.sport.name}</TableCell>
-                      <TableCell>{game.homeTeam.level}</TableCell>
+                      <TableCell>{formatLevelDisplay(game.homeTeam.level)}</TableCell>
                       <TableCell>{game.opponent?.name || "TBD"}</TableCell>
                       <TableCell>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>
                       <TableCell>

@@ -31,6 +31,7 @@ import {
 import { Add, DragIndicator, Edit, Delete, Save, Cancel, School, Phone, Email, Person, Close, Check, NavigateNext, SkipNext, Warning } from "@mui/icons-material";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
   // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
@@ -1025,7 +1026,7 @@ export default function OpponentsPage() {
                   >
                     {teams.map((team: any) => (
                       <MenuItem key={team.id} value={team.id}>
-                        {team.sport?.name} - {team.level} ({team.name})
+                        {team.sport?.name} - {formatLevelDisplay(team.level)} ({team.name})
                       </MenuItem>
                     ))}
                   </TextField>
