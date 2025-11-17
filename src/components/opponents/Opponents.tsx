@@ -777,7 +777,7 @@ export default function OpponentsPage() {
             }}
           >
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-              Create Matchup
+              Create Matchup <span style={{ color: "lightgrey" }}>(Optional)</span>
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               {matchupStep === "select" ? "Drag & drop or click 2 opponents to create a game" : "Fill in game details or skip to use defaults"}
