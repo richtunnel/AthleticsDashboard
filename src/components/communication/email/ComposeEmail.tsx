@@ -8,6 +8,7 @@ import { ArrowBack, Send } from "@mui/icons-material";
 import { format } from "date-fns";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import type { EmailGroup } from "./types";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 interface Game {
   id: string;
@@ -290,7 +291,7 @@ export default function ComposeEmailPage() {
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(formatFullDate(game.date))}</td>`;
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.time || "TBD")}</td>`;
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.homeTeam.sport.name)}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.homeTeam.level)}</td>`;
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(formatLevelDisplay(game.homeTeam.level))}</td>`;
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.opponent?.name || "TBD")}</td>`;
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD")}</td>`;
 
@@ -393,7 +394,7 @@ export default function ComposeEmailPage() {
                       <TableRow key={game.id}>
                         {visibleColumnIds.includes("date") && <TableCell sx={{ fontSize: '0.85rem' }}>{formatGameDate(game.date)}</TableCell>}
                         {visibleColumnIds.includes("sport") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.homeTeam.sport.name}</TableCell>}
-                        {visibleColumnIds.includes("level") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.homeTeam.level}</TableCell>}
+                        {visibleColumnIds.includes("level") && <TableCell sx={{ fontSize: '0.85rem' }}>{formatLevelDisplay(game.homeTeam.level)}</TableCell>}
                         {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.opponent?.name || "TBD"}</TableCell>}
                         {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontSize: '0.85rem' }}>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
                         {visibleColumnIds.includes("status") && (
