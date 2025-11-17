@@ -130,7 +130,7 @@ const OpponentCard = memo(({ opponent, isSelected, isEditing, editingId, onEdit,
       }}
       onClick={handleCardClick}
     >
-      <CardContent>
+      <CardContent sx={{ p: 0.75, "&:last-child": { pb: 0.75 } }}>
         <Grid container spacing={2} alignItems="center">
           <Grid size="auto">
             <IconButton
@@ -763,16 +763,16 @@ export default function OpponentsPage() {
         {/* Right Column - Matchup Creator (Larger - 7 columns) */}
         <Grid size={{ xs: 12, lg: 7 }}>
           <Paper
-            elevation={2}
+            elevation={0}
             sx={{
               p: 4,
               position: "sticky",
               top: 20,
               minHeight: 500,
-              border: "2px solid",
-              borderColor: selectedOpponents.length === 2 ? "primary.main" : "divider",
+              border: "none",
+              boxShadow: "none",
               transition: "all 0.3s",
-              bgcolor: selectedOpponents.length === 2 ? "primary.50" : "background.paper",
+              bgcolor: "transparent",
             }}
           >
             <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
