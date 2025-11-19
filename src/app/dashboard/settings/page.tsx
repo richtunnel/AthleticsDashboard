@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
 import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
+import SchoolDetailsForm from "@/components/settings/SchoolDetailsForm";
 import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
 import { getUserWithSubscription } from "@/lib/services/subscription";
@@ -41,6 +42,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       plan: true,
       image: true,
       hashedPassword: true,
+      schoolName: true,
+      teamName: true,
+      mascot: true,
       organization: {
         select: {
           id: true,
@@ -132,6 +136,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </Typography>
 
         <AccountDetailsForm user={user} />
+      </Box>
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <SchoolDetailsForm user={user} />
       </Box>
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
