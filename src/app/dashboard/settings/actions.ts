@@ -184,6 +184,47 @@ export async function changePassword(payload: ChangePasswordPayload) {
   }
 }
 
+type UpdateSchoolDetailsPayload = {
+  schoolName: string;
+  teamName: string;
+  mascot?: string | null;
+};
+
+export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+
+  const userId = session.user.id;
+
+  const schoolName = sanitizeString(payload.schoolName);
+  const teamName = sanitizeString(payload.teamName);
+  const mascot = sanitizeString(payload.mascot);
+
+  if (!schoolName || schoolName.length < 2) {
+    return { success: false, error: "School name must be at least 2 characters." };
+  }
+
+  if (!teamName || teamName.length < 2) {
+    return { success: false, error: "Team name must be at least 2 characters." };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        schoolName,
+        teamName,
+        mascot,
+      },
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateSchoolDetails error:", err);
+    return { success: false, error: "Failed to update school details." };
+  }
+}
+
 export async function cleanupRoles() {
   try {
     const result = await prisma.user.updateMany({
