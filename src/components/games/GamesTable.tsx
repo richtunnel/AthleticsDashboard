@@ -9,6 +9,7 @@ import { ColumnFilterDragDrop, ColumnFilterValue } from "./ColumnFilterDragDrop"
 import { CustomTimePicker } from "../ui/CustomTimePicker";
 import { CellContentDialog } from "./CellContentDialog";
 import { TimeEditModal } from "./TimeEditModal";
+import { ErrorBoundary } from "../utils/ErrorBoundary";
 import dynamic from "next/dynamic";
 import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
@@ -87,11 +88,48 @@ const extractDatePart = (dateValue: string): string => {
 const dateStringToUTCISOString = (dateValue: string): string => {
   // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
   // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return utcDate.toISOString();
+  try {
+    if (!dateValue || typeof dateValue !== 'string') {
+      throw new Error('Invalid date value');
+    }
+    
+    const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+    const parts = datePart.split("-");
+    
+    if (parts.length !== 3) {
+      throw new Error(`Invalid date format: ${dateValue}. Expected YYYY-MM-DD`);
+    }
+    
+    const [year, month, day] = parts.map(Number);
+    
+    // Validate numeric values
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      throw new Error(`Invalid date values: ${dateValue}. Date parts must be numeric`);
+    }
+    
+    // Validate date ranges
+    if (year < 1900 || year > 2100) {
+      throw new Error(`Invalid year: ${year}. Year must be between 1900 and 2100`);
+    }
+    if (month < 1 || month > 12) {
+      throw new Error(`Invalid month: ${month}. Month must be between 1 and 12`);
+    }
+    if (day < 1 || day > 31) {
+      throw new Error(`Invalid day: ${day}. Day must be between 1 and 31`);
+    }
+    
+    // Create date at noon UTC to avoid any date boundary issues
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    
+    // Check if the date is valid (e.g., Feb 30th would be invalid)
+    if (isNaN(utcDate.getTime())) {
+      throw new Error(`Invalid date: ${dateValue}. This date does not exist in the calendar`);
+    }
+    
+    return utcDate.toISOString();
+  } catch (error) {
+    throw new Error(`Date parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 const toTimeInputValue = (dateTime: string | null): string => {
@@ -4343,7 +4381,16 @@ export function GamesTable() {
 
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
 
-      {showImportDialog && <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />}
+      {showImportDialog && (
+        <ErrorBoundary
+          onError={(error) => {
+            addNotification(`Import error: ${error.message}. Please check your CSV file and try again.`, "error");
+            setShowImportDialog(false);
+          }}
+        >
+          <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />
+        </ErrorBoundary>
+      )}
 
       <QuickAddOpponent
         open={showAddOpponent}
