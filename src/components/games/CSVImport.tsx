@@ -25,23 +25,59 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   Stack,
   Stepper,
   Step,
   StepLabel,
 } from "@mui/material";
-import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning } from "@mui/icons-material";
+import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download } from "@mui/icons-material";
 import Link from "next/link";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
   // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
   // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return utcDate.toISOString();
+  try {
+    if (!dateValue || typeof dateValue !== 'string') {
+      throw new Error('Invalid date value');
+    }
+    
+    const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+    const parts = datePart.split("-");
+    
+    if (parts.length !== 3) {
+      throw new Error(`Invalid date format: ${dateValue}. Expected YYYY-MM-DD`);
+    }
+    
+    const [year, month, day] = parts.map(Number);
+    
+    // Validate numeric values
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      throw new Error(`Invalid date values: ${dateValue}. Date parts must be numeric`);
+    }
+    
+    // Validate date ranges
+    if (year < 1900 || year > 2100) {
+      throw new Error(`Invalid year: ${year}. Year must be between 1900 and 2100`);
+    }
+    if (month < 1 || month > 12) {
+      throw new Error(`Invalid month: ${month}. Month must be between 1 and 12`);
+    }
+    if (day < 1 || day > 31) {
+      throw new Error(`Invalid day: ${day}. Day must be between 1 and 31`);
+    }
+    
+    // Create date at noon UTC to avoid any date boundary issues
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+    
+    // Check if the date is valid (e.g., Feb 30th would be invalid)
+    if (isNaN(utcDate.getTime())) {
+      throw new Error(`Invalid date: ${dateValue}. This date does not exist in the calendar`);
+    }
+    
+    return utcDate.toISOString();
+  } catch (error) {
+    throw new Error(`Date parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
 interface CSVImportProps {
@@ -102,9 +138,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       header: true,
       skipEmptyLines: true,
       dynamicTyping: true,
-      transformHeader: (header: any) => header.trim(),
-      complete: (results: any) => {
-        const data = results.data as ParsedRow[];
+      transformHeader: (header: string) => header.trim(),
+      complete: (results: { data: ParsedRow[]; meta: { fields?: string[] } }) => {
+        const data = results.data;
         const headers = results.meta.fields || [];
 
         setHeaders(headers);
@@ -117,7 +153,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         // Move to mapping step
         setStep(1);
       },
-      error: (error: any) => {
+      error: (error: Error) => {
         setValidationErrors([`CSV Parse Error: ${error.message}`]);
       },
     });
@@ -176,18 +212,19 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       errors.push("No data rows found in CSV");
     }
 
-    // Sample validation - check first few rows
-    const sampleSize = Math.min(5, parsedData.length);
-    for (let i = 0; i < sampleSize; i++) {
-      const row = parsedData[i];
-
-      // Check date field
-      const dateField = Object.keys(fieldMapping).find((k) => fieldMapping[k] === "date");
-      if (dateField && row[dateField]) {
-        const dateValue = row[dateField];
-        const parsedDate = new Date(dateValue as string);
-        if (isNaN(parsedDate.getTime())) {
-          errors.push(`Row ${i + 2}: Invalid date format "${dateValue}"`);
+    // Validate all rows for date issues
+    const dateField = Object.keys(fieldMapping).find((k) => fieldMapping[k] === "date");
+    if (dateField) {
+      for (let i = 0; i < parsedData.length; i++) {
+        const row = parsedData[i];
+        if (row[dateField]) {
+          try {
+            const dateValue = row[dateField];
+            // Try to parse the date using our function
+            dateStringToUTCISOString(dateValue as string);
+          } catch (error) {
+            errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid date'}`);
+          }
         }
       }
     }
@@ -204,45 +241,55 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   };
 
   // Transform CSV data to game format
-  const transformData = (row: ParsedRow): any => {
-    const transformed: any = {
-      // Set defaults for optional fields
-      isHome: true, // Default to home game
-    };
+  const transformData = (row: ParsedRow, rowIndex?: number): Record<string, string | boolean | null> => {
+    try {
+      const transformed: Record<string, string | boolean | null> = {
+        // Set defaults for optional fields
+        isHome: true, // Default to home game
+      };
 
-    Object.keys(fieldMapping).forEach((csvField) => {
-      const dbField = fieldMapping[csvField];
-      if (dbField === "skip") return;
+      Object.keys(fieldMapping).forEach((csvField) => {
+        const dbField = fieldMapping[csvField];
+        if (dbField === "skip") return;
 
-      const value = row[csvField];
+        const value = row[csvField];
 
-      // Transform specific fields
-      switch (dbField) {
-        case "date":
-          transformed.date = value ? dateStringToUTCISOString(value as string) : null;
-          break;
-        case "isHome":
-          if (value) {
-            const normalized = String(value).toLowerCase().trim();
-            transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes" || normalized === "true";
-          }
-          break;
-        case "status":
-          const statusMap: any = {
-            scheduled: "SCHEDULED",
-            confirmed: "CONFIRMED",
-            cancelled: "CANCELLED",
-            postponed: "POSTPONED",
-            completed: "COMPLETED",
-          };
-          transformed.status = statusMap[String(value).toLowerCase()] || "SCHEDULED";
-          break;
-        default:
-          transformed[dbField] = value || null;
-      }
-    });
+        // Transform specific fields
+        switch (dbField) {
+          case "date":
+            try {
+              transformed.date = value ? dateStringToUTCISOString(value as string) : null;
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : 'Invalid date';
+              throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
+            }
+            break;
+          case "isHome":
+            if (value) {
+              const normalized = String(value).toLowerCase().trim();
+              transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes" || normalized === "true";
+            }
+            break;
+          case "status":
+            const statusMap: Record<string, string> = {
+              scheduled: "SCHEDULED",
+              confirmed: "CONFIRMED",
+              cancelled: "CANCELLED",
+              postponed: "POSTPONED",
+              completed: "COMPLETED",
+            };
+            transformed.status = statusMap[String(value).toLowerCase()] || "SCHEDULED";
+            break;
+          default:
+            transformed[dbField] = value ? String(value) : null;
+        }
+      });
 
-    return transformed;
+      return transformed;
+    } catch (error) {
+      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : '';
+      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Handle import
@@ -260,26 +307,47 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     try {
       for (let i = 0; i < totalBatches; i++) {
         const batch = parsedData.slice(i * batchSize, (i + 1) * batchSize);
-        const transformedBatch = batch.map(transformData);
-
-        // Send batch to API
-        const response = await fetch("/api/import/games/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ games: transformedBatch }),
+        const batchStartIndex = i * batchSize;
+        
+        // Transform batch with error handling for each row
+        const transformedBatch: Record<string, string | boolean | null>[] = [];
+        batch.forEach((row, idx) => {
+          try {
+            const transformed = transformData(row, batchStartIndex + idx);
+            transformedBatch.push(transformed);
+          } catch (error) {
+            failedCount++;
+            const rowNum = batchStartIndex + idx + 2; // +2 for header row and 1-based indexing
+            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Transform failed'}`);
+          }
         });
 
-        const result = await response.json();
+        // Only send batch if there are valid rows
+        if (transformedBatch.length > 0) {
+          try {
+            // Send batch to API
+            const response = await fetch("/api/import/games/batch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ games: transformedBatch }),
+            });
 
-        if (result.success) {
-          successCount += result.data.success || 0;
-          failedCount += result.data.failed || 0;
-          if (result.data.errors) {
-            errors.push(...result.data.errors);
+            const result = await response.json();
+
+            if (result.success) {
+              successCount += result.data.success || 0;
+              failedCount += result.data.failed || 0;
+              if (result.data.errors) {
+                errors.push(...result.data.errors);
+              }
+            } else {
+              failedCount += transformedBatch.length;
+              errors.push(`Batch ${i + 1} failed: ${result.error}`);
+            }
+          } catch (fetchError) {
+            failedCount += transformedBatch.length;
+            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
           }
-        } else {
-          failedCount += batch.length;
-          errors.push(`Batch ${i + 1} failed: ${result.error}`);
         }
 
         // Update progress
@@ -296,6 +364,11 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       onImportComplete?.(finalResult);
     } catch (error) {
       setValidationErrors([`Import failed: ${error instanceof Error ? error.message : "Unknown error"}`]);
+      setImportResult({
+        success: successCount,
+        failed: failedCount + parsedData.length - successCount - failedCount,
+        errors: [...errors, `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`],
+      });
     } finally {
       setIsImporting(false);
     }
@@ -506,12 +579,22 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                       {Object.entries(fieldMapping)
                         .filter(([, dbField]) => dbField !== "skip")
                         .map(([csvField, dbField]) => {
-                          const transformed = transformData(row);
-                          return (
-                            <TableCell key={csvField}>
-                              <Typography variant="body2">{String(transformed[dbField] || "—")}</Typography>
-                            </TableCell>
-                          );
+                          try {
+                            const transformed = transformData(row, idx);
+                            return (
+                              <TableCell key={csvField}>
+                                <Typography variant="body2">{String(transformed[dbField] || "—")}</Typography>
+                              </TableCell>
+                            );
+                          } catch {
+                            return (
+                              <TableCell key={csvField}>
+                                <Typography variant="body2" color="error">
+                                  Error
+                                </Typography>
+                              </TableCell>
+                            );
+                          }
                         })}
                     </TableRow>
                   ))}
