@@ -593,3 +593,20 @@ model RewardPoints {
 
   user User @relation("UserRewardPoints", fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// Signup Log - Prevents duplicate signups within 90 days
+model SignupLog {
+  id             String   @id @default(cuid())
+  email          String?
+  phone          String?
+  deletedUserId  String? // Reference to the deleted user
+  deletedAt      DateTime @default(now())
+  expiresAt      DateTime // 90 days from deletedAt
+  reason         String? // Reason for tracking (e.g., "account_deleted", "fraud_prevention")
+  createdAt      DateTime @default(now())
+
+  @@index([email])
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("SignupLog")
+}
