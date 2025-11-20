@@ -266,6 +266,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <MenuIcon />
             </IconButton>
 
+            {/* Logo - shown when sidebar is collapsed */}
+            {!isSidebarVisible && (
+              <Box sx={{ display: { xs: "none", sm: "block" }, mr: 2 }}>
+                <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`}>
+                  adhub <VscGithubProject />
+                </Link>
+              </Box>
+            )}
+
             {/* Sidebar Toggle */}
             <IconButton onClick={toggleLeftNav} aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"} sx={{ display: { xs: "none", sm: "flex" }, color: "text.primary" }}>
               {isSidebarVisible ? <ChevronLeft /> : <ChevronRight />}
