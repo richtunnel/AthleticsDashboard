@@ -37,6 +37,7 @@ import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibili
 import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
   // Use robust date parser that handles multiple formats
@@ -268,6 +269,13 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     setImportProgress(0);
     setStep(3);
 
+    trackEvent("Import Games Clicked", {
+      source: "import_box",
+      action: "import_button",
+      total_rows: parsedData.length,
+      file_name: file?.name,
+    });
+
     const batchSize = 50;
     const totalBatches = Math.ceil(parsedData.length / batchSize);
     let successCount = 0;
@@ -309,9 +317,21 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
         errors,
       };
 
+      trackEvent("Import Games Complete", {
+        source: "import_box",
+        success_count: successCount,
+        failed_count: failedCount,
+        total_count: successCount + failedCount,
+        has_errors: failedCount > 0,
+      });
+
       setImportResult(finalResult);
       onImportComplete?.(finalResult);
     } catch (error) {
+      trackEvent("Import Games Error", {
+        source: "import_box",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       setValidationErrors([`Import failed: ${error instanceof Error ? error.message : "Unknown error"}`]);
     } finally {
       setIsImporting(false);
