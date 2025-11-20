@@ -1683,13 +1683,36 @@ export function GamesTable() {
       return;
     }
 
+    trackEvent("Export Games", {
+      source: "games_table",
+      games_count: gamesToExport.length,
+      visible_columns_count: visibleColumnIds.length,
+      custom_columns_count: customColumns.length,
+    });
+
     ExportService.exportGames(gamesToExport, customColumns, visibleColumnIds);
   }, [games, customColumns, visibleColumnIds, addNotification]);
+
+  const handleImportClick = useCallback(() => {
+    trackEvent("Import Games Clicked", {
+      source: "games_table",
+      action: "import_button",
+    });
+    setShowImportDialog(true);
+  }, []);
 
   const handleImportComplete = useCallback(
     (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
       setShowImportDialog(false);
+
+      trackEvent("Import Games Complete", {
+        source: "games_table",
+        success_count: result.success,
+        failed_count: result.failed,
+        total_count: result.success + result.failed,
+        has_errors: result.failed > 0,
+      });
 
       const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`;
 
@@ -4338,7 +4361,7 @@ export function GamesTable() {
             </>
           )}
           <Tooltip title="Import games from CSV">
-            <Button variant="outlined" startIcon={<Upload />} onClick={() => setShowImportDialog(true)} size="small" sx={{ textTransform: "none" }}>
+            <Button variant="outlined" startIcon={<Upload />} onClick={handleImportClick} size="small" sx={{ textTransform: "none" }}>
               Import
             </Button>
           </Tooltip>
