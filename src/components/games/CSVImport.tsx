@@ -44,6 +44,7 @@ interface ImportResult {
   failed: number;
   errors: string[];
   warnings: string[];
+  createdGameIds?: string[];
 }
 
 interface ParsedRow {
@@ -378,6 +379,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     let failedCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
+    const allCreatedGameIds: string[] = [];
 
     try {
       for (let i = 0; i < totalBatches; i++) {
@@ -415,6 +417,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               if (result.data.errors) {
                 errors.push(...result.data.errors);
               }
+              // Collect created game IDs
+              if (result.data.createdGameIds) {
+                allCreatedGameIds.push(...result.data.createdGameIds);
+              }
             } else {
               failedCount += transformedBatch.length;
               errors.push(`Batch ${i + 1} failed: ${result.error}`);
@@ -437,6 +443,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         failed: failedCount,
         errors,
         warnings,
+        createdGameIds: allCreatedGameIds,
       };
 
       setImportResult(finalResult);
@@ -448,6 +455,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         failed: failedCount + parsedData.length - successCount - failedCount,
         errors: [...errors, `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`],
         warnings,
+        createdGameIds: allCreatedGameIds,
       });
     } finally {
       setIsImporting(false);
