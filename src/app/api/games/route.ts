@@ -111,6 +111,9 @@ export async function GET(request: NextRequest) {
       case "notes":
         orderBy = { notes: sortOrder };
         break;
+      case "sortOrder":
+        orderBy = [{ sortOrder: sortOrder }, { date: "asc" }];
+        break;
       default:
         orderBy = { date: "asc" };
     }

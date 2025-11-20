@@ -193,6 +193,7 @@ model Game {
   notes                    String?                @db.Text
   location                 String?                @db.Text
   isHome                   Boolean                @default(true)
+  sortOrder                Int                    @default(0) // User-defined sort order for drag-and-drop
   // Travel Information
   travelRequired           Boolean                @default(false)
   busTravel                Boolean                @default(false)
@@ -236,6 +237,7 @@ model Game {
   @@index([date])
   @@index([venueId])
   @@index([opponentId])
+  @@index([createdById, sortOrder])
 }
 
 // Venues/Locations
