@@ -79,21 +79,19 @@ export function CalendarPreviewWidget() {
         }
       });
 
-      // Only fetch upcoming games (next 3 days)
+      // Only fetch upcoming games (future games from today onwards)
       const now = new Date();
-      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
       
-      // Add date filter for next 3 days
+      // Add date filter for games from today onwards
       params.append("filter_date_type", "condition");
-      params.append("filter_date_condition", "between");
+      params.append("filter_date_condition", "greaterThanOrEqual");
       params.append("filter_date_value", now.toISOString().split('T')[0]);
-      params.append("filter_date_secondValue", threeDaysFromNow.toISOString().split('T')[0]);
 
-      // Sort by date ascending
+      // Sort by date ascending to get the earliest upcoming games
       params.append("sortBy", "date");
       params.append("sortOrder", "asc");
       params.append("page", "1");
-      params.append("limit", "50");
+      params.append("limit", "3");
 
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
@@ -156,7 +154,7 @@ export function CalendarPreviewWidget() {
         <CardHeader
           avatar={<EventNoteIcon color="primary" />}
           title="Upcoming Games"
-          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next 3 days from your schedule"}
+          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next 3 upcoming games"}
           action={
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Tooltip title={calendarTooltip}>

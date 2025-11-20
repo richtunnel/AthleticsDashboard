@@ -309,8 +309,12 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
         return { not: null };
       case "greater_than":
         return { gt: parseValue(value, columnId) };
+      case "greaterThanOrEqual":
+        return { gte: parseValue(value, columnId) };
       case "less_than":
         return { lt: parseValue(value, columnId) };
+      case "lessThanOrEqual":
+        return { lte: parseValue(value, columnId) };
       case "between":
         return {
           gte: parseValue(value, columnId),
