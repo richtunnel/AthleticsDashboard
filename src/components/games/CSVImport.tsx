@@ -43,6 +43,7 @@ interface ImportResult {
   success: number;
   failed: number;
   errors: string[];
+  warnings: string[];
 }
 
 interface ParsedRow {
@@ -77,6 +78,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   // Drag and drop handling
@@ -150,6 +152,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   // Validate mapped data
   const validateData = (): boolean => {
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     // Check required fields are mapped
     const requiredFields = DATABASE_FIELDS.filter((f) => f.required).map((f) => f.value);
@@ -174,8 +177,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         if (row[dateField]) {
           try {
             const dateValue = row[dateField];
-            // Try to parse the date using our robust parser
-            parseAndConvertDate(dateValue as string | number);
+            // Try to parse the date using our robust parser with warnings
+            const result = parseAndConvertDate(dateValue as string | number, true);
+            if (result.warnings.length > 0) {
+              result.warnings.forEach(warning => {
+                warnings.push(`Row ${i + 2}: ${warning}`);
+              });
+            }
           } catch (error) {
             errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid date'}`);
           }
@@ -191,8 +199,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         if (row[timeField]) {
           try {
             const timeValue = row[timeField];
-            // Try to parse the time using our robust parser
-            parseAndConvertTime(timeValue as string | number);
+            // Try to parse the time using our robust parser with warnings
+            const result = parseAndConvertTime(timeValue as string | number, true);
+            if (result.warnings.length > 0) {
+              result.warnings.forEach(warning => {
+                warnings.push(`Row ${i + 2}: ${warning}`);
+              });
+            }
           } catch (error) {
             errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid time'}`);
           }
@@ -201,6 +214,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     }
 
     setValidationErrors(errors);
+    setValidationWarnings(warnings);
     return errors.length === 0;
   };
 
@@ -282,6 +296,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
 
     try {
       for (let i = 0; i < totalBatches; i++) {
@@ -333,10 +348,14 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         setImportProgress(((i + 1) / totalBatches) * 100);
       }
 
+      // Add validation warnings to the final result
+      warnings.push(...validationWarnings);
+
       const finalResult: ImportResult = {
         success: successCount,
         failed: failedCount,
         errors,
+        warnings,
       };
 
       setImportResult(finalResult);
@@ -347,6 +366,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         success: successCount,
         failed: failedCount + parsedData.length - successCount - failedCount,
         errors: [...errors, `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`],
+        warnings,
       });
     } finally {
       setIsImporting(false);
@@ -533,6 +553,26 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
           <Stack spacing={3}>
             <Alert severity="success">Data validated successfully! Review the preview below before importing.</Alert>
 
+            {validationWarnings.length > 0 && (
+              <Alert severity="info">
+                <Typography variant="subtitle2" gutterBottom>
+                  Data Adjustments ({validationWarnings.length}):
+                </Typography>
+                <Box sx={{ maxHeight: 150, overflow: "auto" }}>
+                  {validationWarnings.slice(0, 10).map((warning, idx) => (
+                    <Typography key={idx} variant="caption" display="block">
+                      • {warning}
+                    </Typography>
+                  ))}
+                  {validationWarnings.length > 10 && (
+                    <Typography variant="caption" color="text.secondary">
+                      ... and {validationWarnings.length - 10} more adjustments
+                    </Typography>
+                  )}
+                </Box>
+              </Alert>
+            )}
+
             <Typography variant="subtitle2" color="text.secondary">
               Preview of first 5 rows • Total rows to import: <strong>{parsedData.length}</strong>
             </Typography>
@@ -606,6 +646,26 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                   <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                   {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
                 </Stack>
+
+                {importResult.warnings && importResult.warnings.length > 0 && (
+                  <Alert severity="info" sx={{ width: "100%" }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Data Adjustments ({importResult.warnings.length}):
+                    </Typography>
+                    <Box sx={{ maxHeight: 150, overflow: "auto" }}>
+                      {importResult.warnings.slice(0, 10).map((warning, idx) => (
+                        <Typography key={idx} variant="caption" display="block">
+                          • {warning}
+                        </Typography>
+                      ))}
+                      {importResult.warnings.length > 10 && (
+                        <Typography variant="caption" color="text.secondary">
+                          ... and {importResult.warnings.length - 10} more adjustments
+                        </Typography>
+                      )}
+                    </Box>
+                  </Alert>
+                )}
 
                 {importResult.errors.length > 0 && (
                   <Alert severity="warning" sx={{ width: "100%" }}>

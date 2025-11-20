@@ -6,6 +6,32 @@
 import { parse, isValid, format } from 'date-fns';
 
 /**
+ * Result type for parsing operations that includes warnings
+ */
+export interface ParseResult<T> {
+  value: T;
+  warnings: string[];
+}
+
+/**
+ * Known placeholders for "to be determined" times
+ */
+const TBD_PATTERNS = [
+  /^tbd$/i,
+  /^t\.b\.d\.?$/i,
+  /^to be determined$/i,
+  /^to be decided$/i,
+  /^tba$/i,
+  /^t\.b\.a\.?$/i,
+  /^to be announced$/i,
+  /^pending$/i,
+  /^none$/i,
+  /^n\/a$/i,
+  /^not set$/i,
+  /^unknown$/i,
+];
+
+/**
  * Common date formats to try when parsing dates
  * Ordered by likelihood/popularity
  */
@@ -79,6 +105,45 @@ const TIME_FORMATS = [
 ];
 
 /**
+ * Normalize date string by handling special cases like date ranges
+ * @param dateValue - The date string to normalize
+ * @returns Normalized string and any warnings
+ */
+function normalizeDateString(dateValue: string): ParseResult<string> {
+  const warnings: string[] = [];
+  let normalized = dateValue.trim();
+  
+  // Handle date ranges (e.g., "Dec. 18 - 22, 2025" or "18-22 Nov 2025")
+  // Pattern: date followed by " - " or " to " and another number/date
+  const rangePatterns = [
+    // "Dec. 18 - 22, 2025" -> "Dec. 18, 2025"
+    /^(\w+\.?\s+\d{1,2})\s*[-–]\s*\d{1,2}(,\s*\d{4})$/,
+    // "Nov 18-22, 2025" -> "Nov 18, 2025"
+    /^(\w+\s+\d{1,2})[-–]\d{1,2}(,\s*\d{4})$/,
+    // "18-22 Nov 2025" -> "18 Nov 2025"
+    /^(\d{1,2})[-–]\d{1,2}\s+(\w+\s+\d{4})$/,
+    // "12/18 - 12/22/2025" -> "12/18/2025"
+    /^(\d{1,2}\/\d{1,2})\/?\s*[-–]\s*\d{1,2}\/\d{1,2}(\/\d{4})$/,
+  ];
+  
+  for (const pattern of rangePatterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      // Extract first date from range
+      if (match[1] && match[2]) {
+        normalized = `${match[1]}${match[2]}`;
+      } else if (match[1] && !match[2]) {
+        normalized = match[1];
+      }
+      warnings.push(`Date range detected. Using first date from range: "${dateValue}" → "${normalized}"`);
+      break;
+    }
+  }
+  
+  return { value: normalized, warnings };
+}
+
+/**
  * Parse a date string in various formats and return a Date object
  * @param dateValue - The date string to parse
  * @returns Date object or null if parsing fails
@@ -94,8 +159,11 @@ export function parseFlexibleDate(dateValue: string | number | null | undefined)
   const dateStr = String(dateValue).trim();
   if (!dateStr) return null;
   
+  // Normalize date string (handles ranges and special cases)
+  const { value: normalizedStr } = normalizeDateString(dateStr);
+  
   // Try parsing as ISO string first (fastest path)
-  const isoDate = new Date(dateStr);
+  const isoDate = new Date(normalizedStr);
   if (isValid(isoDate) && !isNaN(isoDate.getTime())) {
     return isoDate;
   }
@@ -103,7 +171,7 @@ export function parseFlexibleDate(dateValue: string | number | null | undefined)
   // Try each format
   for (const formatStr of DATE_FORMATS) {
     try {
-      const parsed = parse(dateStr, formatStr, new Date());
+      const parsed = parse(normalizedStr, formatStr, new Date());
       if (isValid(parsed)) {
         return parsed;
       }
@@ -113,6 +181,27 @@ export function parseFlexibleDate(dateValue: string | number | null | undefined)
   }
   
   return null;
+}
+
+/**
+ * Check if a string is a TBD/placeholder value
+ * @param value - The string to check
+ * @returns true if it's a TBD pattern
+ */
+function isTBDValue(value: string): boolean {
+  const trimmed = value.trim();
+  return TBD_PATTERNS.some(pattern => pattern.test(trimmed));
+}
+
+/**
+ * Check if a string looks like it could be a time (contains colons or digits)
+ * @param value - The string to check
+ * @returns true if it looks like a time format
+ */
+function looksLikeTime(value: string): boolean {
+  const trimmed = value.trim();
+  // Check if it contains time-like patterns
+  return /\d/.test(trimmed) && (/[:,.]/.test(trimmed) || /\d\s*[ap]m/i.test(trimmed));
 }
 
 /**
@@ -130,6 +219,17 @@ export function parseFlexibleTime(timeValue: string | number | null | undefined)
   
   const timeStr = String(timeValue).trim();
   if (!timeStr) return null;
+  
+  // Check if it's a TBD/placeholder value - return null without error
+  if (isTBDValue(timeStr)) {
+    return null;
+  }
+  
+  // If it doesn't look like a time at all, return null
+  // This handles cases like tournament names (e.g., "Sarachek")
+  if (!looksLikeTime(timeStr)) {
+    return null;
+  }
   
   // If already in HH:MM or H:MM format, validate and return
   const simpleTimeMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
@@ -224,17 +324,39 @@ export function dateToUTCISOString(date: Date): string {
 }
 
 /**
- * Parse date string flexibly and convert to UTC ISO string
+ * Parse date string flexibly and convert to UTC ISO string with warnings
  * This is the main function to use for CSV imports
  * @param dateValue - Date string in any common format
- * @returns UTC ISO string or throws error if parsing fails
+ * @param includeWarnings - If true, return object with value and warnings
+ * @returns UTC ISO string or ParseResult with warnings, or throws error if parsing fails
  */
-export function parseAndConvertDate(dateValue: string | number | null | undefined): string {
+export function parseAndConvertDate(
+  dateValue: string | number | null | undefined,
+  includeWarnings?: false
+): string;
+export function parseAndConvertDate(
+  dateValue: string | number | null | undefined,
+  includeWarnings: true
+): ParseResult<string>;
+export function parseAndConvertDate(
+  dateValue: string | number | null | undefined,
+  includeWarnings = false
+): string | ParseResult<string> {
   if (!dateValue) {
     throw new Error('Date value is required');
   }
   
-  const parsed = parseFlexibleDate(dateValue);
+  const warnings: string[] = [];
+  let dateStr = String(dateValue);
+  
+  // Normalize date string (handles ranges and special cases)
+  if (typeof dateValue === 'string') {
+    const normalized = normalizeDateString(dateValue);
+    dateStr = normalized.value;
+    warnings.push(...normalized.warnings);
+  }
+  
+  const parsed = parseFlexibleDate(dateStr);
   
   if (!parsed) {
     throw new Error(
@@ -251,18 +373,60 @@ export function parseAndConvertDate(dateValue: string | number | null | undefine
     );
   }
   
-  return dateToUTCISOString(parsed);
+  const isoString = dateToUTCISOString(parsed);
+  
+  if (includeWarnings) {
+    return { value: isoString, warnings };
+  }
+  
+  return isoString;
 }
 
 /**
- * Parse time string flexibly and convert to HH:MM format
+ * Parse time string flexibly and convert to HH:MM format with warnings
  * This is the main function to use for CSV imports
  * @param timeValue - Time string in any common format
- * @returns Time string in HH:MM format or throws error if parsing fails
+ * @param includeWarnings - If true, return object with value and warnings
+ * @returns Time string in HH:MM format, null if TBD/empty, or ParseResult with warnings, or throws error if parsing fails
  */
-export function parseAndConvertTime(timeValue: string | number | null | undefined): string | null {
+export function parseAndConvertTime(
+  timeValue: string | number | null | undefined,
+  includeWarnings?: false
+): string | null;
+export function parseAndConvertTime(
+  timeValue: string | number | null | undefined,
+  includeWarnings: true
+): ParseResult<string | null>;
+export function parseAndConvertTime(
+  timeValue: string | number | null | undefined,
+  includeWarnings = false
+): string | null | ParseResult<string | null> {
   if (!timeValue) {
+    if (includeWarnings) {
+      return { value: null, warnings: [] };
+    }
     return null; // Time is optional
+  }
+  
+  const warnings: string[] = [];
+  const timeStr = String(timeValue).trim();
+  
+  // Check if it's a TBD/placeholder value
+  if (isTBDValue(timeStr)) {
+    warnings.push(`Time marked as TBD/pending: "${timeValue}" - set to empty`);
+    if (includeWarnings) {
+      return { value: null, warnings };
+    }
+    return null;
+  }
+  
+  // Check if it doesn't look like a time at all (e.g., tournament name)
+  if (!looksLikeTime(timeStr)) {
+    warnings.push(`Time field contains non-time value: "${timeValue}" - set to empty. This might be a tournament name or other text.`);
+    if (includeWarnings) {
+      return { value: null, warnings };
+    }
+    return null;
   }
   
   const parsed = parseFlexibleTime(timeValue);
@@ -272,6 +436,10 @@ export function parseAndConvertTime(timeValue: string | number | null | undefine
       `Could not parse time: "${timeValue}". ` +
       `Please use a format like HH:MM, H:MM AM/PM, or HH:MM:SS`
     );
+  }
+  
+  if (includeWarnings) {
+    return { value: parsed, warnings };
   }
   
   return parsed;
