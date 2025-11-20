@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ReactSortable } from "react-sortablejs";
 import { LoadingButton } from "../utils/LoadingButton";
 import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
@@ -72,6 +73,7 @@ import {
   ContentCopy,
   VisibilityOff,
   Restore,
+  DragIndicator,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
@@ -463,6 +465,12 @@ export function GamesTable() {
   // AI Scheduler state
   const [aiSchedulerEnabled, setAiSchedulerEnabled] = useState(false);
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+
+  // Row reordering state (drag-and-drop)
+  const [sortableGames, setSortableGames] = useState<Game[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const reorderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reorderSaveDebounceMs = 6000; // 6 seconds debounce for smooth UX
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -986,6 +994,48 @@ export function GamesTable() {
       return nextState;
     });
   }, [persistColumnPreferences]);
+
+  // Row reordering handler (drag-and-drop)
+  const handleRowsReorder = useCallback(
+    (newList: Game[]) => {
+      // Update local state immediately for smooth UX
+      setSortableGames(newList);
+
+      // Clear existing debounce timer
+      if (reorderTimeoutRef.current) {
+        clearTimeout(reorderTimeoutRef.current);
+      }
+
+      // Debounce save to backend
+      reorderTimeoutRef.current = setTimeout(async () => {
+        try {
+          const reorderedGames = newList.map((game, index) => ({
+            id: game.id,
+            sortOrder: index,
+          }));
+
+          const res = await fetch("/api/games/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reorderedGames }),
+          });
+
+          if (!res.ok) {
+            throw new Error("Failed to save reorder");
+          }
+
+          // Refresh games data to get the updated sortOrder from backend
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+        } catch (error) {
+          console.error("Error reordering games:", error);
+          addNotification("Failed to save game order", "error");
+          // Revert to original order on error
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+        }
+      }, reorderSaveDebounceMs);
+    },
+    [queryClient, addNotification, reorderSaveDebounceMs]
+  );
 
   // Column title editing handlers
   const handleEditColumnTitle = useCallback(
@@ -1605,6 +1655,13 @@ export function GamesTable() {
       savingGamesRef.current.clear();
     };
   }, []);
+
+  // Sync sortableGames with games data
+  useEffect(() => {
+    if (!isDragging) {
+      setSortableGames(games.map((game: any) => ({ ...game, chosen: false })));
+    }
+  }, [games, isDragging]);
 
   // Auto-populate time based on pattern detection when sport and level are selected
   useEffect(() => {
@@ -4248,6 +4305,7 @@ export function GamesTable() {
 
     return (
       <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+        <TableCell padding="none" sx={{ width: 24 }} />
         <TableCell padding="checkbox">
           <Checkbox disabled sx={{ p: 0 }} />
         </TableCell>
@@ -4263,6 +4321,24 @@ export function GamesTable() {
     if (isEditing && editingGameData) {
       return (
         <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
+          <TableCell padding="none" sx={{ width: 24, pl: 0.5 }} className="drag-handle-cell">
+            <IconButton
+              size="small"
+              className="drag-handle"
+              sx={{
+                cursor: "grab",
+                p: 0.5,
+                "&:active": { cursor: "grabbing" },
+                color: "action.active",
+                "&:hover": {
+                  color: "action.focus",
+                  bgcolor: alpha(theme.palette.action.hover, 0.04),
+                },
+              }}
+            >
+              <DragIndicator fontSize="small" />
+            </IconButton>
+          </TableCell>
           <TableCell padding="checkbox">
             <Checkbox disabled sx={{ p: 0 }} />
           </TableCell>
@@ -4285,8 +4361,38 @@ export function GamesTable() {
               bgcolor: "#bbdefb !important",
             },
           },
+          "&.sortable-ghost": {
+            opacity: 0.4,
+          },
+          "&.sortable-drag": {
+            opacity: 1,
+            bgcolor: "white",
+            boxShadow: `0 4px 12px ${alpha(theme.palette.grey[500], 0.4)}`,
+          },
+          "&.sortable-chosen": {
+            boxShadow: `0 2px 8px ${alpha(theme.palette.grey[500], 0.3)}`,
+            border: `1px solid ${alpha(theme.palette.grey[400], 0.5)}`,
+          },
         }}
       >
+        <TableCell padding="none" sx={{ width: 24, pl: 0.5 }} className="drag-handle-cell">
+          <IconButton
+            size="small"
+            className="drag-handle"
+            sx={{
+              cursor: "grab",
+              p: 0.5,
+              "&:active": { cursor: "grabbing" },
+              color: "action.active",
+              "&:hover": {
+                color: "action.focus",
+                bgcolor: alpha(theme.palette.action.hover, 0.04),
+              },
+            }}
+          >
+            <DragIndicator fontSize="small" />
+          </IconButton>
+        </TableCell>
         <TableCell padding="checkbox">
           <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0 }} />
         </TableCell>
@@ -4471,6 +4577,7 @@ export function GamesTable() {
         <Table size="small">
           <TableHead>
             <TableRow sx={{ bgcolor: "#f8fafc" }}>
+              <TableCell padding="none" sx={{ width: 24, py: 0 }} />
               <TableCell padding="checkbox" sx={{ py: 0 }}>
                 <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
               </TableCell>
@@ -4483,6 +4590,9 @@ export function GamesTable() {
               // Show loading skeleton while data is being fetched
               Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={`skeleton-${index}`}>
+                  <TableCell padding="none" sx={{ width: 24 }}>
+                    <Skeleton variant="rectangular" width={18} height={18} />
+                  </TableCell>
                   <TableCell padding="checkbox">
                     <Skeleton variant="rectangular" width={18} height={18} />
                   </TableCell>
@@ -4495,14 +4605,32 @@ export function GamesTable() {
               ))
             ) : games.length === 0 && !isAddingNew ? (
               <TableRow>
-                <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                <TableCell colSpan={resolvedColumns.length + 2} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
                     No games found. Click "Create Game" to add one.
                   </Typography>
                 </TableCell>
               </TableRow>
             ) : (
-              games.map((game: any) => renderGameRow(game))
+              <ReactSortable
+                list={sortableGames}
+                setList={handleRowsReorder}
+                animation={200}
+                handle=".drag-handle"
+                ghostClass="sortable-ghost"
+                chosenClass="sortable-chosen"
+                dragClass="sortable-drag"
+                forceFallback={true}
+                fallbackClass="sortable-fallback"
+                fallbackOnBody={true}
+                swapThreshold={0.65}
+                onStart={() => setIsDragging(true)}
+                onEnd={() => setIsDragging(false)}
+                tag="tbody"
+                style={{ display: "contents" }}
+              >
+                {sortableGames.map((game: any) => renderGameRow(game))}
+              </ReactSortable>
             )}
           </TableBody>
         </Table>
