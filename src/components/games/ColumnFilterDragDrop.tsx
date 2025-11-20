@@ -91,7 +91,10 @@ export function ColumnFilterDragDrop({
   }, []);
 
   // Initialize drag items from uniqueValues
+  // Only run when modal opens (anchorEl changes) to avoid infinite loops
   useEffect(() => {
+    if (!isOpen) return;
+    
     if (currentFilter && currentFilter.type === "values") {
       const included = currentFilter.values || [];
       const includedSet = new Set(included);
@@ -121,10 +124,14 @@ export function ColumnFilterDragDrop({
       setExcludedItems([]);
       setAvailableItems(availItems);
     }
-  }, [currentFilter, uniqueValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Initialize checkbox mode from currentFilter
+  // Only run when modal opens to avoid infinite loops
   useEffect(() => {
+    if (!isOpen) return;
+    
     if (currentFilter) {
       if (currentFilter.type === "condition") {
         setFilterMode("condition");
@@ -139,7 +146,8 @@ export function ColumnFilterDragDrop({
       setConditionValue("");
       setConditionSecondValue("");
     }
-  }, [currentFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
