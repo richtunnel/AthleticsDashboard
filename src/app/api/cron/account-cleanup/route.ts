@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { DAY_IN_MS, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
+import { createSignupLog } from "@/lib/services/signup-log.service";
 const emailFrom = process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>";
 const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
 
@@ -37,6 +38,7 @@ type DeletionCandidate = {
   id: string;
   email: string | null;
   name: string | null;
+  phone: string | null;
   subscription: {
     stripeSubscriptionId: string | null;
   } | null;
@@ -207,6 +209,7 @@ export async function POST(req: NextRequest) {
         id: true,
         email: true,
         name: true,
+        phone: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -237,6 +240,20 @@ export async function POST(req: NextRequest) {
         console.error(`[AccountCleanup] ${errorMessage}`);
         summary.errors.push(errorMessage);
       }
+    }
+
+    // Create signup log entry before deletion
+    try {
+      await createSignupLog({
+        email: user.email,
+        phone: user.phone,
+        deletedUserId: user.id,
+        reason: 'account_cleanup_cron',
+      });
+    } catch (signupLogError) {
+      const errorMessage = `Failed to create signup log for user ${user.id}: ${getErrorMessage(signupLogError)}`;
+      console.error(`[AccountCleanup] ${errorMessage}`);
+      summary.errors.push(errorMessage);
     }
 
     try {

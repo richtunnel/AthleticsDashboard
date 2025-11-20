@@ -15,6 +15,7 @@ import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
 import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
 import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
+import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -79,6 +80,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem", lg: "2.125rem" } }} variant="h4">
           Settings
         </Typography>
+
+        {/* Payment overdue warning */}
+        <PaymentOverdueWarning />
 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
