@@ -1,0 +1,133 @@
+/**
+ * Payment Status Service
+ * 
+ * Checks if a user's payment is overdue and should have dashboard access restricted.
+ */
+
+import { prisma } from "@/lib/database/prisma";
+import type { Subscription, SubscriptionStatus } from "@prisma/client";
+
+const PAYMENT_GRACE_HOURS = 48;
+
+export interface PaymentStatusResult {
+  isOverdue: boolean;
+  hoursOverdue?: number;
+  dueDate?: Date;
+  status?: SubscriptionStatus;
+  shouldLockDashboard: boolean;
+}
+
+/**
+ * Check if a user's payment is overdue and dashboard should be locked
+ */
+export async function checkPaymentStatus(userId: string): Promise<PaymentStatusResult> {
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { userId },
+    });
+
+    // No subscription = free user, no lock
+    if (!subscription) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: false,
+      };
+    }
+
+    // Active, trialing, or incomplete = no lock
+    if (
+      subscription.status === 'ACTIVE' ||
+      subscription.status === 'TRIALING' ||
+      subscription.status === 'INCOMPLETE'
+    ) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: false,
+        status: subscription.status,
+      };
+    }
+
+    // Check if payment is past_due or unpaid
+    if (subscription.status === 'PAST_DUE' || subscription.status === 'UNPAID') {
+      const dueDate = subscription.currentPeriodEnd;
+      
+      if (!dueDate) {
+        // If no due date, check based on status change
+        return {
+          isOverdue: true,
+          shouldLockDashboard: true,
+          status: subscription.status,
+        };
+      }
+
+      const now = new Date();
+      const hoursSinceDue = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60);
+
+      // Lock dashboard if payment is more than 48 hours overdue
+      const shouldLock = hoursSinceDue > PAYMENT_GRACE_HOURS;
+
+      return {
+        isOverdue: true,
+        hoursOverdue: Math.floor(hoursSinceDue),
+        dueDate,
+        status: subscription.status,
+        shouldLockDashboard: shouldLock,
+      };
+    }
+
+    // Canceled or other statuses = no lock (they can still access settings to resubscribe)
+    return {
+      isOverdue: false,
+      shouldLockDashboard: false,
+      status: subscription.status,
+    };
+  } catch (error) {
+    console.error('[PaymentStatus] Error checking payment status:', error);
+    // On error, don't lock the dashboard to prevent false positives
+    return {
+      isOverdue: false,
+      shouldLockDashboard: false,
+    };
+  }
+}
+
+/**
+ * Check if specific route should be accessible with overdue payment
+ * Only /dashboard/settings and its subroutes should be accessible
+ */
+export function isRouteAllowedWhenOverdue(pathname: string): boolean {
+  // Allow settings page and its subroutes
+  if (pathname.startsWith('/dashboard/settings')) {
+    return true;
+  }
+
+  // Allow API routes for settings functionality
+  if (
+    pathname.startsWith('/api/stripe') ||
+    pathname.startsWith('/api/user/') ||
+    pathname === '/api/auth/signout'
+  ) {
+    return true;
+  }
+
+  // Block everything else
+  return false;
+}
+
+/**
+ * Get user-friendly message for overdue payment
+ */
+export function getOverdueMessage(result: PaymentStatusResult): string {
+  if (!result.isOverdue || !result.shouldLockDashboard) {
+    return '';
+  }
+
+  const hoursOverdue = result.hoursOverdue || 0;
+  const daysOverdue = Math.floor(hoursOverdue / 24);
+
+  if (daysOverdue > 0) {
+    return `Your payment is ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue. Please update your payment method in Settings to restore full access.`;
+  }
+
+  return `Your payment is ${hoursOverdue} hours overdue. Please update your payment method in Settings to restore full access.`;
+}
