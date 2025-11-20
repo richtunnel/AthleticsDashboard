@@ -15,6 +15,7 @@ import { ExportService } from "@/lib/services/exportService";
 import { QuickAddOpponent } from "./QuickAddOpponent";
 import { QuickAddVenue } from "./QuickAddVenue";
 import { QuickAddTeam } from "./QuickAddTeams";
+import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { Sync, ViewColumn, Download, Upload, Tune } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -442,6 +443,24 @@ export function GamesTable() {
   // Time edit modal state
   const [timeEditModal, setTimeEditModal] = useState<{ open: boolean; gameId: string; time: string; gameInfo?: { date: string; opponent?: string } } | null>(null);
 
+  // Conflict detection modal state
+  const [conflictModal, setConflictModal] = useState<{
+    open: boolean;
+    conflicts: Array<{
+      gameId: string;
+      date: string;
+      time: string;
+      sport: string;
+      level: string;
+      opponent: string;
+    }>;
+    suggestedTimes: string[];
+  } | null>(null);
+
+  // AI Scheduler state
+  const [aiSchedulerEnabled, setAiSchedulerEnabled] = useState(false);
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
@@ -559,6 +578,23 @@ export function GamesTable() {
       return res.json();
     },
   });
+
+  // Fetch AI Scheduler setting
+  const { data: aiSchedulerResponse } = useQuery({
+    queryKey: ["aiScheduler"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/ai-scheduler");
+      if (!res.ok) throw new Error("Failed to fetch AI Scheduler setting");
+      return res.json();
+    },
+  });
+
+  // Update aiSchedulerEnabled state when query data changes
+  useEffect(() => {
+    if (aiSchedulerResponse?.aiSchedulerEnabled !== undefined) {
+      setAiSchedulerEnabled(aiSchedulerResponse.aiSchedulerEnabled);
+    }
+  }, [aiSchedulerResponse]);
 
   const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
   const customColumnsMap = useMemo(() => {
@@ -1518,7 +1554,118 @@ export function GamesTable() {
     };
   }, []);
 
-  const handleNewGame = () => {
+  // Auto-populate time based on pattern detection when sport and level are selected
+  useEffect(() => {
+    // Only run if:
+    // 1. AI Scheduler is enabled
+    // 2. User is adding a new game
+    // 3. Sport and level are selected
+    // 4. Time is not already set
+    // 5. There are existing games to analyze
+    if (
+      !aiSchedulerEnabled ||
+      !isAddingNew ||
+      !newGameData.sport ||
+      !newGameData.level ||
+      newGameData.time ||
+      !games ||
+      games.length === 0
+    ) {
+      return;
+    }
+
+    // Detect pattern and auto-populate time
+    const detectPattern = async () => {
+      try {
+        const res = await fetch('/api/games/detect-time-pattern', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sport: newGameData.sport,
+            level: newGameData.level,
+            date: newGameData.date || new Date().toISOString().split('T')[0],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.pattern?.predictedTime && data.pattern.confidence > 0.5) {
+            // Auto-populate the time field
+            updateNewGameData({ time: data.pattern.predictedTime });
+            
+            // Show a subtle notification about the auto-populated time
+            addNotification(
+              `Time auto-populated based on pattern: ${data.pattern.pattern}`,
+              'info'
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error detecting pattern:', error);
+        // Fail silently - pattern detection is a nice-to-have feature
+      }
+    };
+
+    detectPattern();
+  }, [aiSchedulerEnabled, isAddingNew, newGameData.sport, newGameData.level, games, newGameData.time, updateNewGameData, addNotification]);
+
+  // Check for conflicts when sport, level, date, or time changes
+  useEffect(() => {
+    // Only run if:
+    // 1. User is adding a new game
+    // 2. Sport, level, date, and time are all set
+    // 3. Not already checking conflicts
+    if (
+      !isAddingNew ||
+      !newGameData.sport ||
+      !newGameData.level ||
+      !newGameData.date ||
+      !newGameData.time ||
+      isCheckingConflicts
+    ) {
+      return;
+    }
+
+    // Check for conflicts
+    const checkConflicts = async () => {
+      setIsCheckingConflicts(true);
+      try {
+        const res = await fetch('/api/games/detect-conflicts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sport: newGameData.sport,
+            level: newGameData.level,
+            date: newGameData.date,
+            time: newGameData.time,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.hasConflict && data.conflicts.length > 0) {
+            // Show conflict modal
+            setConflictModal({
+              open: true,
+              conflicts: data.conflicts,
+              suggestedTimes: data.suggestedTimes || [],
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking conflicts:', error);
+        // Fail silently
+      } finally {
+        setIsCheckingConflicts(false);
+      }
+    };
+
+    // Debounce the conflict check to avoid too many API calls
+    const timeoutId = setTimeout(checkConflicts, 500);
+    return () => clearTimeout(timeoutId);
+  }, [isAddingNew, newGameData.sport, newGameData.level, newGameData.date, newGameData.time, isCheckingConflicts]);
+
+  const handleNewGame = async () => {
     trackEvent("Create Game Clicked", {
       source: "games_table",
       action: "create_game_button",
@@ -2112,6 +2259,21 @@ export function GamesTable() {
 
   const handleTimeModalClose = useCallback(() => {
     setTimeEditModal(null);
+  }, []);
+
+  // Conflict modal handlers
+  const handleConflictModalClose = useCallback(() => {
+    setConflictModal(null);
+  }, []);
+
+  const handleConflictSelectTime = useCallback((time: string) => {
+    updateNewGameData({ time });
+    setConflictModal(null);
+  }, [updateNewGameData]);
+
+  const handleConflictProceedAnyway = useCallback(() => {
+    // Just close the modal - user wants to proceed with the conflicting time
+    setConflictModal(null);
   }, []);
 
   // Helper to render editable column title
@@ -4414,6 +4576,22 @@ export function GamesTable() {
 
       {/* Time Edit Modal */}
       {timeEditModal && <TimeEditModal open={timeEditModal.open} onClose={handleTimeModalClose} onSave={handleTimeModalSave} initialValue={timeEditModal.time} gameInfo={timeEditModal.gameInfo} />}
+
+      {/* Conflict Detection Modal */}
+      {conflictModal && (
+        <ConflictDetectionModal
+          open={conflictModal.open}
+          onClose={handleConflictModalClose}
+          conflicts={conflictModal.conflicts}
+          suggestedTimes={conflictModal.suggestedTimes}
+          onSelectTime={handleConflictSelectTime}
+          onProceedAnyway={handleConflictProceedAnyway}
+          currentTime={newGameData.time}
+          sport={newGameData.sport}
+          level={newGameData.level}
+          date={newGameData.date}
+        />
+      )}
     </Box>
   );
 }
