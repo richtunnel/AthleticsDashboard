@@ -4361,18 +4361,6 @@ export function GamesTable() {
               bgcolor: "#bbdefb !important",
             },
           },
-          "&.sortable-ghost": {
-            opacity: 0.4,
-          },
-          "&.sortable-drag": {
-            opacity: 1,
-            bgcolor: "white",
-            boxShadow: `0 4px 12px ${alpha(theme.palette.grey[500], 0.4)}`,
-          },
-          "&.sortable-chosen": {
-            boxShadow: `0 2px 8px ${alpha(theme.palette.grey[500], 0.3)}`,
-            border: `1px solid ${alpha(theme.palette.grey[400], 0.5)}`,
-          },
         }}
       >
         <TableCell padding="none" sx={{ width: 24, pl: 0.5 }} className="drag-handle-cell">
@@ -4584,11 +4572,10 @@ export function GamesTable() {
               {resolvedColumns.map((column) => renderHeaderCell(column))}
             </TableRow>
           </TableHead>
-          <TableBody>
-            {renderNewRow()}
-            {isLoading ? (
-              // Show loading skeleton while data is being fetched
-              Array.from({ length: 5 }).map((_, index) => (
+          {isLoading ? (
+            <TableBody>
+              {renderNewRow()}
+              {Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={`skeleton-${index}`}>
                   <TableCell padding="none" sx={{ width: 24 }}>
                     <Skeleton variant="rectangular" width={18} height={18} />
@@ -4602,8 +4589,11 @@ export function GamesTable() {
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
-            ) : games.length === 0 && !isAddingNew ? (
+              ))}
+            </TableBody>
+          ) : games.length === 0 && !isAddingNew ? (
+            <TableBody>
+              {renderNewRow()}
               <TableRow>
                 <TableCell colSpan={resolvedColumns.length + 2} align="center" sx={{ py: 8, bgcolor: "white" }}>
                   <Typography color="text.secondary" variant="body2">
@@ -4611,28 +4601,28 @@ export function GamesTable() {
                   </Typography>
                 </TableCell>
               </TableRow>
-            ) : (
-              <ReactSortable
-                list={sortableGames}
-                setList={handleRowsReorder}
-                animation={200}
-                handle=".drag-handle"
-                ghostClass="sortable-ghost"
-                chosenClass="sortable-chosen"
-                dragClass="sortable-drag"
-                forceFallback={true}
-                fallbackClass="sortable-fallback"
-                fallbackOnBody={true}
-                swapThreshold={0.65}
-                onStart={() => setIsDragging(true)}
-                onEnd={() => setIsDragging(false)}
-                tag="tbody"
-                style={{ display: "contents" }}
-              >
-                {sortableGames.map((game: any) => renderGameRow(game))}
-              </ReactSortable>
-            )}
-          </TableBody>
+            </TableBody>
+          ) : (
+            <ReactSortable
+              list={sortableGames}
+              setList={handleRowsReorder}
+              animation={200}
+              handle=".drag-handle"
+              ghostClass="sortable-ghost"
+              chosenClass="sortable-chosen"
+              dragClass="sortable-drag"
+              forceFallback={true}
+              fallbackClass="sortable-fallback"
+              fallbackOnBody={true}
+              swapThreshold={0.65}
+              onStart={() => setIsDragging(true)}
+              onEnd={() => setIsDragging(false)}
+              tag="tbody"
+            >
+              {renderNewRow()}
+              {sortableGames.map((game: any) => renderGameRow(game))}
+            </ReactSortable>
+          )}
         </Table>
       </TableContainer>
       {/* Pagination */}
