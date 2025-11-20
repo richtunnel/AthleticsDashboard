@@ -1,0 +1,196 @@
+# Task Runner Configuration for AthleticsDashboard
+# This file defines commands and settings for automated task execution
+
+version: "1.0"
+
+# Project metadata
+project:
+  name: "AthleticsDashboard"
+  description: "Next.js 15 (App Router) TypeScript application with Prisma, PostgreSQL, and Material UI"
+  type: "nextjs"
+
+# Environment requirements
+environment:
+  node: "20.x"
+  packageManager: "yarn"
+  packageManagerVersion: "1.x"
+
+# Installation and setup
+install:
+  command: "yarn install --frozen-lockfile"
+  postInstall: "yarn prisma generate"
+  description: "Install dependencies and generate Prisma client"
+
+# Database operations
+database:
+  generate:
+    command: "prisma generate"
+    description: "Generate Prisma client from schema"
+  
+  migrate:
+    command: "prisma migrate deploy"
+    description: "Apply pending database migrations (production)"
+  
+  migrateDev:
+    command: "prisma migrate dev"
+    description: "Create and apply migrations (development)"
+  
+  push:
+    command: "prisma db push"
+    description: "Push schema changes without migrations"
+  
+  studio:
+    command: "prisma studio"
+    description: "Open Prisma Studio for database management"
+  
+  status:
+    command: "bash ./scripts/prisma-migration-troubleshoot.sh status"
+    description: "Check migration status"
+
+# Build pipeline
+build:
+  preBuild:
+    - command: "prisma generate"
+      description: "Generate Prisma client before build"
+      required: true
+  
+  command: "next build"
+  description: "Build Next.js application for production"
+  
+  fullCommand: "prisma generate && next build"
+
+# Development
+dev:
+  command: "next dev"
+  description: "Start Next.js development server"
+  port: 3000
+
+# Production start
+start:
+  preMigrate:
+    command: "prisma migrate deploy"
+    description: "Apply database migrations before starting"
+    required: true
+  
+  command: "next start -p 3000 -H 0.0.0.0"
+  description: "Start Next.js production server"
+  
+  fullCommand: "prisma migrate deploy && next start -p 3000 -H 0.0.0.0"
+  port: 3000
+
+# Quality checks
+checks:
+  typeCheck:
+    command: "tsc --noEmit"
+    description: "Run TypeScript type checking"
+    runScript: "yarn tsc"
+  
+  lint:
+    command: "next lint"
+    description: "Run ESLint for code quality checks"
+    runScript: "yarn lint"
+
+# Docker operations (optional)
+docker:
+  build:
+    command: "docker build -t athletics-dashboard:latest ."
+    description: "Build Docker image"
+  
+  buildProd:
+    command: "docker build --no-cache -t athletics-dashboard:latest ."
+    description: "Build Docker image without cache"
+  
+  run:
+    command: "docker run -p 3000:3000 --env-file .env athletics-dashboard:latest"
+    description: "Run Docker container"
+  
+  compose:
+    up: "docker-compose up -d"
+    down: "docker-compose down"
+    logs: "docker-compose logs -f app"
+
+# CI/CD Pipeline stages
+pipeline:
+  stages:
+    - name: "setup"
+      description: "Install dependencies and setup environment"
+      steps:
+        - command: "yarn install --frozen-lockfile"
+          description: "Install dependencies with frozen lockfile"
+        - command: "yarn prisma generate"
+          description: "Generate Prisma client"
+      
+    - name: "validate"
+      description: "Run validation checks"
+      steps:
+        - command: "yarn tsc"
+          description: "Type check TypeScript code"
+        - command: "yarn lint"
+          description: "Lint code for quality issues"
+      
+    - name: "migrate"
+      description: "Apply database migrations"
+      steps:
+        - command: "prisma migrate deploy"
+          description: "Apply pending migrations"
+      
+    - name: "build"
+      description: "Build production application"
+      steps:
+        - command: "yarn build"
+          description: "Build Next.js application"
+      
+    - name: "start"
+      description: "Start production server"
+      steps:
+        - command: "yarn start"
+          description: "Start Next.js production server"
+
+# Execution order for full deployment
+deployment:
+  order:
+    - install
+    - database.generate
+    - checks.typeCheck
+    - checks.lint
+    - database.migrate
+    - build
+    - start
+  
+  description: "Complete deployment pipeline execution order"
+
+# Environment variables required (reference only)
+requiredEnvVars:
+  - "DATABASE_URL"
+  - "NEXTAUTH_SECRET"
+  - "NEXTAUTH_URL"
+  - "GOOGLE_CLIENT_ID"
+  - "GOOGLE_CLIENT_SECRET"
+  - "STRIPE_SECRET_KEY"
+  - "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+
+# Optional environment variables
+optionalEnvVars:
+  - "OPENAI_API_KEY"
+  - "GOOGLE_MAPS_API_KEY"
+  - "OPENWEATHER_API_KEY"
+  - "RESEND_API_KEY"
+  - "NEXT_PUBLIC_MIXPANEL_TOKEN"
+  - "MIXPANEL_SERVICE_SECRET"
+  - "GOOGLE_FORMS_FEEDBACK_URL"
+  - "NEXT_PUBLIC_CALENDLY_URL"
+
+# Healthcheck
+healthcheck:
+  endpoint: "/"
+  timeout: 30
+  retries: 3
+
+# Notes for task runner
+notes:
+  - "Prisma client MUST be generated before building"
+  - "Database migrations MUST be applied before starting production server"
+  - "Type checking and linting should run before build"
+  - "Use yarn 1.x as specified in package.json engines"
+  - "Node.js 20.x required"
+  - "PostgreSQL database required"
