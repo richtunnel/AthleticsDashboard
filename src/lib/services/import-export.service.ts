@@ -68,7 +68,8 @@ export class ImportExportService {
 
   async importGamesFromCSV(csvContent: string, userId: string, organizationId: string): Promise<{ success: number; errors: string[] }> {
     const lines = csvContent.split("\n");
-    const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+    const rawHeaders = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+    const headers = this.mapColumnAliases(rawHeaders);
 
     let success = 0;
     const errors: string[] = [];
@@ -227,6 +228,18 @@ export class ImportExportService {
     ]);
 
     return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
+  }
+
+  private mapColumnAliases(headers: string[]): string[] {
+    const opponentAliases = ['away', 'other team', 'opponent', 'challenger', 'playing', 'against'];
+    
+    return headers.map(header => {
+      const lowerHeader = header.toLowerCase();
+      if (opponentAliases.includes(lowerHeader)) {
+        return 'Opponent';
+      }
+      return header;
+    });
   }
 
   private parseCSVLine(line: string): string[] {
