@@ -722,9 +722,14 @@ export function GamesTable() {
   }, [games]);
 
   // Sync sortableGames with games data when games change
+  // CRITICAL: Filter out any null/undefined items to prevent ReactSortable errors
+  // Don't update while dragging to avoid disrupting the drag operation
   useEffect(() => {
-    setSortableGames(games);
-  }, [games]);
+    if (!isDragging) {
+      const validGames = (games || []).filter((game: Game) => game && game.id);
+      setSortableGames(validGames);
+    }
+  }, [games, isDragging]);
 
   const uniqueSports = useMemo<string[]>(() => {
     const sports = teams.map((team: any) => team.sport?.name).filter((sport: any): sport is string => typeof sport === "string" && sport.length > 0);
@@ -1003,18 +1008,26 @@ export function GamesTable() {
   // Row reordering handler (drag-and-drop)
   const handleRowsReorder = useCallback(
     (newList: Game[]) => {
+      // Filter out any null/undefined items that might have been introduced
+      const validList = (newList || []).filter((game: Game) => game && game.id);
+      
       // Update local state immediately for smooth UX
-      setSortableGames(newList);
+      setSortableGames(validList);
 
       // Clear existing debounce timer
       if (reorderTimeoutRef.current) {
         clearTimeout(reorderTimeoutRef.current);
       }
 
+      // Don't attempt to save if we have no valid games
+      if (validList.length === 0) {
+        return;
+      }
+
       // Debounce save to backend
       reorderTimeoutRef.current = setTimeout(async () => {
         try {
-          const reorderedGames = newList.map((game, index) => ({
+          const reorderedGames = validList.map((game, index) => ({
             id: game.id,
             sortOrder: index,
           }));
@@ -1660,13 +1673,6 @@ export function GamesTable() {
       savingGamesRef.current.clear();
     };
   }, []);
-
-  // Sync sortableGames with games data
-  useEffect(() => {
-    if (!isDragging) {
-      setSortableGames(games.map((game: any) => ({ ...game, chosen: false })));
-    }
-  }, [games, isDragging]);
 
   // Auto-populate time based on pattern detection when sport and level are selected
   useEffect(() => {
@@ -4607,7 +4613,7 @@ export function GamesTable() {
                 </TableCell>
               </TableRow>
             </TableBody>
-          ) : (
+          ) : sortableGames && sortableGames.length > 0 ? (
             <ReactSortable
               list={sortableGames}
               setList={handleRowsReorder}
@@ -4625,8 +4631,12 @@ export function GamesTable() {
               tag="tbody"
             >
               {renderNewRow()}
-              {sortableGames.map((game: any) => renderGameRow(game))}
+              {sortableGames.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
             </ReactSortable>
+          ) : (
+            <TableBody>
+              {renderNewRow()}
+            </TableBody>
           )}
         </Table>
       </TableContainer>
