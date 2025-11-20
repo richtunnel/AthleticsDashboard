@@ -36,81 +36,13 @@ import Link from "next/link";
 import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning } from "@mui/icons-material";
 import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
-  if (!dateValue || typeof dateValue !== "string") {
-    throw new Error(`Invalid date value: ${dateValue}`);
-  }
-
-  let dateStr = dateValue.trim();
-
-  if (dateStr.includes(" - ") || dateStr.includes(" — ") || dateStr.includes(" to ")) {
-    dateStr = dateStr.split(/\s*[-—]\s*/)[0].trim();
-    const yearMatch = dateValue.match(/\b(20\d{2}|19\d{2})\b/);
-    if (yearMatch && !dateStr.includes(yearMatch[0])) {
-      dateStr = `${dateStr} ${yearMatch[0]}`;
-    }
-  }
-
-  const monthMap: { [key: string]: number } = {
-    jan: 1,
-    january: 1,
-    feb: 2,
-    february: 2,
-    mar: 3,
-    march: 3,
-    apr: 4,
-    april: 4,
-    may: 5,
-    jun: 6,
-    june: 6,
-    jul: 7,
-    july: 7,
-    aug: 8,
-    august: 8,
-    sep: 9,
-    sept: 9,
-    september: 9,
-    oct: 10,
-    october: 10,
-    nov: 11,
-    november: 11,
-    dec: 12,
-    december: 12,
-  };
-
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{1,2}-\d{1,2}/.test(dateStr)) {
-    const datePart = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
-    const [year, month, day] = datePart.split("-").map(Number);
-
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-    return utcDate.toISOString().split("T")[0];
-  }
-
-  // Month name formats
-  const monthNameRegex = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\.?\s+(\d{1,2})[,\s]+(\d{4})\b/i;
-
-  const match = dateStr.match(monthNameRegex);
-
-  if (match) {
-    const monthName = match[1].toLowerCase().replace(".", "");
-    const day = parseInt(match[2]);
-    const year = parseInt(match[3]);
-    const month = monthMap[monthName];
-
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-    return utcDate.toISOString().split("T")[0];
-  }
-
-  // Fallback: native Date
-  const parsedDate = new Date(dateStr);
-  if (!isNaN(parsedDate.getTime())) {
-    const utcDate = new Date(Date.UTC(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate(), 12, 0, 0, 0));
-    return utcDate.toISOString().split("T")[0];
-  }
-
-  throw new Error(`Unable to parse date: ${dateValue}`);
+  // Use robust date parser that handles multiple formats
+  // Note: parseAndConvertDate returns full ISO string, we only need the date part for this component
+  const isoString = parseAndConvertDate(dateValue);
+  return isoString.split("T")[0];
 };
 
 interface CSVImportProps {
