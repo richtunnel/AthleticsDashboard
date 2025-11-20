@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
+    const createdGameIds: string[] = [];
 
     // Process each game
     for (let i = 0; i < games.length; i++) {
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create game
-        await prisma.game.create({
+        const createdGame = await prisma.game.create({
           data: {
             date: new Date(gameData.date),
             time: gameData.time || null,
@@ -195,6 +196,7 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        createdGameIds.push(createdGame.id);
         successCount++;
       } catch (error) {
         errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -208,6 +210,7 @@ export async function POST(request: NextRequest) {
         success: successCount,
         failed: failedCount,
         errors,
+        createdGameIds,
       },
     });
   } catch (error) {
