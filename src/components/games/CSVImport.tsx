@@ -56,14 +56,13 @@ interface FieldMapping {
 
 const DATABASE_FIELDS = [
   { value: "date", label: "Date", required: true },
-  { value: "time", label: "Time", required: false },
   { value: "sport", label: "Sport", required: false },
   { value: "level", label: "Level", required: false },
-  { value: "opponent", label: "Opponent", required: false },
   { value: "isHome", label: "Home/Away", required: false },
-  { value: "location", label: "Location", required: false },
-  { value: "venue", label: "Venue", required: false },
-  { value: "status", label: "Status", required: false },
+  { value: "opponent", label: "Opponent", required: false },
+  { value: "location", label: "Location or Venue", required: false },
+  { value: "time", label: "Time", required: false },
+  { value: "status", label: "Confirmed", required: false },
   { value: "busTravel", label: "Bus Travel", required: false },
   { value: "notes", label: "Notes", required: false },
   { value: "skip", label: "Skip Column", required: false },
@@ -132,18 +131,76 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     csvHeaders.forEach((header) => {
       const normalized = header.toLowerCase().trim();
 
-      if (normalized.includes("date")) mapping[header] = "date";
-      else if (normalized.includes("time") && !normalized.includes("location")) mapping[header] = "time";
-      else if (normalized.includes("sport")) mapping[header] = "sport";
-      else if (normalized.includes("level") || normalized.includes("grade")) mapping[header] = "level";
-      else if (normalized.includes("opponent") || normalized.includes("vs")) mapping[header] = "opponent";
-      else if (normalized.includes("home") || normalized.includes("away")) mapping[header] = "isHome";
-      else if (normalized === "location" || normalized.includes("game location")) mapping[header] = "location";
-      else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
-      else if (normalized.includes("status")) mapping[header] = "status";
-      else if (normalized.includes("bus") && normalized.includes("travel")) mapping[header] = "busTravel";
-      else if (normalized.includes("note")) mapping[header] = "notes";
-      else mapping[header] = "skip";
+      // Date mapping
+      if (normalized.includes("date")) {
+        mapping[header] = "date";
+      }
+      // Time mapping (but not if it's part of "location")
+      else if (normalized.includes("time") && !normalized.includes("location")) {
+        mapping[header] = "time";
+      }
+      // Sport mapping
+      else if (normalized.includes("sport")) {
+        mapping[header] = "sport";
+      }
+      // Level mapping
+      else if (normalized.includes("level") || normalized.includes("grade")) {
+        mapping[header] = "level";
+      }
+      // Bus Travel mapping - check for travel-related terms
+      else if (
+        normalized.includes("travel") ||
+        normalized.includes("bus") ||
+        normalized.includes("departure") ||
+        normalized.includes("commute")
+      ) {
+        mapping[header] = "busTravel";
+      }
+      // Away column - check if data contains "Away" or "Home"
+      else if (normalized.includes("away")) {
+        // Check sample data to determine if it's home/away or opponent
+        const sampleValues = parsedData.slice(0, 10).map(row => 
+          String(row[header] || "").toLowerCase().trim()
+        );
+        const hasHomeAwayData = sampleValues.some(val => 
+          val === "home" || val === "away" || val === "h" || val === "a"
+        );
+        
+        if (hasHomeAwayData) {
+          mapping[header] = "isHome";
+        } else {
+          mapping[header] = "opponent";
+        }
+      }
+      // Opponent mapping
+      else if (normalized.includes("opponent") || normalized.includes("vs")) {
+        mapping[header] = "opponent";
+      }
+      // Home/Away mapping
+      else if (normalized.includes("home")) {
+        mapping[header] = "isHome";
+      }
+      // Location/Venue mapping
+      else if (
+        normalized === "location" || 
+        normalized.includes("venue") || 
+        normalized.includes("site") ||
+        normalized.includes("game location")
+      ) {
+        mapping[header] = "location";
+      }
+      // Confirmed/Status mapping
+      else if (normalized.includes("status") || normalized.includes("confirm")) {
+        mapping[header] = "status";
+      }
+      // Notes mapping
+      else if (normalized.includes("note")) {
+        mapping[header] = "notes";
+      }
+      // Default to skip
+      else {
+        mapping[header] = "skip";
+      }
     });
 
     return mapping;
@@ -264,14 +321,38 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             }
             break;
           case "status":
-            const statusMap: Record<string, string> = {
-              scheduled: "SCHEDULED",
-              confirmed: "CONFIRMED",
-              cancelled: "CANCELLED",
-              postponed: "POSTPONED",
-              completed: "COMPLETED",
-            };
-            transformed.status = statusMap[String(value).toLowerCase()] || "SCHEDULED";
+            if (value) {
+              const normalized = String(value).toLowerCase().trim();
+              const statusMap: Record<string, string> = {
+                scheduled: "SCHEDULED",
+                confirmed: "CONFIRMED",
+                cancelled: "CANCELLED",
+                postponed: "POSTPONED",
+                completed: "COMPLETED",
+                // Handle boolean-like values for "Confirmed" columns
+                yes: "CONFIRMED",
+                true: "CONFIRMED",
+                "1": "CONFIRMED",
+                no: "SCHEDULED",
+                false: "SCHEDULED",
+                "0": "SCHEDULED",
+              };
+              transformed.status = statusMap[normalized] || "SCHEDULED";
+            } else {
+              transformed.status = "SCHEDULED";
+            }
+            break;
+          case "busTravel":
+            if (value !== null && value !== undefined) {
+              const normalized = String(value).toLowerCase().trim();
+              transformed.busTravel = 
+                normalized === "yes" || 
+                normalized === "true" || 
+                normalized === "1" ||
+                normalized === "y";
+            } else {
+              transformed.busTravel = false;
+            }
             break;
           default:
             transformed[dbField] = value ? String(value) : null;
@@ -387,10 +468,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
 
   // Download sample CSV template
   const handleDownloadTemplate = () => {
-    const headers = ["date", "time", "sport", "level", "opponent", "home_away", "location", "status", "notes"];
+    const headers = ["date", "sport", "level", "home_away", "opponent", "location", "time", "confirmed", "bus_travel", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "Varsity", "Lincoln High", "Home", "Home Field", "CONFIRMED", "Senior Night"],
-      ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "SCHEDULED", ""],
+      ["2024-01-15", "Basketball", "Varsity", "Home", "Lincoln High", "Home Gym", "15:00", "Yes", "No", "Senior Night"],
+      ["2024-01-20", "Football", "JV", "Away", "Roosevelt HS", "Roosevelt Stadium", "18:30", "Yes", "Yes", "Bring extra uniforms"],
     ];
 
     const csv = [headers.join(","), ...sampleData.map((row) => row.join(","))].join("\n");
