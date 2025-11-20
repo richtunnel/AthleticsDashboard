@@ -7,6 +7,7 @@ import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/
 import { emailService } from "@/lib/services/email.service";
 import { logTestModeInfo } from "@/lib/stripe-config";
 import type { PlanType, Prisma, SubscriptionStatus } from "@prisma/client";
+import { runNonCritical } from "@/lib/utils/nonCritical";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -523,6 +524,31 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
     amount: invoice.amount_paid,
     invoiceId: invoice.id,
   });
+
+  // Send invoice email (non-blocking - does not break process if it fails)
+  void runNonCritical(
+    async () => {
+      await emailService.sendSubscriptionEmail({
+        type: 'payment_success',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+        },
+        planName: planNickname || 'Subscription',
+        status: subscriptionRecord?.status ?? null,
+        invoiceUrl: invoice.hosted_invoice_url ?? null,
+        amount: invoice.amount_paid,
+        currency: invoice.currency,
+        paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+      });
+      console.info('stripe.webhook.invoice_email_sent', {
+        userId: user.id,
+        invoiceId: invoice.id,
+      });
+    },
+    `invoice email for user ${user.id}`,
+  );
 }
 
 async function handleCustomerCreated(customer: Stripe.Customer) {

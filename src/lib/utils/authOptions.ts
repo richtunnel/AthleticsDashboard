@@ -9,12 +9,20 @@ import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from
 import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
+import { isSignupBlocked } from "@/lib/services/signup-log.service";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
 const customAdapter = {
   ...adapter,
   async createUser(user: any) {
+    // Check if email is blocked due to recent account deletion (90-day rule)
+    const signupCheck = await isSignupBlocked(user.email);
+    if (signupCheck.blocked) {
+      console.error('[OAuth] Signup blocked for email:', user.email, 'Expires:', signupCheck.expiresAt);
+      throw new Error('This email was used for an account that was recently deleted. Please wait before signing up again or contact support.');
+    }
+
     // Extract plan from user data if available (passed from callback URL)
     const plan = user.plan || "free_trial_plan";
 
