@@ -12,6 +12,7 @@ interface ImportGameData {
   isHome: boolean;
   venue?: string | null;
   status?: string;
+  busTravel?: boolean | null;
   notes?: string | null;
 }
 
@@ -91,6 +92,92 @@ export async function POST(request: NextRequest) {
         // Normalize level and status to enum values
         const normalizedLevel = normalizeLevel(levelValue);
         const normalizedStatus = normalizeStatus(gameData.status);
+
+        // Check for duplicate game before creating
+        // Find sport first to use in duplicate check
+        const existingSport = await prisma.sport.findFirst({
+          where: {
+            name: {
+              equals: sportName,
+              mode: "insensitive",
+            },
+          },
+        });
+
+        if (existingSport) {
+          // Find team to use in duplicate check
+          const existingTeam = await prisma.team.findFirst({
+            where: {
+              sportId: existingSport.id,
+              level: normalizedLevel,
+              organizationId: session.user.organizationId,
+            },
+          });
+
+          if (existingTeam) {
+            // Find opponent if provided
+            let existingOpponent = null;
+            if (gameData.opponent) {
+              existingOpponent = await prisma.opponent.findFirst({
+                where: {
+                  name: {
+                    equals: gameData.opponent,
+                    mode: "insensitive",
+                  },
+                  organizationId: session.user.organizationId,
+                },
+              });
+            }
+
+            // Build duplicate check query
+            const duplicateQuery: any = {
+              date: new Date(gameData.date),
+              homeTeamId: existingTeam.id,
+              isHome: gameData.isHome,
+            };
+
+            // Add time to check if provided (both null or both same value)
+            if (gameData.time) {
+              duplicateQuery.time = gameData.time;
+            } else {
+              duplicateQuery.time = null;
+            }
+
+            // Add opponent to check if exists
+            if (existingOpponent) {
+              duplicateQuery.opponentId = existingOpponent.id;
+            } else if (!gameData.opponent) {
+              // Only check for null opponent if no opponent was provided
+              duplicateQuery.opponentId = null;
+            }
+
+            // Check for existing game with exact match
+            const duplicateGame = await prisma.game.findFirst({
+              where: duplicateQuery,
+              include: {
+                homeTeam: {
+                  include: {
+                    sport: true,
+                  },
+                },
+                opponent: true,
+              },
+            });
+
+            if (duplicateGame) {
+              const duplicateDate = new Date(duplicateGame.date).toLocaleDateString();
+              const duplicateTime = duplicateGame.time || "no time";
+              const duplicateOpponent = duplicateGame.opponent?.name || "no opponent";
+              const duplicateLocation = duplicateGame.isHome ? "Home" : "Away";
+              
+              errors.push(
+                `Row ${i + 1}: Duplicate game already exists (${duplicateGame.homeTeam.sport.name} ${duplicateGame.homeTeam.level} vs ${duplicateOpponent} on ${duplicateDate} at ${duplicateTime}, ${duplicateLocation})`
+              );
+              failedCount++;
+              continue;
+            }
+          }
+        }
 
         // Find or create sport
         let sport = await prisma.sport.findFirst({
@@ -191,6 +278,7 @@ export async function POST(request: NextRequest) {
             venueId,
             isHome: gameData.isHome,
             status: normalizedStatus,
+            busTravel: gameData.busTravel || false,
             notes: gameData.notes || null,
             createdById: session.user.id,
           },
