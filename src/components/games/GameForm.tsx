@@ -5,6 +5,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
 
 // Define the form data type explicitly - don't rely on Zod inference
 interface GameFormData {
@@ -46,13 +47,8 @@ const combineDateAndTime = (dateValue: string, timeValue?: string): string | nul
 };
 
 const dateStringToUTCISOString = (dateValue: string): string => {
-  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return utcDate.toISOString();
+  // Use robust date parser that handles multiple formats
+  return parseAndConvertDate(dateValue);
 };
 
 interface GameFormProps {
