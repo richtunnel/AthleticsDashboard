@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
+import { createSignupLog } from "@/lib/services/signup-log.service";
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -40,6 +41,20 @@ export async function DELETE(req: NextRequest) {
         console.error("Error canceling Stripe subscription:", stripeError);
         // Continue with deletion even if Stripe cancellation fails
       }
+    }
+
+    // Create signup log entry to prevent re-signup within 90 days
+    try {
+      await createSignupLog({
+        email: user.email,
+        phone: user.phone,
+        deletedUserId: userId,
+        reason: 'account_deleted',
+      });
+      console.log('[DeleteAccount] Signup log created for user:', userId);
+    } catch (signupLogError) {
+      console.error('[DeleteAccount] Failed to create signup log:', signupLogError);
+      // Continue with deletion even if signup log fails
     }
 
     // Delete user - Prisma will cascade delete related records:

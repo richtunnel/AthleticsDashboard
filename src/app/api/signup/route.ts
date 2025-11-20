@@ -4,11 +4,12 @@ import { getStripe } from "@/lib/stripe";
 import bcrypt from "bcryptjs";
 import { trackReferral } from "@/lib/services/referral.service";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
+import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name, plan, referrerEmail } = body;
+    const { email, password, name, plan, referrerEmail, phone } = body;
 
     console.log("[Signup] Signup attempt for email:", email?.toLowerCase());
 
@@ -24,6 +25,21 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase();
+
+    // Check if email/phone is blocked due to recent account deletion (90-day rule)
+    const signupCheck = await isSignupBlocked(normalizedEmail, phone);
+    if (signupCheck.blocked) {
+      const daysRemaining = signupCheck.expiresAt ? getDaysRemaining(signupCheck.expiresAt) : 90;
+      console.error("[Signup] Signup blocked for email:", normalizedEmail, "Days remaining:", daysRemaining);
+      return NextResponse.json(
+        { 
+          error: `This email/phone was used for an account that was recently deleted. Please wait ${daysRemaining} more days before signing up again, or contact support if you believe this is an error.`,
+          blocked: true,
+          daysRemaining,
+        },
+        { status: 403 }
+      );
+    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
