@@ -10,7 +10,7 @@ interface SendEmailParams {
   sentById?: string; // Make optional for system emails
 }
 
-type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "trial_ending";
+type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "payment_success" | "trial_ending";
 
 interface SubscriptionEmailParams {
   type: SubscriptionEmailType;
@@ -22,6 +22,9 @@ interface SubscriptionEmailParams {
   invoiceUrl?: string | null;
   dueDate?: Date | null;
   portalUrl?: string | null;
+  amount?: number;
+  currency?: string;
+  paidAt?: Date | null;
 }
 
 export class EmailService {
@@ -386,6 +389,28 @@ export class EmailService {
         `;
         return {
           subject: `Payment failed for your ${planLabel}`,
+          body,
+        };
+      }
+      case "payment_success": {
+        const amount = params.amount ? (params.amount / 100).toFixed(2) : null;
+        const currency = params.currency?.toUpperCase() || 'USD';
+        const paidDate = this.formatDisplayDate(params.paidAt);
+        const amountLine = amount ? `<p><strong>Amount paid:</strong> ${currency} ${amount}</p>` : '';
+        const dateLine = paidDate ? `<p><strong>Payment date:</strong> ${paidDate}</p>` : '';
+        
+        const body = `
+          ${greeting}
+          <p>Thank you! Your payment for your ${planDescription} has been successfully processed.</p>
+          ${amountLine}
+          ${dateLine}
+          ${invoiceLink}
+          ${portalSection}
+          <p>Your subscription is active and all features are available.</p>
+          <p>Thank you for choosing Athletic Director Hub!</p>
+        `;
+        return {
+          subject: `Payment received - ${planLabel}`,
           body,
         };
       }
