@@ -483,6 +483,46 @@ export function GamesTable() {
     return notes.length > NOTES_PREVIEW_LENGTH ? `${notes.slice(0, NOTES_PREVIEW_LENGTH).trimEnd()}…` : notes;
   };
 
+  // Helper function to check if a required field is empty
+  const isRequiredFieldEmpty = (fieldId: string): boolean => {
+    if (!isAddingNew) return false;
+    
+    switch (fieldId) {
+      case "date":
+        return !newGameData.date || newGameData.date.trim() === "";
+      case "sport":
+        return !newGameData.sport || newGameData.sport.trim() === "";
+      case "level":
+        return !newGameData.level || newGameData.level.trim() === "";
+      case "status":
+        return !newGameData.status || newGameData.status.trim() === "";
+      default:
+        return false;
+    }
+  };
+
+  // Helper function to get error styling for required empty cells
+  const getRequiredCellSx = (fieldId: string) => {
+    if (isRequiredFieldEmpty(fieldId)) {
+      return {
+        py: 1,
+        "& .MuiOutlinedInput-root, & .MuiSelect-root": {
+          "& fieldset": {
+            borderColor: "error.main",
+            borderWidth: 2,
+          },
+          "&:hover fieldset": {
+            borderColor: "error.dark",
+          },
+          "&.Mui-focused fieldset": {
+            borderColor: "error.main",
+          },
+        },
+      };
+    }
+    return { py: 1 };
+  };
+
   const handleInlineValueChange = useCallback(
     (value: string) => {
       if (value.length <= MAX_CHAR_LIMIT) {
@@ -2672,13 +2712,21 @@ export function GamesTable() {
     switch (column.id) {
       case "date":
         return (
-          <TableCell key="date" sx={{ py: 1 }}>
-            <TextField type="date" size="small" value={newGameData.date} onChange={(e) => updateNewGameData({ date: e.target.value })} sx={{ width: 140 }} InputProps={{ sx: { fontSize: 13 } }} />
+          <TableCell key="date" sx={getRequiredCellSx("date")}>
+            <TextField 
+              type="date" 
+              size="small" 
+              value={newGameData.date} 
+              onChange={(e) => updateNewGameData({ date: e.target.value })} 
+              error={isRequiredFieldEmpty("date")}
+              sx={{ width: 140 }} 
+              InputProps={{ sx: { fontSize: 13 } }} 
+            />
           </TableCell>
         );
       case "sport":
         return (
-          <TableCell key="sport" sx={{ py: 1, minWidth: 180 }}>
+          <TableCell key="sport" sx={{ ...getRequiredCellSx("sport"), minWidth: 180 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <Select
                 size="small"
@@ -2693,6 +2741,7 @@ export function GamesTable() {
                   });
                 }}
                 displayEmpty
+                error={isRequiredFieldEmpty("sport")}
                 sx={{
                   minWidth: 140,
                   fontSize: 13,
@@ -2718,12 +2767,13 @@ export function GamesTable() {
         );
       case "level":
         return (
-          <TableCell key="level" sx={{ py: 1, minWidth: 150 }}>
+          <TableCell key="level" sx={{ ...getRequiredCellSx("level"), minWidth: 150 }}>
             <Select
               size="small"
               value={newGameData.level}
               onChange={(e) => updateNewGameData({ level: e.target.value as string })}
               displayEmpty
+              error={isRequiredFieldEmpty("level")}
               sx={{
                 minWidth: 140,
                 fontSize: 13,
@@ -2782,11 +2832,12 @@ export function GamesTable() {
         );
       case "status":
         return (
-          <TableCell key="status" sx={{ py: 1 }}>
+          <TableCell key="status" sx={getRequiredCellSx("status")}>
             <Select
               size="small"
               value={newGameData.status}
               onChange={(e) => updateNewGameData({ status: e.target.value as string })}
+              error={isRequiredFieldEmpty("status")}
               sx={{
                 width: 110,
                 fontSize: 13,
