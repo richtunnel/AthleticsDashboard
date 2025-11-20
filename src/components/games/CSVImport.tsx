@@ -32,53 +32,7 @@ import {
 } from "@mui/material";
 import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download } from "@mui/icons-material";
 import Link from "next/link";
-
-const dateStringToUTCISOString = (dateValue: string): string => {
-  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  // This avoids timezone issues by explicitly creating date at noon UTC
-  try {
-    if (!dateValue || typeof dateValue !== 'string') {
-      throw new Error('Invalid date value');
-    }
-    
-    const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-    const parts = datePart.split("-");
-    
-    if (parts.length !== 3) {
-      throw new Error(`Invalid date format: ${dateValue}. Expected YYYY-MM-DD`);
-    }
-    
-    const [year, month, day] = parts.map(Number);
-    
-    // Validate numeric values
-    if (isNaN(year) || isNaN(month) || isNaN(day)) {
-      throw new Error(`Invalid date values: ${dateValue}. Date parts must be numeric`);
-    }
-    
-    // Validate date ranges
-    if (year < 1900 || year > 2100) {
-      throw new Error(`Invalid year: ${year}. Year must be between 1900 and 2100`);
-    }
-    if (month < 1 || month > 12) {
-      throw new Error(`Invalid month: ${month}. Month must be between 1 and 12`);
-    }
-    if (day < 1 || day > 31) {
-      throw new Error(`Invalid day: ${day}. Day must be between 1 and 31`);
-    }
-    
-    // Create date at noon UTC to avoid any date boundary issues
-    const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-    
-    // Check if the date is valid (e.g., Feb 30th would be invalid)
-    if (isNaN(utcDate.getTime())) {
-      throw new Error(`Invalid date: ${dateValue}. This date does not exist in the calendar`);
-    }
-    
-    return utcDate.toISOString();
-  } catch (error) {
-    throw new Error(`Date parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-};
+import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
 
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
@@ -220,10 +174,27 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         if (row[dateField]) {
           try {
             const dateValue = row[dateField];
-            // Try to parse the date using our function
-            dateStringToUTCISOString(dateValue as string);
+            // Try to parse the date using our robust parser
+            parseAndConvertDate(dateValue as string | number);
           } catch (error) {
             errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid date'}`);
+          }
+        }
+      }
+    }
+    
+    // Validate all rows for time issues (if time field is mapped)
+    const timeField = Object.keys(fieldMapping).find((k) => fieldMapping[k] === "time");
+    if (timeField) {
+      for (let i = 0; i < parsedData.length; i++) {
+        const row = parsedData[i];
+        if (row[timeField]) {
+          try {
+            const timeValue = row[timeField];
+            // Try to parse the time using our robust parser
+            parseAndConvertTime(timeValue as string | number);
+          } catch (error) {
+            errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid time'}`);
           }
         }
       }
@@ -258,10 +229,18 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         switch (dbField) {
           case "date":
             try {
-              transformed.date = value ? dateStringToUTCISOString(value as string) : null;
+              transformed.date = value ? parseAndConvertDate(value as string | number) : null;
             } catch (error) {
               const errorMsg = error instanceof Error ? error.message : 'Invalid date';
               throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
+            }
+            break;
+          case "time":
+            try {
+              transformed.time = value ? parseAndConvertTime(value as string | number) : null;
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : 'Invalid time';
+              throw new Error(`Invalid time in column "${csvField}": ${errorMsg}`);
             }
             break;
           case "isHome":

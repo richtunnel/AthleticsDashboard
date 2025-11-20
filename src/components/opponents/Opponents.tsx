@@ -32,15 +32,11 @@ import { Add, DragIndicator, Edit, Delete, Save, Cancel, School, Phone, Email, P
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
-  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return utcDate.toISOString();
+  // Use robust date parser that handles multiple formats
+  return parseAndConvertDate(dateValue);
 };
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T & { cancel: () => void } {
