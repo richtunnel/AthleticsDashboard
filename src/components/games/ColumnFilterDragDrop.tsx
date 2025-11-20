@@ -72,7 +72,7 @@ export function ColumnFilterDragDrop({
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [filterMode, setFilterMode] = useState<"drag" | "values" | "condition">("drag");
+  const [filterMode, setFilterMode] = useState<"drag" | "values" | "condition">("values");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCondition, setSelectedCondition] = useState<FilterCondition>("contains");
   const [conditionValue, setConditionValue] = useState("");
@@ -289,7 +289,7 @@ export function ColumnFilterDragDrop({
         slotProps={{
           paper: {
             sx: {
-              width: filterMode === "drag" ? 600 : 320,
+              width: 320,
               maxHeight: 600,
               transition: "width 0.3s ease",
             },
@@ -314,15 +314,15 @@ export function ColumnFilterDragDrop({
             variant="fullWidth"
             sx={{ mb: 2, minHeight: 36 }}
           >
-            <Tab label="Drag & Drop" value="drag" sx={{ textTransform: "none", minHeight: 36, py: 0.5 }} />
+            {/* <Tab label="Drag & Drop" value="drag" sx={{ textTransform: "none", minHeight: 36, py: 0.5 }} /> */}
             <Tab label="Select Values" value="values" sx={{ textTransform: "none", minHeight: 36, py: 0.5 }} />
             <Tab label="Condition" value="condition" sx={{ textTransform: "none", minHeight: 36, py: 0.5 }} />
           </Tabs>
 
           <Divider sx={{ mb: 2 }} />
 
-          {/* Drag & Drop Mode */}
-          {filterMode === "drag" && (
+          {/* Drag & Drop Mode - DISABLED */}
+          {/* {filterMode === "drag" && (
             <Box>
               <TextField
                 fullWidth
@@ -337,7 +337,6 @@ export function ColumnFilterDragDrop({
               />
 
               <Stack direction="row" spacing={2}>
-                {/* Available Items */}
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                     <Typography variant="caption" fontWeight={600} color="text.secondary">
@@ -414,7 +413,6 @@ export function ColumnFilterDragDrop({
                   </Paper>
                 </Box>
 
-                {/* Included Items (Filter Applied) */}
                 <Box sx={{ flex: 1 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                     <Typography variant="caption" fontWeight={600} color="primary.main">
@@ -503,7 +501,7 @@ export function ColumnFilterDragDrop({
                 </Typography>
               </Box>
             </Box>
-          )}
+          )} */}
 
           {/* Checkbox Values Mode */}
           {filterMode === "values" && (
@@ -628,7 +626,7 @@ export function ColumnFilterDragDrop({
             <Button
               fullWidth
               variant="contained"
-              onClick={filterMode === "drag" ? handleApplyDragFilter : filterMode === "values" ? handleApplyCheckboxFilter : handleApplyConditionFilter}
+              onClick={filterMode === "values" ? handleApplyCheckboxFilter : handleApplyConditionFilter}
               sx={{ textTransform: "none" }}
             >
               Apply filter
