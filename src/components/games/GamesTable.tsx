@@ -721,6 +721,11 @@ export function GamesTable() {
     gamesRef.current = games;
   }, [games]);
 
+  // Sync sortableGames with games data when games change
+  useEffect(() => {
+    setSortableGames(games);
+  }, [games]);
+
   const uniqueSports = useMemo<string[]>(() => {
     const sports = teams.map((team: any) => team.sport?.name).filter((sport: any): sport is string => typeof sport === "string" && sport.length > 0);
     const allSports = [...new Set([...PRESET_SPORTS, ...sports])];
