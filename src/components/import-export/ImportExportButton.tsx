@@ -3,12 +3,17 @@
 import { useState, ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Download, Upload, FileSpreadsheet } from "lucide-react";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 export function ExportButton() {
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
     setIsExporting(true);
+    trackEvent("Export Games", {
+      source: "import_export_button",
+      action: "export_button",
+    });
     try {
       const response = await fetch("/api/export/games");
       const blob = await response.blob();
@@ -42,6 +47,13 @@ export function ImportButton() {
 
   const mutation = useMutation({
     mutationFn: async (file: File) => {
+      trackEvent("Import Games Clicked", {
+        source: "import_export_button",
+        action: "import_button",
+        file_name: file.name,
+        file_size: file.size,
+      });
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -55,10 +67,23 @@ export function ImportButton() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      
+      trackEvent("Import Games Complete", {
+        source: "import_export_button",
+        success_count: data.data.success,
+        failed_count: data.data.errors.length,
+        total_count: data.data.success + data.data.errors.length,
+        has_errors: data.data.errors.length > 0,
+      });
+
       alert(`Import complete!\nSuccess: ${data.data.success}\nErrors: ${data.data.errors.length}`);
       setFile(null);
     },
     onError: () => {
+      trackEvent("Import Games Error", {
+        source: "import_export_button",
+        error: "Import failed",
+      });
       alert("Import failed. Please check your CSV format.");
     },
   });
