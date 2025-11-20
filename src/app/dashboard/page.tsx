@@ -4,12 +4,18 @@ import { Suspense } from "react";
 import { useEffect } from "react";
 import { CalendarPreviewWidget } from "@/components/dashboard/CalendarPreviewWidget";
 import { ImportBox } from "@/components/import-export/ImportBox";
+import { ImportUndoButton } from "@/components/games/ImportUndoButton";
+import { useImportUndoStore } from "@/lib/stores/importUndoStore";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { getSession } from "next-auth/react";
 import Link from "next/link";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { addNotification } = useNotifications();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     (async () => {
@@ -17,6 +23,7 @@ export default function DashboardPage() {
       if (!session) router.push("/login");
     })();
   }, [router]);
+
   return (
     <div className="space-y-6 md:space-y-8">
       <div>
@@ -34,13 +41,29 @@ export default function DashboardPage() {
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-start">
         <div className="flex-1 w-full">
           <Suspense fallback={<div>Loading import tools...</div>}>
-            <ImportBox />
+            <ImportBox
+              onImportComplete={(result: any) => {
+                if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
+                  // Store imported game IDs for undo functionality
+                  // We'll just store the IDs directly since we don't need the full game data for the dashboard
+                  const importedGames = result.createdGameIds.map((id: string) => ({ id }));
+                  useImportUndoStore.getState().setImportedGames(importedGames as any);
+                }
+              }}
+            />
           </Suspense>
         </div>
         <div className="w-full lg:w-auto">
           <CalendarPreviewWidget />
         </div>
       </div>
+
+      <ImportUndoButton
+        onUndo={() => {
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+          addNotification("Import undone successfully", "info");
+        }}
+      />
     </div>
   );
 }
