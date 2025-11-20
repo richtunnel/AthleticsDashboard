@@ -24,8 +24,10 @@ import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
+import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { ImportUndoButton } from "./ImportUndoButton";
 
 import {
   Box,
@@ -683,7 +685,16 @@ export function GamesTable() {
     }
   }, [columnPreferencesData]);
 
-  const games = response?.data?.games || [];
+  const { importedGameIds, isUndoing } = useImportUndoStore();
+  const allGames = response?.data?.games || [];
+  
+  // Filter out games that are in the undo buffer
+  const games = useMemo(() => {
+    if (importedGameIds.length === 0) return allGames;
+    const undoIdSet = new Set(importedGameIds);
+    return allGames.filter((game: any) => !undoIdSet.has(game.id));
+  }, [allGames, importedGameIds]);
+
   const pagination: PaginationData = response?.data?.pagination || {
     page: 1,
     limit: 25,
@@ -904,8 +915,15 @@ export function GamesTable() {
         body: JSON.stringify({ reorderedGames }),
       });
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to reorder games");
+        let errorMessage = "Failed to reorder games";
+        try {
+          const error = await res.json();
+          errorMessage = error.error || errorMessage;
+        } catch (e) {
+          // Response might not be JSON, use default error message
+          console.error("Error parsing reorder response:", e);
+        }
+        throw new Error(errorMessage);
       }
       return res.json();
     },
@@ -1830,8 +1848,19 @@ export function GamesTable() {
       const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`;
 
       addNotification(message, result.failed > 0 ? "warning" : "success");
+
+      // Set up undo functionality if games were successfully imported
+      if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
+        // We'll fetch the full game data from the imported IDs after the query refreshes
+        setTimeout(() => {
+          const importedGames = allGames.filter((game: any) => 
+            result.createdGameIds.includes(game.id)
+          );
+          useImportUndoStore.getState().setImportedGames(importedGames);
+        }, 500); // Small delay to ensure query has refreshed
+      }
     },
-    [queryClient, addNotification]
+    [queryClient, addNotification, allGames]
   );
 
   const handleSaveNewGame = async () => {
@@ -4718,6 +4747,13 @@ export function GamesTable() {
           <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />
         </ErrorBoundary>
       )}
+
+      <ImportUndoButton
+        onUndo={() => {
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+          addNotification("Import undone successfully", "info");
+        }}
+      />
 
       <QuickAddOpponent
         open={showAddOpponent}

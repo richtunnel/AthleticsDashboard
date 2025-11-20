@@ -455,7 +455,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </Typography>
             <IconButton onClick={handleMenu} sx={{ p: 0 }}>
               <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
-                {(getFirstName(session?.user?.name) || "D")[0]}
+                {session?.user?.name ? (getFirstName(session?.user?.name) || "")[0] : ""}
               </Avatar>
             </IconButton>
             <Menu

@@ -55,6 +55,7 @@ interface ImportResult {
   success: number;
   failed: number;
   errors: string[];
+  createdGameIds?: string[];
 }
 
 interface ParsedRow {
@@ -281,6 +282,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
+    const allCreatedGameIds: string[] = [];
 
     try {
       for (let i = 0; i < totalBatches; i++) {
@@ -302,6 +304,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           if (result.data.errors) {
             errors.push(...result.data.errors);
           }
+          // Collect created game IDs
+          if (result.data.createdGameIds) {
+            allCreatedGameIds.push(...result.data.createdGameIds);
+          }
         } else {
           failedCount += batch.length;
           errors.push(`Batch ${i + 1} failed: ${result.error}`);
@@ -315,6 +321,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
         success: successCount,
         failed: failedCount,
         errors,
+        createdGameIds: allCreatedGameIds,
       };
 
       trackEvent("Import Games Complete", {
