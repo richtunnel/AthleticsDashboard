@@ -10,51 +10,65 @@ interface ImportUndoButtonProps {
 }
 
 export function ImportUndoButton({ onUndo }: ImportUndoButtonProps) {
-  const { showUndoButton, importedGameIds, undoImport, clearUndo, importTimestamp } = useImportUndoStore();
-  const [opacity, setOpacity] = useState(1);
+  const { importedGameIds, importTimestamp, undoImport } = useImportUndoStore();
+  const [fadeOut, setFadeOut] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(30);
 
+  const isVisible = importedGameIds.length > 0;
+
+  // Update time remaining countdown
   useEffect(() => {
-    if (!showUndoButton || !importTimestamp) return;
-
-    // Start fade out at 25 seconds (5 seconds before auto-hide)
-    const fadeTimeout = setTimeout(() => {
-      setOpacity(0);
-    }, 25000);
-
-    return () => clearTimeout(fadeTimeout);
-  }, [showUndoButton, importTimestamp]);
-
-  useEffect(() => {
-    // Reset opacity when new import happens
-    if (showUndoButton) {
-      setOpacity(1);
+    if (!isVisible || !importTimestamp) {
+      setTimeRemaining(30);
+      return;
     }
-  }, [showUndoButton, importTimestamp]);
 
-  const handleUndo = () => {
-    undoImport();
+    const updateTimer = () => {
+      const elapsed = Date.now() - importTimestamp;
+      const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
+      setTimeRemaining(remaining);
+
+      // Start fade out at 5 seconds remaining
+      if (remaining <= 5 && !fadeOut) {
+        setFadeOut(true);
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [isVisible, importTimestamp, fadeOut]);
+
+  // Reset fade out when new import happens
+  useEffect(() => {
+    if (isVisible) {
+      setFadeOut(false);
+    }
+  }, [isVisible, importTimestamp]);
+
+  const handleUndo = async () => {
+    await undoImport();
     onUndo();
   };
 
-  if (!showUndoButton || importedGameIds.length === 0) {
+  if (!isVisible) {
     return null;
   }
 
   return (
-    <Fade in={showUndoButton} timeout={1000}>
+    <Fade in={!fadeOut} timeout={1000}>
       <Box
         sx={{
           position: "fixed",
           bottom: 24,
           right: 24,
           zIndex: 1300,
-          opacity: opacity,
-          transition: "opacity 5s ease-out",
         }}
       >
         <Button
           variant="contained"
-          color="primary"
+          color="error"
           size="large"
           startIcon={<Undo />}
           onClick={handleUndo}
@@ -65,7 +79,7 @@ export function ImportUndoButton({ onUndo }: ImportUndoButtonProps) {
             },
           }}
         >
-          Undo Import ({importedGameIds.length} games)
+          Undo Import ({importedGameIds.length} games) - {timeRemaining}s
         </Button>
       </Box>
     </Fade>
