@@ -509,6 +509,15 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
     return;
   }
 
+  // Auto-enable account if it was disabled due to payment issues
+  try {
+    const { autoEnableOnPayment } = await import("@/lib/services/account-disable.service");
+    await autoEnableOnPayment(user.id);
+  } catch (error) {
+    console.error('[Webhook] Error auto-enabling account:', error);
+    // Don't fail the webhook if auto-enable fails
+  }
+
   const line = invoice.lines?.data?.[0] as InvoiceLineWithPrice | undefined;
   const planNickname = line?.price?.nickname ?? line?.price?.lookup_key ?? null;
   const billingCycle = planNickname?.toLowerCase().includes('annual') || planNickname?.toLowerCase().includes('year') 
