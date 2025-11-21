@@ -44,10 +44,7 @@ export default function DashboardPage() {
             <ImportBox
               onImportComplete={(result: any) => {
                 if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
-                  // Store imported game IDs for undo functionality
-                  // We'll just store the IDs directly since we don't need the full game data for the dashboard
-                  const importedGames = result.createdGameIds.map((id: string) => ({ id }));
-                  useImportUndoStore.getState().setImportedGames(importedGames as any);
+                  useImportUndoStore.getState().setImportedGames(result.createdGameIds);
                 }
               }}
             />
@@ -61,7 +58,7 @@ export default function DashboardPage() {
       <ImportUndoButton
         onUndo={() => {
           queryClient.invalidateQueries({ queryKey: ["games"] });
-          addNotification("Import undone successfully", "info");
+          addNotification("Import undone - all imported games have been deleted", "success");
         }}
       />
     </div>

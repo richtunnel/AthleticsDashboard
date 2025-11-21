@@ -677,7 +677,7 @@ export function GamesTable() {
     }
   }, [columnPreferencesData]);
 
-  const { importedGameIds, isUndoing } = useImportUndoStore();
+  const { importedGameIds } = useImportUndoStore();
   const allGames = response?.data?.games || [];
   
   // Filter out games that are in the undo buffer
@@ -1755,7 +1755,6 @@ export function GamesTable() {
 
   const handleImportComplete = useCallback(
     (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
       setShowImportDialog(false);
 
       trackEvent("Import Games Complete", {
@@ -1766,22 +1765,19 @@ export function GamesTable() {
         has_errors: result.failed > 0,
       });
 
-      const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`;
+      const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}. You have 30 seconds to undo.`;
 
       addNotification(message, result.failed > 0 ? "warning" : "success");
 
       // Set up undo functionality if games were successfully imported
       if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
-        // We'll fetch the full game data from the imported IDs after the query refreshes
-        setTimeout(() => {
-          const importedGames = allGames.filter((game: any) => 
-            result.createdGameIds.includes(game.id)
-          );
-          useImportUndoStore.getState().setImportedGames(importedGames);
-        }, 500); // Small delay to ensure query has refreshed
+        useImportUndoStore.getState().setImportedGames(result.createdGameIds);
       }
+
+      // Refresh the games list
+      queryClient.invalidateQueries({ queryKey: ["games"] });
     },
-    [queryClient, addNotification, allGames]
+    [queryClient, addNotification]
   );
 
   const handleSaveNewGame = async () => {
@@ -4618,7 +4614,7 @@ export function GamesTable() {
       <ImportUndoButton
         onUndo={() => {
           queryClient.invalidateQueries({ queryKey: ["games"] });
-          addNotification("Import undone successfully", "info");
+          addNotification("Import undone - all imported games have been deleted", "success");
         }}
       />
 
