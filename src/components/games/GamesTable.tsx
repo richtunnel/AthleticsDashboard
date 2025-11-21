@@ -1170,8 +1170,42 @@ export function GamesTable() {
 
       return data;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: any, gameId: string) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      
+      // Clear stale state for the deleted game
+      if (inlineEditState?.gameId === gameId) {
+        setInlineEditState(null);
+        setInlineEditValue("");
+        setInlineEditError(null);
+        setIsInlineSaving(false);
+      }
+      
+      if (editingGameId === gameId) {
+        resetEditingState();
+        setEditingGameData(null);
+      }
+      
+      // Clear pending changes for this game
+      pendingChangesRef.current.delete(gameId);
+      const timeout = saveTimeoutRef.current.get(gameId);
+      if (timeout) {
+        clearTimeout(timeout);
+        saveTimeoutRef.current.delete(gameId);
+      }
+      const controller = abortControllersRef.current.get(gameId);
+      if (controller) {
+        controller.abort();
+        abortControllersRef.current.delete(gameId);
+      }
+      savingGamesRef.current.delete(gameId);
+      
+      // Remove from selections if selected
+      if (selectedGames.has(gameId)) {
+        const newSelected = selectedGameIds.filter(id => id !== gameId);
+        setSelectedGameIds(newSelected);
+      }
+      
       addNotification("Game deleted successfully", "success");
 
       const calendarAttempted = data?.calendar?.attempted === true;
@@ -1209,7 +1243,39 @@ export function GamesTable() {
     },
     onSuccess: (data: any, gameIds: string[]) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      
+      // Clear all stale state to prevent UI inconsistencies
       clearSelectedGameIds();
+      
+      // Clear inline editing state
+      setInlineEditState(null);
+      setInlineEditValue("");
+      setInlineEditError(null);
+      setIsInlineSaving(false);
+      
+      // Clear full row editing state
+      resetEditingState();
+      setEditingGameData(null);
+      
+      // Clear pending autosave changes for deleted games
+      gameIds.forEach((gameId) => {
+        pendingChangesRef.current.delete(gameId);
+        const timeout = saveTimeoutRef.current.get(gameId);
+        if (timeout) {
+          clearTimeout(timeout);
+          saveTimeoutRef.current.delete(gameId);
+        }
+        const controller = abortControllersRef.current.get(gameId);
+        if (controller) {
+          controller.abort();
+          abortControllersRef.current.delete(gameId);
+        }
+        savingGamesRef.current.delete(gameId);
+      });
+      
+      // Reset save status
+      setSaveStatus("idle");
+      
       const deletedCount = data?.data?.deletedCount ?? gameIds.length;
       addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
 
@@ -1220,6 +1286,9 @@ export function GamesTable() {
     },
     onError: (error: any) => {
       addNotification(error?.message || "Failed to delete selected games", "error");
+      // Restore selections on error since we cleared them optimistically
+      // Note: selections were already cleared in handleBulkDelete, but we accept this UX
+      // as it's better than showing stale buttons
     },
   });
 
@@ -1605,6 +1674,13 @@ export function GamesTable() {
       savingGamesRef.current.clear();
     };
   }, []);
+
+  // Clear selections when games array becomes empty (safety net for edge cases)
+  useEffect(() => {
+    if (games.length === 0 && selectedGameIds.length > 0) {
+      clearSelectedGameIds();
+    }
+  }, [games.length, selectedGameIds.length, clearSelectedGameIds]);
 
   // Auto-populate time based on pattern detection when sport and level are selected
   useEffect(() => {
@@ -2132,6 +2208,9 @@ export function GamesTable() {
         : `Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`;
 
     if (confirm(message)) {
+      // Clear selections IMMEDIATELY to hide action buttons
+      clearSelectedGameIds();
+      
       bulkDeleteMutation.mutate(selectedIds);
     }
   };
@@ -4371,7 +4450,7 @@ export function GamesTable() {
             )}
           </Typography>
           <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
-            {selectedGames.size > 0 && (
+            {selectedGames.size > 0 && games.length > 0 && (
               <Button
                 variant="contained"
                 color="primary"
@@ -4393,7 +4472,7 @@ export function GamesTable() {
             <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
               Columns ({visibleColumnIds.length})
             </Button>
-            {selectedGames.size > 0 && (
+            {selectedGames.size > 0 && games.length > 0 && (
               <>
                 <Button
                   variant="outlined"
@@ -4415,7 +4494,7 @@ export function GamesTable() {
           </Stack>
         </Box>
         <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
-          {selectedGames.size > 0 && (
+          {selectedGames.size > 0 && games.length > 0 && (
             <>
               {/* Delete Button */}
               <LoadingButton
