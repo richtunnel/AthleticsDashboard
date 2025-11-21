@@ -1172,7 +1172,7 @@ export function GamesTable() {
     },
     onSuccess: (data: any, gameId: string) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      
+
       // Clear stale state for the deleted game
       if (inlineEditState?.gameId === gameId) {
         setInlineEditState(null);
@@ -1180,12 +1180,12 @@ export function GamesTable() {
         setInlineEditError(null);
         setIsInlineSaving(false);
       }
-      
+
       if (editingGameId === gameId) {
         resetEditingState();
         setEditingGameData(null);
       }
-      
+
       // Clear pending changes for this game
       pendingChangesRef.current.delete(gameId);
       const timeout = saveTimeoutRef.current.get(gameId);
@@ -1199,13 +1199,13 @@ export function GamesTable() {
         abortControllersRef.current.delete(gameId);
       }
       savingGamesRef.current.delete(gameId);
-      
+
       // Remove from selections if selected
       if (selectedGames.has(gameId)) {
-        const newSelected = selectedGameIds.filter(id => id !== gameId);
+        const newSelected = selectedGameIds.filter((id) => id !== gameId);
         setSelectedGameIds(newSelected);
       }
-      
+
       addNotification("Game deleted successfully", "success");
 
       const calendarAttempted = data?.calendar?.attempted === true;
@@ -1243,20 +1243,20 @@ export function GamesTable() {
     },
     onSuccess: (data: any, gameIds: string[]) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
-      
+
       // Clear all stale state to prevent UI inconsistencies
       clearSelectedGameIds();
-      
+
       // Clear inline editing state
       setInlineEditState(null);
       setInlineEditValue("");
       setInlineEditError(null);
       setIsInlineSaving(false);
-      
+
       // Clear full row editing state
       resetEditingState();
       setEditingGameData(null);
-      
+
       // Clear pending autosave changes for deleted games
       gameIds.forEach((gameId) => {
         pendingChangesRef.current.delete(gameId);
@@ -1272,10 +1272,10 @@ export function GamesTable() {
         }
         savingGamesRef.current.delete(gameId);
       });
-      
+
       // Reset save status
       setSaveStatus("idle");
-      
+
       const deletedCount = data?.data?.deletedCount ?? gameIds.length;
       addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
 
@@ -2192,7 +2192,7 @@ export function GamesTable() {
     if (confirm(message)) {
       // Clear selections IMMEDIATELY to hide action buttons
       clearSelectedGameIds();
-      
+
       bulkDeleteMutation.mutate(selectedIds);
     }
   };
