@@ -6,20 +6,28 @@ export default withAuth(
   async function middleware(req: NextRequest & { nextauth: { token: any } }) {
     const token = req.nextauth.token;
 
-    // Check payment status for dashboard routes (except settings)
+    // Check payment status for dashboard routes (except settings and account-disabled)
     const pathname = req.nextUrl.pathname;
     
-    // Allow settings page regardless of payment status
-    if (pathname.startsWith('/dashboard/settings')) {
+    // Allow settings page and account-disabled page regardless of payment status
+    if (pathname.startsWith('/dashboard/settings') || pathname.startsWith('/dashboard/account-disabled')) {
       return NextResponse.next();
     }
 
-    // Check if user has overdue payment
+    // Check if user has overdue payment or disabled account
     if (token?.sub) {
       try {
         // Dynamically import to avoid issues with edge runtime
         const { checkPaymentStatus } = await import("@/lib/services/payment-status.service");
         const paymentStatus = await checkPaymentStatus(token.sub);
+
+        // If account is disabled, redirect to account-disabled page
+        if (paymentStatus.isDisabled) {
+          console.log('[Middleware] Account disabled, redirecting:', token.sub);
+          const url = req.nextUrl.clone();
+          url.pathname = '/dashboard/account-disabled';
+          return NextResponse.redirect(url);
+        }
 
         // If payment is overdue and should lock dashboard, redirect to settings
         if (paymentStatus.shouldLockDashboard) {
