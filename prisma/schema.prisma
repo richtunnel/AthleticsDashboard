@@ -33,6 +33,9 @@ model User {
   hasReceivedFreeTrial       Boolean   @default(false)
   cancellationDate           DateTime?
   deletionScheduledAt        DateTime?
+  isDisabled                 Boolean   @default(false) // Account disabled flag
+  disabledAt                 DateTime? // When the account was disabled
+  disableReason              String? // Reason for disabling (e.g., "PAYMENT_OVERDUE", "MANUAL")
   googleCalendarRefreshToken String?   @db.Text // Store the token needed to get new access tokens
   googleCalendarAccessToken  String?   @db.Text
   calendarTokenExpiry        DateTime?

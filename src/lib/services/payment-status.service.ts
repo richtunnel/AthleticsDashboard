@@ -15,6 +15,8 @@ export interface PaymentStatusResult {
   dueDate?: Date;
   status?: SubscriptionStatus;
   shouldLockDashboard: boolean;
+  isDisabled?: boolean;
+  disableReason?: string | null;
 }
 
 /**
@@ -22,6 +24,25 @@ export interface PaymentStatusResult {
  */
 export async function checkPaymentStatus(userId: string): Promise<PaymentStatusResult> {
   try {
+    // First check if account is disabled
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        isDisabled: true,
+        disableReason: true,
+      },
+    });
+
+    // If account is disabled, lock dashboard regardless of payment status
+    if (user?.isDisabled) {
+      return {
+        isOverdue: true,
+        shouldLockDashboard: true,
+        isDisabled: true,
+        disableReason: user.disableReason,
+      };
+    }
+
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
     });
@@ -31,6 +52,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       return {
         isOverdue: false,
         shouldLockDashboard: false,
+        isDisabled: false,
       };
     }
 
@@ -44,6 +66,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
         isOverdue: false,
         shouldLockDashboard: false,
         status: subscription.status,
+        isDisabled: false,
       };
     }
 
@@ -57,6 +80,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
           isOverdue: true,
           shouldLockDashboard: true,
           status: subscription.status,
+          isDisabled: false,
         };
       }
 
@@ -72,6 +96,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
         dueDate,
         status: subscription.status,
         shouldLockDashboard: shouldLock,
+        isDisabled: false,
       };
     }
 
@@ -80,6 +105,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       isOverdue: false,
       shouldLockDashboard: false,
       status: subscription.status,
+      isDisabled: false,
     };
   } catch (error) {
     console.error('[PaymentStatus] Error checking payment status:', error);
@@ -87,6 +113,7 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
     return {
       isOverdue: false,
       shouldLockDashboard: false,
+      isDisabled: false,
     };
   }
 }

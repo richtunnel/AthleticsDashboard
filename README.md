@@ -276,13 +276,15 @@ Create a `.env.local` file in the root directory with the following variables:
 
 **Testing Stripe Subscriptions**: The application includes comprehensive test mode support. See [STRIPE_TEST_MODE.md](./STRIPE_TEST_MODE.md) for setup instructions, or jump to the [Quick Start Guide](./docs/STRIPE_QUICK_START.md) for a 5-minute setup.
 
-### Account Cleanup Automation
+### Account Cleanup & Disable Automation
 
 | Variable                         | Description                                                                           | Example                   |
 | -------------------------------- | ------------------------------------------------------------------------------------- | ------------------------- |
-| `CRON_SECRET`                    | Shared secret required to trigger the scheduled cleanup endpoint                      | `super-secure-cron-token` |
+| `CRON_SECRET`                    | Shared secret required to trigger scheduled cron endpoints                            | `super-secure-cron-token` |
 | `ACCOUNT_DELETION_GRACE_DAYS`    | Number of days after cancellation before data is permanently deleted (defaults to 14) | `14`                      |
 | `ACCOUNT_DELETION_REMINDER_DAYS` | Comma-separated list of reminder offsets before deletion (defaults to `7,1`)          | `7,1`                     |
+
+**Account Disable Feature**: Accounts are automatically disabled when payments are overdue for more than 48 hours. A scheduled cron job (`/api/cron/disable-overdue-accounts`) should run hourly or daily to check for overdue accounts. When payment is successfully processed, accounts are automatically re-enabled via webhook. See [ACCOUNT_DISABLE_FEATURE.md](./docs/ACCOUNT_DISABLE_FEATURE.md) for details.
 
 ### Other
 
