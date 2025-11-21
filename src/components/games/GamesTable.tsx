@@ -489,7 +489,7 @@ export function GamesTable() {
   // Helper function to check if a required field is empty
   const isRequiredFieldEmpty = (fieldId: string): boolean => {
     if (!isAddingNew) return false;
-    
+
     switch (fieldId) {
       case "date":
         return !newGameData.date || newGameData.date.trim() === "";
@@ -679,7 +679,7 @@ export function GamesTable() {
 
   const { importedGameIds } = useImportUndoStore();
   const allGames = response?.data?.games || [];
-  
+
   // Filter out games that are in the undo buffer
   const games = useMemo(() => {
     if (importedGameIds.length === 0) return allGames;
@@ -1594,7 +1594,7 @@ export function GamesTable() {
       if (e.key === "Enter" && inlineEditState.field !== "notes") {
         // Save immediately on Enter (except for notes textarea)
         e.preventDefault();
-        
+
         // Only save if value has actually changed
         if (inlineEditValue !== originalInlineValueRef.current) {
           scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
@@ -1624,7 +1624,7 @@ export function GamesTable() {
   const handleInlineBlur = useCallback(
     (game: Game) => {
       if (!inlineEditState) return;
-      
+
       // Only save if value has actually changed
       if (inlineEditValue !== originalInlineValueRef.current) {
         // Save immediately on blur
@@ -1690,28 +1690,20 @@ export function GamesTable() {
     // 3. Sport and level are selected
     // 4. Time is not already set
     // 5. There are existing games to analyze
-    if (
-      !aiSchedulerEnabled ||
-      !isAddingNew ||
-      !newGameData.sport ||
-      !newGameData.level ||
-      newGameData.time ||
-      !games ||
-      games.length === 0
-    ) {
+    if (!aiSchedulerEnabled || !isAddingNew || !newGameData.sport || !newGameData.level || newGameData.time || !games || games.length === 0) {
       return;
     }
 
     // Detect pattern and auto-populate time
     const detectPattern = async () => {
       try {
-        const res = await fetch('/api/games/detect-time-pattern', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/games/detect-time-pattern", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sport: newGameData.sport,
             level: newGameData.level,
-            date: newGameData.date || new Date().toISOString().split('T')[0],
+            date: newGameData.date || new Date().toISOString().split("T")[0],
           }),
         });
 
@@ -1720,16 +1712,13 @@ export function GamesTable() {
           if (data.success && data.pattern?.predictedTime && data.pattern.confidence > 0.5) {
             // Auto-populate the time field
             updateNewGameData({ time: data.pattern.predictedTime });
-            
+
             // Show a subtle notification about the auto-populated time
-            addNotification(
-              `Time auto-populated based on pattern: ${data.pattern.pattern}`,
-              'info'
-            );
+            addNotification(`Time auto-populated based on pattern: ${data.pattern.pattern}`, "info");
           }
         }
       } catch (error) {
-        console.error('Error detecting pattern:', error);
+        console.error("Error detecting pattern:", error);
         // Fail silently - pattern detection is a nice-to-have feature
       }
     };
@@ -1743,14 +1732,7 @@ export function GamesTable() {
     // 1. User is adding a new game
     // 2. Sport, level, date, and time are all set
     // 3. Not already checking conflicts
-    if (
-      !isAddingNew ||
-      !newGameData.sport ||
-      !newGameData.level ||
-      !newGameData.date ||
-      !newGameData.time ||
-      isCheckingConflicts
-    ) {
+    if (!isAddingNew || !newGameData.sport || !newGameData.level || !newGameData.date || !newGameData.time || isCheckingConflicts) {
       return;
     }
 
@@ -1758,9 +1740,9 @@ export function GamesTable() {
     const checkConflicts = async () => {
       setIsCheckingConflicts(true);
       try {
-        const res = await fetch('/api/games/detect-conflicts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/api/games/detect-conflicts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sport: newGameData.sport,
             level: newGameData.level,
@@ -1781,7 +1763,7 @@ export function GamesTable() {
           }
         }
       } catch (error) {
-        console.error('Error checking conflicts:', error);
+        console.error("Error checking conflicts:", error);
         // Fail silently
       } finally {
         setIsCheckingConflicts(false);
@@ -2427,10 +2409,13 @@ export function GamesTable() {
     setConflictModal(null);
   }, []);
 
-  const handleConflictSelectTime = useCallback((time: string) => {
-    updateNewGameData({ time });
-    setConflictModal(null);
-  }, [updateNewGameData]);
+  const handleConflictSelectTime = useCallback(
+    (time: string) => {
+      updateNewGameData({ time });
+      setConflictModal(null);
+    },
+    [updateNewGameData]
+  );
 
   const handleConflictProceedAnyway = useCallback(() => {
     // Just close the modal - user wants to proceed with the conflicting time
@@ -2811,14 +2796,14 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={getRequiredCellSx("date")}>
-            <TextField 
-              type="date" 
-              size="small" 
-              value={newGameData.date} 
-              onChange={(e) => updateNewGameData({ date: e.target.value })} 
+            <TextField
+              type="date"
+              size="small"
+              value={newGameData.date}
+              onChange={(e) => updateNewGameData({ date: e.target.value })}
               error={isRequiredFieldEmpty("date")}
-              sx={{ width: 140 }} 
-              InputProps={{ sx: { fontSize: 13 } }} 
+              sx={{ width: 140 }}
+              InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
         );
