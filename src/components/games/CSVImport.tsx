@@ -689,9 +689,19 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                         .map(([csvField, dbField]) => {
                           try {
                             const transformed = transformData(row, idx);
+                            let displayValue = transformed[dbField] || "—";
+                            
+                            // Format date field to show only date part (not time/timezone)
+                            if (dbField === "date" && displayValue !== "—" && typeof displayValue === "string") {
+                              // Extract YYYY-MM-DD from ISO string
+                              displayValue = displayValue.includes("T") 
+                                ? displayValue.split("T")[0] 
+                                : displayValue;
+                            }
+                            
                             return (
                               <TableCell key={csvField}>
-                                <Typography variant="body2">{String(transformed[dbField] || "—")}</Typography>
+                                <Typography variant="body2">{String(displayValue)}</Typography>
                               </TableCell>
                             );
                           } catch {
