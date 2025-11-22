@@ -547,6 +547,7 @@ export function GamesTable() {
   const {
     data: response,
     isLoading,
+    isFetching,
     refetch,
   } = useQuery({
     queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage],
@@ -4518,60 +4519,87 @@ export function GamesTable() {
       <SaveStatusBanner status={saveStatus} />
 
       {/* Table */}
-      <TableContainer
-        component={Paper}
-        elevation={0}
-        sx={{
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 2,
-          overflowX: "auto",
-        }}
-      >
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ bgcolor: "#f8fafc" }}>
-              <TableCell padding="checkbox" sx={{ py: 0 }}>
-                <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
-              </TableCell>
-              {resolvedColumns.map((column) => renderHeaderCell(column))}
-            </TableRow>
-          </TableHead>
-          {isLoading ? (
-            <TableBody>
-              {renderNewRow()}
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={`skeleton-${index}`}>
-                  <TableCell padding="checkbox">
-                    <Skeleton variant="rectangular" width={18} height={18} />
-                  </TableCell>
-                  {resolvedColumns.map((column) => (
-                    <TableCell key={`skeleton-${index}-${column.id}`}>
-                      <Skeleton variant="text" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          ) : games.length === 0 && !isAddingNew ? (
-            <TableBody>
-              {renderNewRow()}
-              <TableRow>
-                <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
-                  <Typography color="text.secondary" variant="body2">
-                    No games found. Click "Create Game" to add one.
-                  </Typography>
+      <Box sx={{ position: "relative" }}>
+        <TableContainer
+          component={Paper}
+          elevation={0}
+          sx={{
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 2,
+            overflowX: "auto",
+          }}
+        >
+          <Table size="small">
+            <TableHead>
+              <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                <TableCell padding="checkbox" sx={{ py: 0 }}>
+                  <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
                 </TableCell>
+                {resolvedColumns.map((column) => renderHeaderCell(column))}
               </TableRow>
-            </TableBody>
-          ) : (
-            <TableBody>
-              {renderNewRow()}
-              {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
-            </TableBody>
-          )}
-        </Table>
-      </TableContainer>
+            </TableHead>
+            {isLoading ? (
+              <TableBody>
+                {renderNewRow()}
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell padding="checkbox">
+                      <Skeleton variant="rectangular" width={18} height={18} />
+                    </TableCell>
+                    {resolvedColumns.map((column) => (
+                      <TableCell key={`skeleton-${index}-${column.id}`}>
+                        <Skeleton variant="text" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            ) : games.length === 0 && !isAddingNew ? (
+              <TableBody>
+                {renderNewRow()}
+                <TableRow>
+                  <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                    <Typography color="text.secondary" variant="body2">
+                      No games found. Click "Create Game" to add one.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            ) : (
+              <TableBody>
+                {renderNewRow()}
+                {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
+              </TableBody>
+            )}
+          </Table>
+        </TableContainer>
+        
+        {/* Loading overlay for data refresh (after import) */}
+        {isFetching && mounted && !isLoading && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: "rgba(255, 255, 255, 0.9)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+              borderRadius: 2,
+            }}
+          >
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography variant="body1" color="text.secondary">
+              Creating spreadsheet...
+            </Typography>
+          </Box>
+        )}
+      </Box>
       {/* Pagination */}
       <Box
         sx={{
