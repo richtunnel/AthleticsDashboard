@@ -4574,7 +4574,7 @@ export function GamesTable() {
             )}
           </Table>
         </TableContainer>
-        
+
         {/* Loading overlay for data refresh (after import) */}
         {isFetching && mounted && !isLoading && (
           <Box
@@ -4595,7 +4595,7 @@ export function GamesTable() {
           >
             <CircularProgress size={40} sx={{ mb: 2 }} />
             <Typography variant="body1" color="text.secondary">
-              Creating spreadsheet...
+              Loading spreadsheet...
             </Typography>
           </Box>
         )}
