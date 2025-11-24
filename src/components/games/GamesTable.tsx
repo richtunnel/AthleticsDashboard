@@ -276,30 +276,24 @@ interface SaveStatusBannerProps {
 }
 
 const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
-  if (status === "idle") return null;
+  // Hide idle and pending statuses for quiet save experience
+  if (status === "idle" || status === "pending") return null;
 
   const getStatusConfig = () => {
     switch (status) {
-      case "pending":
-        return {
-          icon: <Schedule sx={{ fontSize: 14 }} />,
-          text: "Changes pending...",
-          bgcolor: alpha("#2196f3", 0.95),
-          color: "#fff",
-        };
       case "saving":
         return {
-          icon: <CircularProgress size={12} sx={{ color: "#fff" }} />,
-          text: "Saving changes...",
-          bgcolor: alpha("#2196f3", 0.95),
-          color: "#fff",
+          icon: <CircularProgress size={12} sx={{ color: "text.secondary" }} />,
+          text: "Saving...",
+          bgcolor: "transparent",
+          color: "text.secondary",
         };
       case "saved":
         return {
-          icon: <CheckCircle sx={{ fontSize: 14 }} />,
-          text: "All changes saved",
-          bgcolor: alpha("#4caf50", 0.95),
-          color: "#fff",
+          icon: <CheckCircle sx={{ fontSize: 14, color: "#4caf50" }} />,
+          text: "Saved",
+          bgcolor: "transparent",
+          color: "text.secondary",
         };
       case "error":
         return {
@@ -331,7 +325,7 @@ const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
         bgcolor: config.bgcolor,
         color: config.color,
         borderRadius: 2,
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+        boxShadow: status === "error" ? "0 4px 12px rgba(0, 0, 0, 0.15)" : "none",
         transition: "all 0.3s ease",
         animation: "slideInRight 0.3s ease",
         "@keyframes slideInRight": {
@@ -1566,11 +1560,6 @@ export function GamesTable() {
       const existingTimeout = saveTimeoutRef.current.get(gameId);
       if (existingTimeout) {
         clearTimeout(existingTimeout);
-      }
-
-      // Set pending status if not immediate
-      if (!immediate) {
-        setSaveStatus("pending");
       }
 
       // Schedule save with debounce (or immediate if specified)
