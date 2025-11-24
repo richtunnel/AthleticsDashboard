@@ -4560,9 +4560,18 @@ export function GamesTable() {
                 {renderNewRow()}
                 <TableRow>
                   <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
-                    <Typography color="text.secondary" variant="body2">
-                      No games found. Click "Create Game" to add one.
-                    </Typography>
+                    {isFetching ? (
+                      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                        <CircularProgress size={40} />
+                        <Typography color="text.secondary" variant="body2">
+                          loading spreadsheet...
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Typography color="text.secondary" variant="body2">
+                        No games found. Click "Create Game" to add one.
+                      </Typography>
+                    )}
                   </TableCell>
                 </TableRow>
               </TableBody>
