@@ -4531,7 +4531,7 @@ export function GamesTable() {
                     {resolvedColumns.map((column) => (
                       <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
                         <Skeleton 
-                          variant="text" 
+                          variant="rectangular" 
                           width={
                             column.id === 'date' ? '80%' :
                             column.id === 'time' ? '60%' :
@@ -4546,7 +4546,8 @@ export function GamesTable() {
                             column.id === 'actions' ? '90%' :
                             '75%'
                           }
-                          sx={{ fontSize: '0.875rem' }}
+                          height={20}
+                          sx={{ borderRadius: 1 }}
                         />
                       </TableCell>
                     ))}
