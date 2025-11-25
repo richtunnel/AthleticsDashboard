@@ -12,21 +12,21 @@ interface ImportUndoButtonProps {
 export function ImportUndoButton({ onUndo }: ImportUndoButtonProps) {
   const { importedGameIds, importTimestamp, undoImport } = useImportUndoStore();
   const [fadeOut, setFadeOut] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(30);
+  // const [timeRemaining, setTimeRemaining] = useState(30);
 
   const isVisible = importedGameIds.length > 0;
 
   // Update time remaining countdown
   useEffect(() => {
     if (!isVisible || !importTimestamp) {
-      setTimeRemaining(30);
+      // setTimeRemaining(30);
       return;
     }
 
     const updateTimer = () => {
       const elapsed = Date.now() - importTimestamp;
       const remaining = Math.max(0, Math.ceil((30000 - elapsed) / 1000));
-      setTimeRemaining(remaining);
+      // setTimeRemaining(remaining);
 
       // Start fade out at 5 seconds remaining
       if (remaining <= 5 && !fadeOut) {
@@ -68,18 +68,21 @@ export function ImportUndoButton({ onUndo }: ImportUndoButtonProps) {
       >
         <Button
           variant="contained"
-          color="error"
           size="large"
           startIcon={<Undo />}
           onClick={handleUndo}
           sx={{
+            backgroundColor: "#181b38ff",
+            color: "white",
             boxShadow: 3,
             "&:hover": {
+              backgroundColor: "#252948",
               boxShadow: 6,
             },
           }}
         >
-          Undo Import ({importedGameIds.length} games) - {timeRemaining}s
+          Undo import
+          {/* Undo Import ({importedGameIds.length} games) - {timeRemaining}s */}
         </Button>
       </Box>
     </Fade>
