@@ -10,7 +10,8 @@ interface ImportGameData {
   level?: string;
   opponent?: string | null;
   isHome: boolean;
-  venue?: string | null;
+  location?: string | null; // CSV uses "location" field
+  venue?: string | null; // Also support "venue" field
   status?: string;
   busTravel?: boolean | null;
   notes?: string | null;
@@ -59,6 +60,31 @@ function normalizeStatus(status?: string): GameStatus {
   return statusMap[normalized] || "SCHEDULED";
 }
 
+// Helper function to validate date string
+function validateAndParseDate(dateString: string): Date {
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${dateString}`);
+  }
+  return date;
+}
+
+// Helper function to validate time string (HH:MM format)
+function validateTime(timeString: string | null | undefined): string | null {
+  if (!timeString) return null;
+  
+  const trimmed = String(timeString).trim();
+  if (!trimmed) return null;
+  
+  // Validate HH:MM format
+  const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+  if (!timePattern.test(trimmed)) {
+    throw new Error(`Invalid time format: ${trimmed}. Expected HH:MM format`);
+  }
+  
+  return trimmed;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
@@ -73,221 +99,357 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
     const createdGameIds: string[] = [];
 
-    // Process each game
+    // Create a cache for entities to avoid duplicate database queries
+    const entityCache = {
+      sports: new Map<string, any>(),
+      teams: new Map<string, any>(),
+      opponents: new Map<string, any>(),
+      venues: new Map<string, any>(),
+    };
+
+    // Process each game with comprehensive validation
     for (let i = 0; i < games.length; i++) {
       const gameData = games[i] as ImportGameData;
+      const rowNum = i + 1;
 
       try {
-        // Validate required fields - only date is required
+        // === STEP 1: VALIDATE REQUIRED FIELDS ===
         if (!gameData.date) {
-          errors.push(`Row ${i + 1}: Missing required field (date)`);
+          errors.push(`Row ${rowNum}: Missing required field (date)`);
           failedCount++;
           continue;
         }
 
-        // Use provided sport/level or fall back to defaults
-        const sportName = gameData.sport || "Unknown Sport";
-        const levelValue = gameData.level || "VARSITY";
+        // Validate and parse date
+        let parsedDate: Date;
+        try {
+          parsedDate = validateAndParseDate(gameData.date);
+        } catch (dateError) {
+          errors.push(`Row ${rowNum}: ${dateError instanceof Error ? dateError.message : 'Invalid date'}`);
+          failedCount++;
+          continue;
+        }
 
-        // Normalize level and status to enum values
+        // Validate time if provided
+        let validatedTime: string | null = null;
+        try {
+          validatedTime = validateTime(gameData.time);
+        } catch (timeError) {
+          errors.push(`Row ${rowNum}: ${timeError instanceof Error ? timeError.message : 'Invalid time'}`);
+          failedCount++;
+          continue;
+        }
+
+        // === STEP 2: PREPARE DATA WITH DEFAULTS ===
+        const sportName = gameData.sport?.trim() || "Unknown Sport";
+        const levelValue = gameData.level?.trim() || "VARSITY";
+        const opponentName = gameData.opponent?.trim() || null;
+        // Use location or venue field (location takes precedence for CSV imports)
+        const venueName = (gameData.location?.trim() || gameData.venue?.trim()) || null;
         const normalizedLevel = normalizeLevel(levelValue);
         const normalizedStatus = normalizeStatus(gameData.status);
+        const isHome = gameData.isHome !== undefined ? gameData.isHome : true;
 
-        // Check for duplicate game before creating
-        // Find sport first to use in duplicate check
-        const existingSport = await prisma.sport.findFirst({
-          where: {
-            name: {
-              equals: sportName,
-              mode: "insensitive",
-            },
-          },
-        });
-
-        if (existingSport) {
-          // Find team to use in duplicate check
-          const existingTeam = await prisma.team.findFirst({
+        // === STEP 3: FIND OR CREATE SPORT ===
+        let sport;
+        const sportCacheKey = sportName.toLowerCase();
+        
+        if (entityCache.sports.has(sportCacheKey)) {
+          sport = entityCache.sports.get(sportCacheKey);
+        } else {
+          sport = await prisma.sport.findFirst({
             where: {
-              sportId: existingSport.id,
-              level: normalizedLevel,
-              organizationId: session.user.organizationId,
+              name: {
+                equals: sportName,
+                mode: "insensitive",
+              },
             },
           });
 
-          if (existingTeam) {
-            // Find opponent if provided
-            let existingOpponent = null;
-            if (gameData.opponent) {
-              existingOpponent = await prisma.opponent.findFirst({
-                where: {
-                  name: {
-                    equals: gameData.opponent,
-                    mode: "insensitive",
-                  },
-                  organizationId: session.user.organizationId,
-                },
-              });
-            }
-
-            // Build duplicate check query
-            const duplicateQuery: any = {
-              date: new Date(gameData.date),
-              homeTeamId: existingTeam.id,
-              isHome: gameData.isHome,
-            };
-
-            // Add time to check if provided (both null or both same value)
-            if (gameData.time) {
-              duplicateQuery.time = gameData.time;
-            } else {
-              duplicateQuery.time = null;
-            }
-
-            // Add opponent to check if exists
-            if (existingOpponent) {
-              duplicateQuery.opponentId = existingOpponent.id;
-            } else if (!gameData.opponent) {
-              // Only check for null opponent if no opponent was provided
-              duplicateQuery.opponentId = null;
-            }
-
-            // Check for existing game with exact match
-            const duplicateGame = await prisma.game.findFirst({
-              where: duplicateQuery,
-              include: {
-                homeTeam: {
-                  include: {
-                    sport: true,
-                  },
-                },
-                opponent: true,
+          if (!sport) {
+            sport = await prisma.sport.create({
+              data: {
+                name: sportName,
+                season: "FALL", // Default season
               },
             });
-
-            if (duplicateGame) {
-              const duplicateDate = new Date(duplicateGame.date).toLocaleDateString();
-              const duplicateTime = duplicateGame.time || "no time";
-              const duplicateOpponent = duplicateGame.opponent?.name || "no opponent";
-              const duplicateLocation = duplicateGame.isHome ? "Home" : "Away";
-              
-              errors.push(
-                `Row ${i + 1}: Duplicate game already exists (${duplicateGame.homeTeam.sport.name} ${duplicateGame.homeTeam.level} vs ${duplicateOpponent} on ${duplicateDate} at ${duplicateTime}, ${duplicateLocation})`
-              );
-              failedCount++;
-              continue;
-            }
           }
+          
+          entityCache.sports.set(sportCacheKey, sport);
         }
 
-        // Find or create sport
-        let sport = await prisma.sport.findFirst({
-          where: {
-            name: {
-              equals: sportName,
-              mode: "insensitive",
-            },
-          },
-        });
-
-        if (!sport) {
-          sport = await prisma.sport.create({
-            data: {
-              name: sportName,
-              season: "FALL", // Default season
-            },
-          });
+        if (!sport || !sport.id) {
+          errors.push(`Row ${rowNum}: Failed to create or find sport "${sportName}"`);
+          failedCount++;
+          continue;
         }
 
-        // Find or create team
-        let team = await prisma.team.findFirst({
-          where: {
-            sportId: sport.id,
-            level: normalizedLevel,
-            organizationId: session.user.organizationId,
-          },
-        });
-
-        if (!team) {
-          team = await prisma.team.create({
-            data: {
-              name: `${sportName} ${normalizedLevel}`,
+        // === STEP 4: FIND OR CREATE TEAM ===
+        let team;
+        const teamCacheKey = `${sport.id}-${normalizedLevel}`;
+        
+        if (entityCache.teams.has(teamCacheKey)) {
+          team = entityCache.teams.get(teamCacheKey);
+        } else {
+          team = await prisma.team.findFirst({
+            where: {
               sportId: sport.id,
               level: normalizedLevel,
               organizationId: session.user.organizationId,
             },
           });
-        }
 
-        // Find or create opponent if provided
-        let opponentId: string | null = null;
-        if (gameData.opponent) {
-          let opponent = await prisma.opponent.findFirst({
-            where: {
-              name: {
-                equals: gameData.opponent,
-                mode: "insensitive",
-              },
-              organizationId: session.user.organizationId,
-            },
-          });
-
-          if (!opponent) {
-            opponent = await prisma.opponent.create({
+          if (!team) {
+            team = await prisma.team.create({
               data: {
-                name: gameData.opponent,
+                name: `${sportName} ${normalizedLevel}`,
+                sportId: sport.id,
+                level: normalizedLevel,
                 organizationId: session.user.organizationId,
               },
             });
+          }
+          
+          entityCache.teams.set(teamCacheKey, team);
+        }
+
+        if (!team || !team.id) {
+          errors.push(`Row ${rowNum}: Failed to create or find team for "${sportName} ${normalizedLevel}"`);
+          failedCount++;
+          continue;
+        }
+
+        // === STEP 5: CHECK FOR DUPLICATE GAME ===
+        const duplicateQuery: any = {
+          date: parsedDate,
+          homeTeamId: team.id,
+          isHome: isHome,
+        };
+
+        // Add time to duplicate check (both null or both same value)
+        if (validatedTime) {
+          duplicateQuery.time = validatedTime;
+        } else {
+          duplicateQuery.time = null;
+        }
+
+        // Find opponent first if provided
+        let existingOpponent = null;
+        if (opponentName) {
+          const opponentCacheKey = opponentName.toLowerCase();
+          
+          if (entityCache.opponents.has(opponentCacheKey)) {
+            existingOpponent = entityCache.opponents.get(opponentCacheKey);
+          } else {
+            existingOpponent = await prisma.opponent.findFirst({
+              where: {
+                name: {
+                  equals: opponentName,
+                  mode: "insensitive",
+                },
+                organizationId: session.user.organizationId,
+              },
+            });
+            
+            if (existingOpponent) {
+              entityCache.opponents.set(opponentCacheKey, existingOpponent);
+            }
+          }
+          
+          if (existingOpponent) {
+            duplicateQuery.opponentId = existingOpponent.id;
+          }
+        } else {
+          duplicateQuery.opponentId = null;
+        }
+
+        // Check for existing game with exact match
+        const duplicateGame = await prisma.game.findFirst({
+          where: duplicateQuery,
+          include: {
+            homeTeam: {
+              include: {
+                sport: true,
+              },
+            },
+            opponent: true,
+          },
+        });
+
+        if (duplicateGame) {
+          const duplicateDate = new Date(duplicateGame.date).toLocaleDateString();
+          const duplicateTime = duplicateGame.time || "no time";
+          const duplicateOpponent = duplicateGame.opponent?.name || "no opponent";
+          const duplicateLocation = duplicateGame.isHome ? "Home" : "Away";
+          
+          errors.push(
+            `Row ${rowNum}: Duplicate game already exists (${duplicateGame.homeTeam.sport.name} ${duplicateGame.homeTeam.level} vs ${duplicateOpponent} on ${duplicateDate} at ${duplicateTime}, ${duplicateLocation})`
+          );
+          failedCount++;
+          continue;
+        }
+
+        // === STEP 6: FIND OR CREATE OPPONENT ===
+        let opponentId: string | null = null;
+        if (opponentName) {
+          let opponent = existingOpponent; // Use the one we found during duplicate check
+          
+          if (!opponent) {
+            const opponentCacheKey = opponentName.toLowerCase();
+            
+            if (entityCache.opponents.has(opponentCacheKey)) {
+              opponent = entityCache.opponents.get(opponentCacheKey);
+            } else {
+              opponent = await prisma.opponent.create({
+                data: {
+                  name: opponentName,
+                  organizationId: session.user.organizationId,
+                },
+              });
+              
+              entityCache.opponents.set(opponentCacheKey, opponent);
+            }
+          }
+
+          if (!opponent || !opponent.id) {
+            errors.push(`Row ${rowNum}: Failed to create or find opponent "${opponentName}"`);
+            failedCount++;
+            continue;
           }
 
           opponentId = opponent.id;
         }
 
-        // Find or create venue if provided
+        // === STEP 7: FIND OR CREATE VENUE ===
         let venueId: string | null = null;
-        if (gameData.venue && !gameData.isHome) {
-          let venue = await prisma.venue.findFirst({
-            where: {
-              name: {
-                equals: gameData.venue,
-                mode: "insensitive",
-              },
-              organizationId: session.user.organizationId,
-            },
-          });
-
-          if (!venue) {
-            venue = await prisma.venue.create({
-              data: {
-                name: gameData.venue,
+        if (venueName && !isHome) {
+          let venue;
+          const venueCacheKey = venueName.toLowerCase();
+          
+          if (entityCache.venues.has(venueCacheKey)) {
+            venue = entityCache.venues.get(venueCacheKey);
+          } else {
+            venue = await prisma.venue.findFirst({
+              where: {
+                name: {
+                  equals: venueName,
+                  mode: "insensitive",
+                },
                 organizationId: session.user.organizationId,
               },
             });
+
+            if (!venue) {
+              venue = await prisma.venue.create({
+                data: {
+                  name: venueName,
+                  organizationId: session.user.organizationId,
+                },
+              });
+            }
+            
+            entityCache.venues.set(venueCacheKey, venue);
+          }
+
+          if (!venue || !venue.id) {
+            errors.push(`Row ${rowNum}: Failed to create or find venue "${venueName}"`);
+            failedCount++;
+            continue;
           }
 
           venueId = venue.id;
         }
 
-        // Create game
+        // === STEP 8: CREATE GAME WITH VALIDATION ===
+        const gameCreateData = {
+          date: parsedDate,
+          time: validatedTime,
+          homeTeamId: team.id,
+          opponentId,
+          venueId,
+          isHome,
+          status: normalizedStatus,
+          busTravel: gameData.busTravel || false,
+          notes: gameData.notes?.trim() || null,
+          location: isHome ? null : (gameData.location?.trim() || null), // Store raw location for away games
+          createdById: session.user.id,
+          sortOrder: 0, // Default sort order
+        };
+
+        // Validate that all required IDs exist
+        if (!gameCreateData.homeTeamId) {
+          errors.push(`Row ${rowNum}: Missing homeTeamId - cannot create game`);
+          failedCount++;
+          continue;
+        }
+
         const createdGame = await prisma.game.create({
-          data: {
-            date: new Date(gameData.date),
-            time: gameData.time || null,
-            homeTeamId: team.id,
-            opponentId,
-            venueId,
-            isHome: gameData.isHome,
-            status: normalizedStatus,
-            busTravel: gameData.busTravel || false,
-            notes: gameData.notes || null,
-            createdById: session.user.id,
+          data: gameCreateData,
+          include: {
+            homeTeam: {
+              include: {
+                sport: true,
+              },
+            },
+            opponent: true,
+            venue: true,
           },
         });
 
+        // === STEP 9: VALIDATE CREATED GAME ===
+        if (!createdGame || !createdGame.id) {
+          errors.push(`Row ${rowNum}: Game creation failed - no ID returned`);
+          failedCount++;
+          continue;
+        }
+
+        // Verify the game can be queried back (ensures DB consistency)
+        const verifyGame = await prisma.game.findUnique({
+          where: { id: createdGame.id },
+          include: {
+            homeTeam: {
+              include: {
+                sport: true,
+                organization: true,
+              },
+            },
+            opponent: true,
+            venue: true,
+          },
+        });
+
+        if (!verifyGame) {
+          errors.push(`Row ${rowNum}: Game created but cannot be queried - potential data corruption`);
+          failedCount++;
+          // Try to clean up the corrupted game
+          try {
+            await prisma.game.delete({ where: { id: createdGame.id } });
+          } catch (cleanupError) {
+            console.error(`Failed to clean up corrupted game ${createdGame.id}:`, cleanupError);
+          }
+          continue;
+        }
+
+        // Verify all required relations are populated
+        if (!verifyGame.homeTeam || !verifyGame.homeTeam.sport) {
+          errors.push(`Row ${rowNum}: Game created with incomplete relations - homeTeam or sport missing`);
+          failedCount++;
+          // Clean up corrupted game
+          try {
+            await prisma.game.delete({ where: { id: createdGame.id } });
+          } catch (cleanupError) {
+            console.error(`Failed to clean up corrupted game ${createdGame.id}:`, cleanupError);
+          }
+          continue;
+        }
+
+        // === SUCCESS ===
         createdGameIds.push(createdGame.id);
         successCount++;
+
       } catch (error) {
-        errors.push(`Row ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        console.error(`Row ${rowNum} import error:`, error);
+        errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
         failedCount++;
       }
     }
