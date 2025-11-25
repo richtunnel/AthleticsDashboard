@@ -71,20 +71,59 @@ function validateAndParseDate(dateString: string): Date {
   return date;
 }
 
-// Helper function to validate time string (HH:MM format)
+// Helper function to validate and normalize time string
+// Accepts: HH:MM (24-hour), H:MM AM/PM (12-hour), or TBD/TBA
 function validateTime(timeString: string | null | undefined): string | null {
   if (!timeString) return null;
   
   const trimmed = String(timeString).trim();
   if (!trimmed) return null;
   
-  // Validate HH:MM format
-  const timePattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
-  if (!timePattern.test(trimmed)) {
-    throw new Error(`Invalid time format: ${trimmed}. Expected HH:MM format`);
+  // Handle TBD, TBA, or similar placeholders
+  const upperTrimmed = trimmed.toUpperCase();
+  if (upperTrimmed === 'TBD' || upperTrimmed === 'TBA' || upperTrimmed === 'TO BE DETERMINED' || upperTrimmed === 'TO BE ANNOUNCED') {
+    return null;
   }
   
-  return trimmed;
+  // Check for 12-hour format with AM/PM
+  const time12Pattern = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+  const match12 = trimmed.match(time12Pattern);
+  
+  if (match12) {
+    let hours = parseInt(match12[1], 10);
+    const minutes = parseInt(match12[2], 10);
+    const period = match12[3].toUpperCase();
+    
+    // Validate minutes
+    if (minutes < 0 || minutes > 59) {
+      throw new Error(`Invalid time format: ${trimmed}. Minutes must be between 00 and 59`);
+    }
+    
+    // Validate hours for 12-hour format
+    if (hours < 1 || hours > 12) {
+      throw new Error(`Invalid time format: ${trimmed}. Hours in 12-hour format must be between 1 and 12`);
+    }
+    
+    // Convert to 24-hour format
+    if (period === 'AM') {
+      if (hours === 12) hours = 0; // 12 AM = 00:00
+    } else { // PM
+      if (hours !== 12) hours += 12; // 1 PM = 13:00, but 12 PM = 12:00
+    }
+    
+    // Return in HH:MM format
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+  
+  // Check for 24-hour format (HH:MM)
+  const time24Pattern = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+  if (time24Pattern.test(trimmed)) {
+    // Normalize to HH:MM format (pad with zero if needed)
+    const [hours, minutes] = trimmed.split(':');
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+  }
+  
+  throw new Error(`Invalid time format: ${trimmed}. Expected HH:MM (24-hour) or H:MM AM/PM (12-hour) or TBD`);
 }
 
 export async function POST(request: NextRequest) {
