@@ -61,6 +61,7 @@ const DATABASE_FIELDS = [
   { value: "level", label: "Level", required: false },
   { value: "isHome", label: "Home/Away", required: false },
   { value: "opponent", label: "Opponent", required: false },
+  { value: "away", label: "Away Team (for auto-detection)", required: false },
   { value: "location", label: "Location or Venue", required: false },
   { value: "time", label: "Time", required: false },
   { value: "status", label: "Confirmed", required: false },
@@ -157,9 +158,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       ) {
         mapping[header] = "busTravel";
       }
-      // Away column - check if data contains "Away" or "Home"
+      // Away column - check if data contains "Away" or "Home" values OR team names
       else if (normalized.includes("away")) {
-        // Check sample data to determine if it's home/away or opponent
+        // Check sample data to determine if it's home/away or team names
         const sampleValues = parsedData.slice(0, 10).map(row => 
           String(row[header] || "").toLowerCase().trim()
         );
@@ -168,9 +169,11 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         );
         
         if (hasHomeAwayData) {
+          // Column contains "Home"/"Away" values → map to Home/Away field
           mapping[header] = "isHome";
         } else {
-          mapping[header] = "opponent";
+          // Column contains team names → map to Away field for smart detection
+          mapping[header] = "away";
         }
       }
       // Opponent mapping
@@ -416,6 +419,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               failedCount += result.data.failed || 0;
               if (result.data.errors) {
                 errors.push(...result.data.errors);
+              }
+              if (result.data.warnings) {
+                warnings.push(...result.data.warnings);
               }
               // Collect created game IDs
               if (result.data.createdGameIds) {
