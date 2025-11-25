@@ -19,6 +19,8 @@ export const initMixpanel = () => {
       debug: process.env.NODE_ENV === "development",
       track_pageview: "full-url",
       persistence: "localStorage",
+      record_sessions_percent: 1, // Session Replay enabled, recording 1% of all sessions
+      record_heatmap_data: true, // Enable Heatmap data collection
       ignore_dnt: false,
     });
     isInitialized = true;
