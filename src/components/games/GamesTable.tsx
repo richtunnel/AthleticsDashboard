@@ -672,15 +672,8 @@ export function GamesTable() {
     }
   }, [columnPreferencesData]);
 
-  const { importedGameIds } = useImportUndoStore();
-  const allGames = response?.data?.games || [];
-
-  // Filter out games that are in the undo buffer
-  const games = useMemo(() => {
-    if (importedGameIds.length === 0) return allGames;
-    const undoIdSet = new Set(importedGameIds);
-    return allGames.filter((game: any) => !undoIdSet.has(game.id));
-  }, [allGames, importedGameIds]);
+  // Show all games immediately after import (no filtering)
+  const games = response?.data?.games || [];
 
   const pagination: PaginationData = response?.data?.pagination || {
     page: 1,
