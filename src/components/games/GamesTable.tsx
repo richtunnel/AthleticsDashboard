@@ -4521,17 +4521,33 @@ export function GamesTable() {
                 {resolvedColumns.map((column) => renderHeaderCell(column))}
               </TableRow>
             </TableHead>
-            {isLoading ? (
+            {isLoading || !mounted ? (
               <TableBody>
-                {renderNewRow()}
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
                     <TableCell padding="checkbox">
-                      <Skeleton variant="rectangular" width={18} height={18} />
+                      <Skeleton variant="rectangular" width={18} height={18} sx={{ borderRadius: 0.5 }} />
                     </TableCell>
                     {resolvedColumns.map((column) => (
-                      <TableCell key={`skeleton-${index}-${column.id}`}>
-                        <Skeleton variant="text" />
+                      <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+                        <Skeleton 
+                          variant="text" 
+                          width={
+                            column.id === 'date' ? '80%' :
+                            column.id === 'time' ? '60%' :
+                            column.id === 'sport' ? '70%' :
+                            column.id === 'level' ? '65%' :
+                            column.id === 'opponent' ? '85%' :
+                            column.id === 'status' ? '50%' :
+                            column.id === 'isHome' ? '55%' :
+                            column.id === 'location' ? '75%' :
+                            column.id === 'busTravel' ? '70%' :
+                            column.id === 'notes' ? '90%' :
+                            column.id === 'actions' ? '90%' :
+                            '75%'
+                          }
+                          sx={{ fontSize: '0.875rem' }}
+                        />
                       </TableCell>
                     ))}
                   </TableRow>
