@@ -9,6 +9,7 @@ interface ImportGameData {
   sport?: string;
   level?: string;
   opponent?: string | null;
+  away?: string | null; // Away column for smart detection
   isHome: boolean;
   location?: string | null; // CSV uses "location" field
   venue?: string | null; // Also support "venue" field
@@ -97,14 +98,34 @@ export async function POST(request: NextRequest) {
     let successCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
+    const warnings: string[] = [];
     const createdGameIds: string[] = [];
 
+    // Fetch user's school/team name for Home/Away detection
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        organization: true,
+      },
+    });
+
+    const userSchoolNames = [
+      user?.schoolName,
+      user?.teamName,
+      user?.organization?.name,
+    ].filter(Boolean).map(name => name!.toLowerCase().trim());
+
     // Create a cache for entities to avoid duplicate database queries
+    type Sport = { id: string; name: string; season: string };
+    type Team = { id: string; name: string; sportId: string; level: TeamLevel; organizationId: string };
+    type Opponent = { id: string; name: string; organizationId: string };
+    type Venue = { id: string; name: string; organizationId: string };
+    
     const entityCache = {
-      sports: new Map<string, any>(),
-      teams: new Map<string, any>(),
-      opponents: new Map<string, any>(),
-      venues: new Map<string, any>(),
+      sports: new Map<string, Sport>(),
+      teams: new Map<string, Team>(),
+      opponents: new Map<string, Opponent>(),
+      venues: new Map<string, Venue>(),
     };
 
     // Process each game with comprehensive validation
@@ -144,11 +165,50 @@ export async function POST(request: NextRequest) {
         const sportName = gameData.sport?.trim() || "Unknown Sport";
         const levelValue = gameData.level?.trim() || "VARSITY";
         const opponentName = gameData.opponent?.trim() || null;
+        const awayColumnValue = gameData.away?.trim() || null;
         // Use location or venue field (location takes precedence for CSV imports)
         const venueName = (gameData.location?.trim() || gameData.venue?.trim()) || null;
         const normalizedLevel = normalizeLevel(levelValue);
         const normalizedStatus = normalizeStatus(gameData.status);
-        const isHome = gameData.isHome !== undefined ? gameData.isHome : true;
+        
+        // === SMART HOME/AWAY DETECTION ===
+        let isHome = gameData.isHome !== undefined ? gameData.isHome : true;
+        
+        // Check if user's school name appears in Away column or Location column
+        if (userSchoolNames.length > 0) {
+          let isAwayByColumn = false;
+          let isHomeByLocation = false;
+          
+          // Check Away column
+          if (awayColumnValue) {
+            const awayValueLower = awayColumnValue.toLowerCase().trim();
+            isAwayByColumn = userSchoolNames.some(schoolName => 
+              awayValueLower.includes(schoolName)
+            );
+          }
+          
+          // Check Location column
+          if (venueName) {
+            const locationValueLower = venueName.toLowerCase().trim();
+            isHomeByLocation = userSchoolNames.some(schoolName => 
+              locationValueLower.includes(schoolName)
+            );
+          }
+          
+          // Detect conflicts
+          if (isAwayByColumn && isHomeByLocation) {
+            warnings.push(
+              `Row ${rowNum}: Conflict detected - your team appears in both Away column and Location column. Defaulting to Away.`
+            );
+            isHome = false; // Default to away in case of conflict
+          } else if (isAwayByColumn) {
+            // User's school is in Away column → game is AWAY
+            isHome = false;
+          } else if (isHomeByLocation) {
+            // User's school is in Location column → game is HOME
+            isHome = true;
+          }
+        }
 
         // === STEP 3: FIND OR CREATE SPORT ===
         let sport;
@@ -220,7 +280,13 @@ export async function POST(request: NextRequest) {
         }
 
         // === STEP 5: CHECK FOR DUPLICATE GAME ===
-        const duplicateQuery: any = {
+        const duplicateQuery: {
+          date: Date;
+          homeTeamId: string;
+          isHome: boolean;
+          time?: string | null;
+          opponentId?: string | null;
+        } = {
           date: parsedDate,
           homeTeamId: team.id,
           isHome: isHome,
@@ -460,6 +526,7 @@ export async function POST(request: NextRequest) {
         success: successCount,
         failed: failedCount,
         errors,
+        warnings,
         createdGameIds,
       },
     });
