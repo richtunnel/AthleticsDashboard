@@ -61,12 +61,14 @@ const DATABASE_FIELDS = [
   { value: "level", label: "Level", required: false },
   { value: "isHome", label: "Home/Away", required: false },
   { value: "opponent", label: "Opponent", required: false },
-  { value: "away", label: "Away Team (for auto-detection)", required: false },
+  { value: "away", label: "Away (for auto-detection)", required: false },
+  { value: "home", label: "Home (for auto-detection)", required: false },
   { value: "location", label: "Location or Venue", required: false },
   { value: "time", label: "Time", required: false },
   { value: "status", label: "Confirmed", required: false },
   { value: "busTravel", label: "Bus Travel", required: false },
   { value: "notes", label: "Notes", required: false },
+  { value: "custom", label: "Custom Column", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
 
@@ -158,31 +160,21 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       ) {
         mapping[header] = "busTravel";
       }
-      // Away column - check if data contains "Away" or "Home" values OR team names
-      else if (normalized.includes("away")) {
-        // Check sample data to determine if it's home/away or team names
-        const sampleValues = parsedData.slice(0, 10).map(row => 
-          String(row[header] || "").toLowerCase().trim()
-        );
-        const hasHomeAwayData = sampleValues.some(val => 
-          val === "home" || val === "away" || val === "h" || val === "a"
-        );
-        
-        if (hasHomeAwayData) {
-          // Column contains "Home"/"Away" values → map to Home/Away field
-          mapping[header] = "isHome";
-        } else {
-          // Column contains team names → map to Away field for smart detection
-          mapping[header] = "away";
-        }
+      // Home/Away mapping - ONLY for exact column names
+      else if (normalized === "home/away" || normalized === "h/a" || normalized === "homeaway") {
+        mapping[header] = "isHome";
+      }
+      // Away column - map to "away" for auto-detection
+      else if (normalized === "away") {
+        mapping[header] = "away";
+      }
+      // Home column - map to "home" for auto-detection
+      else if (normalized === "home") {
+        mapping[header] = "home";
       }
       // Opponent mapping
       else if (normalized.includes("opponent") || normalized.includes("vs")) {
         mapping[header] = "opponent";
-      }
-      // Home/Away mapping
-      else if (normalized.includes("home")) {
-        mapping[header] = "isHome";
       }
       // Location/Venue mapping
       else if (
@@ -201,9 +193,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       else if (normalized.includes("note")) {
         mapping[header] = "notes";
       }
-      // Default to skip
+      // Default to custom column for any unmapped columns
       else {
-        mapping[header] = "skip";
+        mapping[header] = "custom";
       }
     });
 
@@ -290,13 +282,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const transformData = (row: ParsedRow, rowIndex?: number): Record<string, string | boolean | null> => {
     try {
       const transformed: Record<string, string | boolean | null> = {
-        // Set defaults for optional fields
-        isHome: true, // Default to home game
+        // Set default to null - will be determined by auto-detection
+        isHome: null,
       };
 
       Object.keys(fieldMapping).forEach((csvField) => {
         const dbField = fieldMapping[csvField];
-        if (dbField === "skip") return;
+        if (dbField === "skip" || dbField === "custom") return;
 
         const value = row[csvField];
 
@@ -358,10 +350,23 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               transformed.busTravel = false;
             }
             break;
+          case "away":
+            // Store away team name for auto-detection
+            transformed.away = value ? String(value) : null;
+            break;
+          case "home":
+            // Store home team name for auto-detection
+            transformed.home = value ? String(value) : null;
+            break;
           default:
             transformed[dbField] = value ? String(value) : null;
         }
       });
+
+      // Set opponent default if not mapped
+      if (!transformed.opponent && transformed.away) {
+        transformed.opponent = transformed.away;
+      }
 
       return transformed;
     } catch (error) {
