@@ -4526,7 +4526,15 @@ export function GamesTable() {
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
                     <TableCell padding="checkbox">
-                      <Skeleton variant="rectangular" width={18} height={18} sx={{ borderRadius: 0.5 }} />
+                      <Skeleton 
+                        variant="rectangular" 
+                        width={18} 
+                        height={18} 
+                        sx={{ 
+                          borderRadius: 0.5,
+                          bgcolor: 'rgba(0, 0, 0, 0.11)'
+                        }} 
+                      />
                     </TableCell>
                     {resolvedColumns.map((column) => (
                       <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
@@ -4546,8 +4554,11 @@ export function GamesTable() {
                             column.id === 'actions' ? '90%' :
                             '75%'
                           }
-                          height={20}
-                          sx={{ borderRadius: 1 }}
+                          height={24}
+                          sx={{ 
+                            borderRadius: 1,
+                            bgcolor: 'rgba(0, 0, 0, 0.11)'
+                          }}
                         />
                       </TableCell>
                     ))}
