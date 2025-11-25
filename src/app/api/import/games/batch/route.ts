@@ -10,7 +10,8 @@ interface ImportGameData {
   level?: string;
   opponent?: string | null;
   away?: string | null; // Away column for smart detection
-  isHome: boolean;
+  home?: string | null; // Home column for smart detection
+  isHome: boolean | null;
   location?: string | null; // CSV uses "location" field
   venue?: string | null; // Also support "venue" field
   status?: string;
@@ -166,17 +167,19 @@ export async function POST(request: NextRequest) {
         const levelValue = gameData.level?.trim() || "VARSITY";
         const opponentName = gameData.opponent?.trim() || null;
         const awayColumnValue = gameData.away?.trim() || null;
+        const homeColumnValue = gameData.home?.trim() || null;
         // Use location or venue field (location takes precedence for CSV imports)
         const venueName = (gameData.location?.trim() || gameData.venue?.trim()) || null;
         const normalizedLevel = normalizeLevel(levelValue);
         const normalizedStatus = normalizeStatus(gameData.status);
         
         // === SMART HOME/AWAY DETECTION ===
-        let isHome = gameData.isHome !== undefined ? gameData.isHome : true;
+        let isHome: boolean | null = gameData.isHome !== null && gameData.isHome !== undefined ? gameData.isHome : null;
         
-        // Check if user's school name appears in Away column or Location column
-        if (userSchoolNames.length > 0) {
+        // Only perform auto-detection if isHome is not explicitly set
+        if (isHome === null && userSchoolNames.length > 0) {
           let isAwayByColumn = false;
+          let isHomeByColumn = false;
           let isHomeByLocation = false;
           
           // Check Away column
@@ -184,6 +187,14 @@ export async function POST(request: NextRequest) {
             const awayValueLower = awayColumnValue.toLowerCase().trim();
             isAwayByColumn = userSchoolNames.some(schoolName => 
               awayValueLower.includes(schoolName)
+            );
+          }
+          
+          // Check Home column
+          if (homeColumnValue) {
+            const homeValueLower = homeColumnValue.toLowerCase().trim();
+            isHomeByColumn = userSchoolNames.some(schoolName => 
+              homeValueLower.includes(schoolName)
             );
           }
           
@@ -195,19 +206,24 @@ export async function POST(request: NextRequest) {
             );
           }
           
-          // Detect conflicts
-          if (isAwayByColumn && isHomeByLocation) {
+          // Apply detection logic
+          if (isAwayByColumn && (isHomeByColumn || isHomeByLocation)) {
             warnings.push(
-              `Row ${rowNum}: Conflict detected - your team appears in both Away column and Location column. Defaulting to Away.`
+              `Row ${rowNum}: Conflict detected - your team appears in both Away and Home/Location columns. Defaulting to Away.`
             );
-            isHome = false; // Default to away in case of conflict
+            isHome = false;
           } else if (isAwayByColumn) {
             // User's school is in Away column → game is AWAY
             isHome = false;
-          } else if (isHomeByLocation) {
-            // User's school is in Location column → game is HOME
+          } else if (isHomeByColumn || isHomeByLocation) {
+            // User's school is in Home or Location column → game is HOME
             isHome = true;
           }
+        }
+        
+        // If still not determined, default to HOME as fallback (pending state)
+        if (isHome === null) {
+          isHome = true; // Default to HOME when unable to determine from data
         }
 
         // === STEP 3: FIND OR CREATE SPORT ===
