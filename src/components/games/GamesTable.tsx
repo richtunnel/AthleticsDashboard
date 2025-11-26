@@ -17,6 +17,7 @@ import { QuickAddVenue } from "./QuickAddVenue";
 import { QuickAddTeam } from "./QuickAddTeams";
 import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { AvailableDatesModal } from "./AvailableDatesModal";
+import { DismissDepartModal } from "./DismissDepartModal";
 import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -465,6 +466,16 @@ export function GamesTable() {
   // Available Dates Modal state
   const [availableDatesModalOpen, setAvailableDatesModalOpen] = useState(false);
 
+  // Dismiss/Depart Modal state (for Bus Info/Travel custom columns)
+  const [dismissDepartModal, setDismissDepartModal] = useState<{
+    open: boolean;
+    gameId: string;
+    gameName: string;
+    columnName: string;
+    currentDismissTime?: string;
+    currentDepartTime?: string;
+  } | null>(null);
+
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
@@ -640,6 +651,18 @@ export function GamesTable() {
       setAiSchedulerEnabled(aiSchedulerResponse.aiSchedulerEnabled);
     }
   }, [aiSchedulerResponse]);
+
+  // Fetch AI Travel Times setting (for enhanced Bus Info/Travel columns)
+  const { data: aiTravelTimesResponse } = useQuery({
+    queryKey: ["aiTravelTimesEnabled"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/ai-travel-times");
+      if (!res.ok) throw new Error("Failed to fetch AI Travel Times setting");
+      return res.json();
+    },
+  });
+
+  const aiTravelTimesEnabled = aiTravelTimesResponse?.aiTravelTimesEnabled ?? false;
 
   const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
   const customColumnsMap = useMemo(() => {
@@ -2271,6 +2294,41 @@ export function GamesTable() {
       clearSelectedGameIds();
 
       bulkDeleteMutation.mutate(selectedIds);
+    }
+  };
+
+  const handleSaveDismissDepartTimes = async (dismissTime: string, departTime: string) => {
+    if (!dismissDepartModal) return;
+
+    const { gameId, columnName } = dismissDepartModal;
+    const game = games.find((g: Game) => g.id === gameId);
+    if (!game) return;
+
+    try {
+      // Save dismiss and depart times in customFields
+      const customFields = (game.customFields as Record<string, any>) || {};
+      const updatedCustomFields = {
+        ...customFields,
+        [`${columnName}_dismiss`]: dismissTime,
+        [`${columnName}_depart`]: departTime,
+      };
+
+      // Update game with new custom fields
+      const response = await fetch(`/api/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customFields: updatedCustomFields }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save bus travel times");
+      }
+
+      // Refresh games data
+      await queryClient.invalidateQueries({ queryKey: ["games"] });
+      addNotification("Bus travel times saved successfully", "success");
+    } catch (error: any) {
+      addNotification(error.message || "Failed to save bus travel times", "error");
     }
   };
 
@@ -4276,6 +4334,67 @@ export function GamesTable() {
           
           // Check if this column is mapped to date field
           const mapping = columnMapping?.[columnName];
+          
+          // Check if this is a Bus Info/Travel column with Enhanced Travel Times enabled
+          const isBusInfoColumn = /^(bus info|travel)$/i.test(columnName.trim());
+          const shouldShowEnhancedBusInfo = isBusInfoColumn && aiTravelTimesEnabled;
+          
+          if (shouldShowEnhancedBusInfo) {
+            // Special rendering for Bus Info/Travel columns with Dismiss/Depart labels
+            const dismissTime = customFields[`${columnName}_dismiss`] || "";
+            const departTime = customFields[`${columnName}_depart`] || "";
+            const dismissDisplay = dismissTime ? formatTimeDisplay(dismissTime) : "—";
+            const departDisplay = departTime ? formatTimeDisplay(departTime) : "—";
+            
+            return (
+              <TableCell
+                key={column.id}
+                sx={{
+                  py: 0,
+                  minWidth: 180,
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "#f5f5f5",
+                  },
+                }}
+                onDoubleClick={() => {
+                  const opponentName = game.opponent?.name || "TBD";
+                  const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
+                  setDismissDepartModal({
+                    open: true,
+                    gameId: game.id,
+                    gameName,
+                    columnName,
+                    currentDismissTime: dismissTime,
+                    currentDepartTime: departTime,
+                  });
+                }}
+              >
+                <Box sx={{ py: 0 }}>
+                  <Stack spacing={0.75}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                        Dismiss
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                        {dismissDisplay}
+                      </Typography>
+                    </Stack>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="caption" sx={{ fontSize: 11, color: "text.secondary" }}>
+                        Depart
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                        {departDisplay}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+              </TableCell>
+            );
+          }
+          
+          // Regular rendering for non-Bus Info columns or when toggle is off
           let cellValue = "";
           
           if (mapping === "date") {
@@ -4995,6 +5114,19 @@ export function GamesTable() {
         level={newGameData.level || undefined}
         onDateSelect={handleDateSelect}
       />
+
+      {/* Dismiss/Depart Modal for Bus Info/Travel columns */}
+      {dismissDepartModal && (
+        <DismissDepartModal
+          open={dismissDepartModal.open}
+          onClose={() => setDismissDepartModal(null)}
+          gameId={dismissDepartModal.gameId}
+          gameName={dismissDepartModal.gameName}
+          currentDismissTime={dismissDepartModal.currentDismissTime}
+          currentDepartTime={dismissDepartModal.currentDepartTime}
+          onSave={handleSaveDismissDepartTimes}
+        />
+      )}
     </Box>
   );
 }
