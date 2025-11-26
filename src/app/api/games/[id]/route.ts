@@ -72,6 +72,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: {
         id: true,
         customData: true,
+        customFields: true,
         travelRequired: true,
         venueId: true,
       },
@@ -81,8 +82,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Game not found or unauthorized" }, { status: 404 });
     }
 
-    // Separate custom data from regular fields
-    const { customData, ...regularData } = body;
+    // Separate custom data and custom fields from regular fields
+    const { customData, customFields, ...regularData } = body;
 
     const updateData: any = { ...regularData };
 
@@ -141,6 +142,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
 
       updateData.customData = mergedCustomData;
+    }
+
+    // Handle custom fields separately (merge with existing)
+    if (customFields !== undefined) {
+      const existingCustomFields = (existingGame.customFields as any) || {};
+      const mergedCustomFields: any = { ...existingCustomFields, ...customFields };
+
+      // Validate custom fields character limits
+      for (const [key, value] of Object.entries(mergedCustomFields)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json(
+            { error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.customFields = mergedCustomFields;
     }
 
     // Update using only the unique ID (after validation)
