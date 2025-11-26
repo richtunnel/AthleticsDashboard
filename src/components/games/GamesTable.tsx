@@ -1815,14 +1815,45 @@ export function GamesTable() {
     setAvailableDatesModalOpen(true);
   };
 
-  const handleDateSelect = (date: Date) => {
+  const handleDateSelect = (date: Date, sport?: string, level?: string) => {
     // Pre-fill the date when user selects from available dates
     const dateStr = date.toISOString().split('T')[0];
-    updateNewGameData({ date: dateStr });
+    
+    // Build the update object with date and any sport/level context from the search
+    const updateData: Partial<NewGameData> = { date: dateStr };
+    
+    // If sport and level were part of the search context, use them
+    // This allows the time auto-population to work immediately
+    if (sport) {
+      updateData.sport = sport;
+    } else if (newGameData.sport) {
+      // Fallback to existing form data if no search context
+      updateData.sport = newGameData.sport;
+    }
+    
+    if (level) {
+      updateData.level = level;
+    } else if (newGameData.level) {
+      // Fallback to existing form data if no search context
+      updateData.level = newGameData.level;
+    }
+    
+    // Update the form with the selected date and sport/level
+    updateNewGameData(updateData);
+    
+    // Open the new game row
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
-    addNotification(`Date selected: ${format(date, 'EEEE, MMM d, yyyy')}. Continue filling in game details.`, "success");
+    
+    // Show success notification with more context
+    let message = `Date selected: ${format(date, 'EEEE, MMM d, yyyy')}.`;
+    if (sport || level) {
+      message += ` Creating ${sport || 'game'}${level ? ` (${level})` : ''}.`;
+    }
+    message += ` Continue filling in game details.`;
+    
+    addNotification(message, "success");
   };
 
   const handleExport = useCallback(() => {
