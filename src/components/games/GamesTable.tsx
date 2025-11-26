@@ -759,11 +759,20 @@ export function GamesTable() {
       location: new Set(),
       busTravel: new Set(),
       notes: new Set(["Has notes", "No notes"]),
+      date: new Set(),
     };
 
     customColumns.forEach((col: any) => {
       values[col.id] = new Set();
     });
+
+    // Add sets for imported columns
+    const importedColumns = columnPreferencesData?.customColumns as string[] | undefined;
+    if (importedColumns && Array.isArray(importedColumns)) {
+      importedColumns.forEach((colName) => {
+        values[`imported:${colName}`] = new Set();
+      });
+    }
 
     games.forEach((game: Game) => {
       values.sport.add(game.homeTeam.sport.name);
@@ -773,12 +782,29 @@ export function GamesTable() {
       const locationValue = game.location || game.venue?.name || "TBD";
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
+      
+      // Add date value
+      if (game.date) {
+        const datePart = game.date.split('T')[0];
+        values.date.add(datePart);
+      }
 
       const customData = (game.customData as any) || {};
       customColumns.forEach((col: any) => {
         const value = customData[col.id] || "";
         if (value) values[col.id].add(value);
       });
+
+      // Add values for imported columns
+      const customFields = (game.customFields as Record<string, any>) || {};
+      if (importedColumns && Array.isArray(importedColumns)) {
+        importedColumns.forEach((colName) => {
+          const value = customFields[colName];
+          if (value) {
+            values[`imported:${colName}`].add(String(value));
+          }
+        });
+      }
     });
 
     const result: Record<string, string[]> = {};
@@ -787,7 +813,7 @@ export function GamesTable() {
     });
 
     return result;
-  }, [games, customColumns]);
+  }, [games, customColumns, columnPreferencesData]);
 
   const getColumnLabel = useCallback(
     (columnId: ColumnId) => {
@@ -2787,6 +2813,14 @@ export function GamesTable() {
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 {renderEditableColumnTitle(column.id, columnName, false)}
+                <ColumnFilterDragDrop
+                  columnId={column.id}
+                  columnName={getColumnLabel(column.id)}
+                  columnType="text"
+                  uniqueValues={uniqueValues[column.id] || []}
+                  currentFilter={columnFilters[column.id]}
+                  onFilterChange={handleColumnFilterChange}
+                />
                 <Tooltip title="Hide column">
                   <IconButton size="small" onClick={() => handleToggleColumnVisibility(column.id, false)} sx={{ ml: 0.5, p: 0.25 }}>
                     <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
