@@ -16,7 +16,8 @@ import { QuickAddOpponent } from "./QuickAddOpponent";
 import { QuickAddVenue } from "./QuickAddVenue";
 import { QuickAddTeam } from "./QuickAddTeams";
 import { ConflictDetectionModal } from "./ConflictDetectionModal";
-import { Sync, ViewColumn, Download, Upload, Tune } from "@mui/icons-material";
+import { AvailableDatesModal } from "./AvailableDatesModal";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -460,6 +461,9 @@ export function GamesTable() {
   // AI Scheduler state
   const [aiSchedulerEnabled, setAiSchedulerEnabled] = useState(false);
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+
+  // Available Dates Modal state
+  const [availableDatesModalOpen, setAvailableDatesModalOpen] = useState(false);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -1775,6 +1779,24 @@ export function GamesTable() {
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
+  };
+
+  const handleFindAvailableDates = () => {
+    trackEvent("Find Available Dates Clicked", {
+      source: "games_table",
+      action: "find_dates_button",
+    });
+    setAvailableDatesModalOpen(true);
+  };
+
+  const handleDateSelect = (date: Date) => {
+    // Pre-fill the date when user selects from available dates
+    const dateStr = date.toISOString().split('T')[0];
+    updateNewGameData({ date: dateStr });
+    setIsAddingNew(true);
+    setEditingGameId(null);
+    setEditingGameData(null);
+    addNotification(`Date selected: ${format(date, 'EEEE, MMM d, yyyy')}. Continue filling in game details.`, "success");
   };
 
   const handleExport = useCallback(() => {
@@ -4501,6 +4523,26 @@ export function GamesTable() {
             <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
               Create Game
             </Button>
+            <Tooltip title="Use AI to find available dates in your schedule">
+              <Button 
+                variant="outlined" 
+                startIcon={<AutoAwesome />} 
+                onClick={handleFindAvailableDates} 
+                size="small" 
+                sx={{ 
+                  textTransform: "none",
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "white",
+                  border: "none",
+                  "&:hover": { 
+                    background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                    border: "none",
+                  }
+                }}
+              >
+                Find Dates
+              </Button>
+            </Tooltip>
 
             <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
               Add Columns ({customColumns.length})
@@ -4879,6 +4921,15 @@ export function GamesTable() {
           date={newGameData.date}
         />
       )}
+
+      {/* Available Dates Modal */}
+      <AvailableDatesModal
+        open={availableDatesModalOpen}
+        onClose={() => setAvailableDatesModalOpen(false)}
+        sport={newGameData.sport || undefined}
+        level={newGameData.level || undefined}
+        onDateSelect={handleDateSelect}
+      />
     </Box>
   );
 }
