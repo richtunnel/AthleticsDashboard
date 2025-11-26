@@ -77,43 +77,52 @@ export async function POST(request: NextRequest) {
       return storageCheckResult;
     }
 
-    // Find the closest game date for this opponent
+    // Find the closest game date for this opponent (non-blocking)
     let gameDate: Date | undefined = undefined;
     
-    // Fetch all games with this opponent
-    const games = await prisma.game.findMany({
-      where: {
-        opponentId,
-        homeTeam: {
-          organizationId: session.user.organizationId,
+    try {
+      // Fetch all games with this opponent
+      const games = await prisma.game.findMany({
+        where: {
+          opponentId,
+          homeTeam: {
+            organizationId: session.user.organizationId,
+          },
         },
-      },
-      select: {
-        date: true,
-      },
-      orderBy: {
-        date: "asc",
-      },
-    });
+        select: {
+          date: true,
+        },
+        orderBy: {
+          date: "asc",
+        },
+      });
 
-    if (games.length > 0) {
-      const now = new Date();
-      
-      // Find the game with the date closest to today
-      let closestGame = games[0];
-      let smallestDiff = Math.abs(now.getTime() - new Date(games[0].date).getTime());
-      
-      for (const game of games) {
-        const gameDateObj = new Date(game.date);
-        const diff = Math.abs(now.getTime() - gameDateObj.getTime());
+      if (games.length > 0) {
+        const now = new Date();
         
-        if (diff < smallestDiff) {
-          smallestDiff = diff;
-          closestGame = game;
+        // Find the game with the date closest to today
+        let closestGame = games[0];
+        let smallestDiff = Math.abs(now.getTime() - new Date(games[0].date).getTime());
+        
+        for (const game of games) {
+          if (!game.date) continue; // Skip if date is null
+          
+          const gameDateObj = new Date(game.date);
+          const diff = Math.abs(now.getTime() - gameDateObj.getTime());
+          
+          if (diff < smallestDiff) {
+            smallestDiff = diff;
+            closestGame = game;
+          }
+        }
+        
+        if (closestGame.date) {
+          gameDate = new Date(closestGame.date);
         }
       }
-      
-      gameDate = new Date(closestGame.date);
+    } catch (error) {
+      // If we can't find a game date, just log it and continue without one
+      console.log(`[MatchupResult] Could not find game date for opponent ${opponentId}:`, error);
     }
 
     const matchupResult = await prisma.matchupResult.create({
