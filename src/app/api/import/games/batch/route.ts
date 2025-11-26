@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { TeamLevel, GameStatus } from "../../../../../../types/main.types";
+import { deleteSampleGames } from "@/lib/services/sample-game.service";
 
 interface ImportGameData {
   date: string;
@@ -129,7 +130,7 @@ function validateTime(timeString: string | null | undefined): string | null {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const { games } = await request.json();
+    const { games, columnNames } = await request.json();
 
     if (!games || !Array.isArray(games)) {
       return NextResponse.json({ success: false, error: "Invalid games data" }, { status: 400 });
@@ -572,6 +573,43 @@ export async function POST(request: NextRequest) {
         console.error(`Row ${rowNum} import error:`, error);
         errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
         failedCount++;
+      }
+    }
+
+    // If import was successful and we have created games, delete sample games
+    if (successCount > 0) {
+      try {
+        await deleteSampleGames(session.user.id);
+        console.log(`[Import] Deleted sample games after successful import for user ${session.user.id}`);
+      } catch (sampleDeleteError) {
+        console.error("[Import] Failed to delete sample games:", sampleDeleteError);
+        // Don't fail the import if sample deletion fails
+      }
+    }
+
+    // Save column names as user preferences if provided
+    if (columnNames && typeof columnNames === "object") {
+      try {
+        await prisma.tablePreference.upsert({
+          where: {
+            userId_tableKey: {
+              userId: session.user.id,
+              tableKey: "games",
+            },
+          },
+          create: {
+            userId: session.user.id,
+            tableKey: "games",
+            preferences: { columnNames },
+          },
+          update: {
+            preferences: { columnNames },
+          },
+        });
+        console.log(`[Import] Saved column names for user ${session.user.id}`);
+      } catch (prefError) {
+        console.error("[Import] Failed to save column preferences:", prefError);
+        // Don't fail the import if preference saving fails
       }
     }
 
