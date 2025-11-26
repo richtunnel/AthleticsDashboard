@@ -27,6 +27,7 @@ import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
+import { SampleGameBanner } from "./SampleGameBanner";
 
 import {
   Box,
@@ -155,6 +156,7 @@ interface Game {
   status: string;
   isHome: boolean;
   sortOrder?: number;
+  isSampleGame?: boolean;
   travelRequired: boolean;
   busTravel: boolean;
   estimatedTravelTime: number | null;
@@ -4505,6 +4507,9 @@ export function GamesTable() {
 
       {/* Save Status Banner */}
       <SaveStatusBanner status={saveStatus} />
+
+      {/* Sample Game Banner */}
+      <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
 
       {/* Table */}
       <Box sx={{ position: "relative" }}>
