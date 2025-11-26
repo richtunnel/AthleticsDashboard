@@ -284,16 +284,30 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     const errors: string[] = [];
     const allCreatedGameIds: string[] = [];
 
+    // Extract column names from the CSV headers (user's original column names)
+    // Map them to the database fields they were mapped to
+    const columnNames: Record<string, string> = {};
+    Object.entries(fieldMapping).forEach(([csvColumn, dbField]) => {
+      if (dbField !== "skip") {
+        columnNames[dbField] = csvColumn;
+      }
+    });
+
     try {
       for (let i = 0; i < totalBatches; i++) {
         const batch = parsedData.slice(i * batchSize, (i + 1) * batchSize);
         const transformedBatch = batch.map(transformData);
 
-        // Send batch to API
+        // Send batch to API with column names (only send once in first batch)
+        const requestBody: any = { games: transformedBatch };
+        if (i === 0) {
+          requestBody.columnNames = columnNames;
+        }
+
         const response = await fetch("/api/import/games/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ games: transformedBatch }),
+          body: JSON.stringify(requestBody),
         });
 
         const result = await response.json();

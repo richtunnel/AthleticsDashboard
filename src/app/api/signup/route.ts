@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { trackReferral } from "@/lib/services/referral.service";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
+import { createSampleGame } from "@/lib/services/sample-game.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -99,6 +100,14 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+
+    // Create sample game for new user (non-blocking)
+    void createSampleGame({
+      userId: user.id,
+      organizationId: user.organizationId,
+    }).catch((error) => {
+      console.error("[Signup] Failed to create sample game:", error);
+    });
 
     // Track referral if referrerEmail is provided
     if (referrerEmail) {
