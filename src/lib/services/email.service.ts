@@ -1,5 +1,6 @@
 import { getResendClientOptional } from "../resend";
 import { prisma } from "../database/prisma";
+import { emailLimitService } from "./email-limit.service";
 
 interface SendEmailParams {
   to: string[];
@@ -30,6 +31,15 @@ interface SubscriptionEmailParams {
 export class EmailService {
   async sendEmail(params: SendEmailParams) {
     const { to, cc = [], subject, body, gameId, sentById } = params;
+
+    // Check email limits if user is sending (skip for system emails)
+    if (sentById) {
+      const recipientCount = to.length + cc.length;
+      const limitCheck = await emailLimitService.checkEmailLimits(sentById, recipientCount);
+      if (!limitCheck.allowed) {
+        throw new Error(limitCheck.reason || "Email limit exceeded");
+      }
+    }
 
     // Create email log
     const emailLog = await prisma.emailLog.create({

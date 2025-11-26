@@ -1,5 +1,6 @@
 import { getResendClientOptional } from "../resend";
 import { prisma } from "../database/prisma";
+import { emailLimitService } from "../services/email-limit.service";
 
 interface BulkEmailResult {
   success: number;
@@ -26,8 +27,8 @@ interface SendBulkEmailParams {
  *
  * Resend batch API sends individual emails to each recipient.
  * Rate limits:
- * - Free tier: 100 emails/day, 10 emails/second
- * - Paid tier: varies by plan
+ * - Per user: 75 emails/day
+ * - System-wide: 100,000 emails/month
  *
  * @param params - Bulk email parameters
  * @returns Result with success/failure counts and email log IDs
@@ -38,6 +39,12 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
   const resend = getResendClientOptional();
   if (!resend) {
     throw new Error("Email service not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
+  }
+
+  // Check email limits before sending
+  const limitCheck = await emailLimitService.checkEmailLimits(sentById, to.length);
+  if (!limitCheck.allowed) {
+    throw new Error(limitCheck.reason || "Email limit exceeded");
   }
 
   const result: BulkEmailResult = {
