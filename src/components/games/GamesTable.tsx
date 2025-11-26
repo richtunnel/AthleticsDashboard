@@ -165,6 +165,7 @@ interface Game {
   calendarSynced?: boolean;
   googleCalendarEventId?: string | null;
   customData?: any;
+  customFields?: Record<string, any>; // For imported CSV columns
   homeTeam: {
     id?: string;
     name: string;
@@ -648,7 +649,7 @@ export function GamesTable() {
   }, [customColumns]);
 
   const columnPreferencesData = useMemo<TablePreferencesData | null>(() => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null, [columnPreferencesResponse?.data]);
-  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns), [customColumns]);
+  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns, columnPreferencesData), [customColumns, columnPreferencesData]);
 
   useEffect(() => {
     setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
@@ -789,6 +790,12 @@ export function GamesTable() {
       // Check for custom title first
       if (customColumnTitles[columnId]) {
         return customColumnTitles[columnId];
+      }
+
+      // Handle imported columns
+      if (columnId.startsWith("imported:")) {
+        const columnName = columnId.split(":")[1];
+        return columnName; // Use the CSV column name as-is
       }
 
       // Return default label
@@ -2751,6 +2758,23 @@ export function GamesTable() {
           </TableCell>
         );
       default:
+        if (column.id.startsWith("imported:")) {
+          // Handle imported CSV columns
+          const columnName = column.id.split(":")[1];
+          return (
+            <TableCell key={column.id} sx={cellSx}>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {renderEditableColumnTitle(column.id, columnName, false)}
+                <Tooltip title="Hide column">
+                  <IconButton size="small" onClick={() => handleToggleColumnVisibility(column.id, false)} sx={{ ml: 0.5, p: 0.25 }}>
+                    <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              {renderResizeHandle(column.id)}
+            </TableCell>
+          );
+        }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn;
           if (!customColumn) {
@@ -4157,6 +4181,42 @@ export function GamesTable() {
         );
       }
       default:
+        if (column.id.startsWith("imported:")) {
+          // Handle imported CSV columns - read from game.customFields
+          const columnName = column.id.split(":")[1];
+          const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
+          const customFields = (game.customFields as Record<string, any>) || {};
+          
+          // Check if this column is mapped to date field
+          const mapping = columnMapping?.[columnName];
+          let cellValue = "";
+          
+          if (mapping === "date") {
+            // Display date from game.date
+            cellValue = formatGameDate(game.date);
+          } else {
+            // Display value from customFields
+            cellValue = customFields[columnName] || "—";
+          }
+          
+          return (
+            <TableCell key={column.id} sx={getDataCellSx(column.id, false)}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontSize: 13,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {cellValue}
+                </Typography>
+              </Box>
+            </TableCell>
+          );
+        }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
@@ -4823,7 +4883,25 @@ export function GamesTable() {
   );
 }
 
-function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
+function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferencesData | null = null): ColumnId[] {
+  // Check if user has imported custom columns from CSV
+  const importedColumns = preferences?.customColumns as string[] | undefined;
+  const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
+  
+  if (importedColumns && columnMapping && importedColumns.length > 0) {
+    // User imported CSV with custom columns - use those instead of defaults
+    const importedIds = importedColumns
+      .filter((colName) => {
+        const mapping = columnMapping[colName];
+        return mapping && mapping !== "skip"; // Only include non-skipped columns
+      })
+      .map((colName) => `imported:${colName}` as ColumnId);
+    
+    // Always include actions column at the end
+    return [...importedIds, "actions"];
+  }
+  
+  // No imported columns - use default column order
   const customIds = customColumns
     .map((column: any) => column?.id)
     .filter((id: string | undefined): id is string => Boolean(id))
@@ -4833,7 +4911,7 @@ function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
 }
 
 function isColumnId(value: string): value is ColumnId {
-  return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:");
+  return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:") || value.startsWith("imported:");
 }
 
 function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePreferencesData | null, defaultOrder: ColumnId[], initialPreferencesApplied: boolean): ColumnStateConfig[] {
