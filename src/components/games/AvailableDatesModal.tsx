@@ -33,7 +33,7 @@ interface AvailableDatesModalProps {
   onClose: () => void;
   sport?: string;
   level?: string;
-  onDateSelect?: (date: Date) => void;
+  onDateSelect?: (date: Date, sport?: string, level?: string) => void;
 }
 
 interface DateConstraints {
@@ -147,7 +147,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
 
   const handleDateClick = (date: Date) => {
     if (onDateSelect) {
-      onDateSelect(date);
+      onDateSelect(date, sport, level);
       trackEvent('Available Dates - Date Selected', {
         selectedDate: date.toISOString().split('T')[0],
         sport,
