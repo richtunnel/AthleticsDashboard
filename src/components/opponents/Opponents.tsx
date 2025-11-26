@@ -26,6 +26,7 @@ import {
   Divider,
 } from "@mui/material";
 import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow } from "@mui/icons-material";
+import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 
@@ -92,7 +93,7 @@ interface MatchupResult {
 // MEMOIZED COMPONENTS
 // ============================================================================
 
-const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onWin, onLoss, onDraw }: any) => {
+const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onOpenScoreModal }: any) => {
   return (
     <Card
       sx={{
@@ -168,77 +169,23 @@ const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, o
               </Stack>
             ) : (
               <Stack direction="row" spacing={0.5}>
-                <Tooltip title="Record a Win (your team won)">
-                  <Button
+                <Tooltip title="Enter game score">
+                  <IconButton
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onWin(opponent);
+                      onOpenScoreModal(opponent);
                     }}
                     sx={{
-                      minWidth: "32px",
-                      width: "32px",
-                      height: "32px",
-                      padding: 0,
-                      bgcolor: "rgba(76, 175, 80, 0.15)",
-                      color: "success.main",
-                      fontWeight: 700,
-                      fontSize: "14px",
+                      bgcolor: "rgba(33, 150, 243, 0.15)",
+                      color: "primary.main",
                       "&:hover": {
-                        bgcolor: "rgba(76, 175, 80, 0.25)",
+                        bgcolor: "rgba(33, 150, 243, 0.25)",
                       },
                     }}
                   >
-                    W
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Record a Loss (your team lost)">
-                  <Button
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onLoss(opponent);
-                    }}
-                    sx={{
-                      minWidth: "32px",
-                      width: "32px",
-                      height: "32px",
-                      padding: 0,
-                      bgcolor: "rgba(244, 67, 54, 0.15)",
-                      color: "error.main",
-                      fontWeight: 700,
-                      fontSize: "14px",
-                      "&:hover": {
-                        bgcolor: "rgba(244, 67, 54, 0.25)",
-                      },
-                    }}
-                  >
-                    L
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Record a Draw (tie game)">
-                  <Button
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDraw(opponent);
-                    }}
-                    sx={{
-                      minWidth: "32px",
-                      width: "32px",
-                      height: "32px",
-                      padding: 0,
-                      bgcolor: "rgba(255, 152, 0, 0.15)",
-                      color: "warning.main",
-                      fontWeight: 700,
-                      fontSize: "14px",
-                      "&:hover": {
-                        bgcolor: "rgba(255, 152, 0, 0.25)",
-                      },
-                    }}
-                  >
-                    D
-                  </Button>
+                    <ScoreboardIcon fontSize="small" />
+                  </IconButton>
                 </Tooltip>
                 <IconButton
                   size="small"
@@ -280,12 +227,11 @@ interface ScoreDialogProps {
   onClose: () => void;
   yourTeamName: string;
   opponentName: string;
-  resultType: "win" | "loss" | "draw";
   onSubmit: (yourScore: number, opponentScore: number) => void;
   loading: boolean;
 }
 
-const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, onSubmit, loading }: ScoreDialogProps) => {
+const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, loading }: ScoreDialogProps) => {
   const [yourScore, setYourScore] = useState<string>("");
   const [opponentScore, setOpponentScore] = useState<string>("");
 
@@ -307,26 +253,82 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, on
     }
   }, [open]);
 
-  const getTitle = () => {
-    switch (resultType) {
-      case "win":
-        return "Win";
-      case "loss":
-        return "Loss";
-      case "draw":
-        return "Draw";
-      default:
-        return "";
+  const getResultPreview = () => {
+    const your = parseInt(yourScore);
+    const opp = parseInt(opponentScore);
+
+    if (isNaN(your) || isNaN(opp)) {
+      return null;
+    }
+
+    if (your > opp) {
+      return (
+        <Box
+          sx={{
+            mt: 2,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: "rgba(76, 175, 80, 0.15)",
+            border: "1px solid",
+            borderColor: "success.main",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "success.main" }}>
+            ✓ Win - Your team scored higher
+          </Typography>
+        </Box>
+      );
+    } else if (your < opp) {
+      return (
+        <Box
+          sx={{
+            mt: 2,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: "rgba(244, 67, 54, 0.15)",
+            border: "1px solid",
+            borderColor: "error.main",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "error.main" }}>
+            ✗ Loss - Opponent scored higher
+          </Typography>
+        </Box>
+      );
+    } else {
+      return (
+        <Box
+          sx={{
+            mt: 2,
+            p: 1.5,
+            borderRadius: 1,
+            bgcolor: "rgba(255, 152, 0, 0.15)",
+            border: "1px solid",
+            borderColor: "warning.main",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, color: "warning.main" }}>
+            — Draw - Scores are tied
+          </Typography>
+        </Box>
+      );
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Enter Score - {getTitle()}</DialogTitle>
+      <DialogTitle>Enter Game Score</DialogTitle>
       <DialogContent>
-        <Stack spacing={3} sx={{ mt: 2 }}>
-          <TextField label="Your Team" type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth autoFocus inputProps={{ min: 0 }} />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Enter the final score for both teams. The result (Win, Loss, or Draw) will be automatically calculated.
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, fontStyle: "italic" }}>
+          Example: Your Team: 3, {opponentName}: 1 = Win
+        </Typography>
+        <Stack spacing={3}>
+          <TextField label={`${yourTeamName} (Your Team)`} type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth autoFocus inputProps={{ min: 0 }} />
           <TextField label={opponentName} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+          {getResultPreview()}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -367,8 +369,7 @@ export default function OpponentsPage() {
   const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
   const [scoreDialogData, setScoreDialogData] = useState<{
     opponent: Opponent | null;
-    resultType: "win" | "loss" | "draw";
-  }>({ opponent: null, resultType: "win" });
+  }>({ opponent: null });
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -622,18 +623,8 @@ export default function OpponentsPage() {
     [deleteOpponentMutation]
   );
 
-  const handleWin = useCallback((opponent: Opponent) => {
-    setScoreDialogData({ opponent, resultType: "win" });
-    setScoreDialogOpen(true);
-  }, []);
-
-  const handleLoss = useCallback((opponent: Opponent) => {
-    setScoreDialogData({ opponent, resultType: "loss" });
-    setScoreDialogOpen(true);
-  }, []);
-
-  const handleDraw = useCallback((opponent: Opponent) => {
-    setScoreDialogData({ opponent, resultType: "draw" });
+  const handleOpenScoreModal = useCallback((opponent: Opponent) => {
+    setScoreDialogData({ opponent });
     setScoreDialogOpen(true);
   }, []);
 
@@ -641,7 +632,7 @@ export default function OpponentsPage() {
     (yourScore: number, opponentScore: number) => {
       if (!scoreDialogData.opponent) return;
 
-      const isWin = scoreDialogData.resultType === "win";
+      const isWin = yourScore > opponentScore;
 
       createMatchupMutation.mutate({
         opponentId: scoreDialogData.opponent.id,
@@ -733,7 +724,7 @@ export default function OpponentsPage() {
               <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0, py: 0 }}>
-              Click W (Win), L (Loss), or D (Draw) on an opponent card to record your game result
+              Click the scoreboard icon to enter game scores and track results
             </Typography>
 
             {opponents.length > 0 ? (
@@ -760,9 +751,7 @@ export default function OpponentsPage() {
                       fetchOpponents();
                     }}
                     updateField={updateField}
-                    onWin={handleWin}
-                    onLoss={handleLoss}
-                    onDraw={handleDraw}
+                    onOpenScoreModal={handleOpenScoreModal}
                   />
                 ))}
               </Box>
@@ -1007,7 +996,7 @@ export default function OpponentsPage() {
                   No scores recorded yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Record results by clicking the W, L, or D buttons on opponent cards
+                  Record results by clicking the scoreboard icon on opponent cards
                 </Typography>
               </Box>
             )}
@@ -1054,7 +1043,6 @@ export default function OpponentsPage() {
         onClose={() => setScoreDialogOpen(false)}
         yourTeamName={yourTeamName}
         opponentName={scoreDialogData.opponent?.name || ""}
-        resultType={scoreDialogData.resultType}
         onSubmit={handleScoreSubmit}
         loading={createMatchupMutation.isPending}
       />
