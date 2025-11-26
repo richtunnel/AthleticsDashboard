@@ -25,17 +25,7 @@ import {
   Tooltip,
   Divider,
 } from "@mui/material";
-import { 
-  Add, 
-  Edit, 
-  Delete, 
-  Save, 
-  Cancel, 
-  School, 
-  Person,
-  Close,
-  PlayArrow,
-} from "@mui/icons-material";
+import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow } from "@mui/icons-material";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 
@@ -102,19 +92,7 @@ interface MatchupResult {
 // MEMOIZED COMPONENTS
 // ============================================================================
 
-const OpponentCard = memo(({ 
-  opponent, 
-  isEditing, 
-  editingId, 
-  onEdit, 
-  onUpdate, 
-  onDelete, 
-  onCancelEdit, 
-  updateField,
-  onWin,
-  onLoss,
-  onDraw,
-}: any) => {
+const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onWin, onLoss, onDraw }: any) => {
   return (
     <Card
       sx={{
@@ -132,58 +110,22 @@ const OpponentCard = memo(({
           <Grid size="grow">
             {editingId === opponent.id ? (
               <Stack spacing={2} onClick={(e) => e.stopPropagation()}>
-                <TextField 
-                  label="School/Team Name" 
-                  value={opponent.name} 
-                  onChange={(e) => updateField(opponent.id, "name", e.target.value)} 
-                  size="small" 
-                  fullWidth 
-                />
+                <TextField label="School/Team Name" value={opponent.name} onChange={(e) => updateField(opponent.id, "name", e.target.value)} size="small" fullWidth />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField 
-                      label="Mascot" 
-                      value={opponent.mascot || ""} 
-                      onChange={(e) => updateField(opponent.id, "mascot", e.target.value)} 
-                      size="small" 
-                      fullWidth 
-                    />
+                    <TextField label="Mascot" value={opponent.mascot || ""} onChange={(e) => updateField(opponent.id, "mascot", e.target.value)} size="small" fullWidth />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField 
-                      label="Colors" 
-                      value={opponent.colors || ""} 
-                      onChange={(e) => updateField(opponent.id, "colors", e.target.value)} 
-                      size="small" 
-                      fullWidth 
-                    />
+                    <TextField label="Colors" value={opponent.colors || ""} onChange={(e) => updateField(opponent.id, "colors", e.target.value)} size="small" fullWidth />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField 
-                      label="Contact Person" 
-                      value={opponent.contact || ""} 
-                      onChange={(e) => updateField(opponent.id, "contact", e.target.value)} 
-                      size="small" 
-                      fullWidth 
-                    />
+                    <TextField label="Contact Person" value={opponent.contact || ""} onChange={(e) => updateField(opponent.id, "contact", e.target.value)} size="small" fullWidth />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField 
-                      label="Phone" 
-                      value={opponent.phone || ""} 
-                      onChange={(e) => updateField(opponent.id, "phone", e.target.value)} 
-                      size="small" 
-                      fullWidth 
-                    />
+                    <TextField label="Phone" value={opponent.phone || ""} onChange={(e) => updateField(opponent.id, "phone", e.target.value)} size="small" fullWidth />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
-                    <TextField 
-                      label="Email" 
-                      value={opponent.email || ""} 
-                      onChange={(e) => updateField(opponent.id, "email", e.target.value)} 
-                      size="small" 
-                      fullWidth 
-                    />
+                    <TextField label="Email" value={opponent.email || ""} onChange={(e) => updateField(opponent.id, "email", e.target.value)} size="small" fullWidth />
                   </Grid>
                 </Grid>
               </Stack>
@@ -242,9 +184,9 @@ const OpponentCard = memo(({
                       color: "success.main",
                       fontWeight: 700,
                       fontSize: "14px",
-                      "&:hover": { 
+                      "&:hover": {
                         bgcolor: "rgba(76, 175, 80, 0.25)",
-                      }
+                      },
                     }}
                   >
                     W
@@ -266,9 +208,9 @@ const OpponentCard = memo(({
                       color: "error.main",
                       fontWeight: 700,
                       fontSize: "14px",
-                      "&:hover": { 
+                      "&:hover": {
                         bgcolor: "rgba(244, 67, 54, 0.25)",
-                      }
+                      },
                     }}
                   >
                     L
@@ -290,9 +232,9 @@ const OpponentCard = memo(({
                       color: "warning.main",
                       fontWeight: 700,
                       fontSize: "14px",
-                      "&:hover": { 
+                      "&:hover": {
                         bgcolor: "rgba(255, 152, 0, 0.25)",
-                      }
+                      },
                     }}
                   >
                     D
@@ -350,11 +292,11 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, on
   const handleSubmit = () => {
     const your = parseInt(yourScore);
     const opp = parseInt(opponentScore);
-    
+
     if (isNaN(your) || isNaN(opp) || your < 0 || opp < 0) {
       return;
     }
-    
+
     onSubmit(your, opp);
   };
 
@@ -367,47 +309,31 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, on
 
   const getTitle = () => {
     switch (resultType) {
-      case "win": return "Win";
-      case "loss": return "Loss";
-      case "draw": return "Draw";
-      default: return "";
+      case "win":
+        return "Win";
+      case "loss":
+        return "Loss";
+      case "draw":
+        return "Draw";
+      default:
+        return "";
     }
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>
-        Enter Score - {getTitle()}
-      </DialogTitle>
+      <DialogTitle>Enter Score - {getTitle()}</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 2 }}>
-          <TextField
-            label="Your Team"
-            type="number"
-            value={yourScore}
-            onChange={(e) => setYourScore(e.target.value)}
-            fullWidth
-            autoFocus
-            inputProps={{ min: 0 }}
-          />
-          <TextField
-            label={opponentName}
-            type="number"
-            value={opponentScore}
-            onChange={(e) => setOpponentScore(e.target.value)}
-            fullWidth
-            inputProps={{ min: 0 }}
-          />
+          <TextField label="Your Team" type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth autoFocus inputProps={{ min: 0 }} />
+          <TextField label={opponentName} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
-        <LoadingButton 
-          onClick={handleSubmit} 
-          variant="contained"
-          loading={loading}
-          disabled={!yourScore || !opponentScore}
-        >
+        <Button onClick={onClose} disabled={loading}>
+          Cancel
+        </Button>
+        <LoadingButton onClick={handleSubmit} variant="contained" loading={loading} disabled={!yourScore || !opponentScore}>
           Save Result
         </LoadingButton>
       </DialogActions>
@@ -420,18 +346,7 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, on
 // ============================================================================
 
 export default function OpponentsPage() {
-  const {
-    opponents,
-    isLoading,
-    isCreating,
-    setOpponents,
-    setLoading,
-    setCreating,
-    addOpponent,
-    updateOpponent: storeUpdateOpponent,
-    deleteOpponent,
-    reorderOpponents,
-  } = useOpponentsStore();
+  const { opponents, isLoading, isCreating, setOpponents, setLoading, setCreating, addOpponent, updateOpponent: storeUpdateOpponent, deleteOpponent, reorderOpponents } = useOpponentsStore();
 
   const queryClient = useQueryClient();
 
@@ -714,18 +629,21 @@ export default function OpponentsPage() {
     setScoreDialogOpen(true);
   }, []);
 
-  const handleScoreSubmit = useCallback((yourScore: number, opponentScore: number) => {
-    if (!scoreDialogData.opponent) return;
+  const handleScoreSubmit = useCallback(
+    (yourScore: number, opponentScore: number) => {
+      if (!scoreDialogData.opponent) return;
 
-    const isWin = scoreDialogData.resultType === "win";
-    
-    createMatchupMutation.mutate({
-      opponentId: scoreDialogData.opponent.id,
-      organizationScore: yourScore,
-      opponentScore: opponentScore,
-      isWin: isWin,
-    });
-  }, [scoreDialogData, createMatchupMutation]);
+      const isWin = scoreDialogData.resultType === "win";
+
+      createMatchupMutation.mutate({
+        opponentId: scoreDialogData.opponent.id,
+        organizationScore: yourScore,
+        opponentScore: opponentScore,
+        isWin: isWin,
+      });
+    },
+    [scoreDialogData, createMatchupMutation]
+  );
 
   const updateField = useCallback(
     (id: string, field: string, value: string) => {
@@ -802,9 +720,12 @@ export default function OpponentsPage() {
         {/* Left Column - Opponents List */}
         <Grid size={{ xs: 12, lg: 5 }}>
           <Paper elevation={0} sx={{ p: 2.5, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5, fontSize: 16 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, fontSize: 16 }}>
               Opponents List
               <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0, py: 0 }}>
+              Click W (Win), L (Loss), or D (Draw) on an opponent card to record a game result
             </Typography>
 
             {opponents.length > 0 ? (
@@ -858,9 +779,6 @@ export default function OpponentsPage() {
               Score Tracker
               <Chip label={matchupResults.length} size="small" sx={{ ml: 1 }} />
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Click W (Win), L (Loss), or D (Draw) on an opponent card to record a game result
-            </Typography>
 
             {matchupResults.length > 0 ? (
               <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
@@ -872,11 +790,11 @@ export default function OpponentsPage() {
                   const loserScore = isYourTeamWinner ? result.opponentScore : result.organizationScore;
 
                   return (
-                    <Card 
-                      key={result.id} 
-                      sx={{ 
-                        border: "1px solid", 
-                        borderColor: "divider", 
+                    <Card
+                      key={result.id}
+                      sx={{
+                        border: "1px solid",
+                        borderColor: "divider",
                         position: "relative",
                         boxShadow: "none",
                       }}
@@ -903,16 +821,16 @@ export default function OpponentsPage() {
                           <Box sx={{ flex: 1 }}>
                             {/* Winner Row */}
                             <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-                              <PlayArrow 
-                                sx={{ 
-                                  fontSize: 18, 
+                              <PlayArrow
+                                sx={{
+                                  fontSize: 18,
                                   mr: 0.5,
                                   color: "text.secondary",
-                                }} 
+                                }}
                               />
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
+                              <Typography
+                                variant="body2"
+                                sx={{
                                   fontWeight: 700,
                                   fontSize: "14px",
                                   flex: 1,
@@ -920,9 +838,9 @@ export default function OpponentsPage() {
                               >
                                 {winnerName}
                               </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
+                              <Typography
+                                variant="body2"
+                                sx={{
                                   fontWeight: 700,
                                   fontSize: "16px",
                                   ml: 1,
@@ -938,9 +856,9 @@ export default function OpponentsPage() {
                             {/* Loser Row */}
                             <Box sx={{ display: "flex", alignItems: "center" }}>
                               <Box sx={{ width: 18, mr: 0.5 }} />
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
+                              <Typography
+                                variant="body2"
+                                sx={{
                                   fontWeight: 400,
                                   fontSize: "14px",
                                   flex: 1,
@@ -948,9 +866,9 @@ export default function OpponentsPage() {
                               >
                                 {loserName}
                               </Typography>
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
+                              <Typography
+                                variant="body2"
+                                sx={{
                                   fontWeight: 400,
                                   fontSize: "16px",
                                   ml: 1,
@@ -962,11 +880,11 @@ export default function OpponentsPage() {
                           </Box>
 
                           {/* Right Side - Final Label and Date */}
-                          <Box 
-                            sx={{ 
-                              ml: 2, 
-                              pl: 2, 
-                              borderLeft: "1px solid", 
+                          <Box
+                            sx={{
+                              ml: 2,
+                              pl: 2,
+                              borderLeft: "1px solid",
                               borderColor: "divider",
                               display: "flex",
                               flexDirection: "column",
@@ -974,9 +892,9 @@ export default function OpponentsPage() {
                               minWidth: "80px",
                             }}
                           >
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
+                            <Typography
+                              variant="caption"
+                              sx={{
                                 fontWeight: 600,
                                 fontSize: "10px",
                                 color: "text.secondary",
@@ -986,17 +904,17 @@ export default function OpponentsPage() {
                             >
                               Final
                             </Typography>
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
+                            <Typography
+                              variant="caption"
+                              sx={{
                                 fontSize: "11px",
                                 color: "text.secondary",
                               }}
                             >
-                              {new Date(result.createdAt).toLocaleDateString('en-US', { 
-                                month: 'short', 
-                                day: 'numeric',
-                                year: 'numeric'
+                              {new Date(result.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
                               })}
                             </Typography>
                           </Box>
@@ -1026,66 +944,29 @@ export default function OpponentsPage() {
         <DialogTitle>Add New Opponent</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 2 }}>
-            <TextField
-              label="School/Team Name *"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              fullWidth
-              autoFocus
-            />
+            <TextField label="School/Team Name *" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} fullWidth autoFocus />
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Mascot"
-                  value={formData.mascot}
-                  onChange={(e) => setFormData({ ...formData, mascot: e.target.value })}
-                  fullWidth
-                />
+                <TextField label="Mascot" value={formData.mascot} onChange={(e) => setFormData({ ...formData, mascot: e.target.value })} fullWidth />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Colors"
-                  value={formData.colors}
-                  onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
-                  fullWidth
-                />
+                <TextField label="Colors" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} fullWidth />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Contact Person"
-                  value={formData.contact}
-                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  fullWidth
-                />
+                <TextField label="Contact Person" value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} fullWidth />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  fullWidth
-                />
+                <TextField label="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} fullWidth />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <TextField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  fullWidth
-                />
+                <TextField label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} fullWidth />
               </Grid>
             </Grid>
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
-          <LoadingButton
-            onClick={handleCreateOpponent}
-            variant="contained"
-            loading={isCreating}
-            disabled={!formData.name.trim()}
-          >
+          <LoadingButton onClick={handleCreateOpponent} variant="contained" loading={isCreating} disabled={!formData.name.trim()}>
             Add Opponent
           </LoadingButton>
         </DialogActions>
@@ -1103,12 +984,7 @@ export default function OpponentsPage() {
       />
 
       {/* Snackbar */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        message={snackbar.message}
-      />
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} message={snackbar.message} />
     </Box>
   );
 }
