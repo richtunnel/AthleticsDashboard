@@ -10,6 +10,7 @@ import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
+import { createSampleGame } from "@/lib/services/sample-game.service";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -71,6 +72,16 @@ const customAdapter = {
         organization: true,
       },
     });
+
+    // Create sample game for new user (non-blocking)
+    void runNonCritical(
+      () =>
+        createSampleGame({
+          userId: newUser.id,
+          organizationId: newUser.organizationId,
+        }),
+      `sample game creation for user ${newUser.id}`,
+    );
 
     // Send welcome email (non-blocking)
     if (newUser.email) {
@@ -225,7 +236,7 @@ export const authOptions: NextAuthOptions = {
               () =>
                 emailService.sendWelcomeEmail({
                   id: user.id,
-                  email: user.email,
+                  email: user.email!,
                   name: user.name,
                 }),
               `welcome email for user ${user.id}`,
