@@ -25,12 +25,12 @@ export const useImportUndoStore = create<ImportUndoState>((set, get) => ({
       clearTimeout(state.autoHideTimeout);
     }
 
-    // Set up new auto-delete after 30 seconds
-    const timeout = setTimeout(async () => {
+    // Set up auto-hide (NOT auto-delete) after 30 seconds
+    const timeout = setTimeout(() => {
       const currentState = get();
       if (currentState.importedGameIds.length > 0) {
-        // Auto-delete games after 30 seconds
-        await currentState.undoImport();
+        // Just clear the undo button - DO NOT delete games
+        currentState.clearImport();
       }
     }, 30000);
 
