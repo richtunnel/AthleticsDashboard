@@ -413,7 +413,7 @@ export default function OpponentsPage() {
   const yourTeamName = useMemo(() => {
     return userData?.user?.teamName || userData?.user?.schoolName || "Your Team";
   }, [userData?.user]);
-  
+
   const wonGamesCount = useMemo(() => {
     return matchupResults.filter((result: MatchupResult) => result.isWin).length;
   }, [matchupResults]);
@@ -729,7 +729,7 @@ export default function OpponentsPage() {
               <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0, py: 0 }}>
-              Click W (Win), L (Loss), or D (Draw) on an opponent card to record a game result
+              Click W (Win), L (Loss), or D (Draw) on an opponent card to record your game result
             </Typography>
 
             {opponents.length > 0 ? (
@@ -784,19 +784,15 @@ export default function OpponentsPage() {
                 Score Tracker
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Chip 
-                  label={`${matchupResults.length} Games`} 
-                  size="small" 
-                  sx={{ bgcolor: "rgba(15, 23, 42, 0.08)" }} 
-                />
-                <Chip 
-                  label={`${wonGamesCount} Won`} 
-                  size="small" 
-                  sx={{ 
-                    bgcolor: "rgba(76, 175, 80, 0.15)", 
+                <Chip label={`Total Games ${matchupResults.length}`} size="small" sx={{ bgcolor: "rgba(15, 23, 42, 0.08)" }} />
+                <Chip
+                  label={`Wins ${wonGamesCount}`}
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(76, 175, 80, 0.15)",
                     color: "success.main",
-                    fontWeight: 600 
-                  }} 
+                    fontWeight: 600,
+                  }}
                 />
               </Box>
             </Box>
