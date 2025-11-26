@@ -703,7 +703,7 @@ export default function OpponentsPage() {
       <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Opponents & Win/Loss Tracker
+            Teams & Score tracker
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Track your opponents and record game results with scores
