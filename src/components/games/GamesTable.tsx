@@ -1806,7 +1806,13 @@ export function GamesTable() {
         has_errors: result.failed > 0,
       });
 
-      const message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}. You have 30 seconds to undo.`;
+      // Show different message for duplicate/failed imports vs successful imports
+      let message: string;
+      if (result.success === 0 && result.failed > 0) {
+        message = `Import Warning! 0 games imported, ${result.failed} duplicated games found, failed!`;
+      } else {
+        message = `Import complete! ${result.success} games imported successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}. You have 30 seconds to undo.`;
+      }
 
       addNotification(message, result.failed > 0 ? "warning" : "success");
 

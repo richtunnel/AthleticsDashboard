@@ -76,7 +76,15 @@ export function ImportButton() {
         has_errors: data.data.errors.length > 0,
       });
 
-      alert(`Import complete!\nSuccess: ${data.data.success}\nErrors: ${data.data.errors.length}`);
+      // Show different message for duplicate/failed imports vs successful imports
+      let message: string;
+      if (data.data.success === 0 && data.data.errors.length > 0) {
+        message = `Import Warning! 0 games imported, ${data.data.errors.length} duplicated games found, failed!`;
+      } else {
+        message = `Import complete!\nSuccess: ${data.data.success}\nErrors: ${data.data.errors.length}`;
+      }
+      
+      alert(message);
       setFile(null);
     },
     onError: () => {
