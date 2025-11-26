@@ -19,25 +19,26 @@ import {
   DialogActions,
   Chip,
   CircularProgress,
-  Alert,
   Snackbar,
   Grid,
-  MenuItem,
-  Stepper,
-  Step,
-  StepLabel,
   Skeleton,
+  Tooltip,
+  Divider,
 } from "@mui/material";
-import { Add, DragIndicator, Edit, Delete, Save, Cancel, School, Phone, Email, Person, Close, Check, NavigateNext, SkipNext, Warning } from "@mui/icons-material";
+import { 
+  Add, 
+  Edit, 
+  Delete, 
+  Save, 
+  Cancel, 
+  School, 
+  Person,
+  ThumbUp,
+  ThumbDown,
+  Close,
+} from "@mui/icons-material";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
-import { formatLevelDisplay } from "@/lib/utils/formatters";
-import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
-
-const dateStringToUTCISOString = (dateValue: string): string => {
-  // Use robust date parser that handles multiple formats
-  return parseAndConvertDate(dateValue);
-};
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T & { cancel: () => void } {
   let timeout: NodeJS.Timeout | null = null;
@@ -71,15 +72,6 @@ interface OpponentFormData {
   notes: string;
 }
 
-interface GameFormData {
-  date: string;
-  time: string;
-  venueId: string;
-  status: string;
-  notes: string;
-  homeTeamId: string;
-}
-
 interface Opponent {
   id: string;
   name: string;
@@ -97,71 +89,101 @@ interface SortableOpponent extends Opponent {
   selected?: boolean;
 }
 
+interface MatchupResult {
+  id: string;
+  opponentId: string;
+  organizationScore: number;
+  opponentScore: number;
+  isWin: boolean;
+  opponent: Opponent;
+  createdAt: string;
+}
+
 // ============================================================================
-// MEMOIZED COMPONENTS FOR PERFORMANCE
+// MEMOIZED COMPONENTS
 // ============================================================================
 
-const OpponentCard = memo(({ opponent, isSelected, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onSelect }: any) => {
-  const handleCardClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (isEditing) {
-        e.stopPropagation();
-        return;
-      }
-      onSelect(opponent);
-    },
-    [isEditing, onSelect, opponent]
-  );
-
+const OpponentCard = memo(({ 
+  opponent, 
+  isEditing, 
+  editingId, 
+  onEdit, 
+  onUpdate, 
+  onDelete, 
+  onCancelEdit, 
+  updateField,
+  onWin,
+  onLoss,
+}: any) => {
   return (
     <Card
       sx={{
         mb: 2,
         transition: "all 0.2s ease",
-        cursor: !isEditing ? "pointer" : "default",
-        border: isSelected ? "2px solid" : "1px solid",
-        borderColor: isSelected ? "primary.main" : "divider",
+        border: "1px solid",
+        borderColor: "divider",
         boxShadow: "none",
-        "&:hover": !isEditing ? { borderColor: "primary.light" } : {},
+        "&:hover": { borderColor: "primary.light" },
         userSelect: "none",
       }}
-      onClick={handleCardClick}
     >
       <CardContent sx={{ p: 0.75, "&:last-child": { pb: 0.75 } }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid size="auto">
-            <IconButton
-              className="drag-handle"
-              sx={{
-                cursor: "grab",
-                "&:active": { cursor: "grabbing" },
-                touchAction: "none",
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <DragIndicator />
-            </IconButton>
-          </Grid>
-
           <Grid size="grow">
             {editingId === opponent.id ? (
               <Stack spacing={2} onClick={(e) => e.stopPropagation()}>
-                <TextField label="School/Team Name" value={opponent.name} onChange={(e) => updateField(opponent.id, "name", e.target.value)} size="small" fullWidth />
+                <TextField 
+                  label="School/Team Name" 
+                  value={opponent.name} 
+                  onChange={(e) => updateField(opponent.id, "name", e.target.value)} 
+                  size="small" 
+                  fullWidth 
+                />
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField label="Mascot" value={opponent.mascot || ""} onChange={(e) => updateField(opponent.id, "mascot", e.target.value)} size="small" fullWidth />
+                    <TextField 
+                      label="Mascot" 
+                      value={opponent.mascot || ""} 
+                      onChange={(e) => updateField(opponent.id, "mascot", e.target.value)} 
+                      size="small" 
+                      fullWidth 
+                    />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField label="Colors" value={opponent.colors || ""} onChange={(e) => updateField(opponent.id, "colors", e.target.value)} size="small" fullWidth />
+                    <TextField 
+                      label="Colors" 
+                      value={opponent.colors || ""} 
+                      onChange={(e) => updateField(opponent.id, "colors", e.target.value)} 
+                      size="small" 
+                      fullWidth 
+                    />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField label="Contact Person" value={opponent.contact || ""} onChange={(e) => updateField(opponent.id, "contact", e.target.value)} size="small" fullWidth />
+                    <TextField 
+                      label="Contact Person" 
+                      value={opponent.contact || ""} 
+                      onChange={(e) => updateField(opponent.id, "contact", e.target.value)} 
+                      size="small" 
+                      fullWidth 
+                    />
                   </Grid>
                   <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField label="Phone" value={opponent.phone || ""} onChange={(e) => updateField(opponent.id, "phone", e.target.value)} size="small" fullWidth />
+                    <TextField 
+                      label="Phone" 
+                      value={opponent.phone || ""} 
+                      onChange={(e) => updateField(opponent.id, "phone", e.target.value)} 
+                      size="small" 
+                      fullWidth 
+                    />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
-                    <TextField label="Email" value={opponent.email || ""} onChange={(e) => updateField(opponent.id, "email", e.target.value)} size="small" fullWidth />
+                    <TextField 
+                      label="Email" 
+                      value={opponent.email || ""} 
+                      onChange={(e) => updateField(opponent.id, "email", e.target.value)} 
+                      size="small" 
+                      fullWidth 
+                    />
                   </Grid>
                 </Grid>
               </Stack>
@@ -204,6 +226,36 @@ const OpponentCard = memo(({ opponent, isSelected, isEditing, editingId, onEdit,
               </Stack>
             ) : (
               <Stack direction="row" spacing={0.5}>
+                <Tooltip title="Record a Win (your team won)">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onWin(opponent);
+                    }}
+                    sx={{
+                      color: "success.main",
+                      "&:hover": { bgcolor: "success.lighter" }
+                    }}
+                  >
+                    <ThumbUp fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Record a Loss (your team lost)">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLoss(opponent);
+                    }}
+                    sx={{
+                      color: "error.main",
+                      "&:hover": { bgcolor: "error.lighter" }
+                    }}
+                  >
+                    <ThumbDown fontSize="small" />
+                  </IconButton>
+                </Tooltip>
                 <IconButton
                   size="small"
                   color="primary"
@@ -236,6 +288,83 @@ const OpponentCard = memo(({ opponent, isSelected, isEditing, editingId, onEdit,
 OpponentCard.displayName = "OpponentCard";
 
 // ============================================================================
+// SCORE DIALOG COMPONENT
+// ============================================================================
+
+interface ScoreDialogProps {
+  open: boolean;
+  onClose: () => void;
+  yourTeamName: string;
+  opponentName: string;
+  isWin: boolean;
+  onSubmit: (yourScore: number, opponentScore: number) => void;
+  loading: boolean;
+}
+
+const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, isWin, onSubmit, loading }: ScoreDialogProps) => {
+  const [yourScore, setYourScore] = useState<string>("");
+  const [opponentScore, setOpponentScore] = useState<string>("");
+
+  const handleSubmit = () => {
+    const your = parseInt(yourScore);
+    const opp = parseInt(opponentScore);
+    
+    if (isNaN(your) || isNaN(opp) || your < 0 || opp < 0) {
+      return;
+    }
+    
+    onSubmit(your, opp);
+  };
+
+  useEffect(() => {
+    if (!open) {
+      setYourScore("");
+      setOpponentScore("");
+    }
+  }, [open]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>
+        Enter Score - {isWin ? "Win" : "Loss"}
+      </DialogTitle>
+      <DialogContent>
+        <Stack spacing={3} sx={{ mt: 2 }}>
+          <TextField
+            label={`${yourTeamName} (Your Team)`}
+            type="number"
+            value={yourScore}
+            onChange={(e) => setYourScore(e.target.value)}
+            fullWidth
+            autoFocus
+            inputProps={{ min: 0 }}
+          />
+          <TextField
+            label={opponentName}
+            type="number"
+            value={opponentScore}
+            onChange={(e) => setOpponentScore(e.target.value)}
+            fullWidth
+            inputProps={{ min: 0 }}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <LoadingButton 
+          onClick={handleSubmit} 
+          variant="contained"
+          loading={loading}
+          disabled={!yourScore || !opponentScore}
+        >
+          Save Result
+        </LoadingButton>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -243,11 +372,9 @@ export default function OpponentsPage() {
   const {
     opponents,
     isLoading,
-    isDragging,
     isCreating,
     setOpponents,
     setLoading,
-    setDragging,
     setCreating,
     addOpponent,
     updateOpponent: storeUpdateOpponent,
@@ -256,10 +383,6 @@ export default function OpponentsPage() {
   } = useOpponentsStore();
 
   const queryClient = useQueryClient();
-
-  // Refs for performance
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout>(null);
 
   // State management
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
@@ -274,17 +397,12 @@ export default function OpponentsPage() {
     notes: "",
   });
 
-  // Matchup creator states
-  const [selectedOpponents, setSelectedOpponents] = useState<Opponent[]>([]);
-  const [matchupStep, setMatchupStep] = useState<"select" | "form">("select");
-  const [gameFormData, setGameFormData] = useState<GameFormData>({
-    date: new Date().toISOString().split("T")[0],
-    time: "",
-    venueId: "",
-    status: "SCHEDULED",
-    notes: "",
-    homeTeamId: "",
-  });
+  // Score dialog state
+  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
+  const [scoreDialogData, setScoreDialogData] = useState<{
+    opponent: Opponent | null;
+    isWin: boolean;
+  }>({ opponent: null, isWin: true });
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -298,88 +416,60 @@ export default function OpponentsPage() {
     setIsMobile(/iPhone|iPad|iPod|Android/i.test(window.navigator.userAgent));
   }, []);
 
+  // Refs for performance
+  const debouncedReorderRef = useRef<any>(null);
+
   // ============================================================================
-  // DATA FETCHING WITH CACHING
+  // DATA FETCHING
   // ============================================================================
 
-  const { data: teamsResponse } = useQuery({
-    queryKey: ["teams"],
+  const { data: matchupResultsData, refetch: refetchMatchupResults } = useQuery({
+    queryKey: ["matchup-results"],
     queryFn: async () => {
-      const res = await fetch("/api/teams");
-      if (!res.ok) throw new Error("Failed to fetch teams");
+      const res = await fetch("/api/matchup-results");
+      if (!res.ok) throw new Error("Failed to fetch matchup results");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 30 * 1000,
   });
 
-  const { data: venuesResponse } = useQuery({
-    queryKey: ["venues"],
+  const { data: userData } = useQuery({
+    queryKey: ["user-data"],
     queryFn: async () => {
-      const res = await fetch("/api/venues");
-      if (!res.ok) throw new Error("Failed to fetch venues");
+      const res = await fetch("/api/auth/session");
+      if (!res.ok) throw new Error("Failed to fetch user data");
       return res.json();
     },
     staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  const teams = useMemo(() => teamsResponse?.data || [], [teamsResponse?.data]);
-  const venues = useMemo(() => venuesResponse?.data || [], [venuesResponse?.data]);
+  const matchupResults = useMemo(() => matchupResultsData?.data || [], [matchupResultsData?.data]);
+  const yourTeamName = useMemo(() => {
+    return userData?.user?.schoolName || userData?.user?.teamName || userData?.user?.name || "Your Team";
+  }, [userData?.user]);
 
   // ============================================================================
-  // MUTATIONS WITH OPTIMISTIC UPDATES
+  // MUTATIONS
   // ============================================================================
 
-  const createGameMutation = useMutation({
-    mutationFn: async (gameData: any) => {
-      // Cancel any pending requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      abortControllerRef.current = new AbortController();
-
-      const res = await fetch("/api/games", {
+  const createMatchupMutation = useMutation({
+    mutationFn: async (data: { opponentId: string; organizationScore: number; opponentScore: number; isWin: boolean }) => {
+      const res = await fetch("/api/matchup-results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(gameData),
-        signal: abortControllerRef.current.signal,
+        body: JSON.stringify(data),
       });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to create game");
-      }
-
+      if (!res.ok) throw new Error("Failed to create matchup result");
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
-      showSnackbar("Game created successfully! 🎉", "success");
-
-      // Reset matchup creator
-      setSelectedOpponents([]);
-      setMatchupStep("select");
-      setGameFormData({
-        date: new Date().toISOString().split("T")[0],
-        time: "",
-        venueId: "",
-        status: "SCHEDULED",
-        notes: "",
-        homeTeamId: "",
-      });
+      refetchMatchupResults();
+      showSnackbar("Matchup result saved!", "success");
+      setScoreDialogOpen(false);
     },
     onError: (error: any) => {
-      if (error.name === "AbortError") return;
-      showSnackbar(error.message || "Failed to create game", "error");
+      showSnackbar(error.message || "Failed to save matchup result", "error");
     },
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   const updateOpponentMutation = useMutation({
@@ -389,17 +479,13 @@ export default function OpponentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-
       if (!res.ok) throw new Error("Failed to update opponent");
       return res.json();
     },
     onMutate: async ({ id, data }) => {
-      // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["opponents"] });
       const previousOpponents = opponents;
-
       storeUpdateOpponent(id, data);
-
       return { previousOpponents };
     },
     onError: (err, variables, context) => {
@@ -419,16 +505,13 @@ export default function OpponentsPage() {
       const res = await fetch(`/api/opponents/${id}`, {
         method: "DELETE",
       });
-
       if (!res.ok) throw new Error("Failed to delete opponent");
       return res.json();
     },
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ["opponents"] });
       const previousOpponents = opponents;
-
       deleteOpponent(id);
-
       return { previousOpponents };
     },
     onError: (err, variables, context) => {
@@ -442,8 +525,25 @@ export default function OpponentsPage() {
     },
   });
 
+  const deleteMatchupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/matchup-results/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete matchup result");
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchMatchupResults();
+      showSnackbar("Matchup result deleted", "success");
+    },
+    onError: () => {
+      showSnackbar("Failed to delete matchup result", "error");
+    },
+  });
+
   // ============================================================================
-  // HANDLERS WITH DEBOUNCING
+  // HANDLERS
   // ============================================================================
 
   const fetchOpponents = useCallback(async () => {
@@ -486,19 +586,21 @@ export default function OpponentsPage() {
         } catch (error) {
           showSnackbar("Failed to update order", "error");
           fetchOpponents();
-        } finally {
-          setDragging(false);
         }
       }, 500),
-    [fetchOpponents, setDragging]
+    [fetchOpponents]
   );
+
+  useEffect(() => {
+    debouncedReorderRef.current = debouncedReorder;
+  }, [debouncedReorder]);
 
   const handleReorder = useCallback(
     (newOrder: Opponent[]) => {
       reorderOpponents(newOrder);
-      debouncedReorder(newOrder);
+      debouncedReorderRef.current(newOrder);
     },
-    [reorderOpponents, debouncedReorder]
+    [reorderOpponents]
   );
 
   const handleCreateOpponent = useCallback(async () => {
@@ -533,7 +635,6 @@ export default function OpponentsPage() {
     (id: string) => {
       const opponent = opponents.find((o) => o.id === id);
       if (!opponent) return;
-
       updateOpponentMutation.mutate({ id, data: opponent });
     },
     [opponents, updateOpponentMutation]
@@ -547,68 +648,28 @@ export default function OpponentsPage() {
     [deleteOpponentMutation]
   );
 
-  const handleOpponentSelect = useCallback(
-    (opponent: Opponent) => {
-      if (editingId) return;
-
-      setSelectedOpponents((prev) => {
-        const isAlreadySelected = prev.find((o) => o.id === opponent.id);
-
-        if (isAlreadySelected) {
-          return prev.filter((o) => o.id !== opponent.id);
-        }
-
-        if (prev.length >= 2) {
-          return prev;
-        }
-
-        return [...prev, opponent];
-      });
-    },
-    [editingId]
-  );
-
-  const handleRemoveFromMatchup = useCallback((opponentId: string) => {
-    setSelectedOpponents((prev) => prev.filter((o) => o.id !== opponentId));
+  const handleWin = useCallback((opponent: Opponent) => {
+    setScoreDialogData({ opponent, isWin: true });
+    setScoreDialogOpen(true);
   }, []);
 
-  const handleNextStep = useCallback(() => {
-    setMatchupStep("form");
+  const handleLoss = useCallback((opponent: Opponent) => {
+    setScoreDialogData({ opponent, isWin: false });
+    setScoreDialogOpen(true);
   }, []);
 
-  const handleSkipForm = useCallback(() => {
-    handleSubmitGame(true);
-  }, []);
+  const handleScoreSubmit = useCallback((yourScore: number, opponentScore: number) => {
+    if (!scoreDialogData.opponent) return;
 
-  const handleSubmitGame = useCallback(
-    (skipOptional = false) => {
-      if (selectedOpponents.length !== 2) {
-        showSnackbar("Please select exactly 2 opponents", "error");
-        return;
-      }
-
-      const selectedTeamId = gameFormData.homeTeamId || teams[0]?.id;
-
-      if (!selectedTeamId) {
-        showSnackbar("No teams available. Please create a team first.", "error");
-        return;
-      }
-
-      const gameData = {
-        date: dateStringToUTCISOString(gameFormData.date),
-        time: skipOptional ? null : gameFormData.time || null,
-        homeTeamId: selectedTeamId,
-        isHome: false,
-        opponentId: selectedOpponents[1].id,
-        venueId: skipOptional ? null : gameFormData.venueId || null,
-        status: gameFormData.status,
-        notes: skipOptional ? null : gameFormData.notes || null,
-      };
-
-      createGameMutation.mutate(gameData);
-    },
-    [selectedOpponents, gameFormData, teams, createGameMutation]
-  );
+    const isWin = scoreDialogData.isWin;
+    
+    createMatchupMutation.mutate({
+      opponentId: scoreDialogData.opponent.id,
+      organizationScore: yourScore,
+      opponentScore: opponentScore,
+      isWin: isWin,
+    });
+  }, [scoreDialogData, createMatchupMutation]);
 
   const updateField = useCallback(
     (id: string, field: string, value: string) => {
@@ -636,15 +697,11 @@ export default function OpponentsPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      if (debouncedReorderRef.current) {
+        debouncedReorderRef.current.cancel();
       }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-      debouncedReorder.cancel();
     };
-  }, [debouncedReorder]);
+  }, []);
 
   // ============================================================================
   // RENDER
@@ -673,10 +730,10 @@ export default function OpponentsPage() {
       <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Add Teams & Create Matchups
+            Opponents & Win/Loss Tracker
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Add new teams that you'll play here. You can use our custom match maker feature to create games in Game Center.
+            Track your opponents and record game results with scores
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpenCreateDialog(true)} sx={{ textTransform: "none" }}>
@@ -684,9 +741,9 @@ export default function OpponentsPage() {
         </Button>
       </Box>
 
-      {/* Two Column Layout - Right column is larger (7) */}
+      {/* Two Column Layout */}
       <Grid container spacing={3}>
-        {/* Left Column - Opponents List (Smaller - 5 columns) */}
+        {/* Left Column - Opponents List */}
         <Grid size={{ xs: 12, lg: 5 }}>
           <Paper elevation={0} sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: 16 }}>
@@ -695,29 +752,8 @@ export default function OpponentsPage() {
             </Typography>
 
             {opponents.length > 0 ? (
-              <ReactSortable
-                list={opponents as SortableOpponent[]}
-                setList={handleReorder}
-                group={{
-                  name: "shared",
-                  pull: "clone", // Clone instead of move
-                  put: false,
-                }}
-                animation={200}
-                delayOnTouchStart={isMobile}
-                delay={isMobile ? 200 : 0}
-                onStart={() => setDragging(true)}
-                onEnd={() => setDragging(false)}
-                handle=".drag-handle"
-                forceFallback={true}
-                fallbackClass="sortable-fallback"
-                ghostClass="sortable-ghost"
-                chosenClass="sortable-chosen"
-                dragClass="sortable-drag"
-                filter=".no-drag"
-                preventOnFilter={false}
-                sort={true} // Enable sorting within the list
-                style={{
+              <Box
+                sx={{
                   minHeight: 100,
                   maxHeight: "calc(100vh - 250px)",
                   overflowY: "auto",
@@ -728,7 +764,6 @@ export default function OpponentsPage() {
                   <OpponentCard
                     key={opponent.id}
                     opponent={opponent}
-                    isSelected={selectedOpponents.some((o) => o.id === opponent.id)}
                     isEditing={editingId === opponent.id}
                     editingId={editingId}
                     onEdit={setEditingId}
@@ -739,10 +774,11 @@ export default function OpponentsPage() {
                       fetchOpponents();
                     }}
                     updateField={updateField}
-                    onSelect={handleOpponentSelect}
+                    onWin={handleWin}
+                    onLoss={handleLoss}
                   />
                 ))}
-              </ReactSortable>
+              </Box>
             ) : (
               <Paper sx={{ p: 4, textAlign: "center", bgcolor: "action.hover" }}>
                 <School sx={{ fontSize: 40, color: "text.secondary", mb: 1 }} />
@@ -757,443 +793,194 @@ export default function OpponentsPage() {
           </Paper>
         </Grid>
 
-        {/* Right Column - Matchup Creator (Larger - 7 columns) */}
+        {/* Right Column - Score Tracker */}
         <Grid size={{ xs: 12, lg: 7 }}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 4,
-              position: "sticky",
-              top: 20,
-              minHeight: 500,
-              border: "none",
-              boxShadow: "none",
-              transition: "all 0.3s",
-              bgcolor: "transparent",
-            }}
-          >
-            <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-              Create Matchup <span style={{ color: "lightgrey" }}>(Optional)</span>
+          <Paper elevation={0} sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, minHeight: 500 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              Score Tracker
+              <Chip label={matchupResults.length} size="small" sx={{ ml: 1 }} />
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              {matchupStep === "select" ? "Drag & drop or click 2 opponents to create a game" : "Fill in game details or skip to use defaults"}
+              Click W (Win) or L (Loss) on an opponent card to record a game result
             </Typography>
 
-            <Stepper activeStep={matchupStep === "select" ? 0 : 1} sx={{ mb: 4 }}>
-              <Step>
-                <StepLabel>Select Teams</StepLabel>
-              </Step>
-              <Step>
-                <StepLabel>Game Details</StepLabel>
-              </Step>
-            </Stepper>
-
-            {matchupStep === "select" ? (
-              <>
-                {/* DROP ZONE for dragging opponents */}
-                <ReactSortable
-                  list={selectedOpponents as SortableOpponent[]}
-                  setList={(newState) => {
-                    // Only keep first 2 items
-                    const filtered = newState.slice(0, 2);
-                    setSelectedOpponents(filtered);
-                  }}
-                  group={{
-                    name: "shared",
-                    put: selectedOpponents.length < 2, // Only allow drops if less than 2
-                    pull: false,
-                  }}
-                  animation={200}
-                  sort={false}
-                  onAdd={(evt) => {
-                    // Ensure we don't exceed 2 opponents
-                    if (selectedOpponents.length >= 2) {
-                      evt.item.remove();
-                    }
-                  }}
-                  style={{
-                    minHeight: 400,
-                    padding: 16,
-                    borderRadius: 8,
-                    border: selectedOpponents.length === 2 ? "2px solid var(--accent)" : "2px dashed var(--border-color)",
-                    backgroundColor: selectedOpponents.length === 2 ? "var(--surface-selected)" : "var(--surface-muted)",
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  {selectedOpponents.length === 0 ? (
-                    <Box
+            {matchupResults.length > 0 ? (
+              <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
+                {matchupResults.map((result: MatchupResult) => (
+                  <Card key={result.id} sx={{ border: "1px solid", borderColor: "divider", position: "relative" }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        if (confirm("Delete this score entry?")) {
+                          deleteMatchupMutation.mutate(result.id);
+                        }
+                      }}
                       sx={{
-                        textAlign: "center",
-                        py: 8,
-                        color: "text.secondary",
-                        borderRadius: 2,
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        zIndex: 10,
                       }}
                     >
-                      <School sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
-                      <Typography variant="h6" sx={{ mb: 1 }}>
-                        Drop Teams Here
-                      </Typography>
-                      <Typography variant="body2">Drag & drop or click opponents from the list</Typography>
-                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                        Maximum 2 teams required
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Stack spacing={3}>
-                      {/* First Team Card */}
-                      {selectedOpponents[0] && (
-                        <Card
-                          elevation={4}
-                          sx={{
-                            position: "relative",
-                            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                            color: "white",
-                            transform: "scale(1)",
-                            transition: "transform 0.2s",
-                            "&:hover": { transform: "scale(1.02)" },
-                          }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRemoveFromMatchup(selectedOpponents[0].id)}
-                            sx={{
-                              position: "absolute",
-                              top: 8,
-                              right: 8,
+                      <Close fontSize="small" />
+                    </IconButton>
+                    <CardContent>
+                      {/* Top Row - Winner or Your Team if Win */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Chip 
+                            label="W" 
+                            size="small" 
+                            sx={{ 
+                              bgcolor: "success.main", 
                               color: "white",
-                              bgcolor: "rgba(0,0,0,0.3)",
-                              "&:hover": { bgcolor: "rgba(0,0,0,0.5)" },
-                              zIndex: 10,
-                            }}
-                          >
-                            <Close fontSize="small" />
-                          </IconButton>
-                          <CardContent sx={{ pb: "16px !important", pt: 3 }}>
-                            <Typography variant="overline" sx={{ opacity: 0.8, fontSize: 11 }}>
-                              Team 1
-                            </Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                              {selectedOpponents[0].name}
-                            </Typography>
-                            {selectedOpponents[0].mascot && (
-                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                                {selectedOpponents[0].mascot}
-                              </Typography>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* VS Indicator with connecting lines */}
-                      {selectedOpponents.length === 2 && (
-                        <Box
-                          sx={{
-                            textAlign: "center",
-                            position: "relative",
-                            "&::before, &::after": {
-                              content: '""',
-                              position: "absolute",
-                              width: 3,
-                              height: 30,
-                              bgcolor: "primary.main",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                            },
-                            "&::before": { top: -30 },
-                            "&::after": { bottom: -30 },
-                          }}
-                        >
-                          <Chip
-                            label="VS"
-                            color="primary"
-                            sx={{
                               fontWeight: 700,
-                              fontSize: 20,
-                              px: 3,
-                              py: 2.5,
-                              height: "auto",
-                            }}
+                              minWidth: 32,
+                            }} 
                           />
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            {result.isWin ? yourTeamName : result.opponent.name}
+                          </Typography>
                         </Box>
-                      )}
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
+                          {result.isWin ? result.organizationScore : result.opponentScore}
+                        </Typography>
+                      </Box>
 
-                      {/* Second Team Card or Placeholder */}
-                      {selectedOpponents.length === 2 ? (
-                        <Card
-                          elevation={4}
-                          sx={{
-                            position: "relative",
-                            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-                            color: "white",
-                            transform: "scale(1)",
-                            transition: "transform 0.2s",
-                            "&:hover": { transform: "scale(1.02)" },
-                          }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleRemoveFromMatchup(selectedOpponents[1].id)}
-                            sx={{
-                              position: "absolute",
-                              top: 8,
-                              right: 8,
+                      <Divider sx={{ my: 1 }} />
+
+                      {/* Bottom Row - Loser or Opponent if Loss */}
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Chip 
+                            label="L" 
+                            size="small" 
+                            sx={{ 
+                              bgcolor: "error.main", 
                               color: "white",
-                              bgcolor: "rgba(0,0,0,0.3)",
-                              "&:hover": { bgcolor: "rgba(0,0,0,0.5)" },
-                              zIndex: 10,
-                            }}
-                          >
-                            <Close fontSize="small" />
-                          </IconButton>
-                          <CardContent sx={{ pb: "16px !important", pt: 3 }}>
-                            <Typography variant="overline" sx={{ opacity: 0.8, fontSize: 11 }}>
-                              Team 2
-                            </Typography>
-                            <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                              {selectedOpponents[1].name}
-                            </Typography>
-                            {selectedOpponents[1].mascot && (
-                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                                {selectedOpponents[1].mascot}
-                              </Typography>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <Paper
-                          sx={{
-                            p: 4,
-                            textAlign: "center",
-                            border: "3px dashed",
-                            borderColor: "primary.main",
-                            bgcolor: "primary.50",
-                            minHeight: 120,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Box>
-                            <Add sx={{ fontSize: 40, color: "primary.main", mb: 1 }} />
-                            <Typography variant="body1" color="primary.main" fontWeight={600}>
-                              Drop or click second opponent
-                            </Typography>
-                          </Box>
-                        </Paper>
-                      )}
-                    </Stack>
-                  )}
-                </ReactSortable>
+                              fontWeight: 700,
+                              minWidth: 32,
+                            }} 
+                          />
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            {result.isWin ? result.opponent.name : yourTeamName}
+                          </Typography>
+                        </Box>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
+                          {result.isWin ? result.opponentScore : result.organizationScore}
+                        </Typography>
+                      </Box>
 
-                {/* Action Buttons */}
-                <Stack spacing={2} sx={{ mt: 4 }}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    endIcon={<NavigateNext />}
-                    onClick={handleNextStep}
-                    disabled={selectedOpponents.length !== 2}
-                    sx={{ textTransform: "none", py: 1.5 }}
-                  >
-                    Next: Add Game Details
-                  </Button>
-
-                  {selectedOpponents.length > 0 && (
-                    <Button fullWidth variant="outlined" onClick={() => setSelectedOpponents([])} sx={{ textTransform: "none" }}>
-                      Clear Selection ({selectedOpponents.length})
-                    </Button>
-                  )}
-                </Stack>
-              </>
-            ) : (
-              /* Game Details Form */
-              <Stack spacing={2.5}>
-                {/* Team Selection */}
-                {teams.length > 0 && (
-                  <TextField
-                    select
-                    label="Your Team (Home Team)"
-                    value={gameFormData.homeTeamId}
-                    onChange={(e) => setGameFormData({ ...gameFormData, homeTeamId: e.target.value })}
-                    fullWidth
-                    size="small"
-                    required
-                  >
-                    {teams.map((team: any) => (
-                      <MenuItem key={team.id} value={team.id}>
-                        {team.sport?.name} - {formatLevelDisplay(team.level)} ({team.name})
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-
-                <TextField
-                  label="Game Date"
-                  type="date"
-                  value={gameFormData.date}
-                  onChange={(e) => setGameFormData({ ...gameFormData, date: e.target.value })}
-                  fullWidth
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                  required
-                />
-
-                <TextField
-                  label="Game Time (Optional)"
-                  type="time"
-                  value={gameFormData.time}
-                  onChange={(e) => setGameFormData({ ...gameFormData, time: e.target.value })}
-                  fullWidth
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-
-                <TextField select label="Venue (Optional)" value={gameFormData.venueId} onChange={(e) => setGameFormData({ ...gameFormData, venueId: e.target.value })} fullWidth size="small">
-                  <MenuItem value="">
-                    <em>Select venue</em>
-                  </MenuItem>
-                  {venues.map((venue: any) => (
-                    <MenuItem key={venue.id} value={venue.id}>
-                      {venue.name} - {venue.city}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField select label="Status" value={gameFormData.status} onChange={(e) => setGameFormData({ ...gameFormData, status: e.target.value })} fullWidth size="small">
-                  <MenuItem value="SCHEDULED">Scheduled</MenuItem>
-                  <MenuItem value="CONFIRMED">Confirmed</MenuItem>
-                  <MenuItem value="POSTPONED">Postponed</MenuItem>
-                  <MenuItem value="CANCELLED">Cancelled</MenuItem>
-                </TextField>
-
-                <TextField
-                  label="Notes (Optional)"
-                  value={gameFormData.notes}
-                  onChange={(e) => setGameFormData({ ...gameFormData, notes: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={3}
-                  size="small"
-                  placeholder="Add any additional notes about this game..."
-                />
-
-                {/* Action Buttons */}
-                <Stack spacing={1.5} sx={{ mt: 3 }}>
-                  <LoadingButton
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    startIcon={<Check />}
-                    onClick={() => handleSubmitGame(false)}
-                    loading={createGameMutation.isPending}
-                    loadingText="Creating Game..."
-                    disabled={!gameFormData.homeTeamId}
-                  >
-                    Create Game
-                  </LoadingButton>
-
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<SkipNext />}
-                    onClick={handleSkipForm}
-                    disabled={createGameMutation.isPending || !gameFormData.homeTeamId}
-                    sx={{ textTransform: "none" }}
-                  >
-                    Skip Optional Fields
-                  </Button>
-
-                  <Button fullWidth variant="text" onClick={() => setMatchupStep("select")} disabled={createGameMutation.isPending} sx={{ textTransform: "none" }}>
-                    ← Back to Selection
-                  </Button>
-                </Stack>
-
-                {/* Success Message */}
-                {createGameMutation.isSuccess && (
-                  <Alert severity="success" sx={{ mt: 2 }}>
-                    <Typography variant="body2" fontWeight={600}>
-                      Game created successfully!
-                    </Typography>
-                    <Typography variant="caption">Check the Games table to view your new matchup.</Typography>
-                  </Alert>
-                )}
-
-                {/* Error Message */}
-                {createGameMutation.isError && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    <Typography variant="body2">Failed to create game. Please try again.</Typography>
-                  </Alert>
-                )}
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
+                        {new Date(result.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
               </Stack>
+            ) : (
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <School sx={{ fontSize: 64, color: "text.secondary", opacity: 0.3, mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No scores recorded yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Record wins and losses by clicking the W or L buttons on opponent cards
+                </Typography>
+              </Box>
             )}
           </Paper>
         </Grid>
       </Grid>
 
       {/* Create Opponent Dialog */}
-      <Dialog open={openCreateDialog} onClose={() => !isCreating && setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Add New Opponent</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 2 }}>
-            <TextField label="School/Team Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} fullWidth required autoFocus />
+            <TextField
+              label="School/Team Name *"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              fullWidth
+              autoFocus
+            />
             <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <TextField label="Mascot" value={formData.mascot} onChange={(e) => setFormData({ ...formData, mascot: e.target.value })} fullWidth />
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Mascot"
+                  value={formData.mascot}
+                  onChange={(e) => setFormData({ ...formData, mascot: e.target.value })}
+                  fullWidth
+                />
               </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TextField label="Colors" value={formData.colors} onChange={(e) => setFormData({ ...formData, colors: e.target.value })} fullWidth placeholder="e.g., Blue & Gold" />
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Colors"
+                  value={formData.colors}
+                  onChange={(e) => setFormData({ ...formData, colors: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Contact Person"
+                  value={formData.contact}
+                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  fullWidth
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  fullWidth
+                />
               </Grid>
             </Grid>
-            <TextField label="Contact Person" value={formData.contact} onChange={(e) => setFormData({ ...formData, contact: e.target.value })} fullWidth />
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 6 }}>
-                <TextField label="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} fullWidth />
-              </Grid>
-              <Grid size={{ xs: 6 }}>
-                <TextField label="Email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} fullWidth />
-              </Grid>
-            </Grid>
-            <TextField label="Notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} fullWidth multiline rows={3} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenCreateDialog(false)} disabled={isCreating}>
-            Cancel
-          </Button>
-          <LoadingButton variant="contained" onClick={handleCreateOpponent} disabled={!formData.name.trim()} loading={isCreating} loadingText="Creating..." startIcon={!isCreating && <Save />}>
-            Create Opponent
+          <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
+          <LoadingButton
+            onClick={handleCreateOpponent}
+            variant="contained"
+            loading={isCreating}
+            disabled={!formData.name.trim()}
+          >
+            Add Opponent
           </LoadingButton>
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for notifications */}
-      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+      {/* Score Dialog */}
+      <ScoreDialog
+        open={scoreDialogOpen}
+        onClose={() => setScoreDialogOpen(false)}
+        yourTeamName={yourTeamName}
+        opponentName={scoreDialogData.opponent?.name || ""}
+        isWin={scoreDialogData.isWin}
+        onSubmit={handleScoreSubmit}
+        loading={createMatchupMutation.isPending}
+      />
 
-      {/* Global Styles for Sortable */}
-      <style jsx global>{`
-        .sortable-ghost {
-          opacity: 0.4;
-          background: #e3f2fd;
-        }
-
-        .sortable-chosen {
-          cursor: grabbing !important;
-        }
-
-        .sortable-drag {
-          opacity: 1;
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-        }
-
-        .sortable-fallback {
-          opacity: 0.8;
-        }
-      `}</style>
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 }
