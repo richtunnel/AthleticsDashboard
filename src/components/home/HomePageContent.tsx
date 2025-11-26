@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import FingerprintIcon from "@mui/icons-material/Fingerprint";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
 
@@ -105,7 +106,8 @@ export default function HomePageContent() {
                   },
                 }}
               >
-                Sign in
+                Sign in&nbsp;
+                <FingerprintIcon sx={{ color: "rgb(92 142 4)" }} />
               </AuthActionButton>
               <AuthActionButton
                 onClick={handleGetStarted}
