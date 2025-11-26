@@ -197,6 +197,7 @@ model Game {
   location                 String?                @db.Text
   isHome                   Boolean                @default(true)
   sortOrder                Int                    @default(0) // User-defined sort order for drag-and-drop
+  isSampleGame             Boolean                @default(false) // Flag for sample game created on signup
   // Travel Information
   travelRequired           Boolean                @default(false)
   busTravel                Boolean                @default(false)
