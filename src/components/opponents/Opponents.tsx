@@ -418,6 +418,10 @@ export default function OpponentsPage() {
     return matchupResults.filter((result: MatchupResult) => result.isWin).length;
   }, [matchupResults]);
 
+  const lostGamesCount = useMemo(() => {
+    return matchupResults.filter((result: MatchupResult) => !result.isWin).length;
+  }, [matchupResults]);
+
   // ============================================================================
   // MUTATIONS
   // ============================================================================
@@ -794,6 +798,15 @@ export default function OpponentsPage() {
                     fontWeight: 600,
                   }}
                 />
+                <Chip
+                  label={`Losses ${lostGamesCount}`}
+                  size="small"
+                  sx={{
+                    bgcolor: "rgba(244, 67, 54, 0.15)",
+                    color: "error.main",
+                    fontWeight: 600,
+                  }}
+                />
               </Box>
             </Box>
 
@@ -845,25 +858,30 @@ export default function OpponentsPage() {
                                   color: "text.secondary",
                                 }}
                               />
-                              <Box
-                                sx={{
-                                  bgcolor: "rgba(76, 175, 80, 0.15)",
-                                  color: "success.main",
-                                  fontWeight: 700,
-                                  fontSize: "11px",
-                                  borderRadius: "4px",
-                                  px: 0.5,
-                                  py: 0.25,
-                                  mr: 0.75,
-                                  lineHeight: 1,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  minWidth: "18px",
-                                }}
-                              >
-                                W
-                              </Box>
+                              {/* Show green W badge only if current user won */}
+                              {isYourTeamWinner && (
+                                <Box
+                                  sx={{
+                                    bgcolor: "rgba(76, 175, 80, 0.15)",
+                                    color: "success.main",
+                                    fontWeight: 700,
+                                    fontSize: "11px",
+                                    borderRadius: "4px",
+                                    px: 0.5,
+                                    py: 0.25,
+                                    mr: 0.75,
+                                    lineHeight: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    minWidth: "18px",
+                                  }}
+                                >
+                                  W
+                                </Box>
+                              )}
+                              {/* Add spacing if no badge shown */}
+                              {!isYourTeamWinner && <Box sx={{ width: 18, mr: 0.75 }} />}
                               <Typography
                                 variant="body2"
                                 sx={{
@@ -892,6 +910,28 @@ export default function OpponentsPage() {
                             {/* Loser Row */}
                             <Box sx={{ display: "flex", alignItems: "center" }}>
                               <Box sx={{ width: 18, mr: 0.5 }} />
+                              {/* Show red L badge only if current user lost */}
+                              {!isYourTeamWinner && (
+                                <Box
+                                  sx={{
+                                    bgcolor: "rgba(244, 67, 54, 0.15)",
+                                    color: "error.main",
+                                    fontWeight: 700,
+                                    fontSize: "11px",
+                                    borderRadius: "4px",
+                                    px: 0.5,
+                                    py: 0.25,
+                                    mr: 0.75,
+                                    lineHeight: 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    minWidth: "18px",
+                                  }}
+                                >
+                                  L
+                                </Box>
+                              )}
                               <Typography
                                 variant="body2"
                                 sx={{
