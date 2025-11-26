@@ -33,6 +33,7 @@ import {
 import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download } from "@mui/icons-material";
 import Link from "next/link";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
+import { DateRequiredModal } from "./DateRequiredModal";
 
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
@@ -57,18 +58,7 @@ interface FieldMapping {
 
 const DATABASE_FIELDS = [
   { value: "date", label: "Date", required: true },
-  { value: "sport", label: "Sport", required: false },
-  { value: "level", label: "Level", required: false },
-  { value: "isHome", label: "Home/Away", required: false },
-  { value: "opponent", label: "Opponent", required: false },
-  { value: "away", label: "Away (for auto-detection)", required: false },
-  { value: "home", label: "Home (for auto-detection)", required: false },
-  { value: "location", label: "Location or Venue", required: false },
-  { value: "time", label: "Time", required: false },
-  { value: "status", label: "Confirmed", required: false },
-  { value: "busTravel", label: "Bus Travel", required: false },
-  { value: "notes", label: "Notes", required: false },
-  { value: "custom", label: "Custom Column", required: false },
+  { value: "preserve", label: "Keep as Custom Column", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
 
@@ -83,6 +73,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [showDateRequiredModal, setShowDateRequiredModal] = useState(false);
 
   // Drag and drop handling
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -128,74 +119,20 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     maxSize: 10 * 1024 * 1024, // 10MB
   });
 
-  // Auto-map common field names
+  // Auto-map common field names - now only looks for date column
   const autoMapFields = (csvHeaders: string[]): FieldMapping => {
     const mapping: FieldMapping = {};
 
     csvHeaders.forEach((header) => {
       const normalized = header.toLowerCase().trim();
 
-      // Date mapping
+      // Date mapping - only required field
       if (normalized.includes("date")) {
         mapping[header] = "date";
       }
-      // Time mapping (but not if it's part of "location")
-      else if (normalized.includes("time") && !normalized.includes("location")) {
-        mapping[header] = "time";
-      }
-      // Sport mapping
-      else if (normalized.includes("sport")) {
-        mapping[header] = "sport";
-      }
-      // Level mapping
-      else if (normalized.includes("level") || normalized.includes("grade")) {
-        mapping[header] = "level";
-      }
-      // Bus Travel mapping - check for travel-related terms
-      else if (
-        normalized.includes("travel") ||
-        normalized.includes("bus") ||
-        normalized.includes("departure") ||
-        normalized.includes("commute")
-      ) {
-        mapping[header] = "busTravel";
-      }
-      // Home/Away mapping - ONLY for exact column names
-      else if (normalized === "home/away" || normalized === "h/a" || normalized === "homeaway") {
-        mapping[header] = "isHome";
-      }
-      // Away column - map to "away" for auto-detection
-      else if (normalized === "away") {
-        mapping[header] = "away";
-      }
-      // Home column - map to "home" for auto-detection
-      else if (normalized === "home") {
-        mapping[header] = "home";
-      }
-      // Opponent mapping
-      else if (normalized.includes("opponent") || normalized.includes("vs")) {
-        mapping[header] = "opponent";
-      }
-      // Location/Venue mapping
-      else if (
-        normalized === "location" || 
-        normalized.includes("venue") || 
-        normalized.includes("site") ||
-        normalized.includes("game location")
-      ) {
-        mapping[header] = "location";
-      }
-      // Confirmed/Status mapping
-      else if (normalized.includes("status") || normalized.includes("confirm")) {
-        mapping[header] = "status";
-      }
-      // Notes mapping
-      else if (normalized.includes("note")) {
-        mapping[header] = "notes";
-      }
-      // Default to custom column for any unmapped columns
+      // All other columns are preserved as custom columns by default
       else {
-        mapping[header] = "custom";
+        mapping[header] = "preserve";
       }
     });
 
@@ -207,15 +144,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check required fields are mapped
-    const requiredFields = DATABASE_FIELDS.filter((f) => f.required).map((f) => f.value);
+    // Check if date field is mapped - it's the only required field
     const mappedFields = Object.values(fieldMapping);
-
-    requiredFields.forEach((field) => {
-      if (!mappedFields.includes(field)) {
-        errors.push(`Required field "${field}" is not mapped`);
-      }
-    });
+    if (!mappedFields.includes("date")) {
+      // Show date required modal instead of just an error
+      setShowDateRequiredModal(true);
+      return false;
+    }
 
     // Validate data quality
     if (parsedData.length === 0) {
@@ -240,28 +175,9 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
           } catch (error) {
             errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid date'}`);
           }
-        }
-      }
-    }
-    
-    // Validate all rows for time issues (if time field is mapped)
-    const timeField = Object.keys(fieldMapping).find((k) => fieldMapping[k] === "time");
-    if (timeField) {
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        if (row[timeField]) {
-          try {
-            const timeValue = row[timeField];
-            // Try to parse the time using our robust parser with warnings
-            const result = parseAndConvertTime(timeValue as string | number, true);
-            if (result.warnings.length > 0) {
-              result.warnings.forEach(warning => {
-                warnings.push(`Row ${i + 2}: ${warning}`);
-              });
-            }
-          } catch (error) {
-            errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid time'}`);
-          }
+        } else {
+          // Row is missing date value
+          warnings.push(`Row ${i + 2}: Missing date value`);
         }
       }
     }
@@ -278,17 +194,16 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     }
   };
 
-  // Transform CSV data to game format
-  const transformData = (row: ParsedRow, rowIndex?: number): Record<string, string | boolean | null> => {
+  // Transform CSV data to game format - new structure preserves custom columns
+  const transformData = (row: ParsedRow, rowIndex?: number): Record<string, any> => {
     try {
-      const transformed: Record<string, string | boolean | null> = {
-        // Set default to null - will be determined by auto-detection
-        isHome: null,
+      const transformed: Record<string, any> = {
+        customFields: {} as Record<string, any>,
       };
 
       Object.keys(fieldMapping).forEach((csvField) => {
         const dbField = fieldMapping[csvField];
-        if (dbField === "skip" || dbField === "custom") return;
+        if (dbField === "skip") return;
 
         const value = row[csvField];
 
@@ -302,71 +217,12 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
             }
             break;
-          case "time":
-            try {
-              transformed.time = value ? parseAndConvertTime(value as string | number) : null;
-            } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : 'Invalid time';
-              throw new Error(`Invalid time in column "${csvField}": ${errorMsg}`);
-            }
+          case "preserve":
+            // Store all preserved columns as custom fields with their original names
+            transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
             break;
-          case "isHome":
-            if (value) {
-              const normalized = String(value).toLowerCase().trim();
-              transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes" || normalized === "true";
-            }
-            break;
-          case "status":
-            if (value) {
-              const normalized = String(value).toLowerCase().trim();
-              const statusMap: Record<string, string> = {
-                scheduled: "SCHEDULED",
-                confirmed: "CONFIRMED",
-                cancelled: "CANCELLED",
-                postponed: "POSTPONED",
-                completed: "COMPLETED",
-                // Handle boolean-like values for "Confirmed" columns
-                yes: "CONFIRMED",
-                true: "CONFIRMED",
-                "1": "CONFIRMED",
-                no: "SCHEDULED",
-                false: "SCHEDULED",
-                "0": "SCHEDULED",
-              };
-              transformed.status = statusMap[normalized] || "SCHEDULED";
-            } else {
-              transformed.status = "SCHEDULED";
-            }
-            break;
-          case "busTravel":
-            if (value !== null && value !== undefined) {
-              const normalized = String(value).toLowerCase().trim();
-              transformed.busTravel = 
-                normalized === "yes" || 
-                normalized === "true" || 
-                normalized === "1" ||
-                normalized === "y";
-            } else {
-              transformed.busTravel = false;
-            }
-            break;
-          case "away":
-            // Store away team name for auto-detection
-            transformed.away = value ? String(value) : null;
-            break;
-          case "home":
-            // Store home team name for auto-detection
-            transformed.home = value ? String(value) : null;
-            break;
-          default:
-            transformed[dbField] = value ? String(value) : null;
         }
       });
-
-      // Set opponent default if not mapped
-      if (!transformed.opponent && transformed.away) {
-        transformed.opponent = transformed.away;
-      }
 
       return transformed;
     } catch (error) {
@@ -389,12 +245,21 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     const warnings: string[] = [];
     const allCreatedGameIds: string[] = [];
 
-    // Extract column names from the CSV headers (user's original column names)
-    // Map them to the database fields they were mapped to
-    const columnNames: Record<string, string> = {};
-    Object.entries(fieldMapping).forEach(([csvColumn, dbField]) => {
-      if (dbField !== "skip") {
-        columnNames[dbField] = csvColumn;
+    // Extract column names and order from CSV headers
+    // Store the actual order of columns as they appear in the CSV
+    const customColumns: string[] = [];
+    const columnMapping: Record<string, string> = {};
+    
+    headers.forEach((csvColumn) => {
+      const dbField = fieldMapping[csvColumn];
+      if (dbField === "date") {
+        // Date column always comes first
+        customColumns.unshift(csvColumn);
+        columnMapping[csvColumn] = "date";
+      } else if (dbField === "preserve") {
+        // Preserved columns maintain their order
+        customColumns.push(csvColumn);
+        columnMapping[csvColumn] = "preserve";
       }
     });
 
@@ -419,10 +284,11 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         // Only send batch if there are valid rows
         if (transformedBatch.length > 0) {
           try {
-            // Send batch to API with column names (only send once in first batch)
+            // Send batch to API with column configuration (only send once in first batch)
             const requestBody: any = { games: transformedBatch };
             if (i === 0) {
-              requestBody.columnNames = columnNames;
+              requestBody.customColumns = customColumns;
+              requestBody.columnMapping = columnMapping;
             }
             
             const response = await fetch("/api/import/games/batch", {
@@ -598,7 +464,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {/* Step 1: Field Mapping */}
         {step === 1 && (
           <Stack spacing={3}>
-            <Alert severity="info">Map your CSV columns to the database fields. Required fields are marked with *.</Alert>
+            <Alert severity="info">
+              Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they 
+              appear in your spreadsheet. You can skip any columns you don&apos;t want to import.
+            </Alert>
 
             <Typography variant="subtitle2" color="text.secondary">
               File: <strong>{file?.name}</strong> • Rows: <strong>{parsedData.length}</strong>
@@ -695,12 +564,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    {Object.values(fieldMapping)
-                      .filter((f) => f !== "skip")
-                      .map((field) => (
-                        <TableCell key={field}>
+                    {headers
+                      .filter((header) => fieldMapping[header] !== "skip")
+                      .map((header) => (
+                        <TableCell key={header}>
                           <Typography variant="caption" fontWeight={600}>
-                            {DATABASE_FIELDS.find((f) => f.value === field)?.label}
+                            {header}
+                            {fieldMapping[header] === "date" && " *"}
                           </Typography>
                         </TableCell>
                       ))}
@@ -709,29 +579,29 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                 <TableBody>
                   {parsedData.slice(0, 5).map((row, idx) => (
                     <TableRow key={idx}>
-                      {Object.entries(fieldMapping)
-                        .filter(([, dbField]) => dbField !== "skip")
-                        .map(([csvField, dbField]) => {
+                      {headers
+                        .filter((header) => fieldMapping[header] !== "skip")
+                        .map((header) => {
                           try {
-                            const transformed = transformData(row, idx);
-                            let displayValue = transformed[dbField] || "—";
+                            const dbField = fieldMapping[header];
+                            let displayValue: any = row[header] || "—";
                             
                             // Format date field to show only date part (not time/timezone)
-                            if (dbField === "date" && displayValue !== "—" && typeof displayValue === "string") {
-                              // Extract YYYY-MM-DD from ISO string
-                              displayValue = displayValue.includes("T") 
-                                ? displayValue.split("T")[0] 
-                                : displayValue;
+                            if (dbField === "date" && displayValue !== "—") {
+                              const parsedDate = parseAndConvertDate(displayValue as string | number);
+                              displayValue = parsedDate.includes("T") 
+                                ? parsedDate.split("T")[0] 
+                                : parsedDate;
                             }
                             
                             return (
-                              <TableCell key={csvField}>
+                              <TableCell key={header}>
                                 <Typography variant="body2">{String(displayValue)}</Typography>
                               </TableCell>
                             );
                           } catch {
                             return (
-                              <TableCell key={csvField}>
+                              <TableCell key={header}>
                                 <Typography variant="body2" color="error">
                                   Error
                                 </Typography>
@@ -854,6 +724,12 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
           </>
         )}
       </DialogActions>
+
+      {/* Date Required Modal */}
+      <DateRequiredModal 
+        open={showDateRequiredModal} 
+        onClose={() => setShowDateRequiredModal(false)} 
+      />
     </Dialog>
   );
 }
