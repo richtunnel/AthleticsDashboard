@@ -85,6 +85,7 @@ interface MatchupResult {
   opponentScore: number;
   isWin: boolean;
   opponent: Opponent;
+  gameDate?: string;
   createdAt: string;
 }
 
@@ -947,11 +948,17 @@ export default function OpponentsPage() {
                                 color: "text.secondary",
                               }}
                             >
-                              {new Date(result.createdAt).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
+                              {result.gameDate
+                                ? new Date(result.gameDate).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })
+                                : new Date(result.createdAt).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
                             </Typography>
                           </Box>
                         </Box>
