@@ -33,9 +33,8 @@ import {
   Cancel, 
   School, 
   Person,
-  ThumbUp,
-  ThumbDown,
   Close,
+  PlayArrow,
 } from "@mui/icons-material";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
@@ -114,6 +113,7 @@ const OpponentCard = memo(({
   updateField,
   onWin,
   onLoss,
+  onDraw,
 }: any) => {
   return (
     <Card
@@ -188,7 +188,7 @@ const OpponentCard = memo(({
                 </Grid>
               </Stack>
             ) : (
-              <Box>
+              <Box sx={{ pl: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 600, fontSize: 15 }}>
                   {opponent.name}
                 </Typography>
@@ -227,34 +227,76 @@ const OpponentCard = memo(({
             ) : (
               <Stack direction="row" spacing={0.5}>
                 <Tooltip title="Record a Win (your team won)">
-                  <IconButton
+                  <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
                       onWin(opponent);
                     }}
                     sx={{
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      padding: 0,
+                      bgcolor: "rgba(76, 175, 80, 0.15)",
                       color: "success.main",
-                      "&:hover": { bgcolor: "success.lighter" }
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      "&:hover": { 
+                        bgcolor: "rgba(76, 175, 80, 0.25)",
+                      }
                     }}
                   >
-                    <ThumbUp fontSize="small" />
-                  </IconButton>
+                    W
+                  </Button>
                 </Tooltip>
                 <Tooltip title="Record a Loss (your team lost)">
-                  <IconButton
+                  <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
                       onLoss(opponent);
                     }}
                     sx={{
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      padding: 0,
+                      bgcolor: "rgba(244, 67, 54, 0.15)",
                       color: "error.main",
-                      "&:hover": { bgcolor: "error.lighter" }
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      "&:hover": { 
+                        bgcolor: "rgba(244, 67, 54, 0.25)",
+                      }
                     }}
                   >
-                    <ThumbDown fontSize="small" />
-                  </IconButton>
+                    L
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Record a Draw (tie game)">
+                  <Button
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDraw(opponent);
+                    }}
+                    sx={{
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      padding: 0,
+                      bgcolor: "rgba(255, 152, 0, 0.15)",
+                      color: "warning.main",
+                      fontWeight: 700,
+                      fontSize: "14px",
+                      "&:hover": { 
+                        bgcolor: "rgba(255, 152, 0, 0.25)",
+                      }
+                    }}
+                  >
+                    D
+                  </Button>
                 </Tooltip>
                 <IconButton
                   size="small"
@@ -296,12 +338,12 @@ interface ScoreDialogProps {
   onClose: () => void;
   yourTeamName: string;
   opponentName: string;
-  isWin: boolean;
+  resultType: "win" | "loss" | "draw";
   onSubmit: (yourScore: number, opponentScore: number) => void;
   loading: boolean;
 }
 
-const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, isWin, onSubmit, loading }: ScoreDialogProps) => {
+const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, resultType, onSubmit, loading }: ScoreDialogProps) => {
   const [yourScore, setYourScore] = useState<string>("");
   const [opponentScore, setOpponentScore] = useState<string>("");
 
@@ -323,15 +365,24 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, isWin, onSubmi
     }
   }, [open]);
 
+  const getTitle = () => {
+    switch (resultType) {
+      case "win": return "Win";
+      case "loss": return "Loss";
+      case "draw": return "Draw";
+      default: return "";
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>
-        Enter Score - {isWin ? "Win" : "Loss"}
+        Enter Score - {getTitle()}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ mt: 2 }}>
           <TextField
-            label={`${yourTeamName} (Your Team)`}
+            label="Your Team"
             type="number"
             value={yourScore}
             onChange={(e) => setYourScore(e.target.value)}
@@ -401,8 +452,8 @@ export default function OpponentsPage() {
   const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
   const [scoreDialogData, setScoreDialogData] = useState<{
     opponent: Opponent | null;
-    isWin: boolean;
-  }>({ opponent: null, isWin: true });
+    resultType: "win" | "loss" | "draw";
+  }>({ opponent: null, resultType: "win" });
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -649,19 +700,24 @@ export default function OpponentsPage() {
   );
 
   const handleWin = useCallback((opponent: Opponent) => {
-    setScoreDialogData({ opponent, isWin: true });
+    setScoreDialogData({ opponent, resultType: "win" });
     setScoreDialogOpen(true);
   }, []);
 
   const handleLoss = useCallback((opponent: Opponent) => {
-    setScoreDialogData({ opponent, isWin: false });
+    setScoreDialogData({ opponent, resultType: "loss" });
+    setScoreDialogOpen(true);
+  }, []);
+
+  const handleDraw = useCallback((opponent: Opponent) => {
+    setScoreDialogData({ opponent, resultType: "draw" });
     setScoreDialogOpen(true);
   }, []);
 
   const handleScoreSubmit = useCallback((yourScore: number, opponentScore: number) => {
     if (!scoreDialogData.opponent) return;
 
-    const isWin = scoreDialogData.isWin;
+    const isWin = scoreDialogData.resultType === "win";
     
     createMatchupMutation.mutate({
       opponentId: scoreDialogData.opponent.id,
@@ -745,8 +801,8 @@ export default function OpponentsPage() {
       <Grid container spacing={3}>
         {/* Left Column - Opponents List */}
         <Grid size={{ xs: 12, lg: 5 }}>
-          <Paper elevation={0} sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, fontSize: 16 }}>
+          <Paper elevation={0} sx={{ p: 2.5, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5, fontSize: 16 }}>
               Opponents List
               <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
             </Typography>
@@ -758,6 +814,7 @@ export default function OpponentsPage() {
                   maxHeight: "calc(100vh - 250px)",
                   overflowY: "auto",
                   overflowX: "hidden",
+                  pr: 0.5,
                 }}
               >
                 {opponents.map((opponent) => (
@@ -776,6 +833,7 @@ export default function OpponentsPage() {
                     updateField={updateField}
                     onWin={handleWin}
                     onLoss={handleLoss}
+                    onDraw={handleDraw}
                   />
                 ))}
               </Box>
@@ -801,82 +859,152 @@ export default function OpponentsPage() {
               <Chip label={matchupResults.length} size="small" sx={{ ml: 1 }} />
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Click W (Win) or L (Loss) on an opponent card to record a game result
+              Click W (Win), L (Loss), or D (Draw) on an opponent card to record a game result
             </Typography>
 
             {matchupResults.length > 0 ? (
               <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
-                {matchupResults.map((result: MatchupResult) => (
-                  <Card key={result.id} sx={{ border: "1px solid", borderColor: "divider", position: "relative" }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        if (confirm("Delete this score entry?")) {
-                          deleteMatchupMutation.mutate(result.id);
-                        }
-                      }}
-                      sx={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        zIndex: 10,
+                {matchupResults.map((result: MatchupResult) => {
+                  const isYourTeamWinner = result.isWin;
+                  const winnerName = isYourTeamWinner ? yourTeamName : result.opponent.name;
+                  const loserName = isYourTeamWinner ? result.opponent.name : yourTeamName;
+                  const winnerScore = isYourTeamWinner ? result.organizationScore : result.opponentScore;
+                  const loserScore = isYourTeamWinner ? result.opponentScore : result.organizationScore;
+
+                  return (
+                    <Card 
+                      key={result.id} 
+                      sx={{ 
+                        border: "1px solid", 
+                        borderColor: "divider", 
+                        position: "relative",
+                        boxShadow: "none",
                       }}
                     >
-                      <Close fontSize="small" />
-                    </IconButton>
-                    <CardContent>
-                      {/* Top Row - Winner or Your Team if Win */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Chip 
-                            label="W" 
-                            size="small" 
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          if (confirm("Delete this score entry?")) {
+                            deleteMatchupMutation.mutate(result.id);
+                          }
+                        }}
+                        sx={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          zIndex: 10,
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                      <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" } }}>
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          {/* Left Side - Teams and Scores */}
+                          <Box sx={{ flex: 1 }}>
+                            {/* Winner Row */}
+                            <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+                              <PlayArrow 
+                                sx={{ 
+                                  fontSize: 18, 
+                                  mr: 0.5,
+                                  color: "text.secondary",
+                                }} 
+                              />
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 700,
+                                  fontSize: "14px",
+                                  flex: 1,
+                                }}
+                              >
+                                {winnerName}
+                              </Typography>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 700,
+                                  fontSize: "16px",
+                                  ml: 1,
+                                }}
+                              >
+                                {winnerScore}
+                              </Typography>
+                            </Box>
+
+                            {/* Divider */}
+                            <Divider sx={{ my: 0.5, borderColor: "rgba(15, 23, 42, 0.90)" }} />
+
+                            {/* Loser Row */}
+                            <Box sx={{ display: "flex", alignItems: "center" }}>
+                              <Box sx={{ width: 18, mr: 0.5 }} />
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 400,
+                                  fontSize: "14px",
+                                  flex: 1,
+                                }}
+                              >
+                                {loserName}
+                              </Typography>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 400,
+                                  fontSize: "16px",
+                                  ml: 1,
+                                }}
+                              >
+                                {loserScore}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Right Side - Final Label and Date */}
+                          <Box 
                             sx={{ 
-                              bgcolor: "success.main", 
-                              color: "white",
-                              fontWeight: 700,
-                              minWidth: 32,
-                            }} 
-                          />
-                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            {result.isWin ? yourTeamName : result.opponent.name}
-                          </Typography>
+                              ml: 2, 
+                              pl: 2, 
+                              borderLeft: "1px solid", 
+                              borderColor: "divider",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                              minWidth: "80px",
+                            }}
+                          >
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontWeight: 600,
+                                fontSize: "10px",
+                                color: "text.secondary",
+                                textTransform: "uppercase",
+                                mb: 0.25,
+                              }}
+                            >
+                              Final
+                            </Typography>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontSize: "11px",
+                                color: "text.secondary",
+                              }}
+                            >
+                              {new Date(result.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </Typography>
+                          </Box>
                         </Box>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
-                          {result.isWin ? result.organizationScore : result.opponentScore}
-                        </Typography>
-                      </Box>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      {/* Bottom Row - Loser or Opponent if Loss */}
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Chip 
-                            label="L" 
-                            size="small" 
-                            sx={{ 
-                              bgcolor: "error.main", 
-                              color: "white",
-                              fontWeight: 700,
-                              minWidth: 32,
-                            }} 
-                          />
-                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            {result.isWin ? result.opponent.name : yourTeamName}
-                          </Typography>
-                        </Box>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
-                          {result.isWin ? result.opponentScore : result.organizationScore}
-                        </Typography>
-                      </Box>
-
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-                        {new Date(result.createdAt).toLocaleDateString()}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </Stack>
             ) : (
               <Box sx={{ textAlign: "center", py: 8 }}>
@@ -885,7 +1013,7 @@ export default function OpponentsPage() {
                   No scores recorded yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Record wins and losses by clicking the W or L buttons on opponent cards
+                  Record results by clicking the W, L, or D buttons on opponent cards
                 </Typography>
               </Box>
             )}
@@ -969,7 +1097,7 @@ export default function OpponentsPage() {
         onClose={() => setScoreDialogOpen(false)}
         yourTeamName={yourTeamName}
         opponentName={scoreDialogData.opponent?.name || ""}
-        isWin={scoreDialogData.isWin}
+        resultType={scoreDialogData.resultType}
         onSubmit={handleScoreSubmit}
         loading={createMatchupMutation.isPending}
       />
