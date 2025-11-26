@@ -339,24 +339,41 @@ model FeedbackSubmission {
 }
 
 model Opponent {
-  id             String       @id @default(cuid())
+  id             String          @id @default(cuid())
   name           String
   mascot         String?
   colors         String?
   contact        String?
   phone          String?
   email          String?
-  notes          String?      @db.Text
-  sortOrder      Int          @default(0) @map("sort_order")
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  notes          String?         @db.Text
+  sortOrder      Int             @default(0) @map("sort_order")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   // Relations
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   games          Game[]
+  matchupResults MatchupResult[]
 
   @@index([organizationId, sortOrder])
   @@index([organizationId])
+}
+
+model MatchupResult {
+  id                String       @id @default(cuid())
+  organizationScore Int // Your team's score
+  opponentScore     Int // Opponent's score
+  isWin             Boolean // True if your team won, false if lost
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  // Relations
+  opponentId        String
+  opponent          Opponent     @relation(fields: [opponentId], references: [id], onDelete: Cascade)
+  organizationId    String
+
+  @@index([organizationId])
+  @@index([opponentId])
 }
 
 model TravelRecommendation {
