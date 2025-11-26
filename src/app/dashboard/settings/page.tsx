@@ -16,6 +16,7 @@ import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
 import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
+import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -121,6 +122,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </Box>
           </CardContent>
         </Card>
+
+        <EmailLimitsCard />
       </Box>
 
       {/* Billing & Subscription Card */}
