@@ -411,8 +411,12 @@ export default function OpponentsPage() {
 
   const matchupResults = useMemo(() => matchupResultsData?.data || [], [matchupResultsData?.data]);
   const yourTeamName = useMemo(() => {
-    return userData?.user?.schoolName || userData?.user?.teamName || userData?.user?.name || "Your Team";
+    return userData?.user?.teamName || userData?.user?.schoolName || "Your Team";
   }, [userData?.user]);
+  
+  const wonGamesCount = useMemo(() => {
+    return matchupResults.filter((result: MatchupResult) => result.isWin).length;
+  }, [matchupResults]);
 
   // ============================================================================
   // MUTATIONS
@@ -775,10 +779,27 @@ export default function OpponentsPage() {
         {/* Right Column - Score Tracker */}
         <Grid size={{ xs: 12, lg: 7 }}>
           <Paper elevation={0} sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, minHeight: 500 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-              Score Tracker
-              <Chip label={matchupResults.length} size="small" sx={{ ml: 1 }} />
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Score Tracker
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Chip 
+                  label={`${matchupResults.length} Games`} 
+                  size="small" 
+                  sx={{ bgcolor: "rgba(15, 23, 42, 0.08)" }} 
+                />
+                <Chip 
+                  label={`${wonGamesCount} Won`} 
+                  size="small" 
+                  sx={{ 
+                    bgcolor: "rgba(76, 175, 80, 0.15)", 
+                    color: "success.main",
+                    fontWeight: 600 
+                  }} 
+                />
+              </Box>
+            </Box>
 
             {matchupResults.length > 0 ? (
               <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
@@ -828,6 +849,25 @@ export default function OpponentsPage() {
                                   color: "text.secondary",
                                 }}
                               />
+                              <Box
+                                sx={{
+                                  bgcolor: "rgba(76, 175, 80, 0.15)",
+                                  color: "success.main",
+                                  fontWeight: 700,
+                                  fontSize: "11px",
+                                  borderRadius: "4px",
+                                  px: 0.5,
+                                  py: 0.25,
+                                  mr: 0.75,
+                                  lineHeight: 1,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minWidth: "18px",
+                                }}
+                              >
+                                W
+                              </Box>
                               <Typography
                                 variant="body2"
                                 sx={{
