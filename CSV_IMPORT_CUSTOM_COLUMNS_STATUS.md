@@ -47,13 +47,18 @@ This feature allows users to import CSV files with ANY column structure. Only th
 
 ### 2. GamesTable Component
 **File**: `/src/components/games/GamesTable.tsx`
-- ❌ Read custom column configuration from TablePreference on mount
-- ❌ Dynamically render table headers based on customColumns array
-- ❌ Display date from Game.date
-- ❌ Display other fields from Game.customFields[columnName]
-- ❌ Fall back to default columns if no custom config exists (backward compatibility)
-- ❌ Update column preferences menu to work with custom columns
-- ❌ Ensure sorting/filtering works with custom columns
+- ✅ Read custom column configuration from TablePreference on mount
+- ✅ Dynamically render table headers based on customColumns array
+- ✅ Display date from Game.date
+- ✅ Display other fields from Game.customFields[columnName]
+- ✅ Fall back to default columns if no custom config exists (backward compatibility)
+- ✅ Column preferences menu works with custom columns
+- ✅ Sorting/filtering works with custom columns
+- ✅ Inline editing works with custom columns
+- ✅ Copy to clipboard works with custom columns
+- ✅ Column hiding/showing works with custom columns
+- ✅ Column reordering works with custom columns
+- ✅ Column title editing works with custom columns
 
 ### 3. Documentation
 - ❌ Create `/docs/CSV_IMPORT_CUSTOM_COLUMNS_V3.md` with full implementation details

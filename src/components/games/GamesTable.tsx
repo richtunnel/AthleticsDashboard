@@ -165,6 +165,7 @@ interface Game {
   calendarSynced?: boolean;
   googleCalendarEventId?: string | null;
   customData?: any;
+  customFields?: Record<string, any>;
   homeTeam: {
     id?: string;
     name: string;
@@ -222,7 +223,7 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
-type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}`;
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}` | `imported:${string}`;
 
 interface InlineEditState {
   gameId: string;
@@ -236,7 +237,7 @@ type ConfirmedStatus = {
 };
 
 type StaticColumnId = "date" | "sport" | "level" | "opponent" | "isHome" | "time" | "status" | "location" | "busTravel" | "notes" | "actions";
-type ColumnId = StaticColumnId | `custom:${string}`;
+type ColumnId = StaticColumnId | `custom:${string}` | `imported:${string}`;
 
 interface ColumnStateConfig {
   id: ColumnId;
@@ -648,7 +649,7 @@ export function GamesTable() {
   }, [customColumns]);
 
   const columnPreferencesData = useMemo<TablePreferencesData | null>(() => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null, [columnPreferencesResponse?.data]);
-  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns), [customColumns]);
+  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns, columnPreferencesData), [customColumns, columnPreferencesData]);
 
   useEffect(() => {
     setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
@@ -760,6 +761,16 @@ export function GamesTable() {
       values[col.id] = new Set();
     });
 
+    // Check if we have imported columns
+    const importedColumns = columnPreferencesData?.customColumns as string[] | undefined;
+    if (importedColumns && Array.isArray(importedColumns)) {
+      importedColumns.forEach((colName: string) => {
+        if (colName !== "date") {
+          values[`imported:${colName}`] = new Set();
+        }
+      });
+    }
+
     games.forEach((game: Game) => {
       values.sport.add(game.homeTeam.sport.name);
       values.level.add(game.homeTeam.level);
@@ -774,6 +785,17 @@ export function GamesTable() {
         const value = customData[col.id] || "";
         if (value) values[col.id].add(value);
       });
+
+      // Handle imported columns from customFields
+      const customFields = (game as any).customFields || {};
+      if (importedColumns && Array.isArray(importedColumns)) {
+        importedColumns.forEach((colName: string) => {
+          if (colName !== "date") {
+            const value = customFields[colName] || "";
+            if (value) values[`imported:${colName}`].add(String(value));
+          }
+        });
+      }
     });
 
     const result: Record<string, string[]> = {};
@@ -782,7 +804,7 @@ export function GamesTable() {
     });
 
     return result;
-  }, [games, customColumns]);
+  }, [games, customColumns, columnPreferencesData]);
 
   const getColumnLabel = useCallback(
     (columnId: ColumnId) => {
@@ -816,6 +838,11 @@ export function GamesTable() {
         case "actions":
           return "Actions";
         default: {
+          if (columnId.startsWith("imported:")) {
+            // Extract the column name from "imported:ColumnName"
+            const importedColumnName = columnId.substring("imported:".length);
+            return importedColumnName;
+          }
           if (columnId.startsWith("custom:")) {
             const customId = columnId.split(":")[1];
             return customColumnsMap.get(customId)?.name || "Custom Field";
@@ -1293,7 +1320,11 @@ export function GamesTable() {
 
       let currentValue = "";
 
-      if (field.startsWith("custom:")) {
+      if (field.startsWith("imported:")) {
+        const columnName = field.substring("imported:".length);
+        const customFields = (game as any).customFields || {};
+        currentValue = customFields[columnName] || "";
+      } else if (field.startsWith("custom:")) {
         const columnId = field.replace("custom:", "");
         const customData = (game.customData as any) || {};
         currentValue = customData[columnId] || "";
@@ -1375,6 +1406,7 @@ export function GamesTable() {
           opponentId: game.opponentId || game.opponent?.id || null,
           venueId: game.venueId || game.venue?.id || null,
           customData: game.customData || {},
+          customFields: (game as any).customFields || {},
           notes: game.notes || null,
           location: game.location || null,
         };
@@ -1479,6 +1511,14 @@ export function GamesTable() {
             }
 
             updateData.homeTeamId = matchingTeam.id;
+          } else if (field.startsWith("imported:")) {
+            // Handle imported column updates - save to customFields
+            const columnName = field.substring("imported:".length);
+            const customFields = (game as any).customFields || {};
+            updateData.customFields = {
+              ...customFields,
+              [columnName]: value.slice(0, MAX_CHAR_LIMIT),
+            };
           } else if (field.startsWith("custom:")) {
             const columnId = field.replace("custom:", "");
             updateData.customData = {
@@ -2333,7 +2373,11 @@ export function GamesTable() {
             cellValue = game.notes || "";
             break;
           default:
-            if (col.id.startsWith("custom:")) {
+            if (col.id.startsWith("imported:")) {
+              const columnName = col.id.substring("imported:".length);
+              const customFields = (game as any).customFields || {};
+              cellValue = customFields[columnName] || "";
+            } else if (col.id.startsWith("custom:")) {
               const customId = col.id.split(":")[1];
               const customData = (game.customData as any) || {};
               cellValue = customData[customId] || "";
@@ -2751,6 +2795,31 @@ export function GamesTable() {
           </TableCell>
         );
       default:
+        if (column.id.startsWith("imported:")) {
+          // Handle imported columns
+          const columnName = column.id.substring("imported:".length);
+          return (
+            <TableCell key={column.id} sx={cellSx}>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {renderEditableColumnTitle(column.id, columnName, false)}
+                <ColumnFilterDragDrop
+                  columnId={column.id}
+                  columnName={getColumnLabel(column.id)}
+                  columnType="text"
+                  uniqueValues={uniqueValues[column.id] || []}
+                  currentFilter={columnFilters[column.id]}
+                  onFilterChange={handleColumnFilterChange}
+                />
+                <Tooltip title="Hide column">
+                  <IconButton size="small" onClick={() => handleToggleColumnVisibility(column.id, false)} sx={{ ml: 0.5, p: 0.25 }}>
+                    <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              {renderResizeHandle(column.id)}
+            </TableCell>
+          );
+        }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn;
           if (!customColumn) {
@@ -4157,6 +4226,67 @@ export function GamesTable() {
         );
       }
       default:
+        if (column.id.startsWith("imported:")) {
+          // Handle imported columns - read from customFields
+          const columnName = column.id.substring("imported:".length);
+          const customFields = (game as any).customFields || {};
+          const cellValue = customFields[columnName] || "";
+          const fieldKey = column.id as InlineEditField;
+          const isImportedEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
+
+          const displayValue = cellValue ? String(cellValue) : "—";
+
+          return (
+            <TableCell key={column.id} sx={getDataCellSx(column.id, isImportedEditing)} onDoubleClick={() => handleDoubleClick(game, fieldKey)}>
+              {isImportedEditing ? (
+                <Box sx={{ py: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    value={inlineEditValue}
+                    onChange={(e) => handleInlineChange(e.target.value, game)}
+                    onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                    onBlur={() => handleInlineBlur(game)}
+                    autoFocus
+                    disabled={isInlineSaving}
+                    helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                    FormHelperTextProps={{
+                      sx: {
+                        fontSize: 10,
+                        color: getCharacterCounterColor(inlineEditValue.length),
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                  {inlineEditError && inlineEditState?.field === fieldKey && (
+                    <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
+                      {inlineEditError}
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 13,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {displayValue}
+                  </Typography>
+                  {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
+                </Box>
+              )}
+            </TableCell>
+          );
+        }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
@@ -4823,7 +4953,20 @@ export function GamesTable() {
   );
 }
 
-function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
+function getDefaultColumnOrder(customColumns: any[], preferences?: TablePreferencesData | null): ColumnId[] {
+  // Check if user has imported columns configured
+  const importedColumns = preferences?.customColumns as string[] | undefined;
+  
+  if (importedColumns && Array.isArray(importedColumns) && importedColumns.length > 0) {
+    // User has imported their own spreadsheet - show ONLY date + imported columns + actions
+    const importedColumnIds = importedColumns
+      .filter((col) => col !== "date") // date is handled separately
+      .map((col) => `imported:${col}` as ColumnId);
+    
+    return ["date", ...importedColumnIds, "actions"];
+  }
+  
+  // Default behavior: show standard columns + custom columns
   const customIds = customColumns
     .map((column: any) => column?.id)
     .filter((id: string | undefined): id is string => Boolean(id))
@@ -4833,7 +4976,7 @@ function getDefaultColumnOrder(customColumns: any[]): ColumnId[] {
 }
 
 function isColumnId(value: string): value is ColumnId {
-  return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:");
+  return STATIC_COLUMN_SEQUENCE.includes(value as StaticColumnId) || value.startsWith("custom:") || value.startsWith("imported:");
 }
 
 function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePreferencesData | null, defaultOrder: ColumnId[], initialPreferencesApplied: boolean): ColumnStateConfig[] {
