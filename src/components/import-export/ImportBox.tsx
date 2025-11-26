@@ -585,12 +585,24 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                 </>
               ) : importResult ? (
                 <>
-                  <CheckCircle sx={{ fontSize: 64, color: "success.main" }} />
-                  <Typography variant="h6">Import Complete!</Typography>
-                  <Stack direction="row" spacing={2}>
-                    <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
-                    {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
-                  </Stack>
+                  {importResult.success === 0 && importResult.failed > 0 ? (
+                    <>
+                      <Warning sx={{ fontSize: 64, color: "warning.main" }} />
+                      <Typography variant="h6">Import Warning!</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        0 games imported, {importResult.failed} duplicated games found, failed!
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle sx={{ fontSize: 64, color: "success.main" }} />
+                      <Typography variant="h6">Import Complete!</Typography>
+                      <Stack direction="row" spacing={2}>
+                        <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
+                        {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
+                      </Stack>
+                    </>
+                  )}
 
                   {importResult.errors.length > 0 && (
                     <Alert severity="warning" sx={{ width: "100%" }}>
