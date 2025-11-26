@@ -365,6 +365,7 @@ model MatchupResult {
   organizationScore Int // Your team's score
   opponentScore     Int // Opponent's score
   isWin             Boolean // True if your team won, false if lost
+  gameDate          DateTime? // Actual game date (from Games table)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   // Relations

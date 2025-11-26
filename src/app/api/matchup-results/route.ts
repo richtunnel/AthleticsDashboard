@@ -7,14 +7,27 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
 
-    const matchupResults = await prisma.matchupResult.findMany({
+    let matchupResults = await prisma.matchupResult.findMany({
       where: {
         organizationId: session.user.organizationId,
       },
       include: {
         opponent: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Sort by gameDate (descending), then createdAt (descending)
+    // Put results with gameDate first, then those without
+    matchupResults = matchupResults.sort((a, b) => {
+      if (a.gameDate && b.gameDate) {
+        return new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime();
+      }
+      if (a.gameDate && !b.gameDate) return -1;
+      if (!a.gameDate && b.gameDate) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
     return NextResponse.json({
@@ -64,12 +77,52 @@ export async function POST(request: NextRequest) {
       return storageCheckResult;
     }
 
+    // Find the closest game date for this opponent
+    let gameDate: Date | undefined = undefined;
+    
+    // Fetch all games with this opponent
+    const games = await prisma.game.findMany({
+      where: {
+        opponentId,
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+      select: {
+        date: true,
+      },
+      orderBy: {
+        date: "asc",
+      },
+    });
+
+    if (games.length > 0) {
+      const now = new Date();
+      
+      // Find the game with the date closest to today
+      let closestGame = games[0];
+      let smallestDiff = Math.abs(now.getTime() - new Date(games[0].date).getTime());
+      
+      for (const game of games) {
+        const gameDateObj = new Date(game.date);
+        const diff = Math.abs(now.getTime() - gameDateObj.getTime());
+        
+        if (diff < smallestDiff) {
+          smallestDiff = diff;
+          closestGame = game;
+        }
+      }
+      
+      gameDate = new Date(closestGame.date);
+    }
+
     const matchupResult = await prisma.matchupResult.create({
       data: {
         opponentId,
         organizationScore: parseInt(organizationScore),
         opponentScore: parseInt(opponentScore),
         isWin: Boolean(isWin),
+        gameDate,
         organizationId: session.user.organizationId,
       },
       include: {
