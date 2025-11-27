@@ -26,9 +26,11 @@ import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
+import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
+import { DeleteUndoButton } from "./DeleteUndoButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 
 import {
@@ -364,6 +366,7 @@ export function GamesTable() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
+  const { setDeletedRows } = useDeleteUndoStore();
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -1256,7 +1259,13 @@ export function GamesTable() {
         setSelectedGameIds(newSelected);
       }
 
-      addNotification("Game deleted successfully", "success");
+      // Store deleted game data for undo
+      if (data?.gameBackup) {
+        setDeletedRows([data.gameBackup]);
+        addNotification("Game deleted. You have 30 seconds to undo.", "info");
+      } else {
+        addNotification("Game deleted successfully", "success");
+      }
 
       const calendarAttempted = data?.calendar?.attempted === true;
       const calendarSucceeded = data?.calendar?.succeeded === true;
@@ -1327,7 +1336,14 @@ export function GamesTable() {
       setSaveStatus("idle");
 
       const deletedCount = data?.data?.deletedCount ?? gameIds.length;
-      addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
+      
+      // Store deleted games data for undo
+      if (data?.data?.gameBackups && Array.isArray(data.data.gameBackups)) {
+        setDeletedRows(data.data.gameBackups);
+        addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}. You have 30 seconds to undo.`, "info");
+      } else {
+        addNotification(`Deleted ${deletedCount} game${deletedCount === 1 ? "" : "s"}`, "success");
+      }
 
       const calendarFailures = data?.data?.calendar?.failed ?? 0;
       if (calendarFailures > 0) {
@@ -5127,6 +5143,15 @@ export function GamesTable() {
           onSave={handleSaveDismissDepartTimes}
         />
       )}
+
+      {/* Delete Undo Button */}
+      <DeleteUndoButton
+        onUndo={() => {
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+          queryClient.invalidateQueries({ queryKey: ["customColumns"] });
+          addNotification("Successfully restored deleted items", "success");
+        }}
+      />
     </Box>
   );
 }

@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, ListItemText, IconButton, Typography, Box, Alert, Chip, Stack, Paper, ToggleButtonGroup, ToggleButton, Tooltip } from "@mui/material";
 import { Add, Delete, ViewColumn, Close, Schedule, TextFields, ArrowDropDownCircle, DirectionsBus } from "@mui/icons-material";
 import { LoadingButton } from "@/components/utils/LoadingButton";
+import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CustomColumnManagerProps {
   open: boolean;
@@ -42,6 +44,8 @@ const COLUMN_TYPES = [
 
 export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps) {
   const queryClient = useQueryClient();
+  const { addNotification } = useNotifications();
+  const { setDeletedColumns } = useDeleteUndoStore();
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnType, setNewColumnType] = useState<ColumnType>("TEXT");
   const [error, setError] = useState("");
@@ -97,9 +101,15 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       if (!res.ok) throw new Error("Failed to delete column");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      
+      // Store deleted column data for undo
+      if (data.data?.column) {
+        setDeletedColumns([data.data.column]);
+        addNotification("Column deleted. You have 30 seconds to undo.", "info");
+      }
     },
   });
 

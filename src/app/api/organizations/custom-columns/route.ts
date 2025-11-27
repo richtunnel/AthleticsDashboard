@@ -92,12 +92,7 @@ export async function DELETE(request: Request) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 403 });
     }
 
-    // Delete the column
-    await prisma.customColumn.delete({
-      where: { id: columnId },
-    });
-
-    // Clean up customData in all relevant games
+    // Backup games that have data for this column (for undo functionality)
     const games = await prisma.game.findMany({
       where: {
         homeTeam: {
@@ -110,6 +105,22 @@ export async function DELETE(request: Request) {
       },
     });
 
+    const gameDataBackup = [];
+    for (const game of games) {
+      if (game.customData && columnId in (game.customData as any)) {
+        gameDataBackup.push({
+          gameId: game.id,
+          data: (game.customData as any)[columnId],
+        });
+      }
+    }
+
+    // Delete the column
+    await prisma.customColumn.delete({
+      where: { id: columnId },
+    });
+
+    // Clean up customData in all relevant games
     for (const game of games) {
       if (game.customData && columnId in (game.customData as any)) {
         const newCustomData = { ...(game.customData as any) };
@@ -121,7 +132,20 @@ export async function DELETE(request: Request) {
       }
     }
 
-    return new Response(JSON.stringify({ success: true }));
+    // Return column data with backup for undo functionality
+    return new Response(JSON.stringify({
+      success: true,
+      data: {
+        column: {
+          id: column.id,
+          name: column.name,
+          type: column.type,
+          organizationId: column.organizationId,
+          createdAt: column.createdAt.toISOString(),
+          gameDataBackup,
+        },
+      },
+    }));
   } catch (error) {
     console.error("Error deleting custom column:", error);
     return new Response(JSON.stringify({ error: "Failed to delete custom column" }), { status: 500 });
