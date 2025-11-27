@@ -245,11 +245,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           organizationId: session.user.organizationId,
         },
       },
-      select: {
-        id: true,
-        calendarSynced: true,
-        googleCalendarEventId: true,
-        createdById: true,
+      include: {
+        homeTeam: {
+          include: {
+            sport: true,
+          },
+        },
+        opponent: true,
+        venue: true,
       },
     });
 
@@ -260,6 +263,50 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (game.createdById !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    // Backup game data for undo functionality
+    const gameBackup = {
+      id: game.id,
+      data: {
+        date: game.date.toISOString(),
+        time: game.time,
+        status: game.status,
+        isHome: game.isHome,
+        travelRequired: game.travelRequired,
+        busTravel: game.busTravel,
+        estimatedTravelTime: game.estimatedTravelTime,
+        actualDepartureTime: game.actualDepartureTime?.toISOString() || null,
+        actualArrivalTime: game.actualArrivalTime?.toISOString() || null,
+        homeTeamId: game.homeTeamId,
+        homeTeam: {
+          id: game.homeTeam.id,
+          name: game.homeTeam.name,
+          level: game.homeTeam.level,
+          organizationId: game.homeTeam.organizationId,
+          sport: {
+            name: game.homeTeam.sport.name,
+          },
+        },
+        opponentId: game.opponentId,
+        opponent: game.opponent ? {
+          id: game.opponent.id,
+          name: game.opponent.name,
+        } : null,
+        venueId: game.venueId,
+        venue: game.venue ? {
+          id: game.venue.id,
+          name: game.venue.name,
+        } : null,
+        notes: game.notes,
+        location: game.location,
+        customData: game.customData,
+        customFields: game.customFields,
+        sortOrder: game.sortOrder,
+        isSampleGame: game.isSampleGame,
+        calendarSynced: game.calendarSynced,
+        googleCalendarEventId: game.googleCalendarEventId,
+      },
+    };
 
     const shouldDeleteFromCalendar = Boolean(game.calendarSynced && game.googleCalendarEventId);
     let calendarDeletionSucceeded: boolean | null = null;
@@ -286,6 +333,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         attempted: shouldDeleteFromCalendar,
         succeeded: shouldDeleteFromCalendar ? calendarDeletionSucceeded === true : null,
       },
+      gameBackup, // Include backup for undo functionality
     });
   } catch (error) {
     console.error("Error deleting game:", error);
