@@ -68,16 +68,7 @@ interface FieldMapping {
 
 const DATABASE_FIELDS = [
   { value: "date", label: "Date", required: true },
-  { value: "time", label: "Time", required: false },
-  { value: "sport", label: "Sport", required: false },
-  { value: "level", label: "Level", required: false },
-  { value: "opponent", label: "Opponent", required: false },
-  { value: "isHome", label: "Home/Away", required: false },
-  { value: "venue", label: "Venue", required: false },
-  { value: "location", label: "Location", required: false },
-  { value: "status", label: "Status", required: false },
-  { value: "confirmed", label: "Confirmed", required: false },
-  { value: "notes", label: "Notes", required: false },
+  { value: "preserve", label: "Keep as Custom Column", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
 
@@ -136,25 +127,21 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     maxSize: 10 * 1024 * 1024, // 10MB
   });
 
-  // Auto-map common field names
+  // Auto-map common field names - now only looks for date column
   const autoMapFields = (csvHeaders: string[]): FieldMapping => {
     const mapping: FieldMapping = {};
 
     csvHeaders.forEach((header) => {
       const normalized = header.toLowerCase().trim();
 
-      if (normalized.includes("date")) mapping[header] = "date";
-      else if (normalized.includes("time")) mapping[header] = "time";
-      else if (normalized.includes("sport")) mapping[header] = "sport";
-      else if (normalized.includes("level") || normalized.includes("grade")) mapping[header] = "level";
-      else if (normalized.includes("opponent") || normalized.includes("vs")) mapping[header] = "opponent";
-      else if (normalized.includes("home") || normalized.includes("away")) mapping[header] = "isHome";
-      else if (normalized.includes("venue") || normalized.includes("site")) mapping[header] = "venue";
-      else if (normalized.includes("location")) mapping[header] = "location";
-      else if (normalized === "status") mapping[header] = "status";
-      else if (normalized.includes("confirmed")) mapping[header] = "confirmed";
-      else if (normalized.includes("note")) mapping[header] = "notes";
-      else mapping[header] = "skip";
+      // Date mapping - only required field
+      if (normalized.includes("date")) {
+        mapping[header] = "date";
+      }
+      // All other columns are preserved as custom columns by default
+      else {
+        mapping[header] = "preserve";
+      }
     });
 
     return mapping;
@@ -206,62 +193,41 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     }
   };
 
-  // Transform CSV data to game format
-  const transformData = (row: ParsedRow): any => {
-    const transformed: any = {
-      // Set defaults for optional fields
-      isHome: true, // Default to home game
-    };
+  // Transform CSV data to game format - new structure preserves custom columns
+  const transformData = (row: ParsedRow, rowIndex?: number): Record<string, any> => {
+    try {
+      const transformed: Record<string, any> = {
+        customFields: {} as Record<string, any>,
+      };
 
-    Object.keys(fieldMapping).forEach((csvField) => {
-      const dbField = fieldMapping[csvField];
-      if (dbField === "skip") return;
+      Object.keys(fieldMapping).forEach((csvField) => {
+        const dbField = fieldMapping[csvField];
+        if (dbField === "skip") return;
 
-      const value = row[csvField];
+        const value = row[csvField];
 
-      // Transform specific fields
-      switch (dbField) {
-        case "date":
-          if (value) {
+        // Transform specific fields
+        switch (dbField) {
+          case "date":
             try {
-              transformed.date = dateStringToUTCISOString(value as string);
+              transformed.date = value ? parseAndConvertDate(value as string | number) : null;
             } catch (error) {
-              console.error(`Date conversion error for value "${value}":`, error);
-              transformed.date = null; // or skip this row entirely
+              const errorMsg = error instanceof Error ? error.message : 'Invalid date';
+              throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
             }
-          } else {
-            transformed.date = null;
-          }
-          break;
-        case "isHome":
-          if (value) {
-            const normalized = String(value).toLowerCase().trim();
-            transformed.isHome = normalized === "home" || normalized === "h" || normalized === "yes" || normalized === "true";
-          }
-          break;
-        case "status":
-          const statusMap: any = {
-            scheduled: "SCHEDULED",
-            confirmed: "CONFIRMED",
-            cancelled: "CANCELLED",
-            postponed: "POSTPONED",
-            completed: "COMPLETED",
-          };
-          transformed.status = statusMap[String(value).toLowerCase()] || "SCHEDULED";
-          break;
-        case "confirmed":
-          if (value) {
-            const normalized = String(value).toLowerCase().trim();
-            const isConfirmed = normalized === "confirmed" || normalized === "yes" || normalized === "true" || normalized === "1";
-            transformed.status = isConfirmed ? "CONFIRMED" : "SCHEDULED";
-          }
-          break;
-        default:
-          transformed[dbField] = value || null;
-      }
-    });
+            break;
+          case "preserve":
+            // Store all preserved columns as custom fields with their original names
+            transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+            break;
+        }
+      });
 
-    return transformed;
+      return transformed;
+    } catch (error) {
+      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : '';
+      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Handle import
@@ -284,47 +250,78 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     const errors: string[] = [];
     const allCreatedGameIds: string[] = [];
 
-    // Extract column names from the CSV headers (user's original column names)
-    // Map them to the database fields they were mapped to
-    const columnNames: Record<string, string> = {};
-    Object.entries(fieldMapping).forEach(([csvColumn, dbField]) => {
-      if (dbField !== "skip") {
-        columnNames[dbField] = csvColumn;
+    // Extract column names and order from CSV headers
+    // Store the actual order of columns as they appear in the CSV
+    const customColumns: string[] = [];
+    const columnMapping: Record<string, string> = {};
+    
+    headers.forEach((csvColumn) => {
+      const dbField = fieldMapping[csvColumn];
+      if (dbField === "date") {
+        // Date column always comes first
+        customColumns.unshift(csvColumn);
+        columnMapping[csvColumn] = "date";
+      } else if (dbField === "preserve") {
+        // Preserved columns maintain their order
+        customColumns.push(csvColumn);
+        columnMapping[csvColumn] = "preserve";
       }
     });
 
     try {
       for (let i = 0; i < totalBatches; i++) {
         const batch = parsedData.slice(i * batchSize, (i + 1) * batchSize);
-        const transformedBatch = batch.map(transformData);
-
-        // Send batch to API with column names (only send once in first batch)
-        const requestBody: any = { games: transformedBatch };
-        if (i === 0) {
-          requestBody.columnNames = columnNames;
-        }
-
-        const response = await fetch("/api/import/games/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
+        const batchStartIndex = i * batchSize;
+        
+        // Transform batch with error handling for each row
+        const transformedBatch: Record<string, string | boolean | null>[] = [];
+        batch.forEach((row, idx) => {
+          try {
+            const transformed = transformData(row, batchStartIndex + idx);
+            transformedBatch.push(transformed);
+          } catch (error) {
+            failedCount++;
+            const rowNum = batchStartIndex + idx + 2; // +2 for header row and 1-based indexing
+            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Transform failed'}`);
+          }
         });
 
-        const result = await response.json();
+        // Only send batch if there are valid rows
+        if (transformedBatch.length > 0) {
+          try {
+            // Send batch to API with column configuration (only send once in first batch)
+            const requestBody: any = { games: transformedBatch };
+            if (i === 0) {
+              requestBody.customColumns = customColumns;
+              requestBody.columnMapping = columnMapping;
+            }
+            
+            const response = await fetch("/api/import/games/batch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(requestBody),
+            });
 
-        if (result.success) {
-          successCount += result.data.success || 0;
-          failedCount += result.data.failed || 0;
-          if (result.data.errors) {
-            errors.push(...result.data.errors);
+            const result = await response.json();
+
+            if (result.success) {
+              successCount += result.data.success || 0;
+              failedCount += result.data.failed || 0;
+              if (result.data.errors) {
+                errors.push(...result.data.errors);
+              }
+              // Collect created game IDs
+              if (result.data.createdGameIds) {
+                allCreatedGameIds.push(...result.data.createdGameIds);
+              }
+            } else {
+              failedCount += transformedBatch.length;
+              errors.push(`Batch ${i + 1} failed: ${result.error}`);
+            }
+          } catch (fetchError) {
+            failedCount += transformedBatch.length;
+            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
           }
-          // Collect created game IDs
-          if (result.data.createdGameIds) {
-            allCreatedGameIds.push(...result.data.createdGameIds);
-          }
-        } else {
-          failedCount += batch.length;
-          errors.push(`Batch ${i + 1} failed: ${result.error}`);
         }
 
         // Update progress
@@ -474,7 +471,10 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           {/* Step 1: Field Mapping */}
           {step === 1 && (
             <Stack spacing={3}>
-              <Alert severity="info">Map your CSV columns to the database fields. Required fields are marked with *.</Alert>
+              <Alert severity="info">
+                Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they 
+                appear in your spreadsheet. You can skip any columns you don&apos;t want to import.
+              </Alert>
 
               <Typography variant="subtitle2" color="text.secondary">
                 File: <strong>{file?.name}</strong> • Rows: <strong>{parsedData.length}</strong>
