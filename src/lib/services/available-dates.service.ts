@@ -1,9 +1,4 @@
-import { prisma } from "../database/prisma";
 import canonicalSportsData from "../data/canonical-sports.json";
-
-// Rate limiting constants
-const MAX_REQUESTS_PER_DAY = 10;
-const RATE_LIMIT_WINDOW_HOURS = 24;
 
 // Abbreviation map for prompt parsing
 const ABBREVIATION_MAP: Record<string, string[]> = {
@@ -398,50 +393,6 @@ export class AvailableDatesService {
     }
 
     return clusterDates;
-  }
-
-  /**
-   * Check rate limit for user
-   */
-  async checkRateLimit(userId: string): Promise<{ allowed: boolean; remaining: number; resetAt: Date }> {
-    const windowStart = new Date();
-    windowStart.setHours(windowStart.getHours() - RATE_LIMIT_WINDOW_HOURS);
-
-    const recentRequests = await prisma.feedbackSubmission.count({
-      where: {
-        userId,
-        subject: 'AVAILABLE_DATES_REQUEST',
-        createdAt: {
-          gte: windowStart,
-        },
-      },
-    });
-
-    const remaining = Math.max(0, MAX_REQUESTS_PER_DAY - recentRequests);
-    const allowed = recentRequests < MAX_REQUESTS_PER_DAY;
-
-    const resetAt = new Date();
-    resetAt.setHours(resetAt.getHours() + RATE_LIMIT_WINDOW_HOURS);
-
-    return { allowed, remaining, resetAt };
-  }
-
-  /**
-   * Log a request (for rate limiting)
-   */
-  async logRequest(userId: string, prompt: string): Promise<void> {
-    try {
-      await prisma.feedbackSubmission.create({
-        data: {
-          userId,
-          name: 'Available Dates Search',
-          subject: 'AVAILABLE_DATES_REQUEST',
-          message: prompt,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to log available dates request:', error);
-    }
   }
 }
 

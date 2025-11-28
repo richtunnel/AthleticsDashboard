@@ -31,22 +31,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check rate limit
-    const rateLimit = await availableDatesService.checkRateLimit(session.user.id);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { 
-          error: `Rate limit exceeded. You can make ${rateLimit.remaining} more requests. Limit resets at ${rateLimit.resetAt.toLocaleString()}.`,
-          recommendations: [],
-          debug: { parsedTokens: [], matchedClusters: [], clusterDates: [], notes: ['Rate limit exceeded'] }
-        },
-        { status: 429 }
-      );
-    }
-
-    // Log the request for rate limiting
-    await availableDatesService.logRequest(session.user.id, prompt);
-
     // Fetch all games for the organization to use as gamesTable
     const allGames = await prisma.game.findMany({
       where: {
