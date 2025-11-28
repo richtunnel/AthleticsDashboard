@@ -331,11 +331,22 @@ Examples:
       },
     });
 
-    // Build a set of booked dates (date strings)
+    // Build a set of booked dates (date strings) - normalize to YYYY-MM-DD without timezone conversion
+    // CRITICAL: Must use UTC methods (getUTCFullYear, getUTCMonth, getUTCDate) to match how dates
+    // are stored in the database (at noon UTC). Using local methods would cause timezone mismatches
+    // where dates could be off by a day depending on the user's timezone.
     const bookedDates = new Set<string>();
     existingGamesInRange.forEach((game) => {
-      bookedDates.add(game.date.toISOString().split('T')[0]);
+      const gameDate = game.date instanceof Date ? game.date : new Date(game.date);
+      const year = gameDate.getUTCFullYear();
+      const month = String(gameDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(gameDate.getUTCDate()).padStart(2, '0');
+      const normalizedDateStr = `${year}-${month}-${day}`;
+      bookedDates.add(normalizedDateStr);
     });
+
+    console.log(`[Available Dates] Found ${existingGamesInRange.length} existing games in range`);
+    console.log(`[Available Dates] Booked dates (${bookedDates.size}):`, Array.from(bookedDates).sort());
 
     // Generate all dates in range that match constraints
     // Priority: weekdays first, then weekends
@@ -350,7 +361,11 @@ Examples:
 
     // First pass: collect all available dates (up to 3x the requested amount for better selection)
     while (current <= endDate && (weekdayDates.length + weekendDates.length) < maxDates * 3) {
-      const dateStr = current.toISOString().split('T')[0];
+      // Normalize current date to YYYY-MM-DD format using UTC (matches database storage)
+      const year = current.getUTCFullYear();
+      const month = String(current.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(current.getUTCDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       
       // Skip if date is in the past
       const now = new Date();
@@ -366,9 +381,9 @@ Examples:
         continue;
       }
 
-      // Check day of week constraint if specified
+      // Check day of week constraint if specified (use UTC to match database)
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dayName = dayNames[current.getDay()];
+      const dayName = dayNames[current.getUTCDay()];
       const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dayName);
       
       if (constraints.weekdays && constraints.weekdays.length > 0) {
@@ -402,6 +417,8 @@ Examples:
       ...weekdayDates.slice(0, maxDates),
       ...weekendDates.slice(0, Math.max(0, maxDates - weekdayDates.length))
     ].slice(0, maxDates);
+
+    console.log(`[Available Dates] Found ${selectedDates.length} available dates after filtering`);
 
     // Create recommendations with time suggestions
     const recommendations: DateTimeRecommendation[] = selectedDates.map(date => ({
