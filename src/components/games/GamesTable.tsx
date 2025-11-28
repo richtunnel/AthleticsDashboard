@@ -4694,7 +4694,7 @@ export function GamesTable() {
 
   // Wait for both games data AND column preferences to load before rendering
   // This prevents default columns from flashing on page refresh when user has imported columns
-  if ((isLoading || isLoadingPreferences) && !mounted) {
+  if (!mounted || isLoading || isLoadingPreferences) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <Typography color="text.secondary">Loading games...</Typography>
