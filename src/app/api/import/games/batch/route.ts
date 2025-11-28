@@ -150,6 +150,47 @@ export async function POST(request: NextRequest) {
     // Save custom column configuration as user preferences if provided
     if (customColumns && columnMapping) {
       try {
+        // Check if user already has imported columns
+        const existingPreference = await prisma.tablePreference.findUnique({
+          where: {
+            userId_tableKey: {
+              userId: session.user.id,
+              tableKey: "games",
+            },
+          },
+        });
+
+        let finalCustomColumns = customColumns;
+        let finalColumnMapping = columnMapping;
+
+        // If user already has imported columns, merge them instead of replacing
+        if (existingPreference?.preferences) {
+          const existingPrefs = existingPreference.preferences as any;
+          const existingCustomColumns = existingPrefs.customColumns as string[] | undefined;
+          const existingColumnMapping = existingPrefs.columnMapping as Record<string, string> | undefined;
+
+          if (existingCustomColumns && Array.isArray(existingCustomColumns) && existingCustomColumns.length > 0) {
+            console.log(`[Import] Merging new columns with existing imported columns for user ${session.user.id}`);
+            
+            // Merge columns: Add new columns that don't already exist
+            const existingColumnSet = new Set(existingCustomColumns);
+            const newUniqueColumns = customColumns.filter((col: string) => !existingColumnSet.has(col));
+            finalCustomColumns = [...existingCustomColumns, ...newUniqueColumns];
+
+            // Merge column mappings
+            finalColumnMapping = {
+              ...(existingColumnMapping || {}),
+              ...columnMapping,
+            };
+
+            console.log(`[Import] Added ${newUniqueColumns.length} new columns. Total columns: ${finalCustomColumns.length}`);
+          } else {
+            console.log(`[Import] First import - replacing default columns for user ${session.user.id}`);
+          }
+        } else {
+          console.log(`[Import] First import - creating custom column configuration for user ${session.user.id}`);
+        }
+
         await prisma.tablePreference.upsert({
           where: {
             userId_tableKey: {
@@ -161,15 +202,15 @@ export async function POST(request: NextRequest) {
             userId: session.user.id,
             tableKey: "games",
             preferences: {
-              customColumns,
-              columnMapping,
+              customColumns: finalCustomColumns,
+              columnMapping: finalColumnMapping,
               importedAt: new Date().toISOString(),
             },
           },
           update: {
             preferences: {
-              customColumns,
-              columnMapping,
+              customColumns: finalCustomColumns,
+              columnMapping: finalColumnMapping,
               importedAt: new Date().toISOString(),
             },
           },
