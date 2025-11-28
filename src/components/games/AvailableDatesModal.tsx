@@ -340,9 +340,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   <Box
                     sx={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: 1.5,
-                      maxHeight: '400px',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                      gap: 1,
+                      maxHeight: '350px',
                       overflowY: 'auto',
                       pr: 0.5,
                     }}
@@ -359,41 +359,43 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                           key={index}
                           elevation={0}
                           sx={{
-                            p: 1.5,
+                            p: 1,
                             bgcolor: 'success.lighter',
                             border: '1px solid',
                             borderColor: 'success.light',
-                            borderRadius: 2,
+                            borderRadius: 1.5,
                             cursor: onDateSelect ? 'pointer' : 'default',
                             transition: 'all 0.2s',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 0.5,
+                            minHeight: suggestedTime ? '72px' : '56px',
                             '&:hover': onDateSelect ? {
                               bgcolor: 'success.light',
-                              transform: 'translateY(-2px)',
+                              transform: 'translateY(-1px)',
                               boxShadow: 2,
                             } : {},
                           }}
                           onClick={() => onDateSelect && handleDateClick(date, suggestedTime)}
                         >
-                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
                             <Typography
                               variant="caption"
                               sx={{
                                 bgcolor: 'success.main',
                                 color: 'white',
-                                px: 0.75,
-                                py: 0.25,
-                                borderRadius: 0.75,
+                                px: 0.5,
+                                py: 0.125,
+                                borderRadius: 0.5,
                                 fontWeight: 600,
-                                fontSize: '0.7rem',
+                                fontSize: '0.65rem',
+                                lineHeight: 1.2,
                               }}
                             >
                               #{index + 1}
                             </Typography>
                             {onDateSelect && (
-                              <Tooltip title="Add this date to your schedule">
+                              <Tooltip title="Add to schedule">
                                 <IconButton
                                   size="small"
                                   color="success"
@@ -401,20 +403,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                                     e.stopPropagation();
                                     handleDateClick(date, suggestedTime);
                                   }}
-                                  sx={{ p: 0.5 }}
+                                  sx={{ p: 0.25 }}
                                 >
-                                  <AddCircleOutline sx={{ fontSize: 20 }} />
+                                  <AddCircleOutline sx={{ fontSize: 18 }} />
                                 </IconButton>
                               </Tooltip>
                             )}
                           </Stack>
-                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
                             {formatDateDisplay(date)}
                           </Typography>
                           {suggestedTime && (
-                            <Stack direction="row" spacing={0.5} alignItems="center">
-                              <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
-                              <Typography variant="caption" color="text.secondary">
+                            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                              <Schedule sx={{ fontSize: 12, color: 'text.secondary' }} />
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                                 {formatTimeDisplay(suggestedTime)}
                               </Typography>
                               {confidence > 0.7 && (
@@ -422,11 +424,11 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                                   label="Pattern"
                                   size="small"
                                   sx={{
-                                    height: 16,
-                                    fontSize: '0.65rem',
+                                    height: 14,
+                                    fontSize: '0.6rem',
                                     bgcolor: 'success.main',
                                     color: 'white',
-                                    '& .MuiChip-label': { px: 0.75 },
+                                    '& .MuiChip-label': { px: 0.5, py: 0 },
                                   }}
                                 />
                               )}
@@ -440,9 +442,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
+                      sx={{ display: 'block', mt: 1, textAlign: 'center', fontSize: '0.7rem' }}
                     >
-                      Click the add icon or card to add a date to your schedule
+                      Click the + icon or card to add a date to your schedule
                     </Typography>
                   )}
                 </Box>
