@@ -5172,7 +5172,7 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
   
   if (importedColumns && columnMapping && importedColumns.length > 0) {
-    // User imported CSV with custom columns - use those instead of defaults
+    // User imported CSV with custom columns
     const importedIds = importedColumns
       .filter((colName) => {
         const mapping = columnMapping[colName];
@@ -5180,8 +5180,13 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
       })
       .map((colName) => `imported:${colName}` as ColumnId);
     
-    // Always include actions column at the end
-    return [...importedIds, "actions"];
+    // CRITICAL FIX: Include default columns alongside imported columns
+    // This allows users to create new games even when imported columns are present
+    // Default columns are needed for the "Create Game" form to function
+    const defaultCols: ColumnId[] = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes"];
+    
+    // Merge: default columns first, then imported columns, then actions at the end
+    return [...defaultCols, ...importedIds, "actions"];
   }
   
   // No imported columns - use default column order
