@@ -184,16 +184,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     onClose();
   };
 
-  const handleReset = () => {
-    setPrompt('');
-    setResult(null);
-    setError(null);
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+    }
+  };
+
+  // Clear results when user starts typing a new prompt
+  const handlePromptChange = (value: string) => {
+    setPrompt(value);
+    // Clear results to allow fresh search
+    if (result) {
+      setResult(null);
+      setError(null);
     }
   };
 
@@ -240,9 +244,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               fullWidth
               multiline
               rows={3}
-              placeholder="e.g., 'Find 3 dates in July on weekends when we're home' or 'Next 5 weekday dates in March'"
+              placeholder="e.g., 'Dates in July' or 'Weekend dates in March' or 'Find 5 home games in April'"
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => handlePromptChange(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={loading}
               variant="outlined"
@@ -253,7 +257,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              Examples: "3 weekend dates in August" • "5 home games in the next month" • "Next 4 Saturdays"
+              Examples: "Dates in July" • "Weekend dates in August" • "5 home games in March"
             </Typography>
           </Box>
 
@@ -470,15 +474,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        {result && (
-          <Button
-            onClick={handleReset}
-            variant="outlined"
-            sx={{ textTransform: 'none', borderRadius: 2, mr: 'auto' }}
-          >
-            New Search
-          </Button>
-        )}
         <Button
           onClick={onClose}
           variant="outlined"
@@ -486,17 +481,15 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         >
           Close
         </Button>
-        {!result && (
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Search />}
-            disabled={loading || !prompt.trim()}
-            sx={{ textTransform: 'none', borderRadius: 2 }}
-          >
-            {loading ? 'Searching...' : 'Find Dates'}
-          </Button>
-        )}
+        <Button
+          onClick={handleSubmit}
+          variant="contained"
+          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Search />}
+          disabled={loading || !prompt.trim()}
+          sx={{ textTransform: 'none', borderRadius: 2 }}
+        >
+          {loading ? 'Searching...' : 'Find Dates'}
+        </Button>
       </DialogActions>
     </Dialog>
   );
