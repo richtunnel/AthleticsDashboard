@@ -10,7 +10,7 @@ import {
   Chip,
 } from "@mui/material";
 import { School as SchoolIcon, LocationOn as LocationIcon } from "@mui/icons-material";
-import debounce from "lodash/debounce";
+import { useDebounce } from "@/hooks/useDebounce";
 
 type PlacePrediction = {
   placeId: string;
@@ -73,49 +73,41 @@ export default function SchoolAddressAutocomplete({
   }
 
   // Fetch autocomplete predictions
-  const fetchPredictions = useCallback(
-    async (searchText: string) => {
-      if (!searchText || searchText.trim().length < 3) {
+  const fetchPredictions = async (searchText: string) => {
+    if (!searchText || searchText.trim().length < 3) {
+      setOptions([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch("/api/google-places/autocomplete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: searchText,
+          sessionToken: sessionTokenRef.current,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.predictions) {
+        setOptions(data.predictions);
+      } else {
+        console.error("Autocomplete error:", data.error);
         setOptions([]);
-        return;
       }
+    } catch (error) {
+      console.error("Failed to fetch predictions:", error);
+      setOptions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      setLoading(true);
-      try {
-        const response = await fetch("/api/google-places/autocomplete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input: searchText,
-            sessionToken: sessionTokenRef.current,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (data.success && data.predictions) {
-          setOptions(data.predictions);
-        } else {
-          console.error("Autocomplete error:", data.error);
-          setOptions([]);
-        }
-      } catch (error) {
-        console.error("Failed to fetch predictions:", error);
-        setOptions([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
-
-  // Debounced search function
-  const debouncedFetch = useCallback(
-    debounce((searchText: string) => {
-      fetchPredictions(searchText);
-    }, 300),
-    [fetchPredictions]
-  );
+  // Debounced search function using custom hook
+  const debouncedFetch = useDebounce(fetchPredictions, 300);
 
   // Handle input change
   const handleInputChange = (event: any, newInputValue: string) => {
