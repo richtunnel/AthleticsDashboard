@@ -225,7 +225,7 @@ Examples:
     const gamesWithTime = games.filter(g => g.time && g.time.trim() !== '');
     
     if (gamesWithTime.length === 0) {
-      return { suggestedTime: null, confidence: 0 };
+      return { suggestedTime: '15:00', confidence: 0.3 }; // Default to 3 PM
     }
 
     // Count time occurrences
@@ -247,7 +247,7 @@ Examples:
 
     const confidence = maxCount / gamesWithTime.length;
     
-    // Only suggest times between 8AM and 8PM
+    // Only suggest times between 8AM and 8PM (08:00-19:59)
     const [hours] = mostCommonTime.split(':').map(Number);
     if (hours < 8 || hours >= 20) {
       // Time is outside preferred range, return default time
@@ -348,9 +348,17 @@ Examples:
 
     const maxDates = Math.min(constraints.count, 15); // Cap at 15
 
-    // First pass: collect all available dates
-    while (current <= endDate && (weekdayDates.length + weekendDates.length) < maxDates * 2) {
+    // First pass: collect all available dates (up to 3x the requested amount for better selection)
+    while (current <= endDate && (weekdayDates.length + weekendDates.length) < maxDates * 3) {
       const dateStr = current.toISOString().split('T')[0];
+      
+      // Skip if date is in the past
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      if (current < now) {
+        current.setDate(current.getDate() + 1);
+        continue;
+      }
       
       // Check if date is already booked
       if (bookedDates.has(dateStr)) {
@@ -370,7 +378,7 @@ Examples:
         }
       }
 
-      // Check minimum days between games
+      // Check minimum days between games (if specified)
       if (constraints.minDaysBetween && lastGameDate) {
         const daysSince = Math.floor((current.getTime() - lastGameDate.getTime()) / (24 * 60 * 60 * 1000));
         if (daysSince < constraints.minDaysBetween) {
@@ -389,7 +397,7 @@ Examples:
       current.setDate(current.getDate() + 1);
     }
 
-    // Prioritize weekdays, then fill with weekends if needed
+    // Prioritize weekdays first, then fill with weekends if needed
     const selectedDates = [
       ...weekdayDates.slice(0, maxDates),
       ...weekendDates.slice(0, Math.max(0, maxDates - weekdayDates.length))
