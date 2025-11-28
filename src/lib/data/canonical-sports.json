@@ -1,0 +1,254 @@
+{
+  "sports": [
+    {
+      "name": "Football",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Boys", "level": "Freshmen" },
+        { "gender": "Girls", "level": "Varsity (Flag)" },
+        { "gender": "Girls", "level": "Junior Varsity (Flag)" }
+      ]
+    },
+    {
+      "name": "Cross Country",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" }
+      ]
+    },
+    {
+      "name": "Volleyball",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Freshmen" },
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Soccer",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Boys", "level": "Freshmen" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Freshmen" }
+      ]
+    },
+    {
+      "name": "Cheerleading",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Coed", "level": "Varsity" }
+      ]
+    },
+    {
+      "name": "Field Hockey",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" }
+      ]
+    },
+    {
+      "name": "Water Polo",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Basketball",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Boys", "level": "Freshmen" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Freshmen" }
+      ]
+    },
+    {
+      "name": "Wrestling",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Ice Hockey",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Indoor Track & Field",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Baseball",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Frosh-Soph" },
+        { "gender": "Boys", "level": "Freshmen" }
+      ]
+    },
+    {
+      "name": "Softball",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Frosh-Soph" },
+        { "gender": "Girls", "level": "Freshmen" }
+      ]
+    },
+    {
+      "name": "Track & Field",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Lacrosse",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Tennis",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Golf",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Swimming & Diving",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Bowling",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Esports",
+      "teams": [
+        { "gender": "Coed", "level": "Varsity" },
+        { "gender": "Coed", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Gymnastics",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Badminton",
+      "teams": [
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" },
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Rugby",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Fencing",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Rowing / Crew",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    },
+    {
+      "name": "Skiing / Snowboarding",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Girls", "level": "Varsity" }
+      ]
+    },
+    {
+      "name": "Mountain Biking",
+      "teams": [
+        { "gender": "Boys", "level": "Varsity" },
+        { "gender": "Boys", "level": "Junior Varsity" },
+        { "gender": "Girls", "level": "Varsity" },
+        { "gender": "Girls", "level": "Junior Varsity" }
+      ]
+    }
+  ]
+}
