@@ -47,7 +47,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       hashedPassword: true,
       schoolName: true,
       teamName: true,
-      mascot: true,
+      schoolAddress: true,
       organization: {
         select: {
           id: true,
