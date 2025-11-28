@@ -626,7 +626,7 @@ export function GamesTable() {
     },
   });
 
-  const { data: columnPreferencesResponse } = useQuery({
+  const { data: columnPreferencesResponse, isLoading: isLoadingPreferences } = useQuery({
     queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY],
     queryFn: async () => {
       const res = await fetch(`/api/user/table-preferences?table=${TABLE_PREFERENCES_KEY}`);
@@ -4681,7 +4681,9 @@ export function GamesTable() {
     return false;
   }).length;
 
-  if (isLoading && !mounted) {
+  // Wait for both games data AND column preferences to load before rendering
+  // This prevents default columns from flashing on page refresh when user has imported columns
+  if ((isLoading || isLoadingPreferences) && !mounted) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <Typography color="text.secondary">Loading games...</Typography>
