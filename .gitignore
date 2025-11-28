@@ -50,4 +50,7 @@ package-lock.json
 *.log
 
 docs
-
+dockerenv
+.dockerenv
+appspec.sh
+appspec
