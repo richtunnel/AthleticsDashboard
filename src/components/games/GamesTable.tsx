@@ -3208,6 +3208,17 @@ export function GamesTable() {
           </TableCell>
         );
       default:
+        if (column.id.startsWith("imported:")) {
+          // Handle imported CSV columns (read-only in new row form)
+          const columnName = column.id.split(":")[1];
+          return (
+            <TableCell key={column.id} sx={{ py: 1, minWidth: 120 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, fontStyle: 'italic' }}>
+                —
+              </Typography>
+            </TableCell>
+          );
+        }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
