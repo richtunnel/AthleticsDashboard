@@ -9,11 +9,12 @@ A Google Places Autocomplete component for entering school addresses with intell
 ### Features
 
 - **Server-side API security**: All Google API calls made from backend
-- **Debounced search**: 300ms delay to reduce API calls
+- **Debounced search**: 300ms delay to reduce API calls (custom hook, no dependencies!)
 - **Session token optimization**: Groups autocomplete + place details for billing efficiency
 - **School detection**: Shows badge when a school is detected
 - **Loading states**: Visual feedback during API requests
 - **Keyboard navigation**: Full accessibility support
+- **Lightweight**: No external dependencies for debouncing
 
 ### Usage
 
