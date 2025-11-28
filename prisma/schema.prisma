@@ -22,7 +22,7 @@ model User {
   resetTokenExpiry           DateTime?
   schoolName                 String?
   teamName                   String?
-  mascot                     String?
+  schoolAddress              String?
   stripeCustomerId           String?
   plan                       String? // e.g., "free", "standard_monthly", "standard_yearly", "business_yearly"
   priceId                    String?
