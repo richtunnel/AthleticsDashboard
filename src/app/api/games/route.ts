@@ -227,17 +227,41 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
     case "location":
       // Handle location text field or venue names
       const locationValues = values.filter((v) => v !== "TBD");
+      const includeTBD = values.includes("TBD");
 
-      if (locationValues.length > 0) {
-        where.OR = [
-          { location: { in: locationValues } },
-          { venue: { name: { in: locationValues } } }
-        ];
+      if (locationValues.length > 0 || includeTBD) {
+        const orConditions: any[] = [];
+        
+        // Add conditions for actual location values
+        if (locationValues.length > 0) {
+          orConditions.push(
+            { location: { in: locationValues } },
+            { venue: { name: { in: locationValues } } }
+          );
+        }
+        
+        // Add condition for TBD (null locations and null venues)
+        if (includeTBD) {
+          orConditions.push(
+            { AND: [{ location: null }, { venue: null }] }
+          );
+        }
+        
+        where.OR = orConditions;
       }
       break;
 
     case "isHome":
-      where.isHome = values.includes("Home");
+      // Only apply filter if not both selected
+      const includeHome = values.includes("Home");
+      const includeAway = values.includes("Away");
+      
+      if (includeHome && !includeAway) {
+        where.isHome = true;
+      } else if (!includeHome && includeAway) {
+        where.isHome = false;
+      }
+      // If both or neither selected, don't filter (show all)
       break;
 
     case "busTravel": {
