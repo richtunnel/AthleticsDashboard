@@ -227,17 +227,41 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
     case "location":
       // Handle location text field or venue names
       const locationValues = values.filter((v) => v !== "TBD");
+      const includeTBD = values.includes("TBD");
 
-      if (locationValues.length > 0) {
-        where.OR = [
-          { location: { in: locationValues } },
-          { venue: { name: { in: locationValues } } }
-        ];
+      if (locationValues.length > 0 || includeTBD) {
+        const orConditions: any[] = [];
+        
+        // Add conditions for actual location values
+        if (locationValues.length > 0) {
+          orConditions.push(
+            { location: { in: locationValues } },
+            { venue: { name: { in: locationValues } } }
+          );
+        }
+        
+        // Add condition for TBD (null locations and null venues)
+        if (includeTBD) {
+          orConditions.push(
+            { AND: [{ location: null }, { venue: null }] }
+          );
+        }
+        
+        where.OR = orConditions;
       }
       break;
 
     case "isHome":
-      where.isHome = values.includes("Home");
+      // Only apply filter if not both selected
+      const includeHome = values.includes("Home");
+      const includeAway = values.includes("Away");
+      
+      if (includeHome && !includeAway) {
+        where.isHome = true;
+      } else if (!includeHome && includeAway) {
+        where.isHome = false;
+      }
+      // If both or neither selected, don't filter (show all)
       break;
 
     case "busTravel": {
@@ -275,9 +299,40 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       break;
 
     default:
-      // Custom column
-      if (columnId.length > 10) {
-        // Likely a UUID for custom column
+      // Handle custom columns and imported columns
+      if (columnId.startsWith("custom:")) {
+        // Custom column - stored in customData with UUID
+        const customId = columnId.split(":")[1];
+        if (customId) {
+          where.customData = {
+            path: [customId],
+            in: values,
+          };
+        }
+      } else if (columnId.startsWith("imported:")) {
+        // Imported column - stored in customFields with column name
+        const columnName = columnId.split(":")[1];
+        if (columnName) {
+          // Build OR conditions for each value to check in customFields
+          const orConditions = values.map((value) => ({
+            customFields: {
+              path: [columnName],
+              equals: value,
+            },
+          }));
+          
+          if (orConditions.length > 0) {
+            if (where.OR) {
+              // If OR already exists, combine with AND
+              where.AND = where.AND || [];
+              where.AND.push({ OR: orConditions });
+            } else {
+              where.OR = orConditions;
+            }
+          }
+        }
+      } else if (columnId.length > 10) {
+        // Legacy: Likely a UUID for custom column (backward compatibility)
         where.customData = {
           path: [columnId],
           in: values,
@@ -397,8 +452,72 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       break;
 
     default:
-      // Custom column - use JSON filtering
-      if (columnId.length > 10) {
+      // Handle custom columns and imported columns with condition filtering
+      if (columnId.startsWith("custom:")) {
+        // Custom column - stored in customData with UUID
+        const customId = columnId.split(":")[1];
+        if (customId) {
+          // Build condition based on filter type
+          const jsonCondition: any = { path: [customId] };
+          
+          switch (condition) {
+            case "equals":
+              jsonCondition.equals = value;
+              break;
+            case "not_equals":
+              jsonCondition.not = value;
+              break;
+            case "contains":
+            case "starts_with":
+            case "ends_with":
+            case "not_contains":
+              jsonCondition.string_contains = value;
+              break;
+            case "is_empty":
+              jsonCondition.equals = null;
+              break;
+            case "is_not_empty":
+              jsonCondition.not = null;
+              break;
+            default:
+              jsonCondition.string_contains = value;
+          }
+          
+          where.customData = jsonCondition;
+        }
+      } else if (columnId.startsWith("imported:")) {
+        // Imported column - stored in customFields with column name
+        const columnName = columnId.split(":")[1];
+        if (columnName) {
+          const jsonCondition: any = { path: [columnName] };
+          
+          switch (condition) {
+            case "equals":
+              jsonCondition.equals = value;
+              break;
+            case "not_equals":
+              jsonCondition.not = value;
+              break;
+            case "contains":
+            case "starts_with":
+            case "ends_with":
+            case "not_contains":
+              jsonCondition.string_contains = value;
+              break;
+            case "is_empty":
+              jsonCondition.equals = null;
+              break;
+            case "is_not_empty":
+              jsonCondition.not = null;
+              break;
+            default:
+              jsonCondition.string_contains = value;
+          }
+          
+          where.customFields = jsonCondition;
+        }
+      } else if (columnId.length > 10) {
+        // Legacy: Likely a UUID for custom column (backward compatibility)
         where.customData = {
           path: [columnId],
           string_contains: value, // Prisma JSON filtering
