@@ -16,6 +16,8 @@ import {
   CircularProgress,
   Divider,
   Paper,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   Search,
@@ -24,6 +26,7 @@ import {
   EventAvailable,
   Schedule,
   Info,
+  AddCircleOutline,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { trackEvent } from '@/lib/analytics/mixpanel.services';
@@ -33,7 +36,7 @@ interface AvailableDatesModalProps {
   onClose: () => void;
   sport?: string;
   level?: string;
-  onDateSelect?: (date: Date, sport?: string, level?: string) => void;
+  onDateSelect?: (date: Date, time?: string, sport?: string, level?: string) => void;
 }
 
 interface DateConstraints {
@@ -46,8 +49,15 @@ interface DateConstraints {
   count: number;
 }
 
+interface DateTimeRecommendation {
+  date: string; // ISO string from API
+  suggestedTime: string | null;
+  confidence: number;
+}
+
 interface AvailableDatesResult {
   availableDates: Date[];
+  recommendations?: DateTimeRecommendation[];
   constraints: DateConstraints;
   reasoning?: string;
   error?: string;
@@ -55,9 +65,23 @@ interface AvailableDatesResult {
 
 const formatDateDisplay = (date: Date): string => {
   try {
-    return format(date, 'EEEE, MMM d, yyyy');
+    return format(date, 'EEE, MMM d, yyyy');
   } catch {
     return date.toLocaleDateString();
+  }
+};
+
+const formatTimeDisplay = (timeString: string | null): string => {
+  if (!timeString) return 'TBD';
+  try {
+    const [hours, minutes] = timeString.split(':');
+    if (!hours || !minutes) return timeString;
+    const date = new Date();
+    date.setHours(parseInt(hours, 10));
+    date.setMinutes(parseInt(minutes, 10));
+    return format(date, 'h:mm a');
+  } catch {
+    return timeString;
   }
 };
 
@@ -115,6 +139,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
 
       setResult({
         availableDates,
+        recommendations: data.recommendations,
         constraints: data.constraints,
         reasoning: data.reasoning,
       });
@@ -145,11 +170,12 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     }
   };
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = (date: Date, suggestedTime?: string | null) => {
     if (onDateSelect) {
-      onDateSelect(date, sport, level);
+      onDateSelect(date, suggestedTime || undefined, sport, level);
       trackEvent('Available Dates - Date Selected', {
         selectedDate: date.toISOString().split('T')[0],
+        suggestedTime: suggestedTime || 'none',
         sport,
         level,
         source: 'games_table',
@@ -311,70 +337,112 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Available Dates ({result.availableDates.length})
                   </Typography>
-                  <Stack spacing={1.5}>
-                    {result.availableDates.map((date, index) => (
-                      <Paper
-                        key={index}
-                        elevation={0}
-                        sx={{
-                          p: 2,
-                          bgcolor: 'success.lighter',
-                          border: '1px solid',
-                          borderColor: 'success.light',
-                          borderRadius: 2,
-                          cursor: onDateSelect ? 'pointer' : 'default',
-                          transition: 'all 0.2s',
-                          '&:hover': onDateSelect ? {
-                            bgcolor: 'success.light',
-                            transform: 'translateY(-2px)',
-                            boxShadow: 2,
-                          } : {},
-                        }}
-                        onClick={() => onDateSelect && handleDateClick(date)}
-                      >
-                        <Stack direction="row" spacing={2} alignItems="center">
-                          <Typography
-                            variant="caption"
-                            sx={{
-                              bgcolor: 'success.main',
-                              color: 'white',
-                              px: 1,
-                              py: 0.5,
-                              borderRadius: 1,
-                              fontWeight: 600,
-                              minWidth: 32,
-                              textAlign: 'center',
-                            }}
-                          >
-                            #{index + 1}
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gap: 1.5,
+                      maxHeight: '400px',
+                      overflowY: 'auto',
+                      pr: 0.5,
+                    }}
+                  >
+                    {result.availableDates.map((date, index) => {
+                      const recommendation = result.recommendations?.find(
+                        r => new Date(r.date).toISOString().split('T')[0] === date.toISOString().split('T')[0]
+                      );
+                      const suggestedTime = recommendation?.suggestedTime;
+                      const confidence = recommendation?.confidence || 0;
+
+                      return (
+                        <Paper
+                          key={index}
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            bgcolor: 'success.lighter',
+                            border: '1px solid',
+                            borderColor: 'success.light',
+                            borderRadius: 2,
+                            cursor: onDateSelect ? 'pointer' : 'default',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 0.5,
+                            '&:hover': onDateSelect ? {
+                              bgcolor: 'success.light',
+                              transform: 'translateY(-2px)',
+                              boxShadow: 2,
+                            } : {},
+                          }}
+                          onClick={() => onDateSelect && handleDateClick(date, suggestedTime)}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                bgcolor: 'success.main',
+                                color: 'white',
+                                px: 0.75,
+                                py: 0.25,
+                                borderRadius: 0.75,
+                                fontWeight: 600,
+                                fontSize: '0.7rem',
+                              }}
+                            >
+                              #{index + 1}
+                            </Typography>
+                            {onDateSelect && (
+                              <Tooltip title="Add this date to your schedule">
+                                <IconButton
+                                  size="small"
+                                  color="success"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDateClick(date, suggestedTime);
+                                  }}
+                                  sx={{ p: 0.5 }}
+                                >
+                                  <AddCircleOutline sx={{ fontSize: 20 }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                            {formatDateDisplay(date)}
                           </Typography>
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                              {formatDateDisplay(date)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {date.toISOString().split('T')[0]}
-                            </Typography>
-                          </Box>
-                          {onDateSelect && (
-                            <Chip
-                              label="Select"
-                              size="small"
-                              color="success"
-                              sx={{ fontWeight: 500 }}
-                            />
+                          {suggestedTime && (
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <Schedule sx={{ fontSize: 14, color: 'text.secondary' }} />
+                              <Typography variant="caption" color="text.secondary">
+                                {formatTimeDisplay(suggestedTime)}
+                              </Typography>
+                              {confidence > 0.7 && (
+                                <Chip
+                                  label="Pattern"
+                                  size="small"
+                                  sx={{
+                                    height: 16,
+                                    fontSize: '0.65rem',
+                                    bgcolor: 'success.main',
+                                    color: 'white',
+                                    '& .MuiChip-label': { px: 0.75 },
+                                  }}
+                                />
+                              )}
+                            </Stack>
                           )}
-                        </Stack>
-                      </Paper>
-                    ))}
-                  </Stack>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
                   {onDateSelect && (
                     <Typography
                       variant="caption"
                       color="text.secondary"
                       sx={{ display: 'block', mt: 1.5, textAlign: 'center' }}
                     >
-                      Click on a date to select it for your new game
+                      Click the add icon or card to add a date to your schedule
                     </Typography>
                   )}
                 </Box>
