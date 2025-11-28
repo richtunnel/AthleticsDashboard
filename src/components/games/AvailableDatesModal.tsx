@@ -18,15 +18,16 @@ import {
   Paper,
   Tooltip,
   IconButton,
+  Collapse,
 } from '@mui/material';
 import {
   Search,
-  CalendarMonth,
   AutoAwesome,
   EventAvailable,
-  Schedule,
   Info,
   AddCircleOutline,
+  ExpandMore,
+  ExpandLess,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { trackEvent } from '@/lib/analytics/mixpanel.services';
@@ -36,52 +37,34 @@ interface AvailableDatesModalProps {
   onClose: () => void;
   sport?: string;
   level?: string;
-  onDateSelect?: (date: Date, time?: string, sport?: string, level?: string) => void;
+  onDateSelect?: (date: Date, sport?: string, level?: string) => void;
 }
 
-interface DateConstraints {
-  weekdays?: string[];
-  between?: string;
-  excludeResources?: string[];
-  homeOnly?: boolean;
-  awayOnly?: boolean;
-  minDaysBetween?: number;
-  count: number;
-}
-
-interface DateTimeRecommendation {
-  date: string; // ISO string from API
-  suggestedTime: string | null;
+interface ClusterMatch {
+  sport: string;
+  gender: string;
+  level: string;
   confidence: number;
 }
 
-interface AvailableDatesResult {
-  availableDates: Date[];
-  recommendations?: DateTimeRecommendation[];
-  constraints: DateConstraints;
-  reasoning?: string;
-  error?: string;
+interface DebugInfo {
+  parsedTokens: string[];
+  matchedClusters: ClusterMatch[];
+  clusterDates: string[];
+  notes: string[];
 }
 
-const formatDateDisplay = (date: Date): string => {
+interface AvailableDatesResult {
+  recommendations: string[]; // ISO date strings
+  debug: DebugInfo;
+}
+
+const formatDateDisplay = (dateStr: string): string => {
   try {
+    const date = new Date(dateStr + 'T00:00:00');
     return format(date, 'EEE, MMM d, yyyy');
   } catch {
-    return date.toLocaleDateString();
-  }
-};
-
-const formatTimeDisplay = (timeString: string | null): string => {
-  if (!timeString) return 'TBD';
-  try {
-    const [hours, minutes] = timeString.split(':');
-    if (!hours || !minutes) return timeString;
-    const date = new Date();
-    date.setHours(parseInt(hours, 10));
-    date.setMinutes(parseInt(minutes, 10));
-    return format(date, 'h:mm a');
-  } catch {
-    return timeString;
+    return dateStr;
   }
 };
 
@@ -96,6 +79,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AvailableDatesResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -123,8 +107,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          sport,
-          level,
         }),
       });
 
@@ -134,23 +116,14 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         throw new Error(data.error || 'Failed to find available dates');
       }
 
-      // Convert date strings to Date objects
-      const availableDates = data.availableDates.map((d: string) => new Date(d));
-
-      setResult({
-        availableDates,
-        recommendations: data.recommendations,
-        constraints: data.constraints,
-        reasoning: data.reasoning,
-      });
+      setResult(data);
 
       // Track success event
       trackEvent('Available Dates - Search Completed', {
         prompt: prompt.trim(),
         sport,
         level,
-        datesFound: availableDates.length,
-        requestedCount: data.constraints.count,
+        datesFound: data.recommendations.length,
         source: 'games_table',
       });
     } catch (err) {
@@ -170,12 +143,12 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     }
   };
 
-  const handleDateClick = (date: Date, suggestedTime?: string | null) => {
+  const handleDateClick = (dateStr: string) => {
     if (onDateSelect) {
-      onDateSelect(date, suggestedTime || undefined, sport, level);
+      const date = new Date(dateStr + 'T00:00:00');
+      onDateSelect(date, sport, level);
       trackEvent('Available Dates - Date Selected', {
-        selectedDate: date.toISOString().split('T')[0],
-        suggestedTime: suggestedTime || 'none',
+        selectedDate: dateStr,
         sport,
         level,
         source: 'games_table',
@@ -194,7 +167,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   // Clear results when user starts typing a new prompt
   const handlePromptChange = (value: string) => {
     setPrompt(value);
-    // Clear results to allow fresh search
     if (result) {
       setResult(null);
       setError(null);
@@ -228,23 +200,13 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
 
       <DialogContent>
         <Stack spacing={3}>
-          {/* Current Context */}
-          {(sport || level) && (
-            <Alert severity="info" icon={<Info />} sx={{ borderRadius: 2 }}>
-              <Typography variant="body2">
-                Searching for <strong>{sport || 'any sport'}</strong>
-                {level && ` (${level})`} games
-              </Typography>
-            </Alert>
-          )}
-
           {/* Search Input */}
           <Box>
             <TextField
               fullWidth
               multiline
               rows={3}
-              placeholder="e.g., 'Dates in July' or 'Weekend dates in March' or 'Find 5 home games in April'"
+              placeholder="e.g., 'B V Basketball' or 'GV soccer' or 'Basketball'"
               value={prompt}
               onChange={(e) => handlePromptChange(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -257,7 +219,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              Examples: "Dates in July" • "Weekend dates in August" • "5 home games in March"
+              Examples: "B V Basketball" • "GV soccer" • "Basketball" • "Girls Varsity Volleyball"
             </Typography>
           </Box>
 
@@ -282,64 +244,39 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           {result && !loading && (
             <>
               <Divider />
-              
-              {/* Reasoning */}
-              {result.reasoning && (
-                <Alert severity="success" icon={<EventAvailable />} sx={{ borderRadius: 2 }}>
-                  <Typography variant="body2">
-                    {result.reasoning}
-                  </Typography>
-                </Alert>
-              )}
 
-              {/* Applied Constraints */}
-              {(result.constraints.weekdays || result.constraints.homeOnly || result.constraints.awayOnly) && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                    Applied Filters:
+              {/* Matched Teams Info */}
+              {result.debug.matchedClusters.length > 0 && (
+                <Alert severity="info" icon={<EventAvailable />} sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                    Matched Teams:
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {result.constraints.weekdays && (
+                    {result.debug.matchedClusters.slice(0, 3).map((cluster, idx) => (
                       <Chip
-                        icon={<CalendarMonth sx={{ fontSize: 14 }} />}
-                        label={result.constraints.weekdays.join(', ')}
+                        key={idx}
+                        label={`${cluster.gender} ${cluster.level} ${cluster.sport}`}
                         size="small"
-                        variant="outlined"
-                      />
-                    )}
-                    {result.constraints.homeOnly && (
-                      <Chip
-                        label="Home Games Only"
-                        size="small"
-                        variant="outlined"
                         color="primary"
-                      />
-                    )}
-                    {result.constraints.awayOnly && (
-                      <Chip
-                        label="Away Games Only"
-                        size="small"
                         variant="outlined"
-                        color="primary"
                       />
-                    )}
-                    {result.constraints.minDaysBetween && (
+                    ))}
+                    {result.debug.matchedClusters.length > 3 && (
                       <Chip
-                        icon={<Schedule sx={{ fontSize: 14 }} />}
-                        label={`${result.constraints.minDaysBetween}+ days apart`}
+                        label={`+${result.debug.matchedClusters.length - 3} more`}
                         size="small"
                         variant="outlined"
                       />
                     )}
                   </Stack>
-                </Box>
+                </Alert>
               )}
 
               {/* Available Dates */}
-              {result.availableDates.length > 0 ? (
+              {result.recommendations.length > 0 ? (
                 <Box>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
-                    Available Dates ({result.availableDates.length})
+                    Available Dates ({result.recommendations.length})
                   </Typography>
                   <Box
                     sx={{
@@ -351,12 +288,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                       pr: 0.5,
                     }}
                   >
-                    {result.availableDates.map((date, index) => {
-                      const recommendation = result.recommendations?.find(
-                        r => new Date(r.date).toISOString().split('T')[0] === date.toISOString().split('T')[0]
-                      );
-                      const suggestedTime = recommendation?.suggestedTime;
-                      const confidence = recommendation?.confidence || 0;
+                    {result.recommendations.map((dateStr, index) => {
+                      const date = new Date(dateStr + 'T00:00:00');
+                      const isWeekday = date.getDay() !== 0 && date.getDay() !== 6;
 
                       return (
                         <Paper
@@ -373,14 +307,14 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 0.5,
-                            minHeight: suggestedTime ? '72px' : '56px',
+                            minHeight: '56px',
                             '&:hover': onDateSelect ? {
                               bgcolor: 'success.light',
                               transform: 'translateY(-1px)',
                               boxShadow: 2,
                             } : {},
                           }}
-                          onClick={() => onDateSelect && handleDateClick(date, suggestedTime)}
+                          onClick={() => onDateSelect && handleDateClick(dateStr)}
                         >
                           <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
                             <Typography
@@ -405,7 +339,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                                   color="success"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDateClick(date, suggestedTime);
+                                    handleDateClick(dateStr);
                                   }}
                                   sx={{ p: 0.25 }}
                                 >
@@ -414,30 +348,24 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                               </Tooltip>
                             )}
                           </Stack>
-                          <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
-                            {formatDateDisplay(date)}
-                          </Typography>
-                          {suggestedTime && (
-                            <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
-                              <Schedule sx={{ fontSize: 12, color: 'text.secondary' }} />
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                {formatTimeDisplay(suggestedTime)}
-                              </Typography>
-                              {confidence > 0.7 && (
-                                <Chip
-                                  label="Pattern"
-                                  size="small"
-                                  sx={{
-                                    height: 14,
-                                    fontSize: '0.6rem',
-                                    bgcolor: 'success.main',
-                                    color: 'white',
-                                    '& .MuiChip-label': { px: 0.5, py: 0 },
-                                  }}
-                                />
-                              )}
-                            </Stack>
-                          )}
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
+                              {formatDateDisplay(dateStr)}
+                            </Typography>
+                            {isWeekday && (
+                              <Chip
+                                label="Weekday"
+                                size="small"
+                                sx={{
+                                  height: 14,
+                                  fontSize: '0.6rem',
+                                  bgcolor: 'info.main',
+                                  color: 'white',
+                                  '& .MuiChip-label': { px: 0.5, py: 0 },
+                                }}
+                              />
+                            )}
+                          </Stack>
                         </Paper>
                       );
                     })}
@@ -455,10 +383,50 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               ) : (
                 <Alert severity="warning" sx={{ borderRadius: 2 }}>
                   <Typography variant="body2">
-                    No available dates found matching your criteria. Try adjusting your search or expanding the date range.
+                    {result.debug.notes.join(' • ')}
                   </Typography>
                 </Alert>
               )}
+
+              {/* Debug Info (Collapsible) */}
+              <Box>
+                <Button
+                  size="small"
+                  onClick={() => setShowDebug(!showDebug)}
+                  endIcon={showDebug ? <ExpandLess /> : <ExpandMore />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {showDebug ? 'Hide' : 'Show'} Debug Info
+                </Button>
+                <Collapse in={showDebug}>
+                  <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: 'grey.50' }}>
+                    <Stack spacing={1.5}>
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Parsed Tokens:</Typography>
+                        <Typography variant="caption" display="block">{result.debug.parsedTokens.join(', ')}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Matched Clusters ({result.debug.matchedClusters.length}):</Typography>
+                        {result.debug.matchedClusters.map((c, i) => (
+                          <Typography key={i} variant="caption" display="block">
+                            • {c.gender} {c.level} {c.sport} (score: {c.confidence.toFixed(2)})
+                          </Typography>
+                        ))}
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Cluster Dates ({result.debug.clusterDates.length}):</Typography>
+                        <Typography variant="caption" display="block">{result.debug.clusterDates.join(', ')}</Typography>
+                      </Box>
+                      <Box>
+                        <Typography variant="caption" sx={{ fontWeight: 600 }}>Notes:</Typography>
+                        {result.debug.notes.map((note, i) => (
+                          <Typography key={i} variant="caption" display="block">• {note}</Typography>
+                        ))}
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Collapse>
+              </Box>
             </>
           )}
 
@@ -466,7 +434,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           {!loading && !result && (
             <Alert severity="info" icon={<Info />} sx={{ borderRadius: 2 }}>
               <Typography variant="caption">
-                <strong>Rate Limit:</strong> You can search up to 10 times per 24 hours. This helps keep costs low while providing powerful AI-powered scheduling assistance.
+                <strong>Rate Limit:</strong> You can search up to 10 times per 24 hours.
               </Typography>
             </Alert>
           )}
