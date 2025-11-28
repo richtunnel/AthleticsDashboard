@@ -187,7 +187,7 @@ export async function changePassword(payload: ChangePasswordPayload) {
 type UpdateSchoolDetailsPayload = {
   schoolName: string;
   teamName: string;
-  mascot?: string | null;
+  schoolAddress: string;
 };
 
 export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
@@ -198,7 +198,7 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
 
   const schoolName = sanitizeString(payload.schoolName);
   const teamName = sanitizeString(payload.teamName);
-  const mascot = sanitizeString(payload.mascot);
+  const schoolAddress = sanitizeString(payload.schoolAddress);
 
   if (!schoolName || schoolName.length < 2) {
     return { success: false, error: "School name must be at least 2 characters." };
@@ -208,13 +208,17 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
     return { success: false, error: "Team name must be at least 2 characters." };
   }
 
+  if (!schoolAddress || schoolAddress.length < 5) {
+    return { success: false, error: "School address must be at least 5 characters." };
+  }
+
   try {
     await prisma.user.update({
       where: { id: userId },
       data: {
         schoolName,
         teamName,
-        mascot,
+        schoolAddress,
       },
     });
 
