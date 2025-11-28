@@ -203,17 +203,22 @@ export class AvailableDatesService {
         const gender = team.gender.toLowerCase();
         const level = team.level.toLowerCase();
         
+        const matchResult = this.scoreMatch(parsedTokens, sportName, gender, level);
+        
         canonicalTeams.push({
           sport: sportData.name,
           gender: team.gender,
           level: team.level,
-          score: this.scoreMatch(parsedTokens, sportName, gender, level),
+          score: matchResult.score,
         });
       }
     }
 
-    // Filter by threshold
-    let matches = canonicalTeams.filter(t => t.score >= threshold);
+    // Filter by threshold AND require all tokens to be matched
+    let matches = canonicalTeams.filter(t => {
+      const matchResult = this.scoreMatch(parsedTokens, t.sport.toLowerCase(), t.gender.toLowerCase(), t.level.toLowerCase());
+      return matchResult.score >= threshold && matchResult.allTokensMatched;
+    });
 
     // If no matches, try sport-only fallback
     if (matches.length === 0) {
@@ -234,8 +239,9 @@ export class AvailableDatesService {
 
   /**
    * Score a canonical entry against parsed tokens
+   * Returns score and whether ALL tokens were matched
    */
-  private scoreMatch(tokens: string[], sport: string, gender: string, level: string): number {
+  private scoreMatch(tokens: string[], sport: string, gender: string, level: string): { score: number; allTokensMatched: boolean } {
     let score = 0;
     const sportTokens = sport.toLowerCase().split(/\s+/);
     const genderTokens = gender.toLowerCase().split(/\s+/);
@@ -244,37 +250,53 @@ export class AvailableDatesService {
     let hasSport = false;
     let hasGender = false;
     let hasLevel = false;
+    
+    // Track which input tokens have been matched
+    const matchedTokens = new Set<string>();
 
     for (const token of tokens) {
+      let tokenMatched = false;
+      
       // Exact match with sport
       if (sportTokens.some(s => s === token)) {
         score += 2;
         hasSport = true;
+        tokenMatched = true;
       } else if (sportTokens.some(s => s.includes(token) || token.includes(s))) {
         score += 1;
         hasSport = true;
+        tokenMatched = true;
       }
 
       // Exact match with gender
       if (genderTokens.some(g => g === token)) {
         score += 2;
         hasGender = true;
+        tokenMatched = true;
       } else if (genderTokens.some(g => g.includes(token) || token.includes(g))) {
         score += 1;
         hasGender = true;
+        tokenMatched = true;
       } else if (token.length === 1 && genderTokens.some(g => g.startsWith(token))) {
         // Single-letter initial match (e.g., 'b' → 'boys')
         score += 0.5;
         hasGender = true;
+        tokenMatched = true;
       }
 
       // Exact match with level
       if (levelTokens.some(l => l === token)) {
         score += 2;
         hasLevel = true;
+        tokenMatched = true;
       } else if (levelTokens.some(l => l.includes(token) || token.includes(l))) {
         score += 1;
         hasLevel = true;
+        tokenMatched = true;
+      }
+      
+      if (tokenMatched) {
+        matchedTokens.add(token);
       }
     }
 
@@ -283,7 +305,10 @@ export class AvailableDatesService {
       score += 2;
     }
 
-    return score;
+    // ALL tokens must be matched for valid result
+    const allTokensMatched = matchedTokens.size === tokens.length;
+
+    return { score, allTokensMatched };
   }
 
   /**
