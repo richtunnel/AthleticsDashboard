@@ -162,10 +162,51 @@ Examples:
       constraints.awayOnly = true;
     }
 
-    // Default date range: next 90 days
-    const endDate = new Date(currentDate);
-    endDate.setDate(endDate.getDate() + 90);
-    constraints.between = `${currentDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}`;
+    // Detect month names and set date range
+    const monthNames = [
+      { full: 'january', short: 'jan', index: 0 },
+      { full: 'february', short: 'feb', index: 1 },
+      { full: 'march', short: 'mar', index: 2 },
+      { full: 'april', short: 'apr', index: 3 },
+      { full: 'may', short: 'may', index: 4 },
+      { full: 'june', short: 'jun', index: 5 },
+      { full: 'july', short: 'jul', index: 6 },
+      { full: 'august', short: 'aug', index: 7 },
+      { full: 'september', short: 'sep', index: 8 },
+      { full: 'october', short: 'oct', index: 9 },
+      { full: 'november', short: 'nov', index: 10 },
+      { full: 'december', short: 'dec', index: 11 },
+    ];
+
+    let monthDetected = false;
+    for (const month of monthNames) {
+      if (lowerPrompt.includes(month.full) || lowerPrompt.includes(month.short)) {
+        monthDetected = true;
+        // Determine the year - if month has passed this year, use next year
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        let targetYear = currentYear;
+        
+        // If the target month is before the current month, assume next year
+        if (month.index < currentMonth) {
+          targetYear = currentYear + 1;
+        }
+
+        // Create start and end dates for the month
+        const startDate = new Date(targetYear, month.index, 1);
+        const endDate = new Date(targetYear, month.index + 1, 0); // Last day of month
+        
+        constraints.between = `${startDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}`;
+        break;
+      }
+    }
+
+    // If no month detected, use default date range: next 90 days
+    if (!monthDetected) {
+      const endDate = new Date(currentDate);
+      endDate.setDate(endDate.getDate() + 90);
+      constraints.between = `${currentDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}`;
+    }
 
     return constraints;
   }
