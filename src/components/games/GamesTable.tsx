@@ -225,7 +225,7 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
-type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}`;
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}` | `imported:${string}`;
 
 interface InlineEditState {
   gameId: string;
@@ -1357,6 +1357,10 @@ export function GamesTable() {
         const columnId = field.replace("custom:", "");
         const customData = (game.customData as any) || {};
         currentValue = customData[columnId] || "";
+      } else if (field.startsWith("imported:")) {
+        const columnName = field.replace("imported:", "");
+        const customFields = (game.customFields as Record<string, any>) || {};
+        currentValue = customFields[columnName] || "";
       } else {
         switch (field) {
           case "opponent":
@@ -1544,6 +1548,13 @@ export function GamesTable() {
             updateData.customData = {
               ...updateData.customData,
               [columnId]: value.slice(0, MAX_CHAR_LIMIT),
+            };
+          } else if (field.startsWith("imported:")) {
+            const columnName = field.replace("imported:", "");
+            // For imported columns, update customFields
+            updateData.customFields = {
+              ...(game.customFields || {}),
+              [columnName]: value.slice(0, MAX_CHAR_LIMIT),
             };
           }
         }
@@ -4395,31 +4406,86 @@ export function GamesTable() {
           }
           
           // Regular rendering for non-Bus Info columns or when toggle is off
+          // Check if this column is being edited
+          const fieldKey = column.id as InlineEditField;
+          const isImportedEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
+          
           let cellValue = "";
           
           if (mapping === "date") {
-            // Display date from game.date
+            // Display date from game.date (date columns are not editable in imported columns)
             cellValue = formatGameDate(game.date);
+            
+            return (
+              <TableCell key={column.id} sx={getDataCellSx(column.id, false)}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 13,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cellValue}
+                  </Typography>
+                </Box>
+              </TableCell>
+            );
           } else {
-            // Display value from customFields
+            // Display value from customFields (editable)
             cellValue = customFields[columnName] || "—";
           }
           
           return (
-            <TableCell key={column.id} sx={getDataCellSx(column.id, false)}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontSize: 13,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {cellValue}
-                </Typography>
-              </Box>
+            <TableCell key={column.id} sx={getDataCellSx(column.id, isImportedEditing)} onDoubleClick={() => handleDoubleClick(game, fieldKey)}>
+              {isImportedEditing ? (
+                <Box sx={{ py: 1 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    value={inlineEditValue}
+                    onChange={(e) => handleInlineChange(e.target.value, game)}
+                    onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                    onBlur={() => handleInlineBlur(game)}
+                    autoFocus
+                    disabled={isInlineSaving}
+                    helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
+                    FormHelperTextProps={{
+                      sx: {
+                        fontSize: 10,
+                        color: getCharacterCounterColor(inlineEditValue.length),
+                      },
+                    }}
+                    sx={{
+                      "& .MuiInputBase-input": {
+                        fontSize: 13,
+                      },
+                    }}
+                  />
+                  {inlineEditError && inlineEditState?.field === fieldKey && (
+                    <Typography variant="caption" sx={{ fontSize: 10, color: "error.main", display: "block", mt: 0.5 }}>
+                      {inlineEditError}
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 13,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cellValue}
+                  </Typography>
+                  {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === fieldKey && <CircularProgress size={12} />}
+                </Box>
+              )}
             </TableCell>
           );
         }
