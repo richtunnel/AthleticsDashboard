@@ -3172,13 +3172,6 @@ export function GamesTable() {
                 updateNewGameData({ notes: value });
               }}
               placeholder="Add notes..."
-              helperText={`${newGameData.notes.length}/${MAX_CHAR_LIMIT}`}
-              FormHelperTextProps={{
-                sx: {
-                  fontSize: 10,
-                  color: newGameData.notes.length >= MAX_CHAR_LIMIT ? "error.main" : newGameData.notes.length >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
-                },
-              }}
               sx={{
                 width: 180,
                 "& .MuiInputBase-input": {
@@ -3627,14 +3620,6 @@ export function GamesTable() {
                 setEditingGameData((prev) => (prev ? { ...prev, notes: value } : prev));
               }}
               placeholder="Add notes..."
-              helperText={`${editingGame.notes?.length ?? 0}/${MAX_CHAR_LIMIT}`}
-              FormHelperTextProps={{
-                sx: {
-                  fontSize: 10,
-                  mt: 0.5,
-                  color: (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT ? "error.main" : (editingGame.notes?.length ?? 0) >= MAX_CHAR_LIMIT * 0.9 ? "warning.main" : "text.secondary",
-                },
-              }}
               sx={{
                 width: 180,
                 "& .MuiInputBase-input": {
@@ -4105,13 +4090,6 @@ export function GamesTable() {
                   autoFocus
                   disabled={isInlineSaving}
                   placeholder="Enter location..."
-                  helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                  FormHelperTextProps={{
-                    sx: {
-                      fontSize: 10,
-                      color: getCharacterCounterColor(inlineEditValue.length),
-                    },
-                  }}
                   sx={{
                     "& .MuiInputBase-input": {
                       fontSize: 13,
@@ -4261,32 +4239,25 @@ export function GamesTable() {
           <TableCell key="notes" sx={getDataCellSx("notes", isEditing)} onDoubleClick={() => handleDoubleClick(game, "notes")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-                <TextField
-                  size="small"
-                  fullWidth
-                  value={inlineEditValue}
-                  onChange={(e) => {
-                    const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                    handleInlineChange(value, game);
-                  }}
-                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                  onBlur={() => handleInlineBlur(game)}
-                  autoFocus
-                  disabled={isInlineSaving}
-                  placeholder="Add notes..."
-                  helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                  FormHelperTextProps={{
-                    sx: {
-                      fontSize: 10,
-                      color: getCharacterCounterColor(inlineEditValue.length),
-                    },
-                  }}
-                  sx={{
-                    "& .MuiInputBase-input": {
-                      fontSize: 13,
-                    },
-                  }}
-                />
+               <TextField
+                 size="small"
+                 fullWidth
+                 value={inlineEditValue}
+                 onChange={(e) => {
+                   const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                   handleInlineChange(value, game);
+                 }}
+                 onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                 onBlur={() => handleInlineBlur(game)}
+                 autoFocus
+                 disabled={isInlineSaving}
+                 placeholder="Add notes..."
+                 sx={{
+                   "& .MuiInputBase-input": {
+                     fontSize: 13,
+                   },
+                 }}
+               />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -4451,13 +4422,6 @@ export function GamesTable() {
                     onBlur={() => handleInlineBlur(game)}
                     autoFocus
                     disabled={isInlineSaving}
-                    helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                    FormHelperTextProps={{
-                      sx: {
-                        fontSize: 10,
-                        color: getCharacterCounterColor(inlineEditValue.length),
-                      },
-                    }}
                     sx={{
                       "& .MuiInputBase-input": {
                         fontSize: 13,
@@ -4583,13 +4547,6 @@ export function GamesTable() {
                       onBlur={() => handleInlineBlur(game)}
                       autoFocus
                       disabled={isInlineSaving}
-                      helperText={`${inlineEditValue.length}/${MAX_CHAR_LIMIT}`}
-                      FormHelperTextProps={{
-                        sx: {
-                          fontSize: 10,
-                          color: getCharacterCounterColor(inlineEditValue.length),
-                        },
-                      }}
                       sx={{
                         "& .MuiInputBase-input": {
                           fontSize: 13,
