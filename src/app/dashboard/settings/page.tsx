@@ -17,6 +17,7 @@ import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGeneration
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
 import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
+import { ResetColumnsButton } from "@/components/settings/ResetColumnsButton";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -120,6 +121,18 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 <AIEmailGenerationToggle />
               </Box>
             </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Spreadsheet Columns
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want to return to the standard view.
+            </Typography>
+            <ResetColumnsButton />
           </CardContent>
         </Card>
 
