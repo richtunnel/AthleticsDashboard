@@ -53,6 +53,17 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "Maximum of 50 custom columns reached" }), { status: 400 });
     }
 
+    // Check for duplicate column name
+    const existingColumn = organization.customColumns.find(
+      (col) => col.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    if (existingColumn) {
+      return new Response(
+        JSON.stringify({ error: "A column with this name already exists" }),
+        { status: 400 }
+      );
+    }
+
     const newColumn = await prisma.customColumn.create({
       data: {
         name: name.trim(),
