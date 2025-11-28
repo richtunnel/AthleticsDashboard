@@ -71,13 +71,15 @@ Output JSON schema:
 Rules:
 1. If no date range specified, default to next 90 days from current date
 2. Weekday abbreviations: Mon, Tue, Wed, Thu, Fri, Sat, Sun
-3. Extract count from phrases like "3 dates", "five days", etc. (default to 3)
-4. "weekends" = ["Sat", "Sun"], "weekdays" = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-5. "home" = homeOnly: true, "away" = awayOnly: true
-6. Only include fields that are explicitly mentioned or can be inferred
+3. Extract count from phrases like "3 dates", "five days", etc.
+4. If user asks for dates "in [month]" without specifying a count, set count to 15 (show all available dates in that month, max 15)
+5. "weekends" = ["Sat", "Sun"], "weekdays" = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+6. "home" = homeOnly: true, "away" = awayOnly: true
+7. Only include fields that are explicitly mentioned or can be inferred
 
 Examples:
 - "Find 3 dates in July on weekends when we're home" → {"weekdays": ["Sat","Sun"], "between": "2025-07-01..2025-07-31", "homeOnly": true, "count": 3}
+- "Dates in July" → {"between": "2025-07-01..2025-07-31", "count": 15}
 - "5 weekday dates in March" → {"weekdays": ["Mon","Tue","Wed","Thu","Fri"], "between": "2025-03-01..2025-03-31", "count": 5}
 - "Next 4 Saturdays" → {"weekdays": ["Sat"], "count": 4}`;
 
@@ -96,8 +98,10 @@ Examples:
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       
       // Validate and normalize the result - cap at 15 dates max
+      // If no count specified and a date range is provided, default to 15 (show all available dates)
+      const defaultCount = result.between ? 15 : 3;
       const constraints: DateConstraints = {
-        count: Math.min(result.count || 3, 15),
+        count: Math.min(result.count || defaultCount, 15),
       };
 
       if (result.weekdays && Array.isArray(result.weekdays)) {
@@ -150,6 +154,9 @@ Examples:
     if (countMatch) {
       constraints.count = Math.min(parseInt(countMatch[1], 10), 15);
     }
+    
+    // Detect if user asks for dates in a month (without specifying count)
+    let hasMonthReference = false;
 
     // Detect weekends
     if (lowerPrompt.includes('weekend')) {
@@ -189,6 +196,7 @@ Examples:
     for (const month of monthNames) {
       if (lowerPrompt.includes(month.full) || lowerPrompt.includes(month.short)) {
         monthDetected = true;
+        hasMonthReference = true;
         // Determine the year - if month has passed this year, use next year
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
@@ -213,6 +221,11 @@ Examples:
       const endDate = new Date(currentDate);
       endDate.setDate(endDate.getDate() + 90);
       constraints.between = `${currentDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}`;
+    }
+    
+    // If month was mentioned but no count specified, show all available dates (max 15)
+    if (hasMonthReference && !countMatch) {
+      constraints.count = 15;
     }
 
     return constraints;
@@ -349,7 +362,7 @@ Examples:
     console.log(`[Available Dates] Booked dates (${bookedDates.size}):`, Array.from(bookedDates).sort());
 
     // Generate all dates in range that match constraints
-    // Priority: weekdays first, then weekends
+    // Priority: weekends first, then weekdays
     const weekdayDates: Date[] = [];
     const weekendDates: Date[] = [];
     const current = new Date(startDate);
@@ -412,10 +425,10 @@ Examples:
       current.setDate(current.getDate() + 1);
     }
 
-    // Prioritize weekdays first, then fill with weekends if needed
+    // Prioritize weekends first, then fill with weekdays if needed
     const selectedDates = [
-      ...weekdayDates.slice(0, maxDates),
-      ...weekendDates.slice(0, Math.max(0, maxDates - weekdayDates.length))
+      ...weekendDates.slice(0, maxDates),
+      ...weekdayDates.slice(0, Math.max(0, maxDates - weekendDates.length))
     ].slice(0, maxDates);
 
     console.log(`[Available Dates] Found ${selectedDates.length} available dates after filtering`);
