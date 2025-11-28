@@ -220,7 +220,7 @@ interface PaginationData {
   hasPrev: boolean;
 }
 
-type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel" | "notes" | "sortOrder";
+type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel" | "notes" | "sortOrder" | string;
 type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
@@ -2921,7 +2921,7 @@ export function GamesTable() {
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                {renderEditableColumnTitle(column.id, columnName, false)}
+                {renderEditableColumnTitle(column.id, columnName, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
                   columnName={getColumnLabel(column.id)}
@@ -2948,7 +2948,7 @@ export function GamesTable() {
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                {renderEditableColumnTitle(column.id, customColumn.name || "Custom", false)}
+                {renderEditableColumnTitle(column.id, customColumn.name || "Custom", true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={customColumn.id}
                   columnName={getColumnLabel(column.id)}
