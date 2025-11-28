@@ -4596,12 +4596,31 @@ export function GamesTable() {
   const renderNewRow = () => {
     if (!isAddingNew) return null;
 
+    // CRITICAL: When rendering the create game row, ONLY show essential default columns
+    // regardless of what columns are configured (imported or custom)
+    // This prevents showing both default AND imported columns at the same time
+    const createGameColumns: ColumnId[] = [
+      "date", 
+      "sport", 
+      "level", 
+      "opponent", 
+      "isHome", 
+      "time", 
+      "status", 
+      "location", 
+      "busTravel", 
+      "notes", 
+      "actions"
+    ];
+
+    const createGameResolvedColumns = createGameColumns.map(id => ({ id }));
+
     return (
       <TableRow sx={{ bgcolor: "#e3f2fd" }}>
         <TableCell padding="checkbox">
           <Checkbox disabled sx={{ p: 0 }} />
         </TableCell>
-        {resolvedColumns.map((column) => renderNewRowCell(column))}
+        {createGameResolvedColumns.map((column) => renderNewRowCell(column))}
       </TableRow>
     );
   };
@@ -5180,13 +5199,10 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
       })
       .map((colName) => `imported:${colName}` as ColumnId);
     
-    // CRITICAL FIX: Include default columns alongside imported columns
-    // This allows users to create new games even when imported columns are present
-    // Default columns are needed for the "Create Game" form to function
-    const defaultCols: ColumnId[] = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes"];
-    
-    // Merge: default columns first, then imported columns, then actions at the end
-    return [...defaultCols, ...importedIds, "actions"];
+    // CRITICAL FIX: When imported columns exist, ONLY show imported columns in the table view
+    // The create game row has its own separate logic to show default columns
+    // This prevents the bug where both default AND imported columns appear simultaneously
+    return [...importedIds, "actions"];
   }
   
   // No imported columns - use default column order
