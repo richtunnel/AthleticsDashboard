@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert } from "@mui/material";
 import { updateSchoolDetails } from "@/app/dashboard/settings/actions";
+import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 
 type Props = {
   user: {
@@ -122,15 +123,13 @@ export default function SchoolDetailsForm({ user }: Props) {
               fullWidth
               placeholder="e.g., Lincoln Lions"
             />
-            <TextField
-              size="small"
-              label="School Address"
-              name="schoolAddress"
+            <SchoolAddressAutocomplete
               value={form.schoolAddress}
-              onChange={handleChange}
+              onChange={(value) => setForm((s) => ({ ...s, schoolAddress: value }))}
+              label="School Address"
+              placeholder="Start typing to search for your school address..."
               required
-              fullWidth
-              placeholder="e.g., 123 Main St, City, State 12345"
+              size="small"
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
             <Button

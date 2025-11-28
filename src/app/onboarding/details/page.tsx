@@ -7,6 +7,7 @@ import { Box, TextField, Typography, Link, Alert } from "@mui/material";
 import styles from "@/styles/details_page.module.css";
 import BaseHeader from "@/components/headers/_base";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
+import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 
 export default function DetailsPage() {
   const router = useRouter();
@@ -88,17 +89,17 @@ export default function DetailsPage() {
               required 
               disabled={submitting}
             />
-            <TextField 
-              size="small" 
-              fullWidth 
-              label="School Address" 
-              value={schoolAddress} 
-              onChange={(e) => setSchoolAddress(e.target.value)} 
-              sx={{ mb: 2 }}
-              required
-              disabled={submitting}
-              placeholder="e.g., 123 Main St, City, State 12345"
-            />
+            <Box sx={{ mb: 2 }}>
+              <SchoolAddressAutocomplete
+                value={schoolAddress}
+                onChange={(value) => setSchoolAddress(value)}
+                label="School Address"
+                placeholder="Start typing to search for your school address..."
+                required
+                disabled={submitting}
+                size="small"
+              />
+            </Box>
             <AuthActionButton 
               fullWidth 
               variant="contained" 
