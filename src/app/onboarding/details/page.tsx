@@ -12,7 +12,7 @@ export default function DetailsPage() {
   const router = useRouter();
   const [schoolName, setSchoolName] = useState("");
   const [teamName, setTeamName] = useState("");
-  const [mascot, setMascot] = useState("");
+  const [schoolAddress, setSchoolAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +34,7 @@ export default function DetailsPage() {
       const res = await fetch("/api/user/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schoolName, teamName, mascot }),
+        body: JSON.stringify({ schoolName, teamName, schoolAddress }),
       });
 
       if (!res.ok) {
@@ -91,18 +91,20 @@ export default function DetailsPage() {
             <TextField 
               size="small" 
               fullWidth 
-              label="Mascot" 
-              value={mascot} 
-              onChange={(e) => setMascot(e.target.value)} 
+              label="School Address" 
+              value={schoolAddress} 
+              onChange={(e) => setSchoolAddress(e.target.value)} 
               sx={{ mb: 2 }}
+              required
               disabled={submitting}
+              placeholder="e.g., 123 Main St, City, State 12345"
             />
             <AuthActionButton 
               fullWidth 
               variant="contained" 
               type="submit"
               loading={submitting}
-              disabled={submitting || !schoolName || !teamName}
+              disabled={submitting || !schoolName || !teamName || !schoolAddress}
             >
               Complete Setup
             </AuthActionButton>

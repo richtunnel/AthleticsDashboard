@@ -8,7 +8,7 @@ type Props = {
   user: {
     schoolName?: string | null;
     teamName?: string | null;
-    mascot?: string | null;
+    schoolAddress?: string | null;
   };
 };
 
@@ -16,7 +16,7 @@ export default function SchoolDetailsForm({ user }: Props) {
   const [form, setForm] = useState({
     schoolName: user.schoolName ?? "",
     teamName: user.teamName ?? "",
-    mascot: user.mascot ?? "",
+    schoolAddress: user.schoolAddress ?? "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function SchoolDetailsForm({ user }: Props) {
     () => ({
       schoolName: user.schoolName ?? "",
       teamName: user.teamName ?? "",
-      mascot: user.mascot ?? "",
+      schoolAddress: user.schoolAddress ?? "",
     }),
     [user]
   );
@@ -35,7 +35,7 @@ export default function SchoolDetailsForm({ user }: Props) {
     return (
       form.schoolName.trim() !== initialData.schoolName.trim() ||
       form.teamName.trim() !== initialData.teamName.trim() ||
-      form.mascot.trim() !== initialData.mascot.trim()
+      form.schoolAddress.trim() !== initialData.schoolAddress.trim()
     );
   }, [form, initialData]);
 
@@ -49,6 +49,9 @@ export default function SchoolDetailsForm({ user }: Props) {
     }
     if (!form.teamName || form.teamName.trim().length < 2) {
       return "Team name must be at least 2 characters";
+    }
+    if (!form.schoolAddress || form.schoolAddress.trim().length < 5) {
+      return "School address must be at least 5 characters";
     }
     return null;
   };
@@ -69,7 +72,7 @@ export default function SchoolDetailsForm({ user }: Props) {
     const payload = {
       schoolName: form.schoolName.trim(),
       teamName: form.teamName.trim(),
-      mascot: form.mascot.trim() || null,
+      schoolAddress: form.schoolAddress.trim(),
     };
 
     try {
@@ -94,7 +97,7 @@ export default function SchoolDetailsForm({ user }: Props) {
           School Details
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-          Manage your school information including name, team, and mascot.
+          Manage your school information including name, team, and address.
         </Typography>
 
         <form onSubmit={handleSubmit}>
@@ -121,12 +124,13 @@ export default function SchoolDetailsForm({ user }: Props) {
             />
             <TextField
               size="small"
-              label="Mascot"
-              name="mascot"
-              value={form.mascot}
+              label="School Address"
+              name="schoolAddress"
+              value={form.schoolAddress}
               onChange={handleChange}
+              required
               fullWidth
-              placeholder="e.g., Lions"
+              placeholder="e.g., 123 Main St, City, State 12345"
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
             <Button
