@@ -18,11 +18,18 @@ export interface DateConstraints {
   homeOnly?: boolean;
   awayOnly?: boolean;
   minDaysBetween?: number; // Minimum days between games
-  count: number; // Number of dates to find (default 3)
+  count: number; // Number of dates to find (default 3, max 15)
+}
+
+export interface DateTimeRecommendation {
+  date: Date;
+  suggestedTime: string | null; // HH:MM format
+  confidence: number; // 0-1 score for time suggestion
 }
 
 export interface AvailableDatesResult {
   availableDates: Date[];
+  recommendations?: DateTimeRecommendation[]; // Dates with time suggestions
   constraints: DateConstraints;
   reasoning?: string;
   error?: string;
@@ -88,9 +95,9 @@ Examples:
 
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       
-      // Validate and normalize the result
+      // Validate and normalize the result - cap at 15 dates max
       const constraints: DateConstraints = {
-        count: result.count || 3,
+        count: Math.min(result.count || 3, 15),
       };
 
       if (result.weekdays && Array.isArray(result.weekdays)) {
@@ -138,10 +145,10 @@ Examples:
       count: 3,
     };
 
-    // Extract count
+    // Extract count - cap at 15 dates max
     const countMatch = prompt.match(/(\d+)\s*(date|day|game)/i);
     if (countMatch) {
-      constraints.count = parseInt(countMatch[1], 10);
+      constraints.count = Math.min(parseInt(countMatch[1], 10), 15);
     }
 
     // Detect weekends
@@ -212,15 +219,54 @@ Examples:
   }
 
   /**
-   * Find available dates based on constraints
+   * Detect time patterns from existing games
    */
-  async findAvailableDates(
+  private detectTimePattern(games: any[]): { suggestedTime: string | null; confidence: number } {
+    const gamesWithTime = games.filter(g => g.time && g.time.trim() !== '');
+    
+    if (gamesWithTime.length === 0) {
+      return { suggestedTime: null, confidence: 0 };
+    }
+
+    // Count time occurrences
+    const timeCounts = new Map<string, number>();
+    gamesWithTime.forEach(game => {
+      const count = timeCounts.get(game.time) || 0;
+      timeCounts.set(game.time, count + 1);
+    });
+
+    // Find most common time
+    let mostCommonTime = '';
+    let maxCount = 0;
+    timeCounts.forEach((count, time) => {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonTime = time;
+      }
+    });
+
+    const confidence = maxCount / gamesWithTime.length;
+    
+    // Only suggest times between 8AM and 8PM
+    const [hours] = mostCommonTime.split(':').map(Number);
+    if (hours < 8 || hours >= 20) {
+      // Time is outside preferred range, return default time
+      return { suggestedTime: '15:00', confidence: 0.3 }; // 3 PM default
+    }
+
+    return { suggestedTime: mostCommonTime, confidence };
+  }
+
+  /**
+   * Find available dates with time recommendations based on constraints
+   */
+  async findAvailableDatesWithTimes(
     userId: string,
     organizationId: string,
     sport: string,
     level: string,
     constraints: DateConstraints
-  ): Promise<Date[]> {
+  ): Promise<DateTimeRecommendation[]> {
     // Parse date range
     const [startDateStr, endDateStr] = (constraints.between || '').split('..');
     const startDate = new Date(startDateStr);
@@ -230,15 +276,42 @@ Examples:
       throw new Error('Invalid date range');
     }
 
-    // Get all existing games for the user's organization in the date range
-    const existingGames = await prisma.game.findMany({
+    // Get all existing games for pattern analysis
+    const allGames = await prisma.game.findMany({
       where: {
         homeTeam: {
           organizationId,
           sport: {
             name: sport,
           },
-          level: level as any, // Cast to any to handle string comparison
+          level: level as any,
+        },
+      },
+      include: {
+        homeTeam: {
+          include: {
+            sport: true,
+          },
+        },
+      },
+      orderBy: {
+        date: 'desc',
+      },
+      take: 50, // Analyze last 50 games for pattern
+    });
+
+    // Detect time pattern from existing games
+    const timePattern = this.detectTimePattern(allGames);
+
+    // Get games in the target date range to check for conflicts
+    const existingGamesInRange = await prisma.game.findMany({
+      where: {
+        homeTeam: {
+          organizationId,
+          sport: {
+            name: sport,
+          },
+          level: level as any,
         },
         date: {
           gte: startDate,
@@ -260,16 +333,23 @@ Examples:
 
     // Build a set of booked dates (date strings)
     const bookedDates = new Set<string>();
-    existingGames.forEach((game) => {
+    existingGamesInRange.forEach((game) => {
       bookedDates.add(game.date.toISOString().split('T')[0]);
     });
 
     // Generate all dates in range that match constraints
-    const availableDates: Date[] = [];
+    // Priority: weekdays first, then weekends
+    const weekdayDates: Date[] = [];
+    const weekendDates: Date[] = [];
     const current = new Date(startDate);
-    const lastGameDate = existingGames.length > 0 ? new Date(existingGames[existingGames.length - 1].date) : null;
+    const lastGameDate = existingGamesInRange.length > 0 
+      ? new Date(existingGamesInRange[existingGamesInRange.length - 1].date) 
+      : null;
 
-    while (current <= endDate && availableDates.length < constraints.count) {
+    const maxDates = Math.min(constraints.count, 15); // Cap at 15
+
+    // First pass: collect all available dates
+    while (current <= endDate && (weekdayDates.length + weekendDates.length) < maxDates * 2) {
       const dateStr = current.toISOString().split('T')[0];
       
       // Check if date is already booked
@@ -278,10 +358,12 @@ Examples:
         continue;
       }
 
-      // Check day of week constraint
+      // Check day of week constraint if specified
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const dayName = dayNames[current.getDay()];
+      const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(dayName);
+      
       if (constraints.weekdays && constraints.weekdays.length > 0) {
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayName = dayNames[current.getDay()];
         if (!constraints.weekdays.includes(dayName)) {
           current.setDate(current.getDate() + 1);
           continue;
@@ -297,12 +379,50 @@ Examples:
         }
       }
 
-      // Date passes all checks
-      availableDates.push(new Date(current));
+      // Categorize by weekday/weekend
+      if (isWeekday) {
+        weekdayDates.push(new Date(current));
+      } else {
+        weekendDates.push(new Date(current));
+      }
+      
       current.setDate(current.getDate() + 1);
     }
 
-    return availableDates;
+    // Prioritize weekdays, then fill with weekends if needed
+    const selectedDates = [
+      ...weekdayDates.slice(0, maxDates),
+      ...weekendDates.slice(0, Math.max(0, maxDates - weekdayDates.length))
+    ].slice(0, maxDates);
+
+    // Create recommendations with time suggestions
+    const recommendations: DateTimeRecommendation[] = selectedDates.map(date => ({
+      date,
+      suggestedTime: timePattern.suggestedTime,
+      confidence: timePattern.confidence,
+    }));
+
+    return recommendations;
+  }
+
+  /**
+   * Find available dates based on constraints (legacy method)
+   */
+  async findAvailableDates(
+    userId: string,
+    organizationId: string,
+    sport: string,
+    level: string,
+    constraints: DateConstraints
+  ): Promise<Date[]> {
+    const recommendations = await this.findAvailableDatesWithTimes(
+      userId,
+      organizationId,
+      sport,
+      level,
+      constraints
+    );
+    return recommendations.map(r => r.date);
   }
 
   /**
@@ -414,8 +534,8 @@ Examples:
       // Parse prompt with LLM
       const constraints = await this.parsePromptWithLLM(prompt, targetSport, targetLevel);
 
-      // Find available dates
-      const availableDates = await this.findAvailableDates(
+      // Find available dates with time recommendations
+      const recommendations = await this.findAvailableDatesWithTimes(
         userId,
         organizationId,
         targetSport,
@@ -424,10 +544,11 @@ Examples:
       );
 
       // Generate reasoning
-      const reasoning = this.generateReasoning(constraints, availableDates.length);
+      const reasoning = this.generateReasoning(constraints, recommendations.length);
 
       return {
-        availableDates,
+        availableDates: recommendations.map(r => r.date),
+        recommendations,
         constraints,
         reasoning,
       };

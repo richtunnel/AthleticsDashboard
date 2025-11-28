@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       availableDates: result.availableDates,
+      recommendations: result.recommendations,
       constraints: result.constraints,
       reasoning: result.reasoning,
       sport: result.constraints.homeOnly !== undefined || result.constraints.awayOnly !== undefined 
