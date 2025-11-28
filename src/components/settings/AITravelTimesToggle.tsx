@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box, Typography, Switch, FormControlLabel, Alert, CircularProgress, Tooltip, IconButton } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import Link from "next/link";
 
 async function fetchAITravelTimesSetting() {
   const res = await fetch("/api/user/ai-travel-times");
@@ -67,13 +68,7 @@ export function AITravelTimesToggle() {
   return (
     <Box>
       <FormControlLabel
-        control={
-          <Switch
-            checked={isEnabled}
-            onChange={handleToggle}
-            disabled={mutation.isPending}
-          />
-        }
+        control={<Switch checked={isEnabled} onChange={handleToggle} disabled={mutation.isPending} />}
         label={
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box>
@@ -81,10 +76,11 @@ export function AITravelTimesToggle() {
                 Enhanced Travel Times (Bus Info)
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
-                Get real-time travel calculations with traffic and weather for accurate bus scheduling.
+                Add a column named "Bus Info" to your spreadsheet in <Link href="/dashboard/games">Game Center</Link> and get real-time travel calculations with traffic and weather for accurate bus
+                scheduling.
               </Typography>
             </Box>
-            <Tooltip 
+            <Tooltip
               title="Enhanced Travel Times integrates with Google Maps and weather services to calculate accurate travel times considering real-time traffic, weather conditions, and safety factors. Perfect for planning bus departures and arrivals."
               placement="top"
               arrow
