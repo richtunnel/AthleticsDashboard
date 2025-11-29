@@ -289,85 +289,126 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     }}
                   >
                     {result.recommendations.map((dateStr, index) => {
-                      const date = new Date(dateStr + 'T00:00:00');
-                      const isWeekday = date.getDay() !== 0 && date.getDay() !== 6;
+                     const date = new Date(dateStr + 'T00:00:00');
+                     const isWeekday = date.getDay() !== 0 && date.getDay() !== 6;
 
-                      return (
-                        <Paper
-                          key={index}
-                          elevation={0}
-                          sx={{
-                            p: 1,
-                            bgcolor: 'success.lighter',
-                            border: '1px solid',
-                            borderColor: 'success.light',
-                            borderRadius: 1.5,
-                            cursor: onDateSelect ? 'pointer' : 'default',
-                            transition: 'all 0.2s',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 0.5,
-                            minHeight: '56px',
-                            '&:hover': onDateSelect ? {
-                              bgcolor: 'success.light',
-                              transform: 'translateY(-1px)',
-                              boxShadow: 2,
-                            } : {},
-                          }}
-                          onClick={() => onDateSelect && handleDateClick(dateStr)}
-                        >
-                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                bgcolor: 'success.main',
-                                color: 'white',
-                                px: 0.5,
-                                py: 0.125,
-                                borderRadius: 0.5,
-                                fontWeight: 600,
-                                fontSize: '0.65rem',
-                                lineHeight: 1.2,
-                              }}
-                            >
-                              #{index + 1}
-                            </Typography>
-                            {onDateSelect && (
-                              <Tooltip title="Add to schedule">
-                                <IconButton
-                                  size="small"
-                                  color="success"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDateClick(dateStr);
-                                  }}
-                                  sx={{ p: 0.25 }}
-                                >
-                                  <AddCircleOutline sx={{ fontSize: 18 }} />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
-                              {formatDateDisplay(dateStr)}
-                            </Typography>
-                            {isWeekday && (
-                              <Chip
-                                label="Weekday"
-                                size="small"
-                                sx={{
-                                  height: 14,
-                                  fontSize: '0.6rem',
-                                  bgcolor: 'info.main',
-                                  color: 'white',
-                                  '& .MuiChip-label': { px: 0.5, py: 0 },
-                                }}
-                              />
-                            )}
-                          </Stack>
-                        </Paper>
-                      );
+                     // Get matched teams to display
+                     const matchedTeams = result.debug.matchedClusters.map(
+                       c => `${c.gender} ${c.level} ${c.sport}`
+                     );
+
+                     return (
+                       <Paper
+                         key={index}
+                         elevation={0}
+                         sx={{
+                           p: 1,
+                           bgcolor: 'success.lighter',
+                           border: '1px solid',
+                           borderColor: 'success.light',
+                           borderRadius: 1.5,
+                           cursor: onDateSelect ? 'pointer' : 'default',
+                           transition: 'all 0.2s',
+                           display: 'flex',
+                           flexDirection: 'column',
+                           gap: 0.5,
+                           minHeight: '80px',
+                           '&:hover': onDateSelect ? {
+                             bgcolor: 'success.light',
+                             transform: 'translateY(-1px)',
+                             boxShadow: 2,
+                           } : {},
+                         }}
+                         onClick={() => onDateSelect && handleDateClick(dateStr)}
+                       >
+                         <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
+                           <Typography
+                             variant="caption"
+                             sx={{
+                               bgcolor: 'success.main',
+                               color: 'white',
+                               px: 0.5,
+                               py: 0.125,
+                               borderRadius: 0.5,
+                               fontWeight: 600,
+                               fontSize: '0.65rem',
+                               lineHeight: 1.2,
+                             }}
+                           >
+                             #{index + 1}
+                           </Typography>
+                           {onDateSelect && (
+                             <Tooltip title="Add to schedule">
+                               <IconButton
+                                 size="small"
+                                 color="success"
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   handleDateClick(dateStr);
+                                 }}
+                                 sx={{ p: 0.25 }}
+                               >
+                                 <AddCircleOutline sx={{ fontSize: 18 }} />
+                               </IconButton>
+                             </Tooltip>
+                           )}
+                         </Stack>
+                         <Stack direction="row" spacing={0.5} alignItems="center">
+                           <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem', lineHeight: 1.3 }}>
+                             {formatDateDisplay(dateStr)}
+                           </Typography>
+                           {isWeekday && (
+                             <Chip
+                               label="Weekday"
+                               size="small"
+                               sx={{
+                                 height: 14,
+                                 fontSize: '0.6rem',
+                                 bgcolor: 'info.main',
+                                 color: 'white',
+                                 '& .MuiChip-label': { px: 0.5, py: 0 },
+                               }}
+                             />
+                           )}
+                         </Stack>
+                         {/* Display matched team(s) */}
+                         <Box sx={{ mt: 0.5 }}>
+                           {matchedTeams.length === 1 ? (
+                             <Typography
+                               variant="caption"
+                               sx={{
+                                 fontSize: '0.7rem',
+                                 color: 'success.dark',
+                                 fontWeight: 500,
+                                 display: 'block',
+                                 lineHeight: 1.3,
+                               }}
+                             >
+                               {matchedTeams[0]}
+                             </Typography>
+                           ) : (
+                             <Tooltip title={matchedTeams.join(', ')} arrow placement="top">
+                               <Typography
+                                 variant="caption"
+                                 sx={{
+                                   fontSize: '0.7rem',
+                                   color: 'success.dark',
+                                   fontWeight: 500,
+                                   display: 'block',
+                                   lineHeight: 1.3,
+                                   cursor: 'help',
+                                 }}
+                               >
+                                 {matchedTeams[0]}
+                                 {matchedTeams.length > 1 && (
+                                   <span style={{ opacity: 0.7 }}> +{matchedTeams.length - 1} more</span>
+                                 )}
+                               </Typography>
+                             </Tooltip>
+                           )}
+                         </Box>
+                       </Paper>
+                     );
                     })}
                   </Box>
                   {onDateSelect && (
@@ -428,15 +469,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                 </Collapse>
               </Box>
             </>
-          )}
-
-          {/* Rate Limit Info */}
-          {!loading && !result && (
-            <Alert severity="info" icon={<Info />} sx={{ borderRadius: 2 }}>
-              <Typography variant="caption">
-                <strong>Rate Limit:</strong> You can search up to 10 times per 24 hours.
-              </Typography>
-            </Alert>
           )}
         </Stack>
       </DialogContent>
