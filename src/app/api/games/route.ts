@@ -725,6 +725,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // VALIDATE: custom fields (imported columns) character limits
+    if (body.customFields && typeof body.customFields === "object") {
+      for (const [key, value] of Object.entries(body.customFields)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json({ success: false, error: `Imported field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+        }
+      }
+    }
+
     let game = await prisma.game.create({
       data: {
         ...body,
