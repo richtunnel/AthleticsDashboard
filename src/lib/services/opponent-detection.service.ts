@@ -81,15 +81,18 @@ export async function detectAndCreateOpponents(
       const customFields = game.customFields;
       if (customFields && customFields[opponentColumnName]) {
         const value = String(customFields[opponentColumnName]).trim();
-        // Only include text values > 4 characters
-        if (value.length > 4) {
+        const valueLower = value.toLowerCase();
+        
+        // Only include text values >= 2 characters
+        // Exclude "home" or "away" as these are placeholders, not actual opponent names
+        if (value.length >= 2 && valueLower !== "home" && valueLower !== "away") {
           opponentNames.add(value);
         }
       }
     });
 
     if (opponentNames.size === 0) {
-      console.log("[OpponentDetection] No valid opponent names found (all values <= 4 characters)");
+      console.log("[OpponentDetection] No valid opponent names found (all values < 2 characters or only 'home'/'away' placeholders)");
       return { 
         detected: true, 
         columnName: opponentColumnName, 
