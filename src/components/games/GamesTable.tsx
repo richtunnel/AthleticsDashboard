@@ -1942,8 +1942,9 @@ export function GamesTable() {
         useImportUndoStore.getState().setImportedGames(result.createdGameIds);
       }
 
-      // Refresh the games list
+      // Refresh the games list AND table preferences (to load new custom columns)
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
     },
     [queryClient, addNotification]
   );
@@ -4931,6 +4932,7 @@ export function GamesTable() {
       <ImportUndoButton
         onUndo={() => {
           queryClient.invalidateQueries({ queryKey: ["games"] });
+          queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
           addNotification("Import undone - all imported games have been deleted", "success");
         }}
       />
