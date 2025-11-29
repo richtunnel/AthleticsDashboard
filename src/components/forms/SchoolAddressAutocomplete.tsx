@@ -186,7 +186,7 @@ export default function SchoolAddressAutocomplete({
   return (
     <Box sx={{ position: "relative" }}>
       <Autocomplete
-        freeSolo={false}
+        freeSolo={true} // Allow manual text entry if API fails
         options={options}
         getOptionLabel={(option) => {
           if (typeof option === "string") return option;
@@ -207,7 +207,7 @@ export default function SchoolAddressAutocomplete({
             required={required}
             size={size}
             error={error}
-            helperText={helperText}
+            helperText={helperText || "Start typing or enter address manually"}
             InputProps={{
               ...params.InputProps,
               endAdornment: (
@@ -234,8 +234,8 @@ export default function SchoolAddressAutocomplete({
         )}
         noOptionsText={
           inputValue.length < 3
-            ? "Type at least 3 characters to search"
-            : "No addresses found"
+            ? "Type at least 3 characters to search or enter manually"
+            : "No addresses found - you can enter manually"
         }
       />
       
