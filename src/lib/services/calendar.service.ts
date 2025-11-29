@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
+import { hasScopes } from "./incremental-auth.service";
 
 const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
 
@@ -18,7 +19,26 @@ export interface UpcomingCalendarEvent {
 
 //Google Calendar Sync
 export class CalendarService {
+  /**
+   * Check if user has granted Calendar scopes (incremental auth)
+   * This checks the OAuth scopes, not just token existence
+   */
+  private async hasCalendarScopes(userId: string): Promise<boolean> {
+    return await hasScopes(userId, "CALENDAR");
+  }
+
+  /**
+   * Legacy method: Check if tokens exist
+   * Note: With incremental auth, this checks both scopes AND tokens
+   */
   private async isCalendarConnected(userId: string): Promise<boolean> {
+    // First check if Calendar scopes are granted
+    const hasCalendarAccess = await this.hasCalendarScopes(userId);
+    if (!hasCalendarAccess) {
+      return false;
+    }
+
+    // Then check if tokens exist
     const [account, userTokens] = await Promise.all([
       prisma.account.findFirst({
         where: {
