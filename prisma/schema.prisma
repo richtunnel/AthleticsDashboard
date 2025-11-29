@@ -369,6 +369,9 @@ model MatchupResult {
   organizationScore Int // Your team's score
   opponentScore     Int // Opponent's score
   isWin             Boolean // True if your team won, false if lost
+  sport             String? // Sport name (e.g., Basketball, Football)
+  gender            String? // Gender (Boys, Girls, Coed)
+  level             String? // Level (Varsity, Junior Varsity, Frosh-Soph, Freshmen)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   // Relations
@@ -378,6 +381,7 @@ model MatchupResult {
 
   @@index([organizationId])
   @@index([opponentId])
+  @@index([organizationId, sport, gender, level])
 }
 
 model TravelRecommendation {
