@@ -4,6 +4,85 @@ import { prisma } from "../database/prisma";
 
 const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
 
+/**
+ * Determines which Google Calendar to sync to based on calendar group mappings.
+ * Returns the calendar ID to use, defaulting to "primary" if no match found.
+ */
+async function resolveCalendarId(game: any, userId: string, calendar: any): Promise<string> {
+  try {
+    // Check if user has any calendar group mappings
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+    });
+
+    if (!mappings || mappings.length === 0) {
+      return "primary"; // No mappings configured, use primary calendar
+    }
+
+    // Build a list of values to check from the game
+    const valuesToCheck: { columnName: string; value: string }[] = [];
+
+    // Check team name (e.g., "Junior Varsity Basketball")
+    if (game.homeTeam?.name) {
+      valuesToCheck.push({ columnName: "Team", value: game.homeTeam.name });
+      valuesToCheck.push({ columnName: "Sports Level", value: game.homeTeam.name });
+      valuesToCheck.push({ columnName: "Team Level", value: game.homeTeam.name });
+    }
+
+    // Check sport + level combination
+    if (game.homeTeam?.sport?.name && game.homeTeam?.level) {
+      const sportLevel = `${game.homeTeam.sport.name} ${game.homeTeam.level}`;
+      valuesToCheck.push({ columnName: "Sport & Level", value: sportLevel });
+      valuesToCheck.push({ columnName: "Sports Level", value: sportLevel });
+    }
+
+    // Check sport alone
+    if (game.homeTeam?.sport?.name) {
+      valuesToCheck.push({ columnName: "Sport", value: game.homeTeam.sport.name });
+    }
+
+    // Check level alone
+    if (game.homeTeam?.level) {
+      valuesToCheck.push({ columnName: "Level", value: game.homeTeam.level });
+      valuesToCheck.push({ columnName: "Team Level", value: game.homeTeam.level });
+    }
+
+    // Check custom fields from imported CSV columns
+    if (game.customFields && typeof game.customFields === 'object') {
+      Object.entries(game.customFields).forEach(([key, value]) => {
+        if (value && typeof value === 'string') {
+          valuesToCheck.push({ columnName: key, value: value as string });
+        }
+      });
+    }
+
+    // Try to find a matching mapping
+    for (const { columnName, value } of valuesToCheck) {
+      const mapping = mappings.find(
+        (m) => m.columnName === columnName && m.columnValue === value
+      );
+      if (mapping) {
+        console.log(`[Calendar Sync] Matched mapping: ${columnName} = ${value} → ${mapping.googleCalendarName}`);
+        
+        // Verify the calendar still exists in user's Google Calendar
+        try {
+          await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
+          return mapping.googleCalendarId;
+        } catch (error) {
+          console.warn(`[Calendar Sync] Calendar ${mapping.googleCalendarId} not found, falling back to primary`);
+          continue;
+        }
+      }
+    }
+
+    console.log("[Calendar Sync] No matching calendar group found, using primary calendar");
+    return "primary";
+  } catch (error) {
+    console.error("[Calendar Sync] Error resolving calendar ID:", error);
+    return "primary"; // Fail gracefully, use primary calendar
+  }
+}
+
 export async function syncGameToCalendar(gameId: string, userId: string) {
   // Get the user's Google account credentials
   const user = await prisma.user.findUnique({
@@ -115,19 +194,21 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   };
 
   try {
+    // Resolve which calendar to sync to based on game data and user mappings
+    const calendarId = await resolveCalendarId(game, userId, calendar);
     let response;
 
     if (game.googleCalendarEventId) {
       // Update existing event
       response = await calendar.events.update({
-        calendarId: "primary",
+        calendarId,
         eventId: game.googleCalendarEventId,
         requestBody: event,
       });
     } else {
       // Create new event
       response = await calendar.events.insert({
-        calendarId: "primary",
+        calendarId,
         requestBody: event,
       });
 
