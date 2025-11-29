@@ -24,11 +24,17 @@ import {
   Skeleton,
   Tooltip,
   Divider,
+  Autocomplete,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
-import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow } from "@mui/icons-material";
+import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow, FilterList } from "@mui/icons-material";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
+import { getSportLevelOptions, formatSportLevelLabel, type SportLevelOption } from "@/lib/utils/sportLevelOptions";
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T & { cancel: () => void } {
   let timeout: NodeJS.Timeout | null = null;
@@ -85,6 +91,9 @@ interface MatchupResult {
   organizationScore: number;
   opponentScore: number;
   isWin: boolean;
+  sport: string | null;
+  gender: string | null;
+  level: string | null;
   opponent: Opponent;
   createdAt: string;
 }
@@ -227,13 +236,15 @@ interface ScoreDialogProps {
   onClose: () => void;
   yourTeamName: string;
   opponentName: string;
-  onSubmit: (yourScore: number, opponentScore: number) => void;
+  onSubmit: (yourScore: number, opponentScore: number, sportLevel: SportLevelOption | null) => void;
   loading: boolean;
 }
 
 const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, loading }: ScoreDialogProps) => {
   const [yourScore, setYourScore] = useState<string>("");
   const [opponentScore, setOpponentScore] = useState<string>("");
+  const [selectedSportLevel, setSelectedSportLevel] = useState<SportLevelOption | null>(null);
+  const sportLevelOptions = getSportLevelOptions();
 
   const handleSubmit = () => {
     const your = parseInt(yourScore);
@@ -243,13 +254,14 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
       return;
     }
 
-    onSubmit(your, opp);
+    onSubmit(your, opp, selectedSportLevel);
   };
 
   useEffect(() => {
     if (!open) {
       setYourScore("");
       setOpponentScore("");
+      setSelectedSportLevel(null);
     }
   }, [open]);
 
@@ -316,7 +328,7 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Enter Game Score</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -326,7 +338,22 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
           Example: Your Team: 3, {opponentName}: 1 = Win
         </Typography>
         <Stack spacing={3}>
-          <TextField label={`${yourTeamName} (Your Team)`} type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth autoFocus inputProps={{ min: 0 }} />
+          <Autocomplete
+            options={sportLevelOptions}
+            getOptionLabel={(option) => option.label}
+            value={selectedSportLevel}
+            onChange={(_, newValue) => setSelectedSportLevel(newValue)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Sport & Level"
+                placeholder="Select sport and level"
+                helperText="Choose which team this score is for (e.g., Boys Varsity Basketball)"
+              />
+            )}
+            fullWidth
+          />
+          <TextField label={`${yourTeamName} (Your Team)`} type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
           <TextField label={opponentName} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
           {getResultPreview()}
         </Stack>
@@ -335,7 +362,7 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
         <Button onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <LoadingButton onClick={handleSubmit} variant="contained" loading={loading} disabled={!yourScore || !opponentScore}>
+        <LoadingButton onClick={handleSubmit} variant="contained" loading={loading} disabled={!yourScore || !opponentScore || !selectedSportLevel}>
           Save Result
         </LoadingButton>
       </DialogActions>
@@ -370,6 +397,9 @@ export default function OpponentsPage() {
   const [scoreDialogData, setScoreDialogData] = useState<{
     opponent: Opponent | null;
   }>({ opponent: null });
+
+  // Score filter state
+  const [selectedFilter, setSelectedFilter] = useState<SportLevelOption | null>(null);
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -415,20 +445,61 @@ export default function OpponentsPage() {
     return userData?.user?.teamName || userData?.user?.schoolName || "Your Team";
   }, [userData?.user]);
 
-  const wonGamesCount = useMemo(() => {
-    return matchupResults.filter((result: MatchupResult) => result.isWin).length;
+  // Filter matchup results based on selected sport/level
+  const filteredMatchupResults = useMemo(() => {
+    if (!selectedFilter) {
+      return matchupResults;
+    }
+    return matchupResults.filter((result: MatchupResult) => {
+      return (
+        result.sport === selectedFilter.sport &&
+        result.gender === selectedFilter.gender &&
+        result.level === selectedFilter.level
+      );
+    });
+  }, [matchupResults, selectedFilter]);
+
+  // Get unique sport/level combinations from existing matchup results
+  const availableFilters = useMemo(() => {
+    const filters = new Map<string, SportLevelOption>();
+    matchupResults.forEach((result: MatchupResult) => {
+      if (result.sport && result.gender && result.level) {
+        const key = `${result.sport}-${result.gender}-${result.level}`;
+        if (!filters.has(key)) {
+          filters.set(key, {
+            label: formatSportLevelLabel(result.sport, result.gender, result.level),
+            sport: result.sport,
+            gender: result.gender,
+            level: result.level,
+          });
+        }
+      }
+    });
+    return Array.from(filters.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [matchupResults]);
 
+  const wonGamesCount = useMemo(() => {
+    return filteredMatchupResults.filter((result: MatchupResult) => result.isWin).length;
+  }, [filteredMatchupResults]);
+
   const lostGamesCount = useMemo(() => {
-    return matchupResults.filter((result: MatchupResult) => !result.isWin).length;
-  }, [matchupResults]);
+    return filteredMatchupResults.filter((result: MatchupResult) => !result.isWin).length;
+  }, [filteredMatchupResults]);
 
   // ============================================================================
   // MUTATIONS
   // ============================================================================
 
   const createMatchupMutation = useMutation({
-    mutationFn: async (data: { opponentId: string; organizationScore: number; opponentScore: number; isWin: boolean }) => {
+    mutationFn: async (data: { 
+      opponentId: string; 
+      organizationScore: number; 
+      opponentScore: number; 
+      isWin: boolean;
+      sport: string | null;
+      gender: string | null;
+      level: string | null;
+    }) => {
       const res = await fetch("/api/matchup-results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -629,7 +700,7 @@ export default function OpponentsPage() {
   }, []);
 
   const handleScoreSubmit = useCallback(
-    (yourScore: number, opponentScore: number) => {
+    (yourScore: number, opponentScore: number, sportLevel: SportLevelOption | null) => {
       if (!scoreDialogData.opponent) return;
 
       const isWin = yourScore > opponentScore;
@@ -639,6 +710,9 @@ export default function OpponentsPage() {
         organizationScore: yourScore,
         opponentScore: opponentScore,
         isWin: isWin,
+        sport: sportLevel?.sport || null,
+        gender: sportLevel?.gender || null,
+        level: sportLevel?.level || null,
       });
     },
     [scoreDialogData, createMatchupMutation]
@@ -772,41 +846,54 @@ export default function OpponentsPage() {
         {/* Right Column - Score Tracker */}
         <Grid size={{ xs: 12, lg: 7 }}>
           <Paper elevation={0} sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, minHeight: 500 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Score Tracker
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Chip label={`Total Games ${matchupResults.length}`} size="small" sx={{ bgcolor: "rgba(15, 23, 42, 0.08)" }} />
-                <Chip
-                  label={`Wins ${wonGamesCount}`}
-                  size="small"
-                  sx={{
-                    bgcolor: "rgba(76, 175, 80, 0.15)",
-                    color: "success.main",
-                    fontWeight: 600,
-                  }}
-                />
-                <Chip
-                  label={`Losses ${lostGamesCount}`}
-                  size="small"
-                  sx={{
-                    bgcolor: "rgba(244, 67, 54, 0.15)",
-                    color: "error.main",
-                    fontWeight: 600,
-                  }}
-                />
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Score Tracker
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Chip label={`Total ${filteredMatchupResults.length}`} size="small" sx={{ bgcolor: "rgba(15, 23, 42, 0.08)" }} />
+                  <Chip
+                    label={`Wins ${wonGamesCount}`}
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(76, 175, 80, 0.15)",
+                      color: "success.main",
+                      fontWeight: 600,
+                    }}
+                  />
+                  <Chip
+                    label={`Losses ${lostGamesCount}`}
+                    size="small"
+                    sx={{
+                      bgcolor: "rgba(244, 67, 54, 0.15)",
+                      color: "error.main",
+                      fontWeight: 600,
+                    }}
+                  />
+                </Box>
               </Box>
+              {availableFilters.length > 0 && (
+                <Autocomplete
+                  options={availableFilters}
+                  getOptionLabel={(option) => option.label}
+                  value={selectedFilter}
+                  onChange={(_, newValue) => setSelectedFilter(newValue)}
+                  renderInput={(params) => <TextField {...params} label="Filter by Sport & Level" size="small" />}
+                  sx={{ minWidth: 280 }}
+                />
+              )}
             </Box>
 
-            {matchupResults.length > 0 ? (
+            {filteredMatchupResults.length > 0 ? (
               <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
-                {matchupResults.map((result: MatchupResult) => {
+                {filteredMatchupResults.map((result: MatchupResult) => {
                   const isYourTeamWinner = result.isWin;
                   const winnerName = isYourTeamWinner ? yourTeamName : result.opponent.name;
                   const loserName = isYourTeamWinner ? result.opponent.name : yourTeamName;
                   const winnerScore = isYourTeamWinner ? result.organizationScore : result.opponentScore;
                   const loserScore = isYourTeamWinner ? result.opponentScore : result.organizationScore;
+                  const sportLevelLabel = formatSportLevelLabel(result.sport, result.gender, result.level);
 
                   return (
                     <Card
@@ -835,6 +922,21 @@ export default function OpponentsPage() {
                         <Close fontSize="small" />
                       </IconButton>
                       <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" } }}>
+                        {/* Sport/Level Label */}
+                        {sportLevelLabel !== "All Sports" && (
+                          <Box sx={{ mb: 1 }}>
+                            <Chip
+                              label={sportLevelLabel}
+                              size="small"
+                              sx={{
+                                bgcolor: "rgba(33, 150, 243, 0.15)",
+                                color: "primary.main",
+                                fontWeight: 600,
+                                fontSize: "11px",
+                              }}
+                            />
+                          </Box>
+                        )}
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           {/* Left Side - Teams and Scores */}
                           <Box sx={{ flex: 1 }}>
@@ -989,6 +1091,16 @@ export default function OpponentsPage() {
                   );
                 })}
               </Stack>
+            ) : matchupResults.length > 0 && selectedFilter ? (
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <FilterList sx={{ fontSize: 64, color: "text.secondary", opacity: 0.3, mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  No scores for {selectedFilter.label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Try selecting a different sport or clear the filter
+                </Typography>
+              </Box>
             ) : (
               <Box sx={{ textAlign: "center", py: 8 }}>
                 <School sx={{ fontSize: 64, color: "text.secondary", opacity: 0.3, mb: 2 }} />

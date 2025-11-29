@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
-    const { opponentId, organizationScore, opponentScore, isWin } = body;
+    const { opponentId, organizationScore, opponentScore, isWin, sport, gender, level } = body;
 
     if (!opponentId) {
       return NextResponse.json(
@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
         organizationScore: parseInt(organizationScore),
         opponentScore: parseInt(opponentScore),
         isWin: Boolean(isWin),
+        sport: sport || null,
+        gender: gender || null,
+        level: level || null,
         organizationId: session.user.organizationId,
       },
       include: {
