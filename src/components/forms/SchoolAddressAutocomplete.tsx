@@ -150,7 +150,7 @@ export default function SchoolAddressAutocomplete({
   // Handle selection
   const handleChange = async (event: any, newValue: PlacePrediction | string | null) => {
     if (typeof newValue === "string") {
-      // User typed and pressed enter (freeSolo mode not enabled, so this won't happen)
+      // User typed and pressed enter (freeSolo mode)
       onChange(newValue);
       setInputValue(newValue);
       setIsSchool(false);
@@ -172,6 +172,15 @@ export default function SchoolAddressAutocomplete({
       onChange("");
       setInputValue("");
       setIsSchool(false);
+    }
+  };
+
+  // Handle blur - save manually entered text if user didn't select from dropdown
+  const handleBlur = () => {
+    if (inputValue && inputValue.trim() !== value) {
+      // User has typed something that differs from the current value
+      // and hasn't selected from dropdown - save the manual entry
+      onChange(inputValue.trim());
     }
   };
 
@@ -208,6 +217,7 @@ export default function SchoolAddressAutocomplete({
             size={size}
             error={error}
             helperText={helperText || "Start typing or enter address manually"}
+            onBlur={handleBlur}
             InputProps={{
               ...params.InputProps,
               endAdornment: (
