@@ -78,6 +78,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
       setNewColumnName("");
       setNewColumnType("TEXT");
       setError("");
@@ -100,6 +101,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
     },
   });
 
