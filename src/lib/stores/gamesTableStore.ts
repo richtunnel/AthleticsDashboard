@@ -20,6 +20,7 @@ interface NewGameData {
   location: string;
   homeTeamId?: string;
   customData?: { [key: string]: string };
+  customFields?: { [key: string]: string };
 }
 
 interface GamesTableState {
@@ -75,6 +76,7 @@ const getDefaultNewGameData = (): NewGameData => ({
   notes: "",
   location: "",
   customData: {},
+  customFields: {},
 });
 
 export const useGamesTableStore = create<GamesTableState>()(

@@ -212,6 +212,7 @@ interface NewGameData {
   location: string;
   homeTeamId?: string;
   customData?: { [key: string]: string };
+  customFields?: { [key: string]: string };
 }
 
 interface PaginationData {
@@ -2076,6 +2077,7 @@ export function GamesTable() {
       notes: newGameData.notes || null,
       location: newGameData.location || null,
       customData: newGameData.customData || {},
+      customFields: newGameData.customFields || {},
     };
 
     createGameMutation.mutate({ gameData });
@@ -3203,13 +3205,31 @@ export function GamesTable() {
         );
       default:
         if (column.id.startsWith("imported:")) {
-          // Handle imported CSV columns (read-only in new row form)
+          // Handle imported CSV columns (editable in new row form)
           const columnName = column.id.split(":")[1];
           return (
-            <TableCell key={column.id} sx={{ py: 1, minWidth: 120 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, fontStyle: 'italic' }}>
-                —
-              </Typography>
+            <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+              <TextField
+                size="small"
+                fullWidth
+                value={newGameData.customFields?.[columnName] || ""}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                  updateNewGameData({
+                    customFields: {
+                      ...(newGameData.customFields || {}),
+                      [columnName]: value,
+                    },
+                  });
+                }}
+                placeholder={`Enter ${columnName.toLowerCase()}`}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontSize: 13,
+                    py: 0.5,
+                  },
+                }}
+              />
             </TableCell>
           );
         }
