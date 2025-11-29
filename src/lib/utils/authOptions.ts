@@ -150,12 +150,12 @@ export const authOptions: NextAuthOptions = {
           prompt: "consent",
           access_type: "offline",
           response_type: "code",
+          // ✅ INCREMENTAL AUTHORIZATION: Only request basic profile scopes initially
+          // Calendar and Contacts scopes will be requested on-demand when needed
           scope: [
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/calendar",
-            "https://www.googleapis.com/auth/contacts.readonly",
             "https://www.googleapis.com/auth/userinfo.email",
           ].join(" "),
         },
