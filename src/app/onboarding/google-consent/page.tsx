@@ -45,7 +45,7 @@ function GoogleConsentForm() {
 
       <Container component="main" maxWidth="md" sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", py: 4 }}>
         <Paper elevation={3} sx={{ p: { xs: 3, md: 5 } }}>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 3 }}>
+          {/* <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 3 }}>
             <Box
               sx={{
                 width: 80,
@@ -60,7 +60,7 @@ function GoogleConsentForm() {
             >
               <CalendarMonth sx={{ fontSize: 48, color: "primary.main" }} />
             </Box>
-          </Box>
+          </Box> */}
           <Typography component="h1" variant="h4" align="center" gutterBottom sx={{ fontWeight: "bold" }}>
             Calendar Integration Permissions
           </Typography>{" "}
