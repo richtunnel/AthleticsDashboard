@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { GameStatus } from "../../../../../../types/main.types";
 import { deleteSampleGames } from "@/lib/services/sample-game.service";
+import { detectAndCreateOpponents } from "@/lib/services/opponent-detection.service";
 
 interface ImportGameData {
   date: string;
@@ -219,6 +220,31 @@ export async function POST(request: NextRequest) {
       } catch (prefError) {
         console.error("[Import] Failed to save column preferences:", prefError);
         // Don't fail the import if preference saving fails
+      }
+    }
+
+    // Detect and create opponents in the background (after successful import)
+    if (successCount > 0 && customColumns) {
+      try {
+        const detectionResult = await detectAndCreateOpponents(
+          customColumns,
+          games,
+          session.user.organizationId
+        );
+
+        if (detectionResult.detected) {
+          console.log(
+            `[Import] Opponent detection: Created ${detectionResult.opponentsCreated} opponents from column "${detectionResult.columnName}"`
+          );
+          if (detectionResult.errors && detectionResult.errors.length > 0) {
+            console.warn(`[Import] Opponent detection warnings:`, detectionResult.errors);
+          }
+        } else {
+          console.log("[Import] No opponent column detected or no opponents created");
+        }
+      } catch (opponentError) {
+        console.error("[Import] Opponent detection failed (non-blocking):", opponentError);
+        // Don't fail the import if opponent detection fails
       }
     }
 
