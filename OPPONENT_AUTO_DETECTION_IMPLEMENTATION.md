@@ -11,7 +11,8 @@ Successfully implemented automatic opponent detection from CSV imports. The feat
 **Features:**
 - Detects opponent columns by matching against 15+ known patterns (case-insensitive)
 - Extracts unique opponent names from detected column
-- Filters values to only text > 4 characters
+- Filters values to only text >= 2 characters (excludes single-character entries)
+- Excludes placeholder values "home" and "away" (case-insensitive)
 - Creates opponents with duplicate prevention (case-insensitive)
 - Respects 100 opponent limit per organization
 - Fails gracefully without blocking import process
@@ -53,11 +54,11 @@ Comprehensive documentation including:
 2. **Import succeeds** - games created successfully
 3. **Detection runs** in background:
    - Detects "Opponent" column (matches pattern)
-   - Extracts values: `["Westchester High School", "Central Eagles", "TBD"]`
-   - Filters to > 4 chars: `["Westchester High School", "Central Eagles"]`
+   - Extracts values: `["Westchester High School", "Central Eagles", "TJ", "Away", "Home"]`
+   - Filters to >= 2 chars AND excludes "home"/"away": `["Westchester High School", "Central Eagles", "TJ"]`
    - Checks existing opponents (case-insensitive)
    - Creates new opponents not already in database
-4. **Result logged**: `[OpponentDetection] Successfully created 2 opponents`
+4. **Result logged**: `[OpponentDetection] Successfully created 3 opponents`
 5. **User sees opponents** in Opponents list automatically
 
 ### Graceful Failure Scenarios
@@ -65,7 +66,8 @@ Comprehensive documentation including:
 The feature fails silently (import still succeeds) if:
 - No custom columns provided
 - No opponent column detected
-- All values are ≤ 4 characters
+- All values are < 2 characters
+- All values are "home" or "away" placeholders
 - All opponents already exist
 - Organization at 100 opponent limit
 - Database error occurs
@@ -77,7 +79,7 @@ Tested detection logic with Node.js:
 ✓ Test 1 - Found opponent column: Opponent
 ✓ Test 2 - Found away team column: Away Team
 ✓ Test 3 - No opponent column (should be undefined): undefined
-✓ Test 4 - Values > 4 chars: [ 'Lions', 'Westchester High School' ]
+✓ Test 4 - Values >= 2 chars (excluding home/away): [ 'TJ', 'Lions', 'Westchester High School' ]
 ✅ All logic tests passed!
 ```
 
