@@ -114,15 +114,14 @@ function GoogleCalendarSyncMenuContent() {
             </Typography>
 
             <AutoCalendarSyncToggle />
+            <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content" }}>
+              Disconnect Calendar
+            </Button>
           </Box>
 
           <Box sx={{ pt: 2, pb: 1, borderTop: "1px solid", borderColor: "divider" }}>
             <CalendarGroupMappings />
           </Box>
-
-          <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content" }}>
-            Disconnect Calendar
-          </Button>
         </Stack>
       ) : (
         <Stack spacing={1}>
