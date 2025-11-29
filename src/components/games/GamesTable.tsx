@@ -4452,31 +4452,15 @@ export function GamesTable() {
   const renderNewRow = () => {
     if (!isAddingNew) return null;
 
-    // CRITICAL: When rendering the create game row, ONLY show essential default columns
-    // regardless of what columns are configured (imported or custom)
-    // This prevents showing both default AND imported columns at the same time
-    const createGameColumns: ColumnId[] = [
-      "date", 
-      "sport", 
-      "level", 
-      "opponent", 
-      "isHome", 
-      "time", 
-      "status", 
-      "location", 
-      "busTravel", 
-      "notes", 
-      "actions"
-    ];
-
-    const createGameResolvedColumns = createGameColumns.map(id => ({ id }));
-
+    // Use the same column configuration as existing rows to prevent alignment issues
+    // If user has imported columns, the new row will show those columns (with "—" for read-only fields)
+    // If user has default columns, the new row will show those
     return (
       <TableRow sx={{ bgcolor: "#e3f2fd" }}>
         <TableCell padding="checkbox">
           <Checkbox disabled sx={{ p: 0 }} />
         </TableCell>
-        {createGameResolvedColumns.map((column) => renderNewRowCell(column))}
+        {resolvedColumns.map((column) => renderNewRowCell(column))}
       </TableRow>
     );
   };
