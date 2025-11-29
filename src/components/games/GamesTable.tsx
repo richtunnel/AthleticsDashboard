@@ -2980,68 +2980,32 @@ export function GamesTable() {
       case "sport":
         return (
           <TableCell key="sport" sx={{ ...getRequiredCellSx("sport"), minWidth: 180 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Select
-                size="small"
-                value={newGameData.sport}
-                onChange={(e) => {
-                  const sport = e.target.value as string;
-                  const levels = getLevelsForSport(sport);
-                  const levelIsValid = sport && newGameData.level ? levels.includes(newGameData.level) : true;
-                  updateNewGameData({
-                    sport,
-                    level: levelIsValid ? newGameData.level : "",
-                  });
-                }}
-                displayEmpty
-                error={isRequiredFieldEmpty("sport")}
-                sx={{
-                  minWidth: 140,
-                  fontSize: 13,
-                  "& .MuiSelect-select": {
-                    paddingBottom: "6px",
-                  },
-                }}
-              >
-                <MenuItem value="">Select sport</MenuItem>
-                {uniqueSports.map((sport: string) => (
-                  <MenuItem key={sport} value={sport}>
-                    {sport}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Tooltip title="Add new sport">
-                <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
-                  <Add fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <TextField
+              size="small"
+              value={newGameData.sport}
+              onChange={(e) => {
+                const sport = e.target.value;
+                updateNewGameData({ sport });
+              }}
+              placeholder="Enter sport..."
+              error={isRequiredFieldEmpty("sport")}
+              sx={{ width: 180 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "level":
         return (
           <TableCell key="level" sx={{ ...getRequiredCellSx("level"), minWidth: 150 }}>
-            <Select
+            <TextField
               size="small"
               value={newGameData.level}
-              onChange={(e) => updateNewGameData({ level: e.target.value as string })}
-              displayEmpty
+              onChange={(e) => updateNewGameData({ level: e.target.value })}
+              placeholder="Enter level..."
               error={isRequiredFieldEmpty("level")}
-              sx={{
-                minWidth: 140,
-                fontSize: 13,
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
-                },
-              }}
-            >
-              <MenuItem value="">Select level</MenuItem>
-              {getLevelsForSport(newGameData.sport).map((level) => (
-                <MenuItem key={level} value={level}>
-                  {formatLevelDisplay(level)}
-                </MenuItem>
-              ))}
-            </Select>
+              sx={{ width: 140 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "opponent":
@@ -3060,21 +3024,14 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <Select
+            <TextField
               size="small"
-              value={newGameData.isHome ? "home" : "away"}
-              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })}
-              sx={{
-                width: 80,
-                fontSize: 13,
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
-                },
-              }}
-            >
-              <MenuItem value="home">Home</MenuItem>
-              <MenuItem value="away">Away</MenuItem>
-            </Select>
+              value={newGameData.isHome ? "Home" : "Away"}
+              onChange={(e) => updateNewGameData({ isHome: e.target.value.toLowerCase() === "home" })}
+              placeholder="Home or Away..."
+              sx={{ width: 120 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "time":
@@ -3086,23 +3043,15 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={getRequiredCellSx("status")}>
-            <Select
+            <TextField
               size="small"
               value={newGameData.status}
-              onChange={(e) => updateNewGameData({ status: e.target.value as string })}
+              onChange={(e) => updateNewGameData({ status: e.target.value })}
+              placeholder="Enter status..."
               error={isRequiredFieldEmpty("status")}
-              sx={{
-                width: 110,
-                fontSize: 13,
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
-                },
-              }}
-            >
-              <MenuItem value="SCHEDULED">Pending</MenuItem>
-              <MenuItem value="CONFIRMED">Yes</MenuItem>
-              <MenuItem value="CANCELLED">No</MenuItem>
-            </Select>
+              sx={{ width: 140 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "location":
@@ -3124,38 +3073,14 @@ export function GamesTable() {
       case "busTravel":
         return (
           <TableCell key="busTravel" sx={{ py: 1, minWidth: 180 }}>
-            <Stack direction="column" spacing={0.75}>
-              <TextField
-                type="time"
-                size="small"
-                label="Depart"
-                value={newGameData.actualDepartureTime || ""}
-                onChange={(e) => updateNewGameData({ actualDepartureTime: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
-                  "& .MuiInputLabel-root": { fontSize: 11 },
-                }}
-              />
-              <TextField
-                type="time"
-                size="small"
-                label="Arrive"
-                value={newGameData.actualArrivalTime || ""}
-                onChange={(e) => updateNewGameData({ actualArrivalTime: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  "& .MuiInputBase-input": { fontSize: 11, py: 0.25 },
-                  "& .MuiInputLabel-root": { fontSize: 11 },
-                }}
-              />
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Checkbox checked={newGameData.busTravel} onChange={(e) => updateNewGameData({ busTravel: e.target.checked })} sx={{ p: 0 }} />
-                <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
-                  Bus
-                </Typography>
-              </Box>
-            </Stack>
+            <TextField
+              size="small"
+              value={newGameData.busTravel ? "Yes" : "No"}
+              onChange={(e) => updateNewGameData({ busTravel: e.target.value.toLowerCase() === "yes" })}
+              placeholder="Enter bus info..."
+              sx={{ width: 180 }}
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "notes":
@@ -3212,100 +3137,30 @@ export function GamesTable() {
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
           if (!customColumn) return null;
-          const columnType = customColumn.type || "TEXT";
 
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
-              {columnType === "TIME" ? (
-                <TextField
-                  type="time"
-                  size="small"
-                  fullWidth
-                  value={newGameData.customData?.[customColumn.id] || ""}
-                  onChange={(e) => {
-                    updateNewGameData({
-                      customData: {
-                        ...(newGameData.customData || {}),
-                        [customColumn.id]: e.target.value,
-                      },
-                    });
-                  }}
-                  sx={{
-                    "& .MuiInputBase-input": {
-                      fontSize: 13,
-                      py: 0.5,
+              <TextField
+                size="small"
+                fullWidth
+                value={newGameData.customData?.[customColumn.id] || ""}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                  updateNewGameData({
+                    customData: {
+                      ...(newGameData.customData || {}),
+                      [customColumn.id]: value,
                     },
-                  }}
-                />
-              ) : columnType === "DATETIME" ? (
-                <TextField
-                  type="datetime-local"
-                  size="small"
-                  fullWidth
-                  value={newGameData.customData?.[customColumn.id] || ""}
-                  onChange={(e) => {
-                    updateNewGameData({
-                      customData: {
-                        ...(newGameData.customData || {}),
-                        [customColumn.id]: e.target.value,
-                      },
-                    });
-                  }}
-                  sx={{
-                    "& .MuiInputBase-input": {
-                      fontSize: 13,
-                      py: 0.5,
-                    },
-                  }}
-                />
-              ) : columnType === "DROPDOWN" ? (
-                <Select
-                  size="small"
-                  fullWidth
-                  value={newGameData.customData?.[customColumn.id] || ""}
-                  onChange={(e) => {
-                    updateNewGameData({
-                      customData: {
-                        ...(newGameData.customData || {}),
-                        [customColumn.id]: e.target.value,
-                      },
-                    });
-                  }}
-                  displayEmpty
-                  sx={{
+                  });
+                }}
+                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                sx={{
+                  "& .MuiInputBase-input": {
                     fontSize: 13,
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>Select option</em>
-                  </MenuItem>
-                  <MenuItem value="Option 1">Option 1</MenuItem>
-                  <MenuItem value="Option 2">Option 2</MenuItem>
-                  <MenuItem value="Option 3">Option 3</MenuItem>
-                </Select>
-              ) : (
-                <TextField
-                  size="small"
-                  fullWidth
-                  value={newGameData.customData?.[customColumn.id] || ""}
-                  onChange={(e) => {
-                    const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                    updateNewGameData({
-                      customData: {
-                        ...(newGameData.customData || {}),
-                        [customColumn.id]: value,
-                      },
-                    });
-                  }}
-                  placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
-                  sx={{
-                    "& .MuiInputBase-input": {
-                      fontSize: 13,
-                      py: 0.5,
-                    },
-                  }}
-                />
-              )}
+                    py: 0.5,
+                  },
+                }}
+              />
             </TableCell>
           );
         }
