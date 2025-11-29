@@ -34,10 +34,7 @@ export function SampleGameBanner({ hasSampleGames }: SampleGameBannerProps) {
       setDismissed(true);
     },
     onError: (error) => {
-      addNotification(
-        `Failed to delete sample games: ${error instanceof Error ? error.message : "Unknown error"}`,
-        "error"
-      );
+      addNotification(`Failed to delete sample games: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
     },
   });
 
@@ -69,7 +66,7 @@ export function SampleGameBanner({ hasSampleGames }: SampleGameBannerProps) {
               fontWeight: 600,
             }}
           >
-            {deleteSampleGamesMutation.isPending ? "Deleting..." : "Delete Sample"}
+            {deleteSampleGamesMutation.isPending ? "Deleting..." : "Trash"}
           </Button>
           <Button
             color="inherit"
