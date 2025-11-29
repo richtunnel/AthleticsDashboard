@@ -21,7 +21,26 @@ export default function DetailsPage() {
   useEffect(() => {
     (async () => {
       const session = await getSession();
-      if (!session) router.push("/onboarding/plans");
+      if (!session) {
+        router.push("/onboarding/plans");
+        return;
+      }
+      
+      // Check if user already has school details
+      try {
+        const res = await fetch("/api/user/profile");
+        if (res.ok) {
+          const userData = await res.json();
+          // If they already have school details, redirect to dashboard
+          if (userData.schoolName && userData.teamName && userData.schoolAddress) {
+            router.push("/dashboard");
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to check user profile:", error);
+      }
+      
       setLoading(false);
     })();
   }, [router]);
