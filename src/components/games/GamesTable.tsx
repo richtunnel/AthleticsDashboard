@@ -79,8 +79,11 @@ import {
   VisibilityOff,
   Restore,
 } from "@mui/icons-material";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
   ssr: false,
@@ -3047,15 +3050,24 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={getRequiredCellSx("date")}>
-            <TextField
-              type="date"
-              size="small"
-              value={newGameData.date}
-              onChange={(e) => updateNewGameData({ date: e.target.value })}
-              error={isRequiredFieldEmpty("date")}
-              sx={{ width: 140 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                value={newGameData.date ? parse(newGameData.date, "yyyy-MM-dd", new Date()) : null}
+                onChange={(newValue) => {
+                  if (newValue) {
+                    const formattedDate = format(newValue, "yyyy-MM-dd");
+                    updateNewGameData({ date: formattedDate });
+                  }
+                }}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    error: isRequiredFieldEmpty("date"),
+                    sx: { width: 140, fontSize: 13 },
+                  },
+                }}
+              />
+            </LocalizationProvider>
           </TableCell>
         );
       case "sport":
@@ -3272,36 +3284,43 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={{ py: 1 }}>
-            <TextField
-              type="date"
-              size="small"
-              value={extractDatePart(editingGame.date)}
-              onChange={(e) => {
-                const nextDate = e.target.value;
-                setEditingGameData((prev) => {
-                  if (!prev) return prev;
-                  const departureInput = toTimeInputValue(prev.actualDepartureTime);
-                  const arrivalInput = toTimeInputValue(prev.actualArrivalTime);
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                value={parse(extractDatePart(editingGame.date), "yyyy-MM-dd", new Date())}
+                onChange={(newValue) => {
+                  if (newValue) {
+                    const nextDate = format(newValue, "yyyy-MM-dd");
+                    setEditingGameData((prev) => {
+                      if (!prev) return prev;
+                      const departureInput = toTimeInputValue(prev.actualDepartureTime);
+                      const arrivalInput = toTimeInputValue(prev.actualArrivalTime);
 
-                  return {
-                    ...prev,
-                    date: nextDate,
-                    actualDepartureTime: departureInput ? combineDateAndTime(nextDate, departureInput) : null,
-                    actualArrivalTime: arrivalInput ? combineDateAndTime(nextDate, arrivalInput) : null,
-                  };
-                });
-              }}
-              sx={{
-                width: 140,
-                "& .MuiOutlinedInput-root": {
-                  bgcolor: "transparent",
-                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                  "&:hover fieldset": { borderColor: "primary.main" },
-                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                },
-              }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+                      return {
+                        ...prev,
+                        date: nextDate,
+                        actualDepartureTime: departureInput ? combineDateAndTime(nextDate, departureInput) : null,
+                        actualArrivalTime: arrivalInput ? combineDateAndTime(nextDate, arrivalInput) : null,
+                      };
+                    });
+                  }
+                }}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: {
+                      width: 140,
+                      "& .MuiOutlinedInput-root": {
+                        bgcolor: "transparent",
+                        "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                        "&:hover fieldset": { borderColor: "primary.main" },
+                        "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                      },
+                      "& .MuiInputBase-input": { fontSize: 13 },
+                    },
+                  },
+                }}
+              />
+            </LocalizationProvider>
           </TableCell>
         );
       case "sport":
@@ -3730,18 +3749,27 @@ export function GamesTable() {
           <TableCell key="date" sx={getDataCellSx("date", isEditing)} onDoubleClick={() => handleDoubleClick(game, "date")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-                <TextField
-                  type="date"
-                  size="small"
-                  value={inlineEditValue}
-                  onChange={(e) => handleInlineChange(e.target.value, game)}
-                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                  onBlur={() => handleInlineBlur(game)}
-                  autoFocus
-                  disabled={isInlineSaving}
-                  sx={{ width: "100%" }}
-                  InputProps={{ sx: { fontSize: 13 } }}
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        const formattedDate = format(newValue, "yyyy-MM-dd");
+                        handleInlineChange(formattedDate, game);
+                      }
+                    }}
+                    disabled={isInlineSaving}
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        fullWidth: true,
+                        onBlur: () => handleInlineBlur(game),
+                        onKeyDown: (e) => handleInlineKeyDown(e, game),
+                        sx: { fontSize: 13 },
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>

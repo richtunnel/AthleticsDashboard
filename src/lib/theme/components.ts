@@ -230,7 +230,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 4,
           backgroundColor: "#FFFFFF",
           "& input": {
             fontSize: "0.95rem",
@@ -257,7 +257,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
       },
       styleOverrides: {
         root: {
-          borderRadius: 12,
+          borderRadius: 4,
         },
       },
     },
