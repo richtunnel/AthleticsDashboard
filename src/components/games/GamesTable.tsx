@@ -26,10 +26,13 @@ import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
+import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
+import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
+import { GameStatus } from "@prisma/client";
 
 import {
   Box,
@@ -2246,6 +2249,34 @@ export function GamesTable() {
     const message = hasCalendarEvent ? "This will delete the game from both the table and your Google Calendar. Are you sure?" : "Are you sure you want to delete this game?";
 
     if (confirm(message)) {
+      // Capture game data before deletion for undo functionality
+      const homeTeamId = game.homeTeamId || game.homeTeam.id;
+      if (!homeTeamId) {
+        addNotification("Cannot delete game: invalid team data", "error");
+        return;
+      }
+
+      const gameData = {
+        date: dateStringToUTCISOString(game.date),
+        time: game.time || null,
+        homeTeamId: homeTeamId,
+        isHome: game.isHome,
+        busTravel: game.busTravel,
+        actualDepartureTime: game.actualDepartureTime || null,
+        actualArrivalTime: game.actualArrivalTime || null,
+        opponentId: game.opponentId || game.opponent?.id || null,
+        venueId: game.venueId || game.venue?.id || null,
+        status: game.status as GameStatus,
+        notes: game.notes || null,
+        location: game.location || null,
+        customData: game.customData || {},
+        customFields: game.customFields || {},
+        sortOrder: game.sortOrder,
+      };
+
+      // Store game data in undo store
+      useDeleteUndoStore.getState().setDeletedGames([gameData]);
+
       deleteGameMutation.mutate(game.id);
     }
   };
@@ -2301,6 +2332,53 @@ export function GamesTable() {
         : `Are you sure you want to delete ${count} selected game${count > 1 ? "s" : ""}?`;
 
     if (confirm(message)) {
+      // Capture game data before deletion for undo functionality
+      type DeletedGameData = {
+        date: string;
+        time: string | null;
+        homeTeamId: string;
+        isHome: boolean;
+        busTravel: boolean;
+        actualDepartureTime: string | null;
+        actualArrivalTime: string | null;
+        opponentId: string | null;
+        venueId: string | null;
+        status: GameStatus;
+        notes: string | null;
+        location: string | null;
+        customData: any;
+        customFields?: Record<string, any>;
+        sortOrder?: number;
+      };
+
+      const gamesData = selectedGameDetails
+        .map((game: Game): DeletedGameData | null => {
+          const homeTeamId = game.homeTeamId || game.homeTeam.id;
+          if (!homeTeamId) return null;
+
+          return {
+            date: dateStringToUTCISOString(game.date),
+            time: game.time || null,
+            homeTeamId: homeTeamId,
+            isHome: game.isHome,
+            busTravel: game.busTravel,
+            actualDepartureTime: game.actualDepartureTime || null,
+            actualArrivalTime: game.actualArrivalTime || null,
+            opponentId: game.opponentId || game.opponent?.id || null,
+            venueId: game.venueId || game.venue?.id || null,
+            status: game.status as GameStatus,
+            notes: game.notes || null,
+            location: game.location || null,
+            customData: game.customData || {},
+            customFields: game.customFields || {},
+            sortOrder: game.sortOrder,
+          };
+        })
+        .filter((game: DeletedGameData | null): game is DeletedGameData => game !== null);
+
+      // Store games data in undo store (only valid games)
+      useDeleteUndoStore.getState().setDeletedGames(gamesData);
+
       // Clear selections IMMEDIATELY to hide action buttons
       clearSelectedGameIds();
 
@@ -4934,6 +5012,13 @@ export function GamesTable() {
           queryClient.invalidateQueries({ queryKey: ["games"] });
           queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
           addNotification("Import undone - all imported games have been deleted", "success");
+        }}
+      />
+
+      <UndoDeleteButton
+        onUndo={() => {
+          queryClient.invalidateQueries({ queryKey: ["games"] });
+          addNotification("Delete undone - games have been restored", "success");
         }}
       />
 
