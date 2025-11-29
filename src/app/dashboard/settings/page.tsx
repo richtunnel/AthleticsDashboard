@@ -18,6 +18,7 @@ import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
 import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
 import { ResetColumnsButton } from "@/components/settings/ResetColumnsButton";
+import { CalendarConnectionSection } from "@/components/settings/CalendarConnectionSection";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -86,22 +87,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {/* Payment overdue warning */}
         <PaymentOverdueWarning />
 
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              Google Calendar Integration
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Connect your Google Calendar to sync games and events.
-            </Typography>
-            <ConnectCalendarButton isConnected={isCalendarConnected} />
-            {isCalendarConnected && (
-              <Box sx={{ mt: 3, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
-                <AutoCalendarSyncToggle />
-              </Box>
-            )}
-          </CardContent>
-        </Card>
+        {/* Calendar Connection Section - uses incremental OAuth */}
+        <CalendarConnectionSection />
 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
