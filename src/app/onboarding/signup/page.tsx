@@ -32,7 +32,7 @@ function SignupForm() {
   });
 
   const credentialsAuth = useAuthButton({
-    callbackUrl: `/dashboard`,
+    callbackUrl: `/onboarding/details`,
     onError: (err) => setError(err),
   });
 
@@ -41,7 +41,7 @@ function SignupForm() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      const consentUrl = `/onboarding/google-consent?mode=signup&callbackUrl=${encodeURIComponent('/dashboard')}`;
+      const consentUrl = `/onboarding/google-consent?mode=signup&callbackUrl=${encodeURIComponent('/onboarding/details')}`;
       await googleAuth.executeAction({ 
         type: "navigation",
         navigationPath: consentUrl
