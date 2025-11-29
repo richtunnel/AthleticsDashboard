@@ -373,39 +373,21 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                          </Stack>
                          {/* Display matched team(s) */}
                          <Box sx={{ mt: 0.5 }}>
-                           {matchedTeams.length === 1 ? (
-                             <Typography
-                               variant="caption"
-                               sx={{
-                                 fontSize: '0.7rem',
-                                 color: 'success.dark',
-                                 fontWeight: 500,
-                                 display: 'block',
-                                 lineHeight: 1.3,
-                               }}
-                             >
-                               {matchedTeams[0]}
-                             </Typography>
-                           ) : (
-                             <Tooltip title={matchedTeams.join(', ')} arrow placement="top">
-                               <Typography
-                                 variant="caption"
-                                 sx={{
-                                   fontSize: '0.7rem',
-                                   color: 'success.dark',
-                                   fontWeight: 500,
-                                   display: 'block',
-                                   lineHeight: 1.3,
-                                   cursor: 'help',
-                                 }}
-                               >
-                                 {matchedTeams[0]}
-                                 {matchedTeams.length > 1 && (
-                                   <span style={{ opacity: 0.7 }}> +{matchedTeams.length - 1} more</span>
-                                 )}
-                               </Typography>
-                             </Tooltip>
-                           )}
+                           <Typography
+                             variant="caption"
+                             sx={{
+                               fontSize: '0.7rem',
+                               color: 'success.dark',
+                               fontWeight: 500,
+                               display: 'block',
+                               lineHeight: 1.3,
+                             }}
+                           >
+                             {matchedTeams[0]}
+                             {matchedTeams.length > 1 && (
+                               <span style={{ opacity: 0.7 }}> +{matchedTeams.length - 1} more</span>
+                             )}
+                           </Typography>
                          </Box>
                        </Paper>
                      );
