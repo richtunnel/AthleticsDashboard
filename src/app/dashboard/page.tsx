@@ -46,6 +46,8 @@ export default function DashboardPage() {
                 if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
                   useImportUndoStore.getState().setImportedGames(result.createdGameIds);
                 }
+                // Invalidate table preferences to immediately show imported custom columns
+                queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
               }}
             />
           </Suspense>
@@ -58,6 +60,7 @@ export default function DashboardPage() {
       <ImportUndoButton
         onUndo={() => {
           queryClient.invalidateQueries({ queryKey: ["games"] });
+          queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
           addNotification("Import undone - all imported games have been deleted", "success");
         }}
       />
