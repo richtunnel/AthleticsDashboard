@@ -71,6 +71,7 @@ model User {
   referredBy               Referral[]                @relation("UserReferredBy")
   rewardPoints             RewardPoints?             @relation("UserRewardPoints")
   tablePreferences         TablePreference[]
+  calendarGroupMappings    CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
 
   @@index([organizationId])
   @@map("User")
@@ -639,4 +640,22 @@ model SignupLog {
   @@index([phone])
   @@index([expiresAt])
   @@map("SignupLog")
+}
+
+// Calendar Group Mapping - Maps game columns/values to Google Calendar groups
+model CalendarGroupMapping {
+  id                String   @id @default(cuid())
+  userId            String
+  columnName        String // The column name in games table (e.g., "Sports Level", "Team")
+  columnValue       String // The value to match (e.g., "Junior Varsity Basketball", "JV Football")
+  googleCalendarId  String // The Google Calendar ID to sync to
+  googleCalendarName String // The display name of the calendar
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation("UserCalendarGroupMappings", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, columnName, columnValue])
+  @@index([userId])
+  @@map("CalendarGroupMapping")
 }

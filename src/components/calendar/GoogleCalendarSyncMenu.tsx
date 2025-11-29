@@ -10,6 +10,7 @@ import { IconButton } from "@mui/material";
 import styles from "@/styles/override.module.css";
 import Link from "next/link";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
+import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappings";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -114,6 +115,11 @@ function GoogleCalendarSyncMenuContent() {
 
             <AutoCalendarSyncToggle />
           </Box>
+
+          <Box sx={{ pt: 2, pb: 1, borderTop: "1px solid", borderColor: "divider" }}>
+            <CalendarGroupMappings />
+          </Box>
+
           <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content" }}>
             Disconnect Calendar
           </Button>
