@@ -2616,6 +2616,15 @@ export function GamesTable() {
       if (!timeEditModal) return;
 
       const gameId = timeEditModal.gameId;
+      
+      // Handle time update for new game row
+      if (gameId === "new") {
+        updateNewGameData({ time });
+        setTimeEditModal(null);
+        return;
+      }
+
+      // Handle time update for existing game
       const game = games.find((g: any) => g.id === gameId);
       if (!game) return;
 
@@ -2623,7 +2632,7 @@ export function GamesTable() {
       scheduleAutosave(gameId, "time", time, game, true);
       setTimeEditModal(null);
     },
-    [timeEditModal, games, scheduleAutosave]
+    [timeEditModal, games, scheduleAutosave, updateNewGameData]
   );
 
   const handleTimeModalClose = useCallback(() => {
@@ -3053,7 +3062,15 @@ export function GamesTable() {
               value={newGameData.date}
               onChange={(e) => updateNewGameData({ date: e.target.value })}
               error={isRequiredFieldEmpty("date")}
-              sx={{ width: 140 }}
+              sx={{ 
+                width: 140,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
@@ -3070,7 +3087,15 @@ export function GamesTable() {
               }}
               placeholder="Enter sport..."
               error={isRequiredFieldEmpty("sport")}
-              sx={{ width: 180 }}
+              sx={{ 
+                width: 180,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
@@ -3084,7 +3109,15 @@ export function GamesTable() {
               onChange={(e) => updateNewGameData({ level: e.target.value })}
               placeholder="Enter level..."
               error={isRequiredFieldEmpty("level")}
-              sx={{ width: 140 }}
+              sx={{ 
+                width: 140,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
@@ -3097,7 +3130,15 @@ export function GamesTable() {
               value={newGameData.opponent || ""}
               onChange={(e) => updateNewGameData({ opponent: e.target.value })}
               placeholder="Enter opponent name..."
-              sx={{ width: 180 }}
+              sx={{ 
+                width: 180,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
@@ -3105,34 +3146,74 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <TextField
+            <Select
               size="small"
-              value={newGameData.isHome ? "Home" : "Away"}
-              onChange={(e) => updateNewGameData({ isHome: e.target.value.toLowerCase() === "home" })}
-              placeholder="Home or Away..."
-              sx={{ width: 120 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+              value={newGameData.isHome ? "home" : "away"}
+              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })}
+              sx={{
+                width: 80,
+                fontSize: 13,
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px",
+                },
+              }}
+            >
+              <MenuItem value="home">Home</MenuItem>
+              <MenuItem value="away">Away</MenuItem>
+            </Select>
           </TableCell>
         );
       case "time":
         return (
-          <TableCell key="time" sx={{ py: 1 }}>
-            <CustomTimePicker value={newGameData.time} onChange={(value) => updateNewGameData({ time: value })} size="small" />
+          <TableCell 
+            key="time" 
+            sx={{ 
+              py: 1,
+              cursor: "pointer",
+              "&:hover": {
+                bgcolor: "#f5f5f5",
+              },
+            }}
+            onClick={() => {
+              setTimeEditModal({
+                open: true,
+                gameId: "new",
+                time: newGameData.time || "",
+                gameInfo: {
+                  date: newGameData.date ? formatGameDate(newGameData.date) : "New Game",
+                  opponent: newGameData.opponent,
+                },
+              });
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+              <Typography variant="body2" sx={{ fontSize: 13 }}>
+                {formatTimeDisplay(newGameData.time)}
+              </Typography>
+            </Box>
           </TableCell>
         );
       case "status":
         return (
-          <TableCell key="status" sx={getRequiredCellSx("status")}>
-            <TextField
+          <TableCell key="status" sx={{ py: 1 }}>
+            <Select
               size="small"
               value={newGameData.status}
-              onChange={(e) => updateNewGameData({ status: e.target.value })}
-              placeholder="Enter status..."
-              error={isRequiredFieldEmpty("status")}
-              sx={{ width: 140 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+              onChange={(e) => updateNewGameData({ status: e.target.value as string })}
+              sx={{
+                width: 110,
+                fontSize: 13,
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px",
+                },
+              }}
+            >
+              <MenuItem value="SCHEDULED">Pending</MenuItem>
+              <MenuItem value="CONFIRMED">Yes</MenuItem>
+              <MenuItem value="CANCELLED">No</MenuItem>
+            </Select>
           </TableCell>
         );
       case "location":
@@ -3146,7 +3227,15 @@ export function GamesTable() {
                 updateNewGameData({ location: value });
               }}
               placeholder="Enter location..."
-              sx={{ width: 180 }}
+              sx={{ 
+                width: 180,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+              }}
               InputProps={{ sx: { fontSize: 13 } }}
             />
           </TableCell>
@@ -3154,14 +3243,64 @@ export function GamesTable() {
       case "busTravel":
         return (
           <TableCell key="busTravel" sx={{ py: 1, minWidth: 180 }}>
-            <TextField
-              size="small"
-              value={newGameData.busTravel ? "Yes" : "No"}
-              onChange={(e) => updateNewGameData({ busTravel: e.target.value.toLowerCase() === "yes" })}
-              placeholder="Enter bus info..."
-              sx={{ width: 180 }}
-              InputProps={{ sx: { fontSize: 13 } }}
-            />
+            <Stack direction="column" spacing={0.75}>
+              <TextField
+                type="time"
+                size="small"
+                label="Depart"
+                value={newGameData.actualDepartureTime}
+                onChange={(e) => updateNewGameData({ actualDepartureTime: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontSize: 11,
+                    py: 0.25,
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: 11,
+                  },
+                }}
+              />
+              <TextField
+                type="time"
+                size="small"
+                label="Arrive"
+                value={newGameData.actualArrivalTime}
+                onChange={(e) => updateNewGameData({ actualArrivalTime: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontSize: 11,
+                    py: 0.25,
+                  },
+                  "& .MuiInputLabel-root": {
+                    fontSize: 11,
+                  },
+                }}
+              />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Checkbox
+                  checked={newGameData.busTravel}
+                  onChange={(e) => updateNewGameData({ busTravel: e.target.checked })}
+                  sx={{ p: 0 }}
+                />
+                <Typography variant="caption" sx={{ fontSize: 10, color: "text.secondary" }}>
+                  Bus
+                </Typography>
+              </Box>
+            </Stack>
           </TableCell>
         );
       case "notes":
@@ -3179,6 +3318,12 @@ export function GamesTable() {
               placeholder="Add notes..."
               sx={{
                 width: 180,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
                 "& .MuiInputBase-input": {
                   fontSize: 13,
                 },
@@ -3224,6 +3369,12 @@ export function GamesTable() {
                 }}
                 placeholder={`Enter ${columnName.toLowerCase()}`}
                 sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
                   "& .MuiInputBase-input": {
                     fontSize: 13,
                     py: 0.5,
@@ -3254,6 +3405,12 @@ export function GamesTable() {
                 }}
                 placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
                 sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
                   "& .MuiInputBase-input": {
                     fontSize: 13,
                     py: 0.5,
