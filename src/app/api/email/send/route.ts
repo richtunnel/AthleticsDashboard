@@ -8,6 +8,7 @@ import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
+import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 
 interface Game {
   id: string;
@@ -33,7 +34,7 @@ interface Game {
   notes: string | null;
 }
 
-function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string): string {
+function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string, signatureHTML: string): string {
   let html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">';
 
   // Add greeting based on category
@@ -96,6 +97,11 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>';
   html += "</div>";
 
+  // Add email signature if present
+  if (signatureHTML) {
+    html += signatureHTML;
+  }
+
   html += "</div>";
 
   return html;
@@ -118,6 +124,22 @@ export async function POST(request: NextRequest) {
     if (!subject) {
       return ApiResponse.error("Subject is required");
     }
+
+    // Fetch user's email signature
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        signaturePhone: true,
+        signatureWebsite: true,
+        signatureLogoUrl: true,
+      } as any,
+    }) as any;
+
+    const signatureHTML = user ? buildEmailSignatureHTML({
+      signaturePhone: user.signaturePhone,
+      signatureWebsite: user.signatureWebsite,
+      signatureLogoUrl: user.signatureLogoUrl,
+    }) : "";
 
     let toEmails: string[] = [];
     let emailBody: string;
@@ -148,8 +170,8 @@ export async function POST(request: NextRequest) {
         return ApiResponse.error("Some games were not found or you don't have access", 403);
       }
 
-      // Build game schedule email body
-      emailBody = buildScheduleEmailHTML(games, additionalMessage || "", recipientCategory || "");
+      // Build game schedule email body with signature
+      emailBody = buildScheduleEmailHTML(games, additionalMessage || "", recipientCategory || "", signatureHTML);
 
       // Determine recipients
       if (groupId) {
@@ -184,7 +206,8 @@ export async function POST(request: NextRequest) {
         return ApiResponse.error("Campaign or group not found", 404);
       }
       toEmails = campaign.group.emails.map((e) => e.email);
-      emailBody = campaign.body;
+      // Append signature to campaign body
+      emailBody = campaign.body + (signatureHTML || "");
       if (!subject) {
         return ApiResponse.error("Subject is required for campaign");
       }
