@@ -6,6 +6,7 @@ import { CalendarPreviewWidget } from "@/components/dashboard/CalendarPreviewWid
 import { ImportBox } from "@/components/import-export/ImportBox";
 import { ImportUndoButton } from "@/components/games/ImportUndoButton";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
+import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,8 @@ export default function DashboardPage() {
               onImportComplete={(result: any) => {
                 if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
                   useImportUndoStore.getState().setImportedGames(result.createdGameIds);
+                  // Clear delete undo state since import has happened
+                  useDeleteUndoStore.getState().clearDelete();
                 }
                 // Invalidate table preferences to immediately show imported custom columns
                 queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
