@@ -10,7 +10,7 @@ A comprehensive Next.js 15 application designed for athletic directors to effici
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Environment Variables](#environment-variables)
-- [Database Setup](#database-setup)
+- [Database Setup](../../database-setup)
 - [Prisma Migration Troubleshooting](#-prisma-migration-troubleshooting)
 - [Running the Application](#running-the-application)
 - [Project Structure](#project-structure)
@@ -194,7 +194,7 @@ Edit `.env.local` with your actual values (see [Environment Variables](#environm
 
 ### 4. Set Up the Database
 
-See the [Database Setup](#database-setup) section for detailed instructions.
+See the [Database Setup](../../database-setup) section for detailed instructions.
 
 ### 5. Run Database Migrations
 
