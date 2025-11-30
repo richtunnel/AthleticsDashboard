@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, CircularProgress, Typography, Alert, Button } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -11,7 +11,7 @@ import ErrorIcon from "@mui/icons-material/Error";
  * 
  * Handles the OAuth callback from Google after user grants calendar permissions
  */
-export default function CalendarCallbackPage() {
+function CalendarCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -163,5 +163,25 @@ export default function CalendarCallbackPage() {
         )}
       </Box>
     </Box>
+  );
+}
+
+export default function CalendarCallbackPage() {
+  return (
+    <Suspense fallback={
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "background.default",
+        }}
+      >
+        <CircularProgress size={60} />
+      </Box>
+    }>
+      <CalendarCallbackContent />
+    </Suspense>
   );
 }
