@@ -921,6 +921,7 @@ export function GamesTable() {
         id: column.id,
         label: getColumnLabel(column.id),
         visible: column.visible,
+        disableDelete: column.id === "date" || column.id === "actions",
       })),
     [columnState, getColumnLabel]
   );
@@ -1088,6 +1089,84 @@ export function GamesTable() {
       addNotification("Column title reset to default", "success");
     },
     [customColumnTitles, columnState, persistColumnPreferences, addNotification]
+  );
+
+  // Column deletion mutation
+  const deleteCustomColumnMutation = useMutation({
+    mutationFn: async (columnId: string) => {
+      const res = await fetch(`/api/organizations/custom-columns/${columnId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete column");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customColumns"] });
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+      addNotification("Column deleted successfully", "success");
+    },
+    onError: (error: any) => {
+      addNotification(error?.message || "Failed to delete column", "error");
+    },
+  });
+
+  // Column deletion handler
+  const handleDeleteColumn = useCallback(
+    (columnId: string) => {
+      // Validate columnId
+      if (!isColumnId(columnId)) {
+        addNotification("Invalid column ID", "error");
+        return;
+      }
+      
+      const typedColumnId = columnId as ColumnId;
+      
+      // Protect date and actions columns
+      if (typedColumnId === "date" || typedColumnId === "actions") {
+        addNotification("Date and Actions columns cannot be deleted", "error");
+        return;
+      }
+
+      // Remove from column state
+      setColumnState((prev) => {
+        const previousState = prev.map((column) => ({ ...column }));
+        const nextState = prev.filter((column) => column.id !== typedColumnId);
+        
+        // Make sure we have at least one visible column
+        const visibleCount = nextState.filter((column) => column.visible).length;
+        if (visibleCount === 0) {
+          addNotification("Cannot delete the last visible column", "warning");
+          return prev;
+        }
+        
+        persistColumnPreferences(nextState, previousState);
+        return nextState;
+      });
+
+      // If it's a custom column from database, delete it
+      if (typedColumnId.startsWith("custom:")) {
+        const customColumnId = typedColumnId.split(":")[1];
+        deleteCustomColumnMutation.mutate(customColumnId);
+      }
+
+      // Remove custom title if exists
+      if (customColumnTitles[typedColumnId]) {
+        const updatedTitles = { ...customColumnTitles };
+        delete updatedTitles[typedColumnId];
+        setCustomColumnTitles(updatedTitles);
+      }
+
+      // Remove column width if exists
+      if (columnWidths[typedColumnId]) {
+        const updatedWidths = { ...columnWidths };
+        delete updatedWidths[typedColumnId];
+        setColumnWidths(updatedWidths);
+      }
+    },
+    [customColumnTitles, columnWidths, columnState, persistColumnPreferences, addNotification, deleteCustomColumnMutation]
   );
 
   // Column resizing handlers
@@ -2669,8 +2748,11 @@ export function GamesTable() {
     const isEditing = editingColumnId === columnId;
     const displayLabel = getColumnLabel(columnId);
     const hasCustomTitle = customColumnTitles[columnId] !== undefined;
+    
+    // Protect date and actions columns from being renamed
+    const isProtectedColumn = columnId === "date" || columnId === "actions";
 
-    if (isEditing) {
+    if (isEditing && !isProtectedColumn) {
       return (
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
           <TextField
@@ -2711,25 +2793,27 @@ export function GamesTable() {
         ) : (
           <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>{displayLabel.toUpperCase()}</Typography>
         )}
-        <Tooltip title="Edit column title">
-          <IconButton
-            size="small"
-            onClick={() => handleEditColumnTitle(columnId)}
-            sx={{
-              p: 0.25,
-              opacity: 0,
-              transition: "opacity 0.2s",
-              ".MuiTableCell-root:hover &": {
-                opacity: 0.6,
-              },
-              "&:hover": {
-                opacity: 1,
-              },
-            }}
-          >
-            <Edit sx={{ fontSize: 14 }} />
-          </IconButton>
-        </Tooltip>
+        {!isProtectedColumn && (
+          <Tooltip title="Edit column title">
+            <IconButton
+              size="small"
+              onClick={() => handleEditColumnTitle(columnId)}
+              sx={{
+                p: 0.25,
+                opacity: 0,
+                transition: "opacity 0.2s",
+                ".MuiTableCell-root:hover &": {
+                  opacity: 0.6,
+                },
+                "&:hover": {
+                  opacity: 1,
+                },
+              }}
+            >
+              <Edit sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
     );
   };
@@ -5191,6 +5275,7 @@ export function GamesTable() {
         onToggleVisibility={handleToggleColumnVisibility}
         onReorder={handleReorderColumns}
         onShowAll={handleShowAllColumns}
+        onDeleteColumn={handleDeleteColumn}
       />
 
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
