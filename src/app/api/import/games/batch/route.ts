@@ -192,6 +192,15 @@ export async function POST(request: NextRequest) {
           console.log(`[Import] First import - creating custom column configuration for user ${session.user.id}`);
         }
 
+        // CRITICAL FIX: When saving imported columns, also reset column order and hidden columns
+        // to ensure default columns don't show alongside imported columns
+        const importedColumnIds = finalCustomColumns
+          .filter((colName: string) => {
+            const mapping = finalColumnMapping[colName];
+            return mapping && mapping !== "skip";
+          })
+          .map((colName: string) => `imported:${colName}`);
+        
         await prisma.tablePreference.upsert({
           where: {
             userId_tableKey: {
@@ -206,6 +215,8 @@ export async function POST(request: NextRequest) {
               customColumns: finalCustomColumns,
               columnMapping: finalColumnMapping,
               importedAt: new Date().toISOString(),
+              order: [...importedColumnIds, "actions"], // Set order to ONLY imported columns + actions
+              hidden: [], // Clear any hidden columns
             },
           },
           update: {
@@ -213,6 +224,8 @@ export async function POST(request: NextRequest) {
               customColumns: finalCustomColumns,
               columnMapping: finalColumnMapping,
               importedAt: new Date().toISOString(),
+              order: [...importedColumnIds, "actions"], // Reset order to ONLY imported columns + actions
+              hidden: [], // Clear any hidden columns
             },
           },
         });
