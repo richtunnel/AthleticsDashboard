@@ -71,7 +71,8 @@ export function AIEmailGenerationToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            disabled={mutation.isPending}
+            // disabled={mutation.isPending}
+            disabled
           />
         }
         label={
@@ -84,7 +85,7 @@ export function AIEmailGenerationToggle() {
                 Automatically generate professional emails for game notifications and communications.
               </Typography>
             </Box>
-            <Tooltip 
+            <Tooltip
               title="AI Email Generation creates context-aware, professional emails for game notifications, schedule updates, travel information, and more. Choose from multiple tones (formal, casual, friendly) and get HTML-formatted output with improvement suggestions."
               placement="top"
               arrow
