@@ -3999,10 +3999,8 @@ export function GamesTable() {
                   display: "flex", 
                   alignItems: "center", 
                   gap: 1, 
-                  py: 0,
-                  cursor: 'pointer'
+                  py: 0
                 }}
-                onClick={() => handleDoubleClick(game, "date")}
               >
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {formatGameDate(game.date)}
