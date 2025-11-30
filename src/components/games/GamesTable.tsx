@@ -7,6 +7,7 @@ import { CustomColumnManager } from "./CustomColumnManager";
 import { ColumnPreferencesMenu } from "./ColumnPreferencesMenu";
 import { ColumnFilterDragDrop, ColumnFilterValue } from "./ColumnFilterDragDrop";
 import { CustomTimePicker } from "../ui/CustomTimePicker";
+import { CustomDatePicker } from "../ui/CustomDatePicker";
 import { CellContentDialog } from "./CellContentDialog";
 import { TimeEditModal } from "./TimeEditModal";
 import { ErrorBoundary } from "../utils/ErrorBoundary";
@@ -141,6 +142,28 @@ const formatTimeDisplay = (timeString: string | null): string => {
   } catch (error) {
     return timeString;
   }
+};
+
+const normalizeTimeFormat = (timeString: string | null): string | null => {
+  if (!timeString || typeof timeString !== 'string') return null;
+  
+  const trimmed = timeString.trim();
+  if (!trimmed) return null;
+  
+  // Validate and normalize to HH:mm format for Google Calendar compatibility
+  const parts = trimmed.split(':');
+  if (parts.length !== 2) return null;
+  
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  
+  // Validate ranges
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+  
+  // Return in HH:mm format (24-hour)
+  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
 type CustomColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
@@ -1521,7 +1544,7 @@ export function GamesTable() {
         // Build base update data
         const updateData: any = {
           date: dateStringToUTCISOString(game.date),
-          time: game.time || null,
+          time: normalizeTimeFormat(game.time),
           homeTeamId: game.homeTeamId || game.homeTeam.id,
           isHome: game.isHome,
           status: game.status,
@@ -1565,9 +1588,8 @@ export function GamesTable() {
               updateData.date = dateStringToUTCISOString(value);
             }
           } else if (field === "time") {
-            // Normalize time value - convert empty strings to null and trim whitespace
-            const trimmedTime = typeof value === "string" ? value.trim() : value;
-            updateData.time = trimmedTime || null;
+            // Normalize time value to HH:mm format for Google Calendar compatibility
+            updateData.time = normalizeTimeFormat(value);
           } else if (field === "status") {
             updateData.status = value;
           } else if (field === "notes") {
@@ -2152,7 +2174,7 @@ export function GamesTable() {
 
     const gameData = {
       date: isoDate,
-      time: newGameData.time || null,
+      time: normalizeTimeFormat(newGameData.time),
       homeTeamId: matchingTeam.id,
       isHome: newGameData.isHome,
       busTravel: newGameData.busTravel,
@@ -2311,7 +2333,7 @@ export function GamesTable() {
 
     const updateData = {
       date: isoDate,
-      time: editingGameData.time || null,
+      time: normalizeTimeFormat(editingGameData.time),
       homeTeamId: matchingTeam?.id || editingGameData.homeTeamId,
       isHome: editingGameData.isHome,
       busTravel: editingGameData.busTravel,
@@ -2374,7 +2396,7 @@ export function GamesTable() {
     try {
       const gameData = {
         date: dateStringToUTCISOString(game.date),
-        time: game.time || null,
+        time: normalizeTimeFormat(game.time),
         homeTeamId: game.homeTeamId || game.homeTeam.id,
         isHome: game.isHome,
         busTravel: game.busTravel,
@@ -3975,22 +3997,13 @@ export function GamesTable() {
           >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-                <TextField
-                  type="date"
-                  size="small"
+                <CustomDatePicker
                   value={inlineEditValue}
-                  onChange={(e) => handleInlineChange(e.target.value, game)}
-                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onChange={(value) => handleInlineChange(value, game)}
                   onBlur={() => handleInlineBlur(game)}
                   autoFocus
                   disabled={isInlineSaving}
-                  sx={{ width: "100%" }}
-                  InputProps={{ 
-                    sx: { fontSize: 13 },
-                    endAdornment: (
-                      <CalendarMonth sx={{ fontSize: 18, color: 'action.active', pointerEvents: 'none' }} />
-                    )
-                  }}
+                  size="small"
                 />
               </Box>
             ) : (
