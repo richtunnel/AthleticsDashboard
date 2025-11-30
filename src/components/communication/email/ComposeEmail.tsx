@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import type { EmailGroup } from "./types";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 
 interface Game {
   id: string;
@@ -63,6 +64,16 @@ export default function ComposeEmailPage() {
     queryFn: fetchEmailGroups,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+  });
+
+  const { data: emailSignature } = useQuery({
+    queryKey: ["email-signature"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/email-signature");
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.data || null;
+    },
   });
 
   const recipientCategories = useMemo(() => {
@@ -317,6 +328,18 @@ export default function ComposeEmailPage() {
     html += '<p style="color: #6b7280; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>';
     html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>';
     html += "</div>";
+
+    // Add email signature if present
+    if (emailSignature) {
+      const signatureHTML = buildEmailSignatureHTML({
+        signaturePhone: emailSignature.signaturePhone,
+        signatureWebsite: emailSignature.signatureWebsite,
+        signatureLogoUrl: emailSignature.signatureLogoUrl,
+      });
+      if (signatureHTML) {
+        html += signatureHTML;
+      }
+    }
 
     html += "</div>";
 
