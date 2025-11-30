@@ -449,6 +449,9 @@ export function GamesTable() {
   // Time edit modal state
   const [timeEditModal, setTimeEditModal] = useState<{ open: boolean; gameId: string; time: string; gameInfo?: { date: string; opponent?: string } } | null>(null);
 
+  // Date field hover state (for showing calendar icon)
+  const [hoveredDateGameId, setHoveredDateGameId] = useState<string | null>(null);
+
   // Conflict detection modal state
   const [conflictModal, setConflictModal] = useState<{
     open: boolean;
@@ -3872,8 +3875,16 @@ export function GamesTable() {
     switch (column.id) {
       case "date": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
+        const isHovered = hoveredDateGameId === game.id;
+        
         return (
-          <TableCell key="date" sx={getDataCellSx("date", isEditing)} onDoubleClick={() => handleDoubleClick(game, "date")}>
+          <TableCell 
+            key="date" 
+            sx={getDataCellSx("date", isEditing)} 
+            onDoubleClick={() => handleDoubleClick(game, "date")}
+            onMouseEnter={() => setHoveredDateGameId(game.id)}
+            onMouseLeave={() => setHoveredDateGameId(null)}
+          >
             {isEditing ? (
               <Box sx={{ py: 1 }}>
                 <TextField
@@ -3886,14 +3897,37 @@ export function GamesTable() {
                   autoFocus
                   disabled={isInlineSaving}
                   sx={{ width: "100%" }}
-                  InputProps={{ sx: { fontSize: 13 } }}
+                  InputProps={{ 
+                    sx: { fontSize: 13 },
+                    endAdornment: (
+                      <CalendarMonth sx={{ fontSize: 18, color: 'action.active', pointerEvents: 'none' }} />
+                    )
+                  }}
                 />
               </Box>
             ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 1, 
+                  py: 0,
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleDoubleClick(game, "date")}
+              >
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {formatGameDate(game.date)}
                 </Typography>
+                {isHovered && !isInlineSaving && (
+                  <CalendarMonth 
+                    sx={{ 
+                      fontSize: 16, 
+                      color: 'primary.main',
+                      transition: 'opacity 0.2s'
+                    }} 
+                  />
+                )}
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
               </Box>
             )}
