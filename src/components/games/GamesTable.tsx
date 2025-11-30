@@ -2243,6 +2243,8 @@ export function GamesTable() {
       // Set up undo functionality if games were successfully imported
       if (result.success > 0 && result.createdGameIds && result.createdGameIds.length > 0) {
         useImportUndoStore.getState().setImportedGames(result.createdGameIds);
+        // Clear delete undo state since import has happened
+        useDeleteUndoStore.getState().clearDelete();
       }
 
       // Refresh the games list AND table preferences (to load new custom columns)
