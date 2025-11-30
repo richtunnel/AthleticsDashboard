@@ -809,10 +809,10 @@ export function GamesTable() {
       const locationValue = game.location || game.venue?.name || "TBD";
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
-      
+
       // Add date value
       if (game.date) {
-        const datePart = game.date.split('T')[0];
+        const datePart = game.date.split("T")[0];
         values.date.add(datePart);
       }
 
@@ -1855,11 +1855,11 @@ export function GamesTable() {
 
   const handleDateSelect = (date: Date, sport?: string, level?: string) => {
     // Pre-fill the date when user selects from available dates
-    const dateStr = date.toISOString().split('T')[0];
-    
+    const dateStr = date.toISOString().split("T")[0];
+
     // Build the update object with date and any sport/level context from the search
     const updateData: Partial<NewGameData> = { date: dateStr };
-    
+
     // If sport and level were part of the search context, use them
     if (sport) {
       updateData.sport = sport;
@@ -1867,29 +1867,29 @@ export function GamesTable() {
       // Fallback to existing form data if no search context
       updateData.sport = newGameData.sport;
     }
-    
+
     if (level) {
       updateData.level = level;
     } else if (newGameData.level) {
       // Fallback to existing form data if no search context
       updateData.level = newGameData.level;
     }
-    
+
     // Update the form with the selected date and sport/level
     updateNewGameData(updateData);
-    
+
     // Open the new game row
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
-    
+
     // Show success notification
-    let message = `Date selected: ${format(date, 'EEEE, MMM d, yyyy')}.`;
+    let message = `Date selected: ${format(date, "EEEE, MMM d, yyyy")}.`;
     if (sport || level) {
-      message += ` Creating ${sport || 'game'}${level ? ` (${level})` : ''}.`;
+      message += ` Creating ${sport || "game"}${level ? ` (${level})` : ""}.`;
     }
     message += ` Continue filling in game details.`;
-    
+
     addNotification(message, "success");
   };
 
@@ -2616,7 +2616,7 @@ export function GamesTable() {
       if (!timeEditModal) return;
 
       const gameId = timeEditModal.gameId;
-      
+
       // Handle new game time edit
       if (gameId === "new-game") {
         updateNewGameData({ time });
@@ -3078,11 +3078,11 @@ export function GamesTable() {
         return (
           <TableCell key="sport" sx={{ ...getRequiredCellSx("sport"), minWidth: 180 }}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Select
+              <TextField
                 size="small"
                 value={newGameData.sport}
                 onChange={(e) => {
-                  const sport = e.target.value as string;
+                  const sport = e.target.value;
                   updateNewGameData({ sport });
                   // Reset level if not valid for new sport
                   const levels = getLevelsForSport(sport);
@@ -3090,26 +3090,21 @@ export function GamesTable() {
                     updateNewGameData({ level: "" });
                   }
                 }}
-                displayEmpty
                 error={isRequiredFieldEmpty("sport")}
+                placeholder="Enter sport..."
                 sx={{
                   minWidth: 140,
-                  fontSize: 13,
-                  bgcolor: "transparent",
-                  "& .MuiSelect-select": {
-                    paddingBottom: "6px",
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
+                  "& .MuiInputBase-input": {
+                    fontSize: 13,
                   },
                 }}
-              >
-                <MenuItem value="">
-                  <em>Select sport</em>
-                </MenuItem>
-                {uniqueSports.map((sport: string) => (
-                  <MenuItem key={sport} value={sport}>
-                    {sport}
-                  </MenuItem>
-                ))}
-              </Select>
+              />
               <Tooltip title="Add new sport">
                 <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
                   <Add fontSize="small" />
@@ -3121,30 +3116,25 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={{ ...getRequiredCellSx("level"), minWidth: 150 }}>
-            <Select
+            <TextField
               size="small"
               value={newGameData.level}
-              onChange={(e) => updateNewGameData({ level: e.target.value as string })}
-              displayEmpty
+              onChange={(e) => updateNewGameData({ level: e.target.value })}
               error={isRequiredFieldEmpty("level")}
+              placeholder="Enter level (e.g., Varsity, JV)..."
               sx={{
                 minWidth: 140,
-                fontSize: 13,
-                bgcolor: "transparent",
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
                 },
               }}
-            >
-              <MenuItem value="">
-                <em>Select level</em>
-              </MenuItem>
-              {getLevelsForSport(newGameData.sport).map((level) => (
-                <MenuItem key={level} value={level}>
-                  {formatLevelDisplay(level)}
-                </MenuItem>
-              ))}
-            </Select>
+            />
           </TableCell>
         );
       case "opponent":
@@ -3171,22 +3161,22 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={{ py: 1 }}>
-            <Select
+            <TextField
               size="small"
-              value={newGameData.isHome ? "home" : "away"}
-              onChange={(e) => updateNewGameData({ isHome: e.target.value === "home" })}
+              value={newGameData.isHome ? "Home" : "Away"}
+              onChange={(e) => updateNewGameData({ isHome: e.target.value.toLowerCase() === "home" })}
+              placeholder="Home or Away..."
               sx={{
                 width: 120,
-                fontSize: 13,
-                bgcolor: "transparent",
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
                 },
               }}
-            >
-              <MenuItem value="home">Home</MenuItem>
-              <MenuItem value="away">Away</MenuItem>
-            </Select>
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "time":
@@ -3233,24 +3223,34 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={getRequiredCellSx("status")}>
-            <Select
+            <TextField
               size="small"
-              value={newGameData.status}
-              onChange={(e) => updateNewGameData({ status: e.target.value as string })}
+              value={newGameData.status === "SCHEDULED" ? "Pending" : newGameData.status === "CONFIRMED" ? "Yes" : newGameData.status === "CANCELLED" ? "No" : newGameData.status}
+              onChange={(e) => {
+                const displayValue = e.target.value.toLowerCase();
+                const statusValue =
+                  displayValue.includes("pending") || displayValue.includes("scheduled")
+                    ? "SCHEDULED"
+                    : displayValue.includes("yes") || displayValue.includes("confirmed")
+                      ? "CONFIRMED"
+                      : displayValue.includes("no") || displayValue.includes("cancelled")
+                        ? "CANCELLED"
+                        : "SCHEDULED"; // Default to scheduled for unrecognized values
+                updateNewGameData({ status: statusValue });
+              }}
               error={isRequiredFieldEmpty("status")}
+              placeholder="Yes, Pending, or No..."
               sx={{
                 width: 110,
-                fontSize: 13,
-                bgcolor: "transparent",
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
                 },
               }}
-            >
-              <MenuItem value="SCHEDULED">Pending</MenuItem>
-              <MenuItem value="CONFIRMED">Yes</MenuItem>
-              <MenuItem value="CANCELLED">No</MenuItem>
-            </Select>
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "location":
@@ -3280,22 +3280,22 @@ export function GamesTable() {
       case "busTravel":
         return (
           <TableCell key="busTravel" sx={{ py: 1, minWidth: 180 }}>
-            <Select
+            <TextField
               size="small"
-              value={newGameData.busTravel ? "yes" : "no"}
-              onChange={(e) => updateNewGameData({ busTravel: e.target.value === "yes" })}
+              value={newGameData.busTravel ? "Yes" : "No"}
+              onChange={(e) => updateNewGameData({ busTravel: e.target.value.toLowerCase().includes("yes") })}
+              placeholder="Yes or No..."
               sx={{
                 width: 120,
-                fontSize: 13,
-                bgcolor: "transparent",
-                "& .MuiSelect-select": {
-                  paddingBottom: "6px",
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
                 },
               }}
-            >
-              <MenuItem value="yes">Yes</MenuItem>
-              <MenuItem value="no">No</MenuItem>
-            </Select>
+              InputProps={{ sx: { fontSize: 13 } }}
+            />
           </TableCell>
         );
       case "notes":
@@ -3364,6 +3364,12 @@ export function GamesTable() {
                 }}
                 placeholder={`Enter ${columnName.toLowerCase()}`}
                 sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
                   "& .MuiInputBase-input": {
                     fontSize: 13,
                     py: 0.5,
@@ -3394,6 +3400,12 @@ export function GamesTable() {
                 }}
                 placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
                 sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "transparent",
+                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                    "&:hover fieldset": { borderColor: "primary.main" },
+                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                  },
                   "& .MuiInputBase-input": {
                     fontSize: 13,
                     py: 0.5,
@@ -4343,25 +4355,25 @@ export function GamesTable() {
           <TableCell key="notes" sx={getDataCellSx("notes", isEditing)} onDoubleClick={() => handleDoubleClick(game, "notes")}>
             {isEditing ? (
               <Box sx={{ py: 1 }}>
-               <TextField
-                 size="small"
-                 fullWidth
-                 value={inlineEditValue}
-                 onChange={(e) => {
-                   const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
-                   handleInlineChange(value, game);
-                 }}
-                 onKeyDown={(e) => handleInlineKeyDown(e, game)}
-                 onBlur={() => handleInlineBlur(game)}
-                 autoFocus
-                 disabled={isInlineSaving}
-                 placeholder="Add notes..."
-                 sx={{
-                   "& .MuiInputBase-input": {
-                     fontSize: 13,
-                   },
-                 }}
-               />
+                <TextField
+                  size="small"
+                  fullWidth
+                  value={inlineEditValue}
+                  onChange={(e) => {
+                    const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
+                    handleInlineChange(value, game);
+                  }}
+                  onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                  onBlur={() => handleInlineBlur(game)}
+                  autoFocus
+                  disabled={isInlineSaving}
+                  placeholder="Add notes..."
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                    },
+                  }}
+                />
               </Box>
             ) : (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -4417,21 +4429,21 @@ export function GamesTable() {
           const columnName = column.id.split(":")[1];
           const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
           const customFields = (game.customFields as Record<string, any>) || {};
-          
+
           // Check if this column is mapped to date field
           const mapping = columnMapping?.[columnName];
-          
+
           // Check if this is a Bus Info/Travel column with Enhanced Travel Times enabled
           const isBusInfoColumn = /^(bus info|travel)$/i.test(columnName.trim());
           const shouldShowEnhancedBusInfo = isBusInfoColumn && aiTravelTimesEnabled;
-          
+
           if (shouldShowEnhancedBusInfo) {
             // Special rendering for Bus Info/Travel columns with Dismiss/Depart labels
             const dismissTime = customFields[`${columnName}_dismiss`] || "";
             const departTime = customFields[`${columnName}_depart`] || "";
             const dismissDisplay = dismissTime ? formatTimeDisplay(dismissTime) : "—";
             const departDisplay = departTime ? formatTimeDisplay(departTime) : "—";
-            
+
             return (
               <TableCell
                 key={column.id}
@@ -4479,18 +4491,18 @@ export function GamesTable() {
               </TableCell>
             );
           }
-          
+
           // Regular rendering for non-Bus Info columns or when toggle is off
           // Check if this column is being edited
           const fieldKey = column.id as InlineEditField;
           const isImportedEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
-          
+
           let cellValue = "";
-          
+
           if (mapping === "date") {
             // Display date from game.date (date columns are not editable in imported columns)
             cellValue = formatGameDate(game.date);
-            
+
             return (
               <TableCell key={column.id} sx={getDataCellSx(column.id, false)}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
@@ -4512,7 +4524,7 @@ export function GamesTable() {
             // Display value from customFields (editable)
             cellValue = customFields[columnName] || "—";
           }
-          
+
           return (
             <TableCell key={column.id} sx={getDataCellSx(column.id, isImportedEditing)} onDoubleClick={() => handleDoubleClick(game, fieldKey)}>
               {isImportedEditing ? (
@@ -4840,20 +4852,20 @@ export function GamesTable() {
               Create Game
             </Button>
             <Tooltip title="Use AI to find available dates in your schedule">
-              <Button 
-                variant="outlined" 
-                startIcon={<AutoAwesome />} 
-                onClick={handleFindAvailableDates} 
-                size="small" 
-                sx={{ 
+              <Button
+                variant="outlined"
+                startIcon={<AutoAwesome />}
+                onClick={handleFindAvailableDates}
+                size="small"
+                sx={{
                   textTransform: "none",
                   background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   color: "white",
                   border: "none",
-                  "&:hover": { 
+                  "&:hover": {
                     background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
                     border: "none",
-                  }
+                  },
                 }}
               >
                 Find Dates
@@ -4955,38 +4967,49 @@ export function GamesTable() {
                 {Array.from({ length: 5 }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
                     <TableCell padding="checkbox">
-                      <Skeleton 
-                        variant="rectangular" 
-                        width={18} 
-                        height={18} 
-                        sx={{ 
+                      <Skeleton
+                        variant="rectangular"
+                        width={18}
+                        height={18}
+                        sx={{
                           borderRadius: 0.5,
-                          bgcolor: 'rgba(0, 0, 0, 0.11)'
-                        }} 
+                          bgcolor: "rgba(0, 0, 0, 0.11)",
+                        }}
                       />
                     </TableCell>
                     {resolvedColumns.map((column) => (
                       <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
-                        <Skeleton 
-                          variant="rectangular" 
+                        <Skeleton
+                          variant="rectangular"
                           width={
-                            column.id === 'date' ? '80%' :
-                            column.id === 'time' ? '60%' :
-                            column.id === 'sport' ? '70%' :
-                            column.id === 'level' ? '65%' :
-                            column.id === 'opponent' ? '85%' :
-                            column.id === 'status' ? '50%' :
-                            column.id === 'isHome' ? '55%' :
-                            column.id === 'location' ? '75%' :
-                            column.id === 'busTravel' ? '70%' :
-                            column.id === 'notes' ? '90%' :
-                            column.id === 'actions' ? '90%' :
-                            '75%'
+                            column.id === "date"
+                              ? "80%"
+                              : column.id === "time"
+                                ? "60%"
+                                : column.id === "sport"
+                                  ? "70%"
+                                  : column.id === "level"
+                                    ? "65%"
+                                    : column.id === "opponent"
+                                      ? "85%"
+                                      : column.id === "status"
+                                        ? "50%"
+                                        : column.id === "isHome"
+                                          ? "55%"
+                                          : column.id === "location"
+                                            ? "75%"
+                                            : column.id === "busTravel"
+                                              ? "70%"
+                                              : column.id === "notes"
+                                                ? "90%"
+                                                : column.id === "actions"
+                                                  ? "90%"
+                                                  : "75%"
                           }
                           height={24}
-                          sx={{ 
+                          sx={{
                             borderRadius: 1,
-                            bgcolor: 'rgba(0, 0, 0, 0.11)'
+                            bgcolor: "rgba(0, 0, 0, 0.11)",
                           }}
                         />
                       </TableCell>
@@ -5275,7 +5298,7 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
   // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
-  
+
   if (importedColumns && columnMapping && importedColumns.length > 0) {
     // User imported CSV with custom columns
     const importedIds = importedColumns
@@ -5284,13 +5307,13 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
         return mapping && mapping !== "skip"; // Only include non-skipped columns
       })
       .map((colName) => `imported:${colName}` as ColumnId);
-    
+
     // CRITICAL FIX: When imported columns exist, ONLY show imported columns in the table view
     // The create game row has its own separate logic to show default columns
     // This prevents the bug where both default AND imported columns appear simultaneously
     return [...importedIds, "actions"];
   }
-  
+
   // No imported columns - use default column order
   const customIds = customColumns
     .map((column: any) => column?.id)
