@@ -317,8 +317,6 @@ export class EmailService {
         <li>📅 Smart scheduling with conflict detection</li>
         <li>🗺️ AI-powered travel recommendations</li>
         <li>📧 Automated email notifications</li>
-        <li>📊 Dashboard analytics and reporting</li>
-        <li>📱 Mobile-friendly interface</li>
       </ul>
       
       <p>Need help getting started? Check out our dashboard or reply to this email with any questions.</p>
@@ -404,11 +402,11 @@ export class EmailService {
       }
       case "payment_success": {
         const amount = params.amount ? (params.amount / 100).toFixed(2) : null;
-        const currency = params.currency?.toUpperCase() || 'USD';
+        const currency = params.currency?.toUpperCase() || "USD";
         const paidDate = this.formatDisplayDate(params.paidAt);
-        const amountLine = amount ? `<p><strong>Amount paid:</strong> ${currency} ${amount}</p>` : '';
-        const dateLine = paidDate ? `<p><strong>Payment date:</strong> ${paidDate}</p>` : '';
-        
+        const amountLine = amount ? `<p><strong>Amount paid:</strong> ${currency} ${amount}</p>` : "";
+        const dateLine = paidDate ? `<p><strong>Payment date:</strong> ${paidDate}</p>` : "";
+
         const body = `
           ${greeting}
           <p>Thank you! Your payment for your ${planDescription} has been successfully processed.</p>
