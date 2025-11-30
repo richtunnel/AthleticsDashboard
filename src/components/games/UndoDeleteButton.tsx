@@ -59,7 +59,7 @@ export function UndoDeleteButton({ onUndo }: UndoDeleteButtonProps) {
         sx={{
           position: "fixed",
           bottom: 24,
-          left: 24,
+          right: 24,
           zIndex: 1300,
         }}
       >
@@ -69,11 +69,11 @@ export function UndoDeleteButton({ onUndo }: UndoDeleteButtonProps) {
           startIcon={<Restore />}
           onClick={handleUndo}
           sx={{
-            backgroundColor: "#d32f2f",
+            backgroundColor: "#181b38ff",
             color: "white",
             boxShadow: 3,
             "&:hover": {
-              backgroundColor: "#b71c1c",
+              backgroundColor: "#252948",
               boxShadow: 6,
             },
           }}
