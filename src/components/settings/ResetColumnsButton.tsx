@@ -37,6 +37,8 @@ export function ResetColumnsButton() {
     onSuccess: (data) => {
       // Invalidate table preferences to trigger refetch
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
+      // Refresh imported columns for calendar group mappings
+      queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
       
       addNotification(
         data.message || "Custom columns reset successfully. Default columns restored.",
