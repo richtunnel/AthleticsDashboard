@@ -904,7 +904,9 @@ export function GamesTable() {
         if (customColumn) {
           list.push({ id: column.id, customColumn });
         }
+        // Skip if customColumn doesn't exist - don't add to list
       } else {
+        // Add all other columns (static columns and imported columns)
         list.push({ id: column.id });
       }
     });
@@ -3076,46 +3078,39 @@ export function GamesTable() {
         );
       case "sport":
         return (
-          <TableCell key="sport" sx={{ ...getRequiredCellSx("sport"), minWidth: 180 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Select
-                size="small"
-                value={newGameData.sport}
-                onChange={(e) => {
-                  const sport = e.target.value as string;
-                  updateNewGameData({ sport });
-                  // Reset level if not valid for new sport
-                  const levels = getLevelsForSport(sport);
-                  if (newGameData.level && !levels.includes(newGameData.level)) {
-                    updateNewGameData({ level: "" });
-                  }
-                }}
-                displayEmpty
-                error={isRequiredFieldEmpty("sport")}
-                sx={{
-                  minWidth: 140,
-                  fontSize: 13,
-                  bgcolor: "transparent",
-                  "& .MuiSelect-select": {
-                    paddingBottom: "6px",
-                  },
-                }}
-              >
-                <MenuItem value="">
-                  <em>Select sport</em>
+          <TableCell key="sport" sx={getRequiredCellSx("sport")}>
+            <Select
+              size="small"
+              value={newGameData.sport}
+              onChange={(e) => {
+                const sport = e.target.value as string;
+                updateNewGameData({ sport });
+                // Reset level if not valid for new sport
+                const levels = getLevelsForSport(sport);
+                if (newGameData.level && !levels.includes(newGameData.level)) {
+                  updateNewGameData({ level: "" });
+                }
+              }}
+              displayEmpty
+              error={isRequiredFieldEmpty("sport")}
+              sx={{
+                minWidth: 140,
+                fontSize: 13,
+                bgcolor: "transparent",
+                "& .MuiSelect-select": {
+                  paddingBottom: "6px",
+                },
+              }}
+            >
+              <MenuItem value="">
+                <em>Select sport</em>
+              </MenuItem>
+              {uniqueSports.map((sport: string) => (
+                <MenuItem key={sport} value={sport}>
+                  {sport}
                 </MenuItem>
-                {uniqueSports.map((sport: string) => (
-                  <MenuItem key={sport} value={sport}>
-                    {sport}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Tooltip title="Add new sport">
-                <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
-                  <Add fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+              ))}
+            </Select>
           </TableCell>
         );
       case "level":
@@ -4947,7 +4942,7 @@ export function GamesTable() {
                 <TableCell padding="checkbox" sx={{ py: 0 }}>
                   <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
                 </TableCell>
-                {resolvedColumns.map((column) => renderHeaderCell(column))}
+                {resolvedColumns.map((column) => renderHeaderCell(column)).filter((cell) => cell !== null)}
               </TableRow>
             </TableHead>
             {isLoading || !mounted ? (
@@ -5276,28 +5271,25 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
   
-  if (importedColumns && columnMapping && importedColumns.length > 0) {
-    // User imported CSV with custom columns
-    const importedIds = importedColumns
-      .filter((colName) => {
-        const mapping = columnMapping[colName];
-        return mapping && mapping !== "skip"; // Only include non-skipped columns
-      })
-      .map((colName) => `imported:${colName}` as ColumnId);
-    
-    // CRITICAL FIX: When imported columns exist, ONLY show imported columns in the table view
-    // The create game row has its own separate logic to show default columns
-    // This prevents the bug where both default AND imported columns appear simultaneously
-    return [...importedIds, "actions"];
-  }
+  // Get imported column IDs
+  const importedIds = importedColumns && columnMapping && importedColumns.length > 0
+    ? importedColumns
+        .filter((colName) => {
+          const mapping = columnMapping[colName];
+          return mapping && mapping !== "skip"; // Only include non-skipped columns
+        })
+        .map((colName) => `imported:${colName}` as ColumnId)
+    : [];
   
-  // No imported columns - use default column order
+  // Get custom column IDs
   const customIds = customColumns
     .map((column: any) => column?.id)
     .filter((id: string | undefined): id is string => Boolean(id))
     .map((id: string) => `custom:${id}` as ColumnId);
 
-  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", ...customIds, "notes", "actions"];
+  // Return all columns (default + custom + imported) for proper reordering
+  // Static columns first, then custom columns, then imported columns, then actions
+  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", ...customIds, ...importedIds, "notes", "actions"];
 }
 
 function isColumnId(value: string): value is ColumnId {
