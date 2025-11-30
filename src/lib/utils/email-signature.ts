@@ -2,13 +2,14 @@ interface SignatureData {
   signaturePhone?: string | null;
   signatureWebsite?: string | null;
   signatureLogoUrl?: string | null;
+  signatureText?: string | null;
 }
 
 export function buildEmailSignatureHTML(signatureData: SignatureData): string {
-  const { signaturePhone, signatureWebsite, signatureLogoUrl } = signatureData;
+  const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = signatureData;
 
   // Return empty string if no signature data
-  if (!signaturePhone && !signatureWebsite && !signatureLogoUrl) {
+  if (!signaturePhone && !signatureWebsite && !signatureLogoUrl && !signatureText) {
     return "";
   }
 
@@ -21,18 +22,19 @@ export function buildEmailSignatureHTML(signatureData: SignatureData): string {
 
   html += '<div style="font-size: 14px; color: #374151; line-height: 1.6;">';
 
-  // Add phone if present
-  if (signaturePhone) {
-    html += `<div style="margin-bottom: 6px;">`;
-    html += `<span style="font-weight: 500;">📞 Phone:</span> ${escapeHtml(signaturePhone)}`;
-    html += `</div>`;
+  // Add custom text if present
+  if (signatureText) {
+    html += `<div style="margin-bottom: 8px; white-space: pre-wrap;">${escapeHtml(signatureText)}</div>`;
   }
 
-  // Add website if present
+  // Add phone if present (no icon)
+  if (signaturePhone) {
+    html += `<div style="margin-bottom: 6px;">${escapeHtml(signaturePhone)}</div>`;
+  }
+
+  // Add website if present (no icon)
   if (signatureWebsite) {
-    html += `<div style="margin-bottom: 6px;">`;
-    html += `<span style="font-weight: 500;">🔗 Website:</span> <a href="${escapeHtml(signatureWebsite)}" style="color: #2563eb; text-decoration: none;">${escapeHtml(signatureWebsite)}</a>`;
-    html += `</div>`;
+    html += `<div style="margin-bottom: 6px;"><a href="${escapeHtml(signatureWebsite)}" style="color: #2563eb; text-decoration: none;">${escapeHtml(signatureWebsite)}</a></div>`;
   }
 
   html += '</div></div>';
