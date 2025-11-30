@@ -73,6 +73,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Email group not found" }, { status: 404 });
   }
 
+  let normalizedEmails: string[] = [];
+  
   try {
     const { emails } = await request.json();
 
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Emails must be an array" }, { status: 400 });
     }
 
-    const normalizedEmails = normalizeEmailList(emails);
+    normalizedEmails = normalizeEmailList(emails);
 
     if (normalizedEmails.length === 0) {
       return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
@@ -125,6 +127,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       include: emailGroupInclude,
     });
 
+    if (!updated) {
+      return NextResponse.json({ error: "Email group not found after update" }, { status: 404 });
+    }
+
     return NextResponse.json({
       ...updated,
       addedCount: newEmails.length,
@@ -135,13 +141,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.error("Error adding emails to group", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      // Handle duplicate emails gracefully
+      // Handle duplicate emails gracefully (compound unique constraint violation)
       const updated = await prisma.emailGroup.findUnique({
         where: { id: groupId },
         include: emailGroupInclude,
       });
 
-      return NextResponse.json(updated);
+      if (!updated) {
+        return NextResponse.json({ error: "Email group not found" }, { status: 404 });
+      }
+
+      // Return updated group with duplicate info
+      return NextResponse.json({
+        ...updated,
+        addedCount: 0,
+        duplicateCount: normalizedEmails.length,
+        duplicates: normalizedEmails,
+      });
     }
 
     return NextResponse.json({ error: "Failed to add emails to group" }, { status: 500 });
