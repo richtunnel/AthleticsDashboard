@@ -968,7 +968,14 @@ export function GamesTable() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Immediately update the query cache with the saved preferences
+      // This ensures the UI reflects the saved state before refetch completes
+      queryClient.setQueryData(["tablePreferences", TABLE_PREFERENCES_KEY], {
+        success: true,
+        data: data.data,
+      });
+      // Then invalidate to ensure we have the latest from server
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
     },
   });
@@ -1016,24 +1023,18 @@ export function GamesTable() {
       const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
       setColumnState((prev) => {
         const previousState = prev.map((column) => ({ ...column }));
-        // FIXED: Don't filter by defaultColumnOrder - this was removing newly added custom columns
-        // Instead, use the provided order directly and append any missing columns from defaultColumnOrder
-        const nextOrder = [...validOrder];
-        defaultColumnOrder.forEach((id) => {
-          if (!nextOrder.includes(id)) {
-            nextOrder.push(id);
-          }
-        });
+        // Use the provided order directly - user's explicit reorder should be respected
         const visibilityMap = new Map(prev.map((column) => [column.id, column.visible]));
-        const nextState = nextOrder.map((id) => ({
+        const nextState = validOrder.map((id) => ({
           id,
           visible: visibilityMap.get(id) ?? true,
         }));
+        // Optimistic update - immediately apply the new order
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
     },
-    [defaultColumnOrder, persistColumnPreferences]
+    [persistColumnPreferences]
   );
 
   const handleShowAllColumns = useCallback(() => {
@@ -5361,29 +5362,28 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
   const hiddenSet = new Set<ColumnId>(Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []);
 
   const preferenceOrder = normalizePreferenceOrder(preferences?.order, defaultOrder);
-  const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
 
-  let baseOrder: ColumnId[] = [];
+  // CRITICAL FIX: Always respect saved preferences order when available
+  // This ensures column reordering persists across page refreshes
+  let finalOrder: ColumnId[];
 
-  if (!initialPreferencesApplied || previous.length === 0) {
-    baseOrder = preferenceOrder.length > 0 ? preferenceOrder : previousOrder;
-  } else if (preferenceOrder.length > 0 && !arraysEqual(preferenceOrder, previousOrder)) {
-    baseOrder = preferenceOrder;
+  if (preferenceOrder.length > 0) {
+    // User has saved preferences - use them as the source of truth
+    // Merge with defaultOrder to include any new columns that were added
+    finalOrder = mergeWithDefaultOrder(preferenceOrder, defaultOrder);
+  } else if (previous.length > 0) {
+    // No saved preferences, but we have previous state - preserve it
+    const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
+    finalOrder = mergeWithDefaultOrder(previousOrder, defaultOrder);
   } else {
-    baseOrder = previousOrder;
+    // First load with no preferences - use default order
+    finalOrder = defaultOrder;
   }
 
-  if (baseOrder.length === 0) {
-    baseOrder = defaultOrder;
-  }
-
-  const finalOrder = mergeWithDefaultOrder(baseOrder, defaultOrder);
-
-  const visibilityMap = new Map<ColumnId, boolean>(previous.map((column) => [column.id, column.visible]));
-
+  // Determine visibility: respect saved hidden state, otherwise default to visible
   return finalOrder.map((id) => ({
     id,
-    visible: hiddenSet.has(id) ? false : visibilityMap.has(id) ? visibilityMap.get(id)! : !hiddenSet.has(id),
+    visible: !hiddenSet.has(id),
   }));
 }
 
