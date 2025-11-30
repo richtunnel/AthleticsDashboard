@@ -1121,9 +1121,9 @@ export function GamesTable() {
         addNotification("Invalid column ID", "error");
         return;
       }
-      
+
       const typedColumnId = columnId as ColumnId;
-      
+
       // Protect date and actions columns
       if (typedColumnId === "date" || typedColumnId === "actions") {
         addNotification("Date and Actions columns cannot be deleted", "error");
@@ -1134,14 +1134,14 @@ export function GamesTable() {
       setColumnState((prev) => {
         const previousState = prev.map((column) => ({ ...column }));
         const nextState = prev.filter((column) => column.id !== typedColumnId);
-        
+
         // Make sure we have at least one visible column
         const visibleCount = nextState.filter((column) => column.visible).length;
         if (visibleCount === 0) {
           addNotification("Cannot delete the last visible column", "warning");
           return prev;
         }
-        
+
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
@@ -2748,7 +2748,7 @@ export function GamesTable() {
     const isEditing = editingColumnId === columnId;
     const displayLabel = getColumnLabel(columnId);
     const hasCustomTitle = customColumnTitles[columnId] !== undefined;
-    
+
     // Protect date and actions columns from being renamed
     const isProtectedColumn = columnId === "date" || columnId === "actions";
 
@@ -3115,7 +3115,7 @@ export function GamesTable() {
           const customColumn = column.customColumn;
           const columnLabel = customColumn?.name || getColumnLabel(column.id);
           const customId = customColumn?.id || column.id.split(":")[1];
-          
+
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -3964,11 +3964,11 @@ export function GamesTable() {
       case "date": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
         const isHovered = hoveredDateGameId === game.id;
-        
+
         return (
-          <TableCell 
-            key="date" 
-            sx={getDataCellSx("date", isEditing)} 
+          <TableCell
+            key="date"
+            sx={getDataCellSx("date", isEditing)}
             onDoubleClick={() => handleDoubleClick(game, "date")}
             onMouseEnter={() => setHoveredDateGameId(game.id)}
             onMouseLeave={() => setHoveredDateGameId(null)}
@@ -3985,33 +3985,31 @@ export function GamesTable() {
                   autoFocus
                   disabled={isInlineSaving}
                   sx={{ width: "100%" }}
-                  InputProps={{ 
+                  InputProps={{
                     sx: { fontSize: 13 },
-                    endAdornment: (
-                      <CalendarMonth sx={{ fontSize: 18, color: 'action.active', pointerEvents: 'none' }} />
-                    )
+                    endAdornment: <CalendarMonth sx={{ fontSize: 18, color: "action.active", pointerEvents: "none" }} />,
                   }}
                 />
               </Box>
             ) : (
-              <Box 
-                sx={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 1, 
-                  py: 0
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  py: 0,
                 }}
               >
                 <Typography variant="body2" sx={{ fontSize: 13 }}>
                   {formatGameDate(game.date)}
                 </Typography>
                 {isHovered && !isInlineSaving && (
-                  <CalendarMonth 
-                    sx={{ 
-                      fontSize: 16, 
-                      color: 'primary.main',
-                      transition: 'opacity 0.2s'
-                    }} 
+                  <CalendarMonth
+                    sx={{
+                      fontSize: 16,
+                      color: "primary.main",
+                      transition: "opacity 0.2s",
+                    }}
                   />
                 )}
                 {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
@@ -5056,12 +5054,12 @@ export function GamesTable() {
             <>
               {/* Delete Button */}
               <LoadingButton
-                variant="text"
+                variant="outlined"
                 startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "red" }} />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
                 size="small"
-                sx={{ paddingLeft: "5px", paddingRight: "5px", textTransform: "none", background: "transparent", boxShadow: 0, "&:hover": { boxShadow: 0 } }}
+                sx={{ border: "1px solid #181b38", borderRadius: "10px", padding: "3px 9px", textTransform: "none", background: "transparent", boxShadow: 0, "&:hover": { boxShadow: 0 } }}
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
               </LoadingButton>
