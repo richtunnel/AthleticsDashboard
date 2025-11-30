@@ -48,6 +48,8 @@ export default function DashboardPage() {
                 }
                 // Invalidate table preferences to immediately show imported custom columns
                 queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
+                // Refresh imported columns for calendar group mappings
+                queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
               }}
             />
           </Suspense>
@@ -61,6 +63,7 @@ export default function DashboardPage() {
         onUndo={() => {
           queryClient.invalidateQueries({ queryKey: ["games"] });
           queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
+          queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
           addNotification("Import undone - all imported games have been deleted", "success");
         }}
       />

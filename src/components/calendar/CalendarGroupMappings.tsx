@@ -27,6 +27,7 @@ import {
   CircularProgress,
   Chip,
   Tooltip,
+  Autocomplete,
 } from "@mui/material";
 import { Add, Delete, Info } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -63,16 +64,12 @@ const fetchGoogleCalendars = async (): Promise<{ calendars: GoogleCalendar[] }> 
   return res.json();
 };
 
-// Common column names that users might use for sports level
-const COMMON_COLUMN_NAMES = [
-  "Sports Level",
-  "Team Level",
-  "Level",
-  "Team",
-  "Sport",
-  "Sport & Level",
-  "Custom Column",
-];
+// Fetch imported column names from user's spreadsheet
+const fetchImportedColumns = async (): Promise<{ data: string[] }> => {
+  const res = await fetch("/api/user/imported-columns");
+  if (!res.ok) throw new Error("Failed to fetch imported columns");
+  return res.json();
+};
 
 export function CalendarGroupMappings() {
   const { addNotification } = useNotifications();
@@ -95,6 +92,12 @@ export function CalendarGroupMappings() {
   const { data: calendarsData, isLoading: calendarsLoading } = useQuery({
     queryKey: ["googleCalendars"],
     queryFn: fetchGoogleCalendars,
+  });
+
+  // Fetch imported column names
+  const { data: importedColumnsData, isLoading: importedColumnsLoading } = useQuery({
+    queryKey: ["importedColumns"],
+    queryFn: fetchImportedColumns,
   });
 
   // Create mapping mutation
@@ -168,7 +171,9 @@ export function CalendarGroupMappings() {
     }
   };
 
-  if (mappingsLoading || calendarsLoading) {
+  const importedColumns = importedColumnsData?.data || [];
+
+  if (mappingsLoading || calendarsLoading || importedColumnsLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
         <CircularProgress />
@@ -255,20 +260,30 @@ export function CalendarGroupMappings() {
         <DialogTitle>Add Calendar Group Mapping</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <FormControl fullWidth>
-              <InputLabel>Column Name</InputLabel>
-              <Select
-                value={newMapping.columnName}
-                label="Column Name"
-                onChange={(e) => setNewMapping({ ...newMapping, columnName: e.target.value })}
-              >
-                {COMMON_COLUMN_NAMES.map((name) => (
-                  <MenuItem key={name} value={name}>
-                    {name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              freeSolo
+              options={importedColumns}
+              value={newMapping.columnName}
+              onChange={(event, newValue) => {
+                setNewMapping({ ...newMapping, columnName: newValue || "" });
+              }}
+              onInputChange={(event, newInputValue) => {
+                setNewMapping({ ...newMapping, columnName: newInputValue });
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Column Name"
+                  placeholder="Enter or select column name"
+                  helperText={
+                    importedColumns.length > 0
+                      ? "Select from your imported columns or type a custom name"
+                      : "Type the column name from your games table"
+                  }
+                  fullWidth
+                />
+              )}
+            />
 
             <TextField
               label="Column Value"
@@ -299,9 +314,9 @@ export function CalendarGroupMappings() {
 
             <Alert severity="info" sx={{ mt: 1 }}>
               <Typography variant="caption">
-                Example: If your games table has a "Sports Level" column with value "Junior Varsity Basketball", 
-                and you map it to a Google Calendar named "JV Basketball", all games with that value will sync to 
-                that specific calendar.
+                <strong>Example:</strong> If your games table has a column with values like "Junior Varsity Basketball", 
+                enter the column name (e.g., "Sports Level" or "Team") and the exact value. All games matching that 
+                column value will sync to the selected Google Calendar.
               </Typography>
             </Alert>
           </Box>
