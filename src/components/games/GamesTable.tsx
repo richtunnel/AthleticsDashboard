@@ -687,10 +687,37 @@ export function GamesTable() {
   }, [customColumns]);
 
   const columnPreferencesData = useMemo<TablePreferencesData | null>(() => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null, [columnPreferencesResponse?.data]);
-  const defaultColumnOrder = useMemo(() => getDefaultColumnOrder(customColumns, columnPreferencesData), [customColumns, columnPreferencesData]);
+  
+  // CRITICAL FIX: Memoize defaultColumnOrder separately to prevent recalculation issues
+  // When user has imported columns, we must ALWAYS use those columns, never default columns
+  const defaultColumnOrder = useMemo(() => {
+    const order = getDefaultColumnOrder(customColumns, columnPreferencesData);
+    return order;
+  }, [customColumns, columnPreferencesData]);
 
+  // CRITICAL FIX: Only update column state when preferences or custom columns actually change
+  // This prevents default columns from bleeding in during reorder operations
   useEffect(() => {
-    setColumnState((prev) => deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied));
+    setColumnState((prev) => {
+      const hasImportedColumns = !!(columnPreferencesData?.customColumns && (columnPreferencesData.customColumns as string[]).length > 0);
+      
+      // If user has imported columns, NEVER allow default columns to appear
+      // The defaultColumnOrder should ONLY contain imported columns + actions when imported columns exist
+      if (hasImportedColumns) {
+        // Verify defaultColumnOrder doesn't contain any default columns (date, sport, level, etc.)
+        const defaultStaticColumns = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes"];
+        const hasAnyDefaultColumn = defaultColumnOrder.some(col => defaultStaticColumns.includes(col));
+        
+        if (hasAnyDefaultColumn) {
+          console.warn("CRITICAL: Default columns detected in defaultColumnOrder when imported columns exist!", defaultColumnOrder);
+          // Filter out any default columns that shouldn't be there
+          const cleanedOrder = defaultColumnOrder.filter(col => !defaultStaticColumns.includes(col));
+          return deriveColumnState(prev, columnPreferencesData, cleanedOrder, initialPreferencesApplied);
+        }
+      }
+      
+      return deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied);
+    });
   }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
 
   useEffect(() => {
@@ -4852,14 +4879,26 @@ export function GamesTable() {
           let cellValue = "";
 
           if (mapping === "date") {
-            // Display date from game.date - this column should be editable just like the default date column
+            // CRITICAL FIX: Display date from game.date - this column should be FULLY EDITABLE with DatePicker
+            // This handles imported columns that are mapped to the date field
             const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
             const isHovered = hoveredDateGameId === game.id;
             
             return (
               <TableCell 
                 key={column.id} 
-                sx={getDataCellSx(column.id, isEditingDate)}
+                sx={{
+                  fontSize: 13,
+                  py: 0,
+                  cursor: isEditingDate ? "default" : "pointer",
+                  bgcolor: isEditingDate ? "#fff9e6" : "transparent",
+                  ...(isEditingDate && {
+                    boxShadow: "inset 0 0 0 1px #DBEAFE",
+                  }),
+                  "&:hover": {
+                    bgcolor: isEditingDate ? "#fff9e6" : "#f5f5f5",
+                  },
+                }}
                 onDoubleClick={() => handleDoubleClick(game, "date")}
                 onMouseEnter={() => setHoveredDateGameId(game.id)}
                 onMouseLeave={() => setHoveredDateGameId(null)}
@@ -4868,7 +4907,7 @@ export function GamesTable() {
                   <Box sx={{ py: 1 }}>
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DatePicker
-                        open={isEditingDate}
+                        open={true}
                         onClose={() => handleInlineBlur(game)}
                         value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
                         onChange={(newValue) => {
