@@ -441,9 +441,12 @@ model EmailGroup {
 
 model EmailAddress {
   id      String     @id @default(uuid())
-  email   String     @unique
+  email   String
   groupId String
   group   EmailGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([email, groupId])
+  @@index([groupId])
 }
 
 model EmailCampaign {
