@@ -18,19 +18,15 @@ export default async function DashboardSupportPage() {
         <Typography variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
           Contact Support
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
-          Need help? We're here for you.
+        <Typography variant="h6" color="text.primary" sx={{ mb: 1 }}>
+          We're here for you.
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Select your issue type and describe your problem. We'll get back to you within 48 hours at{" "}
-          <strong>{session.user.email}</strong>.
+          Select your issue type and describe your problem. We'll get back to you within 48 hours.
         </Typography>
       </Box>
 
-      <SupportFormWithDropdown
-        userName={getFirstName(session.user.name) || ""}
-        userEmail={session.user.email || ""}
-      />
+      <SupportFormWithDropdown userName={getFirstName(session.user.name) || ""} userEmail={session.user.email || ""} />
     </Container>
   );
 }
