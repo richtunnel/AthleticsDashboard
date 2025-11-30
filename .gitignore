@@ -49,6 +49,10 @@ package-lock.json
 # logs
 *.log
 
+# uploads
+/public/uploads/*
+!/public/uploads/signatures/.gitkeep
+
 docs
 dockerenv
 .dockerenv
