@@ -71,7 +71,8 @@ export function AISchedulerToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            disabled={mutation.isPending}
+            // disabled={mutation.isPending}
+            disabled
           />
         }
         label={
@@ -84,7 +85,7 @@ export function AISchedulerToggle() {
                 Get intelligent scheduling suggestions and conflict detection for your games.
               </Typography>
             </Box>
-            <Tooltip 
+            <Tooltip
               title="AI Scheduler scans your calendar and suggests optimal dates/times for games, considering team availability, venue conflicts, and rest periods. It also detects scheduling conflicts and provides confidence scores with alternatives."
               placement="top"
               arrow

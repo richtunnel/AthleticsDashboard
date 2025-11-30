@@ -68,7 +68,14 @@ export function AITravelTimesToggle() {
   return (
     <Box>
       <FormControlLabel
-        control={<Switch checked={isEnabled} onChange={handleToggle} disabled={mutation.isPending} />}
+        control={
+          <Switch
+            checked={isEnabled}
+            onChange={handleToggle}
+            // disabled={mutation.isPending}
+            disabled
+          />
+        }
         label={
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box>

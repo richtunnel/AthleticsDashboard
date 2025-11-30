@@ -11,10 +11,9 @@ import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverview
 import { getUserWithSubscription } from "@/lib/services/subscription";
 import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
-// AI Feature Toggles - Disabled
-// import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
-// import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
-// import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
+import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
+import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
+import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
 import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
@@ -92,15 +91,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <CalendarConnectionSection />
 
         {/* AI Features Section - Disabled */}
-        {/* <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              AI Features
+              AI Features (Coming Soon)
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
               Enable or disable AI-powered features to enhance your scheduling workflow.
             </Typography>
-            
+
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <AISchedulerToggle />
               <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
@@ -111,7 +110,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </Box>
             </Box>
           </CardContent>
-        </Card> */}
+        </Card>
 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
