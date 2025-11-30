@@ -942,11 +942,59 @@ export function GamesTable() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+    onMutate: async (gameId: string) => {
+      // OPTIMISTIC UPDATE: Mark game as synced immediately
+      const previousGames = queryClient.getQueryData<any>(["games"]);
+      
+      queryClient.setQueryData(["games"], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => 
+            g.id === gameId ? { ...g, calendarSynced: true } : g
+          );
+        } else if (oldData.data && Array.isArray(oldData.data)) {
+          return {
+            ...oldData,
+            data: oldData.data.map((g: Game) => 
+              g.id === gameId ? { ...g, calendarSynced: true } : g
+            )
+          };
+        }
+        
+        return oldData;
+      });
+      
+      return { previousGames };
+    },
+    onSuccess: (data, gameId) => {
+      // Update with actual response data if needed
+      queryClient.setQueryData(["games"], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => 
+            g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId || g.googleCalendarEventId } : g
+          );
+        } else if (oldData.data && Array.isArray(oldData.data)) {
+          return {
+            ...oldData,
+            data: oldData.data.map((g: Game) => 
+              g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId || g.googleCalendarEventId } : g
+            )
+          };
+        }
+        
+        return oldData;
+      });
+      // NO REFETCH - data already updated!
       addNotification("Game successfully synced to Google Calendar!", "success");
     },
-    onError: (error: any) => {
+    onError: (error: any, gameId, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousGames) {
+        queryClient.setQueryData(["games"], context.previousGames);
+      }
       addNotification(`Calendar Sync Error: ${error.message}`, "error");
     },
   });
@@ -1250,10 +1298,35 @@ export function GamesTable() {
       return res.json();
     },
     onSuccess: (data: any, variables: { gameData: any; skipCalendarSync?: boolean }) => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+      // OPTIMISTIC UPDATE: Add new game to cache immediately
+      const newGame = data.data;
+      
+      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return [...oldData, newGame];
+        } else if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: [...oldData.data.games, newGame],
+              pagination: oldData.data.pagination ? {
+                ...oldData.data.pagination,
+                total: oldData.data.pagination.total + 1
+              } : oldData.data.pagination
+            }
+          };
+        }
+        
+        return oldData;
+      });
+      
+      // NO REFETCH - data already updated!
       resetNewGameData();
 
-      const newGameId = data.data.id;
+      const newGameId = newGame.id;
       // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
       if (!variables.skipCalendarSync) {
         syncGameMutation.mutate(newGameId);
@@ -1279,8 +1352,46 @@ export function GamesTable() {
       }
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+    onMutate: async ({ id, data }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
+      
+      // Snapshot the previous value
+      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
+      
+      // OPTIMISTIC UPDATE: Update the game immediately
+      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => 
+            g.id === id ? { ...g, ...data } : g
+          );
+        } else if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => 
+                g.id === id ? { ...g, ...data } : g
+              )
+            }
+          };
+        }
+        
+        return oldData;
+      });
+      
+      return { previousGames };
+    },
+    onError: (error, variables, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousGames) {
+        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
+      }
+    },
+    onSuccess: (data, variables) => {
+      // NO REFETCH - data already updated!
       resetEditingState();
       setEditingGameData(null);
 
@@ -1309,8 +1420,47 @@ export function GamesTable() {
 
       return data;
     },
+    onMutate: async (gameId: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
+      
+      // Snapshot the previous value
+      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
+      
+      // OPTIMISTIC UPDATE: Remove the game immediately
+      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return oldData.filter((g: Game) => g.id !== gameId);
+        } else if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.filter((g: Game) => g.id !== gameId),
+              pagination: oldData.data.pagination ? {
+                ...oldData.data.pagination,
+                total: oldData.data.pagination.total - 1
+              } : oldData.data.pagination
+            }
+          };
+        }
+        
+        return oldData;
+      });
+      
+      return { previousGames };
+    },
+    onError: (error: any, gameId, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousGames) {
+        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
+      }
+      addNotification(error?.message || "Failed to delete game", "error");
+    },
     onSuccess: (data: any, gameId: string) => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+      // NO REFETCH - data already updated!
 
       // Clear stale state for the deleted game
       if (inlineEditState?.gameId === gameId) {
@@ -1354,9 +1504,6 @@ export function GamesTable() {
         addNotification("The linked Google Calendar event could not be removed.", "warning");
       }
     },
-    onError: (error: any) => {
-      addNotification(error?.message || "Failed to delete game", "error");
-    },
   });
 
   const bulkDeleteMutation = useMutation({
@@ -1380,8 +1527,49 @@ export function GamesTable() {
 
       return data;
     },
+    onMutate: async (gameIds: string[]) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
+      
+      // Snapshot the previous value
+      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
+      
+      // OPTIMISTIC UPDATE: Remove all games immediately
+      const gameIdsSet = new Set(gameIds);
+      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        if (Array.isArray(oldData)) {
+          return oldData.filter((g: Game) => !gameIdsSet.has(g.id));
+        } else if (oldData.data && Array.isArray(oldData.data.games)) {
+          const filteredGames = oldData.data.games.filter((g: Game) => !gameIdsSet.has(g.id));
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: filteredGames,
+              pagination: oldData.data.pagination ? {
+                ...oldData.data.pagination,
+                total: oldData.data.pagination.total - gameIds.length
+              } : oldData.data.pagination
+            }
+          };
+        }
+        
+        return oldData;
+      });
+      
+      return { previousGames };
+    },
+    onError: (error: any, gameIds, context: any) => {
+      // ROLLBACK: Restore previous state on error
+      if (context?.previousGames) {
+        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
+      }
+      addNotification(error?.message || "Failed to delete selected games", "error");
+    },
     onSuccess: (data: any, gameIds: string[]) => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+      // NO REFETCH - data already updated!
 
       // Clear all stale state to prevent UI inconsistencies
       clearSelectedGameIds();
@@ -1422,12 +1610,6 @@ export function GamesTable() {
       if (calendarFailures > 0) {
         addNotification(`${calendarFailures} Google Calendar event${calendarFailures === 1 ? "" : "s"} could not be removed.`, "warning");
       }
-    },
-    onError: (error: any) => {
-      addNotification(error?.message || "Failed to delete selected games", "error");
-      // Restore selections on error since we cleared them optimistically
-      // Note: selections were already cleared in handleBulkDelete, but we accept this UX
-      // as it's better than showing stale buttons
     },
   });
 
@@ -1655,6 +1837,33 @@ export function GamesTable() {
           return;
         }
 
+        // OPTIMISTIC UPDATE: Update the cache immediately without refetching
+        const previousGames = queryClient.getQueryData<any>(["games"]);
+        
+        queryClient.setQueryData(["games"], (oldData: any) => {
+          if (!oldData) return oldData;
+          
+          // Clone the data to avoid mutations
+          const updatedData = { ...oldData };
+          
+          if (Array.isArray(updatedData)) {
+            // If games is an array
+            return updatedData.map((g: Game) => 
+              g.id === gameId ? { ...g, ...updateData } : g
+            );
+          } else if (updatedData.data && Array.isArray(updatedData.data)) {
+            // If games is wrapped in { data: [...] }
+            return {
+              ...updatedData,
+              data: updatedData.data.map((g: Game) => 
+                g.id === gameId ? { ...g, ...updateData } : g
+              )
+            };
+          }
+          
+          return updatedData;
+        });
+
         const res = await fetch(`/api/games/${gameId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -1663,11 +1872,13 @@ export function GamesTable() {
         });
 
         if (!res.ok) {
+          // ROLLBACK: Restore previous data on error
+          queryClient.setQueryData(["games"], previousGames);
           const error = await res.json();
           throw new Error(error.error || "Failed to update game");
         }
 
-        await queryClient.invalidateQueries({ queryKey: ["games"] });
+        // NO REFETCH - the cache is already updated optimistically!
 
         // Clear pending changes for this game
         pendingChangesRef.current.delete(gameId);
