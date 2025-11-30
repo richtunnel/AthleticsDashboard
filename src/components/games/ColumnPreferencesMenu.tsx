@@ -70,10 +70,8 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1 }}>
-        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-          Customize Columns
-        </Typography>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1, fontWeight: 600 }}>
+        Customize Columns
         <IconButton onClick={onClose} size="small">
           <Close fontSize="small" />
         </IconButton>
