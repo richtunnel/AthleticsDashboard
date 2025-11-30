@@ -11,9 +11,10 @@ import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverview
 import { getUserWithSubscription } from "@/lib/services/subscription";
 import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
-import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
-import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
-import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
+// AI Feature Toggles - Disabled
+// import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
+// import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
+// import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarning";
 import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
@@ -90,7 +91,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {/* Calendar Connection Section - uses incremental OAuth */}
         <CalendarConnectionSection />
 
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        {/* AI Features Section - Disabled */}
+        {/* <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
               AI Features
@@ -109,7 +111,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </Box>
             </Box>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
