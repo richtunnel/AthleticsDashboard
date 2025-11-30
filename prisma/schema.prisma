@@ -45,6 +45,9 @@ model User {
   aiSchedulerEnabled         Boolean   @default(false) // Enable/disable AI-powered scheduling suggestions
   aiTravelTimesEnabled       Boolean   @default(false) // Enable/disable AI-powered travel time calculations with traffic and weather
   aiEmailGenerationEnabled   Boolean   @default(false) // Enable/disable AI-powered email generation
+  signaturePhone             String? // Phone number for email signature
+  signatureWebsite           String? // Website/link for email signature
+  signatureLogoUrl           String? // Logo URL for email signature (max 120px recommended)
   city                       String?
   lastLoginAt                DateTime?
   lastLoginDate              DateTime?

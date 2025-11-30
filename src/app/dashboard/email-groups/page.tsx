@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Box, CircularProgress } from "@mui/material";
 import { EmailGroupManager } from "@/components/communication/email/EmailGroupManager";
+import { EmailSignatureManager } from "@/components/communication/email/EmailSignatureManager";
 
 export default function EmailGroupsPage() {
   const { status } = useSession();
@@ -31,6 +32,7 @@ export default function EmailGroupsPage() {
   return (
     <Box sx={{ maxWidth: 1024, mx: "auto", py: 4 }}>
       <EmailGroupManager />
+      <EmailSignatureManager />
     </Box>
   );
 }
