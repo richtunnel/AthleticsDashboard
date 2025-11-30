@@ -50,7 +50,8 @@ export default function ComposeEmailPage() {
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
-  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(["date", "sport", "level", "opponent", "location", "status"]);
+  // Always show all important columns in the email preview table, regardless of user's column visibility preferences in GamesTable
+  const visibleColumnIds = useMemo(() => ["date", "sport", "level", "opponent", "location", "status", "time", "notes"], []);
   const [recipientCategory, setRecipientCategory] = useState("");
   const [customRecipients, setCustomRecipients] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
@@ -98,16 +99,6 @@ export default function ComposeEmailPage() {
     const storedGames = sessionStorage.getItem("selectedGames");
     const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
     const storedEmailDraft = sessionStorage.getItem("emailDraft");
-    const storedVisibleColumns = sessionStorage.getItem("gamesTableVisibleColumns");
-
-    if (storedVisibleColumns) {
-      try {
-        const visibleCols = JSON.parse(storedVisibleColumns);
-        setVisibleColumnIds(visibleCols);
-      } catch (e) {
-        // Ignore parse errors
-      }
-    }
 
     if (storedGames) {
       const games = JSON.parse(storedGames);
