@@ -1,6 +1,6 @@
 /**
  * Game Time Pattern Detection Service
- * 
+ *
  * This service analyzes existing games to detect patterns in game times and provides:
  * 1. Auto-population of game times based on detected patterns
  * 2. Conflict detection for games with same sport, level, and date
@@ -23,7 +23,7 @@ interface Game {
 }
 
 interface TimePattern {
-  type: 'single' | 'alternating' | 'day_of_week' | 'progression' | 'mixed';
+  type: "single" | "alternating" | "day_of_week" | "progression" | "mixed";
   confidence: number; // 0-1 score
   predictedTime: string | null;
   pattern: string; // Human-readable description
@@ -57,30 +57,30 @@ export class GameTimePatternService {
   static detectTimePattern(games: Game[], currentDate?: string): TimePattern {
     if (!games || games.length === 0) {
       return {
-        type: 'mixed',
+        type: "mixed",
         confidence: 0,
         predictedTime: null,
-        pattern: 'No games available to detect pattern',
+        pattern: "No games available to detect pattern",
         times: [],
       };
     }
 
     // Filter games with times
-    const gamesWithTime = games.filter(g => g.time !== null && g.time !== '');
-    
+    const gamesWithTime = games.filter((g) => g.time !== null && g.time !== "");
+
     if (gamesWithTime.length === 0) {
       return {
-        type: 'mixed',
+        type: "mixed",
         confidence: 0,
         predictedTime: null,
-        pattern: 'No games with times found',
+        pattern: "No games with times found",
         times: [],
       };
     }
 
     // Analyze patterns
     const analysis = this.analyzeTimePatterns(gamesWithTime, currentDate);
-    
+
     // Determine best pattern and predict time
     return this.selectBestPattern(analysis, gamesWithTime);
   }
@@ -91,21 +91,21 @@ export class GameTimePatternService {
   private static analyzeTimePatterns(games: Game[], currentDate?: string): PatternAnalysis {
     const allTimes = new Map<string, number>();
     const dayOfWeek = new Map<number, { times: string[]; count: number }>();
-    
+
     // Count time occurrences
-    games.forEach(game => {
+    games.forEach((game) => {
       if (!game.time) return;
-      
+
       allTimes.set(game.time, (allTimes.get(game.time) || 0) + 1);
-      
+
       // Track by day of week
       const gameDate = new Date(game.date);
       const dayNum = gameDate.getDay();
-      
+
       if (!dayOfWeek.has(dayNum)) {
         dayOfWeek.set(dayNum, { times: [], count: 0 });
       }
-      
+
       const dayData = dayOfWeek.get(dayNum)!;
       if (!dayData.times.includes(game.time)) {
         dayData.times.push(game.time);
@@ -116,7 +116,7 @@ export class GameTimePatternService {
     // Check for single dominant time (80%+ threshold)
     let sameTime: { time: string; count: number; percentage: number } | null = null;
     const totalGames = games.length;
-    
+
     for (const [time, count] of allTimes.entries()) {
       const percentage = count / totalGames;
       if (percentage >= 0.8) {
@@ -127,13 +127,16 @@ export class GameTimePatternService {
 
     // Check for alternating pattern (2-3 times alternating)
     let alternating: { times: string[]; count: number; percentage: number } | null = null;
-    
+
     if (allTimes.size >= 2 && allTimes.size <= 3 && !sameTime) {
       const sortedTimes = Array.from(allTimes.keys()).sort();
-      const pattern = this.checkAlternatingPattern(games.map(g => g.time!), sortedTimes);
-      
+      const pattern = this.checkAlternatingPattern(
+        games.map((g) => g.time!),
+        sortedTimes
+      );
+
       if (pattern.isAlternating) {
-        const count = games.filter(g => sortedTimes.includes(g.time!)).length;
+        const count = games.filter((g) => sortedTimes.includes(g.time!)).length;
         alternating = {
           times: sortedTimes,
           count,
@@ -155,17 +158,17 @@ export class GameTimePatternService {
    */
   private static checkAlternatingPattern(times: string[], expectedTimes: string[]): { isAlternating: boolean; nextTime: string | null } {
     if (times.length < 3) return { isAlternating: false, nextTime: null };
-    
+
     let alternations = 0;
     for (let i = 1; i < times.length; i++) {
       if (times[i] !== times[i - 1]) {
         alternations++;
       }
     }
-    
+
     // If at least 60% of transitions are alternations
     const isAlternating = alternations / (times.length - 1) >= 0.6;
-    
+
     // Predict next time based on last time
     let nextTime: string | null = null;
     if (isAlternating && times.length > 0) {
@@ -175,7 +178,7 @@ export class GameTimePatternService {
         nextTime = expectedTimes[(lastIndex + 1) % expectedTimes.length];
       }
     }
-    
+
     return { isAlternating, nextTime };
   }
 
@@ -186,7 +189,7 @@ export class GameTimePatternService {
     // Priority 1: Single dominant time (80%+ of games)
     if (analysis.sameTime) {
       return {
-        type: 'single',
+        type: "single",
         confidence: analysis.sameTime.percentage,
         predictedTime: analysis.sameTime.time,
         pattern: `Most games (${Math.round(analysis.sameTime.percentage * 100)}%) start at ${this.formatTimeDisplay(analysis.sameTime.time)}`,
@@ -197,29 +200,28 @@ export class GameTimePatternService {
     // Priority 2: Alternating pattern (60%+ consistency)
     if (analysis.alternating && analysis.alternating.percentage >= 0.6) {
       const pattern = this.checkAlternatingPattern(
-        games.map(g => g.time!),
+        games.map((g) => g.time!),
         analysis.alternating.times
       );
-      
+
       return {
-        type: 'alternating',
+        type: "alternating",
         confidence: analysis.alternating.percentage,
         predictedTime: pattern.nextTime,
-        pattern: `Games alternate between ${analysis.alternating.times.map(t => this.formatTimeDisplay(t)).join(' and ')}`,
+        pattern: `Games alternate between ${analysis.alternating.times.map((t) => this.formatTimeDisplay(t)).join(" and ")}`,
         times: analysis.alternating.times,
       };
     }
 
     // Priority 3: Most common time (even if < 80%)
     if (analysis.allTimes.size > 0) {
-      const sortedTimes = Array.from(analysis.allTimes.entries())
-        .sort((a, b) => b[1] - a[1]);
-      
+      const sortedTimes = Array.from(analysis.allTimes.entries()).sort((a, b) => b[1] - a[1]);
+
       const [mostCommonTime, count] = sortedTimes[0];
       const confidence = count / games.length;
-      
+
       return {
-        type: 'mixed',
+        type: "mixed",
         confidence,
         predictedTime: mostCommonTime,
         pattern: `Most common time is ${this.formatTimeDisplay(mostCommonTime)} (${Math.round(confidence * 100)}% of games)`,
@@ -229,10 +231,10 @@ export class GameTimePatternService {
 
     // Fallback: No clear pattern
     return {
-      type: 'mixed',
+      type: "mixed",
       confidence: 0,
       predictedTime: null,
-      pattern: 'No clear pattern detected',
+      pattern: "No clear pattern detected",
       times: [],
     };
   }
@@ -240,14 +242,7 @@ export class GameTimePatternService {
   /**
    * Detects conflicts for a given game
    */
-  static detectConflicts(
-    games: Game[],
-    targetDate: string,
-    targetTime: string | null,
-    targetSport: string,
-    targetLevel: string,
-    excludeGameId?: string
-  ): ConflictInfo {
+  static detectConflicts(games: Game[], targetDate: any, targetTime: string | null, targetSport: string, targetLevel: string, excludeGameId?: string): ConflictInfo {
     if (!targetTime || !targetDate) {
       return {
         hasConflict: false,
@@ -257,32 +252,29 @@ export class GameTimePatternService {
     }
 
     // Find games on same date with same sport and level
-    const potentialConflicts = games.filter(game => {
+    const potentialConflicts = games.filter((game) => {
       if (excludeGameId && game.id === excludeGameId) return false;
-      
+
       // Check if same date
-      const gameDate = new Date(game.date).toISOString().split('T')[0];
-      const targetDateNorm = new Date(targetDate).toISOString().split('T')[0];
-      
+      const gameDate = new Date(game.date).toISOString().split("T")[0];
+      const targetDateNorm = new Date(targetDate).toISOString().split("T")[0];
+
       if (gameDate !== targetDateNorm) return false;
-      
+
       // Check if same sport and level
-      return (
-        game.homeTeam.sport.name === targetSport &&
-        game.homeTeam.level === targetLevel
-      );
+      return game.homeTeam.sport.name === targetSport && game.homeTeam.level === targetLevel;
     });
 
     // Check for time conflicts
     const conflicts = potentialConflicts
-      .filter(game => game.time === targetTime)
-      .map(game => ({
+      .filter((game) => game.time === targetTime)
+      .map((game) => ({
         gameId: game.id,
         date: game.date,
         time: game.time!,
         sport: game.homeTeam.sport.name,
         level: game.homeTeam.level,
-        opponent: game.opponent?.name || 'TBD',
+        opponent: game.opponent?.name || "TBD",
       }));
 
     return {
@@ -295,39 +287,24 @@ export class GameTimePatternService {
   /**
    * Generates suggested alternative times based on common patterns
    */
-  private static generateSuggestedTimes(
-    games: Game[],
-    targetDate: string,
-    targetSport: string,
-    targetLevel: string
-  ): string[] {
+  private static generateSuggestedTimes(games: Game[], targetDate: string, targetSport: string, targetLevel: string): string[] {
     // Get games for same sport/level
-    const relevantGames = games.filter(
-      game =>
-        game.homeTeam.sport.name === targetSport &&
-        game.homeTeam.level === targetLevel &&
-        game.time !== null
-    );
+    const relevantGames = games.filter((game) => game.homeTeam.sport.name === targetSport && game.homeTeam.level === targetLevel && game.time !== null);
 
     // Get all used times for this date
-    const targetDateNorm = new Date(targetDate).toISOString().split('T')[0];
+    const targetDateNorm = new Date(targetDate).toISOString().split("T")[0];
     const usedTimes = new Set(
       games
-        .filter(game => {
-          const gameDate = new Date(game.date).toISOString().split('T')[0];
-          return (
-            gameDate === targetDateNorm &&
-            game.homeTeam.sport.name === targetSport &&
-            game.homeTeam.level === targetLevel &&
-            game.time !== null
-          );
+        .filter((game) => {
+          const gameDate = new Date(game.date).toISOString().split("T")[0];
+          return gameDate === targetDateNorm && game.homeTeam.sport.name === targetSport && game.homeTeam.level === targetLevel && game.time !== null;
         })
-        .map(game => game.time!)
+        .map((game) => game.time!)
     );
 
     // Get common times from relevant games
     const timeFrequency = new Map<string, number>();
-    relevantGames.forEach(game => {
+    relevantGames.forEach((game) => {
       if (game.time) {
         timeFrequency.set(game.time, (timeFrequency.get(game.time) || 0) + 1);
       }
@@ -337,13 +314,13 @@ export class GameTimePatternService {
     const suggestions = Array.from(timeFrequency.entries())
       .sort((a, b) => b[1] - a[1])
       .map(([time]) => time)
-      .filter(time => !usedTimes.has(time))
+      .filter((time) => !usedTimes.has(time))
       .slice(0, 5); // Top 5 suggestions
 
     // If no suggestions, provide common game times
     if (suggestions.length === 0) {
-      const commonTimes = ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '19:00'];
-      return commonTimes.filter(time => !usedTimes.has(time)).slice(0, 5);
+      const commonTimes = ["15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00", "19:00"];
+      return commonTimes.filter((time) => !usedTimes.has(time)).slice(0, 5);
     }
 
     return suggestions;
@@ -353,13 +330,13 @@ export class GameTimePatternService {
    * Formats time for display (HH:MM to h:mm AM/PM)
    */
   private static formatTimeDisplay(time: string): string {
-    if (!time) return 'TBD';
-    
+    if (!time) return "TBD";
+
     try {
-      const [hours, minutes] = time.split(':').map(Number);
-      const period = hours >= 12 ? 'PM' : 'AM';
+      const [hours, minutes] = time.split(":").map(Number);
+      const period = hours >= 12 ? "PM" : "AM";
       const displayHours = hours % 12 || 12;
-      return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+      return `${displayHours}:${minutes.toString().padStart(2, "0")} ${period}`;
     } catch {
       return time;
     }
