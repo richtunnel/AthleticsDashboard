@@ -466,17 +466,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
-              <MenuItem
-                component={Link}
-                href="/dashboard/support"
-                onClick={handleClose}
-              >
+              <MenuItem component={Link} href="/dashboard/support" onClick={handleClose}>
                 <ListItemIcon>
                   <SupportAgent fontSize="small" />
                 </ListItemIcon>
                 Support
               </MenuItem>
-              <MenuItem
+              {/* <MenuItem
                 onClick={() => {
                   handleClose();
                   setSupportModalOpen(true);
@@ -485,8 +481,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <ListItemIcon>
                   <HelpOutline fontSize="small" />
                 </ListItemIcon>
-                Help
-              </MenuItem>
+                Account
+              </MenuItem> */}
               <MenuItem
                 onClick={() => {
                   handleClose();
