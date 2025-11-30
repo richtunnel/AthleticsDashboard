@@ -103,10 +103,22 @@ const getColumnLabel = (columnId: string): string => {
 };
 
 // Helper to get cell value for a column
-const getCellValue = (game: Game, columnId: string): string => {
+const getCellValue = (game: Game, columnId: string, columnMapping?: Record<string, string>): string => {
   // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
+    
+    // CRITICAL FIX: Check if this imported column is mapped to a standard field like "date"
+    const mapping = columnMapping?.[columnName];
+    if (mapping === "date") {
+      // This imported column is mapped to date - return game.date
+      return game.date;
+    } else if (mapping === "time") {
+      // This imported column is mapped to time - return game.time
+      return game.time || "TBD";
+    }
+    
+    // Otherwise, look in customFields for preserved columns
     const customFields = game.customFields || {};
     return customFields[columnName] || "—";
   }
@@ -185,6 +197,9 @@ export default function ComposeEmailPage() {
   // Determine visible columns based on user's import preferences
   // If they imported a spreadsheet, show ONLY those columns (no default columns)
   const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences), [tablePreferences]);
+  
+  // Extract columnMapping for checking imported column mappings
+  const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
 
   const recipientCategories = useMemo(() => {
     const emailGroupCategories = emailGroups.map((group) => ({
@@ -406,16 +421,20 @@ export default function ComposeEmailPage() {
         
         let cellContent = "";
         
+        // Check if this is an imported column mapped to date
+        const isImportedDateColumn = columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date";
+        
         // Special handling for certain columns
-        if (columnId === "date") {
-          cellContent = escapeHtml(formatFullDate(game.date));
+        if (columnId === "date" || isImportedDateColumn) {
+          const rawValue = getCellValue(game, columnId, columnMapping);
+          cellContent = escapeHtml(formatFullDate(rawValue));
         } else if (columnId === "status") {
           const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
           cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
         } else if (columnId === "isHome" || columnId === "location") {
           cellContent = game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD");
         } else {
-          const rawValue = getCellValue(game, columnId);
+          const rawValue = getCellValue(game, columnId, columnMapping);
           cellContent = escapeHtml(rawValue);
         }
         
@@ -534,7 +553,7 @@ export default function ComposeEmailPage() {
                           // Skip actions column in email preview
                           if (columnId === "actions") return null;
                           
-                          const cellValue = getCellValue(game, columnId);
+                          const cellValue = getCellValue(game, columnId, columnMapping);
                           
                           // Special rendering for status column with chip
                           if (columnId === "status") {
@@ -545,11 +564,11 @@ export default function ComposeEmailPage() {
                             );
                           }
                           
-                          // Special formatting for date column
-                          if (columnId === "date") {
+                          // Special formatting for date column OR imported date column
+                          if (columnId === "date" || (columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date")) {
                             return (
                               <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
-                                {formatGameDate(game.date)}
+                                {formatGameDate(cellValue)}
                               </TableCell>
                             );
                           }
