@@ -1013,8 +1013,9 @@ export function GamesTable() {
       const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
       setColumnState((prev) => {
         const previousState = prev.map((column) => ({ ...column }));
-        const cleanedOrder = validOrder.filter((id) => defaultColumnOrder.includes(id));
-        const nextOrder = [...cleanedOrder];
+        // FIXED: Don't filter by defaultColumnOrder - this was removing newly added custom columns
+        // Instead, use the provided order directly and append any missing columns from defaultColumnOrder
+        const nextOrder = [...validOrder];
         defaultColumnOrder.forEach((id) => {
           if (!nextOrder.includes(id)) {
             nextOrder.push(id);
@@ -3021,19 +3022,19 @@ export function GamesTable() {
         }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn;
-          if (!customColumn) {
-            return null;
-          }
+          const columnLabel = customColumn?.name || getColumnLabel(column.id);
+          const customId = customColumn?.id || column.id.split(":")[1];
+          
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                {renderEditableColumnTitle(column.id, customColumn.name || "Custom", true, column.id)}
+                {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
-                  columnId={customColumn.id}
-                  columnName={getColumnLabel(column.id)}
+                  columnId={customId}
+                  columnName={columnLabel}
                   columnType="text"
-                  uniqueValues={uniqueValues[customColumn.id] || []}
-                  currentFilter={columnFilters[customColumn.id]}
+                  uniqueValues={uniqueValues[customId] || []}
+                  currentFilter={columnFilters[customId]}
                   onFilterChange={handleColumnFilterChange}
                 />
                 <Tooltip title="Hide column">
@@ -3077,40 +3078,33 @@ export function GamesTable() {
       case "sport":
         return (
           <TableCell key="sport" sx={{ ...getRequiredCellSx("sport"), minWidth: 180 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <TextField
-                size="small"
-                value={newGameData.sport}
-                onChange={(e) => {
-                  const sport = e.target.value;
-                  updateNewGameData({ sport });
-                  // Reset level if not valid for new sport
-                  const levels = getLevelsForSport(sport);
-                  if (newGameData.level && !levels.includes(newGameData.level)) {
-                    updateNewGameData({ level: "" });
-                  }
-                }}
-                error={isRequiredFieldEmpty("sport")}
-                placeholder="Enter sport..."
-                sx={{
-                  minWidth: 140,
-                  "& .MuiOutlinedInput-root": {
-                    bgcolor: "transparent",
-                    "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
-                    "&:hover fieldset": { borderColor: "primary.main" },
-                    "&.Mui-focused fieldset": { borderColor: "primary.main" },
-                  },
-                  "& .MuiInputBase-input": {
-                    fontSize: 13,
-                  },
-                }}
-              />
-              <Tooltip title="Add new sport">
-                <IconButton size="small" onClick={() => setShowAddTeam(true)} sx={{ p: 0.5 }}>
-                  <Add fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </Stack>
+            <TextField
+              size="small"
+              value={newGameData.sport}
+              onChange={(e) => {
+                const sport = e.target.value;
+                updateNewGameData({ sport });
+                // Reset level if not valid for new sport
+                const levels = getLevelsForSport(sport);
+                if (newGameData.level && !levels.includes(newGameData.level)) {
+                  updateNewGameData({ level: "" });
+                }
+              }}
+              error={isRequiredFieldEmpty("sport")}
+              placeholder="Enter sport..."
+              sx={{
+                minWidth: 140,
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "transparent",
+                  "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                  "&:hover fieldset": { borderColor: "primary.main" },
+                  "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                },
+                "& .MuiInputBase-input": {
+                  fontSize: 13,
+                },
+              }}
+            />
           </TableCell>
         );
       case "level":
@@ -3381,24 +3375,24 @@ export function GamesTable() {
         }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
-          if (!customColumn) return null;
+          const customId = customColumn?.id || column.id.split(":")[1];
 
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
               <TextField
                 size="small"
                 fullWidth
-                value={newGameData.customData?.[customColumn.id] || ""}
+                value={newGameData.customData?.[customId] || ""}
                 onChange={(e) => {
                   const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
                   updateNewGameData({
                     customData: {
                       ...(newGameData.customData || {}),
-                      [customColumn.id]: value,
+                      [customId]: value,
                     },
                   });
                 }}
-                placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                placeholder={`Enter ${customColumn?.name?.toLowerCase?.() || "value"}`}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     bgcolor: "transparent",
@@ -3765,8 +3759,8 @@ export function GamesTable() {
       default:
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
-          if (!customColumn) return null;
-          const columnType = customColumn.type || "TEXT";
+          const customId = customColumn?.id || column.id.split(":")[1];
+          const columnType = customColumn?.type || "TEXT";
 
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
@@ -3775,8 +3769,8 @@ export function GamesTable() {
                   type="time"
                   size="small"
                   fullWidth
-                  value={editingCustomData[customColumn.id] || ""}
-                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                  value={editingCustomData[customId] || ""}
+                  onChange={(e) => handleCustomFieldChange(customId, e.target.value)}
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       bgcolor: "transparent",
@@ -3792,8 +3786,8 @@ export function GamesTable() {
                   type="datetime-local"
                   size="small"
                   fullWidth
-                  value={editingCustomData[customColumn.id] || ""}
-                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
+                  value={editingCustomData[customId] || ""}
+                  onChange={(e) => handleCustomFieldChange(customId, e.target.value)}
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       bgcolor: "transparent",
@@ -3808,8 +3802,8 @@ export function GamesTable() {
                 <Select
                   size="small"
                   fullWidth
-                  value={editingCustomData[customColumn.id] || ""}
-                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value as string)}
+                  value={editingCustomData[customId] || ""}
+                  onChange={(e) => handleCustomFieldChange(customId, e.target.value as string)}
                   displayEmpty
                   sx={{
                     fontSize: 13,
@@ -3830,9 +3824,9 @@ export function GamesTable() {
                 <TextField
                   size="small"
                   fullWidth
-                  value={editingCustomData[customColumn.id] || ""}
-                  onChange={(e) => handleCustomFieldChange(customColumn.id, e.target.value)}
-                  placeholder={`Enter ${customColumn.name?.toLowerCase?.() || "value"}`}
+                  value={editingCustomData[customId] || ""}
+                  onChange={(e) => handleCustomFieldChange(customId, e.target.value)}
+                  placeholder={`Enter ${customColumn?.name?.toLowerCase?.() || "value"}`}
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       bgcolor: "transparent",
@@ -4571,12 +4565,12 @@ export function GamesTable() {
         }
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
-          if (!customColumn) return null;
-          const fieldKey = `custom:${customColumn.id}` as InlineEditField;
+          const customId = customColumn?.id || column.id.split(":")[1];
+          const fieldKey = `custom:${customId}` as InlineEditField;
           const customData = (game.customData as any) || {};
-          const cellValue = customData[customColumn.id] || "";
+          const cellValue = customData[customId] || "";
           const isCustomEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
-          const columnType = customColumn.type || "TEXT";
+          const columnType = customColumn?.type || "TEXT";
 
           // Format display value based on column type
           const displayValue = (() => {
