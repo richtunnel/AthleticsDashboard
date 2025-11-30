@@ -4237,7 +4237,7 @@ export function GamesTable() {
               <Box sx={{ py: 1 }}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
-                    open={isEditing}
+                    open={true}
                     onClose={() => handleInlineBlur(game)}
                     value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
                     onChange={(newValue) => {
