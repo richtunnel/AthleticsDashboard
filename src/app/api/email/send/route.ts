@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
         signaturePhone: true,
         signatureWebsite: true,
         signatureLogoUrl: true,
+        signatureText: true,
       } as any,
     }) as any;
 
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
       signaturePhone: user.signaturePhone,
       signatureWebsite: user.signatureWebsite,
       signatureLogoUrl: user.signatureLogoUrl,
+      signatureText: user.signatureText,
     }) : "";
 
     let toEmails: string[] = [];
