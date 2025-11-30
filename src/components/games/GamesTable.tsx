@@ -1949,6 +1949,8 @@ export function GamesTable() {
       // Refresh the games list AND table preferences (to load new custom columns)
       queryClient.invalidateQueries({ queryKey: ["games"] });
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+      // Refresh imported columns for calendar group mappings
+      queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
     },
     [queryClient, addNotification]
   );
