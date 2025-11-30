@@ -5692,10 +5692,12 @@ function isColumnId(value: string): value is ColumnId {
 function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePreferencesData | null, defaultOrder: ColumnId[], initialPreferencesApplied: boolean): ColumnStateConfig[] {
   const hiddenSet = new Set<ColumnId>(Array.isArray(preferences?.hidden) ? (preferences!.hidden as ColumnId[]) : []);
 
-  const preferenceOrder = normalizePreferenceOrder(preferences?.order, defaultOrder);
-
   // Check if user has imported columns - if so, NEVER merge default columns back in
-  const hasImportedColumns = preferences?.customColumns && (preferences.customColumns as string[]).length > 0;
+  const hasImportedColumns: boolean = !!(preferences?.customColumns && (preferences.customColumns as string[]).length > 0);
+
+  // CRITICAL FIX: Pass hasImportedColumns flag to normalizePreferenceOrder
+  // When user has imported columns, we should NOT filter against defaultOrder
+  const preferenceOrder = normalizePreferenceOrder(preferences?.order, defaultOrder, hasImportedColumns);
 
   // CRITICAL FIX: Always respect saved preferences order when available
   // This ensures column reordering persists across page refreshes
@@ -5731,11 +5733,19 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
   }));
 }
 
-function normalizePreferenceOrder(order: unknown, defaultOrder: ColumnId[]): ColumnId[] {
+function normalizePreferenceOrder(order: unknown, defaultOrder: ColumnId[], hasImportedColumns: boolean = false): ColumnId[] {
   if (!Array.isArray(order)) {
     return [];
   }
 
+  // CRITICAL FIX: When user has imported columns, do NOT filter against defaultOrder
+  // This prevents the bug where reordered custom columns get reset to default order
+  if (hasImportedColumns) {
+    // Just validate that all values are valid ColumnIds, don't filter against defaultOrder
+    return order.map((value) => String(value) as ColumnId).filter((id) => isColumnId(id));
+  }
+
+  // For default columns, filter against defaultOrder to ensure consistency
   return order.map((value) => String(value) as ColumnId).filter((id) => defaultOrder.includes(id));
 }
 
