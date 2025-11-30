@@ -39,6 +39,7 @@ interface EmailSignature {
   signaturePhone: string;
   signatureWebsite: string;
   signatureLogoUrl: string;
+  signatureText: string;
 }
 
 async function fetchEmailSignature(): Promise<EmailSignature> {
@@ -47,7 +48,7 @@ async function fetchEmailSignature(): Promise<EmailSignature> {
     throw new Error("Failed to fetch email signature");
   }
   const data = await res.json();
-  return data.data || { signaturePhone: "", signatureWebsite: "", signatureLogoUrl: "" };
+  return data.data || { signaturePhone: "", signatureWebsite: "", signatureLogoUrl: "", signatureText: "" };
 }
 
 async function updateEmailSignature(signature: EmailSignature): Promise<EmailSignature> {
@@ -89,6 +90,7 @@ export function EmailSignatureManager() {
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [signatureText, setSignatureText] = useState("");
 
   const showMessage = (message: string, severity: AlertColor = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -108,6 +110,7 @@ export function EmailSignatureManager() {
       setPhone(signature.signaturePhone || "");
       setWebsite(signature.signatureWebsite || "");
       setLogoUrl(signature.signatureLogoUrl || "");
+      setSignatureText(signature.signatureText || "");
     }
   }, [signature]);
 
@@ -138,6 +141,7 @@ export function EmailSignatureManager() {
       signaturePhone: phone,
       signatureWebsite: website,
       signatureLogoUrl: logoUrl,
+      signatureText: signatureText,
     });
   };
 
@@ -166,7 +170,7 @@ export function EmailSignatureManager() {
   };
 
   const generatePreviewHTML = () => {
-    if (!phone && !website && !logoUrl) {
+    if (!phone && !website && !logoUrl && !signatureText) {
       return '<p style="color: #9ca3af; font-style: italic;">No signature configured</p>';
     }
 
@@ -178,12 +182,16 @@ export function EmailSignatureManager() {
     
     html += '<div style="font-size: 14px; color: #374151;">';
     
+    if (signatureText) {
+      html += `<div style="margin-bottom: 8px; white-space: pre-wrap;">${signatureText}</div>`;
+    }
+    
     if (phone) {
-      html += `<div style="margin-bottom: 4px;">📞 ${phone}</div>`;
+      html += `<div style="margin-bottom: 4px;">${phone}</div>`;
     }
     
     if (website) {
-      html += `<div style="margin-bottom: 4px;">🔗 <a href="${website}" style="color: #2563eb; text-decoration: none;">${website}</a></div>`;
+      html += `<div style="margin-bottom: 4px;"><a href="${website}" style="color: #2563eb; text-decoration: none;">${website}</a></div>`;
     }
     
     html += '</div></div>';
@@ -206,7 +214,7 @@ export function EmailSignatureManager() {
             </Box>
 
             <Alert severity="info" icon={<InfoOutlinedIcon />}>
-              Your signature will include your logo (max 120px), phone number, and website link.
+              Your signature will include your logo (max 120px), custom text, phone number, and website link.
             </Alert>
 
             <Divider />
@@ -262,6 +270,18 @@ export function EmailSignatureManager() {
                   Recommended max size: 120px. Max file size: 2MB. Supported: JPEG, PNG, GIF, WebP
                 </Typography>
               </Box>
+
+              {/* Custom Text */}
+              <TextField
+                label="Signature Text"
+                value={signatureText}
+                onChange={(e) => setSignatureText(e.target.value)}
+                placeholder="e.g., Best regards,&#10;John Smith&#10;Athletic Director"
+                fullWidth
+                multiline
+                rows={3}
+                helperText="Add custom text to your signature (e.g., name, title, greeting)"
+              />
 
               {/* Phone Number */}
               <TextField
