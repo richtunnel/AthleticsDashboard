@@ -353,8 +353,8 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
             )}
             fullWidth
           />
-          <TextField label={`${yourTeamName} (Your Team)`} type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
-          <TextField label={opponentName} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+          <TextField label={`${yourTeamName} (Your Team)`} placeholder="Enter Score (Your Team)" type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+          <TextField label={opponentName} placeholder={`Enter Score (${opponentName})`} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
           {getResultPreview()}
         </Stack>
       </DialogContent>
