@@ -33,6 +33,7 @@ interface Game {
     name: string;
   };
   notes?: string;
+  customFields?: Record<string, any>; // For imported CSV columns
 }
 
 const STATIC_RECIPIENT_CATEGORIES = [
@@ -42,6 +43,71 @@ const STATIC_RECIPIENT_CATEGORIES = [
   // { value: "coaches", label: "Coaches" },
   // { value: "staff", label: "Staff Members" },
 ];
+
+// Helper to get column label
+const getColumnLabel = (columnId: string): string => {
+  // Handle imported columns
+  if (columnId.startsWith("imported:")) {
+    const columnName = columnId.split(":")[1];
+    return columnName; // Use the CSV column name as-is
+  }
+
+  // Return default labels
+  switch (columnId) {
+    case "date":
+      return "Date";
+    case "sport":
+      return "Sport";
+    case "level":
+      return "Level";
+    case "opponent":
+      return "Opponent";
+    case "isHome":
+    case "location":
+      return "Location";
+    case "time":
+      return "Time";
+    case "status":
+      return "Confirmed";
+    case "notes":
+      return "Notes";
+    default:
+      return columnId;
+  }
+};
+
+// Helper to get cell value for a column
+const getCellValue = (game: Game, columnId: string): string => {
+  // Handle imported columns
+  if (columnId.startsWith("imported:")) {
+    const columnName = columnId.split(":")[1];
+    const customFields = game.customFields || {};
+    return customFields[columnName] || "—";
+  }
+
+  // Handle default columns
+  switch (columnId) {
+    case "date":
+      return game.date;
+    case "sport":
+      return game.homeTeam.sport.name;
+    case "level":
+      return formatLevelDisplay(game.homeTeam.level);
+    case "opponent":
+      return game.opponent?.name || "TBD";
+    case "isHome":
+    case "location":
+      return game.isHome ? "Home" : game.venue?.name || "TBD";
+    case "time":
+      return game.time || "TBD";
+    case "status":
+      return game.status;
+    case "notes":
+      return game.notes || "";
+    default:
+      return "";
+  }
+};
 
 export default function ComposeEmailPage() {
   const router = useRouter();
@@ -272,16 +338,15 @@ export default function ComposeEmailPage() {
     // Add games table
     html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem;">';
 
-    // Table header
+    // Table header - dynamically generate based on visible columns
     html += "<thead>";
     html += '<tr style="background-color: #23252a; color: white;">';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Date</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Time</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Sport</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Level</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Opponent</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Location</th>';
-    html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">Status</th>';
+    visibleColumnIds.forEach((columnId) => {
+      // Skip actions column in email
+      if (columnId === "actions") return;
+      const label = getColumnLabel(columnId);
+      html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(label)}</th>`;
+    });
     html += "</tr>";
     html += "</thead>";
 
@@ -290,22 +355,37 @@ export default function ComposeEmailPage() {
     selectedGames.forEach((game, index) => {
       const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
       html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(formatFullDate(game.date))}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.time || "TBD")}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.homeTeam.sport.name)}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(formatLevelDisplay(game.homeTeam.level))}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(game.opponent?.name || "TBD")}</td>`;
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD")}</td>`;
-
-      // Status with color
-      const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
-      html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span></td>`;
+      
+      // Generate cells dynamically based on visible columns
+      visibleColumnIds.forEach((columnId) => {
+        // Skip actions column in email
+        if (columnId === "actions") return;
+        
+        let cellContent = "";
+        
+        // Special handling for certain columns
+        if (columnId === "date") {
+          cellContent = escapeHtml(formatFullDate(game.date));
+        } else if (columnId === "status") {
+          const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
+          cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
+        } else if (columnId === "isHome" || columnId === "location") {
+          cellContent = game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD");
+        } else {
+          const rawValue = getCellValue(game, columnId);
+          cellContent = escapeHtml(rawValue);
+        }
+        
+        html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${cellContent}</td>`;
+      });
+      
       html += "</tr>";
 
-      // Add notes row if present
-      if (game.notes) {
+      // Add notes row if notes column is visible and game has notes
+      if (visibleColumnIds.includes("notes") && game.notes) {
+        const colspan = visibleColumnIds.filter(id => id !== "actions").length;
         html += `<tr style="background-color: ${bgColor};">`;
-        html += `<td colspan="7" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
+        html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
         html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
         html += "</td>";
         html += "</tr>";
@@ -393,31 +473,51 @@ export default function ComposeEmailPage() {
                 <Table size="small" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#f8fafc" }}>
-                      {visibleColumnIds.includes("date") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Date</TableCell>}
-                      {visibleColumnIds.includes("sport") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Sport</TableCell>}
-                      {visibleColumnIds.includes("level") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Level</TableCell>}
-                      {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Opponent</TableCell>}
-                      {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Location</TableCell>}
-                      {visibleColumnIds.includes("status") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Status</TableCell>}
-                      {visibleColumnIds.includes("time") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Time</TableCell>}
-                      {visibleColumnIds.includes("notes") && <TableCell sx={{ fontWeight: 600, fontSize: '0.85rem' }}>Notes</TableCell>}
+                      {visibleColumnIds.map((columnId) => {
+                        // Skip actions column in email preview
+                        if (columnId === "actions") return null;
+                        return (
+                          <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                            {getColumnLabel(columnId)}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {selectedGames.map((game) => (
                       <TableRow key={game.id}>
-                        {visibleColumnIds.includes("date") && <TableCell sx={{ fontSize: '0.85rem' }}>{formatGameDate(game.date)}</TableCell>}
-                        {visibleColumnIds.includes("sport") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.homeTeam.sport.name}</TableCell>}
-                        {visibleColumnIds.includes("level") && <TableCell sx={{ fontSize: '0.85rem' }}>{formatLevelDisplay(game.homeTeam.level)}</TableCell>}
-                        {visibleColumnIds.includes("opponent") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.opponent?.name || "TBD"}</TableCell>}
-                        {(visibleColumnIds.includes("location") || visibleColumnIds.includes("isHome")) && <TableCell sx={{ fontSize: '0.85rem' }}>{game.isHome ? "Home" : game.venue?.name || "TBD"}</TableCell>}
-                        {visibleColumnIds.includes("status") && (
-                          <TableCell sx={{ fontSize: '0.85rem' }}>
-                            <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
-                          </TableCell>
-                        )}
-                        {visibleColumnIds.includes("time") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.time || "TBD"}</TableCell>}
-                        {visibleColumnIds.includes("notes") && <TableCell sx={{ fontSize: '0.85rem' }}>{game.notes || ""}</TableCell>}
+                        {visibleColumnIds.map((columnId) => {
+                          // Skip actions column in email preview
+                          if (columnId === "actions") return null;
+                          
+                          const cellValue = getCellValue(game, columnId);
+                          
+                          // Special rendering for status column with chip
+                          if (columnId === "status") {
+                            return (
+                              <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                                <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
+                              </TableCell>
+                            );
+                          }
+                          
+                          // Special formatting for date column
+                          if (columnId === "date") {
+                            return (
+                              <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                                {formatGameDate(game.date)}
+                              </TableCell>
+                            );
+                          }
+                          
+                          // Default rendering for all other columns
+                          return (
+                            <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                              {cellValue}
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -561,6 +661,7 @@ export default function ComposeEmailPage() {
                 additionalMessage,
                 recipientCategory: actualCategory,
                 groupId,
+                visibleColumnIds: visibleColumnIds.filter(id => id !== "actions"), // Pass user's column selection
                 to:
                   recipientCategory === "custom"
                     ? customRecipients

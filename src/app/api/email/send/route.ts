@@ -9,6 +9,7 @@ import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 interface Game {
   id: string;
@@ -32,9 +33,92 @@ interface Game {
     [key: string]: any;
   } | null;
   notes: string | null;
+  customFields?: Record<string, any>; // For imported CSV columns
 }
 
-function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string, signatureHTML: string): string {
+// Helper to get column label
+function getColumnLabel(columnId: string): string {
+  // Handle imported columns
+  if (columnId.startsWith("imported:")) {
+    const columnName = columnId.split(":")[1];
+    return columnName; // Use the CSV column name as-is
+  }
+
+  // Return default labels
+  switch (columnId) {
+    case "date":
+      return "Date";
+    case "sport":
+      return "Sport";
+    case "level":
+      return "Level";
+    case "opponent":
+      return "Opponent";
+    case "isHome":
+    case "location":
+      return "Location";
+    case "time":
+      return "Time";
+    case "status":
+      return "Confirmed";
+    case "notes":
+      return "Notes";
+    default:
+      return columnId;
+  }
+}
+
+// Helper to get cell value for a column
+function getCellValue(game: Game, columnId: string): string {
+  // Handle imported columns
+  if (columnId.startsWith("imported:")) {
+    const columnName = columnId.split(":")[1];
+    const customFields = game.customFields || {};
+    return customFields[columnName] || "—";
+  }
+
+  // Handle default columns
+  switch (columnId) {
+    case "date":
+      return format(new Date(game.date), "EEE, MMM d, yyyy");
+    case "sport":
+      return game.homeTeam.sport.name;
+    case "level":
+      return formatLevelDisplay(game.homeTeam.level);
+    case "opponent":
+      return game.opponent?.name || "TBD";
+    case "isHome":
+    case "location":
+      return game.isHome ? "Home" : game.venue?.name || "TBD";
+    case "time":
+      return game.time || "TBD";
+    case "status":
+      return game.status;
+    case "notes":
+      return game.notes || "";
+    default:
+      return "";
+  }
+}
+
+// Helper to escape HTML
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string, signatureHTML: string, visibleColumnIds?: string[]): string {
+  // Default to standard columns if not provided
+  const columnsToShow = visibleColumnIds && visibleColumnIds.length > 0
+    ? visibleColumnIds.filter(id => id !== "actions")
+    : ["date", "time", "sport", "level", "opponent", "location", "status"];
+
   let html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">';
 
   // Add greeting based on category
@@ -42,23 +126,20 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
 
   if (additionalMessage) {
     html += `<div style="margin-bottom: 24px; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #23252a; border-radius: 4px;">`;
-    html += `<p style="margin: 0; white-space: pre-wrap;">${additionalMessage}</p>`;
+    html += `<p style="margin: 0; white-space: pre-wrap;">${escapeHtml(additionalMessage)}</p>`;
     html += "</div>";
   }
 
   // Add games table
   html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
 
-  // Table header
+  // Table header - dynamically generate based on visible columns
   html += "<thead>";
   html += '<tr style="background-color: #23252a; color: white;">';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Date</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Time</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Sport</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Level</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Opponent</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Location</th>';
-  html += '<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Status</th>';
+  columnsToShow.forEach((columnId) => {
+    const label = getColumnLabel(columnId);
+    html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">${escapeHtml(label)}</th>`;
+  });
   html += "</tr>";
   html += "</thead>";
 
@@ -67,23 +148,37 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   games.forEach((game, index) => {
     const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
     html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${format(new Date(game.date), "EEE, MMM d, yyyy")}</td>`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.time || "TBD"}</td>`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.homeTeam.sport.name}</td>`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.homeTeam.level}</td>`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.opponent?.name || "TBD"}</td>`;
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${game.isHome ? "<strong>Home</strong>" : game.venue?.name || "TBD"}</td>`;
-
-    // Status with color
-    const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
-    html += `<td style="padding: 12px; border: 1px solid #e5e7eb;"><span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${game.status}</span></td>`;
+    
+    // Generate cells dynamically based on visible columns
+    columnsToShow.forEach((columnId) => {
+      let cellContent = "";
+      
+      // Special handling for status column
+      if (columnId === "status") {
+        const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
+        cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
+      } 
+      // Special handling for location/isHome column
+      else if (columnId === "isHome" || columnId === "location") {
+        cellContent = game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD");
+      } 
+      // Default handling for other columns
+      else {
+        const rawValue = getCellValue(game, columnId);
+        cellContent = escapeHtml(rawValue);
+      }
+      
+      html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${cellContent}</td>`;
+    });
+    
     html += "</tr>";
 
-    // Add notes row if present
-    if (game.notes) {
+    // Add notes row if notes column is visible and game has notes
+    if (columnsToShow.includes("notes") && game.notes) {
+      const colspan = columnsToShow.length;
       html += `<tr style="background-color: ${bgColor};">`;
-      html += `<td colspan="7" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
-      html += `<strong>Note:</strong> ${game.notes}`;
+      html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
+      html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
       html += "</td>";
       html += "</tr>";
     }
@@ -115,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId } = body;
+    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId, visibleColumnIds } = body;
 
     // Validate inputs
     if (!to && !groupId) {
@@ -157,14 +252,35 @@ export async function POST(request: NextRequest) {
             organizationId: session.user.organizationId,
           },
         },
-        include: {
+        select: {
+          id: true,
+          date: true,
+          time: true,
+          status: true,
+          isHome: true,
+          notes: true,
+          customFields: true,
           homeTeam: {
-            include: {
-              sport: true,
+            select: {
+              name: true,
+              level: true,
+              sport: {
+                select: {
+                  name: true,
+                },
+              },
             },
           },
-          opponent: true,
-          venue: true,
+          opponent: {
+            select: {
+              name: true,
+            },
+          },
+          venue: {
+            select: {
+              name: true,
+            },
+          },
         },
       });
 
@@ -172,8 +288,8 @@ export async function POST(request: NextRequest) {
         return ApiResponse.error("Some games were not found or you don't have access", 403);
       }
 
-      // Build game schedule email body with signature
-      emailBody = buildScheduleEmailHTML(games, additionalMessage || "", recipientCategory || "", signatureHTML);
+      // Build game schedule email body with signature and user's column selection
+      emailBody = buildScheduleEmailHTML(games as Game[], additionalMessage || "", recipientCategory || "", signatureHTML, visibleColumnIds);
 
       // Determine recipients
       if (groupId) {
