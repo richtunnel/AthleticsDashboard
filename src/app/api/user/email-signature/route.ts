@@ -14,6 +14,7 @@ export async function GET() {
         signaturePhone: true,
         signatureWebsite: true,
         signatureLogoUrl: true,
+        signatureText: true,
       } as any,
     }) as any;
 
@@ -25,6 +26,7 @@ export async function GET() {
       signaturePhone: user.signaturePhone || "",
       signatureWebsite: user.signatureWebsite || "",
       signatureLogoUrl: user.signatureLogoUrl || "",
+      signatureText: user.signatureText || "",
     });
   } catch (error) {
     return handleApiError(error);
@@ -36,7 +38,7 @@ export async function PATCH(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
-    const { signaturePhone, signatureWebsite, signatureLogoUrl } = body;
+    const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = body;
 
     // Validate inputs
     if (signaturePhone && typeof signaturePhone !== "string") {
@@ -49,6 +51,10 @@ export async function PATCH(request: NextRequest) {
 
     if (signatureLogoUrl && typeof signatureLogoUrl !== "string") {
       return ApiResponse.error("Invalid logo URL format");
+    }
+
+    if (signatureText && typeof signatureText !== "string") {
+      return ApiResponse.error("Invalid signature text format");
     }
 
     // Optional: Validate URL format
@@ -66,11 +72,13 @@ export async function PATCH(request: NextRequest) {
         signaturePhone: signaturePhone || null,
         signatureWebsite: signatureWebsite || null,
         signatureLogoUrl: signatureLogoUrl || null,
+        signatureText: signatureText || null,
       } as any,
       select: {
         signaturePhone: true,
         signatureWebsite: true,
         signatureLogoUrl: true,
+        signatureText: true,
       } as any,
     }) as any;
 
