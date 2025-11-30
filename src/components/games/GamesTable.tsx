@@ -695,22 +695,27 @@ export function GamesTable() {
     return order;
   }, [customColumns, columnPreferencesData]);
 
-  // CRITICAL FIX: Only update column state when preferences or custom columns actually change
-  // This prevents default columns from bleeding in during reorder operations
+  // CRITICAL FIX: Only update column state when preferences actually change
+  // We derive the column state from the saved preferences, not from defaultColumnOrder recalculations
   useEffect(() => {
+    const hasImportedColumns = !!(columnPreferencesData?.customColumns && (columnPreferencesData.customColumns as string[]).length > 0);
+    
     setColumnState((prev) => {
-      const hasImportedColumns = !!(columnPreferencesData?.customColumns && (columnPreferencesData.customColumns as string[]).length > 0);
+      // If user has saved preferences order, use it directly - don't recalculate from defaultColumnOrder
+      const savedOrder = columnPreferencesData?.order;
+      if (savedOrder && Array.isArray(savedOrder) && savedOrder.length > 0) {
+        // User has explicitly saved an order - respect it completely
+        return deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied);
+      }
       
-      // If user has imported columns, NEVER allow default columns to appear
-      // The defaultColumnOrder should ONLY contain imported columns + actions when imported columns exist
+      // No saved order yet - use defaultColumnOrder for initial setup
+      // If user has imported columns, verify defaultColumnOrder doesn't contain default columns
       if (hasImportedColumns) {
-        // Verify defaultColumnOrder doesn't contain any default columns (date, sport, level, etc.)
         const defaultStaticColumns = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes"];
         const hasAnyDefaultColumn = defaultColumnOrder.some(col => defaultStaticColumns.includes(col));
         
         if (hasAnyDefaultColumn) {
           console.warn("CRITICAL: Default columns detected in defaultColumnOrder when imported columns exist!", defaultColumnOrder);
-          // Filter out any default columns that shouldn't be there
           const cleanedOrder = defaultColumnOrder.filter(col => !defaultStaticColumns.includes(col));
           return deriveColumnState(prev, columnPreferencesData, cleanedOrder, initialPreferencesApplied);
         }
@@ -1049,14 +1054,13 @@ export function GamesTable() {
       return res.json();
     },
     onSuccess: (data) => {
-      // Immediately update the query cache with the saved preferences
-      // This ensures the UI reflects the saved state before refetch completes
+      // CRITICAL FIX: Only update the cache, do NOT invalidate queries
+      // Invalidating triggers a refetch which causes column state to be recalculated
+      // This was causing default columns to reappear after reordering
       queryClient.setQueryData(["tablePreferences", TABLE_PREFERENCES_KEY], {
         success: true,
         data: data.data,
       });
-      // Then invalidate to ensure we have the latest from server
-      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
     },
   });
 
