@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
-import { Close, DragIndicator } from "@mui/icons-material";
+import { Close, DragIndicator, DeleteOutline } from "@mui/icons-material";
 
 interface ColumnMenuItem {
   id: string;
   label: string;
   visible: boolean;
   disableHide?: boolean;
+  disableDelete?: boolean;
 }
 
 interface ColumnPreferencesMenuProps {
@@ -19,9 +20,10 @@ interface ColumnPreferencesMenuProps {
   onToggleVisibility: (columnId: string, visible: boolean) => void;
   onReorder: (order: string[]) => void;
   onShowAll: () => void;
+  onDeleteColumn?: (columnId: string) => void;
 }
 
-export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibility, onReorder, onShowAll }: ColumnPreferencesMenuProps) {
+export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibility, onReorder, onShowAll, onDeleteColumn }: ColumnPreferencesMenuProps) {
   const [items, setItems] = useState<ColumnMenuItem[]>([]);
   const previousOrderRef = useRef<string[]>([]);
 
@@ -68,6 +70,17 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
     onShowAll();
   };
 
+  const handleDelete = (columnId: string) => {
+    if (!onDeleteColumn) return;
+    
+    if (confirm("Are you sure you want to delete this column? This action cannot be undone.")) {
+      onDeleteColumn(columnId);
+      // Remove from local items list
+      const nextItems = items.filter((item) => item.id !== columnId);
+      setItems(nextItems);
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1, fontWeight: 600 }}>
@@ -78,7 +91,7 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
       </DialogTitle>
       <DialogContent dividers>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Drag to reorder columns and use checkboxes to toggle their visibility.
+          Drag to reorder columns, use checkboxes to toggle visibility, and delete unwanted columns.
         </Typography>
         <ReactSortable list={items} setList={handleSetList} animation={200} handle=".drag-handle">
           {items.map((column) => (
@@ -101,6 +114,21 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
               <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 500 }}>
                 {column.label}
               </Typography>
+              {!column.disableDelete && onDeleteColumn && (
+                <IconButton 
+                  size="small" 
+                  onClick={() => handleDelete(column.id)}
+                  sx={{ 
+                    color: "error.main",
+                    "&:hover": { 
+                      bgcolor: "error.light",
+                      color: "error.dark" 
+                    }
+                  }}
+                >
+                  <DeleteOutline fontSize="small" />
+                </IconButton>
+              )}
               <IconButton size="small" className="drag-handle">
                 <DragIndicator fontSize="small" />
               </IconButton>
