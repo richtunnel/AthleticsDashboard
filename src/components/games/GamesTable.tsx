@@ -4614,24 +4614,62 @@ export function GamesTable() {
           let cellValue = "";
 
           if (mapping === "date") {
-            // Display date from game.date (date columns are not editable in imported columns)
-            cellValue = formatGameDate(game.date);
-
+            // Display date from game.date - this column should be editable just like the default date column
+            const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
+            const isHovered = hoveredDateGameId === game.id;
+            
             return (
-              <TableCell key={column.id} sx={getDataCellSx(column.id, false)}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: 13,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+              <TableCell 
+                key={column.id} 
+                sx={getDataCellSx(column.id, isEditingDate)}
+                onDoubleClick={() => handleDoubleClick(game, "date")}
+                onMouseEnter={() => setHoveredDateGameId(game.id)}
+                onMouseLeave={() => setHoveredDateGameId(null)}
+              >
+                {isEditingDate ? (
+                  <Box sx={{ py: 1 }}>
+                    <TextField
+                      type="date"
+                      size="small"
+                      value={inlineEditValue}
+                      onChange={(e) => handleInlineChange(e.target.value, game)}
+                      onKeyDown={(e) => handleInlineKeyDown(e, game)}
+                      onBlur={() => handleInlineBlur(game)}
+                      autoFocus
+                      disabled={isInlineSaving}
+                      sx={{ width: "100%" }}
+                      InputProps={{ 
+                        sx: { fontSize: 13 },
+                        endAdornment: (
+                          <CalendarMonth sx={{ fontSize: 18, color: 'action.active', pointerEvents: 'none' }} />
+                        )
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  <Box 
+                    sx={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 1, 
+                      py: 0
                     }}
                   >
-                    {cellValue}
-                  </Typography>
-                </Box>
+                    <Typography variant="body2" sx={{ fontSize: 13 }}>
+                      {formatGameDate(game.date)}
+                    </Typography>
+                    {isHovered && !isInlineSaving && (
+                      <CalendarMonth 
+                        sx={{ 
+                          fontSize: 16, 
+                          color: 'primary.main',
+                          transition: 'opacity 0.2s'
+                        }} 
+                      />
+                    )}
+                    {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
+                  </Box>
+                )}
               </TableCell>
             );
           } else {
