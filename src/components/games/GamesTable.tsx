@@ -5483,20 +5483,33 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
 
   const preferenceOrder = normalizePreferenceOrder(preferences?.order, defaultOrder);
 
+  // Check if user has imported columns - if so, NEVER merge default columns back in
+  const hasImportedColumns = preferences?.customColumns && (preferences.customColumns as string[]).length > 0;
+
   // CRITICAL FIX: Always respect saved preferences order when available
   // This ensures column reordering persists across page refreshes
   let finalOrder: ColumnId[];
 
   if (preferenceOrder.length > 0) {
     // User has saved preferences - use them as the source of truth
-    // Merge with defaultOrder to include any new columns that were added
-    finalOrder = mergeWithDefaultOrder(preferenceOrder, defaultOrder);
+    if (hasImportedColumns) {
+      // CRITICAL: User has imported columns - use ONLY the preference order, DO NOT merge default columns
+      finalOrder = preferenceOrder;
+    } else {
+      // No imported columns - merge with defaultOrder to include any new columns that were added
+      finalOrder = mergeWithDefaultOrder(preferenceOrder, defaultOrder);
+    }
   } else if (previous.length > 0) {
     // No saved preferences, but we have previous state - preserve it
     const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
-    finalOrder = mergeWithDefaultOrder(previousOrder, defaultOrder);
+    if (hasImportedColumns) {
+      // CRITICAL: User has imported columns - use ONLY the previous order, DO NOT merge default columns
+      finalOrder = previousOrder.filter((id) => defaultOrder.includes(id));
+    } else {
+      finalOrder = mergeWithDefaultOrder(previousOrder, defaultOrder);
+    }
   } else {
-    // First load with no preferences - use default order
+    // First load with no preferences - use default order (which will be imported columns if they exist)
     finalOrder = defaultOrder;
   }
 
