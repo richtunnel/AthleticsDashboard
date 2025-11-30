@@ -51,6 +51,7 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpOutline,
+  SupportAgent,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -465,6 +466,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
+              <MenuItem
+                component={Link}
+                href="/dashboard/support"
+                onClick={handleClose}
+              >
+                <ListItemIcon>
+                  <SupportAgent fontSize="small" />
+                </ListItemIcon>
+                Support
+              </MenuItem>
               <MenuItem
                 onClick={() => {
                   handleClose();
