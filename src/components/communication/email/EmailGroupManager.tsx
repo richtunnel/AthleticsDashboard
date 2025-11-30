@@ -258,7 +258,7 @@ export function EmailGroupManager() {
                 }}
                 onSelect={() => setActiveGroupId(group.id)}
                 onAddEmails={async (emails) => {
-                  await addEmailsMutation.mutateAsync({ groupId: group.id, emails });
+                  return await addEmailsMutation.mutateAsync({ groupId: group.id, emails });
                 }}
                 addEmailsLoading={addEmailsMutation.isPending && addEmailsMutation.variables?.groupId === group.id}
                 onUpdateEmail={async (emailId, email) => {

@@ -48,6 +48,7 @@ model User {
   signaturePhone             String? // Phone number for email signature
   signatureWebsite           String? // Website/link for email signature
   signatureLogoUrl           String? // Logo URL for email signature (max 120px recommended)
+  signatureText              String?   @db.Text // Custom text for email signature
   city                       String?
   lastLoginAt                DateTime?
   lastLoginDate              DateTime?
