@@ -3,19 +3,7 @@
 import { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Box,
-  Typography,
-  IconButton,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, IconButton, Alert, CircularProgress } from "@mui/material";
 import { Close, HelpOutline } from "@mui/icons-material";
 
 interface FormData {
@@ -152,11 +140,7 @@ export default function SupportModal({ open, onClose, userName }: SupportModalPr
             )}
 
             {/* Error Message */}
-            {mutation.isError && (
-              <Alert severity="error">
-                {mutation.error?.message || "Failed to submit support ticket"}
-              </Alert>
-            )}
+            {mutation.isError && <Alert severity="error">{mutation.error?.message || "Failed to submit support ticket"}</Alert>}
           </Box>
         </DialogContent>
 
@@ -164,12 +148,7 @@ export default function SupportModal({ open, onClose, userName }: SupportModalPr
           <Button onClick={handleClose} color="inherit" disabled={mutation.isPending}>
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            disabled={mutation.isPending}
-            startIcon={mutation.isPending ? <CircularProgress size={20} /> : null}
-          >
+          <Button type="submit" variant="contained" disabled={mutation.isPending} startIcon={mutation.isPending ? <CircularProgress size={20} /> : null}>
             {mutation.isPending ? "Submitting..." : "Submit Ticket"}
           </Button>
         </DialogActions>
