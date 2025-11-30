@@ -36,6 +36,12 @@ interface Game {
   customFields?: Record<string, any>; // For imported CSV columns
 }
 
+interface TablePreferencesData {
+  customColumns?: string[];
+  columnMapping?: Record<string, string>;
+  [key: string]: unknown;
+}
+
 const STATIC_RECIPIENT_CATEGORIES = [
   { value: "custom", label: "Custom Recipients" },
   // { value: "opponent", label: "Opponent Athletic Directors" },
@@ -43,6 +49,26 @@ const STATIC_RECIPIENT_CATEGORIES = [
   // { value: "coaches", label: "Coaches" },
   // { value: "staff", label: "Staff Members" },
 ];
+
+// Helper to determine which columns to display based on user's import preferences
+const getDisplayColumns = (preferences: TablePreferencesData | null): string[] => {
+  // Check if user has imported custom columns from CSV
+  const importedColumns = preferences?.customColumns as string[] | undefined;
+  const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
+
+  if (importedColumns && columnMapping && importedColumns.length > 0) {
+    // User imported CSV with custom columns - show ONLY imported columns (no default columns)
+    return importedColumns
+      .filter((colName) => {
+        const mapping = columnMapping[colName];
+        return mapping && mapping !== "skip"; // Only include non-skipped columns
+      })
+      .map((colName) => `imported:${colName}`);
+  }
+
+  // No imported columns - use default columns
+  return ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
+};
 
 // Helper to get column label
 const getColumnLabel = (columnId: string): string => {
@@ -116,8 +142,6 @@ export default function ComposeEmailPage() {
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
-  // Always show all important columns in the email preview table, regardless of user's column visibility preferences in GamesTable
-  const visibleColumnIds = useMemo(() => ["date", "sport", "level", "opponent", "location", "status", "time", "notes"], []);
   const [recipientCategory, setRecipientCategory] = useState("");
   const [customRecipients, setCustomRecipients] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState("");
@@ -142,6 +166,25 @@ export default function ComposeEmailPage() {
       return data.data || null;
     },
   });
+
+  // Fetch table preferences to determine which columns to display
+  const { data: tablePreferencesResponse } = useQuery({
+    queryKey: ["tablePreferences", "games"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/table-preferences?table=games");
+      if (!res.ok) throw new Error("Failed to fetch table preferences");
+      return res.json();
+    },
+  });
+
+  const tablePreferences = useMemo<TablePreferencesData | null>(
+    () => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null,
+    [tablePreferencesResponse?.data]
+  );
+
+  // Determine visible columns based on user's import preferences
+  // If they imported a spreadsheet, show ONLY those columns (no default columns)
+  const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences), [tablePreferences]);
 
   const recipientCategories = useMemo(() => {
     const emailGroupCategories = emailGroups.map((group) => ({
