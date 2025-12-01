@@ -159,6 +159,7 @@ interface CustomColumn {
 
 interface Game {
   id: string;
+  customData?: { [key: string]: any };
   date: string;
   time: string | null;
   status: string;
@@ -172,7 +173,6 @@ interface Game {
   actualArrivalTime: string | null;
   calendarSynced?: boolean;
   googleCalendarEventId?: string | null;
-  customData?: any;
   customFields?: Record<string, any>; // For imported CSV columns
   homeTeam: {
     id?: string;
@@ -245,8 +245,8 @@ type ConfirmedStatus = {
   color: ChipProps["color"]; // Use MUI's Chip color type
 };
 
-type StaticColumnId = "date" | "sport" | "level" | "opponent" | "isHome" | "time" | "status" | "location" | "busTravel" | "notes" | "actions";
-type ColumnId = StaticColumnId | `custom:${string}`;
+type StaticColumnId = "date" | "sport" | "level" | "opponent" | "isHome" | "time" | "status" | "location" | "busTravel" | "notes" | "actions" | "select";
+type ColumnId = StaticColumnId | `custom:${string}` | `imported:${string}`;
 
 interface ColumnStateConfig {
   id: ColumnId;
@@ -275,6 +275,7 @@ interface ResolvedColumn {
 
 const TABLE_PREFERENCES_KEY = "games";
 const STATIC_COLUMN_SEQUENCE: StaticColumnId[] = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", "actions"];
+const SUPERSEDED_STATIC_COLUMNS: StaticColumnId[] = STATIC_COLUMN_SEQUENCE.filter((id) => id !== "date" && id !== "actions");
 
 const PRESET_SPORTS = ["Boys Basketball", "Girls Basketball", "Boys Flag Football", "Girls Flag Football", "Girls Tennis", "Boys Tennis", "Boys Soccer", "Girls Soccer", "Boys Cross Country"];
 
@@ -398,6 +399,8 @@ export function GamesTable() {
     selectedGameIds,
     setSelectedGameIds,
     clearSelectedGameIds,
+    isCustomStructureActive,
+    setIsCustomStructureActive,
   } = useGamesTableStore();
 
   const selectedGames = useMemo(() => new Set(selectedGameIds), [selectedGameIds]);
@@ -492,6 +495,7 @@ export function GamesTable() {
   const MIN_COLUMN_WIDTH = 100;
   const MAX_COLUMN_WIDTH = 600;
   const DEFAULT_COLUMN_WIDTH = 150;
+  const GAMES_QUERY_KEY = useMemo(() => ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const, [columnFilters, sortField, sortOrder, page, rowsPerPage]);
 
   const getCharacterCounterColor = (length: number) => {
     if (length >= MAX_CHAR_LIMIT) {
@@ -572,7 +576,7 @@ export function GamesTable() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage],
+    queryKey: GAMES_QUERY_KEY,
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -687,41 +691,74 @@ export function GamesTable() {
   }, [customColumns]);
 
   const columnPreferencesData = useMemo<TablePreferencesData | null>(() => (columnPreferencesResponse?.data as TablePreferencesData | null) ?? null, [columnPreferencesResponse?.data]);
-  
-  // CRITICAL FIX: Memoize defaultColumnOrder separately to prevent recalculation issues
+
+  const PERMANENTLY_KEPT_STATIC_IDS = useMemo(() => new Set<ColumnId>(["date", "actions", "select"]), []); // CRITICAL FIX: Memoize defaultColumnOrder separately to prevent recalculation issues
   // When user has imported columns, we must ALWAYS use those columns, never default columns
   const defaultColumnOrder = useMemo(() => {
-    const order = getDefaultColumnOrder(customColumns, columnPreferencesData);
+    let order = getDefaultColumnOrder(customColumns, columnPreferencesData);
+
+    if (isCustomStructureActive) {
+      // CRITICAL STEP: Find the specific custom column ID that was mapped to the static 'date' field.
+      const customDateColumnId = customColumns.find((col) => col.staticField === "date")?.id;
+
+      order = order.filter((columnId) => {
+        // A) Keep the required static IDs ("date", "actions", "select").
+        if (PERMANENTLY_KEPT_STATIC_IDS.has(columnId)) {
+          return true;
+        }
+
+        // B) Explicitly remove the custom column ID that was mapped to 'date'.
+        if (customDateColumnId && columnId === customDateColumnId) {
+          return false; // <-- This is the key fix for the date picker
+        }
+
+        // C) Keep ALL other custom/imported columns.
+        if (columnId.startsWith("custom:") || columnId.startsWith("imported:")) {
+          return true;
+        }
+
+        // D) Remove all other default static columns.
+        return false;
+      });
+
+      // Post-filtering: Ensure 'date' is present in the final order and near the front.
+      if (!order.includes("date")) {
+        // Add 'date' back if it was somehow removed.
+        const selectIndex = order.findIndex((id) => id === "select");
+        if (selectIndex !== -1) {
+          order.splice(selectIndex + 1, 0, "date");
+        } else {
+          order.unshift("date");
+        }
+      } else {
+        // Re-order 'date' to ensure it's not misplaced by other custom columns
+        // that might have been loaded before it.
+        order = [
+          ...order.filter((id) => id === "select"), // Keep 'select' first
+          ...order.filter((id) => id === "date"), // Keep 'date' second
+          ...order.filter((id) => id !== "select" && id !== "date" && id !== "actions"), // All data columns
+          ...order.filter((id) => id === "actions"), // Keep 'actions' last
+        ];
+      }
+    }
+
     return order;
-  }, [customColumns, columnPreferencesData]);
+  }, [customColumns, columnPreferencesData, isCustomStructureActive, PERMANENTLY_KEPT_STATIC_IDS]);
 
   // CRITICAL FIX: Only update column state when preferences actually change
   // We derive the column state from the saved preferences, not from defaultColumnOrder recalculations
   useEffect(() => {
-    const hasImportedColumns = !!(columnPreferencesData?.customColumns && (columnPreferencesData.customColumns as string[]).length > 0);
-    
     setColumnState((prev) => {
-      // If user has saved preferences order, use it directly - don't recalculate from defaultColumnOrder
+      // If user has saved preferences order, use it directly - respect it completely
       const savedOrder = columnPreferencesData?.order;
+
+      let orderToUse = defaultColumnOrder;
       if (savedOrder && Array.isArray(savedOrder) && savedOrder.length > 0) {
-        // User has explicitly saved an order - respect it completely
-        return deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied);
+        orderToUse = savedOrder;
       }
-      
-      // No saved order yet - use defaultColumnOrder for initial setup
-      // If user has imported columns, verify defaultColumnOrder doesn't contain default columns
-      if (hasImportedColumns) {
-        const defaultStaticColumns = ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes"];
-        const hasAnyDefaultColumn = defaultColumnOrder.some(col => defaultStaticColumns.includes(col));
-        
-        if (hasAnyDefaultColumn) {
-          console.warn("CRITICAL: Default columns detected in defaultColumnOrder when imported columns exist!", defaultColumnOrder);
-          const cleanedOrder = defaultColumnOrder.filter(col => !defaultStaticColumns.includes(col));
-          return deriveColumnState(prev, columnPreferencesData, cleanedOrder, initialPreferencesApplied);
-        }
-      }
-      
-      return deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied);
+
+      // Pass the potentially saved order (or the filtered default order) to deriveColumnState
+      return deriveColumnState(prev, columnPreferencesData, orderToUse, initialPreferencesApplied);
     });
   }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
 
@@ -968,6 +1005,26 @@ export function GamesTable() {
 
   const visibleColumnIds = useMemo(() => columnState.filter((column) => column.visible).map((column) => column.id), [columnState]);
 
+  const findGameInCache = (queryClient: any, gameId: string): Game | undefined => {
+    const gamesQueryData = queryClient.getQueryData(["games"]) as any;
+
+    if (!gamesQueryData) return undefined;
+
+    // Normalize the games list based on common query structures: array, wrapped, or nested
+    let gameList: any[] = [];
+    if (Array.isArray(gamesQueryData)) {
+      gameList = gamesQueryData;
+    } else if (gamesQueryData.data && Array.isArray(gamesQueryData.data.games)) {
+      // This handles a response shape like { data: { games: [...] } }
+      gameList = gamesQueryData.data.games;
+    } else if (gamesQueryData.games && Array.isArray(gamesQueryData.games)) {
+      // This handles a response shape like { games: [...] }
+      gameList = gamesQueryData.games;
+    }
+
+    return gameList.find((g) => g.id === gameId);
+  };
+
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
@@ -978,59 +1035,70 @@ export function GamesTable() {
       return res.json();
     },
     onMutate: async (gameId: string) => {
-      // OPTIMISTIC UPDATE: Mark game as synced immediately
-      const previousGames = queryClient.getQueryData<any>(["games"]);
-      
-      queryClient.setQueryData(["games"], (oldData: any) => {
+      // use the parametrized key used by the table query
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      await queryClient.cancelQueries({ queryKey: GAMES_KEY });
+
+      const previousGames = queryClient.getQueryData<any>(GAMES_KEY);
+
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
         if (!oldData) return oldData;
-        
+
+        // Case 1: cache is a raw array of games
         if (Array.isArray(oldData)) {
-          return oldData.map((g: Game) => 
-            g.id === gameId ? { ...g, calendarSynced: true } : g
-          );
-        } else if (oldData.data && Array.isArray(oldData.data)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true } : g));
+        }
+
+        // Case 2: cache is paginated object { data: { games: [...] } } — handle safely
+        if (oldData.data && Array.isArray(oldData.data.games)) {
           return {
             ...oldData,
-            data: oldData.data.map((g: Game) => 
-              g.id === gameId ? { ...g, calendarSynced: true } : g
-            )
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: g.googleCalendarEventId } : g)),
+            },
           };
         }
-        
+
+        // fallback: return unchanged
         return oldData;
       });
-      
+
       return { previousGames };
     },
+    onError: (err, gameId, context: any) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      if (context?.previousGames) {
+        queryClient.setQueryData(GAMES_KEY, context.previousGames);
+      }
+      addNotification("Failed to sync calendar", "error");
+    },
     onSuccess: (data, gameId) => {
-      // Update with actual response data if needed
-      queryClient.setQueryData(["games"], (oldData: any) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      // apply authoritative server result if present
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
         if (!oldData) return oldData;
-        
+
         if (Array.isArray(oldData)) {
-          return oldData.map((g: Game) => 
-            g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId || g.googleCalendarEventId } : g
-          );
-        } else if (oldData.data && Array.isArray(oldData.data)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g));
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
           return {
             ...oldData,
-            data: oldData.data.map((g: Game) => 
-              g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId || g.googleCalendarEventId } : g
-            )
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g)),
+            },
           };
         }
-        
+
         return oldData;
       });
-      // NO REFETCH - data already updated!
-      addNotification("Game successfully synced to Google Calendar!", "success");
-    },
-    onError: (error: any, gameId, context: any) => {
-      // ROLLBACK: Restore previous state on error
-      if (context?.previousGames) {
-        queryClient.setQueryData(["games"], context.previousGames);
-      }
-      addNotification(`Calendar Sync Error: ${error.message}`, "error");
+
+      // no refetch needed
     },
   });
 
@@ -1187,7 +1255,7 @@ export function GamesTable() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["games"], exact: false });
       addNotification("Column deleted successfully", "success");
     },
     onError: (error: any) => {
@@ -1334,10 +1402,10 @@ export function GamesTable() {
     onSuccess: (data: any, variables: { gameData: any; skipCalendarSync?: boolean }) => {
       // OPTIMISTIC UPDATE: Add new game to cache immediately
       const newGame = data.data;
-      
-      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
-        
+
         if (Array.isArray(oldData)) {
           return [...oldData, newGame];
         } else if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1346,17 +1414,19 @@ export function GamesTable() {
             data: {
               ...oldData.data,
               games: [...oldData.data.games, newGame],
-              pagination: oldData.data.pagination ? {
-                ...oldData.data.pagination,
-                total: oldData.data.pagination.total + 1
-              } : oldData.data.pagination
-            }
+              pagination: oldData.data.pagination
+                ? {
+                    ...oldData.data.pagination,
+                    total: oldData.data.pagination.total + 1,
+                  }
+                : oldData.data.pagination,
+            },
           };
         }
-        
+
         return oldData;
       });
-      
+
       // NO REFETCH - data already updated!
       resetNewGameData();
 
@@ -1368,17 +1438,69 @@ export function GamesTable() {
     },
   });
 
+  // --- Helper function to update the cache data structure ---
+  const updateGameCache = (oldData: any, id: string, data: any): any => {
+    if (!oldData) return oldData;
+
+    let gameList: Game[] | undefined;
+    let originalStructure: "array" | "wrapped" | "nested" = "array";
+
+    // Determine the structure of the cached data and extract the game list
+    if (Array.isArray(oldData)) {
+      gameList = oldData;
+      originalStructure = "array";
+    } else if (oldData.data && Array.isArray(oldData.data.games)) {
+      gameList = oldData.data.games;
+      originalStructure = "nested";
+    } else if (oldData.games && Array.isArray(oldData.games)) {
+      gameList = oldData.games;
+      originalStructure = "wrapped";
+    } else {
+      return oldData;
+    }
+
+    if (!gameList) return oldData;
+
+    const gameToUpdate = gameList.find((g) => g.id === id);
+
+    if (!gameToUpdate) {
+      return oldData;
+    }
+
+    // 1. Perform the DEEP MERGE for the optimistic state
+    const optimisticGame = {
+      ...gameToUpdate,
+      ...data,
+      customData: {
+        ...(gameToUpdate.customData || {}),
+        ...(data.customData || {}),
+      },
+    };
+
+    // 2. Create the new, updated game list
+    const updatedGameList = gameList.map((g) => (g.id === id ? optimisticGame : g));
+
+    // 3. Restore the original query data structure
+    if (originalStructure === "array") return updatedGameList;
+    if (originalStructure === "nested") return { ...oldData, data: { ...oldData.data, games: updatedGameList } };
+    if (originalStructure === "wrapped") return { ...oldData, games: updatedGameList };
+
+    return oldData;
+  };
+
   const updateGameMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      // Validate data is not empty
-      if (!data || Object.keys(data).length === 0) {
+      // Use your required transformation logic here (e.g., merging time into date)
+      const finalData = { ...data };
+
+      if (!finalData || (Object.keys(finalData).length === 0 && (!finalData.customData || Object.keys(finalData.customData).length === 0))) {
         throw new Error("Cannot update game with empty data");
       }
 
       const res = await fetch(`/api/games/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(finalData),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -1386,52 +1508,46 @@ export function GamesTable() {
       }
       return res.json();
     },
+
     onMutate: async ({ id, data }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
-      
-      // Snapshot the previous value
-      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
-      
-      // OPTIMISTIC UPDATE: Update the game immediately
-      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
-        if (!oldData) return oldData;
-        
-        if (Array.isArray(oldData)) {
-          return oldData.map((g: Game) => 
-            g.id === id ? { ...g, ...data } : g
-          );
-        } else if (oldData.data && Array.isArray(oldData.data.games)) {
-          return {
-            ...oldData,
-            data: {
-              ...oldData.data,
-              games: oldData.data.games.map((g: Game) => 
-                g.id === id ? { ...g, ...data } : g
-              )
-            }
-          };
-        }
-        
-        return oldData;
-      });
-      
+      await queryClient.cancelQueries({ queryKey: ["games"] });
+
+      const previousGames = queryClient.getQueriesData({ queryKey: ["games"] });
+
+      // CRITICAL FIX: Use setQueriesData to target all cached table views
+      queryClient.setQueriesData({ queryKey: ["games"] }, (oldData: any) => updateGameCache(oldData, id, data));
+
       return { previousGames };
     },
-    onError: (error, variables, context: any) => {
-      // ROLLBACK: Restore previous state on error
-      if (context?.previousGames) {
-        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
-      }
-    },
-    onSuccess: (data, variables) => {
-      // NO REFETCH - data already updated!
-      resetEditingState();
-      setEditingGameData(null);
 
-      if (editingGameId) {
-        syncGameMutation.mutate(editingGameId);
+    onError: (error, variables, context: any) => {
+      if (context?.previousGames) {
+        // FIX: Explicitly access queryKey and data to avoid 'cannot find name' error
+        context.previousGames.forEach((previousQuery: { queryKey: any; data: any }) => {
+          queryClient.setQueryData(previousQuery.queryKey, previousQuery.data);
+        });
       }
+
+      // Add your notification/save status error handling here
+      // addNotification(`Failed to save game: ${error.message}`, "error");
+      // setSaveStatus("error");
+    },
+
+    onSuccess: (updatedGame, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+
+      // Add your save status and sync logic here
+      // setSaveStatus("saved");
+      // if (variables.id) { syncGameMutation.mutate(variables.id); }
+    },
+
+    onSettled: () => {
+      // CRITICAL FIX: Reset the local Zustand state ONLY after mutation lifecycle is complete
+      resetEditingState();
+
+      // Add your saveStatus timeout logic here
+      // if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+      // saveStatusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 3000);
     },
   });
 
@@ -1456,15 +1572,15 @@ export function GamesTable() {
     },
     onMutate: async (gameId: string) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
-      
+      await queryClient.cancelQueries({ queryKey: GAMES_QUERY_KEY });
+
       // Snapshot the previous value
-      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
-      
+      const previousGames = queryClient.getQueryData(GAMES_QUERY_KEY);
+
       // OPTIMISTIC UPDATE: Remove the game immediately
-      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
-        
+
         if (Array.isArray(oldData)) {
           return oldData.filter((g: Game) => g.id !== gameId);
         } else if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1473,23 +1589,25 @@ export function GamesTable() {
             data: {
               ...oldData.data,
               games: oldData.data.games.filter((g: Game) => g.id !== gameId),
-              pagination: oldData.data.pagination ? {
-                ...oldData.data.pagination,
-                total: oldData.data.pagination.total - 1
-              } : oldData.data.pagination
-            }
+              pagination: oldData.data.pagination
+                ? {
+                    ...oldData.data.pagination,
+                    total: oldData.data.pagination.total - 1,
+                  }
+                : oldData.data.pagination,
+            },
           };
         }
-        
+
         return oldData;
       });
-      
+
       return { previousGames };
     },
     onError: (error: any, gameId, context: any) => {
       // ROLLBACK: Restore previous state on error
       if (context?.previousGames) {
-        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
+        queryClient.setQueryData(GAMES_QUERY_KEY, context.previousGames);
       }
       addNotification(error?.message || "Failed to delete game", "error");
     },
@@ -1563,16 +1681,16 @@ export function GamesTable() {
     },
     onMutate: async (gameIds: string[]) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] });
-      
+      await queryClient.cancelQueries({ queryKey: GAMES_QUERY_KEY });
+
       // Snapshot the previous value
-      const previousGames = queryClient.getQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage]);
-      
+      const previousGames = queryClient.getQueryData(GAMES_QUERY_KEY);
+
       // OPTIMISTIC UPDATE: Remove all games immediately
       const gameIdsSet = new Set(gameIds);
-      queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
-        
+
         if (Array.isArray(oldData)) {
           return oldData.filter((g: Game) => !gameIdsSet.has(g.id));
         } else if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1582,23 +1700,25 @@ export function GamesTable() {
             data: {
               ...oldData.data,
               games: filteredGames,
-              pagination: oldData.data.pagination ? {
-                ...oldData.data.pagination,
-                total: oldData.data.pagination.total - gameIds.length
-              } : oldData.data.pagination
-            }
+              pagination: oldData.data.pagination
+                ? {
+                    ...oldData.data.pagination,
+                    total: oldData.data.pagination.total - gameIds.length,
+                  }
+                : oldData.data.pagination,
+            },
           };
         }
-        
+
         return oldData;
       });
-      
+
       return { previousGames };
     },
     onError: (error: any, gameIds, context: any) => {
       // ROLLBACK: Restore previous state on error
       if (context?.previousGames) {
-        queryClient.setQueryData(["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage], context.previousGames);
+        queryClient.setQueryData(GAMES_QUERY_KEY, context.previousGames);
       }
       addNotification(error?.message || "Failed to delete selected games", "error");
     },
@@ -1872,29 +1992,25 @@ export function GamesTable() {
         }
 
         // OPTIMISTIC UPDATE: Update the cache immediately without refetching
-        const previousGames = queryClient.getQueryData<any>(["games"]);
-        
-        queryClient.setQueryData(["games"], (oldData: any) => {
+        const previousGames = queryClient.getQueryData<any>(GAMES_QUERY_KEY);
+
+        queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
           if (!oldData) return oldData;
-          
+
           // Clone the data to avoid mutations
           const updatedData = { ...oldData };
-          
+
           if (Array.isArray(updatedData)) {
             // If games is an array
-            return updatedData.map((g: Game) => 
-              g.id === gameId ? { ...g, ...updateData } : g
-            );
+            return updatedData.map((g: Game) => (g.id === gameId ? { ...g, ...updateData } : g));
           } else if (updatedData.data && Array.isArray(updatedData.data)) {
             // If games is wrapped in { data: [...] }
             return {
               ...updatedData,
-              data: updatedData.data.map((g: Game) => 
-                g.id === gameId ? { ...g, ...updateData } : g
-              )
+              data: updatedData.data.map((g: Game) => (g.id === gameId ? { ...g, ...updateData } : g)),
             };
           }
-          
+
           return updatedData;
         });
 
@@ -1907,7 +2023,7 @@ export function GamesTable() {
 
         if (!res.ok) {
           // ROLLBACK: Restore previous data on error
-          queryClient.setQueryData(["games"], previousGames);
+          queryClient.setQueryData(GAMES_QUERY_KEY, previousGames);
           const error = await res.json();
           throw new Error(error.error || "Failed to update game");
         }
@@ -2278,13 +2394,26 @@ export function GamesTable() {
         useDeleteUndoStore.getState().clearDelete();
       }
 
-      // Refresh the games list AND table preferences (to load new custom columns)
-      queryClient.invalidateQueries({ queryKey: ["games"] });
-      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+      // CRITICAL STEP: Set the flag to permanently use the custom column structure.
+      // This is what prevents default columns from reappearing.
+      if (result.success > 0) {
+        setIsCustomStructureActive(true);
+      }
+
+      // Refresh data
+      queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["customColumns"] });
+
+      // We no longer need to invalidate 'tablePreferences' explicitly here
+      // because setting 'isCustomStructureActive' will trigger the 'allColumns' useMemo
+      // and the subsequent 'useEffect' that updates the column state.
+      // queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+
       // Refresh imported columns for calendar group mappings
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
     },
-    [queryClient, addNotification]
+    // UPDATED DEPENDENCY ARRAY: Include setIsCustomStructureActive and TABLE_PREFERENCES_KEY
+    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY]
   );
 
   const handleSaveNewGame = async () => {
@@ -2750,7 +2879,7 @@ export function GamesTable() {
       }
 
       // Refresh games data
-      await queryClient.invalidateQueries({ queryKey: ["games"] });
+      await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
       addNotification("Bus travel times saved successfully", "success");
     } catch (error: any) {
       addNotification(error.message || "Failed to save bus travel times", "error");
@@ -3407,7 +3536,7 @@ export function GamesTable() {
                   textField: {
                     size: "small",
                     error: isRequiredFieldEmpty("date"),
-                    sx: { 
+                    sx: {
                       width: 140,
                       "& .MuiOutlinedInput-root": {
                         bgcolor: "transparent",
@@ -4889,10 +5018,10 @@ export function GamesTable() {
             // This handles imported columns that are mapped to the date field
             const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
             const isHovered = hoveredDateGameId === game.id;
-            
+
             return (
-              <TableCell 
-                key={column.id} 
+              <TableCell
+                key={column.id}
                 sx={{
                   fontSize: 13,
                   py: 0,
@@ -4937,24 +5066,24 @@ export function GamesTable() {
                     </LocalizationProvider>
                   </Box>
                 ) : (
-                  <Box 
-                    sx={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: 1, 
-                      py: 0
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      py: 0,
                     }}
                   >
                     <Typography variant="body2" sx={{ fontSize: 13 }}>
                       {formatGameDate(game.date)}
                     </Typography>
                     {isHovered && !isInlineSaving && (
-                      <CalendarMonth 
-                        sx={{ 
-                          fontSize: 16, 
-                          color: 'primary.main',
-                          transition: 'opacity 0.2s'
-                        }} 
+                      <CalendarMonth
+                        sx={{
+                          fontSize: 16,
+                          color: "primary.main",
+                          transition: "opacity 0.2s",
+                        }}
                       />
                     )}
                     {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
@@ -5619,7 +5748,7 @@ export function GamesTable() {
 
       <ImportUndoButton
         onUndo={() => {
-          queryClient.invalidateQueries({ queryKey: ["games"] });
+          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
           queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
           addNotification("Import undone - all imported games have been deleted", "success");
         }}
@@ -5627,7 +5756,7 @@ export function GamesTable() {
 
       <UndoDeleteButton
         onUndo={() => {
-          queryClient.invalidateQueries({ queryKey: ["games"] });
+          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
           addNotification("Delete undone - games have been restored", "success");
         }}
       />

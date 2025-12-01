@@ -198,7 +198,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["games"], exact: false });
       onSuccess?.();
       onClose();
     },
@@ -330,19 +330,11 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
                   <div className="grid grid-cols-2 gap-4 pl-6 mb-4">
                     <div>
                       <label className="block text-sm font-medium mb-2">Departure Time</label>
-                      <input
-                        type="time"
-                        {...register("actualDepartureTime")}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
+                      <input type="time" {...register("actualDepartureTime")} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-2">Arrival Time</label>
-                      <input
-                        type="time"
-                        {...register("actualArrivalTime")}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                      />
+                      <input type="time" {...register("actualArrivalTime")} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                     </div>
                   </div>
 
