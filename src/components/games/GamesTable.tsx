@@ -1997,21 +1997,62 @@ export function GamesTable() {
         queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
           if (!oldData) return oldData;
 
-          // Clone the data to avoid mutations
-          const updatedData = { ...oldData };
-
-          if (Array.isArray(updatedData)) {
-            // If games is an array
-            return updatedData.map((g: Game) => (g.id === gameId ? { ...g, ...updateData } : g));
-          } else if (updatedData.data && Array.isArray(updatedData.data)) {
-            // If games is wrapped in { data: [...] }
+          // Handle the correct paginated response structure: { data: { games: [...] } }
+          if (oldData.data && Array.isArray(oldData.data.games)) {
             return {
-              ...updatedData,
-              data: updatedData.data.map((g: Game) => (g.id === gameId ? { ...g, ...updateData } : g)),
+              ...oldData,
+              data: {
+                ...oldData.data,
+                games: oldData.data.games.map((g: Game) => {
+                  if (g.id === gameId) {
+                    const optimisticGame = { ...g, ...updateData };
+
+                    if (updateData.customFields) {
+                      optimisticGame.customFields = {
+                        ...(g.customFields || {}),
+                        ...updateData.customFields,
+                      };
+                    }
+
+                    if (updateData.customData) {
+                      optimisticGame.customData = {
+                        ...(g.customData || {}),
+                        ...updateData.customData,
+                      };
+                    }
+
+                    return optimisticGame;
+                  }
+                  return g;
+                }),
+              },
             };
+          } else if (Array.isArray(oldData)) {
+            return oldData.map((g: Game) => {
+              if (g.id === gameId) {
+                const optimisticGame = { ...g, ...updateData };
+
+                if (updateData.customFields) {
+                  optimisticGame.customFields = {
+                    ...(g.customFields || {}),
+                    ...updateData.customFields,
+                  };
+                }
+
+                if (updateData.customData) {
+                  optimisticGame.customData = {
+                    ...(g.customData || {}),
+                    ...updateData.customData,
+                  };
+                }
+
+                return optimisticGame;
+              }
+              return g;
+            });
           }
 
-          return updatedData;
+          return oldData;
         });
 
         const res = await fetch(`/api/games/${gameId}`, {
@@ -2149,6 +2190,7 @@ export function GamesTable() {
   const handleInlineChange = useCallback(
     (value: string, game: Game) => {
       if (!inlineEditState) return;
+      const tempUpdateData: any = {};
 
       // Update UI immediately (optimistic update)
       handleInlineValueChange(value);
