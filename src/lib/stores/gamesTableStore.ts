@@ -30,6 +30,9 @@ interface GamesTableState {
   setPage: (page: number) => void;
   setRowsPerPage: (rowsPerPage: number) => void;
 
+  isCustomStructureActive: boolean;
+  setIsCustomStructureActive: (isActive: boolean) => void;
+
   // Sorting
   sortField: string;
   sortOrder: "asc" | "desc";
@@ -82,11 +85,14 @@ const getDefaultNewGameData = (): NewGameData => ({
 export const useGamesTableStore = create<GamesTableState>()(
   persist(
     (set) => ({
+      isCustomStructureActive: false,
       // Pagination
       page: 0,
       rowsPerPage: 25,
       setPage: (page) => set({ page }),
       setRowsPerPage: (rowsPerPage) => set({ rowsPerPage, page: 0 }),
+
+      setIsCustomStructureActive: (isActive) => set({ isCustomStructureActive: isActive }),
 
       // Sorting
       sortField: "date",
