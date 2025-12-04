@@ -67,7 +67,7 @@ interface FieldMapping {
 }
 
 const DATABASE_FIELDS = [
-  { value: "date", label: "Date", required: true },
+  { value: "date", label: "Date (Required - maps to game date)", required: true },
   { value: "preserve", label: "Keep as Custom Column", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
@@ -127,22 +127,28 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     maxSize: 10 * 1024 * 1024, // 10MB
   });
 
-  // Auto-map common field names - now only looks for date column
   const autoMapFields = (csvHeaders: string[]): FieldMapping => {
     const mapping: FieldMapping = {};
 
     csvHeaders.forEach((header) => {
       const normalized = header.toLowerCase().trim();
 
-      // Date mapping - only required field
+      // Check if this looks like a date column for special handling
       if (normalized.includes("date")) {
-        mapping[header] = "date";
+        // Still preserve date columns as custom columns, but we'll format them specially
+        mapping[header] = "preserve";
       }
       // All other columns are preserved as custom columns by default
       else {
         mapping[header] = "preserve";
       }
     });
+
+    // Auto-select the first date-like column as the required date field
+    const dateColumn = csvHeaders.find((header) => header.toLowerCase().trim().includes("date"));
+    if (dateColumn) {
+      mapping[dateColumn] = "date";
+    }
 
     return mapping;
   };
@@ -193,7 +199,6 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     }
   };
 
-  // Transform CSV data to game format - new structure preserves custom columns
   const transformData = (row: ParsedRow, rowIndex?: number): Record<string, any> => {
     try {
       const transformed: Record<string, any> = {
@@ -212,21 +217,36 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
             try {
               transformed.date = value ? parseAndConvertDate(value as string | number) : null;
             } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : 'Invalid date';
+              const errorMsg = error instanceof Error ? error.message : "Invalid date";
               throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
             }
             break;
           case "preserve":
-            // Store all preserved columns as custom fields with their original names
-            transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+            // Check if this is a date-like column for special formatting
+            const isDateLikeColumn = /date|day/i.test(csvField);
+
+            if (isDateLikeColumn && value) {
+              try {
+                // Try to format as date for consistent storage
+                const parsedDate = parseAndConvertDate(value as string | number);
+                // Store just the date part (YYYY-MM-DD) for date columns
+                transformed.customFields[csvField] = parsedDate.split("T")[0];
+              } catch {
+                // If parsing fails, store raw value
+                transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+              }
+            } else {
+              // Store all preserved columns as custom fields with their original names
+              transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+            }
             break;
         }
       });
 
       return transformed;
     } catch (error) {
-      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : '';
-      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : "";
+      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -254,15 +274,15 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     // Store the actual order of columns as they appear in the CSV
     const customColumns: string[] = [];
     const columnMapping: Record<string, string> = {};
-    
+
     headers.forEach((csvColumn) => {
       const dbField = fieldMapping[csvColumn];
       if (dbField === "date") {
-        // Date column always comes first
-        customColumns.unshift(csvColumn);
+        // The actual date field that maps to game.date - this one gets special treatment
+        // Don't add it to customColumns since it's not a custom column
         columnMapping[csvColumn] = "date";
       } else if (dbField === "preserve") {
-        // Preserved columns maintain their order
+        // ALL preserved columns (including date-like ones) are stored as custom columns
         customColumns.push(csvColumn);
         columnMapping[csvColumn] = "preserve";
       }
@@ -272,7 +292,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
       for (let i = 0; i < totalBatches; i++) {
         const batch = parsedData.slice(i * batchSize, (i + 1) * batchSize);
         const batchStartIndex = i * batchSize;
-        
+
         // Transform batch with error handling for each row
         const transformedBatch: Record<string, string | boolean | null>[] = [];
         batch.forEach((row, idx) => {
@@ -282,7 +302,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           } catch (error) {
             failedCount++;
             const rowNum = batchStartIndex + idx + 2; // +2 for header row and 1-based indexing
-            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Transform failed'}`);
+            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Transform failed"}`);
           }
         });
 
@@ -295,7 +315,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
               requestBody.customColumns = customColumns;
               requestBody.columnMapping = columnMapping;
             }
-            
+
             const response = await fetch("/api/import/games/batch", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -320,7 +340,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
             }
           } catch (fetchError) {
             failedCount += transformedBatch.length;
-            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
+            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
           }
         }
 
@@ -472,8 +492,8 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           {step === 1 && (
             <Stack spacing={3}>
               <Alert severity="info">
-                Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they 
-                appear in your spreadsheet. You can skip any columns you don&apos;t want to import.
+                Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they appear in your spreadsheet. You can skip any columns you don&apos;t
+                want to import.
               </Alert>
 
               <Typography variant="subtitle2" color="text.secondary">

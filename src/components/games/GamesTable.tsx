@@ -266,6 +266,9 @@ interface ColumnPreferencePayload {
   hidden: ColumnId[];
   columnTitles?: Record<string, string>;
   columnWidths?: Record<string, number>;
+  customColumns?: string[];
+  columnMapping?: Record<string, string>;
+  importedAt?: string;
 }
 
 interface ResolvedColumn {
@@ -420,6 +423,7 @@ export function GamesTable() {
   const [isColumnPreferencesOpen, setIsColumnPreferencesOpen] = useState(false);
   const [columnState, setColumnState] = useState<ColumnStateConfig[]>([]);
   const [initialPreferencesApplied, setInitialPreferencesApplied] = useState(false);
+  const [isUserReordering, setIsUserReordering] = useState(false);
 
   // Column title editing state
   const [editingColumnId, setEditingColumnId] = useState<ColumnId | null>(null);
@@ -565,6 +569,21 @@ export function GamesTable() {
     },
     [MAX_CHAR_LIMIT, inlineEditError]
   );
+
+  useEffect(() => {
+    console.log(
+      "Current columns:",
+      columnState.map((col) => col.id)
+    );
+    console.log(
+      "Has date column:",
+      columnState.some((col) => col.id === "date")
+    );
+    console.log(
+      "Imported columns:",
+      columnState.filter((col) => col.id.startsWith("imported:"))
+    );
+  }, [columnState]);
 
   useEffect(() => {
     setMounted(true);
@@ -745,9 +764,20 @@ export function GamesTable() {
     return order;
   }, [customColumns, columnPreferencesData, isCustomStructureActive, PERMANENTLY_KEPT_STATIC_IDS]);
 
+  useEffect(() => {
+    if (columnPreferencesData) {
+      console.log("Column preferences:", columnPreferencesData);
+      console.log("Custom columns:", columnPreferencesData.customColumns);
+      console.log("Column mapping:", columnPreferencesData.columnMapping);
+    }
+  }, [columnPreferencesData]);
+
   // CRITICAL FIX: Only update column state when preferences actually change
   // We derive the column state from the saved preferences, not from defaultColumnOrder recalculations
   useEffect(() => {
+    // Skip recalculation if user is actively reordering - prevents imported columns from being lost
+    if (isUserReordering) return;
+
     setColumnState((prev) => {
       // If user has saved preferences order, use it directly - respect it completely
       const savedOrder = columnPreferencesData?.order;
@@ -760,7 +790,7 @@ export function GamesTable() {
       // Pass the potentially saved order (or the filtered default order) to deriveColumnState
       return deriveColumnState(prev, columnPreferencesData, orderToUse, initialPreferencesApplied);
     });
-  }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied]);
+  }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied, isUserReordering]);
 
   useEffect(() => {
     if (!initialPreferencesApplied && columnPreferencesResponse !== undefined) {
@@ -1139,6 +1169,13 @@ export function GamesTable() {
         hidden: nextState.filter((column) => !column.visible).map((column) => column.id),
         columnTitles: updatedColumnTitles !== undefined ? updatedColumnTitles : customColumnTitles,
         columnWidths: updatedColumnWidths !== undefined ? updatedColumnWidths : columnWidths,
+        // CRITICAL FIX: Preserve existing imported column data
+        customColumns: Array.isArray(columnPreferencesData?.customColumns) ? columnPreferencesData.customColumns : undefined,
+        columnMapping:
+          columnPreferencesData?.columnMapping && typeof columnPreferencesData.columnMapping === "object" && !Array.isArray(columnPreferencesData.columnMapping)
+            ? (columnPreferencesData.columnMapping as Record<string, string>)
+            : undefined,
+        importedAt: typeof columnPreferencesData?.importedAt === "string" ? columnPreferencesData.importedAt : undefined,
       };
       savePreferencesMutation.mutate(payload, {
         onError: (error: any) => {
@@ -1147,7 +1184,7 @@ export function GamesTable() {
         },
       });
     },
-    [savePreferencesMutation, addNotification, customColumnTitles, columnWidths]
+    [savePreferencesMutation, addNotification, customColumnTitles, columnWidths, columnPreferencesData]
   );
 
   const handleToggleColumnVisibility = useCallback(
@@ -1172,6 +1209,12 @@ export function GamesTable() {
 
   const handleReorderColumns = useCallback(
     (order: string[]) => {
+      console.log("REORDER INPUT:", order);
+      console.log("Input has date:", order.includes("date"));
+
+      // Set flag to prevent column state recalculation during reordering
+      setIsUserReordering(true);
+
       const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
       setColumnState((prev) => {
         const previousState = prev.map((column) => ({ ...column }));
@@ -1185,6 +1228,11 @@ export function GamesTable() {
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
+
+      // Clear the flag after preferences are saved (small delay to ensure cache update completes)
+      setTimeout(() => {
+        setIsUserReordering(false);
+      }, 100);
     },
     [persistColumnPreferences]
   );
@@ -1426,6 +1474,8 @@ export function GamesTable() {
 
         return oldData;
       });
+      // Invalidate calendar widget
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // NO REFETCH - data already updated!
       resetNewGameData();
@@ -1529,16 +1579,19 @@ export function GamesTable() {
       }
 
       // Add your notification/save status error handling here
-      // addNotification(`Failed to save game: ${error.message}`, "error");
-      // setSaveStatus("error");
+      addNotification(`Failed to save game: ${error.message}`, "error");
+      setSaveStatus("error");
     },
 
     onSuccess: (updatedGame, variables) => {
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // Add your save status and sync logic here
-      // setSaveStatus("saved");
-      // if (variables.id) { syncGameMutation.mutate(variables.id); }
+      setSaveStatus("saved");
+      if (variables.id) {
+        syncGameMutation.mutate(variables.id);
+      }
     },
 
     onSettled: () => {
@@ -1546,8 +1599,8 @@ export function GamesTable() {
       resetEditingState();
 
       // Add your saveStatus timeout logic here
-      // if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
-      // saveStatusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 3000);
+      if (saveStatusTimeoutRef.current) clearTimeout(saveStatusTimeoutRef.current);
+      saveStatusTimeoutRef.current = setTimeout(() => setSaveStatus("idle"), 3000);
     },
   });
 
@@ -1626,6 +1679,8 @@ export function GamesTable() {
         resetEditingState();
         setEditingGameData(null);
       }
+
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // Clear pending changes for this game
       pendingChangesRef.current.delete(gameId);
@@ -1724,6 +1779,7 @@ export function GamesTable() {
     },
     onSuccess: (data: any, gameIds: string[]) => {
       // NO REFETCH - data already updated!
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // Clear all stale state to prevent UI inconsistencies
       clearSelectedGameIds();
@@ -2445,16 +2501,15 @@ export function GamesTable() {
       // Refresh data
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
-
-      // We no longer need to invalidate 'tablePreferences' explicitly here
-      // because setting 'isCustomStructureActive' will trigger the 'allColumns' useMemo
-      // and the subsequent 'useEffect' that updates the column state.
-      // queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
-
-      // Refresh imported columns for calendar group mappings
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] }); // ADD THIS LINE
+
+      // ALSO TRY: Force a refetch instead of just invalidate
+      queryClient.refetchQueries({ queryKey: GAMES_QUERY_KEY });
+      queryClient.refetchQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+      queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] }); // ADD THIS LINE
     },
-    // UPDATED DEPENDENCY ARRAY: Include setIsCustomStructureActive and TABLE_PREFERENCES_KEY
     [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY]
   );
 
@@ -4395,8 +4450,24 @@ export function GamesTable() {
   );
 
   const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
+    if (column.id === "date" || column.id.startsWith("imported:")) {
+      console.log("🔍 RENDER PATH:", {
+        columnId: column.id,
+        gameId: game.id,
+        gameDate: game.date,
+        formattedDate: formatGameDate(game.date),
+        isImportedColumn: column.id.startsWith("imported:"),
+        mapping: column.id.startsWith("imported:") ? (columnPreferencesData?.columnMapping as Record<string, string>)?.[column.id.split(":")[1]] : "default",
+      });
+    }
+
     switch (column.id) {
       case "date": {
+        console.log("🔴 RENDERING DEFAULT DATE COLUMN", {
+          gameId: game.id,
+          gameDate: game.date,
+          columnId: column.id,
+        });
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
         const isHovered = hoveredDateGameId === game.id;
 
@@ -5056,6 +5127,13 @@ export function GamesTable() {
           let cellValue = "";
 
           if (mapping === "date") {
+            console.log("🔵 RENDERING IMPORTED DATE COLUMN", {
+              gameId: game.id,
+              gameDate: game.date,
+              columnId: column.id,
+              columnName,
+              mapping,
+            });
             // CRITICAL FIX: Display date from game.date - this column should be FULLY EDITABLE with DatePicker
             // This handles imported columns that are mapped to the date field
             const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
@@ -5915,17 +5993,34 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
 
   if (importedColumns && columnMapping && importedColumns.length > 0) {
     // User imported CSV with custom columns
-    const importedIds = importedColumns
-      .filter((colName) => {
-        const mapping = columnMapping[colName];
-        return mapping && mapping !== "skip"; // Only include non-skipped columns
-      })
-      .map((colName) => `imported:${colName}` as ColumnId);
+    const importedIds: ColumnId[] = [];
+    let importedDateColumnId: ColumnId | null = null;
 
-    // CRITICAL FIX: When imported columns exist, ONLY show imported columns in the table view
-    // The create game row has its own separate logic to show default columns
-    // This prevents the bug where both default AND imported columns appear simultaneously
-    return [...importedIds, "actions"];
+    importedColumns.forEach((colName) => {
+      const mapping = columnMapping[colName];
+      if (mapping && mapping !== "skip") {
+        const columnId = `imported:${colName}` as ColumnId;
+        if (mapping === "date") {
+          // This imported column is mapped to the date field
+          importedDateColumnId = columnId;
+        }
+        importedIds.push(columnId);
+      }
+    });
+
+    // CRITICAL FIX: Use EITHER the imported date column OR default date column, never both
+    const finalOrder: ColumnId[] = [];
+
+    if (importedDateColumnId) {
+      // Use the imported date column, don't add default "date"
+      finalOrder.push(...importedIds);
+    } else {
+      // No imported date column, so include default "date"
+      finalOrder.push("date", ...importedIds);
+    }
+
+    finalOrder.push("actions");
+    return finalOrder;
   }
 
   // No imported columns - use default column order

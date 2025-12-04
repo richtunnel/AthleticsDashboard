@@ -168,12 +168,12 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             // Try to parse the date using our robust parser with warnings
             const result = parseAndConvertDate(dateValue as string | number, true);
             if (result.warnings.length > 0) {
-              result.warnings.forEach(warning => {
+              result.warnings.forEach((warning) => {
                 warnings.push(`Row ${i + 2}: ${warning}`);
               });
             }
           } catch (error) {
-            errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Invalid date'}`);
+            errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : "Invalid date"}`);
           }
         } else {
           // Row is missing date value
@@ -211,9 +211,11 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         switch (dbField) {
           case "date":
             try {
-              transformed.date = value ? parseAndConvertDate(value as string | number) : null;
+              const dateValue = value ? parseAndConvertDate(value as string | number) : null;
+              transformed.date = dateValue; // For calendar widget
+              transformed.customFields[csvField] = dateValue; // For table display
             } catch (error) {
-              const errorMsg = error instanceof Error ? error.message : 'Invalid date';
+              const errorMsg = error instanceof Error ? error.message : "Invalid date";
               throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
             }
             break;
@@ -226,8 +228,8 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
 
       return transformed;
     } catch (error) {
-      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : '';
-      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const rowNum = rowIndex !== undefined ? ` (Row ${rowIndex + 2})` : "";
+      throw new Error(`Transform error${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -249,7 +251,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     // Store the actual order of columns as they appear in the CSV
     const customColumns: string[] = [];
     const columnMapping: Record<string, string> = {};
-    
+
     headers.forEach((csvColumn) => {
       const dbField = fieldMapping[csvColumn];
       if (dbField === "date") {
@@ -267,7 +269,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       for (let i = 0; i < totalBatches; i++) {
         const batch = parsedData.slice(i * batchSize, (i + 1) * batchSize);
         const batchStartIndex = i * batchSize;
-        
+
         // Transform batch with error handling for each row
         const transformedBatch: Record<string, string | boolean | null>[] = [];
         batch.forEach((row, idx) => {
@@ -277,7 +279,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
           } catch (error) {
             failedCount++;
             const rowNum = batchStartIndex + idx + 2; // +2 for header row and 1-based indexing
-            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : 'Transform failed'}`);
+            errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Transform failed"}`);
           }
         });
 
@@ -290,7 +292,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               requestBody.customColumns = customColumns;
               requestBody.columnMapping = columnMapping;
             }
-            
+
             const response = await fetch("/api/import/games/batch", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -318,7 +320,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             }
           } catch (fetchError) {
             failedCount += transformedBatch.length;
-            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`);
+            errors.push(`Batch ${i + 1} network error: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
           }
         }
 
@@ -465,8 +467,8 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {step === 1 && (
           <Stack spacing={3}>
             <Alert severity="info">
-              Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they 
-              appear in your spreadsheet. You can skip any columns you don&apos;t want to import.
+              Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they appear in your spreadsheet. You can skip any columns you don&apos;t want
+              to import.
             </Alert>
 
             <Typography variant="subtitle2" color="text.secondary">
@@ -585,15 +587,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                           try {
                             const dbField = fieldMapping[header];
                             let displayValue: any = row[header] || "—";
-                            
+
                             // Format date field to show only date part (not time/timezone)
                             if (dbField === "date" && displayValue !== "—") {
                               const parsedDate = parseAndConvertDate(displayValue as string | number);
-                              displayValue = parsedDate.includes("T") 
-                                ? parsedDate.split("T")[0] 
-                                : parsedDate;
+                              displayValue = parsedDate.includes("T") ? parsedDate.split("T")[0] : parsedDate;
                             }
-                            
+
                             return (
                               <TableCell key={header}>
                                 <Typography variant="body2">{String(displayValue)}</Typography>
@@ -726,10 +726,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       </DialogActions>
 
       {/* Date Required Modal */}
-      <DateRequiredModal 
-        open={showDateRequiredModal} 
-        onClose={() => setShowDateRequiredModal(false)} 
-      />
+      <DateRequiredModal open={showDateRequiredModal} onClose={() => setShowDateRequiredModal(false)} />
     </Dialog>
   );
 }
