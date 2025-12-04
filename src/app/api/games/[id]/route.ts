@@ -62,6 +62,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Game not found or unauthorized" }, { status: 404 });
     }
 
+    if (body.customFields) {
+      // Get user's column mapping to find which custom field maps to date
+      const userPrefs = await prisma.tablePreference.findUnique({
+        where: {
+          userId_tableKey: { userId: session.user.id, tableKey: "games" },
+        },
+      });
+
+      const preferences = userPrefs?.preferences as any;
+      const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
+      if (columnMapping) {
+        const dateColumnName = Object.keys(columnMapping).find((col) => columnMapping[col] === "date");
+        if (dateColumnName && body.customFields[dateColumnName]) {
+          // Also update the main date field so calendar widget sees the change
+          body.date = new Date(body.customFields[dateColumnName]);
+        }
+      }
+    }
+
     // Update the game with the provided data
     const updatedGame = await prisma.game.update({
       where: { id: gameId },
