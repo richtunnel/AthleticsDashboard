@@ -80,6 +80,24 @@ export async function POST(request: NextRequest) {
       const rowNum = i + 1;
 
       try {
+        let timeValue: string | null = null;
+        let opponentName: string | null = null;
+
+        // Find the CSV column names mapped to 'time' and 'opponent'
+        const timeColumn = Object.keys(columnMapping).find((key) => columnMapping[key] === "time");
+        const opponentColumn = Object.keys(columnMapping).find((key) => columnMapping[key] === "opponent");
+
+        // Pull the values from the customFields object if the mapping exists
+        if (timeColumn && gameData.customFields?.[timeColumn]) {
+          timeValue = String(gameData.customFields[timeColumn]);
+          // Optional: You may need to validate/normalize this time format here,
+          // but for now, we'll assume the string "6:30 PM" is acceptable for the DB.
+        }
+
+        if (opponentColumn && gameData.customFields?.[opponentColumn]) {
+          opponentName = String(gameData.customFields[opponentColumn]);
+        }
+
         // === VALIDATE DATE (ONLY REQUIRED FIELD) ===
         if (!gameData.date) {
           errors.push(`Row ${rowNum}: Missing required field (date)`);
@@ -92,7 +110,7 @@ export async function POST(request: NextRequest) {
         try {
           parsedDate = validateAndParseDate(gameData.date);
         } catch (dateError) {
-          errors.push(`Row ${rowNum}: ${dateError instanceof Error ? dateError.message : 'Invalid date'}`);
+          errors.push(`Row ${rowNum}: ${dateError instanceof Error ? dateError.message : "Invalid date"}`);
           failedCount++;
           continue;
         }
@@ -105,6 +123,7 @@ export async function POST(request: NextRequest) {
           status: "SCHEDULED" as GameStatus,
           customFields: gameData.customFields || {},
           createdById: session.user.id,
+          time: timeValue,
           sortOrder: 0,
         };
 
@@ -129,7 +148,6 @@ export async function POST(request: NextRequest) {
         // === SUCCESS ===
         createdGameIds.push(createdGame.id);
         successCount++;
-
       } catch (error) {
         console.error(`Row ${rowNum} import error:`, error);
         errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -172,7 +190,7 @@ export async function POST(request: NextRequest) {
 
           if (existingCustomColumns && Array.isArray(existingCustomColumns) && existingCustomColumns.length > 0) {
             console.log(`[Import] Merging new columns with existing imported columns for user ${session.user.id}`);
-            
+
             // Merge columns: Add new columns that don't already exist
             const existingColumnSet = new Set(existingCustomColumns);
             const newUniqueColumns = customColumns.filter((col: string) => !existingColumnSet.has(col));
@@ -200,7 +218,7 @@ export async function POST(request: NextRequest) {
             return mapping && mapping !== "skip";
           })
           .map((colName: string) => `imported:${colName}`);
-        
+
         await prisma.tablePreference.upsert({
           where: {
             userId_tableKey: {
@@ -239,16 +257,10 @@ export async function POST(request: NextRequest) {
     // Detect and create opponents in the background (after successful import)
     if (successCount > 0 && customColumns) {
       try {
-        const detectionResult = await detectAndCreateOpponents(
-          customColumns,
-          games,
-          session.user.organizationId
-        );
+        const detectionResult = await detectAndCreateOpponents(customColumns, games, session.user.organizationId);
 
         if (detectionResult.detected) {
-          console.log(
-            `[Import] Opponent detection: Created ${detectionResult.opponentsCreated} opponents from column "${detectionResult.columnName}"`
-          );
+          console.log(`[Import] Opponent detection: Created ${detectionResult.opponentsCreated} opponents from column "${detectionResult.columnName}"`);
           if (detectionResult.errors && detectionResult.errors.length > 0) {
             console.warn(`[Import] Opponent detection warnings:`, detectionResult.errors);
           }
