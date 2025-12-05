@@ -95,11 +95,45 @@ const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: 
 });
 
 const extractDatePart = (dateValue: string): string => {
-  return dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
+  if (!dateValue) return "";
+  try {
+    // If it's already in YYYY-MM-DD format, return it
+    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateValue;
+    }
+    // If it includes time (ISO string), extract date part
+    if (dateValue.includes("T")) {
+      return dateValue.split("T")[0];
+    }
+    // Try to parse and format
+    const parsed = new Date(dateValue);
+    if (!isNaN(parsed.getTime())) {
+      return format(parsed, "yyyy-MM-dd");
+    }
+    return dateValue;
+  } catch (error) {
+    console.warn("Error extracting date part:", error);
+    return dateValue;
+  }
 };
 
 const dateStringToUTCISOString = (dateValue: string): string => {
-  // Use robust date parser that handles multiple formats
+  if (!dateValue) return "";
+
+  // If it's already in YYYY-MM-DD format (date-only), preserve it as-is
+  if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    // Create date in UTC to avoid timezone shifts
+    const parts = dateValue.split("-");
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+
+    // Create date in UTC to prevent timezone conversion
+    const utcDate = new Date(Date.UTC(year, month, day));
+    return utcDate.toISOString();
+  }
+
+  // For other formats, use your existing parseAndConvertDate function
   return parseAndConvertDate(dateValue);
 };
 
@@ -232,8 +266,7 @@ type SortOrder = "asc" | "desc";
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
-type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | `custom:${string}` | `imported:${string}`;
-
+type InlineEditField = "opponent" | "location" | "date" | "time" | "status" | "notes" | "sport" | "level" | "isHome" | "busTravel" | "field" | `custom:${string}` | `imported:${string}` | ColumnId;
 interface InlineEditState {
   gameId: string;
   field: InlineEditField;
@@ -570,20 +603,20 @@ export function GamesTable() {
     [MAX_CHAR_LIMIT, inlineEditError]
   );
 
-  useEffect(() => {
-    console.log(
-      "Current columns:",
-      columnState.map((col) => col.id)
-    );
-    console.log(
-      "Has date column:",
-      columnState.some((col) => col.id === "date")
-    );
-    console.log(
-      "Imported columns:",
-      columnState.filter((col) => col.id.startsWith("imported:"))
-    );
-  }, [columnState]);
+  // useEffect(() => {
+  //   console.log(
+  //     "Current columns:",
+  //     columnState.map((col) => col.id)
+  //   );
+  //   console.log(
+  //     "Has date column:",
+  //     columnState.some((col) => col.id === "date")
+  //   );
+  //   console.log(
+  //     "Imported columns:",
+  //     columnState.filter((col) => col.id.startsWith("imported:"))
+  //   );
+  // }, [columnState]);
 
   useEffect(() => {
     setMounted(true);
@@ -764,13 +797,13 @@ export function GamesTable() {
     return order;
   }, [customColumns, columnPreferencesData, isCustomStructureActive, PERMANENTLY_KEPT_STATIC_IDS]);
 
-  useEffect(() => {
-    if (columnPreferencesData) {
-      console.log("Column preferences:", columnPreferencesData);
-      console.log("Custom columns:", columnPreferencesData.customColumns);
-      console.log("Column mapping:", columnPreferencesData.columnMapping);
-    }
-  }, [columnPreferencesData]);
+  // useEffect(() => {
+  //   if (columnPreferencesData) {
+  //     console.log("Column preferences:", columnPreferencesData);
+  //     console.log("Custom columns:", columnPreferencesData.customColumns);
+  //     console.log("Column mapping:", columnPreferencesData.columnMapping);
+  //   }
+  // }, [columnPreferencesData]);
 
   // CRITICAL FIX: Only update column state when preferences actually change
   // We derive the column state from the saved preferences, not from defaultColumnOrder recalculations
@@ -1209,7 +1242,7 @@ export function GamesTable() {
 
   const handleReorderColumns = useCallback(
     (order: string[]) => {
-      console.log("REORDER INPUT:", order);
+      // console.log("REORDER INPUT:", order);
       console.log("Input has date:", order.includes("date"));
 
       // Set flag to prevent column state recalculation during reordering
@@ -2037,6 +2070,18 @@ export function GamesTable() {
               ...(game.customFields || {}),
               [columnName]: value.slice(0, MAX_CHAR_LIMIT),
             };
+
+            // CRITICAL FIX: If this imported column maps to date, also update main date field
+            // This mirrors what the backend does in the API
+            const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
+            if (columnMapping && columnMapping[columnName] === "date") {
+              try {
+                updateData.date = dateStringToUTCISOString(value);
+                console.log("📅 Optimistic update: Also updating main date field to:", updateData.date);
+              } catch (error) {
+                console.warn("📅 Failed to parse date for optimistic update:", error);
+              }
+            }
           }
         }
 
@@ -4450,45 +4495,54 @@ export function GamesTable() {
   );
 
   const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
-    if (column.id === "date" || column.id.startsWith("imported:")) {
-      console.log("🔍 RENDER PATH:", {
-        columnId: column.id,
-        gameId: game.id,
-        gameDate: game.date,
-        formattedDate: formatGameDate(game.date),
-        isImportedColumn: column.id.startsWith("imported:"),
-        mapping: column.id.startsWith("imported:") ? (columnPreferencesData?.columnMapping as Record<string, string>)?.[column.id.split(":")[1]] : "default",
-      });
-    }
+    // if (column.id === "date" || column.id.startsWith("imported:")) {
+    //   console.log("🔍 RENDER PATH:", {
+    //     columnId: column.id,
+    //     gameId: game.id,
+    //     gameDate: game.date,
+    //     formattedDate: formatGameDate(game.date),
+    //     isImportedColumn: column.id.startsWith("imported:"),
+    //     mapping: column.id.startsWith("imported:") ? (columnPreferencesData?.columnMapping as Record<string, string>)?.[column.id.split(":")[1]] : "default",
+    //   });
+    // }
 
     switch (column.id) {
       case "date": {
-        console.log("🔴 RENDERING DEFAULT DATE COLUMN", {
-          gameId: game.id,
-          gameDate: game.date,
-          columnId: column.id,
-        });
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
         const isHovered = hoveredDateGameId === game.id;
 
         return (
           <TableCell
             key="date"
-            sx={getDataCellSx("date", isEditing)}
-            onDoubleClick={() => handleDoubleClick(game, "date")}
+            sx={{
+              ...getDataCellSx("date", isEditing),
+              cursor: isEditing ? "default" : "pointer",
+              "&:hover": {
+                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+              },
+            }}
+            onDoubleClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleDoubleClick(game, "date");
+            }}
             onMouseEnter={() => setHoveredDateGameId(game.id)}
             onMouseLeave={() => setHoveredDateGameId(null)}
           >
             {isEditing ? (
-              <Box sx={{ py: 1 }}>
+              <Box sx={{ py: 1, width: "100%" }}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
                     open={true}
-                    onClose={() => handleInlineBlur(game)}
+                    onClose={() => {
+                      console.log("📅 DatePicker closed");
+                      handleInlineBlur(game);
+                    }}
                     value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
                     onChange={(newValue) => {
                       if (newValue) {
                         const formattedDate = format(newValue, "yyyy-MM-dd");
+                        console.log("📅 Date changed to:", formattedDate);
                         handleInlineChange(formattedDate, game);
                       }
                     }}
@@ -4502,6 +4556,9 @@ export function GamesTable() {
                         sx: { width: "100%" },
                         InputProps: { sx: { fontSize: 13 } },
                       },
+                      popper: {
+                        placement: "bottom-start",
+                      },
                     }}
                   />
                 </LocalizationProvider>
@@ -4512,10 +4569,12 @@ export function GamesTable() {
                   display: "flex",
                   alignItems: "center",
                   gap: 1,
-                  py: 0,
+                  py: 1,
+                  minHeight: 40,
+                  cursor: "pointer",
                 }}
               >
-                <Typography variant="body2" sx={{ fontSize: 13 }}>
+                <Typography variant="body2" sx={{ fontSize: 13, userSelect: "none" }}>
                   {formatGameDate(game.date)}
                 </Typography>
                 {isHovered && !isInlineSaving && (
@@ -5127,16 +5186,8 @@ export function GamesTable() {
           let cellValue = "";
 
           if (mapping === "date") {
-            console.log("🔵 RENDERING IMPORTED DATE COLUMN", {
-              gameId: game.id,
-              gameDate: game.date,
-              columnId: column.id,
-              columnName,
-              mapping,
-            });
-            // CRITICAL FIX: Display date from game.date - this column should be FULLY EDITABLE with DatePicker
-            // This handles imported columns that are mapped to the date field
-            const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === "date";
+            // CRITICAL: Use column.id for imported date columns
+            const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === column.id;
             const isHovered = hoveredDateGameId === game.id;
 
             return (
@@ -5154,21 +5205,36 @@ export function GamesTable() {
                     bgcolor: isEditingDate ? "#fff9e6" : "#f5f5f5",
                   },
                 }}
-                onDoubleClick={() => handleDoubleClick(game, "date")}
+                onDoubleClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("📅 Imported date double-clicked for game:", game.id);
+                  console.log("📅 Using column ID:", column.id);
+
+                  // Use column.id as the field for imported columns
+                  setInlineEditState({ gameId: game.id, field: column.id as InlineEditField });
+                  setInlineEditValue(game.date.split("T")[0]);
+                  setInlineEditError(null);
+                  setSaveStatus("idle");
+                }}
                 onMouseEnter={() => setHoveredDateGameId(game.id)}
                 onMouseLeave={() => setHoveredDateGameId(null)}
               >
-                {isEditingDate ? (
-                  <Box sx={{ py: 1 }}>
+                {isEditingDate ? ( // <-- CRITICAL: Use isEditingDate variable
+                  <Box sx={{ py: 1, width: "100%" }}>
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DatePicker
-                        open={true}
-                        onClose={() => handleInlineBlur(game)}
                         value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
                         onChange={(newValue) => {
                           if (newValue) {
                             const formattedDate = format(newValue, "yyyy-MM-dd");
-                            handleInlineChange(formattedDate, game);
+                            console.log("📅 Date changed to:", formattedDate);
+                            // Save immediately when date is selected
+                            scheduleAutosave(game.id, column.id as InlineEditField, formattedDate, game, true);
+                            // Exit edit mode
+                            setInlineEditState(null);
+                            setInlineEditValue("");
+                            setSaveStatus("idle");
                           }
                         }}
                         disabled={isInlineSaving}
@@ -5176,8 +5242,14 @@ export function GamesTable() {
                           textField: {
                             size: "small",
                             autoFocus: true,
-                            onKeyDown: (e: any) => handleInlineKeyDown(e, game),
-                            onBlur: () => handleInlineBlur(game),
+                            onKeyDown: (e: any) => {
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setInlineEditState(null);
+                                setInlineEditValue("");
+                                setSaveStatus("idle");
+                              }
+                            },
                             sx: { width: "100%" },
                             InputProps: { sx: { fontSize: 13 } },
                           },
@@ -5191,10 +5263,12 @@ export function GamesTable() {
                       display: "flex",
                       alignItems: "center",
                       gap: 1,
-                      py: 0,
+                      py: 1,
+                      minHeight: 40,
+                      cursor: "pointer",
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontSize: 13 }}>
+                    <Typography variant="body2" sx={{ fontSize: 13, userSelect: "none" }}>
                       {formatGameDate(game.date)}
                     </Typography>
                     {isHovered && !isInlineSaving && (
@@ -5206,7 +5280,7 @@ export function GamesTable() {
                         }}
                       />
                     )}
-                    {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === "date" && <CircularProgress size={12} />}
+                    {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === column.id && <CircularProgress size={12} />}
                   </Box>
                 )}
               </TableCell>
