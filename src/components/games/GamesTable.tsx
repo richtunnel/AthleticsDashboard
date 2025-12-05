@@ -5186,6 +5186,7 @@ export function GamesTable() {
           let cellValue = "";
 
           if (mapping === "date") {
+            // CRITICAL: Use column.id for imported date columns
             const isEditingDate = inlineEditState?.gameId === game.id && inlineEditState.field === column.id;
             const isHovered = hoveredDateGameId === game.id;
 
@@ -5203,111 +5204,59 @@ export function GamesTable() {
                   "&:hover": {
                     bgcolor: isEditingDate ? "#fff9e6" : "#f5f5f5",
                   },
-                  position: "relative",
                 }}
                 onDoubleClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  console.log("📅 Imported date double-clicked for game:", game.id);
+                  console.log("📅 Using column ID:", column.id);
 
+                  // Use column.id as the field for imported columns
                   setInlineEditState({ gameId: game.id, field: column.id as InlineEditField });
-                  setInlineEditValue(game.date.split("T")[0]); // Keep as YYYY-MM-DD for DatePicker
+                  setInlineEditValue(game.date.split("T")[0]);
                   setInlineEditError(null);
                   setSaveStatus("idle");
                 }}
                 onMouseEnter={() => setHoveredDateGameId(game.id)}
                 onMouseLeave={() => setHoveredDateGameId(null)}
               >
-                {isEditingDate ? (
-                  <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    <DatePicker
-                      open={true}
-                      value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
-                      onChange={(newValue) => {
-                        if (newValue) {
-                          // Create UTC date to prevent timezone shifting
-                          const year = newValue.getFullYear();
-                          const month = newValue.getMonth();
-                          const day = newValue.getDate();
-                          const utcDate = new Date(Date.UTC(year, month, day));
-                          const formattedDate = utcDate.toISOString().split("T")[0];
-
-                          console.log("📅 Date selected:", formattedDate);
-                          scheduleAutosave(game.id, column.id as InlineEditField, formattedDate, game, true);
-                          setInlineEditState(null);
-                          setInlineEditValue("");
-                          setSaveStatus("idle");
-                        }
-                      }}
-                      onClose={() => {
-                        // Only close if user didn't select a date
-                        setInlineEditState(null);
-                        setInlineEditValue("");
-                        setSaveStatus("idle");
-                      }}
-                      disabled={isInlineSaving}
-                      slotProps={{
-                        textField: {
-                          sx: { display: "none" }, // Hide the text field completely
-                        },
-                        popper: {
-                          placement: "bottom-start",
-                          modifiers: [
-                            {
-                              name: "offset",
-                              options: {
-                                offset: [0, 4],
-                              },
+                {isEditingDate ? ( // <-- CRITICAL: Use isEditingDate variable
+                  <Box sx={{ py: 1, width: "100%" }}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DatePicker
+                        value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
+                        onChange={(newValue) => {
+                          if (newValue) {
+                            const formattedDate = format(newValue, "yyyy-MM-dd");
+                            console.log("📅 Date changed to:", formattedDate);
+                            // Save immediately when date is selected
+                            scheduleAutosave(game.id, column.id as InlineEditField, formattedDate, game, true);
+                            // Exit edit mode
+                            setInlineEditState(null);
+                            setInlineEditValue("");
+                            setSaveStatus("idle");
+                          }
+                        }}
+                        disabled={isInlineSaving}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            autoFocus: true,
+                            onKeyDown: (e: any) => {
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                setInlineEditState(null);
+                                setInlineEditValue("");
+                                setSaveStatus("idle");
+                              }
                             },
-                            {
-                              name: "preventOverflow",
-                              options: {
-                                boundary: "viewport",
-                                altBoundary: true,
-                                padding: 8,
-                              },
-                            },
-                          ],
-                          sx: {
-                            zIndex: 9999,
-                            "& .MuiPaper-root": {
-                              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
-                              border: "1px solid #e1e5e9",
-                              borderRadius: 2,
-                            },
+                            sx: { width: "100%" },
+                            InputProps: { sx: { fontSize: 13 } },
                           },
-                        },
-                        actionBar: {
-                          actions: ["cancel", "accept"],
-                        },
-                      }}
-                    />
-                    {/* Invisible positioned element to anchor the DatePicker */}
-                    <Box
-                      sx={{
-                        position: "absolute",
-                        top: "100%",
-                        left: 0,
-                        width: 1,
-                        height: 1,
-                        pointerEvents: "none",
-                      }}
-                    />
-                    {/* Display current value while editing */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        py: 1,
-                        minHeight: 40,
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ fontSize: 13, color: "primary.main", fontWeight: 500 }}>
-                        {formatGameDate(inlineEditValue ? `${inlineEditValue}T00:00:00.000Z` : game.date)}
-                      </Typography>
-                      {isInlineSaving ? <CircularProgress size={16} /> : <CalendarMonth sx={{ fontSize: 16, color: "primary.main", animation: "pulse 1.5s infinite" }} />}
-                    </Box>
-                  </LocalizationProvider>
+                        }}
+                      />
+                    </LocalizationProvider>
+                  </Box>
                 ) : (
                   <Box
                     sx={{
@@ -5316,12 +5265,22 @@ export function GamesTable() {
                       gap: 1,
                       py: 1,
                       minHeight: 40,
+                      cursor: "pointer",
                     }}
                   >
-                    <Typography variant="body2" sx={{ fontSize: 13 }}>
+                    <Typography variant="body2" sx={{ fontSize: 13, userSelect: "none" }}>
                       {formatGameDate(game.date)}
                     </Typography>
-                    {isHovered && <CalendarMonth sx={{ fontSize: 16, color: "primary.main", opacity: 0.7 }} />}
+                    {isHovered && !isInlineSaving && (
+                      <CalendarMonth
+                        sx={{
+                          fontSize: 16,
+                          color: "primary.main",
+                          transition: "opacity 0.2s",
+                        }}
+                      />
+                    )}
+                    {isInlineSaving && inlineEditState?.gameId === game.id && inlineEditState?.field === column.id && <CircularProgress size={12} />}
                   </Box>
                 )}
               </TableCell>
