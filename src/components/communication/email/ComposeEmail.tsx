@@ -3,7 +3,27 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Box, Paper, Typography, TextField, Button, MenuItem, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Alert, CircularProgress, Divider, Chip, useMediaQuery } from "@mui/material";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
+  CircularProgress,
+  Divider,
+  Chip,
+  useMediaQuery,
+  Checkbox,
+} from "@mui/material";
 import { ArrowBack, Send } from "@mui/icons-material";
 import { format } from "date-fns";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
@@ -42,13 +62,7 @@ interface TablePreferencesData {
   [key: string]: unknown;
 }
 
-const STATIC_RECIPIENT_CATEGORIES = [
-  { value: "custom", label: "Custom Recipients" },
-  // { value: "opponent", label: "Opponent Athletic Directors" },
-  // { value: "assigners", label: "Officials/Assigners" },
-  // { value: "coaches", label: "Coaches" },
-  // { value: "staff", label: "Staff Members" },
-];
+const STATIC_RECIPIENT_CATEGORIES = [{ value: "custom", label: "Custom Recipients" }];
 
 // Helper to determine which columns to display based on user's import preferences
 const getDisplayColumns = (preferences: TablePreferencesData | null): string[] => {
@@ -107,7 +121,7 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
   // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
-    
+
     // CRITICAL FIX: Check if this imported column is mapped to a standard field like "date"
     const mapping = columnMapping?.[columnName];
     if (mapping === "date") {
@@ -117,7 +131,7 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
       // This imported column is mapped to time - return game.time
       return game.time || "TBD";
     }
-    
+
     // Otherwise, look in customFields for preserved columns
     const customFields = game.customFields || {};
     return customFields[columnName] || "—";
@@ -150,7 +164,7 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
-  const isWideScreen = useMediaQuery('(min-width:1260px)');
+  const isWideScreen = useMediaQuery("(min-width:1260px)");
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
@@ -159,8 +173,7 @@ export default function ComposeEmailPage() {
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [subject, setSubject] = useState("");
   const [additionalMessage, setAdditionalMessage] = useState("");
-  const [selectedOpponentId, setSelectedOpponentId] = useState<string>("all");
-  const [opponentFilterDisabled, setOpponentFilterDisabled] = useState(false);
+  const [selectedSchoolNames, setSelectedSchoolNames] = useState<string[]>([]);
 
   const { data: emailGroups = [], isLoading: emailGroupsLoading } = useQuery<EmailGroup[], Error>({
     queryKey: ["email-groups"],
@@ -189,15 +202,11 @@ export default function ComposeEmailPage() {
     },
   });
 
-  const tablePreferences = useMemo<TablePreferencesData | null>(
-    () => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null,
-    [tablePreferencesResponse?.data]
-  );
+  const tablePreferences = useMemo<TablePreferencesData | null>(() => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null, [tablePreferencesResponse?.data]);
 
   // Determine visible columns based on user's import preferences
-  // If they imported a spreadsheet, show ONLY those columns (no default columns)
   const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences), [tablePreferences]);
-  
+
   // Extract columnMapping for checking imported column mappings
   const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
 
@@ -211,6 +220,47 @@ export default function ComposeEmailPage() {
 
     return [...STATIC_RECIPIENT_CATEGORIES, ...emailGroupCategories];
   }, [emailGroups]);
+
+  // Get all unique school/opponent names from opponent-related columns
+  const getAllSchoolNames = useMemo(() => {
+    if (!allGames.length) return [];
+
+    const schoolNamesSet = new Set<string>();
+
+    // Find columns that might contain opponent/school information
+    const opponentColumns = visibleColumnIds.filter((columnId) => {
+      const label = getColumnLabel(columnId).toLowerCase();
+      return (
+        label.includes("opponent") ||
+        label.includes("away") ||
+        label.includes("enemy") ||
+        label.includes("visiting") ||
+        label.includes("visitor") ||
+        label.includes("against") ||
+        label.includes("vs") ||
+        label.includes("versus") ||
+        label.includes("school") ||
+        label.includes("team")
+      );
+    });
+
+    // Extract all school names from these columns
+    allGames.forEach((game) => {
+      opponentColumns.forEach((columnId) => {
+        const value = getCellValue(game, columnId, columnMapping);
+        if (value && value !== "—" && value !== "TBD" && value !== "Home" && value.trim()) {
+          schoolNamesSet.add(value.trim());
+        }
+      });
+
+      // Also include standard opponent field
+      if (game.opponent?.name && game.opponent.name !== "TBD") {
+        schoolNamesSet.add(game.opponent.name);
+      }
+    });
+
+    return Array.from(schoolNamesSet).sort();
+  }, [allGames, visibleColumnIds, columnMapping]);
 
   useEffect(() => {
     setMounted(true);
@@ -233,22 +283,40 @@ export default function ComposeEmailPage() {
       if (storedOpponentFilter && storedOpponentFilter !== "null") {
         try {
           const opponentFilter = JSON.parse(storedOpponentFilter);
-          // If filter type is "values" and only one opponent is selected, pre-fill and disable
-          if (opponentFilter?.type === "values" && opponentFilter?.values?.length === 1) {
-            const opponentName = opponentFilter.values[0];
-            // Find the opponent ID from the games
-            const gameWithOpponent = games.find((g: Game) => g.opponent?.name === opponentName);
-            if (gameWithOpponent && (gameWithOpponent.opponentId || gameWithOpponent.opponent?.id)) {
-              const opponentId = gameWithOpponent.opponentId || gameWithOpponent.opponent?.id || "";
-              setSelectedOpponentId(opponentId);
-              setOpponentFilterDisabled(true);
-              // Filter games to this opponent
-              const filteredGames = games.filter((g: Game) => {
-                const gameOpponentId = g.opponentId || g.opponent?.id;
-                return gameOpponentId === opponentId;
+          // If filter type is "values", pre-fill the school filter
+          if (opponentFilter?.type === "values" && opponentFilter?.values?.length > 0) {
+            setSelectedSchoolNames(opponentFilter.values);
+            // Filter games to these opponents
+            const filteredGames = games.filter((game: Game) => {
+              // Check if any opponent-related column contains the selected school names
+              return opponentFilter.values.some((schoolName: string) => {
+                // Check standard opponent field
+                if (game.opponent?.name === schoolName) return true;
+
+                // Check other opponent-related columns
+                return visibleColumnIds.some((columnId) => {
+                  const label = getColumnLabel(columnId).toLowerCase();
+                  const isOpponentColumn =
+                    label.includes("opponent") ||
+                    label.includes("away") ||
+                    label.includes("enemy") ||
+                    label.includes("visiting") ||
+                    label.includes("visitor") ||
+                    label.includes("against") ||
+                    label.includes("vs") ||
+                    label.includes("versus") ||
+                    label.includes("school") ||
+                    label.includes("team");
+
+                  if (isOpponentColumn) {
+                    const cellValue = getCellValue(game, columnId, columnMapping);
+                    return cellValue === schoolName;
+                  }
+                  return false;
+                });
               });
-              setSelectedGames(filteredGames);
-            }
+            });
+            setSelectedGames(filteredGames);
           }
         } catch (e) {
           // Ignore parse errors
@@ -276,7 +344,7 @@ export default function ComposeEmailPage() {
         }
       }
     }
-  }, [mounted]);
+  }, [mounted, visibleColumnIds, columnMapping]);
 
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
@@ -309,13 +377,10 @@ export default function ComposeEmailPage() {
   const formatGameDate = (dateString: string) => {
     if (!mounted) return dateString;
     try {
-      // Parse the date as UTC to avoid timezone shifts
       const date = new Date(dateString);
-      // Extract the UTC date parts to ensure consistent display
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      // Format using UTC components directly to avoid timezone conversion issues
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return `${monthNames[month]} ${day}, ${year}`;
     } catch (error) {
@@ -326,13 +391,10 @@ export default function ComposeEmailPage() {
   const formatFullDate = (dateString: string) => {
     if (!mounted) return dateString;
     try {
-      // Parse the date as UTC to avoid timezone shifts
       const date = new Date(dateString);
-      // Extract the UTC date parts to ensure consistent display
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      // Format using UTC components directly to avoid timezone conversion issues
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
       const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       const utcDate = new Date(Date.UTC(year, month, day));
@@ -343,37 +405,49 @@ export default function ComposeEmailPage() {
     }
   };
 
-  const handleOpponentChange = (opponentId: string) => {
-    setSelectedOpponentId(opponentId);
+  const handleSchoolFilterChange = (selectedSchools: string[]) => {
+    setSelectedSchoolNames(selectedSchools);
 
-    if (opponentId === "all") {
+    if (selectedSchools.length === 0) {
       setSelectedGames(allGames);
-    } else {
-      const filteredGames = allGames.filter((game) => {
-        const gameOpponentId = game.opponentId || game.opponent?.id;
-        return gameOpponentId === opponentId;
-      });
-      setSelectedGames(filteredGames);
+      return;
     }
-  };
 
-  const uniqueOpponents = useMemo(() => {
-    const opponentMap = new Map<string, { id: string; name: string }>();
+    // Filter games that contain any of the selected school names in opponent-related columns
+    const filteredGames = allGames.filter((game) => {
+      return selectedSchools.some((schoolName) => {
+        // Check standard opponent field
+        if (game.opponent?.name === schoolName) return true;
 
-    allGames.forEach((game) => {
-      const opponentId = game.opponentId || game.opponent?.id;
-      const opponentName = game.opponent?.name;
+        // Check other opponent-related columns
+        return visibleColumnIds.some((columnId) => {
+          const label = getColumnLabel(columnId).toLowerCase();
+          const isOpponentColumn =
+            label.includes("opponent") ||
+            label.includes("away") ||
+            label.includes("enemy") ||
+            label.includes("visiting") ||
+            label.includes("visitor") ||
+            label.includes("against") ||
+            label.includes("vs") ||
+            label.includes("versus") ||
+            label.includes("school") ||
+            label.includes("team");
 
-      if (opponentId && opponentName && !opponentMap.has(opponentId)) {
-        opponentMap.set(opponentId, { id: opponentId, name: opponentName });
-      }
+          if (isOpponentColumn) {
+            const cellValue = getCellValue(game, columnId, columnMapping);
+            return cellValue === schoolName;
+          }
+          return false;
+        });
+      });
     });
 
-    return Array.from(opponentMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allGames]);
+    setSelectedGames(filteredGames);
+  };
 
   const escapeHtml = (text: string) => {
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
   };
@@ -413,17 +487,17 @@ export default function ComposeEmailPage() {
     selectedGames.forEach((game, index) => {
       const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
       html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-      
+
       // Generate cells dynamically based on visible columns
       visibleColumnIds.forEach((columnId) => {
         // Skip actions column in email
         if (columnId === "actions") return;
-        
+
         let cellContent = "";
-        
+
         // Check if this is an imported column mapped to date
         const isImportedDateColumn = columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date";
-        
+
         // Special handling for certain columns
         if (columnId === "date" || isImportedDateColumn) {
           const rawValue = getCellValue(game, columnId, columnMapping);
@@ -437,15 +511,15 @@ export default function ComposeEmailPage() {
           const rawValue = getCellValue(game, columnId, columnMapping);
           cellContent = escapeHtml(rawValue);
         }
-        
+
         html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${cellContent}</td>`;
       });
-      
+
       html += "</tr>";
 
       // Add notes row if notes column is visible and game has notes
       if (visibleColumnIds.includes("notes") && game.notes) {
-        const colspan = visibleColumnIds.filter(id => id !== "actions").length;
+        const colspan = visibleColumnIds.filter((id) => id !== "actions").length;
         html += `<tr style="background-color: ${bgColor};">`;
         html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
         html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
@@ -487,7 +561,7 @@ export default function ComposeEmailPage() {
     );
   }
 
-  if (selectedGames.length === 0) {
+  if (allGames.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
@@ -519,27 +593,32 @@ export default function ComposeEmailPage() {
 
       <Stack spacing={3}>
         {/* Two-column layout for wide screens, stacked for smaller screens */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: isWideScreen ? 'row' : 'column', 
-          gap: 3,
-          width: '100%'
-        }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: isWideScreen ? "row" : "column",
+            gap: 3,
+            width: "100%",
+          }}
+        >
           {/* Selected Games Summary - Left Column */}
-          <Box sx={{ flex: isWideScreen ? 1.5 : 'none', width: '100%' }}>
+          <Box sx={{ flex: isWideScreen ? 1.5 : "none", width: "100%" }}>
             <Paper sx={{ p: 3, height: "100%" }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Selected Games ({selectedGames.length}){selectedOpponentId !== "all" && opponentFilterDisabled && <Chip label="Filtered by opponent" size="small" color="primary" sx={{ ml: 1 }} />}
+                Selected Games ({selectedGames.length}/{allGames.length})
+                {selectedSchoolNames.length > 0 && (
+                  <Chip label={`Filtered: ${selectedSchoolNames.length} school${selectedSchoolNames.length === 1 ? "" : "s"}`} size="small" color="primary" sx={{ ml: 1 }} />
+                )}
               </Typography>
-              <TableContainer sx={{ overflowX: 'auto' }}>
-                <Table size="small" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+              <TableContainer sx={{ overflowX: "auto" }}>
+                <Table size="small" sx={{ fontSize: "0.85rem", whiteSpace: "nowrap" }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#f8fafc" }}>
                       {visibleColumnIds.map((columnId) => {
                         // Skip actions column in email preview
                         if (columnId === "actions") return null;
                         return (
-                          <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
                             {getColumnLabel(columnId)}
                           </TableCell>
                         );
@@ -552,30 +631,30 @@ export default function ComposeEmailPage() {
                         {visibleColumnIds.map((columnId) => {
                           // Skip actions column in email preview
                           if (columnId === "actions") return null;
-                          
+
                           const cellValue = getCellValue(game, columnId, columnMapping);
-                          
+
                           // Special rendering for status column with chip
                           if (columnId === "status") {
                             return (
-                              <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                              <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
                                 <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
                               </TableCell>
                             );
                           }
-                          
+
                           // Special formatting for date column OR imported date column
                           if (columnId === "date" || (columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date")) {
                             return (
-                              <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                              <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
                                 {formatGameDate(cellValue)}
                               </TableCell>
                             );
                           }
-                          
+
                           // Default rendering for all other columns
                           return (
-                            <TableCell key={columnId} sx={{ fontSize: '0.85rem' }}>
+                            <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
                               {cellValue}
                             </TableCell>
                           );
@@ -589,7 +668,7 @@ export default function ComposeEmailPage() {
           </Box>
 
           {/* Email Composition - Right Column */}
-          <Box sx={{ flex: isWideScreen ? 1 : 'none', width: '100%' }}>
+          <Box sx={{ flex: isWideScreen ? 1 : "none", width: "100%" }}>
             <Paper sx={{ p: 3, height: "100%" }}>
               <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
                 Email Details
@@ -597,12 +676,12 @@ export default function ComposeEmailPage() {
 
               <Stack spacing={3}>
                 {/* Recipient Category */}
-                <TextField 
-                  select 
-                  label="Recipient Category" 
-                  value={recipientCategory} 
-                  onChange={(e) => setRecipientCategory(e.target.value)} 
-                  fullWidth 
+                <TextField
+                  select
+                  label="Recipient Category"
+                  value={recipientCategory}
+                  onChange={(e) => setRecipientCategory(e.target.value)}
+                  fullWidth
                   required
                   error={!recipientCategory}
                   helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
@@ -614,30 +693,95 @@ export default function ComposeEmailPage() {
                   ))}
                 </TextField>
 
-                {/* Opponent Filter */}
-                {uniqueOpponents.length > 0 && (
-                  <TextField
-                    select
-                    label="Filter by Opponent"
-                    value={selectedOpponentId}
-                    onChange={(e) => handleOpponentChange(e.target.value)}
-                    fullWidth
-                    disabled={opponentFilterDisabled}
-                    helperText={opponentFilterDisabled ? "Opponent filter is already applied from the games table" : "Select a specific opponent to filter which games are included in the email"}
-                  >
-                    <MenuItem value="all">All Opponents ({allGames.length} games)</MenuItem>
-                    {uniqueOpponents.map((opponent) => {
-                      const gameCount = allGames.filter((g) => {
-                        const gameOpponentId = g.opponentId || g.opponent?.id;
-                        return gameOpponentId === opponent.id;
-                      }).length;
-                      return (
-                        <MenuItem key={opponent.id} value={opponent.id}>
-                          {opponent.name} ({gameCount} {gameCount === 1 ? "game" : "games"})
-                        </MenuItem>
-                      );
-                    })}
-                  </TextField>
+                {/* School/Opponent Filter */}
+                {getAllSchoolNames.length > 0 && (
+                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, bgcolor: "grey.50" }}>
+                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                      Filter by School/Opponent
+                    </Typography>
+
+                    <TextField
+                      select
+                      label="Select Schools/Opponents"
+                      value={selectedSchoolNames}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleSchoolFilterChange(typeof value === "string" ? [value] : value);
+                      }}
+                      fullWidth
+                      size="small"
+                      SelectProps={{
+                        multiple: true,
+                        renderValue: (selected) => {
+                          const selectedArray = selected as string[];
+                          if (selectedArray.length === 0) return "All schools/opponents";
+                          if (selectedArray.length === 1) return selectedArray[0];
+                          return `${selectedArray.length} schools selected`;
+                        },
+                      }}
+                      helperText={`Select which schools/opponents to include in the email (${getAllSchoolNames.length} available)`}
+                    >
+                      {getAllSchoolNames.map((schoolName) => {
+                        const gameCount = allGames.filter((game) => {
+                          // Check if this school appears in any opponent-related column
+                          if (game.opponent?.name === schoolName) return true;
+
+                          return visibleColumnIds.some((columnId) => {
+                            const label = getColumnLabel(columnId).toLowerCase();
+                            const isOpponentColumn =
+                              label.includes("opponent") ||
+                              label.includes("away") ||
+                              label.includes("enemy") ||
+                              label.includes("visiting") ||
+                              label.includes("visitor") ||
+                              label.includes("against") ||
+                              label.includes("vs") ||
+                              label.includes("versus") ||
+                              label.includes("school") ||
+                              label.includes("team");
+
+                            if (isOpponentColumn) {
+                              const cellValue = getCellValue(game, columnId, columnMapping);
+                              return cellValue === schoolName;
+                            }
+                            return false;
+                          });
+                        }).length;
+
+                        return (
+                          <MenuItem key={schoolName} value={schoolName}>
+                            <Checkbox checked={selectedSchoolNames.includes(schoolName)} />
+                            {schoolName} ({gameCount} {gameCount === 1 ? "game" : "games"})
+                          </MenuItem>
+                        );
+                      })}
+                    </TextField>
+
+                    {/* Filter Summary */}
+                    {selectedSchoolNames.length > 0 && (
+                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mt: 2 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Filtered by:
+                        </Typography>
+                        {selectedSchoolNames.map((schoolName) => (
+                          <Chip
+                            key={schoolName}
+                            label={schoolName}
+                            size="small"
+                            onDelete={() => {
+                              const newSchools = selectedSchoolNames.filter((name) => name !== schoolName);
+                              handleSchoolFilterChange(newSchools);
+                            }}
+                            color="primary"
+                            variant="outlined"
+                          />
+                        ))}
+                        <Button size="small" onClick={() => handleSchoolFilterChange([])} sx={{ ml: 1 }}>
+                          Clear All
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
                 )}
 
                 {/* Custom Recipients */}
@@ -655,15 +799,7 @@ export default function ComposeEmailPage() {
                 )}
 
                 {/* Subject */}
-                <TextField 
-                  label="Subject" 
-                  value={subject} 
-                  onChange={(e) => setSubject(e.target.value)} 
-                  fullWidth 
-                  required 
-                  error={!subject}
-                  helperText={!subject ? "Subject is required" : ""}
-                />
+                <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
 
                 {/* Additional Message */}
                 <TextField
@@ -723,7 +859,7 @@ export default function ComposeEmailPage() {
                 additionalMessage,
                 recipientCategory: actualCategory,
                 groupId,
-                visibleColumnIds: visibleColumnIds.filter(id => id !== "actions"), // Pass user's column selection
+                visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
                 to:
                   recipientCategory === "custom"
                     ? customRecipients
