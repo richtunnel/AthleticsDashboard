@@ -5224,6 +5224,13 @@ export function GamesTable() {
                   <Box sx={{ py: 1, width: "100%" }}>
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DatePicker
+                        open={true} // <-- ADD THIS LINE
+                        onClose={() => {
+                          console.log("📅 Imported DatePicker closed");
+                          setInlineEditState(null);
+                          setInlineEditValue("");
+                          setSaveStatus("idle");
+                        }}
                         value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
                         onChange={(newValue) => {
                           if (newValue) {
@@ -5252,6 +5259,9 @@ export function GamesTable() {
                             },
                             sx: { width: "100%" },
                             InputProps: { sx: { fontSize: 13 } },
+                          },
+                          popper: {
+                            placement: "bottom-start",
                           },
                         }}
                       />
