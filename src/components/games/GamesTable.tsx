@@ -6286,8 +6286,10 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
   if (preferenceOrder.length > 0) {
     // User has saved preferences - use them as the source of truth
     if (hasImportedColumns) {
-      // CRITICAL: User has imported columns - use ONLY the preference order, DO NOT merge default columns
-      finalOrder = preferenceOrder;
+      // CRITICAL: User has imported columns - merge ONLY new custom columns (custom:*), NOT default static columns
+      // This allows new custom columns to appear while keeping imported columns intact
+      const newCustomColumns = defaultOrder.filter(id => id.startsWith("custom:") && !preferenceOrder.includes(id));
+      finalOrder = [...preferenceOrder, ...newCustomColumns];
     } else {
       // No imported columns - merge with defaultOrder to include any new columns that were added
       finalOrder = mergeWithDefaultOrder(preferenceOrder, defaultOrder);
@@ -6296,8 +6298,9 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
     // No saved preferences, but we have previous state - preserve it
     const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
     if (hasImportedColumns) {
-      // CRITICAL: User has imported columns - use ONLY the previous order, DO NOT merge default columns
-      finalOrder = previousOrder.filter((id) => defaultOrder.includes(id));
+      // CRITICAL: User has imported columns - merge ONLY new custom columns (custom:*), NOT default static columns
+      const newCustomColumns = defaultOrder.filter(id => id.startsWith("custom:") && !previousOrder.includes(id));
+      finalOrder = [...previousOrder, ...newCustomColumns];
     } else {
       finalOrder = mergeWithDefaultOrder(previousOrder, defaultOrder);
     }
