@@ -53,8 +53,14 @@ interface GroupedEvents {
 }
 
 // Helper functions for extracting data from customFields
-const convertTimeFormat = (timeStr: string): string => {
+const convertTimeFormat = (timeStr: string): string | null => {
   try {
+    // Handle common non-time values
+    const normalizedTime = timeStr.trim().toLowerCase();
+    if (normalizedTime === "tbd" || normalizedTime === "tbp" || normalizedTime === "tba" || normalizedTime === "pending" || normalizedTime === "unknown" || normalizedTime === "") {
+      return null; // Return null for non-time values
+    }
+
     // Handle formats like "3:00 PM", "15:00", "3:00pm", etc.
     const timeRegex = /^(\d{1,2}):(\d{2})(\s*(am|pm|AM|PM))?$/;
     const match = timeStr.trim().match(timeRegex);
@@ -76,16 +82,22 @@ const convertTimeFormat = (timeStr: string): string => {
       return `${hours.toString().padStart(2, "0")}:${minutes}`;
     }
 
-    // If already in HH:MM format, return as is
+    // If already in HH:MM format, validate and return
     if (timeStr.match(/^\d{1,2}:\d{2}$/)) {
       const [h, m] = timeStr.split(":");
-      return `${h.padStart(2, "0")}:${m}`;
+      const hours = parseInt(h, 10);
+      const minutes = parseInt(m, 10);
+
+      // Validate time ranges
+      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        return `${h.padStart(2, "0")}:${m}`;
+      }
     }
 
-    return timeStr; // Return original if we can't parse it
+    return null; // Return null if we can't parse it
   } catch (error) {
     console.warn("⚠️ Could not convert time format:", timeStr, error);
-    return timeStr;
+    return null;
   }
 };
 
@@ -119,9 +131,11 @@ const getGameTime = (game: Game): string | null => {
       const timeValue = String(customFields[timeField]);
       console.log("⏰ Found time in customFields:", timeValue, "from field:", timeField);
 
-      // Convert various time formats to HH:MM
+      // Convert various time formats to HH:MM - this now returns null for invalid times
       const convertedTime = convertTimeFormat(timeValue);
-      return convertedTime;
+      if (convertedTime) {
+        return convertedTime;
+      }
     }
 
     // If no specific time field found, look through all fields for time-like values
@@ -131,7 +145,10 @@ const getGameTime = (game: Game): string | null => {
         // Check if this looks like a time
         if (val.match(/^\d{1,2}:\d{2}(\s*(am|pm|AM|PM))?$|^\d{1,2}:\d{2}$/)) {
           console.log("⏰ Found time by content:", val, "in field:", key);
-          return convertTimeFormat(val);
+          const convertedTime = convertTimeFormat(val);
+          if (convertedTime) {
+            return convertedTime;
+          }
         }
       }
     }
@@ -578,28 +595,44 @@ function parseGameDate(game: Game): Date | null {
     if (!Number.isNaN(parsed.getTime())) {
       // Use the new getGameTime helper to find time from any source
       const gameTime = getGameTime(game);
-      if (gameTime) {
-        const [hours, minutes] = gameTime.split(":");
-        parsed.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      if (gameTime && gameTime.includes(":")) {
+        // Additional validation
+        const timeParts = gameTime.split(":");
+        const hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+
+        // Validate the parsed values before setting
+        if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+          parsed.setHours(hours, minutes, 0, 0);
+        } else {
+          // If time is invalid, normalize to noon
+          parsed.setHours(12, 0, 0, 0);
+        }
       } else {
-        // If no time found, normalize time to noon (12:00 PM)
+        // If no valid time found, normalize time to noon (12:00 PM)
         parsed.setHours(12, 0, 0, 0);
       }
       return parsed;
     }
   } catch (error) {
-    // Ignore parse error and fall back to Date constructor
+    console.warn("Error parsing game date:", error);
   }
 
+  // Fallback logic with same validation
   const fallback = new Date(game.date);
   if (!Number.isNaN(fallback.getTime())) {
-    // Use the new getGameTime helper to find time from any source
     const gameTime = getGameTime(game);
-    if (gameTime) {
-      const [hours, minutes] = gameTime.split(":");
-      fallback.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    if (gameTime && gameTime.includes(":")) {
+      const timeParts = gameTime.split(":");
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+
+      if (!isNaN(hours) && !isNaN(minutes) && hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+        fallback.setHours(hours, minutes, 0, 0);
+      } else {
+        fallback.setHours(12, 0, 0, 0);
+      }
     } else {
-      // Normalize to noon (12:00 PM) for fallback date objects as well
       fallback.setHours(12, 0, 0, 0);
     }
     return fallback;
