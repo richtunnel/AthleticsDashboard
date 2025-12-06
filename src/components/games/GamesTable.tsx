@@ -2559,72 +2559,152 @@ export function GamesTable() {
   );
 
   const handleSaveNewGame = async () => {
-    // Validate required fields and provide specific error messages
+    console.log("🎾 newGameData:", newGameData);
+    console.log("🎾 customFields:", newGameData.customFields);
+    if (!isAddingNew) {
+      addNotification("Not in create mode", "error");
+      return;
+    }
+    // Check if we're dealing with imported data (has customFields with data)
+    const hasImportedData = newGameData.customFields && Object.keys(newGameData.customFields).length > 0;
+    console.log("🎾 hasImportedData:", hasImportedData);
+    if (hasImportedData) {
+      // For imported data, just validate that we have some essential data
+      if (!newGameData.date) {
+        addNotification("Date is required. Please enter a valid date.", "error");
+        return;
+      }
+
+      // Create a basic team/sport setup or use a default
+      const defaultSport = "Imported Game";
+      const defaultLevel = "VARSITY";
+
+      // Find or create a generic team for imported games
+      let matchingTeam = teams.find((team: any) => team.sport?.name === defaultSport && team.level === defaultLevel);
+      if (!matchingTeam) {
+        try {
+          // Create default sport and team for imported games
+          const sportRes = await fetch("/api/sports", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: defaultSport, season: "FALL" }),
+          });
+          let sportData;
+          if (sportRes.ok) {
+            sportData = await sportRes.json();
+          } else {
+            const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(defaultSport)}`);
+            if (existingSportRes.ok) {
+              sportData = await existingSportRes.json();
+            } else {
+              throw new Error("Failed to create or find default sport");
+            }
+          }
+          const sportId = sportData.data?.id || sportData.id;
+          const teamRes = await fetch("/api/teams", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: `${defaultSport} ${defaultLevel}`,
+              sportId,
+              level: defaultLevel,
+            }),
+          });
+          if (!teamRes.ok) {
+            const error = await teamRes.json();
+            throw new Error(error.error || "Failed to create default team");
+          }
+          const teamData = await teamRes.json();
+          matchingTeam = teamData.data;
+          queryClient.invalidateQueries({ queryKey: ["teams"] });
+        } catch (error: any) {
+          addNotification(error.message || "Failed to create default team", "error");
+          return;
+        }
+      }
+
+      // Safeguard: Ensure matchingTeam and id exist
+      if (!matchingTeam || !matchingTeam.id) {
+        addNotification("Failed to find or create default team. Please try again.", "error");
+        return;
+      }
+
+      const isoDate = dateStringToUTCISOString(newGameData.date);
+      const gameData = {
+        date: isoDate,
+        time: newGameData.time || null,
+        homeTeamId: matchingTeam.id,
+        isHome: newGameData.isHome,
+        busTravel: newGameData.busTravel,
+        actualDepartureTime: combineDateAndTime(newGameData.date, newGameData.actualDepartureTime),
+        actualArrivalTime: combineDateAndTime(newGameData.date, newGameData.actualArrivalTime),
+        opponentId: null, // No opponent needed for imported data
+        venueId: newGameData.venueId || null,
+        status: newGameData.status || "SCHEDULED",
+        notes: newGameData.notes || null,
+        location: newGameData.location || null,
+        customData: newGameData.customData || {},
+        customFields: newGameData.customFields || {}, // This contains all the imported data
+      };
+      console.log("🚀 Creating imported game with data:", gameData);
+      createGameMutation.mutate({ gameData });
+      return;
+    }
+    // Original validation logic for standard fields (when not imported data)
+    const trimmedSport = newGameData.sport?.trim();
+    const trimmedLevel = newGameData.level?.trim();
+    const trimmedStatus = newGameData.status?.trim();
     if (!newGameData.date) {
       addNotification("Date is required. Please enter a valid date.", "error");
       return;
     }
-
-    if (!newGameData.sport) {
+    if (!trimmedSport) {
       addNotification("Sport is required. Please select a sport.", "error");
       return;
     }
-
-    if (!newGameData.level) {
+    if (!trimmedLevel) {
       addNotification("Level is required. Please select a level.", "error");
       return;
     }
-
-    if (!newGameData.status) {
+    if (!trimmedStatus) {
       addNotification("Status is required. Please select a status (Confirmed).", "error");
       return;
     }
-
-    let matchingTeam = teams.find((team: any) => team.sport?.name === newGameData.sport && team.level === newGameData.level);
-
+    let matchingTeam = teams.find((team: any) => team.sport?.name === trimmedSport && team.level === trimmedLevel);
     if (!matchingTeam) {
       try {
         const sportRes = await fetch("/api/sports", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: newGameData.sport,
-            season: "FALL",
-          }),
+          body: JSON.stringify({ name: trimmedSport, season: "FALL" }),
         });
-
         let sportData;
         if (sportRes.ok) {
           sportData = await sportRes.json();
         } else {
-          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(newGameData.sport)}`);
+          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(trimmedSport)}`);
           if (existingSportRes.ok) {
             sportData = await existingSportRes.json();
           } else {
             throw new Error("Failed to create or find sport");
           }
         }
-
         const sportId = sportData.data?.id || sportData.id;
-
         const teamRes = await fetch("/api/teams", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: `${newGameData.sport} ${newGameData.level}`,
+            name: `${trimmedSport} ${trimmedLevel}`,
             sportId,
-            level: newGameData.level,
+            level: trimmedLevel,
           }),
         });
-
         if (!teamRes.ok) {
           const error = await teamRes.json();
           throw new Error(error.error || "Failed to create team");
         }
-
         const teamData = await teamRes.json();
         matchingTeam = teamData.data;
-
         queryClient.invalidateQueries({ queryKey: ["teams"] });
       } catch (error: any) {
         addNotification(error.message || "Failed to create team", "error");
@@ -2632,42 +2712,41 @@ export function GamesTable() {
       }
     }
 
-    // Handle opponent - create if needed
+    // Safeguard: Ensure matchingTeam and id exist
+    if (!matchingTeam || !matchingTeam.id) {
+      addNotification("Failed to find or create team. Please try again.", "error");
+      return;
+    }
+
+    // Handle opponent - create if new (similar to edit mode)
     let opponentId = newGameData.opponentId || null;
     if (newGameData.opponent && newGameData.opponent.trim()) {
       const opponentName = newGameData.opponent.trim();
       const existingOpponent = opponents.find((opp: any) => opp.name.toLowerCase() === opponentName.toLowerCase());
-
       if (existingOpponent) {
         opponentId = existingOpponent.id;
       } else {
-        // Create new opponent
         try {
           const createRes = await fetch("/api/opponents", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: opponentName }),
           });
-
           if (!createRes.ok) {
             const errorData = await createRes.json();
             throw new Error(errorData.error || "Failed to create opponent");
           }
-
           const newOpponentData = await createRes.json();
           opponentId = newOpponentData.data.id;
-
-          // Invalidate opponents query to refresh the list
-          await queryClient.invalidateQueries({ queryKey: ["opponents"] });
+          queryClient.invalidateQueries({ queryKey: ["opponents"] });
         } catch (createError: any) {
           addNotification(`Error creating opponent: ${createError.message}`, "error");
-          return;
+          return; // Abort save if opponent creation fails
         }
       }
     }
 
     const isoDate = dateStringToUTCISOString(newGameData.date);
-
     const gameData = {
       date: isoDate,
       time: newGameData.time || null,
@@ -2676,16 +2755,17 @@ export function GamesTable() {
       busTravel: newGameData.busTravel,
       actualDepartureTime: combineDateAndTime(newGameData.date, newGameData.actualDepartureTime),
       actualArrivalTime: combineDateAndTime(newGameData.date, newGameData.actualArrivalTime),
-      opponentId: opponentId,
+      opponentId,
       venueId: newGameData.venueId || null,
-      status: newGameData.status,
+      status: newGameData.status || "SCHEDULED",
       notes: newGameData.notes || null,
       location: newGameData.location || null,
       customData: newGameData.customData || {},
-      customFields: newGameData.customFields || {},
+      customFields: newGameData.customFields || {}, // This contains all the imported data
     };
-
+    console.log("🚀 Creating game with data:", gameData);
     createGameMutation.mutate({ gameData });
+    return;
   };
 
   const handleCustomFieldChange = useCallback(
