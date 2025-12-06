@@ -693,6 +693,20 @@ export default function ComposeEmailPage() {
                   ))}
                 </TextField>
 
+                {/* Custom Recipients */}
+                {recipientCategory === "custom" && (
+                  <TextField
+                    label="Email Addresses"
+                    value={customRecipients}
+                    onChange={(e) => setCustomRecipients(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="email1@example.com, email2@example.com"
+                    helperText="Enter email addresses separated by commas"
+                  />
+                )}
+
                 {/* School/Opponent Filter */}
                 {getAllSchoolNames.length > 0 && (
                   <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, bgcolor: "grey.50" }}>
@@ -782,20 +796,6 @@ export default function ComposeEmailPage() {
                       </Box>
                     )}
                   </Box>
-                )}
-
-                {/* Custom Recipients */}
-                {recipientCategory === "custom" && (
-                  <TextField
-                    label="Email Addresses"
-                    value={customRecipients}
-                    onChange={(e) => setCustomRecipients(e.target.value)}
-                    fullWidth
-                    multiline
-                    rows={2}
-                    placeholder="email1@example.com, email2@example.com"
-                    helperText="Enter email addresses separated by commas"
-                  />
                 )}
 
                 {/* Subject */}
