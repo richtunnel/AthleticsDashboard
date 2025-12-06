@@ -2,7 +2,27 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, ListItemText, IconButton, Typography, Box, Alert, Chip, Stack, Paper, ToggleButtonGroup, ToggleButton, Tooltip } from "@mui/material";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Typography,
+  Box,
+  Alert,
+  Chip,
+  Stack,
+  Paper,
+  ToggleButtonGroup,
+  ToggleButton,
+  Tooltip,
+} from "@mui/material";
 import { Add, Delete, ViewColumn, Close, Schedule, TextFields, ArrowDropDownCircle, DirectionsBus } from "@mui/icons-material";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 
@@ -154,7 +174,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
             <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
               Add New Column
             </Typography>
-            
+
             {/* Column Type Selector */}
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" sx={{ mb: 1, display: "block", color: "text.secondary" }}>

@@ -104,22 +104,20 @@ function getCellValue(game: Game, columnId: string): string {
 // Helper to escape HTML
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
   };
   return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
 function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string, signatureHTML: string, visibleColumnIds?: string[]): string {
   // Default to standard columns if not provided
-  const columnsToShow = visibleColumnIds && visibleColumnIds.length > 0
-    ? visibleColumnIds.filter(id => id !== "actions")
-    : ["date", "time", "sport", "level", "opponent", "location", "status"];
+  const columnsToShow = visibleColumnIds && visibleColumnIds.length > 0 ? visibleColumnIds.filter((id) => id !== "actions") : ["date", "time", "sport", "level", "opponent", "location", "status"];
 
-  let html = '<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">';
+  let html = '<div style="font-family: Arial, sans-serif; max-width: 1600px; margin: 0 auto;">';
 
   // Add greeting based on category
   html += '<h2 style="color: #23252a;">Game Schedule Confirmation</h2>';
@@ -148,29 +146,29 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   games.forEach((game, index) => {
     const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
     html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
-    
+
     // Generate cells dynamically based on visible columns
     columnsToShow.forEach((columnId) => {
       let cellContent = "";
-      
+
       // Special handling for status column
       if (columnId === "status") {
         const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
         cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
-      } 
+      }
       // Special handling for location/isHome column
       else if (columnId === "isHome" || columnId === "location") {
         cellContent = game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD");
-      } 
+      }
       // Default handling for other columns
       else {
         const rawValue = getCellValue(game, columnId);
         cellContent = escapeHtml(rawValue);
       }
-      
+
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${cellContent}</td>`;
     });
-    
+
     html += "</tr>";
 
     // Add notes row if notes column is visible and game has notes
@@ -221,7 +219,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch user's email signature
-    const user = await prisma.user.findUnique({
+    const user = (await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         signaturePhone: true,
@@ -229,14 +227,16 @@ export async function POST(request: NextRequest) {
         signatureLogoUrl: true,
         signatureText: true,
       } as any,
-    }) as any;
+    })) as any;
 
-    const signatureHTML = user ? buildEmailSignatureHTML({
-      signaturePhone: user.signaturePhone,
-      signatureWebsite: user.signatureWebsite,
-      signatureLogoUrl: user.signatureLogoUrl,
-      signatureText: user.signatureText,
-    }) : "";
+    const signatureHTML = user
+      ? buildEmailSignatureHTML({
+          signaturePhone: user.signaturePhone,
+          signatureWebsite: user.signatureWebsite,
+          signatureLogoUrl: user.signatureLogoUrl,
+          signatureText: user.signatureText,
+        })
+      : "";
 
     let toEmails: string[] = [];
     let emailBody: string;
@@ -294,9 +294,9 @@ export async function POST(request: NextRequest) {
       // Determine recipients
       if (groupId) {
         const group = await prisma.emailGroup.findFirst({
-          where: { 
-            id: groupId, 
-            organizationId: session.user.organizationId 
+          where: {
+            id: groupId,
+            organizationId: session.user.organizationId,
           },
           include: { emails: true },
         });
@@ -314,9 +314,9 @@ export async function POST(request: NextRequest) {
     // Case 2: Email campaign
     else if (campaignId) {
       campaign = await prisma.emailCampaign.findFirst({
-        where: { 
-          id: campaignId, 
-          userId: session.user.id 
+        where: {
+          id: campaignId,
+          userId: session.user.id,
         },
         include: { group: { include: { emails: true } } },
       });
@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
 
     // Validate emails
     const { valid: validEmails, invalid: invalidEmails } = validateBulkEmails(toEmails);
-    
+
     if (invalidEmails.length > 0) {
       return ApiResponse.error(`Invalid email addresses: ${invalidEmails.join(", ")}`, 400);
     }
@@ -378,24 +378,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.failed > 0 && result.success === 0) {
-      return ApiResponse.error(
-        `Failed to send all emails. Errors: ${result.errors.map(e => `${e.email}: ${e.error}`).join("; ")}`,
-        500
-      );
+      return ApiResponse.error(`Failed to send all emails. Errors: ${result.errors.map((e) => `${e.email}: ${e.error}`).join("; ")}`, 500);
     }
 
-    const message = result.failed > 0 
-      ? `Partially sent: ${result.success} succeeded, ${result.failed} failed`
-      : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
+    const message = result.failed > 0 ? `Partially sent: ${result.success} succeeded, ${result.failed} failed` : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
 
-    return ApiResponse.success({ 
+    return ApiResponse.success({
       message,
       result: {
         success: result.success,
         failed: result.failed,
         errors: result.errors,
         emailLogIds: result.emailLogIds,
-      }
+      },
     });
   } catch (error) {
     return handleApiError(error);
