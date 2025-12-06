@@ -5623,9 +5623,31 @@ export function GamesTable() {
                 Send Email ({selectedGames.size})
               </Button>
             )}
-            <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
-              Create Game
-            </Button>
+            {/* Create Game Button - conditional rendering based on selection */}
+            {selectedGames.size > 0 ? (
+              <Tooltip title="Create Game">
+                <IconButton
+                  disabled
+                  size="small"
+                  sx={{
+                    opacity: 0.5,
+                    minWidth: 32,
+                    width: 32,
+                    height: 32,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Add fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+                Create Game
+              </Button>
+            )}
+
             <Tooltip title="Use AI to find available dates in your schedule">
               <Button
                 variant="outlined"
@@ -5647,12 +5669,57 @@ export function GamesTable() {
               </Button>
             </Tooltip>
 
-            <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
-              Add Columns ({customColumns.length})
-            </Button>
-            <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
-              Columns ({visibleColumnIds.length})
-            </Button>
+            {/* Add Columns Button - conditional rendering based on selection */}
+            {selectedGames.size > 0 ? (
+              <Tooltip title="Add Columns">
+                <IconButton
+                  disabled
+                  size="small"
+                  sx={{
+                    opacity: 0.5,
+                    minWidth: 32,
+                    width: 32,
+                    height: 32,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
+                >
+                  <ViewColumn fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+                Add Columns ({customColumns.length})
+              </Button>
+            )}
+
+            {/* Columns Button - conditional rendering based on selection */}
+            {selectedGames.size > 0 ? (
+              <Tooltip title="Columns">
+                <IconButton
+                  disabled
+                  size="small"
+                  sx={{
+                    opacity: 0.5,
+                    minWidth: 32,
+                    width: 32,
+                    height: 32,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Tune fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
+                Columns ({visibleColumnIds.length})
+              </Button>
+            )}
+
             {selectedGames.size > 0 && games.length > 0 && (
               <>
                 <Button
