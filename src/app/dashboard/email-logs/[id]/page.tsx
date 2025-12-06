@@ -23,14 +23,7 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
-import {
-  ArrowBack,
-  CheckCircle,
-  Error,
-  Schedule,
-  Edit,
-  Send,
-} from "@mui/icons-material";
+import { ArrowBack, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Schedule as ScheduleIcon, Edit, Send } from "@mui/icons-material";
 import { format } from "date-fns";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 
@@ -96,7 +89,11 @@ export default function EmailLogDetailPage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const { data: response, isLoading, error } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["email-log", id],
     queryFn: async () => {
       const res = await fetch(`/api/email-logs/${id}`);
@@ -116,11 +113,14 @@ export default function EmailLogDetailPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
-        sessionStorage.setItem("emailDraft", JSON.stringify({
-          subject: log.subject,
-          additionalMessage: log.additionalMessage || "",
-          recipientCategory: log.recipientCategory || "parents",
-        }));
+        sessionStorage.setItem(
+          "emailDraft",
+          JSON.stringify({
+            subject: log.subject,
+            additionalMessage: log.additionalMessage || "",
+            recipientCategory: log.recipientCategory || "parents",
+          })
+        );
         router.push("/dashboard/compose-email");
       } else {
         alert("No games associated with this email to re-send");
@@ -132,14 +132,14 @@ export default function EmailLogDetailPage() {
   };
 
   const getStatusChip = (status: string) => {
-    const statusConfig: Record<string, { color: "success" | "error" | "warning" | "default"; label: string; icon: React.ReactNode }> = {
-      SENT: { color: "success", label: "Sent", icon: <CheckCircle fontSize="small" /> },
-      FAILED: { color: "error", label: "Failed", icon: <Error fontSize="small" /> },
-      PENDING: { color: "warning", label: "Pending", icon: <Schedule fontSize="small" /> },
+    const statusConfig: Record<string, { color: "success" | "error" | "warning" | "default"; label: string; icon: React.ReactElement | undefined }> = {
+      SENT: { color: "success", label: "Sent", icon: <CheckCircleIcon fontSize="small" /> },
+      FAILED: { color: "error", label: "Failed", icon: <ErrorIcon fontSize="small" /> },
+      PENDING: { color: "warning", label: "Pending", icon: <ScheduleIcon fontSize="small" /> },
     };
 
-    const config = statusConfig[status] || { color: "default" as const, label: status, icon: null };
-    return <Chip label={config.label} color={config.color} {...(config.icon && { icon: config.icon })} />;
+    const config = statusConfig[status] || { color: "default" as const, label: status, icon: undefined };
+    return <Chip label={config.label} color={config.color} icon={config.icon} />;
   };
 
   const formatDate = (dateString: string | null) => {
