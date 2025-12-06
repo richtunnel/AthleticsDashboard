@@ -6222,6 +6222,12 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
 
+  // CRITICAL FIX: Extract custom column IDs for BOTH imported and default column scenarios
+  const customIds = customColumns
+    .map((column: any) => column?.id)
+    .filter((id: string | undefined): id is string => Boolean(id))
+    .map((id: string) => `custom:${id}` as ColumnId);
+
   if (importedColumns && columnMapping && importedColumns.length > 0) {
     // User imported CSV with custom columns
     const importedIds: ColumnId[] = [];
@@ -6250,16 +6256,12 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
       finalOrder.push("date", ...importedIds);
     }
 
-    finalOrder.push("actions");
+    // CRITICAL FIX: Add custom columns before "actions" when user has imported columns
+    finalOrder.push(...customIds, "actions");
     return finalOrder;
   }
 
-  // No imported columns - use default column order
-  const customIds = customColumns
-    .map((column: any) => column?.id)
-    .filter((id: string | undefined): id is string => Boolean(id))
-    .map((id: string) => `custom:${id}` as ColumnId);
-
+  // No imported columns - use default column order with custom columns
   return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", ...customIds, "notes", "actions"];
 }
 
