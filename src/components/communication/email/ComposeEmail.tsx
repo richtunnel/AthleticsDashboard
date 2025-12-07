@@ -72,11 +72,17 @@ interface TablePreferencesData {
 const STATIC_RECIPIENT_CATEGORIES = [{ value: "custom", label: "Custom Recipients" }];
 
 // Helper to determine which columns to display based on user's import preferences and custom columns
+// CRITICAL FIX: Respect hidden columns from table preferences
 const getDisplayColumns = (preferences: TablePreferencesData | null, customColumns: CustomColumn[]): string[] => {
+  // Get hidden columns from preferences
+  const hiddenColumns = new Set<string>(Array.isArray(preferences?.hidden) ? (preferences.hidden as string[]) : []);
+  
   // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
 
+  let allColumns: string[];
+  
   if (importedColumns && columnMapping && importedColumns.length > 0) {
     // User imported CSV with custom columns - show imported columns + custom columns
     const importedIds = importedColumns
@@ -89,14 +95,17 @@ const getDisplayColumns = (preferences: TablePreferencesData | null, customColum
     // Add custom columns
     const customIds = customColumns.map((col) => `custom:${col.id}`);
     
-    return [...importedIds, ...customIds];
+    allColumns = [...importedIds, ...customIds];
+  } else {
+    // No imported columns - use default columns + custom columns
+    const defaultColumns = ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
+    const customIds = customColumns.map((col) => `custom:${col.id}`);
+    
+    allColumns = [...defaultColumns, ...customIds];
   }
-
-  // No imported columns - use default columns + custom columns
-  const defaultColumns = ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
-  const customIds = customColumns.map((col) => `custom:${col.id}`);
   
-  return [...defaultColumns, ...customIds];
+  // CRITICAL: Filter out hidden columns before returning
+  return allColumns.filter((columnId) => !hiddenColumns.has(columnId));
 };
 
 // Helper to get column label
