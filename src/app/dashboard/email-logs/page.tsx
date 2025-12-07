@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Paper,
@@ -23,8 +23,24 @@ import {
   CircularProgress,
   Alert,
   TablePagination,
+  Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
-import { Visibility, Refresh, CheckCircle, Error as ErrorIcon, Schedule, Edit } from "@mui/icons-material";
+import { 
+  Visibility, 
+  Refresh, 
+  CheckCircle, 
+  Error as ErrorIcon, 
+  Schedule, 
+  Edit,
+  Delete,
+  ExpandMore,
+  ExpandLess,
+} from "@mui/icons-material";
 import { format } from "date-fns";
 
 interface EmailLog {
@@ -72,9 +88,13 @@ interface PaginationData {
 
 export default function EmailLogsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [logToDelete, setLogToDelete] = useState<string | null>(null);
 
   const {
     data: response,
@@ -91,6 +111,24 @@ export default function EmailLogsPage() {
       const res = await fetch(`/api/email-logs?${params}`);
       if (!res.ok) throw new Error("Failed to fetch email logs");
       return res.json();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (logId: string) => {
+      const res = await fetch(`/api/email-logs/${logId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete email log");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-logs"] });
+      setDeleteDialogOpen(false);
+      setLogToDelete(null);
     },
   });
 
@@ -147,6 +185,22 @@ export default function EmailLogsPage() {
     }
   };
 
+  const handleDeleteClick = (logId: string) => {
+    setLogToDelete(logId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (logToDelete) {
+      deleteMutation.mutate(logToDelete);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setLogToDelete(null);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "SENT":
@@ -200,97 +254,153 @@ export default function EmailLogsPage() {
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
-          <TextField
-            select
-            label="Filter by Status"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(0);
-            }}
-            size="small"
-            sx={{ minWidth: 200 }}
-          >
-            <MenuItem value="all">All Status</MenuItem>
-            <MenuItem value="SENT">Sent</MenuItem>
-            <MenuItem value="FAILED">Failed</MenuItem>
-            <MenuItem value="PENDING">Pending</MenuItem>
-          </TextField>
-
-          <Button variant="outlined" startIcon={<Refresh />} onClick={() => refetch()} size="small">
-            Refresh
-          </Button>
+        <Stack 
+          direction="row" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          sx={{ mb: 3, cursor: "pointer" }}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Email Logs ({pagination.total})
+          </Typography>
+          <IconButton size="small">
+            {isExpanded ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
         </Stack>
 
-        {logs.length === 0 ? (
-          <Alert severity="info">No email logs found. Send some emails to see them here!</Alert>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "#f8fafc" }}>
-                    <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Subject</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Recipients</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Games</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {logs.map((log) => (
-                    <TableRow key={log.id} hover>
-                      <TableCell>{formatDate(log.sentAt || log.createdAt)}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {log.subject}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title={log.to.join(", ")}>
-                          <Chip label={`${log.to.length} recipient${log.to.length !== 1 ? "s" : ""}`} size="small" />
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>{getStatusChip(log.status)}</TableCell>
-                      <TableCell>
-                        {log.gameIds && log.gameIds.length > 0 ? <Chip label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} size="small" variant="outlined" /> : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <Tooltip title="View Details">
-                            <IconButton size="small" onClick={() => handleViewDetails(log.id)} color="primary">
-                              <Visibility fontSize="small" />
-                            </IconButton>
+        <Collapse in={isExpanded}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
+            <TextField
+              select
+              label="Filter by Status"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(0);
+              }}
+              size="small"
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="all">All Status</MenuItem>
+              <MenuItem value="SENT">Sent</MenuItem>
+              <MenuItem value="FAILED">Failed</MenuItem>
+              <MenuItem value="PENDING">Pending</MenuItem>
+            </TextField>
+
+            <Button variant="outlined" startIcon={<Refresh />} onClick={() => refetch()} size="small">
+              Refresh
+            </Button>
+          </Stack>
+
+          {logs.length === 0 ? (
+            <Alert severity="info">No email logs found. Send some emails to see them here!</Alert>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                      <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Subject</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Recipients</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Games</TableCell>
+                      <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {logs.map((log) => (
+                      <TableRow key={log.id} hover>
+                        <TableCell>{formatDate(log.sentAt || log.createdAt)}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {log.subject}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={log.to.join(", ")}>
+                            <Chip label={`${log.to.length} recipient${log.to.length !== 1 ? "s" : ""}`} size="small" />
                           </Tooltip>
-                          {log.gameIds && log.gameIds.length > 0 && (
-                            <Tooltip title="Re-open & Edit">
-                              <IconButton size="small" onClick={() => handleReopenEdit(log.id)} color="secondary">
-                                <Edit fontSize="small" />
+                        </TableCell>
+                        <TableCell>{getStatusChip(log.status)}</TableCell>
+                        <TableCell>
+                          {log.gameIds && log.gameIds.length > 0 ? <Chip label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} size="small" variant="outlined" /> : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1}>
+                            <Tooltip title="View Details">
+                              <IconButton size="small" onClick={() => handleViewDetails(log.id)} color="primary">
+                                <Visibility fontSize="small" />
                               </IconButton>
                             </Tooltip>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                            {log.gameIds && log.gameIds.length > 0 && (
+                              <Tooltip title="Re-open & Edit">
+                                <IconButton size="small" onClick={() => handleReopenEdit(log.id)} color="secondary">
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            <Tooltip title="Delete">
+                              <IconButton 
+                                size="small" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteClick(log.id);
+                                }} 
+                                color="error"
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-            <TablePagination
-              component="div"
-              count={pagination.total}
-              page={page}
-              onPageChange={handleChangePage}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[10, 25, 50, 100]}
-            />
-          </>
-        )}
+              <TablePagination
+                component="div"
+                count={pagination.total}
+                page={page}
+                onPageChange={handleChangePage}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+                rowsPerPageOptions={[10, 25, 50, 100]}
+              />
+            </>
+          )}
+        </Collapse>
       </Paper>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Email Log</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this email log? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
