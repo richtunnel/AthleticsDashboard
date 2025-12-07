@@ -13,6 +13,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  InputAdornment,
   List,
   ListItem,
   ListItemText,
@@ -28,10 +29,14 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
+import SearchIcon from "@mui/icons-material/Search";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import type { EmailGroup, AddEmailsResponse } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEFAULT_VISIBLE_EMAILS = 5;
 
 type SnackbarSeverity = "success" | "info" | "warning" | "error";
 
@@ -79,15 +84,40 @@ export function EmailGroupCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editingEmailValue, setEditingEmailValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAllEmails, setShowAllEmails] = useState(false);
 
   useEffect(() => {
     setEditValue(group.name);
   }, [group.name]);
 
+  useEffect(() => {
+    if (searchQuery) {
+      setShowAllEmails(true);
+    }
+  }, [searchQuery]);
+
   const emailCountLabel = useMemo(() => {
     const count = group._count.emails;
     return count === 1 ? "1 email" : `${count} emails`;
   }, [group._count.emails]);
+
+  const filteredEmails = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return group.emails;
+    }
+    const query = searchQuery.toLowerCase();
+    return group.emails.filter((address) => address.email.toLowerCase().includes(query));
+  }, [group.emails, searchQuery]);
+
+  const displayedEmails = useMemo(() => {
+    if (showAllEmails || filteredEmails.length <= DEFAULT_VISIBLE_EMAILS) {
+      return filteredEmails;
+    }
+    return filteredEmails.slice(0, DEFAULT_VISIBLE_EMAILS);
+  }, [filteredEmails, showAllEmails]);
+
+  const hasMoreEmails = filteredEmails.length > DEFAULT_VISIBLE_EMAILS;
 
   const handleAddEmails = async () => {
     const parsed = emailInput
@@ -352,7 +382,7 @@ export function EmailGroupCard({
           onClick={(event) => event.stopPropagation()}
         >
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            Add emails to "{group.name}"
+            Add emails to &quot;{group.name}&quot;
           </Typography>
           <TextField
             placeholder="Enter emails separated by commas, spaces, or new lines"
@@ -403,85 +433,144 @@ export function EmailGroupCard({
               Start adding contacts to this group to send campaigns.
             </Typography>
           ) : (
-            <List dense sx={{ maxHeight: 220, overflowY: "auto" }}>
-              {group.emails.map((address) => (
-                <ListItem
-                  key={address.id}
-                  secondaryAction={
-                    editingEmailId === address.id ? (
-                      <Stack direction="row" spacing={0.5}>
+            <>
+              {group.emails.length > DEFAULT_VISIBLE_EMAILS && (
+                <TextField
+                  size="small"
+                  placeholder="Search emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery && (
+                      <InputAdornment position="end">
                         <IconButton
                           size="small"
-                          color="primary"
-                          onClick={() => handleUpdateEmail(address.id, address.email)}
-                          disabled={updateEmailLoadingId === address.id}
-                        >
-                          {updateEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setEditingEmailId(null);
-                            setEditingEmailValue("");
-                          }}
-                          disabled={updateEmailLoadingId === address.id}
+                          onClick={() => setSearchQuery("")}
+                          edge="end"
                         >
                           <CloseIcon fontSize="small" />
                         </IconButton>
-                      </Stack>
-                    ) : (
-                      <Stack direction="row" spacing={0.5}>
-                        <Tooltip title="Edit email">
-                          <span>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setEditingEmailId(address.id);
-                                setEditingEmailValue(address.email);
-                              }}
-                              disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="Remove email">
-                          <span>
-                            <IconButton
-                              edge="end"
-                              aria-label="remove"
-                              onClick={() => handleRemoveEmail(address.id, address.email)}
-                              disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
-                            >
-                              {removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CloseIcon fontSize="small" />}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Stack>
-                    )
-                  }
-                >
-                  {editingEmailId === address.id ? (
-                    <TextField
-                      size="small"
-                      value={editingEmailValue}
-                      onChange={(e) => setEditingEmailValue(e.target.value)}
-                      autoFocus
-                      fullWidth
-                      sx={{ mr: 2 }}
-                    />
-                  ) : (
-                    <ListItemText primary={address.email} />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              )}
+
+              {filteredEmails.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                  No emails found matching &quot;{searchQuery}&quot;
+                </Typography>
+              ) : (
+                <>
+                  <List dense sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    {displayedEmails.map((address) => (
+                      <ListItem
+                        key={address.id}
+                        secondaryAction={
+                          editingEmailId === address.id ? (
+                            <Stack direction="row" spacing={0.5}>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleUpdateEmail(address.id, address.email)}
+                                disabled={updateEmailLoadingId === address.id}
+                              >
+                                {updateEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  setEditingEmailId(null);
+                                  setEditingEmailValue("");
+                                }}
+                                disabled={updateEmailLoadingId === address.id}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
+                          ) : (
+                            <Stack direction="row" spacing={0.5}>
+                              <Tooltip title="Edit email">
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      setEditingEmailId(address.id);
+                                      setEditingEmailValue(address.email);
+                                    }}
+                                    disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title="Remove email">
+                                <span>
+                                  <IconButton
+                                    edge="end"
+                                    aria-label="remove"
+                                    onClick={() => handleRemoveEmail(address.id, address.email)}
+                                    disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
+                                  >
+                                    {removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CloseIcon fontSize="small" />}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </Stack>
+                          )
+                        }
+                      >
+                        {editingEmailId === address.id ? (
+                          <TextField
+                            size="small"
+                            value={editingEmailValue}
+                            onChange={(e) => setEditingEmailValue(e.target.value)}
+                            autoFocus
+                            fullWidth
+                            sx={{ mr: 2 }}
+                          />
+                        ) : (
+                          <ListItemText primary={address.email} />
+                        )}
+                      </ListItem>
+                    ))}
+                  </List>
+
+                  {hasMoreEmails && !searchQuery && (
+                    <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+                      <Button
+                        size="small"
+                        onClick={() => setShowAllEmails(!showAllEmails)}
+                        endIcon={showAllEmails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      >
+                        {showAllEmails
+                          ? "Show less"
+                          : `Show ${filteredEmails.length - DEFAULT_VISIBLE_EMAILS} more`}
+                      </Button>
+                    </Box>
                   )}
-                </ListItem>
-              ))}
-            </List>
+
+                  {searchQuery && filteredEmails.length > 0 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      Showing {filteredEmails.length} of {group.emails.length} emails
+                    </Typography>
+                  )}
+                </>
+              )}
+            </>
           )}
         </Box>
       )}
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Delete "{group.name}"?</DialogTitle>
+        <DialogTitle>Delete &quot;{group.name}&quot;?</DialogTitle>
         <DialogContent>
           <Typography>Deleting this group will remove all stored email addresses. This action cannot be undone.</Typography>
         </DialogContent>
