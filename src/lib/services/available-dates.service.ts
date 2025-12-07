@@ -62,6 +62,7 @@ export interface AvailableDatesResult {
     matchedClusters: ClusterMatch[];
     clusterDates: string[];
     notes: string[];
+    excludedDays?: string[]; // Days of week excluded (e.g., ["Sunday", "Saturday"])
   };
 }
 
@@ -73,15 +74,17 @@ export class AvailableDatesService {
     prompt: string,
     gamesTable: GameRow[],
     candidateDates: string[],
-    options?: { maxResults?: number; threshold?: number }
+    options?: { maxResults?: number; threshold?: number; excludeDays?: number[] }
   ): Promise<AvailableDatesResult> {
     const maxResults = options?.maxResults || 50; // Increased default, allow more results
     const threshold = options?.threshold || 2.5;
+    const excludeDays = options?.excludeDays || []; // Days of week to exclude (0=Sunday, 6=Saturday)
     const debug = {
       parsedTokens: [] as string[],
       matchedClusters: [] as ClusterMatch[],
       clusterDates: [] as string[],
       notes: [] as string[],
+      excludedDays: [] as string[],
     };
 
     // Validate candidateDates
@@ -127,14 +130,37 @@ export class AvailableDatesService {
     debug.clusterDates = Array.from(clusterDates).sort();
 
     // Step 4: Filter candidateDates - remove dates with conflicts
-    const availableDates = validCandidates.filter(date => !clusterDates.has(date));
+    let availableDates = validCandidates.filter(date => !clusterDates.has(date));
     
     if (availableDates.length === 0) {
       debug.notes.push('All candidate dates are blocked by existing games');
       return { recommendations: [], debug };
     }
 
-    // Step 5: Sort chronologically (no weekday prioritization)
+    // Step 5: Filter out excluded days of week
+    if (excludeDays.length > 0) {
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      debug.excludedDays = excludeDays.map(d => dayNames[d]);
+      
+      const beforeCount = availableDates.length;
+      availableDates = availableDates.filter(dateStr => {
+        const date = new Date(dateStr + 'T00:00:00');
+        const dayOfWeek = date.getDay();
+        return !excludeDays.includes(dayOfWeek);
+      });
+      
+      const excludedCount = beforeCount - availableDates.length;
+      if (excludedCount > 0) {
+        debug.notes.push(`Excluded ${excludedCount} dates on: ${debug.excludedDays.join(', ')}`);
+      }
+      
+      if (availableDates.length === 0) {
+        debug.notes.push('All available dates were excluded by day-of-week filter');
+        return { recommendations: [], debug };
+      }
+    }
+
+    // Step 6: Sort chronologically (no weekday prioritization)
     availableDates.sort();
 
     // Apply max results limit
