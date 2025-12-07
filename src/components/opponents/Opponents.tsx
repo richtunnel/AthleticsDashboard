@@ -335,7 +335,7 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
           Enter the final score for both teams. The result (Win, Loss, or Draw) will be automatically calculated.
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2, fontStyle: "italic" }}>
-          Example: Your Team: 3, {opponentName}: 1 = Win
+          * Numbers Only
         </Typography>
         <Stack spacing={3}>
           <Autocomplete
@@ -344,17 +344,20 @@ const ScoreDialog = ({ open, onClose, yourTeamName, opponentName, onSubmit, load
             value={selectedSportLevel}
             onChange={(_, newValue) => setSelectedSportLevel(newValue)}
             renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Sport & Level"
-                placeholder="Select sport and level"
-                helperText="Choose which team this score is for (e.g., Boys Varsity Basketball)"
-              />
+              <TextField {...params} label="Sport & Level" placeholder="Select sport and level" helperText="Choose which team this score is for (e.g., Boys Varsity Basketball)" />
             )}
             fullWidth
           />
-          <TextField label={`${yourTeamName} (Your Team)`} placeholder="Enter Score (Your Team)" type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
-          <TextField label={opponentName} placeholder={`Enter Score (${opponentName})`} type="number" value={opponentScore} onChange={(e) => setOpponentScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+          <TextField label={`(Your Score)`} placeholder="Enter Score (Your Team)" type="number" value={yourScore} onChange={(e) => setYourScore(e.target.value)} fullWidth inputProps={{ min: 0 }} />
+          <TextField
+            label={`(Opponent Score)`}
+            placeholder={`Enter Score (${opponentName})`}
+            type="number"
+            value={opponentScore}
+            onChange={(e) => setOpponentScore(e.target.value)}
+            fullWidth
+            inputProps={{ min: 0 }}
+          />
           {getResultPreview()}
         </Stack>
       </DialogContent>
@@ -451,11 +454,7 @@ export default function OpponentsPage() {
       return matchupResults;
     }
     return matchupResults.filter((result: MatchupResult) => {
-      return (
-        result.sport === selectedFilter.sport &&
-        result.gender === selectedFilter.gender &&
-        result.level === selectedFilter.level
-      );
+      return result.sport === selectedFilter.sport && result.gender === selectedFilter.gender && result.level === selectedFilter.level;
     });
   }, [matchupResults, selectedFilter]);
 
@@ -491,15 +490,7 @@ export default function OpponentsPage() {
   // ============================================================================
 
   const createMatchupMutation = useMutation({
-    mutationFn: async (data: { 
-      opponentId: string; 
-      organizationScore: number; 
-      opponentScore: number; 
-      isWin: boolean;
-      sport: string | null;
-      gender: string | null;
-      level: string | null;
-    }) => {
+    mutationFn: async (data: { opponentId: string; organizationScore: number; opponentScore: number; isWin: boolean; sport: string | null; gender: string | null; level: string | null }) => {
       const res = await fetch("/api/matchup-results", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
