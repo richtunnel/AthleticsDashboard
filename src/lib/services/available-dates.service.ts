@@ -75,7 +75,7 @@ export class AvailableDatesService {
     candidateDates: string[],
     options?: { maxResults?: number; threshold?: number }
   ): Promise<AvailableDatesResult> {
-    const maxResults = Math.min(options?.maxResults || 6, 15);
+    const maxResults = options?.maxResults || 50; // Increased default, allow more results
     const threshold = options?.threshold || 2.5;
     const debug = {
       parsedTokens: [] as string[],
@@ -126,7 +126,7 @@ export class AvailableDatesService {
     const clusterDates = this.extractClusterDates(gamesTable, matchedClusters, debug);
     debug.clusterDates = Array.from(clusterDates).sort();
 
-    // Step 4: Filter candidateDates and prioritize weekdays
+    // Step 4: Filter candidateDates - remove dates with conflicts
     const availableDates = validCandidates.filter(date => !clusterDates.has(date));
     
     if (availableDates.length === 0) {
@@ -134,28 +134,21 @@ export class AvailableDatesService {
       return { recommendations: [], debug };
     }
 
-    // Step 5: Sort chronologically, prioritize weekdays
-    const weekdays: string[] = [];
-    const weekends: string[] = [];
+    // Step 5: Sort chronologically (no weekday prioritization)
+    availableDates.sort();
 
-    availableDates.forEach(dateStr => {
+    // Apply max results limit
+    const recommendations = availableDates.slice(0, maxResults);
+
+    // Count weekdays vs weekends for debug
+    const weekdayCount = recommendations.filter(dateStr => {
       const date = new Date(dateStr + 'T00:00:00');
-      const dayOfWeek = date.getDay(); // 0 = Sun, 6 = Sat
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        weekends.push(dateStr);
-      } else {
-        weekdays.push(dateStr);
-      }
-    });
+      const dayOfWeek = date.getDay();
+      return dayOfWeek !== 0 && dayOfWeek !== 6;
+    }).length;
+    const weekendCount = recommendations.length - weekdayCount;
 
-    // Sort each group chronologically
-    weekdays.sort();
-    weekends.sort();
-
-    // Merge: weekdays first, then weekends
-    const recommendations = [...weekdays, ...weekends].slice(0, maxResults);
-
-    debug.notes.push(`Found ${recommendations.length} available dates (${weekdays.length} weekdays, ${weekends.length} weekends)`);
+    debug.notes.push(`Found ${recommendations.length} available dates (${weekdayCount} weekdays, ${weekendCount} weekends)`);
 
     return { recommendations, debug };
   }
@@ -308,6 +301,7 @@ export class AvailableDatesService {
 
   /**
    * Extract dates from games table that belong to matched clusters
+   * Only dates with EXACT team matches are considered conflicts
    */
   private extractClusterDates(
     gamesTable: GameRow[],
@@ -317,8 +311,19 @@ export class AvailableDatesService {
     const clusterDates = new Set<string>();
     let rowsWithoutDates = 0;
 
+    // Build exact team patterns to match (e.g., "Girls Varsity Basketball")
+    const teamPatterns = clusters.map(cluster => {
+      const patterns = [
+        `${cluster.gender} ${cluster.level} ${cluster.sport}`.toLowerCase(),
+        `${cluster.gender}${cluster.level}${cluster.sport}`.toLowerCase().replace(/\s+/g, ''),
+        `${cluster.gender.charAt(0)}${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "GV Basketball"
+        `${cluster.gender.charAt(0)} ${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "G V Basketball"
+      ];
+      return patterns;
+    });
+
     for (const row of gamesTable) {
-      // Build searchable string from row
+      // Build searchable string from row - include all possible data fields
       const searchableText = [
         row.sport,
         row.level,
@@ -332,21 +337,10 @@ export class AvailableDatesService {
         .join(' ')
         .toLowerCase();
 
-      // Check if row qualifies for any cluster
+      // Check if row matches ANY of the exact team patterns
       let qualifies = false;
-      for (const cluster of clusters) {
-        const sport = cluster.sport.toLowerCase();
-        const gender = cluster.gender.toLowerCase();
-        const level = cluster.level.toLowerCase();
-
-        // Row qualifies if:
-        // (contains sport AND (contains gender OR contains level))
-        // OR (contains gender AND contains level)
-        const hasSport = searchableText.includes(sport);
-        const hasGender = searchableText.includes(gender);
-        const hasLevel = searchableText.includes(level);
-
-        if ((hasSport && (hasGender || hasLevel)) || (hasGender && hasLevel)) {
+      for (const patterns of teamPatterns) {
+        if (patterns.some(pattern => searchableText.includes(pattern))) {
           qualifies = true;
           break;
         }
