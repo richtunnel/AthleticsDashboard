@@ -71,16 +71,19 @@ export async function POST(request: NextRequest) {
     if (candidateDates && Array.isArray(candidateDates) && candidateDates.length > 0) {
       finalCandidateDates = candidateDates;
     } else {
-      // Default: generate next 90 days as candidate pool
+      // Default: generate next 3 months as candidate pool
       finalCandidateDates = [];
       const today = new Date();
-      for (let i = 0; i < 90; i++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + i);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+      const threeMonthsLater = new Date(today);
+      threeMonthsLater.setMonth(today.getMonth() + 3);
+      
+      const current = new Date(today);
+      while (current <= threeMonthsLater) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const day = String(current.getDate()).padStart(2, '0');
         finalCandidateDates.push(`${year}-${month}-${day}`);
+        current.setDate(current.getDate() + 1);
       }
     }
 
