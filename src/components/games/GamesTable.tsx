@@ -2477,7 +2477,10 @@ export function GamesTable() {
   };
 
   const handleExport = useCallback(() => {
-    const gamesToExport = games.length > 0 ? games : [];
+    // Export selected games if any are selected, otherwise export all games
+    const gamesToExport = selectedGames.size > 0 
+      ? games.filter((game: Game) => selectedGames.has(game.id))
+      : games;
 
     if (gamesToExport.length === 0) {
       addNotification("No games to export", "warning");
@@ -2489,10 +2492,12 @@ export function GamesTable() {
       games_count: gamesToExport.length,
       visible_columns_count: visibleColumnIds.length,
       custom_columns_count: customColumns.length,
+      is_partial_selection: selectedGames.size > 0 && selectedGames.size < games.length,
+      is_select_all: selectedGames.size === games.length && games.length > 0,
     });
 
     ExportService.exportGames(gamesToExport, customColumns, visibleColumnIds);
-  }, [games, customColumns, visibleColumnIds, addNotification]);
+  }, [games, customColumns, visibleColumnIds, addNotification, selectedGames]);
 
   const handleImportClick = useCallback(() => {
     trackEvent("Import Games Clicked", {
@@ -5836,7 +5841,7 @@ export function GamesTable() {
               Import
             </Button>
           </Tooltip>
-          <Tooltip title="Export displayed games to CSV">
+          <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
             <Button
               variant="outlined"
               startIcon={<Download />}
@@ -5845,7 +5850,7 @@ export function GamesTable() {
               size="small"
               sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
             >
-              Export{selectedGames.size > 0 ? ` (${games.length})` : ""}
+              Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
             </Button>
           </Tooltip>
         </Stack>
