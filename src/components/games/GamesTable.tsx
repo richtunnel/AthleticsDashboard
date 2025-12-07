@@ -812,16 +812,10 @@ export function GamesTable() {
     if (isUserReordering) return;
 
     setColumnState((prev) => {
-      // If user has saved preferences order, use it directly - respect it completely
-      const savedOrder = columnPreferencesData?.order;
-
-      let orderToUse = defaultColumnOrder;
-      if (savedOrder && Array.isArray(savedOrder) && savedOrder.length > 0) {
-        orderToUse = savedOrder;
-      }
-
-      // Pass the potentially saved order (or the filtered default order) to deriveColumnState
-      return deriveColumnState(prev, columnPreferencesData, orderToUse, initialPreferencesApplied);
+      // CRITICAL: Always pass defaultColumnOrder to deriveColumnState
+      // The function uses this to find NEW columns (like newly created custom columns)
+      // It already handles saved preferences internally via the preferences parameter
+      return deriveColumnState(prev, columnPreferencesData, defaultColumnOrder, initialPreferencesApplied);
     });
   }, [columnPreferencesData, defaultColumnOrder, initialPreferencesApplied, isUserReordering]);
 
