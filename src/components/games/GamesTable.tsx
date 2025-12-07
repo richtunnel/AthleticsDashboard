@@ -18,6 +18,7 @@ import { QuickAddTeam } from "./QuickAddTeams";
 import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
+import { TravelTimeModal } from "./TravelTimeModal";
 import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -524,6 +525,13 @@ export function GamesTable() {
     columnName: string;
     currentDismissTime?: string;
     currentDepartTime?: string;
+  } | null>(null);
+
+  // Travel Time Modal state (for Travel Time custom column)
+  const [travelTimeModal, setTravelTimeModal] = useState<{
+    open: boolean;
+    gameId: string;
+    gameName: string;
   } | null>(null);
 
   // Constants
@@ -3107,6 +3115,45 @@ export function GamesTable() {
     }
   };
 
+  const handleSaveTravelTime = async (departureTime: string, address: string) => {
+    if (!travelTimeModal) return;
+
+    const { gameId } = travelTimeModal;
+
+    try {
+      // Save travel time and address using the API endpoint
+      const response = await fetch("/api/games/save-travel-time", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId,
+          departureTime,
+          address,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to save travel time");
+      }
+
+      const result = await response.json();
+
+      // Refresh games and custom columns data
+      await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ["customColumns"] });
+
+      let message = "Travel time saved successfully";
+      if (result.data?.addressColumnCreated) {
+        message += ". Address column was automatically created.";
+      }
+
+      addNotification(message, "success");
+    } catch (error: any) {
+      addNotification(error.message || "Failed to save travel time", "error");
+    }
+  };
+
   const handleColumnFilterChange = useCallback(
     (columnId: string, filter: ColumnFilterValue | null) => {
       updateFilter(columnId, filter);
@@ -5432,7 +5479,50 @@ export function GamesTable() {
           const isCustomEditing = inlineEditState?.gameId === game.id && inlineEditState.field === fieldKey;
           const columnType = customColumn?.type || "TEXT";
 
-          // Format display value based on column type
+          // Check if this is the "Travel Time" column (case-insensitive)
+          const isTravelTimeColumn = customColumn?.name && /^travel time$/i.test(customColumn.name.trim());
+
+          // Special rendering for Travel Time column
+          if (isTravelTimeColumn && aiTravelTimesEnabled) {
+            return (
+              <TableCell
+                key={column.id}
+                sx={{
+                  py: 1,
+                  minWidth: 150,
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "#f5f5f5",
+                  },
+                }}
+                onClick={() => {
+                  const opponentName = game.opponent?.name || "TBD";
+                  const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
+                  setTravelTimeModal({
+                    open: true,
+                    gameId: game.id,
+                    gameName,
+                  });
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: 13,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cellValue ? formatTimeDisplay(cellValue) : "—"}
+                  </Typography>
+                </Box>
+              </TableCell>
+            );
+          }
+
+          // Format display value based on column type (for non-Travel Time columns)
           const displayValue = (() => {
             if (!cellValue) return "—";
             if (columnType === "TIME") {
@@ -6210,6 +6300,17 @@ export function GamesTable() {
           currentDismissTime={dismissDepartModal.currentDismissTime}
           currentDepartTime={dismissDepartModal.currentDepartTime}
           onSave={handleSaveDismissDepartTimes}
+        />
+      )}
+
+      {/* Travel Time Modal for Travel Time custom column */}
+      {travelTimeModal && (
+        <TravelTimeModal
+          open={travelTimeModal.open}
+          onClose={() => setTravelTimeModal(null)}
+          gameId={travelTimeModal.gameId}
+          gameName={travelTimeModal.gameName}
+          onSave={handleSaveTravelTime}
         />
       )}
     </Box>
