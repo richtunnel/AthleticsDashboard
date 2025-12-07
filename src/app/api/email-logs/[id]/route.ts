@@ -69,7 +69,7 @@ export async function GET(
     }
 
     // If gameIds are stored, fetch all games
-    let games = [];
+    let games: any[] = [];
     if (log.gameIds && log.gameIds.length > 0) {
       games = await prisma.game.findMany({
         where: {
@@ -88,6 +88,41 @@ export async function GET(
     }
 
     return ApiResponse.success({ log, games });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return ApiResponse.unauthorized();
+    }
+
+    const { id } = await context.params;
+
+    const log = await prisma.emailLog.findUnique({
+      where: {
+        id,
+        sentById: session.user.id,
+      },
+    });
+
+    if (!log) {
+      return ApiResponse.error("Email log not found", 404);
+    }
+
+    await prisma.emailLog.delete({
+      where: {
+        id,
+      },
+    });
+
+    return ApiResponse.success({ message: "Email log deleted successfully" });
   } catch (error) {
     return handleApiError(error);
   }
