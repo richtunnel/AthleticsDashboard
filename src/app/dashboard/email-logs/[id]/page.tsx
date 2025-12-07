@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Paper,
@@ -22,8 +22,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
-import { ArrowBack, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Schedule as ScheduleIcon, Edit, Send } from "@mui/icons-material";
+import { ArrowBack, CheckCircle as CheckCircleIcon, Error as ErrorIcon, Schedule as ScheduleIcon, Edit, Send, Delete } from "@mui/icons-material";
 import { format } from "date-fns";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 
@@ -86,8 +91,10 @@ interface Game {
 
 export default function EmailLogDetailPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useParams();
   const id = params?.id as string;
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const {
     data: response,
@@ -101,6 +108,23 @@ export default function EmailLogDetailPage() {
       return res.json();
     },
     enabled: !!id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/email-logs/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete email log");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-logs"] });
+      router.push("/dashboard/email-logs");
+    },
   });
 
   const log: EmailLog | null = response?.data?.log || null;
@@ -129,6 +153,18 @@ export default function EmailLogDetailPage() {
       console.error("Failed to reopen email:", error);
       alert("Failed to load email for editing");
     }
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    deleteMutation.mutate();
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
   };
 
   const getStatusChip = (status: string) => {
@@ -206,13 +242,21 @@ export default function EmailLogDetailPage() {
               </Typography>
               {getStatusChip(log.status)}
             </Box>
-            {log.gameIds && log.gameIds.length > 0 && (
-              <Stack direction="row" spacing={2}>
+            <Stack direction="row" spacing={2}>
+              {log.gameIds && log.gameIds.length > 0 && (
                 <Button variant="contained" startIcon={<Edit />} onClick={handleReopenEdit}>
                   Re-open & Edit
                 </Button>
-              </Stack>
-            )}
+              )}
+              <Button 
+                variant="outlined" 
+                color="error" 
+                startIcon={<Delete />} 
+                onClick={handleDeleteClick}
+              >
+                Delete
+              </Button>
+            </Stack>
           </Stack>
 
           {log.error && (
@@ -366,6 +410,33 @@ export default function EmailLogDetailPage() {
           </Paper>
         </Paper>
       </Stack>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Email Log</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this email log? This action cannot be undone. You will be redirected back to the email logs list.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
