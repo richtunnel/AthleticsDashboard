@@ -13,11 +13,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, candidateDates } = body;
+    const { prompt, candidateDates, excludeDays } = body;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
         { error: "Prompt is required and must be a string" },
+        { status: 400 }
+      );
+    }
+
+    // Validate excludeDays if provided
+    if (excludeDays !== undefined && (!Array.isArray(excludeDays) || !excludeDays.every((d: any) => typeof d === 'number' && d >= 0 && d <= 6))) {
+      return NextResponse.json(
+        { error: "excludeDays must be an array of numbers between 0 and 6" },
         { status: 400 }
       );
     }
@@ -92,7 +100,11 @@ export async function POST(request: NextRequest) {
       prompt,
       gamesTable,
       finalCandidateDates,
-      { maxResults: 50, threshold: 2.5 } // Increased to 50 from 6
+      { 
+        maxResults: 50, 
+        threshold: 2.5,
+        excludeDays: excludeDays || [] // Pass excluded days
+      }
     );
 
     return NextResponse.json({
