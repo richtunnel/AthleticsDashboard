@@ -248,12 +248,7 @@ export default function EmailLogDetailPage() {
                   Re-open & Edit
                 </Button>
               )}
-              <Button 
-                variant="outlined" 
-                color="error" 
-                startIcon={<Delete />} 
-                onClick={handleDeleteClick}
-              >
+              <Button variant="outlined" color="error" startIcon={<Delete />} onClick={handleDeleteClick}>
                 Delete
               </Button>
             </Stack>
@@ -326,7 +321,7 @@ export default function EmailLogDetailPage() {
               <>
                 <Divider />
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">
+                  <Typography sx={{ top: "-5px" }} variant="subtitle2" color="text.secondary">
                     Recipient Category
                   </Typography>
                   <Typography variant="body1" sx={{ textTransform: "capitalize" }}>
@@ -411,28 +406,16 @@ export default function EmailLogDetailPage() {
         </Paper>
       </Stack>
 
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} maxWidth="sm" fullWidth>
         <DialogTitle>Delete Email Log</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this email log? This action cannot be undone. You will be redirected back to the email logs list.
-          </DialogContentText>
+          <DialogContentText>Are you sure you want to delete this email log? This action cannot be undone. You will be redirected back to the email logs list.</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="inherit">
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained"
-            disabled={deleteMutation.isPending}
-          >
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleteMutation.isPending}>
             {deleteMutation.isPending ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
