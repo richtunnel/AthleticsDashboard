@@ -5845,7 +5845,7 @@ export function GamesTable() {
               size="small"
               sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
             >
-              Export ({games.length})
+              Export{selectedGames.size > 0 ? ` (${games.length})` : ""}
             </Button>
           </Tooltip>
         </Stack>
