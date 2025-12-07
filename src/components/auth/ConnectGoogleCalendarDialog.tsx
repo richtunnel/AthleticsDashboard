@@ -1,20 +1,6 @@
 "use client";
 
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box, List, ListItem, ListItemIcon, ListItemText, Alert, CircularProgress } from "@mui/material";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import LockIcon from "@mui/icons-material/Lock";
@@ -29,17 +15,13 @@ interface ConnectGoogleCalendarDialogProps {
 
 /**
  * Dialog that explains Google Calendar permissions before initiating OAuth
- * 
+ *
  * Shows:
  * - What permissions are being requested
  * - Why the app needs these permissions
  * - Privacy and security information
  */
-export function ConnectGoogleCalendarDialog({
-  open,
-  onClose,
-  returnTo,
-}: ConnectGoogleCalendarDialogProps) {
+export function ConnectGoogleCalendarDialog({ open, onClose, returnTo }: ConnectGoogleCalendarDialogProps) {
   const { connect } = useGoogleCalendarConnection();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +50,10 @@ export function ConnectGoogleCalendarDialog({
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
       PaperProps={{
         sx: {
           borderRadius: 2,
+          maxWidth: "768px",
         },
       }}
     >
@@ -90,8 +71,7 @@ export function ConnectGoogleCalendarDialog({
 
       <DialogContent dividers>
         <Typography variant="body1" paragraph>
-          To sync your games with Google Calendar, we need your permission to
-          access your calendar.
+          To sync your games with Google Calendar, we need your permission to access your calendar.
         </Typography>
 
         <Box sx={{ mb: 3 }}>
@@ -126,15 +106,9 @@ export function ConnectGoogleCalendarDialog({
           </List>
         </Box>
 
-        <Alert
-          severity="info"
-          icon={<LockIcon />}
-          sx={{ mb: 2 }}
-        >
+        <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>Your privacy matters:</strong> Your calendar data is never
-            shared with third parties. You can disconnect at any time from your
-            settings page.
+            <strong>Your privacy matters:</strong> Your calendar data is never shared with third parties. You can disconnect at any time from your settings page.
           </Typography>
         </Alert>
 
@@ -145,28 +119,15 @@ export function ConnectGoogleCalendarDialog({
         )}
 
         <Typography variant="caption" color="text.secondary" display="block">
-          By clicking "Connect", you'll be redirected to Google to grant
-          permissions. You can revoke access anytime from your Google Account
-          settings.
+          By clicking "Connect", you'll be redirected to Google to grant permissions. You can revoke access anytime from your Google Account settings.
         </Typography>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button
-          onClick={handleClose}
-          disabled={isConnecting}
-          color="inherit"
-        >
+        <Button onClick={handleClose} disabled={isConnecting} color="inherit">
           Cancel
         </Button>
-        <Button
-          onClick={handleConnect}
-          variant="contained"
-          disabled={isConnecting}
-          startIcon={
-            isConnecting ? <CircularProgress size={16} /> : <CalendarTodayIcon />
-          }
-        >
+        <Button onClick={handleConnect} variant="contained" disabled={isConnecting} startIcon={isConnecting ? <CircularProgress size={16} /> : <CalendarTodayIcon />}>
           {isConnecting ? "Connecting..." : "Connect Google Calendar"}
         </Button>
       </DialogActions>

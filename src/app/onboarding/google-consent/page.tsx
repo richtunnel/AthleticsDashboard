@@ -40,7 +40,7 @@ function GoogleConsentForm() {
   };
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh", maxWidth: "682px", margin: "0 auto" }}>
       <BaseHeader pt="20px" pl="20px" />
 
       <Container component="main" maxWidth="md" sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", py: 4 }}>
