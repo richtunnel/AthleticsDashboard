@@ -33,9 +33,37 @@ export function AITravelTimesToggle() {
   });
 
   const mutation = useMutation({
-    mutationFn: updateAITravelTimesSetting,
+    mutationFn: async (enabled: boolean) => {
+      // First update the setting
+      await updateAITravelTimesSetting(enabled);
+      
+      // If enabling, create the "Travel Time" custom column
+      if (enabled) {
+        try {
+          const checkRes = await fetch("/api/organizations/custom-columns");
+          const checkData = await checkRes.json();
+          const existingColumn = checkData.data?.find(
+            (col: any) => col.name.toLowerCase() === "travel time"
+          );
+          
+          if (!existingColumn) {
+            await fetch("/api/organizations/custom-columns", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: "Travel Time", type: "TEXT" }),
+            });
+          }
+        } catch (error) {
+          console.error("Failed to create Travel Time column:", error);
+          // Don't fail the toggle if column creation fails
+        }
+      }
+      
+      return { enabled };
+    },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["aiTravelTimesEnabled"] });
+      queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       setError(null);
       trackEvent("AI Travel Times Toggled", {
         source: "settings_page",
@@ -72,8 +100,7 @@ export function AITravelTimesToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            // disabled={mutation.isPending}
-            disabled
+            disabled={mutation.isPending}
           />
         }
         label={
