@@ -81,7 +81,7 @@ export default function HomePageContent() {
               Athletic <br /> Directors Hub
             </h3>
             <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
-              Save time by doing what you never could with spreadsheets your personal spreadsheets.
+              Save time by doing what you never could with your personal spreadsheets and game schedules.
             </p>
             <div className="flex flex-col sm:flex-row content-center items-center gap-4">
               <AuthActionButton
