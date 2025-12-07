@@ -19,6 +19,8 @@ import {
   Tooltip,
   IconButton,
   Collapse,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { format } from "date-fns";
@@ -44,6 +46,7 @@ interface DebugInfo {
   matchedClusters: ClusterMatch[];
   clusterDates: string[];
   notes: string[];
+  excludedDays?: string[];
 }
 
 interface AvailableDatesResult {
@@ -60,12 +63,23 @@ const formatDateDisplay = (dateStr: string): string => {
   }
 };
 
+const DAYS_OF_WEEK = [
+  { label: 'Sun', value: 0 },
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+];
+
 export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, onClose, sport, level, onDateSelect }) => {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AvailableDatesResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [excludeDays, setExcludeDays] = useState<number[]>([]);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -83,6 +97,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
       sport,
       level,
       source: "games_table",
+      excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
     });
 
     try {
@@ -93,6 +108,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
         },
         body: JSON.stringify({
           prompt: prompt.trim(),
+          excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
         }),
       });
 
@@ -159,6 +175,16 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
     }
   };
 
+  // Handle day of week toggle
+  const handleDayToggle = (_event: React.MouseEvent<HTMLElement>, newExcludeDays: number[]) => {
+    setExcludeDays(newExcludeDays);
+    // Clear results when filter changes
+    if (result) {
+      setResult(null);
+      setError(null);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -209,6 +235,51 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
             </Typography>
           </Box>
 
+          {/* Exclude Days Filter */}
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+              Exclude Days (Optional)
+            </Typography>
+            <ToggleButtonGroup
+              value={excludeDays}
+              onChange={handleDayToggle}
+              aria-label="exclude days of week"
+              size="small"
+              disabled={loading}
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 0.5,
+                "& .MuiToggleButton-root": {
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.5,
+                  textTransform: "none",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  "&.Mui-selected": {
+                    bgcolor: "error.light",
+                    color: "error.dark",
+                    borderColor: "error.main",
+                    "&:hover": {
+                      bgcolor: "error.main",
+                      color: "white",
+                    },
+                  },
+                },
+              }}
+            >
+              {DAYS_OF_WEEK.map((day) => (
+                <ToggleButton key={day.value} value={day.value} aria-label={day.label}>
+                  {day.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              Click to exclude days from the search results
+            </Typography>
+          </Box>
+
           {/* Loading State */}
           {loading && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
@@ -243,6 +314,15 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     ))}
                     {result.debug.matchedClusters.length > 3 && <Chip label={`+${result.debug.matchedClusters.length - 3} more`} size="small" variant="outlined" />}
                   </Stack>
+                </Alert>
+              )}
+
+              {/* Excluded Days Info */}
+              {result.debug.excludedDays && result.debug.excludedDays.length > 0 && (
+                <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Excluding: {result.debug.excludedDays.join(", ")}
+                  </Typography>
                 </Alert>
               )}
 
@@ -416,6 +496,16 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                           {result.debug.clusterDates.join(", ")}
                         </Typography>
                       </Box>
+                      {result.debug.excludedDays && result.debug.excludedDays.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            Excluded Days:
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            {result.debug.excludedDays.join(", ")}
+                          </Typography>
+                        </Box>
+                      )}
                       <Box>
                         <Typography variant="caption" sx={{ fontWeight: 600 }}>
                           Notes:
