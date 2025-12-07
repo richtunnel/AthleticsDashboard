@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       prompt,
       gamesTable,
       finalCandidateDates,
-      { maxResults: 6, threshold: 2.5 }
+      { maxResults: 50, threshold: 2.5 } // Increased to 50 from 6
     );
 
     return NextResponse.json({
