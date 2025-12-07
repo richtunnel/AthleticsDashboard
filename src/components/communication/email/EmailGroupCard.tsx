@@ -14,14 +14,12 @@ import {
   Divider,
   IconButton,
   InputAdornment,
-  List,
-  ListItem,
-  ListItemText,
   Paper,
   Stack,
   TextField,
   Typography,
   Tooltip,
+  Collapse,
 } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import EditIcon from "@mui/icons-material/Edit";
@@ -31,12 +29,11 @@ import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import SearchIcon from "@mui/icons-material/Search";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import type { EmailGroup, AddEmailsResponse } from "./types";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DEFAULT_VISIBLE_EMAILS = 5;
+const DEFAULT_VISIBLE_EMAILS = 3;
 
 type SnackbarSeverity = "success" | "info" | "warning" | "error";
 
@@ -86,6 +83,7 @@ export function EmailGroupCard({
   const [editingEmailValue, setEditingEmailValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllEmails, setShowAllEmails] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     setEditValue(group.name);
@@ -250,23 +248,24 @@ export function EmailGroupCard({
 
   return (
     <Paper
-      elevation={isActive ? 6 : 1}
+      elevation={isExpanded ? 6 : 1}
       sx={{
         p: 3,
         borderRadius: 3,
         border: "1px solid",
-        borderColor: isActive ? "primary.light" : "divider",
-        background: isActive ? "rgba(33, 150, 243, 0.04)" : "background.paper",
+        borderColor: isExpanded ? "primary.light" : "divider",
+        background: isExpanded ? "rgba(33, 150, 243, 0.04)" : "background.paper",
         transition: "all 0.2s ease",
-        cursor: "pointer",
-        "&:hover": {
-          borderColor: "primary.main",
-          boxShadow: 4,
-        },
       }}
-      onClick={onSelect}
     >
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+      <Stack 
+        direction="row" 
+        spacing={2} 
+        alignItems="center" 
+        justifyContent="space-between" 
+        sx={{ mb: isExpanded ? 2 : 0, cursor: "pointer" }}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
         <Stack direction="row" spacing={2} alignItems="center">
           <Box
             sx={{
@@ -330,94 +329,112 @@ export function EmailGroupCard({
         </Stack>
 
         {!isEditing && (
-          <Stack direction="row" spacing={1}>
-            <Button
+          <Stack direction="row" spacing={1} alignItems="center">
+            {isExpanded && (
+              <>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleAddEmails();
+                  }}
+                >
+                  {isAddingEmails ? "Close" : "Add Emails"}
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsEditing(true);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setConfirmOpen(true);
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+            <IconButton
               size="small"
-              variant="contained"
-              startIcon={<AddIcon />}
               onClick={(event) => {
                 event.stopPropagation();
-                onToggleAddEmails();
+                setIsExpanded(!isExpanded);
+              }}
+              sx={{
+                transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.3s ease",
               }}
             >
-              {isAddingEmails ? "Close" : "Add Emails"}
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<EditIcon />}
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsEditing(true);
-              }}
-            >
-              Edit
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={(event) => {
-                event.stopPropagation();
-                setConfirmOpen(true);
-              }}
-            >
-              Delete
-            </Button>
+              <ExpandMoreIcon />
+            </IconButton>
           </Stack>
         )}
       </Stack>
 
-      {isAddingEmails && (
-        <Box
-          sx={{
-            p: 2,
-            borderRadius: 2,
-            backgroundColor: "background.default",
-            border: "1px dashed",
-            borderColor: "primary.light",
-            mb: 3,
-          }}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            Add emails to &quot;{group.name}&quot;
-          </Typography>
-          <TextField
-            placeholder="Enter emails separated by commas, spaces, or new lines"
-            value={emailInput}
-            onChange={(event) => setEmailInput(event.target.value)}
-            multiline
-            minRows={3}
-            fullWidth
-          />
+      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+        {isAddingEmails && (
+          <Box
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              backgroundColor: "background.default",
+              border: "1px dashed",
+              borderColor: "primary.light",
+              mb: 3,
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              Add emails to &quot;{group.name}&quot;
+            </Typography>
+            <TextField
+              placeholder="Enter emails separated by commas, spaces, or new lines"
+              value={emailInput}
+              onChange={(event) => setEmailInput(event.target.value)}
+              multiline
+              minRows={3}
+              fullWidth
+            />
 
-          {inputError && (
-            <Alert severity="error" sx={{ mt: 1 }}>
-              {inputError}
-            </Alert>
-          )}
+            {inputError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {inputError}
+              </Alert>
+            )}
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
-            <LoadingButton
-              loading={addEmailsLoading}
-              onClick={handleAddEmails}
-              loadingText="Saving..."
-              sx={{ minWidth: 160 }}
-            >
-              Save Emails
-            </LoadingButton>
-            <Button variant="outlined" onClick={() => setEmailInput("")}
-              disabled={addEmailsLoading}
-            >
-              Clear
-            </Button>
-          </Stack>
-        </Box>
-      )}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
+              <LoadingButton
+                loading={addEmailsLoading}
+                onClick={handleAddEmails}
+                loadingText="Saving..."
+                sx={{ minWidth: 160 }}
+              >
+                Save Emails
+              </LoadingButton>
+              <Button variant="outlined" onClick={() => setEmailInput("")}
+                disabled={addEmailsLoading}
+              >
+                Clear
+              </Button>
+            </Stack>
+          </Box>
+        )}
 
-      {isActive && (
+        {(
         <Box onClick={(event) => event.stopPropagation()}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
@@ -469,90 +486,117 @@ export function EmailGroupCard({
                 </Typography>
               ) : (
                 <>
-                  <List dense sx={{ maxHeight: 300, overflowY: "auto" }}>
-                    {displayedEmails.map((address) => (
-                      <ListItem
-                        key={address.id}
-                        secondaryAction={
-                          editingEmailId === address.id ? (
-                            <Stack direction="row" spacing={0.5}>
-                              <IconButton
+                  <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 1,
+                        alignItems: "center",
+                      }}
+                    >
+                      {displayedEmails.map((address) => (
+                        <Chip
+                          key={address.id}
+                          label={
+                            editingEmailId === address.id ? (
+                              <TextField
                                 size="small"
-                                color="primary"
-                                onClick={() => handleUpdateEmail(address.id, address.email)}
-                                disabled={updateEmailLoadingId === address.id}
-                              >
-                                {updateEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  setEditingEmailId(null);
-                                  setEditingEmailValue("");
+                                value={editingEmailValue}
+                                onChange={(e) => setEditingEmailValue(e.target.value)}
+                                autoFocus
+                                sx={{ 
+                                  minWidth: 200,
+                                  '& .MuiInputBase-root': {
+                                    height: 32,
+                                    fontSize: '0.875rem',
+                                  }
                                 }}
-                                disabled={updateEmailLoadingId === address.id}
-                              >
-                                <CloseIcon fontSize="small" />
-                              </IconButton>
-                            </Stack>
-                          ) : (
-                            <Stack direction="row" spacing={0.5}>
-                              <Tooltip title="Edit email">
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => {
-                                      setEditingEmailId(address.id);
-                                      setEditingEmailValue(address.email);
-                                    }}
-                                    disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                              <Tooltip title="Remove email">
-                                <span>
-                                  <IconButton
-                                    edge="end"
-                                    aria-label="remove"
-                                    onClick={() => handleRemoveEmail(address.id, address.email)}
-                                    disabled={removeEmailLoadingId === address.id || updateEmailLoadingId !== null}
-                                  >
-                                    {removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : <CloseIcon fontSize="small" />}
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            </Stack>
-                          )
-                        }
-                      >
-                        {editingEmailId === address.id ? (
-                          <TextField
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              address.email
+                            )
+                          }
+                          onDelete={
+                            editingEmailId === address.id
+                              ? undefined
+                              : () => handleRemoveEmail(address.id, address.email)
+                          }
+                          deleteIcon={
+                            removeEmailLoadingId === address.id ? (
+                              <CircularProgress size={18} />
+                            ) : editingEmailId === address.id ? undefined : (
+                              <CloseIcon fontSize="small" />
+                            )
+                          }
+                          onClick={() => {
+                            if (editingEmailId !== address.id && updateEmailLoadingId === null) {
+                              setEditingEmailId(address.id);
+                              setEditingEmailValue(address.email);
+                            }
+                          }}
+                          sx={{
+                            cursor: editingEmailId === address.id ? 'default' : 'pointer',
+                            backgroundColor: editingEmailId === address.id ? 'primary.light' : 'default',
+                          }}
+                          disabled={removeEmailLoadingId === address.id || (updateEmailLoadingId !== null && updateEmailLoadingId !== address.id)}
+                        />
+                      ))}
+                      {editingEmailId && (
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <IconButton
                             size="small"
-                            value={editingEmailValue}
-                            onChange={(e) => setEditingEmailValue(e.target.value)}
-                            autoFocus
-                            fullWidth
-                            sx={{ mr: 2 }}
-                          />
-                        ) : (
-                          <ListItemText primary={address.email} />
-                        )}
-                      </ListItem>
-                    ))}
-                  </List>
+                            color="primary"
+                            onClick={() => {
+                              const address = group.emails.find(e => e.id === editingEmailId);
+                              if (address) {
+                                handleUpdateEmail(address.id, address.email);
+                              }
+                            }}
+                            disabled={updateEmailLoadingId === editingEmailId}
+                          >
+                            {updateEmailLoadingId === editingEmailId ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setEditingEmailId(null);
+                              setEditingEmailValue("");
+                            }}
+                            disabled={updateEmailLoadingId === editingEmailId}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      )}
+                      {hasMoreEmails && !searchQuery && !showAllEmails && (
+                        <Chip
+                          label={`...${filteredEmails.length - DEFAULT_VISIBLE_EMAILS} more`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowAllEmails(true);
+                          }}
+                          sx={{
+                            cursor: 'pointer',
+                            backgroundColor: 'action.hover',
+                            '&:hover': {
+                              backgroundColor: 'action.selected',
+                            }
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
 
-                  {hasMoreEmails && !searchQuery && (
+                  {hasMoreEmails && !searchQuery && showAllEmails && (
                     <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
                       <Button
                         size="small"
-                        onClick={() => setShowAllEmails(!showAllEmails)}
-                        endIcon={showAllEmails ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        onClick={() => setShowAllEmails(false)}
+                        startIcon={<ExpandMoreIcon sx={{ transform: 'rotate(180deg)' }} />}
                       >
-                        {showAllEmails
-                          ? "Show less"
-                          : `Show ${filteredEmails.length - DEFAULT_VISIBLE_EMAILS} more`}
+                        Show less
                       </Button>
                     </Box>
                   )}
@@ -567,7 +611,8 @@ export function EmailGroupCard({
             </>
           )}
         </Box>
-      )}
+        )}
+      </Collapse>
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Delete &quot;{group.name}&quot;?</DialogTitle>
