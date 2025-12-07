@@ -54,6 +54,13 @@ interface Game {
   };
   notes?: string;
   customFields?: Record<string, any>; // For imported CSV columns
+  customData?: Record<string, any>; // For custom columns created via CustomColumnManager
+}
+
+interface CustomColumn {
+  id: string;
+  name: string;
+  type: string;
 }
 
 interface TablePreferencesData {
@@ -64,32 +71,47 @@ interface TablePreferencesData {
 
 const STATIC_RECIPIENT_CATEGORIES = [{ value: "custom", label: "Custom Recipients" }];
 
-// Helper to determine which columns to display based on user's import preferences
-const getDisplayColumns = (preferences: TablePreferencesData | null): string[] => {
+// Helper to determine which columns to display based on user's import preferences and custom columns
+const getDisplayColumns = (preferences: TablePreferencesData | null, customColumns: CustomColumn[]): string[] => {
   // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
 
   if (importedColumns && columnMapping && importedColumns.length > 0) {
-    // User imported CSV with custom columns - show ONLY imported columns (no default columns)
-    return importedColumns
+    // User imported CSV with custom columns - show imported columns + custom columns
+    const importedIds = importedColumns
       .filter((colName) => {
         const mapping = columnMapping[colName];
         return mapping && mapping !== "skip"; // Only include non-skipped columns
       })
       .map((colName) => `imported:${colName}`);
+    
+    // Add custom columns
+    const customIds = customColumns.map((col) => `custom:${col.id}`);
+    
+    return [...importedIds, ...customIds];
   }
 
-  // No imported columns - use default columns
-  return ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
+  // No imported columns - use default columns + custom columns
+  const defaultColumns = ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
+  const customIds = customColumns.map((col) => `custom:${col.id}`);
+  
+  return [...defaultColumns, ...customIds];
 };
 
 // Helper to get column label
-const getColumnLabel = (columnId: string): string => {
+const getColumnLabel = (columnId: string, customColumns: CustomColumn[]): string => {
   // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
     return columnName; // Use the CSV column name as-is
+  }
+
+  // Handle custom columns
+  if (columnId.startsWith("custom:")) {
+    const customId = columnId.split(":")[1];
+    const customColumn = customColumns.find((col) => col.id === customId);
+    return customColumn?.name || "Custom Field";
   }
 
   // Return default labels
@@ -135,6 +157,13 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
     // Otherwise, look in customFields for preserved columns
     const customFields = game.customFields || {};
     return customFields[columnName] || "—";
+  }
+
+  // Handle custom columns
+  if (columnId.startsWith("custom:")) {
+    const customId = columnId.split(":")[1];
+    const customData = (game.customData as any) || {};
+    return customData[customId] || "—";
   }
 
   // Handle default columns
@@ -192,6 +221,18 @@ export default function ComposeEmailPage() {
     },
   });
 
+  // Fetch custom columns
+  const { data: customColumnsResponse } = useQuery({
+    queryKey: ["customColumns"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/custom-columns");
+      if (!res.ok) throw new Error("Failed to fetch custom columns");
+      return res.json();
+    },
+  });
+
+  const customColumns = useMemo<CustomColumn[]>(() => (customColumnsResponse?.data || []) as CustomColumn[], [customColumnsResponse?.data]);
+
   // Fetch table preferences to determine which columns to display
   const { data: tablePreferencesResponse } = useQuery({
     queryKey: ["tablePreferences", "games"],
@@ -204,8 +245,8 @@ export default function ComposeEmailPage() {
 
   const tablePreferences = useMemo<TablePreferencesData | null>(() => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null, [tablePreferencesResponse?.data]);
 
-  // Determine visible columns based on user's import preferences
-  const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences), [tablePreferences]);
+  // Determine visible columns based on user's import preferences and custom columns
+  const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences, customColumns), [tablePreferences, customColumns]);
 
   // Extract columnMapping for checking imported column mappings
   const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
@@ -229,7 +270,7 @@ export default function ComposeEmailPage() {
 
     // Find columns that might contain opponent/school information
     const opponentColumns = visibleColumnIds.filter((columnId) => {
-      const label = getColumnLabel(columnId).toLowerCase();
+      const label = getColumnLabel(columnId, customColumns).toLowerCase();
       return (
         label.includes("opponent") ||
         label.includes("away") ||
@@ -260,7 +301,7 @@ export default function ComposeEmailPage() {
     });
 
     return Array.from(schoolNamesSet).sort();
-  }, [allGames, visibleColumnIds, columnMapping]);
+  }, [allGames, visibleColumnIds, columnMapping, customColumns]);
 
   useEffect(() => {
     setMounted(true);
@@ -295,7 +336,7 @@ export default function ComposeEmailPage() {
 
                 // Check other opponent-related columns
                 return visibleColumnIds.some((columnId) => {
-                  const label = getColumnLabel(columnId).toLowerCase();
+                  const label = getColumnLabel(columnId, customColumns).toLowerCase();
                   const isOpponentColumn =
                     label.includes("opponent") ||
                     label.includes("away") ||
@@ -344,7 +385,7 @@ export default function ComposeEmailPage() {
         }
       }
     }
-  }, [mounted, visibleColumnIds, columnMapping]);
+  }, [mounted, visibleColumnIds, columnMapping, customColumns]);
 
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
@@ -421,7 +462,7 @@ export default function ComposeEmailPage() {
 
         // Check other opponent-related columns
         return visibleColumnIds.some((columnId) => {
-          const label = getColumnLabel(columnId).toLowerCase();
+          const label = getColumnLabel(columnId, customColumns).toLowerCase();
           const isOpponentColumn =
             label.includes("opponent") ||
             label.includes("away") ||
@@ -476,7 +517,7 @@ export default function ComposeEmailPage() {
     visibleColumnIds.forEach((columnId) => {
       // Skip actions column in email
       if (columnId === "actions") return;
-      const label = getColumnLabel(columnId);
+      const label = getColumnLabel(columnId, customColumns);
       html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(label)}</th>`;
     });
     html += "</tr>";
@@ -619,7 +660,7 @@ export default function ComposeEmailPage() {
                         if (columnId === "actions") return null;
                         return (
                           <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                            {getColumnLabel(columnId)}
+                            {getColumnLabel(columnId, customColumns)}
                           </TableCell>
                         );
                       })}
@@ -741,7 +782,7 @@ export default function ComposeEmailPage() {
                           if (game.opponent?.name === schoolName) return true;
 
                           return visibleColumnIds.some((columnId) => {
-                            const label = getColumnLabel(columnId).toLowerCase();
+                            const label = getColumnLabel(columnId, customColumns).toLowerCase();
                             const isOpponentColumn =
                               label.includes("opponent") ||
                               label.includes("away") ||
