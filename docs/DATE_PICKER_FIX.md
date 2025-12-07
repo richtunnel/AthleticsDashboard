@@ -1,68 +1,154 @@
-# Date Picker Timezone Bug Fix
+# Date Picker Fix - Restore Modern Material UI DatePicker
 
-## Problem
-When users selected a date from the date picker, the wrong date was being saved (off by one day). For example, selecting November 2nd would save as November 1st or 3rd.
+## Issues Fixed
 
-## Root Cause
-The bug was caused by timezone conversion issues when converting date strings to ISO format:
+### 1. **Date Not Saving for Imported Columns** ✅
+**Problem**: When users double-clicked imported date columns and selected a date from the date picker, the date would revert to the original value instead of saving the selected date.
 
-```javascript
-// OLD BUGGY CODE
-new Date("2024-11-02").toISOString()
-// In PST (UTC-8): creates 2024-11-02T00:00:00-08:00 (midnight PST)
-// Converts to UTC: 2024-11-02T08:00:00.000Z (8am UTC)
-// This could display as Nov 1 or Nov 3 depending on timezone interpretation
+**Root Cause**: The native HTML5 `<input type="date">` had timing issues with the blur event. When users selected a date from the calendar dropdown, the blur event would fire before the change event was fully processed, causing the save logic to execute with stale data.
+
+**Solution**: Replaced the native HTML5 date input with Material UI's `DatePicker` component from `@mui/x-date-pickers`. The Material UI DatePicker has reliable onChange behavior that properly handles date selection and saves correctly.
+
+---
+
+### 2. **Old Date Picker Regression** ✅
+**Problem**: The application had reverted from using a modern Material UI DatePicker to the basic HTML5 `<input type="date">`, which provides an inconsistent and less user-friendly experience across different browsers.
+
+**Root Cause**: A previous change removed the `@mui/x-date-pickers` package and replaced all DatePicker usage with native HTML5 date inputs.
+
+**Solution**: Re-installed `@mui/x-date-pickers@^8.19.0` and restored the modern DatePicker component throughout the application.
+
+---
+
+## Changes Made
+
+### 1. **Package Installation**
+Added `@mui/x-date-pickers@^8.19.0` to package.json dependencies.
+
+```bash
+yarn add @mui/x-date-pickers@^8.19.0
 ```
 
-When `new Date()` parses a date string like "2024-11-02", it creates a Date object at midnight in the LOCAL timezone. Converting this to UTC with `.toISOString()` shifts the time, which can cause the date to change depending on the timezone offset.
+---
 
-## Solution
-Created a helper function `dateStringToUTCISOString()` that explicitly creates dates at noon UTC to avoid date boundary issues:
+### 2. **GamesTable Component Updates**
+File: `/src/components/games/GamesTable.tsx`
 
-```javascript
-const dateStringToUTCISOString = (dateValue: string): string => {
-  // Parse date string in format YYYY-MM-DD and convert to UTC ISO string
-  // This avoids timezone issues by explicitly creating date at noon UTC
-  const datePart = dateValue.includes("T") ? dateValue.split("T")[0] : dateValue;
-  const [year, month, day] = datePart.split("-").map(Number);
-  // Create date at noon UTC to avoid any date boundary issues
-  const utcDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-  return utcDate.toISOString();
-};
-
-// NEW CORRECT CODE
-dateStringToUTCISOString("2024-11-02")
-// Always produces: 2024-11-02T12:00:00.000Z
-// Date stays as Nov 2 in all timezones
+#### Added Imports:
+```typescript
+import { format, parse } from "date-fns";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 ```
 
-## Files Changed
+#### Replaced Date Inputs in 4 Locations:
 
-1. **src/components/games/GamesTable.tsx**
-   - Added `dateStringToUTCISOString()` helper function
-   - Fixed date conversion in `executeBatchedSave()` (line ~1012, ~1054)
-   - Fixed date conversion in `handleAddNewGame()` (line ~1404)
-   - Fixed date conversion in `handleSaveEdit()` (line ~1546)
-   - Fixed date conversion in `handleDuplicateGame()` (line ~1584)
+1. **Inline Date Editing (Default Date Column)** - Lines 4190-4214
+   - Double-click date cell → Opens DatePicker
+   - Allows users to select dates with modern calendar UI
+   - Properly saves selected dates with onChange handler
 
-2. **src/components/games/CSVImport.tsx**
-   - Added `dateStringToUTCISOString()` helper function
-   - Fixed CSV date import (line ~219)
+2. **Inline Date Editing (Imported Date Column)** - Lines 4841-4865
+   - Same behavior as default date column
+   - Ensures imported date columns work identically to default columns
+   - Fixes the save issue by using reliable DatePicker onChange
 
-3. **src/components/opponents/Opponents.tsx**
-   - Added `dateStringToUTCISOString()` helper function
-   - Fixed game creation from opponents page (line ~601)
+3. **New Game Row Date Input** - Lines 3361-3392
+   - When adding a new game, date input uses DatePicker
+   - Consistent UI/UX across the entire table
 
-4. **src/components/import-export/ImportBox.tsx**
-   - Added `dateStringToUTCISOString()` helper function
-   - Fixed CSV date import (line ~218)
+4. **Full Row Edit Mode Date Input** - Lines 3733-3774
+   - When editing a game in full row mode, date input uses DatePicker
+   - Maintains consistency across all editing modes
+
+---
+
+## Implementation Pattern
+
+All date inputs now follow this consistent pattern:
+
+```typescript
+<LocalizationProvider dateAdapter={AdapterDateFns}>
+  <DatePicker
+    value={dateValue ? parse(dateValue, "yyyy-MM-dd", new Date()) : null}
+    onChange={(newValue) => {
+      if (newValue) {
+        const formattedDate = format(newValue, "yyyy-MM-dd");
+        handleDateChange(formattedDate);
+      }
+    }}
+    slotProps={{
+      textField: {
+        size: "small",
+        autoFocus: true, // For inline editing
+        sx: { width: "100%" },
+        InputProps: { sx: { fontSize: 13 } },
+      },
+    }}
+  />
+</LocalizationProvider>
+```
+
+**Key Features:**
+- Uses `parse()` to convert YYYY-MM-DD string to Date object
+- Uses `format()` to convert selected Date back to YYYY-MM-DD string
+- `onChange` fires reliably when user selects a date
+- Works consistently across all browsers (Chrome, Firefox, Safari, Edge)
+- Modern calendar UI with month/year navigation
+
+---
+
+## Benefits
+
+### User Experience
+- ✅ **Modern Calendar UI**: Visual date selection with month/year pickers
+- ✅ **Cross-Browser Consistency**: Same look and feel on all browsers
+- ✅ **Better Mobile Experience**: Touch-friendly date selection
+- ✅ **Reliable Save Behavior**: Date changes save properly without reverting
+- ✅ **Keyboard Navigation**: Arrow keys to navigate calendar, Enter to select
+
+### Developer Benefits
+- ✅ **Consistent API**: Same component across entire application
+- ✅ **Type Safety**: Full TypeScript support
+- ✅ **Accessible**: Built-in ARIA attributes and keyboard support
+- ✅ **Customizable**: Easy to style and configure via slotProps
+
+---
 
 ## Testing
-The fix ensures that:
-- Selecting Nov 2 saves as Nov 2 (not Nov 1 or Nov 3)
-- CSV imports with dates work correctly
-- Duplicating games preserves the correct date
-- All date operations are timezone-independent
 
-## Why Noon UTC?
-We use noon (12:00) UTC instead of midnight to provide maximum buffer from date boundaries. This ensures that even with timezone conversions for display purposes, the date remains correct across all timezones (UTC-12 to UTC+14).
+Tested scenarios:
+1. ✅ Double-click default date column → DatePicker opens → Select date → Date saves correctly
+2. ✅ Double-click imported date column → DatePicker opens → Select date → Date saves correctly
+3. ✅ Add new game → Click date field → DatePicker opens → Select date → Date enters into form
+4. ✅ Edit game (full row mode) → Click date field → DatePicker opens → Select date → Date updates
+5. ✅ Keyboard navigation → Arrow keys work, Enter selects date
+6. ✅ Cross-browser testing → Consistent behavior in Chrome, Firefox, Safari
+
+---
+
+## Notes
+
+- **Backward Compatibility**: No breaking changes - all existing date data continues to work
+- **Data Format**: Still uses YYYY-MM-DD format internally (ISO 8601 standard)
+- **Database**: No database changes required - only UI/UX improvements
+- **Performance**: DatePicker is lightweight and doesn't impact performance
+
+---
+
+## Related Files
+
+- `/src/components/games/GamesTable.tsx` - Main implementation
+- `package.json` - Added @mui/x-date-pickers dependency
+- `/memory` - Updated with Material UI DatePicker integration details
+
+---
+
+## Future Enhancements
+
+Potential improvements for future iterations:
+- Add date range picker for filtering games
+- Add shortcuts (Today, Tomorrow, Next Week, etc.)
+- Customize calendar appearance to match brand colors
+- Add date format preference (MM/DD/YYYY, DD/MM/YYYY, etc.)
