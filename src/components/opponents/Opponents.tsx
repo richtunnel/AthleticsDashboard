@@ -877,7 +877,7 @@ export default function OpponentsPage() {
             </Box>
 
             {filteredMatchupResults.length > 0 ? (
-              <Stack spacing={2} sx={{ maxHeight: "calc(100vh - 350px)", overflowY: "auto" }}>
+              <Stack spacing={2} sx={{ height: "auto", minHeight: 400, maxHeight: 600, overflowY: "auto", overflowX: "hidden" }}>
                 {filteredMatchupResults.map((result: MatchupResult) => {
                   const isYourTeamWinner = result.isWin;
                   const winnerName = isYourTeamWinner ? yourTeamName : result.opponent.name;
@@ -894,6 +894,9 @@ export default function OpponentsPage() {
                         borderColor: "divider",
                         position: "relative",
                         boxShadow: "none",
+                        minHeight: 120,
+                        display: "flex",
+                        flexDirection: "column",
                       }}
                     >
                       <IconButton
@@ -912,7 +915,7 @@ export default function OpponentsPage() {
                       >
                         <Close fontSize="small" />
                       </IconButton>
-                      <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" } }}>
+                      <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" }, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                         {/* Sport/Level Label */}
                         {sportLevelLabel !== "All Sports" && (
                           <Box sx={{ mb: 1 }}>
