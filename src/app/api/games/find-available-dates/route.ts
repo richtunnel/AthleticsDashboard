@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, candidateDates, excludeDays } = body;
+    const { prompt, candidateDates, excludeDays, maxResults } = body;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -26,6 +26,14 @@ export async function POST(request: NextRequest) {
     if (excludeDays !== undefined && (!Array.isArray(excludeDays) || !excludeDays.every((d: any) => typeof d === 'number' && d >= 0 && d <= 6))) {
       return NextResponse.json(
         { error: "excludeDays must be an array of numbers between 0 and 6" },
+        { status: 400 }
+      );
+    }
+
+    // Validate maxResults if provided
+    if (maxResults !== undefined && (typeof maxResults !== 'number' || maxResults < 1 || maxResults > 50)) {
+      return NextResponse.json(
+        { error: "maxResults must be a number between 1 and 50" },
         { status: 400 }
       );
     }
@@ -101,7 +109,7 @@ export async function POST(request: NextRequest) {
       gamesTable,
       finalCandidateDates,
       { 
-        maxResults: 50, 
+        maxResults: maxResults || 10, // Default 10, user can select 25 or 50
         threshold: 2.5,
         excludeDays: excludeDays || [] // Pass excluded days
       }
