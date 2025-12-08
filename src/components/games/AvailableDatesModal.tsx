@@ -21,6 +21,10 @@ import {
   Collapse,
   ToggleButton,
   ToggleButtonGroup,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { format } from "date-fns";
@@ -80,6 +84,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
+  const [maxResults, setMaxResults] = useState<number>(10);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -109,6 +114,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
         body: JSON.stringify({
           prompt: prompt.trim(),
           excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
+          maxResults,
         }),
       });
 
@@ -280,6 +286,34 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
             </Typography>
           </Box>
 
+          {/* Number of Results */}
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+              Number of Results
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <Select
+                value={maxResults}
+                onChange={(e) => {
+                  setMaxResults(e.target.value as number);
+                  // Clear results when limit changes
+                  if (result) {
+                    setResult(null);
+                    setError(null);
+                  }
+                }}
+                disabled={loading}
+              >
+                <MenuItem value={10}>10 dates</MenuItem>
+                <MenuItem value={25}>25 dates</MenuItem>
+                <MenuItem value={50}>50 dates</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              Maximum number of dates to display
+            </Typography>
+          </Box>
+
           {/* Loading State */}
           {loading && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
@@ -336,10 +370,11 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     sx={{
                       display: "grid",
                       gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                      gap: 1,
+                      gap: 2.5,
                       maxHeight: "350px",
                       overflowY: "auto",
                       pr: 0.5,
+                      p: 1,
                     }}
                   >
                     {result.recommendations.map((dateStr, index) => {

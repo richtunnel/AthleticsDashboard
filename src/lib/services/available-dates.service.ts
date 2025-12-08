@@ -76,7 +76,7 @@ export class AvailableDatesService {
     candidateDates: string[],
     options?: { maxResults?: number; threshold?: number; excludeDays?: number[] }
   ): Promise<AvailableDatesResult> {
-    const maxResults = options?.maxResults || 50; // Increased default, allow more results
+    const maxResults = options?.maxResults || 10; // Default 10 results, user can select 25 or 50
     const threshold = options?.threshold || 2.5;
     const excludeDays = options?.excludeDays || []; // Days of week to exclude (0=Sunday, 6=Saturday)
     const debug = {
@@ -206,6 +206,7 @@ export class AvailableDatesService {
 
   /**
    * Match parsed tokens against canonical sports data
+   * CRITICAL: ALL tokens must match - no partial matching allowed
    */
   private matchClusters(parsedTokens: string[], threshold: number): CanonicalTeam[] {
     const canonicalTeams: CanonicalTeam[] = [];
@@ -229,24 +230,11 @@ export class AvailableDatesService {
     }
 
     // Filter by threshold AND require all tokens to be matched
-    let matches = canonicalTeams.filter(t => {
+    // NO FALLBACK - must be exact match for all tokens
+    const matches = canonicalTeams.filter(t => {
       const matchResult = this.scoreMatch(parsedTokens, t.sport.toLowerCase(), t.gender.toLowerCase(), t.level.toLowerCase());
       return matchResult.score >= threshold && matchResult.allTokensMatched;
     });
-
-    // If no matches, try sport-only fallback
-    if (matches.length === 0) {
-      const sportTokens = parsedTokens.filter(t => 
-        canonicalSportsData.sports.some(s => s.name.toLowerCase().includes(t))
-      );
-      
-      if (sportTokens.length > 0) {
-        // Return all gender/level combos for matched sport(s)
-        matches = canonicalTeams.filter(t => 
-          sportTokens.some(token => t.sport.toLowerCase().includes(token))
-        );
-      }
-    }
 
     return matches;
   }
