@@ -107,7 +107,17 @@ export const useGamesTableStore = create<GamesTableState>()(
       setNewGameData: (data) => set({ newGameData: data }),
       updateNewGameData: (partial) =>
         set((state) => ({
-          newGameData: { ...state.newGameData, ...partial },
+          newGameData: {
+            ...state.newGameData,
+            ...partial,
+            // Deep merge for customData and customFields to preserve existing values
+            customData: partial.customData
+              ? { ...(state.newGameData.customData || {}), ...partial.customData }
+              : state.newGameData.customData,
+            customFields: partial.customFields
+              ? { ...(state.newGameData.customFields || {}), ...partial.customFields }
+              : state.newGameData.customFields,
+          },
         })),
       resetNewGameData: () =>
         set({
