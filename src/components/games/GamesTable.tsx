@@ -3793,7 +3793,6 @@ export function GamesTable() {
           <TableCell key="date" sx={getRequiredCellSx("date")}>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
-                open={isAddingNew}
                 value={newGameData.date ? parse(newGameData.date, "yyyy-MM-dd", new Date()) : null}
                 onChange={(newValue) => {
                   if (newValue) {
@@ -4099,7 +4098,6 @@ export function GamesTable() {
               <TableCell key={column.id} sx={getRequiredCellSx("date")}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
-                    open={isAddingNew}
                     value={newGameData.date ? parse(newGameData.date, "yyyy-MM-dd", new Date()) : null}
                     onChange={(newValue) => {
                       if (newValue) {
@@ -4824,7 +4822,7 @@ export function GamesTable() {
               <Box sx={{ py: 1, width: "100%" }}>
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DatePicker
-                    open={true}
+                    open={isEditing}
                     onClose={() => {
                       console.log("📅 DatePicker closed");
                       handleInlineBlur(game);
@@ -5515,7 +5513,7 @@ export function GamesTable() {
                   <Box sx={{ py: 1, width: "100%" }}>
                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                       <DatePicker
-                        open={true} // <-- ADD THIS LINE
+                        open={isEditingDate}
                         onClose={() => {
                           console.log("📅 Imported DatePicker closed");
                           setInlineEditState(null);
