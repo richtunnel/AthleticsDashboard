@@ -4090,6 +4090,93 @@ export function GamesTable() {
         if (column.id.startsWith("imported:")) {
           // Handle imported CSV columns (editable in new row form)
           const columnName = column.id.split(":")[1];
+          const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
+          const mapping = columnMapping?.[columnName];
+
+          // If this imported column is mapped to "date", render a DatePicker
+          if (mapping === "date") {
+            return (
+              <TableCell key={column.id} sx={getRequiredCellSx("date")}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DatePicker
+                    open={isAddingNew}
+                    value={newGameData.date ? parse(newGameData.date, "yyyy-MM-dd", new Date()) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        const formattedDate = format(newValue, "yyyy-MM-dd");
+                        updateNewGameData({ date: formattedDate });
+                      }
+                    }}
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        error: isRequiredFieldEmpty("date"),
+                        sx: {
+                          width: 140,
+                          "& .MuiOutlinedInput-root": {
+                            bgcolor: "transparent",
+                            "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                            "&:hover fieldset": { borderColor: "primary.main" },
+                            "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                          },
+                        },
+                        InputProps: { sx: { fontSize: 13 } },
+                      },
+                      popper: {
+                        placement: "bottom-start",
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+              </TableCell>
+            );
+          }
+
+          // If this imported column is mapped to "time", render a TimePicker modal
+          if (mapping === "time") {
+            return (
+              <TableCell
+                key={column.id}
+                sx={{
+                  py: 1,
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "#f5f5f5",
+                  },
+                }}
+                onClick={() => {
+                  setTimeEditModal({
+                    open: true,
+                    gameId: "new-game",
+                    time: newGameData.time || "",
+                    gameInfo: {
+                      date: newGameData.date ? formatGameDate(newGameData.date) : "New Game",
+                      opponent: newGameData.opponent,
+                    },
+                  });
+                }}
+              >
+                <TextField
+                  size="small"
+                  value={newGameData.time ? formatTimeDisplay(newGameData.time) : "TBD"}
+                  placeholder="Click to set time"
+                  sx={{
+                    width: 120,
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      cursor: "pointer",
+                    },
+                  }}
+                  InputProps={{
+                    readOnly: true,
+                    sx: { fontSize: 13 },
+                  }}
+                />
+              </TableCell>
+            );
+          }
+
+          // Default rendering for other imported columns
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
               <TextField
@@ -4125,7 +4212,81 @@ export function GamesTable() {
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn as CustomColumn;
           const customId = customColumn?.id || column.id.split(":")[1];
+          const columnType = customColumn?.type || "TEXT";
 
+          // If this custom column is TIME type, render a time input
+          if (columnType === "TIME") {
+            return (
+              <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
+                <TextField
+                  type="time"
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customId] || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customId]: value,
+                      },
+                    });
+                  }}
+                  placeholder={`Enter ${customColumn?.name?.toLowerCase?.() || "time"}`}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "transparent",
+                      "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                      "&:hover fieldset": { borderColor: "primary.main" },
+                      "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    },
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      py: 0.5,
+                    },
+                  }}
+                />
+              </TableCell>
+            );
+          }
+
+          // If this custom column is DATETIME type, render a datetime input
+          if (columnType === "DATETIME") {
+            return (
+              <TableCell key={column.id} sx={{ py: 1, minWidth: 180 }}>
+                <TextField
+                  type="datetime-local"
+                  size="small"
+                  fullWidth
+                  value={newGameData.customData?.[customId] || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    updateNewGameData({
+                      customData: {
+                        ...(newGameData.customData || {}),
+                        [customId]: value,
+                      },
+                    });
+                  }}
+                  placeholder={`Enter ${customColumn?.name?.toLowerCase?.() || "datetime"}`}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "transparent",
+                      "& fieldset": { borderColor: "rgba(0, 0, 0, 0.23)" },
+                      "&:hover fieldset": { borderColor: "primary.main" },
+                      "&.Mui-focused fieldset": { borderColor: "primary.main" },
+                    },
+                    "& .MuiInputBase-input": {
+                      fontSize: 13,
+                      py: 0.5,
+                    },
+                  }}
+                />
+              </TableCell>
+            );
+          }
+
+          // Default rendering for TEXT and DROPDOWN types
           return (
             <TableCell key={column.id} sx={{ py: 1, minWidth: 150 }}>
               <TextField
