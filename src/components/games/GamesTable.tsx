@@ -3793,6 +3793,7 @@ export function GamesTable() {
           <TableCell key="date" sx={getRequiredCellSx("date")}>
             <LocalizationProvider dateAdapter={AdapterDateFns}>
               <DatePicker
+                open={isAddingNew}
                 value={newGameData.date ? parse(newGameData.date, "yyyy-MM-dd", new Date()) : null}
                 onChange={(newValue) => {
                   if (newValue) {
@@ -3814,6 +3815,9 @@ export function GamesTable() {
                       },
                     },
                     InputProps: { sx: { fontSize: 13 } },
+                  },
+                  popper: {
+                    placement: "bottom-start",
                   },
                 }}
               />
