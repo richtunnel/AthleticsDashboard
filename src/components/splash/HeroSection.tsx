@@ -4,6 +4,7 @@ import { FiArrowRight, FiBox, FiCheck, FiCode, FiCopy, FiFlag, FiGrid, FiLock, F
 import { BackgroundGradient } from "../../components/gradients/background-gradient";
 import { FallInPlace } from "../../components/splash/fall-in-place";
 import { ButtonLink } from "../../components/splash/button-link";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 import { Hero } from "../../components/splash/hero";
 import Image from "next/image";
