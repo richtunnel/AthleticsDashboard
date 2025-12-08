@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { calendarService } from "@/lib/services/calendar.service";
 import { travelAIService } from "@/lib/services/travelAI";
+import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -62,6 +63,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Game not found or unauthorized" }, { status: 404 });
     }
 
+    // Normalize time field - convert empty strings to null and validate/normalize format
+    if ('time' in body) {
+      try {
+        body.time = normalizeTimeFormat(body.time);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid time format";
+        return NextResponse.json({ 
+          success: false, 
+          error: `${message}. Use HH:MM format (e.g., 14:30, 09:00) for Google Calendar compatibility.` 
+        }, { status: 400 });
+      }
+    }
+
     if (body.customFields) {
       // Get user's column mapping to find which custom field maps to date
       const userPrefs = await prisma.tablePreference.findUnique({
@@ -77,6 +91,23 @@ export async function PATCH(request: NextRequest) {
         if (dateColumnName && body.customFields[dateColumnName]) {
           // Also update the main date field so calendar widget sees the change
           body.date = new Date(body.customFields[dateColumnName]);
+        }
+        
+        // Also check for time column mapping and normalize
+        const timeColumnName = Object.keys(columnMapping).find((col) => columnMapping[col] === "time");
+        if (timeColumnName && body.customFields[timeColumnName]) {
+          try {
+            const normalizedTime = normalizeTimeFormat(body.customFields[timeColumnName]);
+            body.customFields[timeColumnName] = normalizedTime;
+            // Also update the main time field for consistency
+            body.time = normalizedTime;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Invalid time format";
+            return NextResponse.json({ 
+              success: false, 
+              error: `Invalid time in imported column "${timeColumnName}": ${message}` 
+            }, { status: 400 });
+          }
         }
       }
     }
