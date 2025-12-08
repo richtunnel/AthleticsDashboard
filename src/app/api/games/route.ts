@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { travelAIService } from "@/lib/services/travelAI";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 import { calendarService } from "@/lib/services/calendar.service";
+import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -686,22 +687,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Normalize time field - convert empty strings to null and validate format
+    // Normalize time field - convert empty strings to null and validate/normalize format
     if ('time' in body) {
-      if (body.time === "" || body.time === null || body.time === undefined) {
-        body.time = null;
-      } else if (typeof body.time === 'string') {
-        const trimmedTime = body.time.trim();
-        if (trimmedTime === "") {
-          body.time = null;
-        } else {
-          // Validate time format (HH:MM)
-          const timePattern = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-          if (!timePattern.test(trimmedTime)) {
-            return NextResponse.json({ success: false, error: "Invalid time format. Expected HH:MM (e.g., 14:30)" }, { status: 400 });
-          }
-          body.time = trimmedTime;
-        }
+      try {
+        body.time = normalizeTimeFormat(body.time);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid time format";
+        return NextResponse.json({ 
+          success: false, 
+          error: `${message}. Use HH:MM format (e.g., 14:30, 09:00) for Google Calendar compatibility.` 
+        }, { status: 400 });
       }
     }
 
