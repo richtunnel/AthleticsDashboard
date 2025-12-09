@@ -18,7 +18,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
     <Box
       sx={{
         bgcolor: "#0e1125",
-        color: "#fff",
+        color: "#a3abb5",
         minHeight: "250px",
         display: "flex",
         justifyContent: "center",
@@ -27,7 +27,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
       }}
       {...rest}
     >
-      <Container maxWidth="xl" sx={{ px: 4, py: 4, color: "#fff" }}>
+      <Container maxWidth="xl" sx={{ px: 4, py: 4, color: "#a3abb5" }}>
         <Box
           sx={{
             display: "grid",
@@ -41,7 +41,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
               <Box sx={{ display: "flex" }}>
                 <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
               </Box>
-              <Typography variant="body1" color="#fff">
+              <Typography variant="body1" color="#a3abb5">
                 {siteConfig.seo.description}
               </Typography>
             </Stack>
@@ -75,7 +75,7 @@ export const Copyright: React.FC<CopyrightProps> = ({ title, children }: Copyrig
     content = `© ${new Date().getFullYear()} - ${title}`;
   }
   return (
-    <Typography variant="body2" color="#fff">
+    <Typography variant="body2" color="#a3abb5">
       {content || children}
     </Typography>
   );
@@ -93,11 +93,11 @@ export const FooterLink: React.FC<FooterLinkProps> = (props) => {
     <Link
       component={NextLink}
       href={href}
-      color="#fff"
+      color="#a3abb5"
       sx={{
         fontSize: "body2.fontSize",
         textDecoration: "none",
-        color: "#fff",
+        color: "#a3abb5",
         transition: "color 0.2s ease-in",
         "&:hover": {
           color: "primary.main",
