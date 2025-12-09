@@ -149,8 +149,8 @@ export default function HomePageContent() {
       <br />
       <br />
       <br />
-      <Faq {...faqsData} />
-      <br /> <br /> <br />
+      {/* <Faq {...faqsData} /> */}
+      <br /> <br />
       <SplashFooter />
     </>
   );
