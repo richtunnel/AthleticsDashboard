@@ -1,6 +1,7 @@
 import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import NextLink from "next/link";
+import CopyRight from "../copyright";
 
 import siteConfig from "./config";
 
@@ -45,6 +46,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
               </Typography>
             </Stack>
             <Copyright>{siteConfig.footer.copyright}</Copyright>
+            <CopyRight />
           </Stack>
           <Stack direction="row" justifyContent="flex-end" spacing={2} alignItems="flex-end">
             {siteConfig.footer?.links?.map(({ href, label }) => (
@@ -53,6 +55,9 @@ export const Footer: React.FC<FooterProps> = (props) => {
               </FooterLink>
             ))}
           </Stack>
+          {/* <Stack>
+            <CopyRight />
+          </Stack> */}
         </Box>
       </Container>
     </Box>
