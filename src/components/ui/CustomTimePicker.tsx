@@ -95,7 +95,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
 
     // Match various time formats
     // HH:MM AM/PM or H:MM AM/PM (e.g., "3:30 PM", "03:30 pm")
-    const format12Hour = normalized.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+    const format12Hour = normalized.match(/^(\d{1,2}):(\d{1,2})\s*(am|pm)$/);
     if (format12Hour) {
       let h = parseInt(format12Hour[1], 10);
       const m = parseInt(format12Hour[2], 10);
@@ -108,11 +108,12 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
       if (period === "pm" && h !== 12) h += 12;
       if (period === "am" && h === 12) h = 0;
       
+      // Always return normalized HH:MM format with leading zeros
       return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
 
-    // HH:MM 24-hour format (e.g., "15:30", "3:30")
-    const format24Hour = normalized.match(/^(\d{1,2}):(\d{2})$/);
+    // HH:MM or H:MM or HH:M or H:M 24-hour format (e.g., "15:30", "3:30", "9:5")
+    const format24Hour = normalized.match(/^(\d{1,2}):(\d{1,2})$/);
     if (format24Hour) {
       const h = parseInt(format24Hour[1], 10);
       const m = parseInt(format24Hour[2], 10);
@@ -121,10 +122,11 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
         return null;
       }
       
+      // Always return normalized HH:MM format with leading zeros
       return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
 
-    // HHMM format (e.g., "1530", "330")
+    // HHMM format (e.g., "1530", "330", "0900")
     const formatCompact = normalized.match(/^(\d{1,4})$/);
     if (formatCompact) {
       const digits = formatCompact[1].padStart(4, "0");
@@ -135,6 +137,7 @@ export const CustomTimePicker: React.FC<CustomTimePickerProps> = ({
         return null;
       }
       
+      // Always return normalized HH:MM format with leading zeros
       return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     }
 
