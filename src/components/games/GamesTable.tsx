@@ -2486,9 +2486,7 @@ export function GamesTable() {
 
   const handleExport = useCallback(() => {
     // Export selected games if any are selected, otherwise export all games
-    const gamesToExport = selectedGames.size > 0 
-      ? games.filter((game: Game) => selectedGames.has(game.id))
-      : games;
+    const gamesToExport = selectedGames.size > 0 ? games.filter((game: Game) => selectedGames.has(game.id)) : games;
 
     if (gamesToExport.length === 0) {
       addNotification("No games to export", "warning");
@@ -5916,7 +5914,7 @@ export function GamesTable() {
       >
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" } }}>
-            Games Schedule
+            Game Schedules
           </Typography>
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             Manage your athletic schedules and create your own customized columns.
@@ -6468,13 +6466,7 @@ export function GamesTable() {
 
       {/* Travel Time Modal for Travel Time custom column */}
       {travelTimeModal && (
-        <TravelTimeModal
-          open={travelTimeModal.open}
-          onClose={() => setTravelTimeModal(null)}
-          gameId={travelTimeModal.gameId}
-          gameName={travelTimeModal.gameName}
-          onSave={handleSaveTravelTime}
-        />
+        <TravelTimeModal open={travelTimeModal.open} onClose={() => setTravelTimeModal(null)} gameId={travelTimeModal.gameId} gameName={travelTimeModal.gameName} onSave={handleSaveTravelTime} />
       )}
     </Box>
   );
@@ -6551,7 +6543,7 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
     if (hasImportedColumns) {
       // CRITICAL: User has imported columns - merge ONLY new custom columns (custom:*), NOT default static columns
       // This allows new custom columns to appear while keeping imported columns intact
-      const newCustomColumns = defaultOrder.filter(id => id.startsWith("custom:") && !preferenceOrder.includes(id));
+      const newCustomColumns = defaultOrder.filter((id) => id.startsWith("custom:") && !preferenceOrder.includes(id));
       finalOrder = [...preferenceOrder, ...newCustomColumns];
     } else {
       // No imported columns - merge with defaultOrder to include any new columns that were added
@@ -6562,7 +6554,7 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
     const previousOrder = previous.map((column) => column.id).filter((id) => defaultOrder.includes(id));
     if (hasImportedColumns) {
       // CRITICAL: User has imported columns - merge ONLY new custom columns (custom:*), NOT default static columns
-      const newCustomColumns = defaultOrder.filter(id => id.startsWith("custom:") && !previousOrder.includes(id));
+      const newCustomColumns = defaultOrder.filter((id) => id.startsWith("custom:") && !previousOrder.includes(id));
       finalOrder = [...previousOrder, ...newCustomColumns];
     } else {
       finalOrder = mergeWithDefaultOrder(previousOrder, defaultOrder);
