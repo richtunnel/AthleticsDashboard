@@ -1,0 +1,106 @@
+import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import NextLink from "next/link";
+
+import siteConfig from "./config";
+
+export interface FooterProps extends Omit<BoxProps, "children"> {
+  columns?: number;
+  children?: React.ReactNode;
+}
+
+export const Footer: React.FC<FooterProps> = (props) => {
+  const { columns = 2, ...rest } = props;
+  const theme = useTheme();
+
+  return (
+    <Box
+      sx={{
+        bgcolor: "#0e1125",
+        color: "#fff",
+        minHeight: "250px",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "end",
+        paddingBottom: "20px",
+      }}
+      {...rest}
+    >
+      <Container maxWidth="xl" sx={{ px: 4, py: 4, color: "#fff" }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${columns}, 1fr)`,
+            gap: 4,
+            alignItems: "end",
+          }}
+        >
+          <Stack spacing={4}>
+            <Stack alignItems="flex-start">
+              <Box sx={{ display: "flex" }}>
+                <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
+              </Box>
+              <Typography variant="body1" color="#fff">
+                {siteConfig.seo.description}
+              </Typography>
+            </Stack>
+            <Copyright>{siteConfig.footer.copyright}</Copyright>
+          </Stack>
+          <Stack direction="row" justifyContent="flex-end" spacing={2} alignItems="flex-end">
+            {siteConfig.footer?.links?.map(({ href, label }) => (
+              <FooterLink key={href} href={href}>
+                {label}
+              </FooterLink>
+            ))}
+          </Stack>
+        </Box>
+      </Container>
+    </Box>
+  );
+};
+
+export interface CopyrightProps {
+  title?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+export const Copyright: React.FC<CopyrightProps> = ({ title, children }: CopyrightProps) => {
+  let content;
+  if (title && !children) {
+    content = `© ${new Date().getFullYear()} - ${title}`;
+  }
+  return (
+    <Typography variant="body2" color="#fff">
+      {content || children}
+    </Typography>
+  );
+};
+
+export interface FooterLinkProps {
+  href: string;
+  children: React.ReactNode;
+}
+
+export const FooterLink: React.FC<FooterLinkProps> = (props) => {
+  const { children, href, ...rest } = props;
+
+  return (
+    <Link
+      component={NextLink}
+      href={href}
+      color="#fff"
+      sx={{
+        fontSize: "body2.fontSize",
+        textDecoration: "none",
+        color: "#fff",
+        transition: "color 0.2s ease-in",
+        "&:hover": {
+          color: "primary.main",
+        },
+      }}
+      {...rest}
+    >
+      {children}
+    </Link>
+  );
+};
