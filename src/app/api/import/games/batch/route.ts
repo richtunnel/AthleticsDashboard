@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { GameStatus } from "../../../../../../types/main.types";
 import { deleteSampleGames } from "@/lib/services/sample-game.service";
 import { detectAndCreateOpponents } from "@/lib/services/opponent-detection.service";
+import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 
 interface ImportGameData {
   date: string;
@@ -89,9 +90,21 @@ export async function POST(request: NextRequest) {
 
         // Pull the values from the customFields object if the mapping exists
         if (timeColumn && gameData.customFields?.[timeColumn]) {
-          timeValue = String(gameData.customFields[timeColumn]);
-          // Optional: You may need to validate/normalize this time format here,
-          // but for now, we'll assume the string "6:30 PM" is acceptable for the DB.
+          const rawTimeValue = String(gameData.customFields[timeColumn]);
+          try {
+            // Normalize time format for Google Calendar compatibility (HH:MM with leading zeros)
+            timeValue = normalizeTimeFormat(rawTimeValue);
+            // Also update the customFields with normalized time
+            if (timeValue) {
+              gameData.customFields[timeColumn] = timeValue;
+            }
+          } catch (error) {
+            // Log warning but don't fail the import - time is optional
+            const message = error instanceof Error ? error.message : "Invalid time format";
+            warnings.push(`Row ${rowNum}: ${message} for time "${rawTimeValue}". Time set to empty.`);
+            timeValue = null;
+            gameData.customFields[timeColumn] = null;
+          }
         }
 
         if (opponentColumn && gameData.customFields?.[opponentColumn]) {
