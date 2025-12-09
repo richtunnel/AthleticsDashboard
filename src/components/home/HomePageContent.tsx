@@ -11,7 +11,13 @@ import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
-
+import { HeroSection } from "../splash/HeroSection";
+import { ArcCard } from "../splash/SectionCard";
+import { Faq } from "../splash/faq";
+import faqsData from "@/data/faq";
+import { FeaturesSection } from "../splash/FeatureSection";
+import { Card } from "@mui/material";
+import { Footer as SplashFooter } from "../splash/footer";
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
 
 export default function HomePageContent() {
@@ -53,88 +59,99 @@ export default function HomePageContent() {
   };
 
   return (
-    <div className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left">
-      <div className="relative h-full lg:block hidden">
-        <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
-      </div>
-
-      <div className="flex flex-col h-full">
-        <div className={styles.homeHeaderContainer}>
-          <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
-            adhub
-            <VscGithubProject />
-          </Link>
-
-          <BookDemoButton
-            calendlyUrl={CALENDLY_URL}
-            sx={{
-              px: 3,
-              py: 1,
-              fontSize: "0.95rem",
-            }}
-          />
+    <>
+      <div className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left">
+        <div className="relative h-full lg:block hidden">
+          <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
         </div>
 
-        <div className="flex flex-1 items-center justify-center px-4">
-          <div className={styles.homePageContentContainer}>
-            <h3 className="HomePageTitle text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
-              Athletic <br /> Directors Hub
-            </h3>
-            <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
-              Save time by doing what you never could with your personal spreadsheets and game schedules.
-            </p>
-            <div className="flex flex-col sm:flex-row content-center items-center gap-4">
-              <AuthActionButton
-                onClick={handleSignIn}
-                loading={signInAuth.loading}
-                classname={styles.signInButton}
-                disabled={getStartedAuth.loading}
-                variant="contained"
-                sx={{
-                  backgroundColor: "var(--accent)",
-                  color: "var(--accent-contrast)",
-                  fontWeight: 600,
-                  boxShadow: "var(--shadow-soft)",
-                  borderRadius: "0.75rem",
-                  px: 4,
-                  py: 1.5,
-                  fontSize: "1.05rem",
-                  transition: "transform 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
+        <div className="flex flex-col h-full">
+          <div className={styles.homeHeaderContainer}>
+            <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
+              adhub
+              <VscGithubProject />
+            </Link>
+
+            <BookDemoButton
+              calendlyUrl={CALENDLY_URL}
+              sx={{
+                px: 3,
+                py: 1,
+                fontSize: "0.95rem",
+              }}
+            />
+          </div>
+
+          <div className="flex flex-1 items-center justify-center px-4">
+            <div className={styles.homePageContentContainer}>
+              <h3 className="HomePageTitle text-5xl font-bold mb-4 leading-tight" style={{ color: "var(--text-primary)" }}>
+                Athletic <br /> Directors Hub
+              </h3>
+              <p className="text-xl mb-8" style={{ maxWidth: "665px", padding: 0, color: "var(--text-secondary)" }}>
+                Save time by doing what you never could with your personal spreadsheets and game schedules.
+              </p>
+              <div className="flex flex-col sm:flex-row content-center items-center gap-4">
+                <AuthActionButton
+                  onClick={handleSignIn}
+                  loading={signInAuth.loading}
+                  classname={styles.signInButton}
+                  disabled={getStartedAuth.loading}
+                  variant="contained"
+                  sx={{
                     backgroundColor: "var(--accent)",
-                  },
-                }}
-              >
-                Sign in&nbsp;
-                <FingerprintIcon sx={{ color: "rgb(92 142 4)" }} />
-              </AuthActionButton>
-              <AuthActionButton
-                onClick={handleGetStarted}
-                loading={getStartedAuth.loading}
-                disabled={signInAuth.loading}
-                variant="text"
-                sx={{
-                  fontSize: "1.05rem",
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  color: "var(--accent-contrast)",
-                  fontWeight: 600,
-                  textDecoration: "underline",
-                  "&:hover": {
+                    color: "var(--accent-contrast)",
+                    fontWeight: 600,
+                    boxShadow: "var(--shadow-soft)",
+                    borderRadius: "0.75rem",
+                    px: 4,
+                    py: 1.5,
+                    fontSize: "1.05rem",
+                    transition: "transform 0.2s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      backgroundColor: "var(--accent)",
+                    },
+                  }}
+                >
+                  Sign in&nbsp;
+                  <FingerprintIcon sx={{ color: "rgb(92 142 4)" }} />
+                </AuthActionButton>
+                <AuthActionButton
+                  onClick={handleGetStarted}
+                  loading={getStartedAuth.loading}
+                  disabled={signInAuth.loading}
+                  variant="text"
+                  sx={{
+                    fontSize: "1.05rem",
+                    border: "none",
                     background: "transparent",
-                  },
-                }}
-              >
-                Get Started
-              </AuthActionButton>
+                    cursor: "pointer",
+                    color: "var(--accent-contrast)",
+                    fontWeight: 600,
+                    textDecoration: "underline",
+                    "&:hover": {
+                      background: "transparent",
+                    },
+                  }}
+                >
+                  Get Started
+                </AuthActionButton>
+              </div>
             </div>
           </div>
-        </div>
 
-        <Footer />
+          <Footer />
+        </div>
       </div>
-    </div>
+      <ArcCard />
+      <HeroSection />
+      <FeaturesSection />
+      <br />
+      <br />
+      <br />
+      <Faq {...faqsData} />
+      <br /> <br /> <br />
+      <SplashFooter />
+    </>
   );
 }
