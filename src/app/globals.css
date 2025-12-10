@@ -22,6 +22,17 @@
   --shadow-strong: 0 32px 50px rgba(15, 23, 42, 0.063);
 }
 
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #212121;
+  --surface: #2f2f2f;
+  --surface-muted: #3a3a3a;
+  --surface-elevated: #424242;
+  --text-primary: #ECECF1;
+  --text-secondary: #C5C5D2;
+  --border-color: rgba(255, 255, 255, 0.12);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);
