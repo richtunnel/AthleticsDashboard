@@ -65,7 +65,7 @@ import { NotificationProvider, useNotifications } from "@/contexts/NotificationC
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
 import SupportModal from "@/components/support/SupportModal";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { MUIThemeProvider } from "@/app/theme-provider";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
 import { useTheme as useMUITheme } from "@mui/material/styles";
@@ -94,6 +94,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
   const { isLeftNavOpen, toggleLeftNav } = useNavigationStore();
   const [mounted, setMounted] = useState(false);
+  const { mode } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -147,7 +148,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     >
       {/* Logo / Brand */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
-        <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`}>
+        <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`} style={{ color: mode === "dark" ? "white" : "inherit" }}>
           adhub <VscGithubProject />
         </Link>
       </Box>
@@ -274,7 +275,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             {/* Logo - shown when sidebar is collapsed */}
             {!isSidebarVisible && (
               <Box sx={{ display: { xs: "none", sm: "block" }, mr: 2 }}>
-                <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`}>
+                <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`} style={{ color: mode === "dark" ? "white" : "inherit" }}>
                   adhub <VscGithubProject />
                 </Link>
               </Box>
