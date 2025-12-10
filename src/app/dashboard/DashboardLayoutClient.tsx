@@ -65,6 +65,10 @@ import { NotificationProvider, useNotifications } from "@/contexts/NotificationC
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
 import SupportModal from "@/components/support/SupportModal";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { MUIThemeProvider } from "@/app/theme-provider";
+import DarkModeToggle from "@/components/layout/DarkModeToggle";
+import { useTheme as useMUITheme } from "@mui/material/styles";
 
 const DRAWER_WIDTH = 240;
 
@@ -345,6 +349,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </Box>
           </Box>
 
+          {/* Dark Mode Toggle */}
+          <DarkModeToggle />
+
           {/* Google Calendar Button */}
           <Tooltip title={calendarTooltip}>
             <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: { xs: 0.5, sm: 1 } }} color="default" aria-label="Open Google Calendar">
@@ -599,8 +606,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   return (
-    <NotificationProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </NotificationProvider>
+    <ThemeProvider>
+      <DashboardLayoutContentWithTheme>{children}</DashboardLayoutContentWithTheme>
+    </ThemeProvider>
+  );
+}
+
+function DashboardLayoutContentWithTheme({ children }: { children: React.ReactNode }) {
+  const { mode } = require("@/contexts/ThemeContext").useTheme();
+  
+  return (
+    <MUIThemeProvider mode={mode}>
+      <NotificationProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </NotificationProvider>
+    </MUIThemeProvider>
   );
 }
