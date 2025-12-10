@@ -653,7 +653,7 @@ export default function ComposeEmailPage() {
         >
           {/* Selected Games Summary - Left Column */}
           <Box sx={{ flex: isWideScreen ? 1.5 : "none", width: "100%" }}>
-            <Paper sx={{ p: 3, height: "100%" }}>
+            <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 Selected Games ({selectedGames.length}/{allGames.length})
                 {selectedSchoolNames.length > 0 && (
@@ -663,7 +663,7 @@ export default function ComposeEmailPage() {
               <TableContainer sx={{ overflowX: "auto" }}>
                 <Table size="small" sx={{ fontSize: "0.85rem", whiteSpace: "nowrap" }}>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                    <TableRow sx={{ bgcolor: "action.selected" }}>
                       {visibleColumnIds.map((columnId) => {
                         // Skip actions column in email preview
                         if (columnId === "actions") return null;
@@ -719,7 +719,7 @@ export default function ComposeEmailPage() {
 
           {/* Email Composition - Right Column */}
           <Box sx={{ flex: isWideScreen ? 1 : "none", width: "100%" }}>
-            <Paper sx={{ p: 3, height: "100%" }}>
+            <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
                 Email Details
               </Typography>
@@ -868,14 +868,14 @@ export default function ComposeEmailPage() {
         </Box>
 
         {/* Email Preview - Full Width Below */}
-        <Paper sx={{ p: 3, bgcolor: "#f8fafc" }}>
+        <Paper sx={{ p: 3, bgcolor: "background.paper" }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
             Email Preview
           </Typography>
           <Box
             sx={{
               p: 2,
-              bgcolor: "white",
+              bgcolor: "background.default",
               borderRadius: 1,
               border: "1px solid",
               borderColor: "divider",
