@@ -1,10 +1,17 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { csrfMiddleware } from "@/middleware/csrf-middleware";
 
 export default withAuth(
   async function middleware(req: NextRequest & { nextauth: { token: any } }) {
     const token = req.nextauth.token;
+
+    // Apply CSRF protection to API routes
+    const csrfResponse = await csrfMiddleware(req);
+    if (csrfResponse) {
+      return csrfResponse;
+    }
 
     // Check payment status for dashboard routes (except settings and account-disabled)
     const pathname = req.nextUrl.pathname;
@@ -76,5 +83,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };
