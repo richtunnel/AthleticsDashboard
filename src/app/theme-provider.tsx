@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { CssBaseline, GlobalStyles, ThemeProvider } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 
@@ -17,6 +17,13 @@ interface MUIThemeProviderProps {
 
 export function MUIThemeProvider({ children, mode = "light" }: MUIThemeProviderProps) {
   const theme = mode === "dark" ? darkTheme : lightTheme;
+
+  // Apply data-theme attribute to document element for CSS variables
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.setAttribute("data-theme", mode);
+    }
+  }, [mode]);
 
   return (
     <AppRouterCacheProvider options={{ key: "mui", prepend: true }}>

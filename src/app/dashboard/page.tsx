@@ -31,7 +31,7 @@ export default function DashboardPage() {
       <div className="space-y-6 md:space-y-8">
         <div>
           <h2 className="text-3xl font-bold mb-2">Import your spreadsheets</h2>
-          <p className="text-gray-600 text-sm md:text-base">
+          <p className="text-sm md:text-base" style={{ color: "var(--text-secondary, #6b7280)" }}>
             Import your CSV game schedules below and navigate to{" "}
             <Link color="(var(--main-blue))" href="dashboard/games">
               <b>Game Center</b>

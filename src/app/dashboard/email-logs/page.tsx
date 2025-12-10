@@ -300,7 +300,7 @@ export default function EmailLogsPage() {
               <TableContainer>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: "#f8fafc" }}>
+                    <TableRow sx={{ bgcolor: "action.selected" }}>
                       <TableCell sx={{ fontWeight: 600 }}>Date</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Subject</TableCell>
                       <TableCell sx={{ fontWeight: 600 }}>Recipients</TableCell>
