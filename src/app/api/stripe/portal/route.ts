@@ -8,25 +8,30 @@ import { normalizeBrowserUrl } from "@/lib/utils/url";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/stripe/portal
+ * Creates a Stripe Customer Portal session for billing management
+ * 
+ * Features:
+ * - View and download invoices
+ * - Update payment methods
+ * - View subscription details
+ * - Cancel/resume subscriptions
+ */
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { 
-        id: true, 
-        email: true, 
-        name: true, 
+      select: {
+        id: true,
+        email: true,
         stripeCustomerId: true,
-        subscription: {
-          select: {
-            stripeCustomerId: true,
-          },
-        },
       },
     });
 
@@ -34,38 +39,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const stripe = getStripe();
-
-    let customerId = user.stripeCustomerId || user.subscription?.stripeCustomerId;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email ?? undefined,
-        name: user.name ?? undefined,
-        metadata: {
-          userId: user.id,
-        },
-      });
-      customerId = customer.id;
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { stripeCustomerId: customerId },
-      });
+    if (!user.stripeCustomerId) {
+      return NextResponse.json(
+        { error: "No billing account found. Please subscribe to a plan first." },
+        { status: 400 }
+      );
     }
 
-    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+    const stripe = getStripe();
+
+    // Build return URL
+    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+    const baseUrl = normalizeBrowserUrl(rawBaseUrl);
     const returnUrl = `${baseUrl}/dashboard/settings`;
 
-    const portal = await stripe.billingPortal.sessions.create({
-      customer: customerId!,
+    // Create portal session
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: user.stripeCustomerId,
       return_url: returnUrl,
     });
 
-    return NextResponse.json({ url: portal.url });
-  } catch (err: any) {
-    console.error("Portal session creation error:", err);
+    return NextResponse.json({
+      url: portalSession.url,
+    });
+  } catch (error: any) {
+    console.error("stripe.portal.error", error);
     return NextResponse.json(
-      { error: err?.message ?? "Unexpected error creating portal session" }, 
+      {
+        error: "Failed to create billing portal session",
+        message: error?.message ?? "Unknown error occurred",
+      },
       { status: 500 }
     );
   }
