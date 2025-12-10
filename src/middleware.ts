@@ -4,8 +4,8 @@ import type { NextRequest } from "next/server";
 import { csrfMiddleware } from "@/middleware/csrf-middleware";
 
 export default withAuth(
-  async function middleware(req: NextRequest & { nextauth: { token: any } }) {
-    const token = req.nextauth.token;
+  async function middleware(req: any) {
+    const token = req.nextauth?.token;
 
     // Apply CSRF protection to API routes
     const csrfResponse = await csrfMiddleware(req);
