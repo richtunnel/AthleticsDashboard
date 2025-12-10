@@ -5,14 +5,22 @@ import { CssBaseline, GlobalStyles, ThemeProvider } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 
 import lightTheme from "@/lib/theme/lightTheme";
+import darkTheme from "@/lib/theme/darkTheme";
 import { createEmotionCache } from "@/lib/emotionCache";
 
 const emotionCache = createEmotionCache();
 
-export function MUIThemeProvider({ children }: { children: ReactNode }) {
+interface MUIThemeProviderProps {
+  children: ReactNode;
+  mode?: "light" | "dark";
+}
+
+export function MUIThemeProvider({ children, mode = "light" }: MUIThemeProviderProps) {
+  const theme = mode === "dark" ? darkTheme : lightTheme;
+
   return (
     <AppRouterCacheProvider options={{ key: "mui", prepend: true }}>
-      <ThemeProvider theme={lightTheme}>
+      <ThemeProvider theme={theme}>
         <CssBaseline />
         <GlobalStyles
           styles={(currentTheme) => ({
@@ -30,6 +38,10 @@ export function MUIThemeProvider({ children }: { children: ReactNode }) {
             "html, body": {
               backgroundColor: currentTheme.palette.background.default,
               color: currentTheme.palette.text.primary,
+              transition: "background-color 0.3s ease, color 0.3s ease",
+            },
+            "*": {
+              transition: "background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease",
             },
           })}
         />
