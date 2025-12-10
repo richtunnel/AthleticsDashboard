@@ -11,7 +11,7 @@ interface SendEmailParams {
   sentById?: string; // Make optional for system emails
 }
 
-type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "payment_success" | "trial_ending";
+type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "payment_success" | "trial_ending" | "upgrade";
 
 interface SubscriptionEmailParams {
   type: SubscriptionEmailType;
@@ -26,6 +26,7 @@ interface SubscriptionEmailParams {
   amount?: number;
   currency?: string;
   paidAt?: Date | null;
+  previousPlan?: string | null;
 }
 
 export class EmailService {
@@ -419,6 +420,34 @@ export class EmailService {
         `;
         return {
           subject: `Payment received - ${planLabel}`,
+          body,
+        };
+      }
+      case "upgrade": {
+        const previousPlan = params.previousPlan || "Free";
+        const newPlan = params.planName || "paid plan";
+        const body = `
+          ${greeting}
+          <p>🎉 Congratulations! You've successfully upgraded from the <strong>${previousPlan}</strong> plan to the <strong>${newPlan}</strong>.</p>
+          
+          <h3>What's New?</h3>
+          <ul>
+            <li>✨ AI-powered email generation</li>
+            <li>🔍 Advanced schedule conflict detection</li>
+            <li>🗓️ Game date discovery tools</li>
+            <li>🚌 Automated bus scheduling</li>
+            <li>📧 50,000+ batch email sends</li>
+            <li>💬 Priority chat and email support</li>
+          </ul>
+          
+          <p>All premium features are now active on your account. Start exploring them from your dashboard!</p>
+          
+          ${portalSection}
+          
+          <p>Thank you for upgrading! We're excited to help you take your athletic program management to the next level.</p>
+        `;
+        return {
+          subject: `Welcome to ${newPlan} - You're all set!`,
           body,
         };
       }
