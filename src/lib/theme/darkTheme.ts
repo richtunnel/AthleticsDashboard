@@ -5,9 +5,9 @@ const darkTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#8B5CF6", // Purple accent like ChatGPT
-      light: "#A78BFA",
-      dark: "#7C3AED",
+      main: "#6d92e2", // Blue accent
+      light: "#8faae8",
+      dark: "#5577c9",
       contrastText: "#FFFFFF",
     },
     secondary: {
@@ -51,7 +51,7 @@ const darkTheme = createTheme({
     },
     action: {
       hover: "rgba(255, 255, 255, 0.08)",
-      selected: "rgba(139, 92, 246, 0.16)",
+      selected: "rgba(109, 146, 226, 0.16)",
       disabled: "rgba(255, 255, 255, 0.3)",
       disabledBackground: "rgba(255, 255, 255, 0.12)",
     },

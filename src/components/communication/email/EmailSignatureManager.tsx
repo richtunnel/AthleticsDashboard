@@ -313,7 +313,7 @@ export function EmailSignatureManager() {
               </Typography>
               <Paper
                 variant="outlined"
-                sx={{ p: 2, bgcolor: "#f9fafb", minHeight: 100 }}
+                sx={{ p: 2, bgcolor: "background.paper", minHeight: 100 }}
                 dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }}
               />
             </Box>
