@@ -42,7 +42,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: theme.palette.background.paper,
           borderRight: `1px solid ${theme.palette.divider}`,
           backdropFilter: "blur(18px)",
         },
@@ -231,7 +231,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
       styleOverrides: {
         root: {
           borderRadius: 12,
-          backgroundColor: "#FFFFFF",
+          backgroundColor: theme.palette.background.paper,
           "& input": {
             fontSize: "0.95rem",
           },
