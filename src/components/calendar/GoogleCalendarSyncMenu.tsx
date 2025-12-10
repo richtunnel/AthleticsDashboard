@@ -77,7 +77,7 @@ function GoogleCalendarSyncMenuContent() {
 
   if (isLoading) {
     return (
-      <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
+      <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
         <Skeleton variant="text" width={200} height={40} />
         <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
       </Box>
@@ -85,7 +85,7 @@ function GoogleCalendarSyncMenuContent() {
   }
 
   return (
-    <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
+    <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
       <Typography variant="h6">Google Calendar Sync</Typography>
       <Typography variant="overline" gutterBottom sx={{ color: "#000" }}>
         <Link className={`${styles.linkColorOverride}`} href="https://calendar.google.com" target="_blank" rel="noopener noreferrer">
@@ -142,7 +142,7 @@ export function GoogleCalendarSyncMenu() {
   return (
     <Suspense
       fallback={
-        <Box sx={{ p: 3, border: "1px solid #e0e0e0", borderRadius: 2, bgcolor: "white" }}>
+        <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
           <Skeleton variant="text" width={200} height={40} />
           <Skeleton variant="rectangular" height={100} sx={{ mt: 2 }} />
         </Box>
