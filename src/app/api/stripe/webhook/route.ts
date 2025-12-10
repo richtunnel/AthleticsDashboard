@@ -313,8 +313,13 @@ async function maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventT
   }
 
   const planName = derivePlanName(result);
+  
+  // Check if this is an upgrade from free plan
+  const previousUserPlan = result.user.plan?.toLowerCase() || "free";
+  const isUpgrade = previousUserPlan === "free" || previousUserPlan === "free_plan" || !result.user.plan;
+  
   await emailService.sendSubscriptionEmail({
-    type: "confirmation",
+    type: isUpgrade ? "upgrade" : "confirmation",
     user: {
       id: result.user.id,
       email: result.user.email,
@@ -323,12 +328,14 @@ async function maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventT
     planName,
     status: result.subscription.status,
     currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
+    previousPlan: isUpgrade ? "Free Plan" : undefined,
   });
 
   console.info("stripe.webhook.email.subscription_confirmation", {
     subscriptionId: result.subscription.id,
     userId: result.user.id,
     eventType,
+    isUpgrade,
   });
 }
 
