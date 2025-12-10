@@ -4768,12 +4768,12 @@ export function GamesTable() {
         minWidth: MIN_COLUMN_WIDTH,
         maxWidth: MAX_COLUMN_WIDTH,
         cursor: isEditing ? "default" : "pointer",
-        bgcolor: isEditing ? "#fff9e6" : "transparent",
+        bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
         ...(isEditing && {
-          boxShadow: "inset 0 0 0 1px #DBEAFE",
+          boxShadow: (theme: any) => `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
         }),
         "&:hover": {
-          bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+          bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
         },
         ...additionalSx,
       };
@@ -4804,9 +4804,6 @@ export function GamesTable() {
             sx={{
               ...getDataCellSx("date", isEditing),
               cursor: isEditing ? "default" : "pointer",
-              "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
-              },
             }}
             onDoubleClick={(e) => {
               e.preventDefault();
@@ -4888,12 +4885,12 @@ export function GamesTable() {
               fontSize: 13,
               py: 0,
               cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "sport")}
@@ -4939,12 +4936,12 @@ export function GamesTable() {
               fontSize: 13,
               py: 0,
               cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "level")}
@@ -5030,12 +5027,12 @@ export function GamesTable() {
             sx={{
               py: 0,
               cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "isHome")}
@@ -5116,12 +5113,12 @@ export function GamesTable() {
             sx={{
               py: 0,
               cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "status")}
@@ -5228,12 +5225,12 @@ export function GamesTable() {
               py: 0,
               minWidth: 180,
               cursor: isEditing ? "default" : "pointer",
-              bgcolor: isEditing ? "#fff9e6" : "transparent",
+              bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
               ...(isEditing && {
                 boxShadow: "inset 0 0 0 1px #DBEAFE",
               }),
               "&:hover": {
-                bgcolor: isEditing ? "#fff9e6" : "#f5f5f5",
+                bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
               },
             }}
             onDoubleClick={() => handleDoubleClick(game, "busTravel")}
@@ -5484,12 +5481,12 @@ export function GamesTable() {
                   fontSize: 13,
                   py: 0,
                   cursor: isEditingDate ? "default" : "pointer",
-                  bgcolor: isEditingDate ? "#fff9e6" : "transparent",
+                  bgcolor: isEditingDate ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
                   ...(isEditingDate && {
                     boxShadow: "inset 0 0 0 1px #DBEAFE",
                   }),
                   "&:hover": {
-                    bgcolor: isEditingDate ? "#fff9e6" : "#f5f5f5",
+                    bgcolor: isEditingDate ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "action.hover",
                   },
                 }}
                 onDoubleClick={(e) => {
@@ -5826,7 +5823,7 @@ export function GamesTable() {
 
     if (isEditing && editingGameData) {
       return (
-        <TableRow key={game.id} sx={{ bgcolor: "#fff3e0" }}>
+        <TableRow key={game.id} sx={{ bgcolor: "warning.light" }}>
           <TableCell padding="checkbox">
             <Checkbox disabled sx={{ p: 0 }} />
           </TableCell>
@@ -5840,13 +5837,13 @@ export function GamesTable() {
         key={game.id}
         selected={isSelected}
         sx={{
-          bgcolor: "white",
-          "&:hover": { bgcolor: "#f8fafc" },
+          bgcolor: "background.paper",
+          "&:hover": { bgcolor: "action.hover" },
           transition: "background-color 0.2s",
           "&.Mui-selected": {
-            bgcolor: "#e3f2fd !important",
+            bgcolor: "action.selected !important",
             "&:hover": {
-              bgcolor: "#bbdefb !important",
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2) + " !important",
             },
           },
         }}
@@ -5925,16 +5922,16 @@ export function GamesTable() {
                 onDelete={() => setColumnFilters({})}
                 sx={{
                   ml: 1,
-                  bgcolor: "black",
-                  color: "white",
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
                   "& .MuiChip-deleteIcon": {
-                    color: "white",
+                    color: "primary.contrastText",
                     "&:hover": {
-                      color: "rgba(255, 255, 255, 0.7)",
+                      color: (theme) => alpha(theme.palette.primary.contrastText, 0.7),
                     },
                   },
                   "&:hover": {
-                    bgcolor: "rgba(0, 0, 0, 0.8)",
+                    bgcolor: "primary.dark",
                   },
                 }}
               />
@@ -6127,7 +6124,7 @@ export function GamesTable() {
         >
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: "#f8fafc" }}>
+              <TableRow sx={{ bgcolor: "action.selected" }}>
                 <TableCell padding="checkbox" sx={{ py: 0 }}>
                   <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
                 </TableCell>
@@ -6193,7 +6190,7 @@ export function GamesTable() {
               <TableBody>
                 {renderNewRow()}
                 <TableRow>
-                  <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "white" }}>
+                  <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
                     {isFetching ? (
                       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                         <CircularProgress size={40} />
@@ -6227,7 +6224,7 @@ export function GamesTable() {
               left: 0,
               right: 0,
               bottom: 0,
-              bgcolor: "rgba(255, 255, 255, 0.9)",
+              bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
