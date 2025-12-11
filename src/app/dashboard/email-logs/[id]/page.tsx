@@ -321,7 +321,7 @@ export default function EmailLogDetailPage() {
               <>
                 <Divider />
                 <Box>
-                  <Typography sx={{ top: "-5px" }} variant="subtitle2" color="text.secondary">
+                  <Typography variant="subtitle2" color="text.secondary">
                     Recipient Category
                   </Typography>
                   <Typography variant="body1" sx={{ textTransform: "capitalize" }}>
