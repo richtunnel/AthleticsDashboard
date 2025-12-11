@@ -5910,7 +5910,10 @@ export function GamesTable() {
         sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
       >
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" } }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" }, color: (theme) => (theme.palette.mode === "dark" ? theme.palette.primary.light : theme.palette.text.primary) }}
+          >
             Game Schedules
           </Typography>
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
