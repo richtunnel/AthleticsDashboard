@@ -147,7 +147,7 @@ export const authOptions: NextAuthOptions = {
       allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
-          prompt: "consent",
+          prompt: "select_account",
           access_type: "offline",
           response_type: "code",
           // ✅ INCREMENTAL AUTHORIZATION: Only request basic profile scopes initially
