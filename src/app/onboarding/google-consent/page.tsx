@@ -17,8 +17,13 @@ function GoogleConsentForm() {
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const mode = searchParams.get("mode") || "signup";
 
+  // Preserve mode in callback URL for redirect logic
+  const callbackWithMode = mode === "signup" 
+    ? `${callbackUrl}${callbackUrl.includes('?') ? '&' : '?'}newUser=true`
+    : callbackUrl;
+
   const googleAuth = useAuthButton({
-    callbackUrl,
+    callbackUrl: callbackWithMode,
     onError: (err) => setError(err),
   });
 
