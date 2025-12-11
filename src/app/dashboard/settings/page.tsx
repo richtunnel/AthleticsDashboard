@@ -19,6 +19,7 @@ import { PaymentOverdueWarning } from "@/components/settings/PaymentOverdueWarni
 import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
 import { ResetColumnsButton } from "@/components/settings/ResetColumnsButton";
 import { CalendarConnectionSection } from "@/components/settings/CalendarConnectionSection";
+import UpgradePlanCard from "@/components/settings/UpgradePlanCard";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -86,6 +87,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         {/* Payment overdue warning */}
         <PaymentOverdueWarning />
+
+        {/* Upgrade Plan Card - only shown for free users */}
+        <UpgradePlanCard userPlan={user.plan} />
 
         {/* Calendar Connection Section - uses incremental OAuth */}
         <CalendarConnectionSection />
