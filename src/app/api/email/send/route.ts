@@ -10,6 +10,7 @@ import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
 interface Game {
   id: string;
@@ -200,7 +201,7 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   return html;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await requireAuth();
     if (!hasPermission(session.user.role, WRITE_ROLES)) {
@@ -395,4 +396,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return handleApiError(error);
   }
-}
+});

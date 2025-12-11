@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { calendarService } from "@/lib/services/calendar.service";
 import { travelAIService } from "@/lib/services/travelAI";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await requireAuth();
     const url = new URL(request.url);
@@ -130,9 +131,9 @@ export async function PATCH(request: NextRequest) {
     console.error("Error updating game:", error);
     return NextResponse.json({ success: false, error: "Failed to update game" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withCSRFProtection(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const session = await requireAuth();
     const { id } = await params;
@@ -191,4 +192,4 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     console.error("Error deleting game:", error);
     return NextResponse.json({ error: "Failed to delete game" }, { status: 500 });
   }
-}
+});
