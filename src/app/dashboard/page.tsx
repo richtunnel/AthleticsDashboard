@@ -30,8 +30,8 @@ export default function DashboardPage() {
     <DashboardErrorBoundary>
       <div className="space-y-6 md:space-y-8">
         <div>
-          <h2 className="text-3xl font-bold mb-2">Import your spreadsheets</h2>
-          <p className="text-sm md:text-base" style={{ color: "var(--text-secondary, #6b7280)" }}>
+          <h2 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Import your spreadsheets</h2>
+          <p className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
             Import your CSV game schedules below and navigate to{" "}
             <Link color="(var(--main-blue))" href="dashboard/games">
               <b>Game Center</b>
