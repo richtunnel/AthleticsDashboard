@@ -32,6 +32,7 @@ function LoginForm() {
   }, [status, session, router, callbackUrl]);
 
   const googleAuth = useAuthButton({
+    callbackUrl,
     onError: (err) => setError(err),
   });
 
@@ -77,10 +78,10 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      const consentUrl = `/onboarding/google-consent?mode=login&callbackUrl=${encodeURIComponent(callbackUrl)}`;
+      // For sign-in, directly trigger Google OAuth without consent page
+      // Existing users don't need to see calendar permissions explanation again
       await googleAuth.executeAction({ 
-        type: "navigation",
-        navigationPath: consentUrl
+        type: "google"
       });
     } catch (error) {
       // Error already handled by onError callback
