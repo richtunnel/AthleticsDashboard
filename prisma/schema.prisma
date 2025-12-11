@@ -240,7 +240,7 @@ model Game {
   opponentId               String?
   opponent                 Opponent?              @relation(fields: [opponentId], references: [id])
   createdById              String
-  createdBy                User                   @relation("GameCreator", fields: [createdById], references: [id])
+  createdBy                User                   @relation("GameCreator", fields: [createdById], references: [id], onDelete: Cascade)
   emailLogs                EmailLog[]
   travelRecommendations    TravelRecommendation[]
 
