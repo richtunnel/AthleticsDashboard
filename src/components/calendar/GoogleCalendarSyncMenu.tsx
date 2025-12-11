@@ -86,9 +86,9 @@ function GoogleCalendarSyncMenuContent() {
 
   return (
     <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
-      <Typography variant="h6">Google Calendar Sync</Typography>
-      <Typography variant="overline" gutterBottom sx={{ color: "#000" }}>
-        <Link className={`${styles.linkColorOverride}`} href="https://calendar.google.com" target="_blank" rel="noopener noreferrer">
+      <Typography variant="h5">Google Calendar Sync</Typography>
+      <Typography variant="overline" gutterBottom style={{ color: "text.primary" }}>
+        <Link href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
           View Calendar
         </Link>
       </Typography>
