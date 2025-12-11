@@ -54,7 +54,10 @@ interface CSVImportProps {
 interface ImportResult {
   success: number;
   failed: number;
+  duplicates?: number;
   errors: string[];
+  warnings?: string[];
+  duplicateDetails?: string[];
   createdGameIds?: string[];
 }
 
@@ -631,11 +634,54 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                     <>
                       <CheckCircle sx={{ fontSize: 64, color: "success.main" }} />
                       <Typography variant="h6">Import Complete!</Typography>
-                      <Stack direction="row" spacing={2}>
+                      <Stack direction="row" spacing={2} flexWrap="wrap">
                         <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                         {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
+                        {(importResult.duplicates ?? 0) > 0 && (
+                          <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />
+                        )}
                       </Stack>
                     </>
+                  )}
+
+                  {importResult.duplicateDetails && importResult.duplicateDetails.length > 0 && (
+                    <Alert severity="warning" sx={{ width: "100%" }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Duplicate Rows Skipped ({importResult.duplicateDetails.length}):
+                      </Typography>
+                      <Box sx={{ maxHeight: 150, overflow: "auto" }}>
+                        {importResult.duplicateDetails.slice(0, 10).map((duplicate, idx) => (
+                          <Typography key={idx} variant="caption" display="block">
+                            • {duplicate}
+                          </Typography>
+                        ))}
+                        {importResult.duplicateDetails.length > 10 && (
+                          <Typography variant="caption" color="text.secondary">
+                            ... and {importResult.duplicateDetails.length - 10} more duplicates
+                          </Typography>
+                        )}
+                      </Box>
+                    </Alert>
+                  )}
+
+                  {importResult.warnings && importResult.warnings.length > 0 && (
+                    <Alert severity="info" sx={{ width: "100%" }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Data Adjustments ({importResult.warnings.length}):
+                      </Typography>
+                      <Box sx={{ maxHeight: 150, overflow: "auto" }}>
+                        {importResult.warnings.slice(0, 10).map((warning, idx) => (
+                          <Typography key={idx} variant="caption" display="block">
+                            • {warning}
+                          </Typography>
+                        ))}
+                        {importResult.warnings.length > 10 && (
+                          <Typography variant="caption" color="text.secondary">
+                            ... and {importResult.warnings.length - 10} more adjustments
+                          </Typography>
+                        )}
+                      </Box>
+                    </Alert>
                   )}
 
                   {importResult.errors.length > 0 && (
