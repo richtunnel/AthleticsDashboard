@@ -438,6 +438,14 @@ export const authOptions: NextAuthOptions = {
           return baseUrl;
         }
 
+        // Check if this is a new user signup (indicated by newUser query param)
+        const isNewUser = resolvedUrl.searchParams.has("newUser");
+        
+        // For new users via Google OAuth, redirect to onboarding/details
+        if (isNewUser && resolvedUrl.pathname === "/dashboard") {
+          return `${baseUrl}/onboarding/details`;
+        }
+
         if (resolvedUrl.pathname.startsWith("/onboarding")) {
           if (resolvedUrl.pathname === "/onboarding/plans" || resolvedUrl.pathname === "/onboarding/details") {
             return resolvedUrl.toString();
