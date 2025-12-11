@@ -784,13 +784,32 @@ export default function OpponentsPage() {
         {/* Left Column - Opponents List */}
         <Grid size={{ xs: 12, lg: 5 }}>
           <Paper elevation={0} sx={{ p: 2.5, border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, fontSize: 16 }}>
-              Opponents List
-              <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, mt: 0, py: 0 }}>
-              Click the scoreboard icon to enter game scores and track results
-            </Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, fontSize: 16 }}>
+                  Opponents List
+                  <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0, py: 0 }}>
+                  Click the scoreboard icon to enter game scores and track results
+                </Typography>
+              </Box>
+              <Tooltip title="Add Opponent">
+                <IconButton
+                  color="primary"
+                  onClick={() => setOpenCreateDialog(true)}
+                  sx={{
+                    bgcolor: "primary.main",
+                    color: "white",
+                    "&:hover": {
+                      bgcolor: "primary.dark",
+                    },
+                  }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
+            </Box>
 
             {opponents.length > 0 ? (
               <Box
