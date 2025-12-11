@@ -423,7 +423,7 @@ export default function OpponentsPage() {
   // DATA FETCHING
   // ============================================================================
 
-  const { data: matchupResultsData, refetch: refetchMatchupResults } = useQuery({
+  const { data: matchupResultsData, refetch: refetchMatchupResults, isLoading: isLoadingMatchupResults } = useQuery({
     queryKey: ["matchup-results"],
     queryFn: async () => {
       const res = await fetch("/api/matchup-results");
@@ -431,6 +431,7 @@ export default function OpponentsPage() {
       return res.json();
     },
     staleTime: 30 * 1000,
+    placeholderData: { data: [] },
   });
 
   const { data: userData } = useQuery({
@@ -895,7 +896,35 @@ export default function OpponentsPage() {
               )}
             </Box>
 
-            {filteredMatchupResults.length > 0 ? (
+            {isLoadingMatchupResults ? (
+              <Stack spacing={2} sx={{ height: "auto", minHeight: 400, maxHeight: 600, overflowY: "auto", overflowX: "hidden" }}>
+                {[1, 2, 3].map((i) => (
+                  <Card
+                    key={i}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "divider",
+                      boxShadow: "none",
+                      minHeight: 120,
+                    }}
+                  >
+                    <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" } }}>
+                      <Skeleton variant="rectangular" width={120} height={20} sx={{ mb: 1, borderRadius: 1 }} />
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Skeleton variant="text" width="60%" height={24} sx={{ mb: 0.5 }} />
+                          <Skeleton variant="text" width="50%" height={20} />
+                        </Box>
+                        <Box sx={{ ml: 2, pl: 2, borderLeft: "1px solid", borderColor: "divider" }}>
+                          <Skeleton variant="text" width={60} height={16} sx={{ mb: 0.25 }} />
+                          <Skeleton variant="text" width={80} height={14} />
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Stack>
+            ) : filteredMatchupResults.length > 0 ? (
               <Stack spacing={2} sx={{ height: "auto", minHeight: 400, maxHeight: 600, overflowY: "auto", overflowX: "hidden" }}>
                 {filteredMatchupResults.map((result: MatchupResult) => {
                   const isYourTeamWinner = result.isWin;
