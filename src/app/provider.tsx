@@ -3,7 +3,6 @@
 import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MUIThemeProvider } from "./theme-provider";
-import { CsrfProvider } from "@/contexts/CsrfContext";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -22,9 +21,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MUIThemeProvider>
       <SessionProvider>
-        <CsrfProvider>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        </CsrfProvider>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       </SessionProvider>
     </MUIThemeProvider>
   );
