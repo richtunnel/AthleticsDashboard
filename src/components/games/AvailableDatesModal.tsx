@@ -388,11 +388,11 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                         <Paper
                           key={index}
                           elevation={0}
-                          sx={{
-                            p: 1,
-                            bgcolor: "success.lighter",
+                          sx={(theme) => ({
+                            p: "10px 20px",
+                            bgcolor: theme.palette.mode === "dark" ? "#081417ed" : "success.lighter",
                             border: "1px solid",
-                            borderColor: "#272D60",
+                            borderColor: theme.palette.mode === "dark" ? "rgb(191, 233, 252)" : "#272D60",
                             borderRadius: 1.5,
                             cursor: onDateSelect ? "pointer" : "default",
                             transition: "all 0.2s",
@@ -402,12 +402,12 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                             minHeight: "80px",
                             "&:hover": onDateSelect
                               ? {
-                                  bgcolor: "rgb(239, 249, 254)",
+                                  bgcolor: theme.palette.mode === "dark" ? "rgb(8, 20, 23)" : "rgb(239, 249, 254)",
                                   transform: "translateY(-1px)",
                                   boxShadow: 2,
                                 }
                               : {},
-                          }}
+                          })}
                           onClick={() => onDateSelect && handleDateClick(dateStr)}
                         >
                           <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="space-between">
@@ -451,13 +451,13 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                           <Box sx={{ mt: 0.5 }}>
                             <Typography
                               variant="caption"
-                              sx={{
+                              sx={(theme) => ({
                                 fontSize: "0.7rem",
-                                color: "success.dark",
+                                color: theme.palette.mode === "dark" ? "rgb(191, 233, 252)" : "success.dark",
                                 fontWeight: 500,
                                 display: "block",
                                 lineHeight: 1.3,
-                              }}
+                              })}
                             >
                               {matchedTeams[0]}
                               {matchedTeams.length > 1 && <span style={{ opacity: 0.7 }}> +{matchedTeams.length - 1} more</span>}
