@@ -57,6 +57,12 @@ import {
   CircularProgress,
   MenuItem,
   Skeleton,
+  Card,
+  CardContent,
+  CardActions,
+  Collapse,
+  Divider,
+  useMediaQuery,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -79,6 +85,9 @@ import {
   ContentCopy,
   VisibilityOff,
   Restore,
+  ExpandMore,
+  ExpandLess,
+  DragIndicator,
 } from "@mui/icons-material";
 import { format, parse } from "date-fns";
 import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
@@ -410,6 +419,7 @@ export function GamesTable() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -5817,6 +5827,189 @@ export function GamesTable() {
     );
   };
 
+  // Mobile card rendering
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+
+  const handleExpandCard = (gameId: string) => {
+    setExpandedCard(expandedCard === gameId ? null : gameId);
+  };
+
+  const renderMobileCard = (game: Game) => {
+    const isSelected = selectedGames.has(game.id);
+    const isExpanded = expandedCard === game.id;
+    
+    // Format date
+    const formattedDate = format(new Date(game.date), "MMM d, yyyy");
+    
+    // Get opponent name
+    const opponentName = game.opponent?.name || "—";
+    
+    // Get time
+    const timeDisplay = game.time || "TBD";
+    
+    // Get status
+    const statusConfig = getConfirmedStatus(game.status);
+    
+    // Get team info
+    const teamInfo = game.homeTeam ? `${game.homeTeam.sport?.name || "—"} ${formatLevelDisplay(game.homeTeam.level) || ""}` : "—";
+    
+    // Get location
+    const locationName = game.venue?.name || "—";
+    
+    // Home/Away
+    const homeAway = game.isHome ? "Home" : "Away";
+
+    return (
+      <Card
+        key={game.id}
+        sx={{
+          mb: 2,
+          borderLeft: isSelected ? 4 : 0,
+          borderColor: "primary.main",
+          bgcolor: "background.paper",
+        }}
+      >
+        <CardContent sx={{ pb: 1 }}>
+          {/* Header with checkbox and date */}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+            <Checkbox
+              checked={isSelected}
+              onChange={() => handleSelectGame(game.id)}
+              sx={{ p: 0, mr: 1 }}
+            />
+            <Typography variant="h6" sx={{ flexGrow: 1, fontSize: "1rem", fontWeight: 600 }}>
+              {formattedDate}
+            </Typography>
+            {game.googleCalendarEventId && (
+              <Chip
+                size="small"
+                icon={<Sync sx={{ fontSize: 14 }} />}
+                label="Synced"
+                sx={{ height: 20, fontSize: "0.7rem", mr: 1 }}
+              />
+            )}
+          </Box>
+
+          {/* Team and Sport */}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            {teamInfo}
+          </Typography>
+
+          {/* Opponent and Home/Away */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              vs. {opponentName}
+            </Typography>
+            <Chip label={homeAway} size="small" sx={{ height: 20, fontSize: "0.7rem" }} />
+          </Box>
+
+          {/* Time and Status */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Schedule sx={{ fontSize: 16, color: "text.secondary" }} />
+              <Typography variant="body2">{timeDisplay}</Typography>
+            </Box>
+            <Chip
+              size="small"
+              label={statusConfig.label}
+              icon={statusConfig.icon}
+              color={statusConfig.color as ChipProps["color"]}
+              sx={{ height: 20, fontSize: "0.7rem" }}
+            />
+          </Box>
+
+          {/* Expandable section */}
+          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+            <Divider sx={{ my: 1 }} />
+            
+            {/* Location */}
+            <Box sx={{ mb: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Location
+              </Typography>
+              <Typography variant="body2">{locationName}</Typography>
+            </Box>
+
+            {/* Notes */}
+            {game.notes && (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Notes
+                </Typography>
+                <Typography variant="body2">{game.notes}</Typography>
+              </Box>
+            )}
+
+            {/* Custom fields */}
+            {game.customData && Object.keys(game.customData).length > 0 && (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                  Additional Info
+                </Typography>
+                {Object.entries(game.customData).map(([key, value]) => {
+                  const customColumn = customColumns.find(col => col.id === key);
+                  const label = customColumn?.name || key;
+                  return (
+                    <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem" }}>
+                      <strong>{label}:</strong> {String(value)}
+                    </Typography>
+                  );
+                })}
+              </Box>
+            )}
+
+            {/* CSV imported fields */}
+            {game.customFields && Object.keys(game.customFields).length > 0 && (
+              <Box>
+                {Object.entries(game.customFields).map(([key, value]) => (
+                  <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                    <strong>{key}:</strong> {String(value)}
+                  </Typography>
+                ))}
+              </Box>
+            )}
+          </Collapse>
+
+          {/* Expand/Collapse button */}
+          <Button
+            size="small"
+            onClick={() => handleExpandCard(game.id)}
+            endIcon={isExpanded ? <ExpandLess /> : <ExpandMore />}
+            sx={{ mt: 1, textTransform: "none" }}
+          >
+            {isExpanded ? "Show Less" : "Show More"}
+          </Button>
+        </CardContent>
+
+        <CardActions sx={{ justifyContent: "flex-end", pt: 0, pb: 1, px: 2 }}>
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => handleEditGame(game)} color="primary">
+              <Edit fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton size="small" onClick={() => handleDeleteGame(game)} color="error">
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          {game.googleCalendarEventId ? (
+            <Tooltip title="Update in Google Calendar">
+              <IconButton size="small" onClick={() => handleSyncCalendar(game.id)} color="success">
+                <Sync fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Sync to Google Calendar">
+              <IconButton size="small" onClick={() => handleSyncCalendar(game.id)} sx={{ color: "text.secondary" }}>
+                <CalendarMonth fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </CardActions>
+      </Card>
+    );
+  };
+
   const renderGameRow = (game: Game) => {
     const isSelected = selectedGames.has(game.id);
     const isEditing = editingGameId === game.id && editingGameData;
@@ -6113,27 +6306,81 @@ export function GamesTable() {
       {/* Sample Game Banner */}
       <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
 
-      {/* Table */}
-      <Box sx={{ position: "relative" }}>
-        <TableContainer
-          component={Paper}
-          elevation={0}
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 2,
-            overflowX: "auto",
-          }}
-        >
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: "action.selected" }}>
-                <TableCell padding="checkbox" sx={{ py: 0 }}>
-                  <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
-                </TableCell>
-                {resolvedColumns.map((column) => renderHeaderCell(column))}
-              </TableRow>
-            </TableHead>
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <Box sx={{ position: "relative" }}>
+          {isLoading || !mounted ? (
+            <Stack spacing={2}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Card key={`skeleton-${index}`}>
+                  <CardContent>
+                    <Skeleton variant="rectangular" width={120} height={20} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="60%" height={24} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="80%" height={20} sx={{ mb: 1 }} />
+                    <Skeleton variant="text" width="40%" height={20} />
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          ) : games.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
+              <Typography color="text.secondary" variant="body2">
+                No games found. Click "Create Game" to add one.
+              </Typography>
+            </Paper>
+          ) : (
+            <Box>
+              {games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}
+            </Box>
+          )}
+
+          {/* Loading overlay for data refresh */}
+          {isFetching && mounted && !isLoading && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+                borderRadius: 2,
+              }}
+            >
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                Loading spreadsheet...
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      ) : (
+        /* Desktop Table View */
+        <Box sx={{ position: "relative" }}>
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              overflowX: "auto",
+            }}
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "action.selected" }}>
+                  <TableCell padding="checkbox" sx={{ py: 0 }}>
+                    <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
+                  </TableCell>
+                  {resolvedColumns.map((column) => renderHeaderCell(column))}
+                </TableRow>
+              </TableHead>
             {isLoading || !mounted ? (
               <TableBody>
                 {Array.from({ length: 5 }).map((_, index) => (
@@ -6218,44 +6465,48 @@ export function GamesTable() {
           </Table>
         </TableContainer>
 
-        {/* Loading overlay for data refresh (after import) */}
-        {isFetching && mounted && !isLoading && (
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 10,
-              borderRadius: 2,
-            }}
-          >
-            <CircularProgress size={40} sx={{ mb: 2 }} />
-            <Typography variant="body1" color="text.secondary">
-              Loading spreadsheet...
-            </Typography>
-          </Box>
-        )}
-      </Box>
+          {/* Loading overlay for data refresh (after import) */}
+          {isFetching && mounted && !isLoading && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+                borderRadius: 2,
+              }}
+            >
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                Loading spreadsheet...
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      )}
+
       {/* Pagination */}
       <Box
         sx={{
           display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: { xs: 2, sm: 0 },
           mt: 3,
           px: 2,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, sm: 3 }, flexWrap: "wrap" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
               Rows per page:
             </Typography>
             <Select
@@ -6278,7 +6529,7 @@ export function GamesTable() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", gap: 3 }}>
+        <Box sx={{ display: "flex", gap: { xs: 2, sm: 3 }, justifyContent: { xs: "space-between", sm: "flex-start" } }}>
           <Typography variant="body2" color="text.secondary">
             Page {page + 1} of {pagination.totalPages || 1}
           </Typography>
@@ -6289,7 +6540,7 @@ export function GamesTable() {
           )}
         </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: { xs: "center", sm: "flex-start" } }}>
           <Tooltip title="First page">
             <span>
               <IconButton onClick={handleFirstPage} disabled={page === 0} size="small">
