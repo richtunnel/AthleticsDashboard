@@ -183,6 +183,14 @@ export class AvailableDatesService {
    * Parse prompt into normalized tokens with abbreviation expansion
    */
   private parsePrompt(prompt: string): string[] {
+    // Common filler words to ignore
+    const STOP_WORDS = new Set([
+      'find', 'me', 'available', 'dates', 'for', 'the', 'a', 'an', 'and', 'or',
+      'show', 'get', 'give', 'list', 'search', 'when', 'what', 'is', 'are',
+      'can', 'i', 'have', 'need', 'want', 'looking', 'schedule', 'schedules',
+      'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams'
+    ]);
+    
     const tokens: string[] = [];
     
     // Split on whitespace and punctuation, lowercase
@@ -193,6 +201,11 @@ export class AvailableDatesService {
       .filter(t => t.length > 0);
 
     for (const token of rawTokens) {
+      // Skip stop words
+      if (STOP_WORDS.has(token)) {
+        continue;
+      }
+      
       const expansion = ABBREVIATION_MAP[token];
       if (expansion) {
         tokens.push(...expansion);
