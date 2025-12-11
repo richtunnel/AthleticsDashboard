@@ -34,7 +34,7 @@ export default function AboutUsPage() {
               mb: 1,
             }}
           >
-            Built by athletic directors and school administrators,
+            Built by Athletic Directors and School Administrators,
           </Typography>
           <Typography
             variant="h5"
@@ -57,7 +57,9 @@ export default function AboutUsPage() {
               color: "text.primary",
             }}
           >
-            AD Hub was created with one mission: to give athletic departments and school leadership the modern tools they deserve. After decades of watching athletic directors, coaches, and administrators juggle spreadsheets, emails, forms, and outdated systems, we knew the industry needed something better - something built by people who truly understand the challenges of running a successful school athletic program.
+            AD Hub was created with one mission: to give athletic departments and school leadership the modern tools they deserve. After decades of watching athletic directors, coaches, and
+            administrators juggle spreadsheets, emails, forms, and outdated systems, we knew the industry needed something better - something built by people who truly understand the challenges of
+            running a successful school athletic program.
           </Typography>
 
           <Typography
@@ -69,7 +71,9 @@ export default function AboutUsPage() {
               color: "text.primary",
             }}
           >
-            With over 50 years of combined experience across athletics, school administration, education, and technology, our team brings together the people who have lived the problems and the experts who know how to solve them. From former athletic directors and school administrators to seasoned software professionals, we've built a platform that blends real-world insight with cutting-edge innovation.
+            With over 50 years of combined experience across athletics, school administration, education, and technology, our team brings together the people who have lived the problems and the
+            experts who know how to solve them. From former athletic directors and school administrators to seasoned software professionals, we've built a platform that blends real-world insight with
+            cutting-edge innovation.
           </Typography>
 
           <Typography
@@ -95,7 +99,8 @@ export default function AboutUsPage() {
               color: "text.primary",
             }}
           >
-            We're committed to helping athletic directors and school administrators lead with confidence, reclaim their time, and elevate their programs without the administrative overwhelm. This isn't generic software trying to fit your world - this is a platform built specifically for it.
+            We're committed to helping athletic directors and school administrators lead with confidence, reclaim their time, and elevate their programs without the administrative overwhelm. This
+            isn't generic software trying to fit your world - this is a platform built specifically for it.
           </Typography>
         </Box>
 
