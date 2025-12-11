@@ -969,7 +969,7 @@ export default function OpponentsPage() {
                       </IconButton>
                       <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" }, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                         {/* Sport/Level Label */}
-                        {sportLevelLabel !== "All Sports" && (
+                        {(result.sport || result.gender || result.level) && (
                           <Box sx={{ mb: 1 }}>
                             <Chip
                               label={sportLevelLabel}
