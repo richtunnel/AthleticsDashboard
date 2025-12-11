@@ -23,6 +23,7 @@ import {
   Chip,
   useMediaQuery,
   Checkbox,
+  useTheme,
 } from "@mui/material";
 import { ArrowBack, Send } from "@mui/icons-material";
 import { format } from "date-fns";
@@ -202,6 +203,7 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
+  const theme = useTheme();
   const isWideScreen = useMediaQuery("(min-width:1260px)");
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
@@ -505,15 +507,26 @@ export default function ComposeEmailPage() {
   const generateEmailPreview = () => {
     if (!mounted) return "<p>Loading preview...</p>";
 
+    // Theme-aware colors for dark mode support
+    const isDarkMode = theme.palette.mode === "dark";
+    const headingColor = isDarkMode ? theme.palette.text.primary : "#23252a";
+    const messageBoxBg = isDarkMode ? theme.palette.background.paper : "#f3f4f6";
+    const messageBoxBorder = isDarkMode ? theme.palette.primary.main : "#23252a";
+    const tableHeaderBg = isDarkMode ? theme.palette.action.selected : "#23252a";
+    const tableHeaderText = isDarkMode ? theme.palette.text.primary : "white";
+    const borderColor = isDarkMode ? theme.palette.divider : "#e5e7eb";
+    const evenRowBg = isDarkMode ? theme.palette.background.paper : "#ffffff";
+    const oddRowBg = isDarkMode ? theme.palette.action.hover : "#f9fafb";
+
     let html = '<div style="font-family: Arial, sans-serif; max-width: 1180px; margin: 0 auto;">';
 
     // Add heading
-    html += '<h2 style="color: #23252a; margin-bottom: 16px;">Game Schedule Confirmation</h2>';
+    html += `<h2 style="color: ${headingColor}; margin-bottom: 16px;">Game Schedule Confirmation</h2>`;
 
     // Add additional message if present
     if (additionalMessage) {
-      html += `<div style="margin-bottom: 24px; padding: 16px; background-color: #f3f4f6; border-left: 4px solid #23252a; border-radius: 4px;">`;
-      html += `<p style="margin: 0; white-space: pre-wrap;">${escapeHtml(additionalMessage)}</p>`;
+      html += `<div style="margin-bottom: 24px; padding: 16px; background-color: ${messageBoxBg}; border-left: 4px solid ${messageBoxBorder}; border-radius: 4px;">`;
+      html += `<p style="margin: 0; white-space: pre-wrap; color: ${theme.palette.text.primary};">${escapeHtml(additionalMessage)}</p>`;
       html += "</div>";
     }
 
@@ -522,12 +535,12 @@ export default function ComposeEmailPage() {
 
     // Table header - dynamically generate based on visible columns
     html += "<thead>";
-    html += '<tr style="background-color: #23252a; color: white;">';
+    html += `<tr style="background-color: ${tableHeaderBg}; color: ${tableHeaderText};">`;
     visibleColumnIds.forEach((columnId) => {
       // Skip actions column in email
       if (columnId === "actions") return;
       const label = getColumnLabel(columnId, customColumns);
-      html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb; font-size: 0.85rem;">${escapeHtml(label)}</th>`;
+      html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid ${borderColor}; font-size: 0.85rem;">${escapeHtml(label)}</th>`;
     });
     html += "</tr>";
     html += "</thead>";
@@ -535,8 +548,8 @@ export default function ComposeEmailPage() {
     // Table body
     html += "<tbody>";
     selectedGames.forEach((game, index) => {
-      const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
-      html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
+      const bgColor = index % 2 === 0 ? evenRowBg : oddRowBg;
+      html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid ${borderColor};">`;
 
       // Generate cells dynamically based on visible columns
       visibleColumnIds.forEach((columnId) => {
@@ -562,7 +575,7 @@ export default function ComposeEmailPage() {
           cellContent = escapeHtml(rawValue);
         }
 
-        html += `<td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 0.85rem;">${cellContent}</td>`;
+        html += `<td style="padding: 12px; border: 1px solid ${borderColor}; color: ${theme.palette.text.primary}; font-size: 0.85rem;">${cellContent}</td>`;
       });
 
       html += "</tr>";
@@ -571,7 +584,7 @@ export default function ComposeEmailPage() {
       if (visibleColumnIds.includes("notes") && game.notes) {
         const colspan = visibleColumnIds.filter((id) => id !== "actions").length;
         html += `<tr style="background-color: ${bgColor};">`;
-        html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
+        html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: ${theme.palette.text.secondary}; font-style: italic; border: 1px solid ${borderColor};">`;
         html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
         html += "</td>";
         html += "</tr>";
@@ -581,9 +594,9 @@ export default function ComposeEmailPage() {
     html += "</table>";
 
     // Add footer with contact information
-    html += '<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">';
-    html += '<p style="color: #6b7280; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>';
-    html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>';
+    html += `<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid ${borderColor};">`;
+    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>`;
+    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>`;
     html += "</div>";
 
     // Add email signature if present
