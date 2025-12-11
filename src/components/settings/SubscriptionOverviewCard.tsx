@@ -371,12 +371,15 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                     </Typography>
                     <Chip label="FREE" color="default" size="small" />
                   </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    You are currently on the free plan. Upgrade to unlock more features.
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    You are currently on the free plan with limited features.
                   </Typography>
+                  <Alert severity="info" sx={{ bgcolor: "primary.light", color: "primary.contrastText" }}>
+                    Upgrade to unlock AI-powered scheduling, advanced analytics, and priority support.
+                  </Alert>
                   <Box>
-                    <Button variant="contained" color="primary" href="/onboarding/plans">
-                      View Plans
+                    <Button variant="contained" color="primary" href="/onboarding/plans" size="large">
+                      Upgrade Now
                     </Button>
                   </Box>
                 </Stack>
