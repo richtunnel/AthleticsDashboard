@@ -20,6 +20,84 @@ function validateAndParseDate(dateString: string): Date {
   return date;
 }
 
+/**
+ * Check if an imported row is a duplicate of an existing game.
+ * A row is considered duplicate if ALL of the following match:
+ * 1. Same date
+ * 2. ALL custom field keys and values match exactly
+ */
+async function isDuplicateRow(
+  date: Date,
+  customFields: Record<string, any>,
+  organizationId: string
+): Promise<boolean> {
+  // Normalize the date to compare (ignore time portion)
+  const dateStr = date.toISOString().split("T")[0];
+
+  // Fetch all games for this organization on the same date
+  const existingGames = await prisma.game.findMany({
+    where: {
+      homeTeam: {
+        organizationId: organizationId,
+      },
+      date: {
+        gte: new Date(dateStr + "T00:00:00.000Z"),
+        lte: new Date(dateStr + "T23:59:59.999Z"),
+      },
+    },
+    select: {
+      id: true,
+      customFields: true,
+    },
+  });
+
+  // If no games on this date, it's not a duplicate
+  if (existingGames.length === 0) {
+    return false;
+  }
+
+  // Normalize custom fields for comparison (remove null/undefined values)
+  const normalizeFields = (fields: Record<string, any>): Record<string, any> => {
+    const normalized: Record<string, any> = {};
+    for (const [key, value] of Object.entries(fields || {})) {
+      // Only include non-null, non-undefined, non-empty values
+      if (value !== null && value !== undefined && value !== "") {
+        normalized[key] = String(value).trim(); // Convert to string and trim for comparison
+      }
+    }
+    return normalized;
+  };
+
+  const normalizedImportFields = normalizeFields(customFields);
+  const importKeys = Object.keys(normalizedImportFields).sort();
+
+  // Check each existing game to see if it matches ALL fields
+  for (const existingGame of existingGames) {
+    const normalizedExistingFields = normalizeFields(existingGame.customFields as Record<string, any> || {});
+    const existingKeys = Object.keys(normalizedExistingFields).sort();
+
+    // Check if both have the same keys
+    if (JSON.stringify(importKeys) !== JSON.stringify(existingKeys)) {
+      continue; // Different set of columns, not a duplicate
+    }
+
+    // Check if ALL values match
+    let allValuesMatch = true;
+    for (const key of importKeys) {
+      if (normalizedImportFields[key] !== normalizedExistingFields[key]) {
+        allValuesMatch = false;
+        break;
+      }
+    }
+
+    if (allValuesMatch) {
+      return true; // Found an exact duplicate
+    }
+  }
+
+  return false; // No duplicate found
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
@@ -31,8 +109,10 @@ export async function POST(request: NextRequest) {
 
     let successCount = 0;
     let failedCount = 0;
+    let duplicateCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
+    const duplicates: string[] = [];
     const createdGameIds: string[] = [];
 
     // Find or create default team for custom-only imports
@@ -126,6 +206,19 @@ export async function POST(request: NextRequest) {
           errors.push(`Row ${rowNum}: ${dateError instanceof Error ? dateError.message : "Invalid date"}`);
           failedCount++;
           continue;
+        }
+
+        // === CHECK FOR DUPLICATE ROW ===
+        const isDuplicate = await isDuplicateRow(
+          parsedDate,
+          gameData.customFields || {},
+          session.user.organizationId
+        );
+
+        if (isDuplicate) {
+          duplicates.push(`Row ${rowNum}: Duplicate row detected (all fields match existing game)`);
+          duplicateCount++;
+          continue; // Skip this row
         }
 
         // === CREATE GAME WITH DATE AND CUSTOM FIELDS ===
@@ -291,8 +384,10 @@ export async function POST(request: NextRequest) {
       data: {
         success: successCount,
         failed: failedCount,
+        duplicates: duplicateCount,
         errors,
         warnings,
+        duplicateDetails: duplicates,
         createdGameIds,
       },
     });
