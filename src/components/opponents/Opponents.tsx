@@ -884,16 +884,15 @@ export default function OpponentsPage() {
                   />
                 </Box>
               </Box>
-              {availableFilters.length > 0 && (
-                <Autocomplete
-                  options={availableFilters}
-                  getOptionLabel={(option) => option.label}
-                  value={selectedFilter}
-                  onChange={(_, newValue) => setSelectedFilter(newValue)}
-                  renderInput={(params) => <TextField {...params} label="Filter by Sport & Level" size="small" />}
-                  sx={{ minWidth: 280 }}
-                />
-              )}
+              <Autocomplete
+                options={availableFilters}
+                getOptionLabel={(option) => option.label}
+                value={selectedFilter}
+                onChange={(_, newValue) => setSelectedFilter(newValue)}
+                renderInput={(params) => <TextField {...params} label="Filter by Sport & Level" size="small" />}
+                sx={{ minWidth: 280 }}
+                noOptionsText="No scores recorded yet"
+              />
             </Box>
 
             {isLoadingMatchupResults ? (
