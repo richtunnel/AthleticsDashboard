@@ -803,7 +803,9 @@ export default function OpponentsPage() {
                 <IconButton
                   color="primary"
                   onClick={() => setOpenCreateDialog(true)}
+                  size="small"
                   sx={{
+                    fontSize: "0.95rem",
                     bgcolor: "primary.main",
                     color: "white",
                     "&:hover": {
@@ -811,7 +813,7 @@ export default function OpponentsPage() {
                     },
                   }}
                 >
-                  <Add />
+                  <Add sx={{ fontSize: "0.95rem" }} />
                 </IconButton>
               </Tooltip>
             </Box>
