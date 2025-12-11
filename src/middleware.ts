@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export default withAuth(
-  async function middleware(req: NextRequest & { nextauth: { token: any } }) {
-    const token = req.nextauth.token;
+  async function middleware(req: any) {
+    const token = req.nextauth?.token;
 
     // Check payment status for dashboard routes (except settings and account-disabled)
     const pathname = req.nextUrl.pathname;
@@ -76,5 +76,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };
