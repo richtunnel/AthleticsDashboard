@@ -7,6 +7,7 @@ import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
 import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
+import { withCSRFProtection } from "@/lib/security/csrf";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -31,7 +32,7 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
   return mapping;
 })();
 
-export async function POST(req: NextRequest) {
+export const POST = withCSRFProtection(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
 
@@ -288,4 +289,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

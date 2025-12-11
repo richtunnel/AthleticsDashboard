@@ -3,8 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { createSignupLog } from "@/lib/services/signup-log.service";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withCSRFProtection(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions);
 
@@ -85,4 +86,4 @@ export async function DELETE(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

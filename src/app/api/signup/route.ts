@@ -6,8 +6,9 @@ import { trackReferral } from "@/lib/services/referral.service";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { email, password, name, plan, referrerEmail, phone } = body;
@@ -162,4 +163,4 @@ export async function POST(request: NextRequest) {
     console.error("[Signup] Unexpected error during signup:", error);
     return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
   }
-}
+});

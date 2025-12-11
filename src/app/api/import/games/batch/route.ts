@@ -5,6 +5,7 @@ import { GameStatus } from "../../../../../../types/main.types";
 import { deleteSampleGames } from "@/lib/services/sample-game.service";
 import { detectAndCreateOpponents } from "@/lib/services/opponent-detection.service";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
 interface ImportGameData {
   date: string;
@@ -98,7 +99,7 @@ async function isDuplicateRow(
   return false; // No duplicate found
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await requireAuth();
     const { games, customColumns, columnMapping } = await request.json();
@@ -401,4 +402,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

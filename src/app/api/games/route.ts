@@ -5,6 +5,7 @@ import { travelAIService } from "@/lib/services/travelAI";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 import { calendarService } from "@/lib/services/calendar.service";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { withCSRFProtection } from "@/lib/security/csrf";
 
 export async function GET(request: NextRequest) {
   try {
@@ -612,7 +613,7 @@ function parseBoolean(value: string): boolean {
   return ["true", "yes", "1"].includes((value || "").toLowerCase());
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withCSRFProtection(async (request: NextRequest) => {
   try {
     const session = await requireAuth();
     const body = await request.json();
@@ -805,4 +806,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
