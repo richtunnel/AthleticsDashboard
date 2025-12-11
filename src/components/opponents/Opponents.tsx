@@ -940,6 +940,11 @@ export default function OpponentsPage() {
                   const loserScore = isYourTeamWinner ? result.opponentScore : result.organizationScore;
                   const sportLevelLabel = formatSportLevelLabel(result.sport, result.gender, result.level);
 
+                  //  check to avoid rendering incomplete data:
+                  if (!result.sport && !result.gender && !result.level) {
+                    return null; // Skip rendering this item until data is complete
+                  }
+
                   return (
                     <Card
                       key={result.id}
