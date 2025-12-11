@@ -423,7 +423,11 @@ export default function OpponentsPage() {
   // DATA FETCHING
   // ============================================================================
 
-  const { data: matchupResultsData, refetch: refetchMatchupResults, isLoading: isLoadingMatchupResults } = useQuery({
+  const {
+    data: matchupResultsData,
+    refetch: refetchMatchupResults,
+    isLoading: isLoadingMatchupResults,
+  } = useQuery({
     queryKey: ["matchup-results"],
     queryFn: async () => {
       const res = await fetch("/api/matchup-results");
