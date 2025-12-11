@@ -18,7 +18,7 @@ const siteConfig = {
   logo: BaseHeaderWhite,
   seo: {
     title: "AdHub",
-    description: "A Smart Spreadsheet for Sports Coordinators.",
+    description: "A Smart Spreadsheet for Athletic Departments.",
   } as SeoConfig,
   termsUrl: "#",
   privacyUrl: "#",

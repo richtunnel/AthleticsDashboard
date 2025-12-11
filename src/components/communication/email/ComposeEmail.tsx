@@ -71,18 +71,24 @@ interface TablePreferencesData {
 
 const STATIC_RECIPIENT_CATEGORIES = [{ value: "custom", label: "Custom Recipients" }];
 
+<style jsx>{`
+  .recipientCategory > label {
+    top: -5px;
+  }
+`}</style>;
+
 // Helper to determine which columns to display based on user's import preferences and custom columns
 // CRITICAL FIX: Respect hidden columns from table preferences
 const getDisplayColumns = (preferences: TablePreferencesData | null, customColumns: CustomColumn[]): string[] => {
   // Get hidden columns from preferences
   const hiddenColumns = new Set<string>(Array.isArray(preferences?.hidden) ? (preferences.hidden as string[]) : []);
-  
+
   // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
 
   let allColumns: string[];
-  
+
   if (importedColumns && columnMapping && importedColumns.length > 0) {
     // User imported CSV with custom columns - show imported columns + custom columns
     const importedIds = importedColumns
@@ -91,19 +97,19 @@ const getDisplayColumns = (preferences: TablePreferencesData | null, customColum
         return mapping && mapping !== "skip"; // Only include non-skipped columns
       })
       .map((colName) => `imported:${colName}`);
-    
+
     // Add custom columns
     const customIds = customColumns.map((col) => `custom:${col.id}`);
-    
+
     allColumns = [...importedIds, ...customIds];
   } else {
     // No imported columns - use default columns + custom columns
     const defaultColumns = ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
     const customIds = customColumns.map((col) => `custom:${col.id}`);
-    
+
     allColumns = [...defaultColumns, ...customIds];
   }
-  
+
   // CRITICAL: Filter out hidden columns before returning
   return allColumns.filter((columnId) => !hiddenColumns.has(columnId));
 };
@@ -729,9 +735,15 @@ export default function ComposeEmailPage() {
                 <TextField
                   select
                   label="Recipient Category"
+                  sx={{
+                    "& .MuiInputLabel-root": {
+                      top: "-5px",
+                    },
+                  }}
                   value={recipientCategory}
                   onChange={(e) => setRecipientCategory(e.target.value)}
                   fullWidth
+                  className="recipientCategory"
                   required
                   error={!recipientCategory}
                   helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
