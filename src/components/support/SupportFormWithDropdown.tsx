@@ -3,21 +3,7 @@
 import { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  TextField,
-  Typography,
-  Alert,
-  CircularProgress,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Select,
-  FormHelperText,
-} from "@mui/material";
+import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress, MenuItem, FormControl, InputLabel, Select, FormHelperText } from "@mui/material";
 
 interface FormData {
   issueType: string;
@@ -40,10 +26,7 @@ const ISSUE_TYPES = [
   { value: "Other", label: "Other" },
 ];
 
-export function SupportFormWithDropdown({
-  userName,
-  userEmail,
-}: SupportFormWithDropdownProps) {
+export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWithDropdownProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [issueType, setIssueType] = useState("");
   const [messageLength, setMessageLength] = useState(0);
@@ -77,7 +60,7 @@ export function SupportFormWithDropdown({
   const handleIssueTypeChange = (value: string) => {
     setIssueType(value);
     setValue("issueType", value);
-    
+
     // Update subject to include the issue type
     if (value) {
       // If there's already a custom subject, prepend the issue type
@@ -107,9 +90,7 @@ export function SupportFormWithDropdown({
       return res.json();
     },
     onSuccess: (data) => {
-      setSuccessMessage(
-        `Support ticket created successfully! Ticket number: ${data.data.ticketNumber}`
-      );
+      setSuccessMessage(`Support ticket created successfully! Ticket number: ${data.data.ticketNumber}`);
       reset({
         issueType: "",
         subject: "",
@@ -135,7 +116,14 @@ export function SupportFormWithDropdown({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {/* Issue Type Dropdown */}
             <FormControl fullWidth error={!!errors.issueType}>
-              <InputLabel id="issue-type-label">Issue Type *</InputLabel>
+              <InputLabel
+                sx={{
+                  top: "-5px",
+                }}
+                id="issue-type-label"
+              >
+                Issue Type *
+              </InputLabel>
               <Select
                 labelId="issue-type-label"
                 id="issue-type"
@@ -147,18 +135,12 @@ export function SupportFormWithDropdown({
                 onChange={(e) => handleIssueTypeChange(e.target.value)}
               >
                 {ISSUE_TYPES.map((type) => (
-                  <MenuItem
-                    key={type.value}
-                    value={type.value}
-                    disabled={type.value === ""}
-                  >
+                  <MenuItem key={type.value} value={type.value} disabled={type.value === ""}>
                     {type.label}
                   </MenuItem>
                 ))}
               </Select>
-              {errors.issueType && (
-                <FormHelperText>{errors.issueType.message}</FormHelperText>
-              )}
+              {errors.issueType && <FormHelperText>{errors.issueType.message}</FormHelperText>}
             </FormControl>
 
             {/* Subject Field */}
@@ -195,12 +177,7 @@ export function SupportFormWithDropdown({
                 multiline
                 rows={6}
                 error={!!errors.message || showMinCharError}
-                helperText={
-                  errors.message?.message ||
-                  (showMinCharError
-                    ? "Message must be at least 10 characters"
-                    : "")
-                }
+                helperText={errors.message?.message || (showMinCharError ? "Message must be at least 10 characters" : "")}
                 onChange={handleMessageChange}
                 inputProps={{
                   maxLength: 500,
@@ -213,20 +190,10 @@ export function SupportFormWithDropdown({
                   mt: 1,
                 }}
               >
-                <Typography
-                  variant="caption"
-                  color={showMinCharError ? "error" : "text.secondary"}
-                >
-                  {showMinCharError
-                    ? `${10 - messageLength} more characters needed`
-                    : messageLength >= 10
-                    ? "✓ Minimum length met"
-                    : ""}
+                <Typography variant="caption" color={showMinCharError ? "error" : "text.secondary"}>
+                  {showMinCharError ? `${10 - messageLength} more characters needed` : messageLength >= 10 ? "✓ Minimum length met" : ""}
                 </Typography>
-                <Typography
-                  variant="caption"
-                  color={messageLength >= 500 ? "error" : "text.secondary"}
-                >
+                <Typography variant="caption" color={messageLength >= 500 ? "error" : "text.secondary"}>
                   {messageLength} / 500 characters
                 </Typography>
               </Box>
@@ -240,19 +207,10 @@ export function SupportFormWithDropdown({
             )}
 
             {/* Error Message */}
-            {mutation.isError && (
-              <Alert severity="error">
-                {mutation.error?.message || "Failed to submit support request"}
-              </Alert>
-            )}
+            {mutation.isError && <Alert severity="error">{mutation.error?.message || "Failed to submit support request"}</Alert>}
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={isSubmitDisabled}
-              sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
-            >
+            <Button type="submit" variant="contained" disabled={isSubmitDisabled} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
               {mutation.isPending ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
@@ -265,8 +223,7 @@ export function SupportFormWithDropdown({
 
             {isSubmitDisabled && messageLength > 0 && messageLength < 10 && (
               <Typography variant="body2" color="error">
-                Please write at least 10 characters in your message before
-                submitting.
+                Please write at least 10 characters in your message before submitting.
               </Typography>
             )}
           </Box>
