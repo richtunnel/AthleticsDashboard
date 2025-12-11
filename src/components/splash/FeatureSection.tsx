@@ -24,7 +24,7 @@ export const FeaturesSection = () => {
       }
       description={
         <>
-          Opletics includes a ton of useful features for sports coordinators.
+          Opletics includes a ton of useful features for athletic departments.
           <br />
           We've helped athletic directors shave off over 60% of their daily workflow.
         </>
