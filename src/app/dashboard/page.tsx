@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { getSession } from "next-auth/react";
 import Link from "next/link";
 import { DashboardErrorBoundary } from "@/components/ErrorBoundary";
+import { Typography } from "@mui/material";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -30,14 +31,16 @@ export default function DashboardPage() {
     <DashboardErrorBoundary>
       <div className="space-y-6 md:space-y-8">
         <div>
-          <h2 className="text-3xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>Import your spreadsheets</h2>
-          <p className="text-sm md:text-base" style={{ color: "var(--text-secondary)" }}>
+          <Typography variant="h2" className="mb-2" sx={{ color: "text.primary", fontSize: "2rem", fontWeight: 700 }}>
+            Import your spreadsheets
+          </Typography>
+          <Typography variant="body1" style={{ color: "text.secondary" }}>
             Import your CSV game schedules below and navigate to{" "}
-            <Link href="dashboard/games" style={{ color: "var(--main-blue)", fontWeight: "bold" }}>
+            <Link href="dashboard/games" style={{ color: "primary.main", fontWeight: "bold" }}>
               Game Center
             </Link>{" "}
             to create, manage, update, email and automate your game schedules.
-          </p>
+          </Typography>
           <br />
         </div>
 
