@@ -767,8 +767,8 @@ export default function OpponentsPage() {
       {/* Header */}
       <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Teams & Score tracker
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Teams
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Track your opponents and record game results with scores
