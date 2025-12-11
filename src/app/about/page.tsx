@@ -8,35 +8,29 @@ import Footer from "@/components/layout/Footer";
 
 export default function AboutUsPage() {
   return (
-    <div 
+    <div
       className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left"
       style={{
-        backgroundColor: '#fdfdfd',
-        color: '#0f172a',
+        backgroundColor: "#fdfdfd",
+        color: "#0f172a",
       }}
     >
-      <div className="relative h-full lg:block hidden">
-        <Image 
-          src="/assets/images/conference-meeting.jpg" 
-          alt="Conference Meeting" 
-          fill 
-          className="object-cover" 
-          priority 
-        />
+      <div style={{ height: "75%" }} className="relative lg:block hidden">
+        <Image fill src="/assets/images/opletics-team.jpg" alt="Conference Meeting" className="object-contain w-full" priority />
       </div>
 
       <div className="flex flex-col h-full">
-        <div 
+        <div
           className={styles.homeHeaderContainer}
           style={{
-            color: '#0f172a',
+            color: "#0f172a",
           }}
         >
-          <Link 
-            className={`${styles["ad-hub-logo"]} flex d-flex`} 
+          <Link
+            className={`${styles["ad-hub-logo"]} flex d-flex`}
             href="/"
             style={{
-              color: '#0f172a',
+              color: "#0f172a",
             }}
           >
             adhub
@@ -46,40 +40,41 @@ export default function AboutUsPage() {
 
         <div className="flex flex-1 items-center justify-center px-4">
           <div className={styles.homePageContentContainer}>
-            <h3 
-              className="HomePageTitle text-5xl font-bold mb-4 leading-tight" 
-              style={{ 
-                color: '#0f172a',
+            <h3
+              className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
+              style={{
+                color: "#0f172a",
               }}
             >
               About Us
             </h3>
-            
-            <h4 
+
+            {/* <h4
               className="text-2xl font-semibold mb-2"
-              style={{ 
-                color: '#6d92e2',
+              style={{
+                color: "#6d92e2",
               }}
             >
               Built by Athletic Directors and School Administrators,
             </h4>
-            
-            <h4 
+
+            <h4
               className="text-2xl font-semibold mb-6"
-              style={{ 
-                color: '#475569',
+              style={{
+                color: "#475569",
               }}
             >
               for the people who lead our programs.
-            </h4>
-            
-            <div 
-              className="text-lg mb-4" 
-              style={{ 
-                maxWidth: "665px", 
+            </h4> */}
+
+            <div
+              className="text-lg mb-4"
+              style={{
+                maxWidth: "665px",
                 padding: 0,
-                color: '#0f172a',
+                color: "#0f172a",
                 lineHeight: 1.8,
+                fontSize: "0.95rem",
               }}
             >
               <p className="mb-4">
@@ -90,8 +85,8 @@ export default function AboutUsPage() {
 
               <p className="mb-4">
                 With over 50 years of combined experience across athletics, school administration, education, and technology, our team brings together the people who have lived the problems and the
-                experts who know how to solve them. From former athletic directors and school administrators to seasoned software professionals, we've built a platform that blends real-world insight with
-                cutting-edge innovation.
+                experts who know how to solve them. From former athletic directors and school administrators to seasoned software professionals, we've built a platform that blends real-world insight
+                with cutting-edge innovation.
               </p>
 
               <p className="mb-4" style={{ fontWeight: 600 }}>
