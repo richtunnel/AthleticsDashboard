@@ -43,18 +43,27 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // Create signup log entry to prevent re-signup within 90 days
-    try {
-      await createSignupLog({
-        email: user.email,
-        phone: user.phone,
-        deletedUserId: userId,
-        reason: 'account_deleted',
-      });
-      console.log('[DeleteAccount] Signup log created for user:', userId);
-    } catch (signupLogError) {
-      console.error('[DeleteAccount] Failed to create signup log:', signupLogError);
-      // Continue with deletion even if signup log fails
+    // Create signup log entry ONLY if user has failed payments
+    // This prevents re-signup within 90 days for users with PAST_DUE or UNPAID subscriptions
+    const hasFailedPayments = 
+      user.subscription?.status === 'PAST_DUE' || 
+      user.subscription?.status === 'UNPAID';
+
+    if (hasFailedPayments) {
+      try {
+        await createSignupLog({
+          email: user.email,
+          phone: user.phone,
+          deletedUserId: userId,
+          reason: 'account_deleted_with_failed_payments',
+        });
+        console.log('[DeleteAccount] Signup log created for user with failed payments:', userId);
+      } catch (signupLogError) {
+        console.error('[DeleteAccount] Failed to create signup log:', signupLogError);
+        // Continue with deletion even if signup log fails
+      }
+    } else {
+      console.log('[DeleteAccount] No failed payments, allowing immediate re-signup for user:', userId);
     }
 
     // Delete user - Prisma will cascade delete related records:
