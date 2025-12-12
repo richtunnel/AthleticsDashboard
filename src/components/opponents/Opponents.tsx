@@ -940,6 +940,11 @@ export default function OpponentsPage() {
                   const loserScore = isYourTeamWinner ? result.opponentScore : result.organizationScore;
                   const sportLevelLabel = formatSportLevelLabel(result.sport, result.gender, result.level);
 
+                  //  check to avoid rendering incomplete data:
+                  if (!result.sport && !result.gender && !result.level) {
+                    return null; // Skip rendering this item until data is complete
+                  }
+
                   return (
                     <Card
                       key={result.id}
@@ -971,7 +976,7 @@ export default function OpponentsPage() {
                       </IconButton>
                       <CardContent sx={{ padding: "12px 16px", "&:last-child": { pb: "12px" }, flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                         {/* Sport/Level Label */}
-                        {sportLevelLabel !== "All Sports" && (
+                        {(result.sport || result.gender || result.level) && (
                           <Box sx={{ mb: 1 }}>
                             <Chip
                               label={sportLevelLabel}
