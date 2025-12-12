@@ -41,6 +41,7 @@ type DeletionCandidate = {
   phone: string | null;
   subscription: {
     stripeSubscriptionId: string | null;
+    status: string;
   } | null;
 };
 
@@ -213,6 +214,7 @@ export async function POST(req: NextRequest) {
         subscription: {
           select: {
             stripeSubscriptionId: true,
+            status: true,
           },
         },
       },
@@ -242,18 +244,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create signup log entry before deletion
-    try {
-      await createSignupLog({
-        email: user.email,
-        phone: user.phone,
-        deletedUserId: user.id,
-        reason: 'account_cleanup_cron',
-      });
-    } catch (signupLogError) {
-      const errorMessage = `Failed to create signup log for user ${user.id}: ${getErrorMessage(signupLogError)}`;
-      console.error(`[AccountCleanup] ${errorMessage}`);
-      summary.errors.push(errorMessage);
+    // Create signup log entry before deletion ONLY if user has failed payments
+    // This prevents re-signup within 90 days for users with PAST_DUE or UNPAID subscriptions
+    const hasFailedPayments = 
+      user.subscription?.status === 'PAST_DUE' || 
+      user.subscription?.status === 'UNPAID';
+
+    if (hasFailedPayments) {
+      try {
+        await createSignupLog({
+          email: user.email,
+          phone: user.phone,
+          deletedUserId: user.id,
+          reason: 'account_cleanup_cron_with_failed_payments',
+        });
+        console.log(`[AccountCleanup] Signup log created for user ${user.id} with failed payments`);
+      } catch (signupLogError) {
+        const errorMessage = `Failed to create signup log for user ${user.id}: ${getErrorMessage(signupLogError)}`;
+        console.error(`[AccountCleanup] ${errorMessage}`);
+        summary.errors.push(errorMessage);
+      }
+    } else {
+      console.log(`[AccountCleanup] No failed payments, allowing immediate re-signup for user ${user.id}`);
     }
 
     try {
