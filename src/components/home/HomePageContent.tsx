@@ -124,7 +124,7 @@ export default function HomePageContent() {
                   color: "#475569",
                 }}
               >
-                Save time by doing what you never could with your personal spreadsheets and game schedules.
+                A platform built to give athletic departments the clarity, control, and automation they deserve.
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
