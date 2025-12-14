@@ -11,6 +11,7 @@ import { runNonCritical } from "@/lib/utils/nonCritical";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
+import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -81,6 +82,13 @@ const customAdapter = {
           organizationId: newUser.organizationId,
         }),
       `sample game creation for user ${newUser.id}`,
+    );
+
+    // Create initial column preferences for new user (non-blocking)
+    // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
+    void runNonCritical(
+      () => createInitialColumnPreferences(newUser.id),
+      `initial column preferences for user ${newUser.id}`,
     );
 
     // Send welcome email (non-blocking)
