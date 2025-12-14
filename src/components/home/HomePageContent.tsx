@@ -18,6 +18,8 @@ import faqsData from "@/data/faq";
 import { FeaturesSection } from "../splash/FeatureSection";
 import { Card } from "@mui/material";
 import { Footer as SplashFooter } from "../splash/footer";
+import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
+
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
 
 export default function HomePageContent() {
@@ -60,12 +62,12 @@ export default function HomePageContent() {
 
   return (
     <>
-      <div 
+      <div
         className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left"
         style={{
           // Force light mode colors for homepage first section
-          backgroundColor: '#fdfdfd',
-          color: '#0f172a',
+          backgroundColor: "#fdfdfd",
+          color: "#0f172a",
         }}
       >
         <div className="relative h-full lg:block hidden">
@@ -73,23 +75,23 @@ export default function HomePageContent() {
         </div>
 
         <div className="flex flex-col h-full">
-          <div 
+          <div
             className={styles.homeHeaderContainer}
             style={{
               // Force light mode colors for logo
-              color: '#0f172a',
+              color: "#0f172a",
             }}
           >
-            <Link 
-              className={`${styles["ad-hub-logo"]} flex d-flex`} 
+            <Link
+              className={`${styles["ad-hub-logo"]} flex d-flex`}
               href="/"
               style={{
                 // Force light mode colors for logo
-                color: '#0f172a',
+                color: "#0f172a",
               }}
             >
-              adhub
-              <VscGithubProject />
+              <CircularProjectIcon />
+              <span style={{ marginLeft: "2.5px" }}>opletics</span>
             </Link>
 
             <BookDemoButton
@@ -104,22 +106,22 @@ export default function HomePageContent() {
 
           <div className="flex flex-1 items-center justify-center px-4">
             <div className={styles.homePageContentContainer}>
-              <h3 
-                className="HomePageTitle text-5xl font-bold mb-4 leading-tight" 
-                style={{ 
+              <h3
+                className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
+                style={{
                   // Force light mode colors - override dark mode
-                  color: '#0f172a',
+                  color: "#0f172a",
                 }}
               >
                 Athletic <br /> Directors Hub
               </h3>
-              <p 
-                className="text-xl mb-8" 
-                style={{ 
-                  maxWidth: "665px", 
-                  padding: 0, 
+              <p
+                className="text-xl mb-8"
+                style={{
+                  maxWidth: "665px",
+                  padding: 0,
                   // Force light mode colors - override dark mode
-                  color: '#475569',
+                  color: "#475569",
                 }}
               >
                 Save time by doing what you never could with your personal spreadsheets and game schedules.
