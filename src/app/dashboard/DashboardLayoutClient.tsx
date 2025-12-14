@@ -69,6 +69,8 @@ import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { MUIThemeProvider } from "@/app/theme-provider";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
 import { useTheme as useMUITheme } from "@mui/material/styles";
+import BookDemoButton from "@/components/buttons/BookDemoButton";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
 const DRAWER_WIDTH = 240;
 
@@ -148,8 +150,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     >
       {/* Logo / Brand */}
       <Box sx={{ p: 3, borderBottom: 1, borderColor: "divider" }}>
-        <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`} style={{ color: mode === "dark" ? "white" : "inherit" }}>
-          adhub <VscGithubProject />
+        <Link
+          className={`${styles["ad-hub-logo"]} flex d-flex`}
+          href="/"
+          style={{
+            // Force light mode colors for logo
+            color: "#0f172a",
+          }}
+        >
+          <CircularProjectIcon />
+          <span style={{ marginLeft: "2.5px" }}>opletics</span>
         </Link>
       </Box>
 
@@ -275,8 +285,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             {/* Logo - shown when sidebar is collapsed */}
             {!isSidebarVisible && (
               <Box sx={{ display: { xs: "none", sm: "block" }, mr: 2 }}>
-                <Link href="/" className={`${styles["ad-hub-logo"]} flex d-flex`} style={{ color: mode === "dark" ? "white" : "inherit" }}>
-                  adhub <VscGithubProject />
+                <Link
+                  className={`${styles["ad-hub-logo"]} flex d-flex`}
+                  href="/"
+                  style={{
+                    // Force light mode colors for logo
+                    color: "#0f172a",
+                  }}
+                >
+                  <CircularProjectIcon />
+                  <span style={{ marginLeft: "2.5px" }}>opletics</span>
                 </Link>
               </Box>
             )}
@@ -491,6 +509,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </ListItemIcon>
                 Account
               </MenuItem> */}
+
               <MenuItem
                 onClick={() => {
                   handleClose();
@@ -501,6 +520,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   <Logout fontSize="small" />
                 </ListItemIcon>
                 Sign out
+              </MenuItem>
+              <MenuItem>
+                <ListItemIcon>
+                  <BookDemoButton />
+                </ListItemIcon>
               </MenuItem>
             </Menu>
           </Box>

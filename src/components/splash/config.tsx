@@ -17,7 +17,7 @@ interface SeoConfig {
 const siteConfig = {
   logo: BaseHeaderWhite,
   seo: {
-    title: "AdHub",
+    title: "Opletics",
     description: "A Smart Spreadsheet for Athletic Departments.",
   } as SeoConfig,
   termsUrl: "#",
@@ -51,14 +51,14 @@ const siteConfig = {
     copyright: (
       <>
         Contact Us —{" "}
-        <Link style={{ color: "#fff" }} href="emailto:support@athleticdirectorhub.com" target="_blank" rel="noopener">
-          support@athleticdirectorhub.com
+        <Link style={{ color: "#fff" }} href="emailto:support@opletics.com" target="_blank" rel="noopener">
+          support@opletics.com
         </Link>
       </>
     ),
     links: [
       //   {
-      //     href: "mailto:support@athleticdirectorhub.com",
+      //     href: "mailto:support@opletics.com",
       //     label: "Help",
       //   },
       {

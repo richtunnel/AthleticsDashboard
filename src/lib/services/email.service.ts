@@ -63,7 +63,7 @@ export class EmailService {
     try {
       // Send email via Resend
       const result = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
         to,
         cc,
         subject,
@@ -131,7 +131,7 @@ export class EmailService {
       const existingWelcomeEmail = await prisma.emailLog.findFirst({
         where: {
           to: { has: user.email },
-          subject: { contains: "Welcome to Athletic Director Hub" },
+          subject: { contains: "Welcome to Opletics" },
           status: "SENT",
         },
         orderBy: { createdAt: "desc" },
@@ -153,7 +153,7 @@ export class EmailService {
       const html = this.buildHtmlEmail(body);
 
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
         to: [user.email],
         subject,
         html,
@@ -301,7 +301,7 @@ export class EmailService {
 
     const body = `
       ${greeting}
-      <p>Welcome to <strong>Athletic Director Hub</strong>! We're excited to help you streamline your athletic program management.</p>
+      <p>Welcome to <strong>Opletics</strong>! We're excited to help you streamline your athletic program management.</p>
       
       <h3>What's Next?</h3>
       <p>Here are the key steps to get started:</p>
@@ -333,11 +333,11 @@ export class EmailService {
       
       <p>We're here to help you make this season your best yet!</p>
       
-      <p>Best regards,<br>The Athletic Director Hub Team</p>
+      <p>Best regards,<br>The Opletics Team</p>
     `;
 
     return {
-      subject: "Welcome to Athletic Director Hub 🏆",
+      subject: "Welcome to Opletics 🏆",
       body,
     };
   }
@@ -360,7 +360,7 @@ export class EmailService {
         const periodLine = periodEnd ? `<p><strong>Current period ends:</strong> ${periodEnd}</p>` : "";
         const body = `
           ${greeting}
-          <p>Thanks for choosing Athletic Director Hub! Your ${planDescription} is now <strong>${status}</strong>.</p>
+          <p>Thanks for choosing Opletics! Your ${planDescription} is now <strong>${status}</strong>.</p>
           ${periodLine}
           ${portalSection}
           <p>If you ever need assistance, reply to this email and our team will help.</p>
@@ -416,7 +416,7 @@ export class EmailService {
           ${invoiceLink}
           ${portalSection}
           <p>Your subscription is active and all features are available.</p>
-          <p>Thank you for choosing Athletic Director Hub!</p>
+          <p>Thank you for choosing Opletics!</p>
         `;
         return {
           subject: `Payment received - ${planLabel}`,
@@ -529,8 +529,8 @@ export class EmailService {
 
     try {
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
-        to: ["support@athleticdirectorhub.com"],
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+        to: ["support@opletics.com"],
         subject: `New ${typeLabel}: ${subject}`,
         html: this.buildHtmlEmail(body),
       });

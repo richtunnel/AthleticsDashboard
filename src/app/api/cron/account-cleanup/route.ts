@@ -6,7 +6,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { DAY_IN_MS, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 import { createSignupLog } from "@/lib/services/signup-log.service";
-const emailFrom = process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>";
+const emailFrom = process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>";
 const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
 
 export const runtime = "nodejs";
@@ -246,9 +246,7 @@ export async function POST(req: NextRequest) {
 
     // Create signup log entry before deletion ONLY if user has failed payments
     // This prevents re-signup within 90 days for users with PAST_DUE or UNPAID subscriptions
-    const hasFailedPayments = 
-      user.subscription?.status === 'PAST_DUE' || 
-      user.subscription?.status === 'UNPAID';
+    const hasFailedPayments = user.subscription?.status === "PAST_DUE" || user.subscription?.status === "UNPAID";
 
     if (hasFailedPayments) {
       try {
@@ -256,7 +254,7 @@ export async function POST(req: NextRequest) {
           email: user.email,
           phone: user.phone,
           deletedUserId: user.id,
-          reason: 'account_cleanup_cron_with_failed_payments',
+          reason: "account_cleanup_cron_with_failed_payments",
         });
         console.log(`[AccountCleanup] Signup log created for user ${user.id} with failed payments`);
       } catch (signupLogError) {
