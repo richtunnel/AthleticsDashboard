@@ -113,7 +113,7 @@ export default function HomePageContent() {
                   color: "#0f172a",
                 }}
               >
-                Athletic <br /> Directors Hub
+                Automate <br /> Game Schedules
               </h3>
               <p
                 className="text-xl mb-8"
