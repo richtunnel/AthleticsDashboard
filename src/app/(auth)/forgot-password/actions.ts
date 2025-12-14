@@ -92,9 +92,9 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
 
       try {
         await resend.emails.send({
-          from: process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>",
+          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
           to: normalizedEmail,
-          subject: "Reset Your Password - AD Hub",
+          subject: "Reset Your Password - Opletics.com",
           html: buildPasswordResetEmail(user.name || "there", resetUrl),
         });
       } catch (emailError) {
@@ -199,7 +199,7 @@ function buildPasswordResetEmail(userName: string, resetUrl: string): string {
         <div class="container">
           <h1>Reset Your Password</h1>
           <p>Hi ${userName},</p>
-          <p>We received a request to reset your password for your AD Hub account.</p>
+          <p>We received a request to reset your password for your Opletics account.</p>
           <div class="button-container">
             <a href="${resetUrl}" class="button">Reset Password</a>
           </div>
@@ -209,7 +209,7 @@ function buildPasswordResetEmail(userName: string, resetUrl: string): string {
             <strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons. If you didn't request this password reset, please ignore this email.
           </div>
           <div class="footer">
-            <p>This email was sent from AD Hub by Sports Source.</p>
+            <p>This email was sent from Opletics.com.</p>
             <p>If you need help, please contact support.</p>
           </div>
         </div>

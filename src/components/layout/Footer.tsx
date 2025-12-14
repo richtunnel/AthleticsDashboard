@@ -19,7 +19,7 @@ export default function Footer() {
     >
       <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <a
-          href="https://www.instagram.com/athleticdirectorhub"
+          href="https://www.instagram.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -35,7 +35,7 @@ export default function Footer() {
           <FaInstagram />
         </a>
         <a
-          href="https://facebook.com/athleticdirectorhub"
+          href="https://facebook.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -51,7 +51,7 @@ export default function Footer() {
           <FaFacebook />
         </a>
         <a
-          href="https://x.com/athleticdirectorhub"
+          href="https://x.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -142,7 +142,7 @@ export default function Footer() {
             fontWeight: 400,
           }}
         >
-          &copy; {new Date().getFullYear()} Athletic Director Hub. All rights reserved.
+          &copy; {new Date().getFullYear()} Opletics Inc.. All rights reserved.
         </span>
       </div>
     </footer>
