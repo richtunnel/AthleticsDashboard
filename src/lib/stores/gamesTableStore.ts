@@ -34,10 +34,10 @@ interface GamesTableState {
   setIsCustomStructureActive: (isActive: boolean) => void;
 
   // Sorting
-  sortField: string;
-  sortOrder: "asc" | "desc";
-  setSortField: (field: string) => void;
-  setSortOrder: (order: "asc" | "desc") => void;
+  sortField: string | null;
+  sortOrder: "asc" | "desc" | null;
+  setSortField: (field: string | null) => void;
+  setSortOrder: (order: "asc" | "desc" | null) => void;
 
   // Adding new game
   isAddingNew: boolean;
@@ -94,7 +94,7 @@ export const useGamesTableStore = create<GamesTableState>()(
 
       setIsCustomStructureActive: (isActive) => set({ isCustomStructureActive: isActive }),
 
-      // Sorting
+      // Sorting - default to date ascending, but allow null to reset to natural order
       sortField: "date",
       sortOrder: "asc",
       setSortField: (field) => set({ sortField: field }),
