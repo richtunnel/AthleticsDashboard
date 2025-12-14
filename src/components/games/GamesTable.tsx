@@ -3945,7 +3945,7 @@ export function GamesTable() {
               py: 1,
               cursor: "pointer",
               "&:hover": {
-                bgcolor: "#f5f5f5",
+                bgcolor: "action.hover",
               },
             }}
             onClick={() => {
@@ -4155,7 +4155,7 @@ export function GamesTable() {
                   py: 1,
                   cursor: "pointer",
                   "&:hover": {
-                    bgcolor: "#f5f5f5",
+                    bgcolor: "action.hover",
                   },
                 }}
                 onClick={() => {
@@ -5826,7 +5826,7 @@ export function GamesTable() {
     // If user has imported columns, the new row will show those columns (with "—" for read-only fields)
     // If user has default columns, the new row will show those
     return (
-      <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+      <TableRow sx={{ bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08) }}>
         <TableCell padding="checkbox">
           <Checkbox disabled sx={{ p: 0 }} />
         </TableCell>
