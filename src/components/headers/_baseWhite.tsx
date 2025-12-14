@@ -15,7 +15,7 @@ export default function BaseHeaderWhite({ pt, pl }: addPadding) {
     <>
       <Link style={{ color: "#fff", paddingTop: `${pt}`, paddingLeft: `${pl}` }} className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
         <CircularProjectIcon color="#fff" />
-        <span style={{ marginLeft: "2.5px", color: "#fff" }}>adhub</span>
+        <span style={{ marginLeft: "2.5px", color: "#fff" }}>opletics</span>
       </Link>
     </>
   );
