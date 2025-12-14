@@ -154,11 +154,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           className={`${styles["ad-hub-logo"]} flex d-flex`}
           href="/"
           style={{
-            // Force light mode colors for logo
-            color: "#0f172a",
+            color: mode === "dark" ? "#fff" : "#0f172a",
           }}
         >
-          <CircularProjectIcon />
+          <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
           <span style={{ marginLeft: "2.5px" }}>opletics</span>
         </Link>
       </Box>
@@ -289,11 +288,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   className={`${styles["ad-hub-logo"]} flex d-flex`}
                   href="/"
                   style={{
-                    // Force light mode colors for logo
-                    color: "#0f172a",
+                    color: mode === "dark" ? "#fff" : "#0f172a",
                   }}
                 >
-                  <CircularProjectIcon />
+                  <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
                   <span style={{ marginLeft: "2.5px" }}>opletics</span>
                 </Link>
               </Box>
