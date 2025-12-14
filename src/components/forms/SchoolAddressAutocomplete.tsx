@@ -95,13 +95,11 @@ export default function SchoolAddressAutocomplete({
       if (data.success && data.predictions) {
         setOptions(data.predictions);
       } else {
-        // Silently fail and allow manual entry - don't confuse users with errors
-        console.warn("Google Places API unavailable, using manual entry mode:", data.error);
+        console.error("Autocomplete error:", data.error);
         setOptions([]);
       }
     } catch (error) {
-      // Silently fail and allow manual entry - API issues should not block user
-      console.warn("Google Places API connection failed, using manual entry mode:", error);
+      console.error("Failed to fetch predictions:", error);
       setOptions([]);
     } finally {
       setLoading(false);
@@ -140,13 +138,11 @@ export default function SchoolAddressAutocomplete({
         
         return placeDetails;
       } else {
-        // Silently fail and allow manual entry
-        console.warn("Google Places API unavailable for details, using description:", data.error);
+        console.error("Place details error:", data.error);
         return null;
       }
     } catch (error) {
-      // Silently fail and allow manual entry
-      console.warn("Google Places API connection failed for details:", error);
+      console.error("Failed to fetch place details:", error);
       return null;
     }
   };

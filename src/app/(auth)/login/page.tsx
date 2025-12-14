@@ -88,7 +88,7 @@ function LoginForm() {
     }
   };
 
-  const displayError = error || (errorParam === "OAuthSignin" ? "No account found with this Google account. Please sign up first." : "");
+  const displayError = error || (errorParam === "OAuthSignin" ? "Failed to sign in with Google. Please try again." : "");
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
