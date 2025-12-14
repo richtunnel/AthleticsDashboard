@@ -267,7 +267,7 @@ function PricingPlansContent() {
         </Typography>
 
         <Box sx={{ mt: 2, mb: 3 }}>
-          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com"} />
+          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min"} />
         </Box>
 
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 3 }}>

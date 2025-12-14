@@ -20,7 +20,7 @@ import { Card } from "@mui/material";
 import { Footer as SplashFooter } from "../splash/footer";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 
-const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
+const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
   const { data: session, status } = useSession();
