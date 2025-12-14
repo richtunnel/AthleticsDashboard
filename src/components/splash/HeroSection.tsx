@@ -95,7 +95,7 @@ export const HeroSection: React.FC = () => {
                   borderRadius: "20px",
                 }}
               >
-                <Image src="/assets/images/gtable.png" width={1400} height={762} alt="Opletics Dashboard" quality="75" priority />
+                <Image src="/assets/images/gtable2.png" width={1400} height={762} alt="Opletics Dashboard" quality="75" priority />
               </Box>
             </FallInPlace>
           </Box>
