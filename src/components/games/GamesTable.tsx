@@ -506,6 +506,9 @@ export function GamesTable() {
   // Date field hover state (for showing calendar icon)
   const [hoveredDateGameId, setHoveredDateGameId] = useState<string | null>(null);
 
+  // Track newly created game IDs to preserve them from sort/filter
+  const [preservedGameIds, setPreservedGameIds] = useState<Set<string>>(new Set());
+
   // Conflict detection modal state
   const [conflictModal, setConflictModal] = useState<{
     open: boolean;
@@ -638,6 +641,8 @@ export function GamesTable() {
 
   useEffect(() => {
     setMounted(true);
+    // Clear preserved games on mount (page refresh)
+    setPreservedGameIds(new Set());
   }, []);
 
   const {
@@ -863,7 +868,28 @@ export function GamesTable() {
   }, [columnPreferencesData]);
 
   // Show all games immediately after import (no filtering)
-  const games = response?.data?.games || [];
+  // Preserve newly created games at the end regardless of sort/filter
+  const allGames = response?.data?.games || [];
+  const games = useMemo(() => {
+    if (preservedGameIds.size === 0) {
+      return allGames;
+    }
+    
+    // Split games into preserved (newly created) and regular games
+    const preserved: Game[] = [];
+    const regular: Game[] = [];
+    
+    allGames.forEach((game: Game) => {
+      if (preservedGameIds.has(game.id)) {
+        preserved.push(game);
+      } else {
+        regular.push(game);
+      }
+    });
+    
+    // Return regular games followed by preserved games at the end
+    return [...regular, ...preserved];
+  }, [allGames, preservedGameIds]);
 
   const pagination: PaginationData = response?.data?.pagination || {
     page: 1,
@@ -1539,6 +1565,10 @@ export function GamesTable() {
       resetNewGameData();
 
       const newGameId = newGame.id;
+      
+      // Track this newly created game to preserve it from sort/filter
+      setPreservedGameIds((prev) => new Set(prev).add(newGameId));
+      
       // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
       if (!variables.skipCalendarSync) {
         syncGameMutation.mutate(newGameId);
@@ -3177,6 +3207,8 @@ export function GamesTable() {
 
   const handleColumnFilterChange = useCallback(
     (columnId: string, filter: ColumnFilterValue | null) => {
+      // Clear preserved games when user manually applies a filter
+      setPreservedGameIds(new Set());
       updateFilter(columnId, filter);
       setPage(0);
     },
@@ -3205,6 +3237,9 @@ export function GamesTable() {
   };
 
   const handleSort = (field: SortField) => {
+    // Clear preserved games when user manually sorts
+    setPreservedGameIds(new Set());
+    
     if (sortField === field) {
       // Cycle through: asc → desc → null (remove sort)
       if (sortOrder === "asc") {
@@ -6279,8 +6314,14 @@ export function GamesTable() {
               </>
             )}
             {hiddenColumnCount > 0 && (
-              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
-                Show all columns ({hiddenColumnCount} hidden)
+              <Button 
+                size="small" 
+                variant="text" 
+                onClick={() => setIsColumnPreferencesOpen(true)} 
+                startIcon={<VisibilityOff />}
+                sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              >
+                {hiddenColumnCount} hidden
               </Button>
             )}
           </Stack>
