@@ -90,6 +90,13 @@ export default function SchoolAddressAutocomplete({
         }),
       });
 
+      // Gracefully handle non-OK responses (500, 401, etc.)
+      if (!response.ok) {
+        console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        setOptions([]);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success && data.predictions) {
@@ -128,6 +135,12 @@ export default function SchoolAddressAutocomplete({
           sessionToken: sessionTokenRef.current,
         }),
       });
+
+      // Gracefully handle non-OK responses (500, 401, etc.)
+      if (!response.ok) {
+        console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        return null;
+      }
 
       const data = await response.json();
 
