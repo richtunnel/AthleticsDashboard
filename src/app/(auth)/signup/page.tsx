@@ -105,9 +105,9 @@ function SignupForm() {
     setError("");
     try {
       const consentUrl = `/onboarding/google-consent?mode=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`;
-      await googleAuth.executeAction({ 
+      await googleAuth.executeAction({
         type: "navigation",
-        navigationPath: consentUrl
+        navigationPath: consentUrl,
       });
     } catch (error) {
       // Error handled by onError callback
@@ -131,97 +131,97 @@ function SignupForm() {
               Create Account
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-              Sign up for AD Hub
+              Sign up for Opletics
             </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-          <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
-            Sign up with Google
-          </AuthActionButton>
-
-          <Divider sx={{ my: 2 }}>OR</Divider>
-
-          <Box component="form" onSubmit={handleSubmit} noValidate>
-            <TextField
-              size="small"
-              margin="normal"
-              required
-              fullWidth
-              id="name"
-              label="Full Name"
-              name="name"
-              autoComplete="name"
-              autoFocus
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              disabled={isLoading}
-            />
-            <TextField
-              size="small"
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              disabled={isLoading}
-            />
-            <TextField
-              size="small"
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="new-password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              disabled={isLoading}
-              helperText="Must be at least 8 characters"
-            />
-            <TextField
-              size="small"
-              margin="normal"
-              required
-              fullWidth
-              name="confirmPassword"
-              label="Confirm Password"
-              type="password"
-              id="confirmPassword"
-              autoComplete="new-password"
-              value={formData.confirmPassword}
-              onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              disabled={isLoading}
-            />
-            <AuthActionButton type="submit" fullWidth variant="outlined" loading={credentialsAuth.loading} disabled={isLoading} sx={{ mt: 3, mb: 2 }}>
-              Sign up with Email
+            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+              Sign up with Google
             </AuthActionButton>
 
-            <Box sx={{ mt: 2, textAlign: "center" }}>
-              <Typography variant="body2">
-                Already have an account?{" "}
-                <MuiLink component={Link} href="/login" underline="hover">
-                  Log in
-                </MuiLink>
-              </Typography>
+            <Divider sx={{ my: 2 }}>OR</Divider>
+
+            <Box component="form" onSubmit={handleSubmit} noValidate>
+              <TextField
+                size="small"
+                margin="normal"
+                required
+                fullWidth
+                id="name"
+                label="Full Name"
+                name="name"
+                autoComplete="name"
+                autoFocus
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                disabled={isLoading}
+              />
+              <TextField
+                size="small"
+                margin="normal"
+                required
+                fullWidth
+                id="email"
+                label="Email Address"
+                name="email"
+                autoComplete="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled={isLoading}
+              />
+              <TextField
+                size="small"
+                margin="normal"
+                required
+                fullWidth
+                name="password"
+                label="Password"
+                type="password"
+                id="password"
+                autoComplete="new-password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                disabled={isLoading}
+                helperText="Must be at least 8 characters"
+              />
+              <TextField
+                size="small"
+                margin="normal"
+                required
+                fullWidth
+                name="confirmPassword"
+                label="Confirm Password"
+                type="password"
+                id="confirmPassword"
+                autoComplete="new-password"
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                disabled={isLoading}
+              />
+              <AuthActionButton type="submit" fullWidth variant="outlined" loading={credentialsAuth.loading} disabled={isLoading} sx={{ mt: 3, mb: 2 }}>
+                Sign up with Email
+              </AuthActionButton>
+
+              <Box sx={{ mt: 2, textAlign: "center" }}>
+                <Typography variant="body2">
+                  Already have an account?{" "}
+                  <MuiLink component={Link} href="/login" underline="hover">
+                    Log in
+                  </MuiLink>
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
-    <Footer />
-  </Box>
+          </Paper>
+        </Box>
+      </Container>
+      <Footer />
+    </Box>
   );
 }
 
