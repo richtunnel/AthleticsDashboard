@@ -272,7 +272,7 @@ interface PaginationData {
 }
 
 type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel" | "notes" | "sortOrder" | string;
-type SortOrder = "asc" | "desc";
+type SortOrder = "asc" | "desc" | null;
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
@@ -663,8 +663,13 @@ export function GamesTable() {
         }
       });
 
-      params.append("sortBy", sortField);
-      params.append("sortOrder", sortOrder);
+      // Only append sort params if they're not null (allows reverting to default sort)
+      if (sortField) {
+        params.append("sortBy", sortField);
+      }
+      if (sortOrder) {
+        params.append("sortOrder", sortOrder);
+      }
       params.append("page", String(page + 1));
       params.append("limit", String(rowsPerPage));
 
@@ -3201,8 +3206,16 @@ export function GamesTable() {
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      // Cycle through: asc → desc → null (remove sort)
+      if (sortOrder === "asc") {
+        setSortOrder("desc");
+      } else if (sortOrder === "desc") {
+        // Remove sort completely - reset to null
+        setSortField(null);
+        setSortOrder(null);
+      }
     } else {
+      // New field - start with asc
       setSortField(field);
       setSortOrder("asc");
     }
@@ -3447,7 +3460,7 @@ export function GamesTable() {
     return (
       <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
-          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
+          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue && sortOrder ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
             {displayLabel.toUpperCase()}
           </TableSortLabel>
         ) : (
