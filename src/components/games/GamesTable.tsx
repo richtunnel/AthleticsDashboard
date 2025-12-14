@@ -1204,6 +1204,13 @@ export function GamesTable() {
         success: true,
         data: data.data,
       });
+      
+      // CRITICAL FIX: Clear the reordering flag AFTER cache update completes
+      // This prevents the useEffect from running until the cache is fully updated
+      // Fixes double-render issue during column reordering
+      setTimeout(() => {
+        setIsUserReordering(false);
+      }, 50);
     },
   });
 
@@ -1226,6 +1233,8 @@ export function GamesTable() {
         onError: (error: any) => {
           setColumnState(previousState);
           addNotification(error?.message || "Failed to save column preferences", "error");
+          // Clear the reordering flag on error as well
+          setIsUserReordering(false);
         },
       });
     },
@@ -1258,6 +1267,7 @@ export function GamesTable() {
       console.log("Input has date:", order.includes("date"));
 
       // Set flag to prevent column state recalculation during reordering
+      // Flag will be cleared in savePreferencesMutation.onSuccess after cache update
       setIsUserReordering(true);
 
       const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
@@ -1273,11 +1283,9 @@ export function GamesTable() {
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
-
-      // Clear the flag after preferences are saved (small delay to ensure cache update completes)
-      setTimeout(() => {
-        setIsUserReordering(false);
-      }, 100);
+      
+      // Note: isUserReordering flag is cleared in savePreferencesMutation.onSuccess
+      // This ensures the flag stays true until the cache is fully updated
     },
     [persistColumnPreferences]
   );
