@@ -77,7 +77,7 @@ const navigation = [
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
-  { name: "Teams", href: "/dashboard/opponents", icon: Groups },
+  // { name: "Teams", href: "/dashboard/opponents", icon: Groups },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
