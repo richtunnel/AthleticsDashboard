@@ -12,7 +12,7 @@ import "../styles/sortable-drag-drop.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "AD Hub - Athletic Department Management",
+  title: "Opletics - Athletic Department Management",
   description: "Comprehensive athletic department management platform",
 };
 

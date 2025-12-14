@@ -84,15 +84,14 @@ export default function PrivacyPage() {
         </Typography>
         <Typography variant="body1" paragraph>
           We retain your data only as long as necessary to provide our services or comply with legal obligations. You may request deletion of your account by contacting{" "}
-          <Link href="mailto:support@athleticdirectorhub.com">support@athleticdirectorhub.com</Link>.
+          <Link href="mailto:support@opletics.com">support@opletics.com</Link>.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
           7. Your Rights
         </Typography>
         <Typography variant="body1" paragraph>
-          You have the right to access, update, or delete your personal information. Contact us at <Link href="mailto:support@athleticdirectorhub.com">support@athleticdirectorhub.com</Link> to
-          exercise these rights.
+          You have the right to access, update, or delete your personal information. Contact us at <Link href="mailto:support@opletics.com">support@opletics.com</Link> to exercise these rights.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
@@ -114,7 +113,7 @@ export default function PrivacyPage() {
           10. Contact Us
         </Typography>
         <Typography variant="body1" paragraph>
-          For questions about this Privacy Policy, please contact us at <Link href="mailto:support@athleticdirectorhub.com">support@athleticdirectorhub.com</Link>.
+          For questions about this Privacy Policy, please contact us at <Link href="mailto:support@opletics.com">support@opletics.com</Link>.
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 4 }}>
