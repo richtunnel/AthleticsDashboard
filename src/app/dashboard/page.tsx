@@ -34,9 +34,9 @@ export default function DashboardPage() {
           <Typography variant="h2" className="mb-2" sx={{ color: "text.primary", fontSize: "2rem", fontWeight: 700 }}>
             Import your spreadsheets
           </Typography>
-          <Typography variant="body1" style={{ color: "text.secondary" }}>
+          <Typography variant="body1" style={{ color: "var(--text-secondary)" }}>
             Import your CSV game schedules below and navigate to{" "}
-            <Link href="dashboard/games" style={{ color: "text.primary", fontWeight: "bold" }}>
+            <Link href="dashboard/games" style={{ color: "var(--main-blue)", fontWeight: "bold" }}>
               Game Center
             </Link>{" "}
             to create, manage, update, email and automate your game schedules.
