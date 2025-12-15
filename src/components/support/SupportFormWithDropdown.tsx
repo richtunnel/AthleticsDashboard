@@ -154,6 +154,7 @@ export function SupportFormWithDropdown() {
                   message: "Subject must be at least 3 characters",
                 },
               })}
+              value={subjectValue || ""}
               fullWidth
               error={!!errors.subject}
               helperText={errors.subject?.message}
