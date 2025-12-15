@@ -61,8 +61,12 @@ export interface AvailableDatesResult {
     parsedTokens: string[];
     matchedClusters: ClusterMatch[];
     clusterDates: string[];
+    excludedClusters?: ClusterMatch[]; // Teams whose dates should be avoided
+    excludedClusterDates?: string[]; // Dates to avoid based on excluded teams
     notes: string[];
     excludedDays?: string[]; // Days of week excluded (e.g., ["Sunday", "Saturday"])
+    dateRange?: { start?: string; end?: string; month?: string }; // Applied date range filter
+    minSpacing?: number; // Applied minimum spacing constraint
   };
 }
 
@@ -74,17 +78,32 @@ export class AvailableDatesService {
     prompt: string,
     gamesTable: GameRow[],
     candidateDates: string[],
-    options?: { maxResults?: number; threshold?: number; excludeDays?: number[] }
+    options?: { 
+      maxResults?: number; 
+      threshold?: number; 
+      excludeDays?: number[];
+      excludeTeamsPrompt?: string; // Teams whose dates should be avoided
+      dateRange?: { start?: string; end?: string; month?: string }; // Date range filter
+      minSpacing?: number; // Minimum days between dates
+    }
   ): Promise<AvailableDatesResult> {
     const maxResults = options?.maxResults || 10; // Default 10 results, user can select 25 or 50
     const threshold = options?.threshold || 2.5;
     const excludeDays = options?.excludeDays || []; // Days of week to exclude (0=Sunday, 6=Saturday)
+    const excludeTeamsPrompt = options?.excludeTeamsPrompt;
+    const dateRange = options?.dateRange;
+    const minSpacing = options?.minSpacing;
+    
     const debug = {
       parsedTokens: [] as string[],
       matchedClusters: [] as ClusterMatch[],
       clusterDates: [] as string[],
+      excludedClusters: [] as ClusterMatch[],
+      excludedClusterDates: [] as string[],
       notes: [] as string[],
       excludedDays: [] as string[],
+      dateRange,
+      minSpacing,
     };
 
     // Validate candidateDates
@@ -125,19 +144,89 @@ export class AvailableDatesService {
       return { recommendations: [], debug };
     }
 
-    // Step 3: Extract cluster dates from games table
+    // Step 3: Handle excluded teams (if provided)
+    let excludedClusterDates = new Set<string>();
+    if (excludeTeamsPrompt) {
+      const excludedParsedTokens = this.parsePrompt(excludeTeamsPrompt);
+      const excludedClusters = this.matchClusters(excludedParsedTokens, threshold);
+      debug.excludedClusters = excludedClusters.map(c => ({
+        sport: c.sport,
+        gender: c.gender,
+        level: c.level,
+        confidence: c.score,
+      }));
+      
+      if (excludedClusters.length > 0) {
+        excludedClusterDates = this.extractClusterDates(gamesTable, excludedClusters, debug);
+        debug.excludedClusterDates = Array.from(excludedClusterDates).sort();
+        debug.notes.push(`Excluding ${excludedClusterDates.size} dates from: ${excludedClusters.map(c => `${c.gender} ${c.level} ${c.sport}`).join(', ')}`);
+      }
+    }
+
+    // Step 4: Extract cluster dates from games table
     const clusterDates = this.extractClusterDates(gamesTable, matchedClusters, debug);
     debug.clusterDates = Array.from(clusterDates).sort();
 
-    // Step 4: Filter candidateDates - remove dates with conflicts
-    let availableDates = validCandidates.filter(date => !clusterDates.has(date));
+    // Step 5: Filter candidateDates - remove dates with conflicts
+    let availableDates = validCandidates.filter(date => !clusterDates.has(date) && !excludedClusterDates.has(date));
     
     if (availableDates.length === 0) {
       debug.notes.push('All candidate dates are blocked by existing games');
       return { recommendations: [], debug };
     }
 
-    // Step 5: Filter out excluded days of week
+    // Step 6: Apply date range filter if provided
+    if (dateRange) {
+      const beforeRangeCount = availableDates.length;
+      
+      availableDates = availableDates.filter(dateStr => {
+        const date = new Date(dateStr + 'T00:00:00');
+        
+        // Filter by month if specified
+        if (dateRange.month) {
+          const monthNames = [
+            'january', 'february', 'march', 'april', 'may', 'june',
+            'july', 'august', 'september', 'october', 'november', 'december'
+          ];
+          const targetMonthIndex = monthNames.indexOf(dateRange.month.toLowerCase());
+          if (targetMonthIndex !== -1 && date.getMonth() !== targetMonthIndex) {
+            return false;
+          }
+        }
+        
+        // Filter by start date if specified
+        if (dateRange.start) {
+          const startDate = new Date(dateRange.start + 'T00:00:00');
+          if (date < startDate) {
+            return false;
+          }
+        }
+        
+        // Filter by end date if specified
+        if (dateRange.end) {
+          const endDate = new Date(dateRange.end + 'T00:00:00');
+          if (date > endDate) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      const filteredCount = beforeRangeCount - availableDates.length;
+      if (filteredCount > 0) {
+        const rangeDesc = dateRange.month ? `month: ${dateRange.month}` : 
+                         `${dateRange.start || 'start'} to ${dateRange.end || 'end'}`;
+        debug.notes.push(`Filtered ${filteredCount} dates outside range (${rangeDesc})`);
+      }
+      
+      if (availableDates.length === 0) {
+        debug.notes.push('No dates available in specified date range');
+        return { recommendations: [], debug };
+      }
+    }
+
+    // Step 7: Filter out excluded days of week
     if (excludeDays.length > 0) {
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       debug.excludedDays = excludeDays.map(d => dayNames[d]);
@@ -160,8 +249,44 @@ export class AvailableDatesService {
       }
     }
 
-    // Step 6: Sort chronologically (no weekday prioritization)
-    availableDates.sort();
+    // Step 8: Apply minimum spacing constraint if provided
+    if (minSpacing && minSpacing > 0) {
+      const spacedDates: string[] = [];
+      let lastDate: Date | null = null;
+      
+      for (const dateStr of availableDates) {
+        const currentDate = new Date(dateStr + 'T00:00:00');
+        
+        if (!lastDate) {
+          // First date - always include
+          spacedDates.push(dateStr);
+          lastDate = currentDate;
+        } else {
+          // Check if date is at least minSpacing days after last date
+          const daysDiff = Math.floor((currentDate.getTime() - lastDate.getTime()) / (24 * 60 * 60 * 1000));
+          if (daysDiff >= minSpacing) {
+            spacedDates.push(dateStr);
+            lastDate = currentDate;
+          }
+        }
+      }
+      
+      const beforeSpacing = availableDates.length;
+      availableDates = spacedDates;
+      const filteredBySpacing = beforeSpacing - spacedDates.length;
+      
+      if (filteredBySpacing > 0) {
+        debug.notes.push(`Applied minimum ${minSpacing} day spacing (filtered ${filteredBySpacing} dates)`);
+      }
+      
+      if (availableDates.length === 0) {
+        debug.notes.push('No dates available after applying spacing constraint');
+        return { recommendations: [], debug };
+      }
+    } else {
+      // Step 9: Sort chronologically (no weekday prioritization)
+      availableDates.sort();
+    }
 
     // Apply max results limit
     const recommendations = availableDates.slice(0, maxResults);
