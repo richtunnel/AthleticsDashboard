@@ -19,6 +19,7 @@ import { CalendarConnectionSection } from "@/components/settings/CalendarConnect
 import UpgradePlanCard from "@/components/settings/UpgradePlanCard";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { SupportCard } from "@/components/settings/SupportCard";
+import { Assistant, AutoAwesome } from "@mui/icons-material";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -99,7 +100,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              AI Features (Coming Soon)
+              <AutoAwesome sx={{ color: "lightgray" }} /> AI Features
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
               Enable or disable AI-powered features to enhance your scheduling workflow.

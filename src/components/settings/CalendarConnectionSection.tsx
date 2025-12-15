@@ -10,7 +10,7 @@ import InfoIcon from "@mui/icons-material/Info";
 
 /**
  * Settings section for managing Google Calendar connection
- * 
+ *
  * Features:
  * - Connect/disconnect Google Calendar
  * - Shows connection status
@@ -48,21 +48,13 @@ export function CalendarConnectionSection() {
 
         {/* Connection Status */}
         {isConnected && (
-          <Alert
-            severity="success"
-            icon={<CheckCircleIcon />}
-            sx={{ mb: 2 }}
-          >
+          <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
             Google Calendar is connected and ready to sync
           </Alert>
         )}
 
         {!isConnected && !isLoading && (
-          <Alert
-            severity="info"
-            icon={<InfoIcon />}
-            sx={{ mb: 2 }}
-          >
+          <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 2 }}>
             Connect Google Calendar to enable automatic game syncing
           </Alert>
         )}
@@ -70,18 +62,9 @@ export function CalendarConnectionSection() {
         {/* Connection Actions */}
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
           {!isConnected ? (
-            <ConnectGoogleCalendarButton
-              variant="contained"
-              size="medium"
-              returnTo="/dashboard/settings"
-            />
+            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/settings" />
           ) : (
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={handleDisconnect}
-              disabled={isDisconnecting}
-            >
+            <Button variant="outlined" color="error" onClick={handleDisconnect} disabled={isDisconnecting}>
               {isDisconnecting ? "Disconnecting..." : "Disconnect Calendar"}
             </Button>
           )}
