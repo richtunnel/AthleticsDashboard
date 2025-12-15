@@ -26,9 +26,10 @@ import {
   FormControl,
   InputLabel,
 } from "@mui/material";
-import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess } from "@mui/icons-material";
+import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess, DragIndicator } from "@mui/icons-material";
 import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import Draggable from "react-draggable";
 
 interface AvailableDatesModalProps {
   open: boolean;
@@ -49,8 +50,12 @@ interface DebugInfo {
   parsedTokens: string[];
   matchedClusters: ClusterMatch[];
   clusterDates: string[];
+  excludedClusters?: ClusterMatch[];
+  excludedClusterDates?: string[];
   notes: string[];
   excludedDays?: string[];
+  dateRange?: { start?: string; end?: string; month?: string };
+  minSpacing?: number;
 }
 
 interface AvailableDatesResult {
@@ -66,6 +71,15 @@ const formatDateDisplay = (dateStr: string): string => {
     return dateStr;
   }
 };
+
+// Draggable Paper component for the modal
+function DraggablePaper(props: any) {
+  return (
+    <Draggable handle="#draggable-dialog-title" cancel={'[class*="MuiDialogContent-root"]'}>
+      <Paper {...props} />
+    </Draggable>
+  );
+}
 
 const DAYS_OF_WEEK = [
   { label: 'Sun', value: 0 },
@@ -197,6 +211,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperComponent={DraggablePaper}
       PaperProps={{
         sx: {
           borderRadius: 2,
@@ -204,15 +219,22 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
         },
       }}
     >
-      <DialogTitle>
+      <DialogTitle
+        id="draggable-dialog-title"
+        sx={{
+          cursor: "move",
+          userSelect: "none",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <DragIndicator sx={{ color: "text.secondary", fontSize: 20 }} />
           <AutoAwesome sx={{ color: "primary.main", fontSize: 28 }} />
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Find Available Dates
           </Typography>
         </Box>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-          Use natural language to find open dates in your schedule
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, ml: 5 }}>
+          Use natural language to find open dates • Drag to move
         </Typography>
       </DialogTitle>
 
@@ -224,7 +246,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               fullWidth
               multiline
               rows={3}
-              placeholder="e.g., 'B V Basketball' or 'GV soccer' or 'Basketball'"
+              placeholder="e.g., 'Boys varsity basketball in December at least 3 days apart' or 'Girls varsity volleyball not on same days as boys JV basketball'"
               value={prompt}
               onChange={(e) => handlePromptChange(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -237,7 +259,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Examples: "B V Basketball" • "GV soccer" • "Basketball" • "Girls Varsity Volleyball"
+              Try: "B V Basketball in December at least 3 days apart" • "GV soccer not on same days as B JV basketball" • "Boys Varsity Volleyball"
             </Typography>
           </Box>
 
@@ -314,12 +336,19 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
             </Typography>
           </Box>
 
+          {/* AI Info Banner */}
+          <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
+            <Typography variant="body2">
+              <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
+            </Typography>
+          </Alert>
+
           {/* Loading State */}
           {loading && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
               <CircularProgress size={24} />
               <Typography variant="body2" color="text.secondary">
-                Analyzing your schedule and finding available dates...
+                Using AI to analyze your schedule and finding available dates...
               </Typography>
             </Box>
           )}
@@ -531,6 +560,29 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                           {result.debug.clusterDates.join(", ")}
                         </Typography>
                       </Box>
+                      {result.debug.excludedClusters && result.debug.excludedClusters.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            Excluded Teams ({result.debug.excludedClusters.length}):
+                          </Typography>
+                          {result.debug.excludedClusters.map((c, i) => (
+                            <Typography key={i} variant="caption" display="block">
+                              • {c.gender} {c.level} {c.sport} (score: {c.confidence.toFixed(2)})
+                            </Typography>
+                          ))}
+                        </Box>
+                      )}
+                      {result.debug.excludedClusterDates && result.debug.excludedClusterDates.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            Excluded Team Dates ({result.debug.excludedClusterDates.length}):
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            {result.debug.excludedClusterDates.slice(0, 10).join(", ")}
+                            {result.debug.excludedClusterDates.length > 10 && " ..."}
+                          </Typography>
+                        </Box>
+                      )}
                       {result.debug.excludedDays && result.debug.excludedDays.length > 0 && (
                         <Box>
                           <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -538,6 +590,28 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                           </Typography>
                           <Typography variant="caption" display="block">
                             {result.debug.excludedDays.join(", ")}
+                          </Typography>
+                        </Box>
+                      )}
+                      {result.debug.dateRange && (
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            Date Range Filter:
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            {result.debug.dateRange.month && `Month: ${result.debug.dateRange.month}`}
+                            {result.debug.dateRange.start && ` Start: ${result.debug.dateRange.start}`}
+                            {result.debug.dateRange.end && ` End: ${result.debug.dateRange.end}`}
+                          </Typography>
+                        </Box>
+                      )}
+                      {result.debug.minSpacing && (
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            Minimum Spacing:
+                          </Typography>
+                          <Typography variant="caption" display="block">
+                            {result.debug.minSpacing} days between dates
                           </Typography>
                         </Box>
                       )}
