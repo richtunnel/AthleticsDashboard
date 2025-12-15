@@ -592,6 +592,44 @@ export class EmailService {
     }
   }
 
+  async sendTicketClosedNotification(params: { ticketNumber: string; subject: string; closedBy: { name: string; email: string } }): Promise<void> {
+    const resend = getResendClientOptional();
+    if (!resend) {
+      console.warn("Email service not configured. Ticket closed notification not sent.");
+      return;
+    }
+
+    const { ticketNumber, subject, closedBy } = params;
+
+    const body = `
+      <h2>Support Ticket Closed by User</h2>
+      <p>A support ticket has been closed by the user.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 5px 0;"><strong>Ticket Number:</strong> ${ticketNumber}</p>
+        <p style="margin: 5px 0;"><strong>Subject:</strong> ${subject}</p>
+        <p style="margin: 5px 0;"><strong>Closed By:</strong> ${closedBy.name} (${closedBy.email})</p>
+      </div>
+
+      <p style="margin-top: 20px; font-size: 12px; color: #6b7280;">
+        Closed at: ${new Date().toLocaleString()}
+      </p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+        to: ["support@opletics.com"],
+        subject: `Ticket ${ticketNumber} Closed by User`,
+        html: this.buildHtmlEmail(body),
+      });
+      console.log("Ticket closed notification email sent to support team");
+    } catch (error) {
+      console.error("Failed to send ticket closed notification email:", error);
+      // Don't throw - this is a non-critical feature
+    }
+  }
+
   private buildHtmlEmail(body: string): string {
     return `
       <!DOCTYPE html>
