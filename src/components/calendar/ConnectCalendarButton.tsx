@@ -3,7 +3,7 @@
 import { Button, Alert, Box } from "@mui/material";
 import { CalendarMonth, CheckCircle } from "@mui/icons-material";
 import { useSearchParams } from "next/navigation";
-
+import SyncIcon from "@mui/icons-material/Sync";
 interface ConnectCalendarButtonProps {
   isConnected: boolean;
 }
@@ -37,7 +37,7 @@ export function ConnectCalendarButton({ isConnected }: ConnectCalendarButtonProp
           Your Google Calendar is connected
         </Alert>
       ) : (
-        <Button variant="contained" startIcon={<CalendarMonth />} onClick={handleConnect}>
+        <Button variant="contained" startIcon={<SyncIcon />} onClick={handleConnect}>
           Connect Google Calendar
         </Button>
       )}
