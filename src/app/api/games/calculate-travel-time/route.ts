@@ -102,16 +102,58 @@ async function calculateTravelTime(origin: string, destination: string): Promise
 
   try {
     const response = await fetch(url);
-    const data = await response.json();
+    
+    if (!response.ok) {
+      console.warn(`Google Maps API HTTP error: ${response.status} ${response.statusText}`);
+      console.warn("Using default travel time estimate");
+      return 45; // Graceful fallback for HTTP errors
+    }
 
-    if (data.rows?.[0]?.elements?.[0]?.status === "OK") {
-      const durationInSeconds = data.rows[0].elements[0].duration.value;
+    const data = await response.json();
+    
+    // Log the full response for debugging
+    console.log("Google Maps API response:", JSON.stringify(data, null, 2));
+
+    // Check overall API status
+    if (data.status !== "OK") {
+      console.warn(`Google Maps API status: ${data.status}`);
+      if (data.error_message) {
+        console.warn(`Error message: ${data.error_message}`);
+      }
+      console.warn("Using default travel time estimate");
+      return 45; // Graceful fallback for API-level errors
+    }
+
+    // Check element-level status
+    const element = data.rows?.[0]?.elements?.[0];
+    if (element?.status === "OK") {
+      const durationInSeconds = element.duration.value;
       return Math.ceil(durationInSeconds / 60); // Convert to minutes
     }
 
-    throw new Error("Unable to calculate route");
+    // Handle specific element statuses
+    const elementStatus = element?.status || "UNKNOWN";
+    console.warn(`Route calculation status: ${elementStatus}`);
+    console.warn(`Origin: ${origin}`);
+    console.warn(`Destination: ${destination}`);
+    
+    switch (elementStatus) {
+      case "ZERO_RESULTS":
+        console.warn("No route found between addresses. Using default travel time.");
+        break;
+      case "NOT_FOUND":
+        console.warn("One or both addresses could not be geocoded. Using default travel time.");
+        break;
+      default:
+        console.warn("Unable to calculate route. Using default travel time.");
+    }
+
+    // Graceful fallback - don't throw error
+    return 45;
   } catch (error) {
     console.error("Failed to fetch travel time from Google Maps:", error);
-    throw new Error("Failed to calculate travel time. Please check the addresses and try again.");
+    console.warn("Using default travel time estimate due to error");
+    // Graceful fallback instead of throwing
+    return 45;
   }
 }
