@@ -79,7 +79,7 @@ export function AIEmailGenerationToggle() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box>
               <Typography variant="body1" fontWeight={500}>
-                AI Email Generation
+                AI Email Generation (Coming Soon)
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
                 Automatically generate professional emails for game notifications and communications.
