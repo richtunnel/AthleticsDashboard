@@ -408,7 +408,7 @@ export class CalendarService {
         useDefault: false,
         overrides: [
           { method: "email", minutes: 24 * 60 }, // 1 day before
-          { method: "popup", minutes: 60 }, // 1 hour before
+          { method: "notification", minutes: 60 }, // 1 hour before
         ],
       },
     };
