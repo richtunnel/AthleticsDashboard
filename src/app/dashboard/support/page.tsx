@@ -38,9 +38,10 @@ export default async function DashboardSupportPage() {
 
       {/* Support Form */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           Create New Ticket
         </Typography>
+        <Typography variant="body1">Please fill out all fields.</Typography>
       </Box>
       <SupportFormWithDropdown />
     </Container>
