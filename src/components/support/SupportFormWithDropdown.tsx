@@ -93,10 +93,10 @@ export function SupportFormWithDropdown() {
       });
       setIssueType("");
       setMessageLength(0);
-      
+
       // Invalidate tickets query to refetch the list
       queryClient.invalidateQueries({ queryKey: ["support-tickets"] });
-      
+
       // Scroll to top to show the newly created ticket
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
