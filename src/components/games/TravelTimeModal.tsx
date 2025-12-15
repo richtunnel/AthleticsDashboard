@@ -232,7 +232,7 @@ export function TravelTimeModal({
                 </Box>
 
                 <Alert severity="info">
-                  This recommendation includes a 35-minute safety cushion to ensure on-time arrival.
+                  This recommendation includes a 22-minute safety cushion to ensure on-time arrival.
                 </Alert>
               </>
             ) : null}
