@@ -18,9 +18,7 @@ function GoogleConsentForm() {
   const mode = searchParams.get("mode") || "signup";
 
   // Preserve mode in callback URL for redirect logic
-  const callbackWithMode = mode === "signup" 
-    ? `${callbackUrl}${callbackUrl.includes('?') ? '&' : '?'}newUser=true`
-    : callbackUrl;
+  const callbackWithMode = mode === "signup" ? `${callbackUrl}${callbackUrl.includes("?") ? "&" : "?"}newUser=true` : callbackUrl;
 
   const googleAuth = useAuthButton({
     callbackUrl: callbackWithMode,
@@ -71,14 +69,14 @@ function GoogleConsentForm() {
           </Typography>{" "}
           <br />
           {/* <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 1, fontSize: "1.1rem" }}>
-            ADHub needs access to your Google Calendar to sync your game schedule seamlessly
+            Opletics needs access to your Google Calendar to sync your game schedule seamlessly
           </Typography> */}
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
               Why we need these permissions:
             </Typography>
             <Typography variant="body2">
-              To provide you with automatic calendar synchronization and keep your schedule up-to-date across all your devices, ADHub requires certain Google Calendar permissions.
+              To provide you with automatic calendar synchronization and keep your schedule up-to-date across all your devices, Opletics requires certain Google Calendar permissions.
             </Typography>
           </Alert>
           <Typography variant="h6" gutterBottom sx={{ mt: 3, mb: 1, fontWeight: "bold" }}>
@@ -92,7 +90,7 @@ function GoogleConsentForm() {
                     Create Events
                   </Typography>
                 }
-                secondary="Automatically add games and events to your Google Calendar when you schedule them in ADHub"
+                secondary="Automatically add games and events to your Google Calendar when you schedule them in Opletics"
               />
             </ListItem>
 
@@ -103,7 +101,7 @@ function GoogleConsentForm() {
                     Edit Events
                   </Typography>
                 }
-                secondary="Update game times, locations, and details in your calendar when you make changes in ADHub"
+                secondary="Update game times, locations, and details in your calendar when you make changes in Opletics"
               />
             </ListItem>
 
@@ -114,7 +112,7 @@ function GoogleConsentForm() {
                     Delete Events
                   </Typography>
                 }
-                secondary="Remove cancelled games from your calendar automatically when you delete them in ADHub"
+                secondary="Remove cancelled games from your calendar automatically when you delete them in Opletics"
               />
             </ListItem>
           </List>
@@ -123,7 +121,7 @@ function GoogleConsentForm() {
               Your data is secure
             </Typography>
             <Typography variant="body2">
-              We only access calendar events that ADHub creates. Your personal calendar data remains private, and you can revoke these permissions at any time from your Google account settings.
+              We only access calendar events that Opletics creates. Your personal calendar data remains private, and you can revoke these permissions at any time from your Google account settings.
             </Typography>
           </Alert>
           {error && (
@@ -141,7 +139,7 @@ function GoogleConsentForm() {
             </AuthActionButton>
           </Box>
           <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 3 }}>
-            By continuing, you agree to grant ADHub the necessary permissions to manage your calendar events.
+            By continuing, you agree to grant Opletics the necessary permissions to manage your calendar events.
           </Typography>
         </Paper>
       </Container>

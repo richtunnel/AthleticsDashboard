@@ -29,7 +29,7 @@ import {
   Tooltip,
   Autocomplete,
 } from "@mui/material";
-import { Add, Delete, Info } from "@mui/icons-material";
+import { Add, Delete, Info, SyncLock } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarGroupMapping {
@@ -228,6 +228,12 @@ export function CalendarGroupMappings() {
                   <TableCell>{mapping.columnValue}</TableCell>
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <SyncLock 
+                        sx={{ 
+                          fontSize: 18, 
+                          color: "success.main"
+                        }} 
+                      />
                       {mapping.googleCalendarName}
                     </Box>
                   </TableCell>
@@ -303,10 +309,13 @@ export function CalendarGroupMappings() {
               >
                 {calendarsData?.calendars.map((calendar) => (
                   <MenuItem key={calendar.id} value={calendar.id}>
-                    {calendar.name}
-                    {calendar.primary && (
-                      <Chip label="Primary" size="small" sx={{ ml: 1 }} />
-                    )}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+                      <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
+                      {calendar.name}
+                      {calendar.primary && (
+                        <Chip label="Primary" size="small" sx={{ ml: "auto" }} />
+                      )}
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>

@@ -90,16 +90,25 @@ export default function SchoolAddressAutocomplete({
         }),
       });
 
+      // Gracefully handle non-OK responses (500, 401, etc.)
+      if (!response.ok) {
+        console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        setOptions([]);
+        return;
+      }
+
       const data = await response.json();
 
       if (data.success && data.predictions) {
         setOptions(data.predictions);
       } else {
-        console.error("Autocomplete error:", data.error);
+        // Silently fail and allow manual entry - don't confuse users with errors
+        console.warn("Google Places API unavailable, using manual entry mode:", data.error);
         setOptions([]);
       }
     } catch (error) {
-      console.error("Failed to fetch predictions:", error);
+      // Silently fail and allow manual entry - API issues should not block user
+      console.warn("Google Places API connection failed, using manual entry mode:", error);
       setOptions([]);
     } finally {
       setLoading(false);
@@ -127,6 +136,12 @@ export default function SchoolAddressAutocomplete({
         }),
       });
 
+      // Gracefully handle non-OK responses (500, 401, etc.)
+      if (!response.ok) {
+        console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        return null;
+      }
+
       const data = await response.json();
 
       if (data.success && data.result) {
@@ -138,11 +153,13 @@ export default function SchoolAddressAutocomplete({
         
         return placeDetails;
       } else {
-        console.error("Place details error:", data.error);
+        // Silently fail and allow manual entry
+        console.warn("Google Places API unavailable for details, using description:", data.error);
         return null;
       }
     } catch (error) {
-      console.error("Failed to fetch place details:", error);
+      // Silently fail and allow manual entry
+      console.warn("Google Places API connection failed for details:", error);
       return null;
     }
   };
