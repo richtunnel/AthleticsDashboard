@@ -316,6 +316,28 @@ export class AvailableDatesService {
       'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams'
     ]);
     
+    // Words related to constraints (not team identifiers) - should be filtered out
+    const CONSTRAINT_WORDS = new Set([
+      // Months
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december',
+      'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+      // Days of week
+      'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday',
+      'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat',
+      // Spacing/timing words
+      'days', 'day', 'weeks', 'week', 'apart', 'between', 'least', 'minimum', 'min', 'max', 'maximum',
+      // Date-related words
+      'date', 'dates', 'time', 'times', 'on', 'in', 'at', 'from', 'to', 'until', 'before', 'after',
+      // Exclusion words
+      'not', 'no', 'never', 'avoid', 'exclude', 'excluding', 'without', 'except',
+      'same', 'different', 'other', 'another', 'as', 'than', 'with',
+      // Numbers (1-31 for dates)
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+      '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+      '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31',
+    ]);
+    
     const tokens: string[] = [];
     
     // Split on whitespace and punctuation, lowercase
@@ -328,6 +350,11 @@ export class AvailableDatesService {
     for (const token of rawTokens) {
       // Skip stop words
       if (STOP_WORDS.has(token)) {
+        continue;
+      }
+      
+      // Skip constraint-related words
+      if (CONSTRAINT_WORDS.has(token)) {
         continue;
       }
       
