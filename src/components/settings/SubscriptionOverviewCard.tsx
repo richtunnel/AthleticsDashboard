@@ -374,11 +374,33 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     You are currently on the free plan with limited features.
                   </Typography>
-                  <Alert severity="info" sx={{ bgcolor: "primary.light", color: "primary.contrastText" }}>
+                  <Alert 
+                    severity="info" 
+                    sx={{ 
+                      bgcolor: (theme) => theme.palette.mode === 'dark' 
+                        ? 'rgba(109, 146, 226, 0.15)' 
+                        : 'primary.light',
+                      '& .MuiAlert-message': {
+                        color: 'text.primary'
+                      }
+                    }}
+                  >
                     Upgrade to unlock AI-powered scheduling, advanced analytics, and priority support.
                   </Alert>
                   <Box>
-                    <Button variant="contained" color="primary" href="/onboarding/plans" size="large">
+                    <Button 
+                      variant="contained" 
+                      color="primary" 
+                      href="/onboarding/plans" 
+                      size="large"
+                      sx={{
+                        bgcolor: 'primary.main',
+                        color: '#FFFFFF',
+                        '&:hover': {
+                          bgcolor: 'primary.dark'
+                        }
+                      }}
+                    >
                       Upgrade Now
                     </Button>
                   </Box>
