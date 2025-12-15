@@ -146,9 +146,9 @@ export async function resetPassword(token: string, email: string, newPassword: s
     if (resend) {
       try {
         await resend.emails.send({
-          from: process.env.EMAIL_FROM || "AD Hub <noreply@athleticdirectorhub.com>",
+          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
           to: normalizedEmail,
-          subject: "Password Successfully Reset - AD Hub",
+          subject: "Password Successfully Reset - Opletics",
           html: buildPasswordResetConfirmationEmail(user.name || "there"),
         });
       } catch (emailError) {
@@ -242,7 +242,7 @@ function buildPasswordResetConfirmationEmail(userName: string): string {
           <div class="success-icon">✓</div>
           <h1>Password Successfully Reset</h1>
           <p>Hi ${userName},</p>
-          <p>Your password has been successfully reset. You can now use your new password to sign in to your AD Hub account.</p>
+          <p>Your password has been successfully reset. You can now use your new password to sign in to your Opletics account.</p>
           <div class="button-container">
             <a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/login" class="button">Sign In</a>
           </div>
@@ -250,7 +250,7 @@ function buildPasswordResetConfirmationEmail(userName: string): string {
             <strong>⚠️ Security Notice:</strong> If you did not make this change, please contact support immediately as your account may be compromised.
           </div>
           <div class="footer">
-            <p>This email was sent from AD Hub by Sports Source.</p>
+            <p>This email was sent from Opletics.com.</p>
             <p>If you need help, please contact support.</p>
           </div>
         </div>

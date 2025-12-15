@@ -15,6 +15,7 @@ import {
   Typography,
   IconButton,
   Paper,
+  useTheme,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
@@ -84,6 +85,7 @@ async function uploadLogo(file: File): Promise<string> {
 }
 
 export function EmailSignatureManager() {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
@@ -170,17 +172,23 @@ export function EmailSignatureManager() {
   };
 
   const generatePreviewHTML = () => {
+    // Use theme colors for proper dark mode support
+    const textSecondary = theme.palette.text.secondary;
+    const textPrimary = theme.palette.text.primary;
+    const dividerColor = theme.palette.divider;
+    const linkColor = theme.palette.primary.main;
+
     if (!phone && !website && !logoUrl && !signatureText) {
-      return '<p style="color: #9ca3af; font-style: italic;">No signature configured</p>';
+      return `<p style="color: ${textSecondary}; font-style: italic;">No signature configured</p>`;
     }
 
-    let html = '<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-family: Arial, sans-serif;">';
+    let html = `<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif;">`;
     
     if (logoUrl) {
       html += `<img src="${logoUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
     }
     
-    html += '<div style="font-size: 14px; color: #374151;">';
+    html += `<div style="font-size: 14px; color: ${textPrimary};">`;
     
     if (signatureText) {
       html += `<div style="margin-bottom: 8px; white-space: pre-wrap;">${signatureText}</div>`;
@@ -191,7 +199,7 @@ export function EmailSignatureManager() {
     }
     
     if (website) {
-      html += `<div style="margin-bottom: 4px;"><a href="${website}" style="color: #2563eb; text-decoration: none;">${website}</a></div>`;
+      html += `<div style="margin-bottom: 4px;"><a href="${website}" style="color: ${linkColor}; text-decoration: none;">${website}</a></div>`;
     }
     
     html += '</div></div>';
@@ -258,7 +266,7 @@ export function EmailSignatureManager() {
                         sx={{
                           maxWidth: 120,
                           maxHeight: 120,
-                          border: "1px solid #e5e7eb",
+                          border: (theme) => `1px solid ${theme.palette.divider}`,
                           borderRadius: 1,
                           p: 1,
                         }}

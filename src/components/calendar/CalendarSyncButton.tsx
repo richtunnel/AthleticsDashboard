@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { FaGoogle } from "react-icons/fa";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarSyncButtonProps {
   gameId: string;
@@ -12,6 +13,7 @@ interface CalendarSyncButtonProps {
 
 export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncButtonProps) {
   const queryClient = useQueryClient();
+  const { addNotification } = useNotifications();
   const [synced, setSynced] = useState(isSynced);
 
   const syncMutation = useMutation({
@@ -25,6 +27,10 @@ export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncBut
     onSuccess: () => {
       setSynced(true);
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      addNotification("Successfully synced to Google Calendar", "success");
+    },
+    onError: () => {
+      addNotification("Failed to sync to Google Calendar", "error");
     },
   });
 
@@ -39,6 +45,10 @@ export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncBut
     onSuccess: () => {
       setSynced(false);
       queryClient.invalidateQueries({ queryKey: ["games"] });
+      addNotification("Removed from Google Calendar", "success");
+    },
+    onError: () => {
+      addNotification("Failed to remove from Google Calendar", "error");
     },
   });
 
@@ -68,6 +78,8 @@ export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncBut
 }
 
 export function SyncAllButton() {
+  const { addNotification } = useNotifications();
+  
   const mutation = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/calendar/sync-all", {
@@ -75,6 +87,20 @@ export function SyncAllButton() {
       });
       if (!res.ok) throw new Error("Failed to sync all");
       return res.json();
+    },
+    onSuccess: (data) => {
+      const successCount = data?.results?.filter((r: any) => r.ok)?.length || 0;
+      const failCount = data?.results?.filter((r: any) => !r.ok)?.length || 0;
+      
+      if (successCount > 0) {
+        addNotification(`Successfully synced ${successCount} game${successCount === 1 ? '' : 's'} to Google Calendar`, "success");
+      }
+      if (failCount > 0) {
+        addNotification(`Failed to sync ${failCount} game${failCount === 1 ? '' : 's'}`, "error");
+      }
+    },
+    onError: () => {
+      addNotification("Failed to sync games to Google Calendar", "error");
     },
   });
 

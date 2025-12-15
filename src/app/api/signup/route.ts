@@ -6,6 +6,7 @@ import { trackReferral } from "@/lib/services/referral.service";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
+import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -107,6 +108,12 @@ export async function POST(request: NextRequest) {
       organizationId: user.organizationId,
     }).catch((error) => {
       console.error("[Signup] Failed to create sample game:", error);
+    });
+
+    // Create initial column preferences for new user (non-blocking)
+    // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
+    void createInitialColumnPreferences(user.id).catch((error) => {
+      console.error("[Signup] Failed to create initial column preferences:", error);
     });
 
     // Track referral if referrerEmail is provided

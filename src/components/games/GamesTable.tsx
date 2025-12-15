@@ -272,7 +272,7 @@ interface PaginationData {
 }
 
 type SortField = "date" | "time" | "isHome" | "status" | "location" | "sport" | "level" | "opponent" | "busTravel" | "notes" | "sortOrder" | string;
-type SortOrder = "asc" | "desc";
+type SortOrder = "asc" | "desc" | null;
 
 type ColumnFilters = Record<string, ColumnFilterValue>;
 
@@ -506,6 +506,9 @@ export function GamesTable() {
   // Date field hover state (for showing calendar icon)
   const [hoveredDateGameId, setHoveredDateGameId] = useState<string | null>(null);
 
+  // Track newly created game IDs to preserve them from sort/filter
+  const [preservedGameIds, setPreservedGameIds] = useState<Set<string>>(new Set());
+
   // Conflict detection modal state
   const [conflictModal, setConflictModal] = useState<{
     open: boolean;
@@ -638,6 +641,8 @@ export function GamesTable() {
 
   useEffect(() => {
     setMounted(true);
+    // Clear preserved games on mount (page refresh)
+    setPreservedGameIds(new Set());
   }, []);
 
   const {
@@ -663,8 +668,13 @@ export function GamesTable() {
         }
       });
 
-      params.append("sortBy", sortField);
-      params.append("sortOrder", sortOrder);
+      // Only append sort params if they're not null (allows reverting to default sort)
+      if (sortField) {
+        params.append("sortBy", sortField);
+      }
+      if (sortOrder) {
+        params.append("sortOrder", sortOrder);
+      }
       params.append("page", String(page + 1));
       params.append("limit", String(rowsPerPage));
 
@@ -858,7 +868,28 @@ export function GamesTable() {
   }, [columnPreferencesData]);
 
   // Show all games immediately after import (no filtering)
-  const games = response?.data?.games || [];
+  // Preserve newly created games at the end regardless of sort/filter
+  const allGames = response?.data?.games || [];
+  const games = useMemo(() => {
+    if (preservedGameIds.size === 0) {
+      return allGames;
+    }
+    
+    // Split games into preserved (newly created) and regular games
+    const preserved: Game[] = [];
+    const regular: Game[] = [];
+    
+    allGames.forEach((game: Game) => {
+      if (preservedGameIds.has(game.id)) {
+        preserved.push(game);
+      } else {
+        regular.push(game);
+      }
+    });
+    
+    // Return regular games followed by preserved games at the end
+    return [...regular, ...preserved];
+  }, [allGames, preservedGameIds]);
 
   const pagination: PaginationData = response?.data?.pagination || {
     page: 1,
@@ -1173,6 +1204,9 @@ export function GamesTable() {
         return oldData;
       });
 
+      // Show success notification
+      addNotification("Successfully synced to Google Calendar", "success");
+
       // no refetch needed
     },
   });
@@ -1204,6 +1238,13 @@ export function GamesTable() {
         success: true,
         data: data.data,
       });
+      
+      // CRITICAL FIX: Clear the reordering flag AFTER cache update completes
+      // This prevents the useEffect from running until the cache is fully updated
+      // Fixes double-render issue during column reordering
+      setTimeout(() => {
+        setIsUserReordering(false);
+      }, 50);
     },
   });
 
@@ -1226,6 +1267,8 @@ export function GamesTable() {
         onError: (error: any) => {
           setColumnState(previousState);
           addNotification(error?.message || "Failed to save column preferences", "error");
+          // Clear the reordering flag on error as well
+          setIsUserReordering(false);
         },
       });
     },
@@ -1258,6 +1301,7 @@ export function GamesTable() {
       console.log("Input has date:", order.includes("date"));
 
       // Set flag to prevent column state recalculation during reordering
+      // Flag will be cleared in savePreferencesMutation.onSuccess after cache update
       setIsUserReordering(true);
 
       const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
@@ -1273,11 +1317,9 @@ export function GamesTable() {
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
-
-      // Clear the flag after preferences are saved (small delay to ensure cache update completes)
-      setTimeout(() => {
-        setIsUserReordering(false);
-      }, 100);
+      
+      // Note: isUserReordering flag is cleared in savePreferencesMutation.onSuccess
+      // This ensures the flag stays true until the cache is fully updated
     },
     [persistColumnPreferences]
   );
@@ -1526,6 +1568,10 @@ export function GamesTable() {
       resetNewGameData();
 
       const newGameId = newGame.id;
+      
+      // Track this newly created game to preserve it from sort/filter
+      setPreservedGameIds((prev) => new Set(prev).add(newGameId));
+      
       // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
       if (!variables.skipCalendarSync) {
         syncGameMutation.mutate(newGameId);
@@ -3164,6 +3210,8 @@ export function GamesTable() {
 
   const handleColumnFilterChange = useCallback(
     (columnId: string, filter: ColumnFilterValue | null) => {
+      // Clear preserved games when user manually applies a filter
+      setPreservedGameIds(new Set());
       updateFilter(columnId, filter);
       setPage(0);
     },
@@ -3192,9 +3240,20 @@ export function GamesTable() {
   };
 
   const handleSort = (field: SortField) => {
+    // Clear preserved games when user manually sorts
+    setPreservedGameIds(new Set());
+    
     if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      // Cycle through: asc → desc → null (remove sort)
+      if (sortOrder === "asc") {
+        setSortOrder("desc");
+      } else if (sortOrder === "desc") {
+        // Remove sort completely - reset to null
+        setSortField(null);
+        setSortOrder(null);
+      }
     } else {
+      // New field - start with asc
       setSortField(field);
       setSortOrder("asc");
     }
@@ -3439,7 +3498,7 @@ export function GamesTable() {
     return (
       <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
-          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
+          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue && sortOrder ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
             {displayLabel.toUpperCase()}
           </TableSortLabel>
         ) : (
@@ -3937,7 +3996,7 @@ export function GamesTable() {
               py: 1,
               cursor: "pointer",
               "&:hover": {
-                bgcolor: "#f5f5f5",
+                bgcolor: "action.hover",
               },
             }}
             onClick={() => {
@@ -4147,7 +4206,7 @@ export function GamesTable() {
                   py: 1,
                   cursor: "pointer",
                   "&:hover": {
-                    bgcolor: "#f5f5f5",
+                    bgcolor: "action.hover",
                   },
                 }}
                 onClick={() => {
@@ -5818,7 +5877,7 @@ export function GamesTable() {
     // If user has imported columns, the new row will show those columns (with "—" for read-only fields)
     // If user has default columns, the new row will show those
     return (
-      <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+      <TableRow sx={{ bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08) }}>
         <TableCell padding="checkbox">
           <Checkbox disabled sx={{ p: 0 }} />
         </TableCell>
@@ -6258,8 +6317,14 @@ export function GamesTable() {
               </>
             )}
             {hiddenColumnCount > 0 && (
-              <Button size="small" variant="text" onClick={handleShowAllColumns} sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
-                Show all columns ({hiddenColumnCount} hidden)
+              <Button 
+                size="small" 
+                variant="text" 
+                onClick={() => setIsColumnPreferencesOpen(true)} 
+                startIcon={<VisibilityOff />}
+                sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              >
+                {hiddenColumnCount} hidden
               </Button>
             )}
           </Stack>
