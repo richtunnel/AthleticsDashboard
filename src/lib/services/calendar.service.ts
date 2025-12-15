@@ -561,6 +561,14 @@ export class CalendarService {
   }
 
   private getPrimaryTeamName(game: any): string {
+    // Check custom fields first
+    const customFields = (game.customFields as Record<string, any>) || {};
+    const customTeam = customFields["Team"]?.trim();
+    if (customTeam) {
+      return customTeam;
+    }
+    
+    // Fall back to default columns
     const teamName = game.homeTeam?.name?.trim();
     if (teamName) {
       return teamName;
@@ -589,9 +597,19 @@ export class CalendarService {
   }
 
   private buildEventDescription(game: any): string {
-    let description = `Sport: ${game.homeTeam.sport.name}\n`;
-    description += `Level: ${game.homeTeam.level}\n`;
-    description += `Status: ${game.status}\n`;
+    // Helper to get value from custom fields or default columns
+    const customFields = (game.customFields as Record<string, any>) || {};
+    
+    // Check custom fields first, fall back to default columns
+    const sport = customFields["Sport"] || game.homeTeam?.sport?.name || "TBD";
+    const level = customFields["Level"] || game.homeTeam?.level || "TBD";
+    const team = customFields["Team"] || game.homeTeam?.name || "TBD";
+    const status = customFields["Status"] || game.status || "TBD";
+    
+    let description = `Sport: ${sport}\n`;
+    description += `Level: ${level}\n`;
+    description += `Team: ${team}\n`;
+    description += `Status: ${status}\n`;
 
     if (game.opponent) {
       description += `Opponent: ${game.opponent.name}\n`;
