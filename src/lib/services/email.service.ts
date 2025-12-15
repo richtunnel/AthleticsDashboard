@@ -541,6 +541,57 @@ export class EmailService {
     }
   }
 
+  async sendTicketConfirmationEmail(params: { userEmail: string; userName: string; ticketNumber: string; subject: string }): Promise<void> {
+    const resend = getResendClientOptional();
+    if (!resend) {
+      console.warn("Email service not configured. Ticket confirmation email not sent.");
+      return;
+    }
+
+    const { userEmail, userName, ticketNumber, subject } = params;
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const ticketUrl = `${baseUrl.replace(/\/$/, "")}/dashboard/support/${ticketNumber}`;
+
+    const body = `
+      <h2>Support Ticket Confirmation</h2>
+      <p>Hi ${userName},</p>
+      <p>Thank you for contacting us. We have received your support request and are working on resolving your issue.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 5px 0;"><strong>Ticket Number:</strong> ${ticketNumber}</p>
+        <p style="margin: 5px 0;"><strong>Subject:</strong> ${subject}</p>
+      </div>
+
+      <p>We will respond to your inquiry within <strong>48 hours</strong>.</p>
+      
+      <p style="margin-top: 24px;">
+        <a
+          href="${ticketUrl}"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          View Your Ticket
+        </a>
+      </p>
+
+      <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+        You can track the status of your ticket and view our response in your dashboard at any time.
+      </p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+        to: [userEmail],
+        subject: `Support Ticket ${ticketNumber} - We're on it!`,
+        html: this.buildHtmlEmail(body),
+      });
+      console.log(`Ticket confirmation email sent to ${userEmail}`);
+    } catch (error) {
+      console.error("Failed to send ticket confirmation email:", error);
+      // Don't throw - this is a non-critical feature
+    }
+  }
+
   private buildHtmlEmail(body: string): string {
     return `
       <!DOCTYPE html>
