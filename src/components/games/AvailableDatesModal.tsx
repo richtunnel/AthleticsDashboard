@@ -74,9 +74,10 @@ const formatDateDisplay = (dateStr: string): string => {
 
 // Draggable Paper component for the modal
 function DraggablePaper(props: any) {
+  const nodeRef = React.useRef(null);
   return (
-    <Draggable handle="#draggable-dialog-title" cancel={'[class*="MuiDialogContent-root"]'}>
-      <Paper {...props} />
+    <Draggable handle="#draggable-dialog-title" cancel={'[class*="MuiDialogContent-root"]'} nodeRef={nodeRef}>
+      <Paper {...props} ref={nodeRef} />
     </Draggable>
   );
 }
