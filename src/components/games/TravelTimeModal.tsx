@@ -25,6 +25,7 @@ interface TravelTimeModalProps {
   onClose: () => void;
   gameId: string;
   gameName: string;
+  columnName?: string;
   onSave: (departureTime: string, address: string) => void;
 }
 
@@ -41,6 +42,7 @@ export function TravelTimeModal({
   onClose,
   gameId,
   gameName,
+  columnName,
   onSave,
 }: TravelTimeModalProps) {
   const [activeStep, setActiveStep] = useState(0);
