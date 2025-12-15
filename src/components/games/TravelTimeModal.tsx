@@ -25,6 +25,7 @@ interface TravelTimeModalProps {
   onClose: () => void;
   gameId: string;
   gameName: string;
+  columnName?: string;
   onSave: (departureTime: string, address: string) => void;
 }
 
@@ -41,6 +42,7 @@ export function TravelTimeModal({
   onClose,
   gameId,
   gameName,
+  columnName,
   onSave,
 }: TravelTimeModalProps) {
   const [activeStep, setActiveStep] = useState(0);
@@ -232,7 +234,7 @@ export function TravelTimeModal({
                 </Box>
 
                 <Alert severity="info">
-                  This recommendation includes a 35-minute safety cushion to ensure on-time arrival.
+                  This recommendation includes a 22-minute safety cushion to ensure on-time arrival.
                 </Alert>
               </>
             ) : null}

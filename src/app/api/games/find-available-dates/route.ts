@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { availableDatesService } from "@/lib/services/available-dates.service";
+import { availableDatesAIService } from "@/lib/services/available-dates-ai.service";
 import { prisma } from "@/lib/database/prisma";
 
 export async function POST(request: NextRequest) {
@@ -13,13 +14,46 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, candidateDates, excludeDays, maxResults } = body;
+    const { prompt, candidateDates, excludeDays, maxResults, useAI } = body;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
         { error: "Prompt is required and must be a string" },
         { status: 400 }
       );
+    }
+
+    // Parse query with AI if enabled
+    let parsedQuery;
+    let excludeTeamsPrompt;
+    let dateRange;
+    let minSpacing;
+    
+    if (useAI !== false) { // Default to true
+      try {
+        parsedQuery = await availableDatesAIService.parseQuery(prompt);
+        
+        // Extract exclude teams prompt if provided
+        if (parsedQuery.excludeTeams && parsedQuery.excludeTeams.length > 0) {
+          excludeTeamsPrompt = parsedQuery.excludeTeams
+            .map(t => `${t.gender || ''} ${t.level || ''} ${t.sport || ''}`.trim())
+            .join(' ');
+        }
+        
+        // Extract date range if provided
+        if (parsedQuery.dateRange) {
+          dateRange = parsedQuery.dateRange;
+        }
+        
+        // Extract minimum spacing if provided
+        if (parsedQuery.minSpacing) {
+          minSpacing = parsedQuery.minSpacing;
+        }
+        
+        console.log('Parsed query:', parsedQuery);
+      } catch (error) {
+        console.error('AI parsing failed, continuing with basic parsing:', error);
+      }
     }
 
     // Validate excludeDays if provided
@@ -103,7 +137,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Find available dates using rule-based service
+    // Find available dates using enhanced service with AI-parsed options
     const result = await availableDatesService.findAvailableDates(
       prompt,
       gamesTable,
@@ -111,7 +145,10 @@ export async function POST(request: NextRequest) {
       { 
         maxResults: maxResults || 10, // Default 10, user can select 25 or 50
         threshold: 2.5,
-        excludeDays: excludeDays || [] // Pass excluded days
+        excludeDays: excludeDays || [], // Pass excluded days from UI
+        excludeTeamsPrompt, // Teams whose dates should be avoided (from AI)
+        dateRange, // Date range filter (from AI)
+        minSpacing, // Minimum spacing between dates (from AI)
       }
     );
 
