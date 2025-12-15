@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
-const BUFFER_MINUTES = 35; // Fixed 35-minute cushion
+const BUFFER_MINUTES = 22; // Fixed 22-minute cushion
 
 interface TravelCalculation {
   recommendedDepartureTime: string;
