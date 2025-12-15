@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } from "@mui/material";
-import { CalendarMonth, CheckCircleOutline, CheckCircle, LinkOff } from "@mui/icons-material";
+import { CalendarMonth, CheckCircleOutline, CheckCircle, LinkOff, SyncLock } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
 import { IconButton } from "@mui/material";
 import styles from "@/styles/override.module.css";
@@ -101,7 +101,7 @@ function GoogleCalendarSyncMenuContent() {
       {isConnected ? (
         <Stack spacing={2}>
           <Box sx={{ width: "100%", maxWidth: "1280px" }}>
-            <Alert sx={{ width: "100%" }} severity="success" icon={<CheckCircle />}>
+            <Alert sx={{ width: "100%" }} severity="success" icon={<SyncLock />}>
               Your Google Calendar is connected
             </Alert>
           </Box>
