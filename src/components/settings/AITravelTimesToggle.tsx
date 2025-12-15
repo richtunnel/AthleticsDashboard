@@ -110,7 +110,7 @@ export function AITravelTimesToggle() {
                 Enhanced Travel Times (Bus Info)
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
-                Enabling travel intillegence adds a column named "Bus Info" to your spreadsheet in <Link href="/dashboard/games">Game Center</Link> which gives you real-time travel calculations with
+                Enabling travel intillegence adds a column named "Bus Info" to your spreadsheet in <Link href="/dashboard/games" style={{ color: "var(--main-blue)", fontWeight: "500" }}>Game Center</Link> which gives you real-time travel calculations with
                 traffic and weather for accurate bus scheduling.
               </Typography>
             </Box>
