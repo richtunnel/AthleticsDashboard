@@ -5,6 +5,7 @@ import Image from "next/image";
 import styles from "../../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
 import Footer from "@/components/layout/Footer";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
 export default function AboutUsPage() {
   return (
@@ -30,11 +31,12 @@ export default function AboutUsPage() {
             className={`${styles["ad-hub-logo"]} flex d-flex`}
             href="/"
             style={{
+              // Force light mode colors for logo
               color: "#0f172a",
             }}
           >
-            adhub
-            <VscGithubProject />
+            <CircularProjectIcon />
+            <span style={{ marginLeft: "2.5px" }}>opletics</span>
           </Link>
         </div>
 
@@ -78,7 +80,7 @@ export default function AboutUsPage() {
               }}
             >
               <p className="mb-4">
-                AD Hub was created with one mission: to give athletic departments and school leadership the modern tools they deserve. After decades of watching athletic directors, coaches, and
+                Opletics was created with one mission: to give athletic departments and school leadership the modern tools they deserve. After decades of watching athletic directors, coaches, and
                 administrators juggle spreadsheets, emails, forms, and outdated systems, we knew the industry needed something better - something built by people who truly understand the challenges of
                 running a successful school athletic program.
               </p>
@@ -90,7 +92,7 @@ export default function AboutUsPage() {
               </p>
 
               <p className="mb-4" style={{ fontWeight: 600 }}>
-                At AD Hub, you're not just in good hands, you're in experienced, trusted, industry-tested hands.
+                At Opletics, you're not just in good hands, you're in experienced, trusted, industry-tested hands.
               </p>
 
               <p>

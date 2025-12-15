@@ -63,11 +63,11 @@ export async function POST(req: NextRequest) {
     // Send verification email
     const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
     const verificationUrl = `${baseUrl}/verify-recovery-email?token=${token}`;
-    
+
     try {
       const resend = getResendClient();
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || "noreply@adhub.com",
+        from: process.env.EMAIL_FROM || "noreply@opletics.com",
         to: recoveryEmail,
         subject: "Verify Your Recovery Email",
         html: `
@@ -80,10 +80,7 @@ export async function POST(req: NextRequest) {
       });
     } catch (emailError) {
       console.error("Error sending verification email:", emailError);
-      return NextResponse.json(
-        { error: "Failed to send verification email" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to send verification email" }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -92,9 +89,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("Error sending recovery email:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Unexpected error sending recovery email" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message ?? "Unexpected error sending recovery email" }, { status: 500 });
   }
 }
