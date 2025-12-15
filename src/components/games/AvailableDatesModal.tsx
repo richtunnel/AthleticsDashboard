@@ -522,9 +522,21 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                   )}
                 </Box>
               ) : (
-                <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                  <Typography variant="body2">{result.debug.notes.join(" • ")}</Typography>
-                </Alert>
+                <Box>
+                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                      No Available Dates Found
+                    </Typography>
+                    <Typography variant="body2">
+                      Try narrowing your search by being more specific using fewer words.
+                    </Typography>
+                    {result.debug.notes.length > 0 && (
+                      <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
+                        {result.debug.notes.join(" • ")}
+                      </Typography>
+                    )}
+                  </Alert>
+                </Box>
               )}
 
               {/* Debug Info (Collapsible) */}
