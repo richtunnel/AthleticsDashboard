@@ -1204,6 +1204,9 @@ export function GamesTable() {
         return oldData;
       });
 
+      // Show success notification
+      addNotification("Successfully synced to Google Calendar", "success");
+
       // no refetch needed
     },
   });
