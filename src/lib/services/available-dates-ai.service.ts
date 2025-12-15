@@ -33,7 +33,8 @@ export class AvailableDatesAIService {
    */
   async parseQuery(prompt: string): Promise<ParsedQuery> {
     if (!openai) {
-      console.warn("OpenAI API key not configured, using fallback parsing");
+      console.log("[Available Dates AI] OpenAI API key not configured. Using fallback parsing for advanced constraints.");
+      console.log("[Available Dates AI] Basic team matching will still work via rule-based service.");
       return this.fallbackParse(prompt);
     }
 
