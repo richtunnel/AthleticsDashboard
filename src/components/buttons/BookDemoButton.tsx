@@ -8,7 +8,7 @@ interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "ta
   calendlyUrl?: string;
 }
 
-export default function BookDemoButton({ calendlyUrl = "https://calendly.com/athleticdirectorhub/30min", children = "Book a Demo", sx, ...props }: BookDemoButtonProps) {
+export default function BookDemoButton({ calendlyUrl = "https://calendly.com/opletics/30min", children = "Book a Demo", sx, ...props }: BookDemoButtonProps) {
   const handleClick = () => {
     trackEvent("Book Demo Clicked", {
       source: "book_demo_button",

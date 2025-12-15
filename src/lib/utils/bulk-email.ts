@@ -72,7 +72,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       try {
         // Send email via Resend
         const emailResponse = await resend.emails.send({
-          from: process.env.EMAIL_FROM || "Athletic Director Hub <noreply@athleticdirectorhub.com>",
+          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
           to: [email], // Send to individual recipient
           subject,
           html,

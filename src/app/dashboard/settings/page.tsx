@@ -20,6 +20,7 @@ import { EmailLimitsCard } from "@/components/settings/EmailLimitsCard";
 import { ResetColumnsButton } from "@/components/settings/ResetColumnsButton";
 import { CalendarConnectionSection } from "@/components/settings/CalendarConnectionSection";
 import UpgradePlanCard from "@/components/settings/UpgradePlanCard";
+import BookDemoButton from "@/components/buttons/BookDemoButton";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -111,6 +112,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </Box>
               <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
                 <AIEmailGenerationToggle />
+              </Box>
+              <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+                <BookDemoButton>Learn More</BookDemoButton>
               </Box>
             </Box>
           </CardContent>

@@ -17,7 +17,7 @@ export function getStripe(): Stripe {
       apiVersion: "2025-09-30.clover",
       typescript: true,
       appInfo: {
-        name: "AD Hub",
+        name: "Opletics",
         version: "1.0.0",
       },
     });

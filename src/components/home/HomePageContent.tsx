@@ -18,7 +18,9 @@ import faqsData from "@/data/faq";
 import { FeaturesSection } from "../splash/FeatureSection";
 import { Card } from "@mui/material";
 import { Footer as SplashFooter } from "../splash/footer";
-const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/athleticdirectorhub/30min";
+import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
+
+const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
   const { data: session, status } = useSession();
@@ -88,8 +90,8 @@ export default function HomePageContent() {
                 color: "#0f172a",
               }}
             >
-              adhub
-              <VscGithubProject />
+              <CircularProjectIcon />
+              <span style={{ marginLeft: "2.5px" }}>opletics</span>
             </Link>
 
             <BookDemoButton
@@ -111,7 +113,7 @@ export default function HomePageContent() {
                   color: "#0f172a",
                 }}
               >
-                Athletic <br /> Directors Hub
+                Automate <br /> Game Schedules
               </h3>
               <p
                 className="text-xl mb-8"
@@ -122,7 +124,11 @@ export default function HomePageContent() {
                   color: "#475569",
                 }}
               >
+<<<<<<< HEAD
                 A platform built to give athletic departments the clarity, control, and automation they’ve always deserved.{" "}
+=======
+                A platform built to give athletic departments the clarity, control, and automation they deserve.
+>>>>>>> main
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
