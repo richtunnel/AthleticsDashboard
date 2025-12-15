@@ -5773,40 +5773,88 @@ export function GamesTable() {
           // Check if this is the "Travel Time" column (case-insensitive)
           const isTravelTimeColumn = customColumn?.name && /^travel time$/i.test(customColumn.name.trim());
 
-          // Special rendering for Travel Time column
+          // Special rendering for Travel Time column with Enhanced Travel Times
           if (isTravelTimeColumn && aiTravelTimesEnabled) {
+            // Read data from customFields (where enhanced travel time feature stores data)
+            const columnName = customColumn.name; // e.g., "Travel Time"
+            const customFields = (game.customFields as Record<string, any>) || {};
+            const departTime = customFields[`${columnName}_depart`] || "";
+            const opponentAddress = customFields[`${columnName}_address`] || "";
+            const hasData = departTime;
+
+            // Show "Add Travel Time" button when cell is empty
+            if (!hasData) {
+              return (
+                <TableCell
+                  key={column.id}
+                  sx={{
+                    py: 1,
+                    minWidth: 180,
+                    textAlign: "center",
+                  }}
+                >
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => {
+                      const opponentName = game.opponent?.name || "TBD";
+                      const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
+                      setTravelTimeModal({
+                        open: true,
+                        gameId: game.id,
+                        gameName,
+                        columnName,
+                      });
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      color: "text.secondary",
+                      fontSize: 13,
+                      fontWeight: 400,
+                      "&:hover": {
+                        bgcolor: "transparent",
+                        color: "primary.main",
+                      },
+                    }}
+                  >
+                    Add Travel Time
+                  </Button>
+                </TableCell>
+              );
+            }
+
+            // Show calculated departure time (editable on double-click)
+            const departDisplay = formatTimeDisplay(departTime);
+
             return (
               <TableCell
                 key={column.id}
                 sx={{
                   py: 1,
-                  minWidth: 150,
+                  minWidth: 180,
                   cursor: "pointer",
+                  textAlign: "center",
                   "&:hover": {
-                    bgcolor: "#f5f5f5",
+                    bgcolor: "action.hover",
                   },
                 }}
-                onClick={() => {
+                onDoubleClick={() => {
                   const opponentName = game.opponent?.name || "TBD";
                   const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
                   setTravelTimeModal({
                     open: true,
                     gameId: game.id,
                     gameName,
+                    columnName,
                   });
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: 13,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {cellValue ? formatTimeDisplay(cellValue) : "—"}
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11, mb: 0.5 }}>
+                    Departure Time
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                    {departDisplay}
                   </Typography>
                 </Box>
               </TableCell>
@@ -6846,7 +6894,14 @@ export function GamesTable() {
 
       {/* Travel Time Modal for Travel Time custom column */}
       {travelTimeModal && (
-        <TravelTimeModal open={travelTimeModal.open} onClose={() => setTravelTimeModal(null)} gameId={travelTimeModal.gameId} gameName={travelTimeModal.gameName} onSave={handleSaveTravelTime} />
+        <TravelTimeModal 
+          open={travelTimeModal.open} 
+          onClose={() => setTravelTimeModal(null)} 
+          gameId={travelTimeModal.gameId} 
+          gameName={travelTimeModal.gameName} 
+          columnName={travelTimeModal.columnName}
+          onSave={handleSaveTravelTime} 
+        />
       )}
     </Box>
   );
@@ -6897,7 +6952,8 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
   }
 
   // No imported columns - use default column order with custom columns
-  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", ...customIds, "notes", "actions"];
+  // CRITICAL: Place custom columns (including Travel Time) right before "actions"
+  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", ...customIds, "actions"];
 }
 
 function isColumnId(value: string): value is ColumnId {
