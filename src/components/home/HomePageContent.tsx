@@ -19,6 +19,7 @@ import { FeaturesSection } from "../splash/FeatureSection";
 import { Card } from "@mui/material";
 import { Footer as SplashFooter } from "../splash/footer";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
+import SoccerBeach from "../parallax/SoccerBeach";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
@@ -187,6 +188,7 @@ export default function HomePageContent() {
       <br />
       {/* <Faq {...faqsData} /> */}
       <br /> <br />
+      {/* <SoccerBeach /> */}
       <SplashFooter />
     </>
   );
