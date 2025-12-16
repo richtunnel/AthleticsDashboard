@@ -157,7 +157,7 @@ export const ArcCard: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            We believe in spending time outside, not behind a desk all day.
+            We want you to spend more time on the move than at a desk.
           </Typography>
           <Typography
             variant="h6"
