@@ -5,18 +5,29 @@ import { useTheme } from "@mui/material/styles";
 import Image from "next/image";
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 import { ButtonLink } from "../../components/splash/button-link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export const ArcCard: React.FC = () => {
   const theme = useTheme();
-  const [scrollY, setScrollY] = useState(0);
+  const [parallaxOffset, setParallaxOffset] = useState(0);
+  const parallaxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrollY(window.scrollY);
+      if (!parallaxRef.current) return;
+
+      const rect = parallaxRef.current.getBoundingClientRect();
+      const scrollPercent = (window.innerHeight - rect.top) / (window.innerHeight + rect.height);
+      
+      // Only apply parallax when element is in viewport
+      if (scrollPercent >= 0 && scrollPercent <= 1) {
+        // Negative value makes background move slower than scroll (parallax effect)
+        setParallaxOffset(scrollPercent * -150);
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // Initial calculation
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -87,6 +98,7 @@ export const ArcCard: React.FC = () => {
 
       {/* Parallax Section */}
       <Box
+        ref={parallaxRef}
         sx={{
           position: "relative",
           height: { xs: "400px", md: "500px", lg: "600px" },
@@ -103,9 +115,9 @@ export const ArcCard: React.FC = () => {
             top: 0,
             left: 0,
             width: "100%",
-            height: "120%",
-            transform: `translateY(${scrollY * 0.5}px)`,
-            transition: "transform 0.1s ease-out",
+            height: "130%",
+            willChange: "transform",
+            transform: `translate3d(0, ${parallaxOffset}px, 0)`,
           }}
         >
           <Image src="/assets/images/bball-court01.jpg" alt="Basketball Court" fill style={{ objectFit: "cover" }} priority />
