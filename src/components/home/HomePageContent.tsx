@@ -91,7 +91,7 @@ export default function HomePageContent() {
               }}
             >
               <CircularProjectIcon />
-              <span style={{ marginLeft: "2.5px" }}>opletics</span>
+              <span style={{ marginLeft: "2.5px", letterSpacing: "0.35px" }}>opletics</span>
             </Link>
 
             <BookDemoButton
