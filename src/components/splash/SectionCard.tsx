@@ -18,7 +18,7 @@ export const ArcCard: React.FC = () => {
 
       const rect = parallaxRef.current.getBoundingClientRect();
       const scrollPercent = (window.innerHeight - rect.top) / (window.innerHeight + rect.height);
-      
+
       // Only apply parallax when element is in viewport
       if (scrollPercent >= 0 && scrollPercent <= 1) {
         // Negative value makes background move slower than scroll (parallax effect)
@@ -131,7 +131,7 @@ export const ArcCard: React.FC = () => {
             left: 0,
             width: "100%",
             height: "100%",
-            bgcolor: "rgba(0, 0, 0, 0.75)",
+            bgcolor: "rgba(0, 0, 0, 0.65)",
             zIndex: 1,
           }}
         />
