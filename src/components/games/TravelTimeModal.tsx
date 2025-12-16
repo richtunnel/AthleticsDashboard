@@ -1,25 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  TextField,
-  Box,
-  Typography,
-  CircularProgress,
-  Stack,
-  Alert,
-  Stepper,
-  Step,
-  StepLabel,
-} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, CircularProgress, Stack, Alert, Stepper, Step, StepLabel } from "@mui/material";
 import { DirectionsBus, Schedule, LocationOn } from "@mui/icons-material";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
-
+import { useTheme } from "@mui/material/styles";
 interface TravelTimeModalProps {
   open: boolean;
   onClose: () => void;
@@ -37,20 +22,14 @@ interface TravelCalculation {
 
 const steps = ["Enter Dismissal Time", "Enter Opponent Address", "Review Recommendation"];
 
-export function TravelTimeModal({
-  open,
-  onClose,
-  gameId,
-  gameName,
-  columnName,
-  onSave,
-}: TravelTimeModalProps) {
+export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, onSave }: TravelTimeModalProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [dismissalTime, setDismissalTime] = useState("");
   const [opponentAddress, setOpponentAddress] = useState("");
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculation, setCalculation] = useState<TravelCalculation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
 
   const handleNext = async () => {
     if (activeStep === 0 && !dismissalTime) {
@@ -196,16 +175,16 @@ export function TravelTimeModal({
                 <Box
                   sx={{
                     p: 3,
-                    bgcolor: "rgba(206, 255, 119, 0.1)",
+                    bgcolor: "rgb(119 179 255 / 10%)",
                     borderRadius: 2,
                     border: "1px solid rgba(206, 255, 119, 0.3)",
                     textAlign: "center",
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                  <Typography variant="caption" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[100] : theme.palette.grey[900], display: "block", mb: 1 }}>
                     Recommended Departure Time
                   </Typography>
-                  <Typography variant="h3" sx={{ color: "#0f172a", fontWeight: 600 }}>
+                  <Typography variant="h3" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[100] : theme.palette.grey[900], fontWeight: 600 }}>
                     {calculation.recommendedDepartureTime}
                   </Typography>
                 </Box>
@@ -233,9 +212,7 @@ export function TravelTimeModal({
                   </Stack>
                 </Box>
 
-                <Alert severity="info">
-                  This recommendation includes a 22-minute safety cushion to ensure on-time arrival.
-                </Alert>
+                <Alert severity="info">This recommendation includes a 22-minute safety cushion to ensure on-time arrival.</Alert>
               </>
             ) : null}
           </Stack>
