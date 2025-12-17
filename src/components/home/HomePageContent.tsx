@@ -19,7 +19,10 @@ import { FeaturesSection } from "../splash/FeatureSection";
 import { Card } from "@mui/material";
 import { Footer as SplashFooter } from "../splash/footer";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
-import SoccerBeach from "../parallax/SoccerBeach";
+import DreamSection from "./dreamSection";
+import PartnerBuildSection from "./PartnerBuildSection";
+import NewsSection from "./NewsSection";
+import PartnerBuildSectionFooter from "./PartnerBuildFooter";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
@@ -183,12 +186,15 @@ export default function HomePageContent() {
       <ArcCard />
       <HeroSection />
       <FeaturesSection />
+      <NewsSection />
       <br />
       <br />
       <br />
       {/* <Faq {...faqsData} /> */}
       <br /> <br />
       {/* <SoccerBeach /> */}
+      <DreamSection />
+      {/* <PartnerBuildSection /> */}
       <SplashFooter />
     </>
   );
