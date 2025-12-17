@@ -59,7 +59,7 @@ export const ArcCard: React.FC = () => {
                 p: 0,
               }}
             >
-              <Image src="/assets/images/fm-basketball-vertical.png" alt="Arc logo" width={625} height={685} style={{ objectFit: "contain", width: "100%", height: "685px", borderRadius: "20px" }} />
+              <Image src="/assets/images/fm-basketball-vertical.png" alt="Arc logo" width={625} height={685} style={{ objectFit: "contain", width: "auto", height: "685px", borderRadius: "20px" }} />
             </Box>
 
             {/* right content */}
