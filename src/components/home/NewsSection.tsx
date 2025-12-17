@@ -18,7 +18,7 @@ const NewsSection = () => {
     },
     {
       category: "PLATFORM",
-      title: "Opletics is partnering with Channl to integrating a new feature that highlights athletes productivity.",
+      title: "Opletics is partnering with Channl to integrate a new feature that highlights athletes productivity.",
       variant: "standard" as const,
     },
   ];
@@ -44,12 +44,12 @@ const NewsSection = () => {
                 color: theme.palette.text.primary,
               }}
             >
-              Shaping the Way You Schedule.
+              Shaping How You Schedule.
             </Typography>
 
             <Box sx={{ mb: 4 }}>
               {newsItems.map((item, index) => (
-                <Box key={index} sx={{ mb: 4 }}>
+                <Box key={index} sx={{ mb: 4, borderBottom: "1px solid gray" }}>
                   <Chip
                     label={item.category}
                     size="small"
@@ -70,7 +70,7 @@ const NewsSection = () => {
                       lineHeight: 1.3,
                       color: theme.palette.text.primary,
                       fontSize: { xs: "1rem", md: "1.15rem" },
-                      mb: index < newsItems.length - 1 ? 3 : 0,
+                      mb: 3,
                     }}
                   >
                     {item.title}
