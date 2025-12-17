@@ -36,10 +36,10 @@ export const ArcCard: React.FC = () => {
       <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
         <Box
           sx={{
-            bgcolor: theme.palette.mode === "light" ? "grey.50" : "grey.800",
+            bgcolor: "transparent",
             borderRadius: 4,
             p: { xs: 3, md: 5 },
-            boxShadow: 2,
+            boxShadow: "none",
           }}
         >
           <Stack direction={{ xs: "column", lg: "row" }} spacing={{ xs: 3, lg: 5 }} alignItems="center">
@@ -48,24 +48,24 @@ export const ArcCard: React.FC = () => {
               sx={{
                 flex: "0 0 42%",
                 maxWidth: { xs: "100%", lg: "42%" },
-                minHeight: "520px",
-                borderRadius: 2,
+                minHeight: "420px",
+                borderRadius: "20px",
                 overflow: "hidden",
-                bgcolor: theme.palette.mode === "light" ? "white" : "grey.900",
-                objectFit: "fill",
+                bgcolor: "transparent",
+                objectFit: "contain",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                p: 2,
+                p: 0,
               }}
             >
-              <Image src="/assets/images/hero-image-01.jpg" alt="Arc logo" width={700} height={720} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+              <Image src="/assets/images/fm-basketball-vertical.png" alt="Arc logo" width={625} height={685} style={{ objectFit: "contain", width: "100%", height: "685px", borderRadius: "20px" }} />
             </Box>
 
             {/* right content */}
             <Stack spacing={2} sx={{ flex: 1 }}>
               <Stack direction="row" spacing={2} alignItems="center">
-                <Chip label="Opletics" color="secondary" variant="outlined" sx={{ px: 1.5, py: 0.5 }} />
+                <Chip label="Opletics Spreadsheets" color="secondary" variant="outlined" sx={{ px: 1.5, py: 0.5 }} />
               </Stack>
 
               <Typography variant="h4" component="h3" sx={{ lineHeight: 1.2, maxWidth: "600px", fontWeight: "700" }}>
@@ -73,8 +73,8 @@ export const ArcCard: React.FC = () => {
               </Typography>
 
               <Typography color="text.secondary" variant="h6" sx={{ maxWidth: "xl" }}>
-                Reduce the endless back-and-forth with athletic departments and cut your scheduling time in half. Sync your spreadsheets with your calendars, send out multiple mass emails and stay
-                organized with our other features.
+                Reduce the endless back-and-forth with your spreadsheets, emails or athletic departments and cut your scheduling time in half. Sync your spreadsheets with your calendars, send out
+                multiple mass emails and stay organized with our other features.
               </Typography>
               <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
                 <ButtonLink size="medium" href="/onboarding/plans" variant="outlined" endIcon={<FiArrowRight />}>
@@ -101,7 +101,7 @@ export const ArcCard: React.FC = () => {
         ref={parallaxRef}
         sx={{
           position: "relative",
-          height: { xs: "400px", md: "500px", lg: "600px" },
+          height: { xs: "100vh", lg: "100vh" },
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
@@ -131,7 +131,7 @@ export const ArcCard: React.FC = () => {
             left: 0,
             width: "100%",
             height: "100%",
-            bgcolor: "rgba(0, 0, 0, 0.65)",
+            bgcolor: "rgba(0, 0, 0, 0.50)",
             zIndex: 1,
           }}
         />
@@ -157,7 +157,7 @@ export const ArcCard: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            We want you to spend more time on the move than at a desk.
+            Spend more time on the move than at a desk.
           </Typography>
           <Typography
             variant="h6"
