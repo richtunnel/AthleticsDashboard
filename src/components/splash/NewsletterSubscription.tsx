@@ -44,11 +44,11 @@ export const NewsletterSubscription = () => {
   };
 
   return (
-    <Box sx={{ mt: 4, maxWidth: 500 }}>
+    <Box sx={{ mt: 4, width: "100%", maxWidth: 492 }}>
       <Typography variant="body1" sx={{ mb: 2, color: "#a3abb5" }}>
-        Stay updated with the latest features and news
+        Stay updated with the latest features and news!
       </Typography>
-      
+
       <Box
         component="form"
         onSubmit={handleSubscribe}
