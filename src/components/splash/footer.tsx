@@ -1,8 +1,8 @@
 import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
 import NextLink from "next/link";
 import CopyRight from "../copyright";
 import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
+import { NewsletterSubscription } from "./NewsletterSubscription";
 
 import siteConfig from "./config";
 
@@ -13,7 +13,6 @@ export interface FooterProps extends Omit<BoxProps, "children"> {
 
 export const Footer: React.FC<FooterProps> = (props) => {
   const { columns = 1, ...rest } = props;
-  const theme = useTheme();
 
   return (
     <Box
@@ -46,6 +45,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
               <Typography variant="body1" color="#a3abb5">
                 {siteConfig.seo.description}
               </Typography>
+              <NewsletterSubscription />
             </Stack>
             <Copyright>{siteConfig.footer.copyright}</Copyright>
             <CopyRight />
