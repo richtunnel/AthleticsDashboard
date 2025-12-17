@@ -72,9 +72,9 @@ export const ArcCard: React.FC = () => {
                 Schedule games without the endless back-and-forth
               </Typography>
 
-              <Typography color="text.secondary" variant="h6" sx={{ maxWidth: "xl" }}>
-                Reduce the endless back-and-forth with your spreadsheets, emails or athletic departments and cut your scheduling time in half. Sync your spreadsheets with your calendars, send out
-                multiple mass emails and stay organized with our other features.
+              <Typography color="text.secondary" variant="h6" sx={{ maxWidth: "520px" }}>
+                Reduce the endless back-and-forth with spreadsheets, emails or athletic departments and cut your scheduling time in half. Sync your spreadsheets with your calendars, send out multiple
+                mass emails and stay organized with our other features.
               </Typography>
               <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
                 <ButtonLink size="medium" href="/onboarding/plans" variant="outlined" endIcon={<FiArrowRight />}>
