@@ -18,7 +18,7 @@ const PartnerBuildSectionFooter = () => {
           variant="h3"
           sx={{
             fontWeight: 700,
-            fontSize: { xs: "2.5rem", md: "4rem" },
+            fontSize: { xs: "2rem", md: "2.5rem" },
             lineHeight: 1.1,
             color: "#fff",
             textAlign: "left",
@@ -58,7 +58,7 @@ const PartnerBuildSectionFooter = () => {
                   sx={{
                     fontWeight: 700,
                     mb: 3,
-                    fontSize: { xs: "1.75rem", md: "2rem" },
+                    fontSize: { xs: "1.25rem", md: "1.5rem" },
                     color: theme.palette.text.primary,
                   }}
                 >
@@ -130,7 +130,7 @@ const PartnerBuildSectionFooter = () => {
                   sx={{
                     fontWeight: 700,
                     mb: 3,
-                    fontSize: { xs: "1.75rem", md: "2rem" },
+                    fontSize: { xs: "1.25rem", md: "1.5rem" },
                     color: "white",
                   }}
                 >
