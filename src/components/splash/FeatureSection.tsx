@@ -1,10 +1,12 @@
 import { Features } from "./features";
 import { FiArrowRight, FiBox, FiCheck, FiCode, FiCopy, FiFlag, FiGrid, FiLock, FiSearch, FiSliders, FiSmile, FiTerminal, FiThumbsUp, FiToggleLeft, FiTrendingUp, FiUserPlus } from "react-icons/fi";
-import { Box, ButtonGroup, Chip, Container, IconButton, Stack, Typography } from "@mui/material";
+import { Box, ButtonGroup, Chip, Container, IconButton, Stack, Typography, Card, useTheme } from "@mui/material";
 import Link from "next/link";
-import { CalendarMonth, EmailRounded, BorderAll, ScoreboardRounded, AutoAwesomeRounded } from "@mui/icons-material";
-
+import { CalendarMonth, EmailRounded, BorderAll, ScoreboardRounded, AutoAwesomeRounded, DepartureBoard } from "@mui/icons-material";
+// import DepartureBoardIcon from '@mui/icons-material/DepartureBoard';
 export const FeaturesSection = () => {
+  const theme = useTheme();
+
   return (
     <Features
       id="features"
@@ -34,39 +36,211 @@ export const FeaturesSection = () => {
       iconSize={32}
       features={[
         {
-          title: "Calander Sync.",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                background: "rgba(39, 45, 96, 0.95)",
+                color: "white",
+                border: "none",
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "white", mb: 1 }}>
+                Calendar Sync
+              </Typography>
+              <Chip
+                label="INTEGRATIONS"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  color: "white",
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  border: "1px solid #fff",
+                }}
+              />
+              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)" }}>
+                Automatically sync your game schedules to your calendar, no more manual typing.
+              </Typography>
+            </Card>
+          ),
           icon: CalendarMonth,
-          description: "Automatically sync your game schedules to your calendar, no more manual typing. ",
+          description: "",
           variant: "inline",
         },
         {
-          title: "Bulk Email",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                background: "rgba(39, 45, 96, 0.95)",
+                color: "white",
+                border: "none",
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "white", mb: 1 }}>
+                Bulk Email
+              </Typography>
+              <Chip
+                label="COMMUNICATIONS"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  color: "white",
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                  border: "1px solid #fff",
+                }}
+              />
+              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.9)" }}>
+                Quickly email your game schedules using our advanced campaign manager and email tracking.
+              </Typography>
+            </Card>
+          ),
           icon: EmailRounded,
-          description: "Quickly email your game schedules using our advanced campaign manager and email tracking.",
+          description: "",
           variant: "inline",
         },
         {
-          title: "Find Dates.",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                backgroundColor: theme.palette.mode === "dark" ? theme.palette.background.paper : "#fff",
+                border: `1px solid ${theme.palette.divider}`,
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Find Dates
+              </Typography>
+              <Chip
+                label="SCHEDULING"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(25, 118, 210, 0.1)",
+                  color: theme.palette.primary.main,
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                }}
+              />
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                Use our search tool to find available dates for games using natural language.
+              </Typography>
+            </Card>
+          ),
           icon: FiSearch,
-          description: "No more searching for open dates, use our date finder to find game date availability.",
+          description: "",
           variant: "inline",
         },
         {
-          title: "Spreadsheet",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                backgroundColor: theme.palette.mode === "dark" ? theme.palette.background.paper : "#fff",
+                border: `1px solid ${theme.palette.divider}`,
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Spreadsheet
+              </Typography>
+              <Chip
+                label="DATA MANAGEMENT"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(25, 118, 210, 0.1)",
+                  color: theme.palette.primary.main,
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                }}
+              />
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                After importing your game schedule spreadsheet use our digital spreadsheet to filter, search, sort, reorder and edit your data.
+              </Typography>
+            </Card>
+          ),
           icon: BorderAll,
-          description: "After importing your game schedule spreadsheet use our digital spreadsheet to filter, search, sort, reorder and edit your data.",
+          description: "",
           variant: "inline",
         },
         {
-          title: "Score Tracker",
-          icon: ScoreboardRounded,
-          description: "We have a unique place for you to keep track of your teams wins and losses.",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                backgroundColor: theme.palette.mode === "dark" ? theme.palette.background.paper : "#fff",
+                border: `1px solid ${theme.palette.divider}`,
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                Travel Time
+              </Typography>
+              <Chip
+                label="BUS DEPARTURE"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(25, 118, 210, 0.1)",
+                  color: theme.palette.primary.main,
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                }}
+              />
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                Don't waste time thinking about time. Our predictive traffic feature recommends the best time to depart from campus.
+              </Typography>
+            </Card>
+          ),
+          icon: DepartureBoard,
+          description: "",
           variant: "inline",
         },
         {
-          title: "AI",
+          title: (
+            <Card
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                backgroundColor: theme.palette.mode === "dark" ? theme.palette.background.paper : "#fff",
+                border: `1px solid ${theme.palette.divider}`,
+                height: "100%",
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                AI Assistant
+              </Typography>
+              <Chip
+                label="AUTOMATION"
+                size="small"
+                sx={{
+                  mb: 2,
+                  backgroundColor: "rgba(25, 118, 210, 0.1)",
+                  color: theme.palette.primary.main,
+                  fontSize: "0.7rem",
+                  fontWeight: 600,
+                }}
+              />
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                We have artificial intelligence features that help you find traveling times, email generation and schedule conflicts.
+              </Typography>
+            </Card>
+          ),
           icon: AutoAwesomeRounded,
-          description: "We have artificial features that help you find traveling times, email generation and schedule confiliction.",
+          description: "",
           variant: "inline",
         },
       ]}
