@@ -2,6 +2,7 @@ import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material
 import { useTheme } from "@mui/material/styles";
 import NextLink from "next/link";
 import CopyRight from "../copyright";
+import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
 
 import siteConfig from "./config";
 
@@ -11,7 +12,7 @@ export interface FooterProps extends Omit<BoxProps, "children"> {
 }
 
 export const Footer: React.FC<FooterProps> = (props) => {
-  const { columns = 2, ...rest } = props;
+  const { columns = 1, ...rest } = props;
   const theme = useTheme();
 
   return (
@@ -27,7 +28,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
       }}
       {...rest}
     >
-      <Container maxWidth="xl" sx={{ px: 4, py: 4, color: "#a3abb5" }}>
+      <Container maxWidth="xl" sx={{ px: 0, py: 4, color: "#a3abb5" }}>
         <Box
           sx={{
             display: "grid",
@@ -36,6 +37,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
             alignItems: "end",
           }}
         >
+          <PartnerBuildSectionFooter />
           <Stack spacing={4}>
             <Stack alignItems="flex-start">
               <Box sx={{ display: "flex" }}>
