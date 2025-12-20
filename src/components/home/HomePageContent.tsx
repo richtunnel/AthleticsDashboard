@@ -185,7 +185,7 @@ export default function HomePageContent() {
         </div>
 
         {/* Mobile: Full height container like Buyable */}
-        <div className={`${styles.mobileHeroContainer} lg:hidden relative flex flex-col h-screen`} style={{ backgroundColor: "#fdfdfd", height: "89vh" }}>
+        <div className={`${styles.mobileHeroContainer} lg:hidden relative flex flex-col h-screen`} style={{ backgroundColor: "#fdfdfd" }}>
           {/* Header - dark background blending into gradient with white text */}
           <div className="px-4 py-3 flex justify-between items-center relative z-30" style={{ backgroundColor: "rgb(17 17 17)" }}>
             <Link
