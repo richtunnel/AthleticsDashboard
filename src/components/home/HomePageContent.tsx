@@ -23,6 +23,8 @@ import DreamSection from "./dreamSection";
 import PartnerBuildSection from "./PartnerBuildSection";
 import NewsSection from "./NewsSection";
 import PartnerBuildSectionFooter from "./PartnerBuildFooter";
+import { FaInstagram, FaFacebook } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
@@ -275,13 +277,60 @@ export default function HomePageContent() {
                     Try Now
                   </AuthActionButton>
                 </div>
+
+                {/* Social Icons Only */}
+                <div className="flex justify-center gap-4 pt-4">
+                  <a
+                    href="https://www.instagram.com/opletics"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#e5e7eb",
+                      fontSize: "1.35rem",
+                      transition: "color 0.2s ease",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#e5e7eb")}
+                  >
+                    <FaInstagram />
+                  </a>
+                  <a
+                    href="https://facebook.com/opletics"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#e5e7eb",
+                      fontSize: "1.35rem",
+                      transition: "color 0.2s ease",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#e5e7eb")}
+                  >
+                    <FaFacebook />
+                  </a>
+                  <a
+                    href="https://x.com/opletics"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#e5e7eb",
+                      fontSize: "1.35rem",
+                      transition: "color 0.2s ease",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#e5e7eb")}
+                  >
+                    <FaXTwitter />
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="relative z-30">
-            <Footer />
           </div>
         </div>
       </div>
