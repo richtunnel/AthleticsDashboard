@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Container, Typography, Grid, Card, CardContent, Button, useTheme } from "@mui/material";
 import { ArrowForward } from "@mui/icons-material";
+import styles from "../../styles/footer.module.css";
 
 const PartnerBuildSectionFooter = () => {
   const theme = useTheme();
@@ -15,6 +16,7 @@ const PartnerBuildSectionFooter = () => {
       <Container maxWidth="lg" style={{ padding: "0px", margin: "0" }}>
         {/* Title */}
         <Typography
+          className={styles.partnerFooterTitle}
           variant="h3"
           sx={{
             fontWeight: 700,
@@ -23,10 +25,9 @@ const PartnerBuildSectionFooter = () => {
             color: "#fff",
             textAlign: "left",
             maxWidth: 800,
-            margin: "50px 0px",
           }}
         >
-          Schedule Smarter
+          Save Time Scheduling Games
         </Typography>
 
         {/* Cards Grid */}
