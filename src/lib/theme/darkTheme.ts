@@ -5,7 +5,7 @@ const darkTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#6d92e2", // Blue accent
+      main: "#677bf2", // Blue accent
       light: "#8faae8",
       dark: "#5577c9",
       contrastText: "#FFFFFF",
