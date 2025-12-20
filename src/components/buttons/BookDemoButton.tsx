@@ -3,6 +3,7 @@
 import { Button, ButtonProps } from "@mui/material";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import styles from "../../styles/logo.module.css";
 
 interface BookDemoButtonProps extends Omit<ButtonProps, "onClick" | "href" | "target" | "rel"> {
   calendlyUrl?: string;
@@ -19,6 +20,7 @@ export default function BookDemoButton({ calendlyUrl = "https://calendly.com/opl
   return (
     <Button
       variant="contained"
+      className={styles.bookADemoButton}
       component="a"
       href={calendlyUrl}
       target="_blank"

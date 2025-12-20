@@ -6,6 +6,7 @@ import Image from "next/image";
 import { FiArrowLeft, FiArrowRight } from "react-icons/fi";
 import { ButtonLink } from "../../components/splash/button-link";
 import { useEffect, useState, useRef } from "react";
+import styles from "../../styles/logo.module.css";
 
 export const ArcCard: React.FC = () => {
   const theme = useTheme();
@@ -68,7 +69,7 @@ export const ArcCard: React.FC = () => {
                 <Chip label="Opletics Spreadsheets" color="secondary" variant="outlined" sx={{ px: 1.5, py: 0.5 }} />
               </Stack>
 
-              <Typography variant="h4" component="h3" sx={{ lineHeight: 1.2, maxWidth: "600px", fontWeight: "700" }}>
+              <Typography className={`${styles.newSectionTitle}`} variant="h4" component="h3" sx={{ lineHeight: 1.2 }}>
                 Schedule games without the endless back-and-forth
               </Typography>
 
