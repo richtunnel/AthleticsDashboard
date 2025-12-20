@@ -419,7 +419,7 @@ export function GamesTable() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -877,11 +877,11 @@ export function GamesTable() {
     if (preservedGameIds.size === 0) {
       return allGames;
     }
-    
+
     // Split games into preserved (newly created) and regular games
     const preserved: Game[] = [];
     const regular: Game[] = [];
-    
+
     allGames.forEach((game: Game) => {
       if (preservedGameIds.has(game.id)) {
         preserved.push(game);
@@ -889,7 +889,7 @@ export function GamesTable() {
         regular.push(game);
       }
     });
-    
+
     // Return regular games followed by preserved games at the end
     return [...regular, ...preserved];
   }, [allGames, preservedGameIds]);
@@ -1241,7 +1241,7 @@ export function GamesTable() {
         success: true,
         data: data.data,
       });
-      
+
       // CRITICAL FIX: Clear the reordering flag AFTER cache update completes
       // This prevents the useEffect from running until the cache is fully updated
       // Fixes double-render issue during column reordering
@@ -1320,7 +1320,7 @@ export function GamesTable() {
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
-      
+
       // Note: isUserReordering flag is cleared in savePreferencesMutation.onSuccess
       // This ensures the flag stays true until the cache is fully updated
     },
@@ -1571,10 +1571,10 @@ export function GamesTable() {
       resetNewGameData();
 
       const newGameId = newGame.id;
-      
+
       // Track this newly created game to preserve it from sort/filter
       setPreservedGameIds((prev) => new Set(prev).add(newGameId));
-      
+
       // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
       if (!variables.skipCalendarSync) {
         syncGameMutation.mutate(newGameId);
@@ -3274,7 +3274,7 @@ export function GamesTable() {
   const handleSort = (field: SortField) => {
     // Clear preserved games when user manually sorts
     setPreservedGameIds(new Set());
-    
+
     if (sortField === field) {
       // Cycle through: asc → desc → null (remove sort)
       if (sortOrder === "asc") {
@@ -6008,25 +6008,25 @@ export function GamesTable() {
   const renderMobileCard = (game: Game) => {
     const isSelected = selectedGames.has(game.id);
     const isExpanded = expandedCard === game.id;
-    
+
     // Format date
     const formattedDate = format(new Date(game.date), "MMM d, yyyy");
-    
+
     // Get opponent name
     const opponentName = game.opponent?.name || "—";
-    
+
     // Get time
     const timeDisplay = game.time || "TBD";
-    
+
     // Get status
     const statusConfig = getConfirmedStatus(game.status);
-    
+
     // Get team info
     const teamInfo = game.homeTeam ? `${game.homeTeam.sport?.name || "—"} ${formatLevelDisplay(game.homeTeam.level) || ""}` : "—";
-    
+
     // Get location
     const locationName = game.venue?.name || "—";
-    
+
     // Home/Away
     const homeAway = game.isHome ? "Home" : "Away";
 
@@ -6043,22 +6043,11 @@ export function GamesTable() {
         <CardContent sx={{ pb: 1 }}>
           {/* Header with checkbox and date */}
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-            <Checkbox
-              checked={isSelected}
-              onChange={() => handleSelectGame(game.id)}
-              sx={{ p: 0, mr: 1 }}
-            />
+            <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0, mr: 1 }} />
             <Typography variant="h6" sx={{ flexGrow: 1, fontSize: "1rem", fontWeight: 600 }}>
               {formattedDate}
             </Typography>
-            {game.googleCalendarEventId && (
-              <Chip
-                size="small"
-                icon={<Sync sx={{ fontSize: 14 }} />}
-                label="Synced"
-                sx={{ height: 20, fontSize: "0.7rem", mr: 1 }}
-              />
-            )}
+            {game.googleCalendarEventId && <Chip size="small" icon={<Sync sx={{ fontSize: 14 }} />} label="Synced" sx={{ height: 20, fontSize: "0.7rem", mr: 1 }} />}
           </Box>
 
           {/* Team and Sport */}
@@ -6080,19 +6069,13 @@ export function GamesTable() {
               <Schedule sx={{ fontSize: 16, color: "text.secondary" }} />
               <Typography variant="body2">{timeDisplay}</Typography>
             </Box>
-            <Chip
-              size="small"
-              label={statusConfig.label}
-              icon={statusConfig.icon}
-              color={statusConfig.color as ChipProps["color"]}
-              sx={{ height: 20, fontSize: "0.7rem" }}
-            />
+            <Chip size="small" label={statusConfig.label} icon={statusConfig.icon} color={statusConfig.color as ChipProps["color"]} sx={{ height: 20, fontSize: "0.7rem" }} />
           </Box>
 
           {/* Expandable section */}
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Divider sx={{ my: 1 }} />
-            
+
             {/* Location */}
             <Box sx={{ mb: 1 }}>
               <Typography variant="caption" color="text.secondary">
@@ -6118,7 +6101,7 @@ export function GamesTable() {
                   Additional Info
                 </Typography>
                 {Object.entries(game.customData).map(([key, value]) => {
-                  const customColumn = customColumns.find(col => col.id === key);
+                  const customColumn = customColumns.find((col) => col.id === key);
                   const label = customColumn?.name || key;
                   return (
                     <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem" }}>
@@ -6142,12 +6125,7 @@ export function GamesTable() {
           </Collapse>
 
           {/* Expand/Collapse button */}
-          <Button
-            size="small"
-            onClick={() => handleExpandCard(game.id)}
-            endIcon={isExpanded ? <ExpandLess /> : <ExpandMore />}
-            sx={{ mt: 1, textTransform: "none" }}
-          >
+          <Button size="small" onClick={() => handleExpandCard(game.id)} endIcon={isExpanded ? <ExpandLess /> : <ExpandMore />} sx={{ mt: 1, textTransform: "none" }}>
             {isExpanded ? "Show Less" : "Show More"}
           </Button>
         </CardContent>
@@ -6384,7 +6362,13 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+              <Button
+                variant="outlined"
+                startIcon={<ViewColumn />}
+                onClick={handleAddColumnsClick}
+                size="small"
+                sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              >
                 Add Columns ({customColumns.length})
               </Button>
             )}
@@ -6409,7 +6393,13 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
+              <Button
+                variant="outlined"
+                startIcon={<Tune />}
+                onClick={() => setIsColumnPreferencesOpen(true)}
+                size="small"
+                sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+              >
                 Columns ({visibleColumnIds.length})
               </Button>
             )}
@@ -6429,10 +6419,10 @@ export function GamesTable() {
               </>
             )}
             {hiddenColumnCount > 0 && (
-              <Button 
-                size="small" 
-                variant="text" 
-                onClick={() => setIsColumnPreferencesOpen(true)} 
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => setIsColumnPreferencesOpen(true)}
                 startIcon={<VisibilityOff />}
                 sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
               >
@@ -6451,14 +6441,29 @@ export function GamesTable() {
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
                 size="small"
-                sx={{ border: "1px solid #181b38", borderRadius: "10px", padding: "3px 9px", textTransform: "none", background: "transparent", boxShadow: 0, "&:hover": { boxShadow: 0 } }}
+                sx={{
+                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
+                  borderRadius: "10px",
+                  padding: "3px 9px",
+                  textTransform: "none",
+                  background: "transparent",
+                  boxShadow: 0,
+                  "&:hover": { boxShadow: 0 },
+                }}
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
               </LoadingButton>
             </>
           )}
+          {/* Import Button */}
           <Tooltip title="Import games from CSV">
-            <Button variant="outlined" startIcon={<Upload />} onClick={handleImportClick} size="small" sx={{ textTransform: "none" }}>
+            <Button
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={handleImportClick}
+              size="small"
+              sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+            >
               Import
             </Button>
           </Tooltip>
@@ -6469,7 +6474,7 @@ export function GamesTable() {
               onClick={handleExport}
               disabled={games.length === 0}
               size="small"
-              sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
             >
               Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
             </Button>
@@ -6506,9 +6511,7 @@ export function GamesTable() {
               </Typography>
             </Paper>
           ) : (
-            <Box>
-              {games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}
-            </Box>
+            <Box>{games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}</Box>
           )}
 
           {/* Loading overlay for data refresh */}
@@ -6558,89 +6561,89 @@ export function GamesTable() {
                   {resolvedColumns.map((column) => renderHeaderCell(column))}
                 </TableRow>
               </TableHead>
-            {isLoading || !mounted ? (
-              <TableBody>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={`skeleton-${index}`}>
-                    <TableCell padding="checkbox">
-                      <Skeleton
-                        variant="rectangular"
-                        width={18}
-                        height={18}
-                        sx={{
-                          borderRadius: 0.5,
-                          bgcolor: "rgba(0, 0, 0, 0.11)",
-                        }}
-                      />
-                    </TableCell>
-                    {resolvedColumns.map((column) => (
-                      <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+              {isLoading || !mounted ? (
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell padding="checkbox">
                         <Skeleton
                           variant="rectangular"
-                          width={
-                            column.id === "date"
-                              ? "80%"
-                              : column.id === "time"
-                                ? "60%"
-                                : column.id === "sport"
-                                  ? "70%"
-                                  : column.id === "level"
-                                    ? "65%"
-                                    : column.id === "opponent"
-                                      ? "85%"
-                                      : column.id === "status"
-                                        ? "50%"
-                                        : column.id === "isHome"
-                                          ? "55%"
-                                          : column.id === "location"
-                                            ? "75%"
-                                            : column.id === "busTravel"
-                                              ? "70%"
-                                              : column.id === "notes"
-                                                ? "90%"
-                                                : column.id === "actions"
-                                                  ? "90%"
-                                                  : "75%"
-                          }
-                          height={24}
+                          width={18}
+                          height={18}
                           sx={{
-                            borderRadius: 1,
+                            borderRadius: 0.5,
                             bgcolor: "rgba(0, 0, 0, 0.11)",
                           }}
                         />
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            ) : games.length === 0 && !isAddingNew ? (
-              <TableBody>
-                {renderNewRow()}
-                <TableRow>
-                  <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
-                    {isFetching ? (
-                      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                        <CircularProgress size={40} />
+                      {resolvedColumns.map((column) => (
+                        <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+                          <Skeleton
+                            variant="rectangular"
+                            width={
+                              column.id === "date"
+                                ? "80%"
+                                : column.id === "time"
+                                  ? "60%"
+                                  : column.id === "sport"
+                                    ? "70%"
+                                    : column.id === "level"
+                                      ? "65%"
+                                      : column.id === "opponent"
+                                        ? "85%"
+                                        : column.id === "status"
+                                          ? "50%"
+                                          : column.id === "isHome"
+                                            ? "55%"
+                                            : column.id === "location"
+                                              ? "75%"
+                                              : column.id === "busTravel"
+                                                ? "70%"
+                                                : column.id === "notes"
+                                                  ? "90%"
+                                                  : column.id === "actions"
+                                                    ? "90%"
+                                                    : "75%"
+                            }
+                            height={24}
+                            sx={{
+                              borderRadius: 1,
+                              bgcolor: "rgba(0, 0, 0, 0.11)",
+                            }}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              ) : games.length === 0 && !isAddingNew ? (
+                <TableBody>
+                  {renderNewRow()}
+                  <TableRow>
+                    <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
+                      {isFetching ? (
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                          <CircularProgress size={40} />
+                          <Typography color="text.secondary" variant="body2">
+                            loading spreadsheet...
+                          </Typography>
+                        </Box>
+                      ) : (
                         <Typography color="text.secondary" variant="body2">
-                          loading spreadsheet...
+                          No games found. Click "Create Game" to add one.
                         </Typography>
-                      </Box>
-                    ) : (
-                      <Typography color="text.secondary" variant="body2">
-                        No games found. Click "Create Game" to add one.
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            ) : (
-              <TableBody>
-                {renderNewRow()}
-                {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
-              </TableBody>
-            )}
-          </Table>
-        </TableContainer>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              ) : (
+                <TableBody>
+                  {renderNewRow()}
+                  {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
+                </TableBody>
+              )}
+            </Table>
+          </TableContainer>
 
           {/* Loading overlay for data refresh (after import) */}
           {isFetching && mounted && !isLoading && (
@@ -6894,13 +6897,13 @@ export function GamesTable() {
 
       {/* Travel Time Modal for Travel Time custom column */}
       {travelTimeModal && (
-        <TravelTimeModal 
-          open={travelTimeModal.open} 
-          onClose={() => setTravelTimeModal(null)} 
-          gameId={travelTimeModal.gameId} 
-          gameName={travelTimeModal.gameName} 
+        <TravelTimeModal
+          open={travelTimeModal.open}
+          onClose={() => setTravelTimeModal(null)}
+          gameId={travelTimeModal.gameId}
+          gameName={travelTimeModal.gameName}
           columnName={travelTimeModal.columnName}
-          onSave={handleSaveTravelTime} 
+          onSave={handleSaveTravelTime}
         />
       )}
     </Box>
