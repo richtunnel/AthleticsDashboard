@@ -144,11 +144,11 @@
   .heroTitle {
     font-size: 1.85rem;
   }
-  
+
   .mobileSpreadsheetContainer {
     width: 360px;
   }
-  
+
   .mobile-hero-section {
     padding: 0 8px;
   }
@@ -163,20 +163,20 @@
   .heroTitle {
     font-size: 1.65rem;
   }
-  
+
   .mobileSpreadsheetContainer {
     width: 300px;
     margin-top: 30px;
   }
-  
+
   .ad-hub-logo {
     font-size: 1.5rem;
   }
-  
+
   .mobile-hero-section {
     padding: 0 4px;
   }
-  
+
   .mobile-hero-section p {
     font-size: 0.9rem;
   }
@@ -259,12 +259,29 @@
   }
 }
 
-/* Extra small devices - refined adjustments */
-@media all and (max-width: 360px) {
+@media all and (max-width: 375px) {
+  .ad-hub-logo {
+    font-size: 1.5rem;
+  }
+
+  .ad-hub-logo span {
+    font-size: 1.5rem;
+  }
+}
+
+@media all and (max-width: 365px) {
   .mobileSpreadsheetImg {
     width: 100%;
     max-width: 280px;
     margin: 0 auto;
+  }
+
+  .ad-hub-logo {
+    font-size: 1.25rem;
+  }
+
+  .ad-hub-logo span {
+    font-size: 1.25rem;
   }
 
   .bookADemoButton {
@@ -275,14 +292,22 @@
     border-radius: 0 0 15px 15px;
   }
 
+  .bookADemoButton svg {
+    font-size: 1rem;
+  }
+
   .tryNowButton {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 
   .signInButton {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     padding-top: 10px;
     padding-bottom: 10px;
+  }
+
+  .heroTitle {
+    margin-bottom: 0 !important;
   }
 
   .newSectionTitle {
