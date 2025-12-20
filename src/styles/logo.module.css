@@ -17,6 +17,22 @@
   top: 1px;
 }
 
+.mobileSpreadsheetContainer {
+  margin: 50px auto 0 auto;
+  width: 400px;
+  height: auto;
+  z-index: 999 !important;
+  position: relative;
+  border-radius: 20px;
+}
+
+.mobileSpreadsheetImg {
+  position: relative !important;
+  border-radius: 20px;
+  width: 400px;
+  height: 100%;
+}
+
 .homeHeaderContainer {
   display: flex;
   justify-content: space-between;
@@ -32,6 +48,46 @@
   position: relative;
   top: 10px;
   padding: 0px 40px;
+}
+
+/* Full height mobile hero - 90% of screen like Buyable */
+.fullHeightMobileHero {
+  overflow: hidden;
+  border-radius: 0 0 40px 40px;
+}
+
+/* Web-friendly dark gradient overlay - extends down like the original */
+.fullHeightMobileHero::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(17, 17, 17, 0.99) 0%,
+    rgba(17, 17, 17, 0.98) 5%,
+    rgba(17, 17, 17, 0.98) 10%,
+    rgba(17, 17, 17, 0.96) 15%,
+    rgba(17, 17, 17, 0.95) 20%,
+    rgba(17, 17, 17, 0.86) 25%,
+    rgba(17, 17, 17, 0.82) 30%,
+    rgba(17, 17, 17, 0.78) 35%,
+    rgba(17, 17, 17, 0.74) 40%,
+    rgba(17, 17, 17, 0.69) 45%,
+    rgba(17, 17, 17, 0.64) 50%,
+    rgba(17, 17, 17, 0.58) 55%,
+    rgba(17, 17, 17, 0.52) 60%,
+    rgba(17, 17, 17, 0.45) 65%,
+    rgba(17, 17, 17, 0.38) 70%,
+    rgba(17, 17, 17, 0.3) 75%,
+    transparent 80%
+  );
+}
+
+.fullHeightMobileHero img {
+  border-radius: 0 0 40px 40px;
 }
 
 @media all and (max-width: 768px) {
@@ -57,6 +113,27 @@
   .ad-hub-logo {
     font-size: 1.85rem !important;
   }
+
+  .fullHeightMobileHero {
+    border-radius: 0 0 32px 32px;
+    background: "#000000";
+    background-color: -webkit-linear-gradient(to top, #434343, #000000);
+    background: linear-gradient(to top, #434343, #000000);
+  }
+
+  .fullHeightMobileHero img {
+    border-radius: 0 0 32px 32px;
+  }
+}
+
+@media all and (max-width: 480px) {
+  .fullHeightMobileHero {
+    border-radius: 0 0 28px 28px;
+  }
+
+  .fullHeightMobileHero img {
+    border-radius: 0 0 28px 28px;
+  }
 }
 
 @media all and (max-width: 991px) {
@@ -66,7 +143,7 @@
 
   .homePageContentContainer {
     top: 0px;
-    text-align: center !important;
+    text-align: center;
   }
 }
 
@@ -75,5 +152,17 @@
     position: relative;
     top: 10px;
     padding: 0px 40px;
+  }
+}
+
+@media all and (max-width: 565px) {
+  .homePageContentContainer {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .mobile-hero-section {
+    position: relative;
+    margin-top: 6px;
   }
 }

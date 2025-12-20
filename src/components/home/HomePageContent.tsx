@@ -69,20 +69,20 @@ export default function HomePageContent() {
       <div
         className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left"
         style={{
-          // Force light mode colors for homepage first section
           backgroundColor: "#fdfdfd",
           color: "#0f172a",
         }}
       >
+        {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
           <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
         </div>
 
-        <div className="flex flex-col h-full">
+        {/* Desktop content */}
+        <div className="lg:flex hidden flex-col h-full">
           <div
             className={styles.homeHeaderContainer}
             style={{
-              // Force light mode colors for logo
               color: "#0f172a",
             }}
           >
@@ -90,7 +90,6 @@ export default function HomePageContent() {
               className={`${styles["ad-hub-logo"]} flex d-flex`}
               href="/"
               style={{
-                // Force light mode colors for logo
                 color: "#0f172a",
               }}
             >
@@ -113,7 +112,6 @@ export default function HomePageContent() {
               <h3
                 className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
                 style={{
-                  // Force light mode colors - override dark mode
                   color: "#0f172a",
                 }}
               >
@@ -124,7 +122,6 @@ export default function HomePageContent() {
                 style={{
                   maxWidth: "665px",
                   padding: 0,
-                  // Force light mode colors - override dark mode
                   color: "#475569",
                 }}
               >
@@ -174,13 +171,118 @@ export default function HomePageContent() {
                     },
                   }}
                 >
-                  Get Started
+                  Try Now
                 </AuthActionButton>
               </div>
             </div>
           </div>
 
           <Footer />
+        </div>
+
+        {/* Mobile: Full height container like Buyable */}
+        <div className="lg:hidden relative flex flex-col h-screen" style={{ backgroundColor: "#fdfdfd" }}>
+          {/* Header - dark background blending into gradient with white text */}
+          <div className="px-4 py-3 flex justify-between items-center relative z-30" style={{ backgroundColor: "rgb(17 17 17)" }}>
+            <Link
+              className={`${styles["ad-hub-logo"]} flex`}
+              href="/"
+              style={{
+                color: "white",
+                fontSize: "1.85rem",
+              }}
+            >
+              <CircularProjectIcon />
+              <span style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>opletics</span>
+            </Link>
+            <BookDemoButton
+              calendlyUrl={CALENDLY_URL}
+              sx={{
+                px: 2.5,
+                py: 0.8,
+                fontSize: "0.9rem",
+                color: "#000",
+                borderColor: "#000",
+                backgroundColor: "#ceff77",
+              }}
+            />
+          </div>
+
+          {/* Full height hero container - 90% like Buyable */}
+          <div className={`relative flex-1 ${styles.fullHeightMobileHero}`}>
+            {/* Content overlay */}
+            <div className="absolute inset-0 px-4 flex flex-col justify-between z-20">
+              <div className={styles.mobileSpreadsheetContainer}>
+                <Image className={styles.mobileSpreadsheetImg} fill src="/assets/images/spreadsheet-illustration-dark-01.png" alt="spreadsheet illustration" style={{ objectFit: "contain" }} />
+              </div>
+              {/* Top content */}
+              <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
+                <h4 className="font-bold leading-tight mb-6" style={{ color: "white", fontSize: "2rem" }}>
+                  Automate Your Game Schedules
+                </h4>
+                <p className="text-xl max-w-sm leading-relaxed" style={{ color: "#e5e7eb" }}>
+                  A platform built to give athletic departments the clarity, control, and automation they deserve.
+                </p>
+              </div>
+
+              {/* Bottom content */}
+              <div className="pb-12 space-y-4">
+                <AuthActionButton
+                  onClick={handleSignIn}
+                  loading={signInAuth.loading}
+                  disabled={getStartedAuth.loading}
+                  variant="contained"
+                  sx={{
+                    backgroundColor: "var(--accent)",
+                    color: "var(--accent-contrast)",
+                    fontWeight: 600,
+                    boxShadow: "var(--shadow-soft)",
+                    borderRadius: "0.75rem",
+                    px: 4,
+                    py: 1.5,
+                    fontSize: "1.1rem",
+                    width: "100%",
+                    transition: "transform 0.2s ease",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      backgroundColor: "var(--accent)",
+                    },
+                  }}
+                >
+                  Sign in&nbsp;
+                  <FingerprintIcon sx={{ color: "rgb(92 142 4)" }} />
+                </AuthActionButton>
+
+                <div className="text-center">
+                  <AuthActionButton
+                    onClick={handleGetStarted}
+                    loading={getStartedAuth.loading}
+                    disabled={signInAuth.loading}
+                    variant="text"
+                    sx={{
+                      fontSize: "1.1rem",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: "white",
+                      fontWeight: 600,
+                      textDecoration: "underline",
+                      "&:hover": {
+                        background: "transparent",
+                      },
+                    }}
+                  >
+                    Try Now
+                  </AuthActionButton>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="relative z-30">
+            <Footer />
+          </div>
         </div>
       </div>
       <ArcCard />
