@@ -220,7 +220,7 @@ export default function HomePageContent() {
                 <h4 className="font-bold leading-tight mb-6" style={{ color: "white", fontSize: "2rem" }}>
                   Automate Your Game Schedules
                 </h4>
-                <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985" }}>
+                <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
                   A platform built to give athletic departments the clarity, control, and automation they deserve.
                 </p>
               </div>

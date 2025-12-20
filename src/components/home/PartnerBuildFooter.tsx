@@ -13,7 +13,7 @@ const PartnerBuildSectionFooter = () => {
         backgroundColor: "transparent",
       }}
     >
-      <Container maxWidth="lg" style={{ padding: "0px", margin: "0" }}>
+      <Container className={styles.footerContainer} maxWidth="lg" style={{ margin: "0" }}>
         {/* Title */}
         <Typography
           className={styles.partnerFooterTitle}
