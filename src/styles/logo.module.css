@@ -17,6 +17,10 @@
   top: 1px;
 }
 
+.opleticsLogoText {
+  font-size: 1.65rem;
+}
+
 .mobileSpreadsheetContainer {
   margin: 50px auto 0 auto;
   width: 400px;
@@ -90,6 +94,14 @@
   border-radius: 0 0 40px 40px;
 }
 
+.heroTitle {
+  font-size: 2rem;
+}
+
+.mobileHeroContainer {
+  height: 89vh;
+}
+
 @media all and (max-width: 768px) {
   .homeHeaderContainer {
     padding: 16px;
@@ -111,7 +123,7 @@
   }
 
   .ad-hub-logo {
-    font-size: 1.85rem !important;
+    font-size: 1.85rem;
   }
 
   .fullHeightMobileHero {
@@ -164,5 +176,64 @@
   .mobile-hero-section {
     position: relative;
     margin-top: 6px;
+  }
+}
+
+@media all and (max-width: 360px) {
+  .mobileSpreadsheetContainer {
+    width: 100%;
+  }
+
+  .opleticsLogoSmall {
+  }
+
+  .opleticsLogoText {
+    font-size: 1.25rem;
+  }
+
+  .heroContainer {
+    height: 95vh !important;
+  }
+
+  .mobileSpreadsheetImg {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .heroTitle {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+
+  .bookADemoButton {
+    font-size: 0.85rem;
+  }
+
+  .fullHeightMobileHero {
+    border-radius: 0 0 15px 15px;
+  }
+
+  .ad-hub-logo {
+    font-size: 1.35rem;
+  }
+
+  .mobileHeroContainer {
+    height: 105vh;
+  }
+
+  .tryNowButton {
+    font-size: 0.9rem;
+  }
+
+  .signInButton {
+    font-size: 0.9rem;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .newSectionTitle {
+    max-width: 600px;
+    font-weight: 700;
   }
 }
