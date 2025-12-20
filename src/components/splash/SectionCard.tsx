@@ -154,7 +154,7 @@ export const ArcCard: React.FC = () => {
               color: "white",
               fontWeight: 700,
               mb: 3,
-              fontSize: { xs: "1.75rem", sm: "2.5rem", md: "3rem" },
+              fontSize: { xs: "1.5rem", sm: "2.5rem", md: "3rem" },
               lineHeight: 1.2,
             }}
           >
@@ -164,7 +164,7 @@ export const ArcCard: React.FC = () => {
             variant="h6"
             sx={{
               color: "white",
-              fontSize: { xs: "1rem", sm: "1.125rem", md: "1.25rem" },
+              fontSize: { xs: "0.875rem", sm: "1.125rem", md: "1.25rem" },
               lineHeight: 1.6,
               fontWeight: 400,
             }}

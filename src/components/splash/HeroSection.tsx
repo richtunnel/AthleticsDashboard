@@ -23,7 +23,7 @@ export const HeroSection: React.FC = () => {
                   variant="h2"
                   component="h1"
                   sx={{
-                    fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem", lg: "3.5rem" },
+                    fontSize: { xs: "1.5rem", sm: "2.5rem", md: "3rem", lg: "3.5rem" },
                     lineHeight: 1.2,
                     fontWeight: 700,
                     maxWidth: "600px",
@@ -38,7 +38,7 @@ export const HeroSection: React.FC = () => {
                 <Typography
                   variant="h6"
                   sx={{
-                    fontSize: { xs: "1rem", md: "1.125rem" },
+                    fontSize: { xs: "0.875rem", md: "1.125rem" },
                     fontWeight: 400,
                     color: "text.secondary",
                     maxWidth: "600px",
@@ -53,7 +53,14 @@ export const HeroSection: React.FC = () => {
             <br />
             <FallInPlace delay={0.8}>
               <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-                <ButtonLink variant="contained" size="large" href="/signup">
+                <ButtonLink
+                  variant="contained"
+                  size="large"
+                  href="/signup"
+                  sx={{
+                    fontSize: { xs: "0.875rem", md: "1rem" },
+                  }}
+                >
                   Sign Up
                 </ButtonLink>
                 <ButtonLink
@@ -62,6 +69,7 @@ export const HeroSection: React.FC = () => {
                   variant="outlined"
                   endIcon={<FiArrowRight />}
                   sx={{
+                    fontSize: { xs: "0.875rem", md: "1rem" },
                     "& .MuiButton-endIcon": {
                       transition: "transform 0.2s",
                     },
