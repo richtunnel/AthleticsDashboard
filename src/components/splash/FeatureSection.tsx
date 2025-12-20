@@ -3,6 +3,7 @@ import { FiArrowRight, FiBox, FiCheck, FiCode, FiCopy, FiFlag, FiGrid, FiLock, F
 import { Box, ButtonGroup, Chip, Container, IconButton, Stack, Typography, Card, useTheme, useMediaQuery } from "@mui/material";
 import Link from "next/link";
 import { CalendarMonth, EmailRounded, BorderAll, ScoreboardRounded, AutoAwesomeRounded, DepartureBoard } from "@mui/icons-material";
+import styles from "../../styles/feature.module.css";
 
 export const FeaturesSection = () => {
   const theme = useTheme();
@@ -258,6 +259,7 @@ export const FeaturesSection = () => {
 
   return (
     <Features
+      className={styles.featureSectionTitle}
       id="features"
       title={
         <Typography
