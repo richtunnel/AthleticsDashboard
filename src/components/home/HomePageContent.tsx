@@ -96,7 +96,9 @@ export default function HomePageContent() {
               }}
             >
               <CircularProjectIcon />
-              <span style={{ marginLeft: "2.5px", letterSpacing: "-0.35px", fontSize: "1.65rem" }}>opletics</span>
+              <span className={styles.opleticsLogoText} style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>
+                opletics
+              </span>
             </Link>
 
             <BookDemoButton
@@ -183,7 +185,7 @@ export default function HomePageContent() {
         </div>
 
         {/* Mobile: Full height container like Buyable */}
-        <div className="lg:hidden relative flex flex-col h-screen" style={{ backgroundColor: "#fdfdfd" }}>
+        <div className={`${styles.mobileHeroContainer} lg:hidden relative flex flex-col h-screen`} style={{ backgroundColor: "#fdfdfd", height: "89vh" }}>
           {/* Header - dark background blending into gradient with white text */}
           <div className="px-4 py-3 flex justify-between items-center relative z-30" style={{ backgroundColor: "rgb(17 17 17)" }}>
             <Link
@@ -219,7 +221,7 @@ export default function HomePageContent() {
               </div>
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
-                <h4 className="font-bold leading-tight mb-6" style={{ color: "white", fontSize: "2rem" }}>
+                <h4 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white" }}>
                   Automate Your Game Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
@@ -233,6 +235,7 @@ export default function HomePageContent() {
                   onClick={handleSignIn}
                   loading={signInAuth.loading}
                   disabled={getStartedAuth.loading}
+                  classname={`${styles.signInButton}`}
                   variant="contained"
                   sx={{
                     backgroundColor: "var(--accent)",
@@ -258,6 +261,7 @@ export default function HomePageContent() {
                 <div className="text-center">
                   <AuthActionButton
                     onClick={handleGetStarted}
+                    classname={`${styles.tryNowButton}`}
                     loading={getStartedAuth.loading}
                     disabled={signInAuth.loading}
                     variant="text"
