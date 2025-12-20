@@ -3,7 +3,6 @@ import { FiArrowRight, FiBox, FiCheck, FiCode, FiCopy, FiFlag, FiGrid, FiLock, F
 import { Box, ButtonGroup, Chip, Container, IconButton, Stack, Typography, Card, useTheme, useMediaQuery } from "@mui/material";
 import Link from "next/link";
 import { CalendarMonth, EmailRounded, BorderAll, ScoreboardRounded, AutoAwesomeRounded, DepartureBoard } from "@mui/icons-material";
-import styles from "../../styles/feature.module.css";
 
 export const FeaturesSection = () => {
   const theme = useTheme();
@@ -259,14 +258,13 @@ export const FeaturesSection = () => {
 
   return (
     <Features
-      className={styles.featureSectionTitle}
       id="features"
       title={
         <Typography
           variant="h3"
           sx={{
             lineHeight: "short",
-            fontSize: { xs: "2xl", lg: "4xl" },
+            fontSize: { xs: "2rem", lg: "4xl" },
             textAlign: "left",
             fontWeight: "700",
           }}
@@ -275,13 +273,7 @@ export const FeaturesSection = () => {
           <br /> Coaches and Staff.
         </Typography>
       }
-      description={
-        <>
-          Opletics includes a ton of useful features for athletic departments.
-          <br />
-          We've helped athletic directors shave off over 60% of their daily workflow.
-        </>
-      }
+      description={<>Opletics includes a ton of useful features for athletic departments. We've helped athletic directors shave off over 60% of their daily workflow.</>}
       align="left"
       columns={{ xs: 1, sm: 2, md: 3 }}
       iconSize={isMobile ? 0 : 32}
