@@ -102,6 +102,86 @@
   height: 89vh;
 }
 
+/* iPhone 12 Pro Max, 11 Pro Max, XS Max - Max screens */
+@media all and (min-width: 428px) and (max-width: 768px) {
+  .mobileHeroContainer {
+    height: 89vh;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+}
+
+/* iPhone 11, 11 Pro, XR - Large screens */
+@media all and (min-width: 414px) and (max-width: 427px) {
+  .mobileHeroContainer {
+    height: 89vh;
+  }
+
+  .heroTitle {
+    font-size: 1.95rem;
+  }
+}
+
+/* iPhone 12 Pro - Regular screens */
+@media all and (min-width: 390px) and (max-width: 413px) {
+  .mobileHeroContainer {
+    height: 90vh;
+  }
+
+  .heroTitle {
+    font-size: 1.9rem;
+  }
+}
+
+/* iPhone X, XS, 11 Pro, SE (2nd/3rd gen) - Medium screens */
+@media all and (min-width: 375px) and (max-width: 389px) {
+  .mobileHeroContainer {
+    height: 92vh;
+  }
+
+  .heroTitle {
+    font-size: 1.85rem;
+  }
+  
+  .mobileSpreadsheetContainer {
+    width: 360px;
+  }
+  
+  .mobile-hero-section {
+    padding: 0 8px;
+  }
+}
+
+/* iPhone 5, 5S, 5C, SE (1st gen) - Small screens */
+@media all and (min-width: 320px) and (max-width: 374px) {
+  .mobileHeroContainer {
+    height: 95vh;
+  }
+
+  .heroTitle {
+    font-size: 1.65rem;
+  }
+  
+  .mobileSpreadsheetContainer {
+    width: 300px;
+    margin-top: 30px;
+  }
+  
+  .ad-hub-logo {
+    font-size: 1.5rem;
+  }
+  
+  .mobile-hero-section {
+    padding: 0 4px;
+  }
+  
+  .mobile-hero-section p {
+    font-size: 0.9rem;
+  }
+}
+
 @media all and (max-width: 768px) {
   .homeHeaderContainer {
     padding: 16px;
@@ -179,31 +259,12 @@
   }
 }
 
+/* Extra small devices - refined adjustments */
 @media all and (max-width: 360px) {
-  .mobileSpreadsheetContainer {
-    width: 100%;
-  }
-
-  .opleticsLogoSmall {
-  }
-
-  .opleticsLogoText {
-    font-size: 1.25rem;
-  }
-
-  .heroContainer {
-    height: 95vh !important;
-  }
-
   .mobileSpreadsheetImg {
     width: 100%;
-    max-width: 320px;
+    max-width: 280px;
     margin: 0 auto;
-  }
-
-  .heroTitle {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
   }
 
   .bookADemoButton {
@@ -214,20 +275,12 @@
     border-radius: 0 0 15px 15px;
   }
 
-  .ad-hub-logo {
-    font-size: 1.35rem;
-  }
-
-  .mobileHeroContainer {
-    height: 105vh;
-  }
-
   .tryNowButton {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
 
   .signInButton {
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     padding-top: 10px;
     padding-bottom: 10px;
   }
