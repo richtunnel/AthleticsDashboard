@@ -11,7 +11,7 @@ export const HeroSection: React.FC = () => {
   return (
     <Box sx={{ position: "relative", overflow: "hidden", padding: "0" }}>
       {/* <BackgroundGradient height="100%" zIndex="-1" /> */}
-      <Container maxWidth="xl" sx={{ pt: { xs: 10, lg: 20 }, pb: 20 }}>
+      <Container maxWidth="xl" sx={{ pt: { xs: 2, lg: 20 }, pb: { xs: 4, lg: 20 } }}>
         <Stack direction={{ xs: "column", lg: "row" }} alignItems="center">
           <Hero
             id="home"
