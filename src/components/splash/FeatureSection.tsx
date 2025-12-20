@@ -264,7 +264,7 @@ export const FeaturesSection = () => {
           variant="h3"
           sx={{
             lineHeight: "short",
-            fontSize: { xs: "2rem", lg: "4xl" },
+            fontSize: { xs: "1.5rem", lg: "4xl" },
             textAlign: "left",
             fontWeight: "700",
           }}

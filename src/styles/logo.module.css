@@ -157,7 +157,7 @@
 /* iPhone 5, 5S, 5C, SE (1st gen) - Small screens */
 @media all and (min-width: 320px) and (max-width: 374px) {
   .mobileHeroContainer {
-    height: 95vh;
+    height: 99vh;
   }
 
   .heroTitle {
@@ -170,7 +170,7 @@
   }
   
   .ad-hub-logo {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
   }
   
   .mobile-hero-section {

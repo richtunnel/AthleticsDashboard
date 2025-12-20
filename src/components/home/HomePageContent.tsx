@@ -196,15 +196,15 @@ export default function HomePageContent() {
                 fontSize: "1.85rem",
               }}
             >
-              <CircularProjectIcon />
+              <CircularProjectIcon size={16} />
               <span style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>opletics</span>
             </Link>
             <BookDemoButton
               calendlyUrl={CALENDLY_URL}
               sx={{
-                px: 2.5,
-                py: 0.8,
-                fontSize: "0.9rem",
+                px: 2,
+                py: 0.7,
+                fontSize: "0.8rem",
                 color: "#000",
                 borderColor: "#000",
                 backgroundColor: "#ceff77",
@@ -245,7 +245,7 @@ export default function HomePageContent() {
                     borderRadius: "0.75rem",
                     px: 4,
                     py: 1.5,
-                    fontSize: "1.1rem",
+                    fontSize: "0.95rem",
                     width: "100%",
                     transition: "transform 0.2s ease",
                     "&:hover": {
@@ -266,7 +266,7 @@ export default function HomePageContent() {
                     disabled={signInAuth.loading}
                     variant="text"
                     sx={{
-                      fontSize: "1.1rem",
+                      fontSize: "0.95rem",
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
