@@ -94,7 +94,7 @@ const DreamSection = () => {
               fontSize: "1rem",
             }}
           >
-            We also like to mention our very special feature for kids that can help amplify their grit and future. Feel free to book a demo to learn more.
+            We also have a very special feature for kids that can help amplify their grit and future. Feel free to book a demo to learn more.
           </Typography>
         </Grid>
       </Grid>
