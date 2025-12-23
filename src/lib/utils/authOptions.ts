@@ -21,8 +21,8 @@ const customAdapter = {
     // Check if email is blocked due to recent account deletion (90-day rule)
     const signupCheck = await isSignupBlocked(user.email);
     if (signupCheck.blocked) {
-      console.error('[OAuth] Signup blocked for email:', user.email, 'Expires:', signupCheck.expiresAt);
-      throw new Error('This email was used for an account that was recently deleted. Please wait before signing up again or contact support.');
+      console.error("[OAuth] Signup blocked for email:", user.email, "Expires:", signupCheck.expiresAt);
+      throw new Error("This email was used for an account that was recently deleted. Please wait before signing up again or contact support.");
     }
 
     // Extract plan from user data if available (passed from callback URL)
@@ -81,15 +81,12 @@ const customAdapter = {
           userId: newUser.id,
           organizationId: newUser.organizationId,
         }),
-      `sample game creation for user ${newUser.id}`,
+      `sample game creation for user ${newUser.id}`
     );
 
     // Create initial column preferences for new user (non-blocking)
     // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
-    void runNonCritical(
-      () => createInitialColumnPreferences(newUser.id),
-      `initial column preferences for user ${newUser.id}`,
-    );
+    void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
 
     // Send welcome email (non-blocking)
     if (newUser.email) {
@@ -100,31 +97,28 @@ const customAdapter = {
             email: newUser.email,
             name: newUser.name,
           }),
-        `welcome email for user ${newUser.id}`,
+        `welcome email for user ${newUser.id}`
       );
     }
 
     // Track Google OAuth signup in Mixpanel (non-blocking)
-    void runNonCritical(
-      () => {
-        trackServerEvent("User Signup", {
-          distinct_id: newUser.id,
-          signup_method: "google",
-          plan: newUser.plan,
-          email: newUser.email,
-          name: newUser.name,
-        });
-        identifyServerUser(newUser.id, {
-          $email: newUser.email,
-          $name: newUser.name,
-          plan: newUser.plan,
-          role: newUser.role,
-          signup_method: "google",
-          signup_date: new Date().toISOString(),
-        });
-      },
-      `mixpanel tracking for user ${newUser.id}`,
-    );
+    void runNonCritical(() => {
+      trackServerEvent("User Signup", {
+        distinct_id: newUser.id,
+        signup_method: "google",
+        plan: newUser.plan,
+        email: newUser.email,
+        name: newUser.name,
+      });
+      identifyServerUser(newUser.id, {
+        $email: newUser.email,
+        $name: newUser.name,
+        plan: newUser.plan,
+        role: newUser.role,
+        signup_method: "google",
+        signup_date: new Date().toISOString(),
+      });
+    }, `mixpanel tracking for user ${newUser.id}`);
 
     return newUser;
   },
@@ -150,8 +144,8 @@ export const authOptions: NextAuthOptions = {
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? "",
+      clientId: process.env.GOOGLE_AUTH_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_AUTH_CLIENT_SECRET ?? "",
       // ❌ REMOVED allowDangerousEmailAccountLinking - this was auto-creating accounts during sign-in
       // Sign-in should NEVER create accounts - only signup flow should create accounts
       authorization: {
@@ -161,12 +155,7 @@ export const authOptions: NextAuthOptions = {
           response_type: "code",
           // ✅ INCREMENTAL AUTHORIZATION: Only request basic profile scopes initially
           // Calendar and Contacts scopes will be requested on-demand when needed
-          scope: [
-            "openid",
-            "email",
-            "profile",
-            "https://www.googleapis.com/auth/userinfo.email",
-          ].join(" "),
+          scope: ["openid", "email", "profile"].join(" "),
         },
       },
     }),
@@ -235,7 +224,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
@@ -256,7 +244,7 @@ export const authOptions: NextAuthOptions = {
               } as any)) as { id: string; googleCalendarEmail?: string | null } | null;
 
               if (!existingUser) {
-                console.error('[Google Sign-In] User does not exist:', email);
+                console.error("[Google Sign-In] User does not exist:", email);
                 // Block sign-in and force user to signup
                 return false;
               }
@@ -303,7 +291,7 @@ export const authOptions: NextAuthOptions = {
                   email: user.email!,
                   name: user.name,
                 }),
-              `welcome email for user ${user.id}`,
+              `welcome email for user ${user.id}`
             );
           }
         }
@@ -374,27 +362,25 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (account?.provider === "google" && token.email) {
-        const dbUser = (await prisma.user.findUnique(
-          {
-            where: { email: token.email },
-            select: {
-              id: true,
-              role: true,
-              organizationId: true,
-              organization: {
-                select: {
-                  id: true,
-                  name: true,
-                  timezone: true,
-                },
+        const dbUser = (await prisma.user.findUnique({
+          where: { email: token.email },
+          select: {
+            id: true,
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
               },
-              googleCalendarRefreshToken: true,
-              googleCalendarAccessToken: true,
-              calendarTokenExpiry: true,
-              googleCalendarEmail: true,
             },
-          } as any,
-        )) as any;
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
+            googleCalendarEmail: true,
+          },
+        } as any)) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -408,26 +394,24 @@ export const authOptions: NextAuthOptions = {
       }
 
       if ((trigger === "update" || !token.organization || !token.googleCalendarEmail) && token.email) {
-        const dbUser = (await prisma.user.findUnique(
-          {
-            where: { email: token.email },
-            select: {
-              role: true,
-              organizationId: true,
-              organization: {
-                select: {
-                  id: true,
-                  name: true,
-                  timezone: true,
-                },
+        const dbUser = (await prisma.user.findUnique({
+          where: { email: token.email },
+          select: {
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
               },
-              googleCalendarRefreshToken: true,
-              googleCalendarAccessToken: true,
-              calendarTokenExpiry: true,
-              googleCalendarEmail: true,
             },
-          } as any,
-        )) as any;
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
+            googleCalendarEmail: true,
+          },
+        } as any)) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -458,7 +442,7 @@ export const authOptions: NextAuthOptions = {
 
         // Check if this is a new user signup (indicated by newUser query param)
         const isNewUser = resolvedUrl.searchParams.has("newUser");
-        
+
         // For new users via Google OAuth, redirect to onboarding/details
         if (isNewUser && resolvedUrl.pathname === "/dashboard") {
           return `${baseUrl}/onboarding/details`;
@@ -493,9 +477,7 @@ export const authOptions: NextAuthOptions = {
 
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" 
-        ? "__Secure-next-auth.session-token" 
-        : "next-auth.session-token",
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",

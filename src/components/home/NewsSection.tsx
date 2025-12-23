@@ -7,7 +7,7 @@ const NewsSection = () => {
 
   const newsItems = [
     {
-      category: "COMPANY",
+      category: "COMPANY NEWS",
       title: "Opletics Receives Strategic Data from Sports Technology Partners",
       variant: "standard" as const,
     },
@@ -141,7 +141,7 @@ const NewsSection = () => {
                 }}
               >
                 <Chip
-                  label="COMPANY"
+                  label="OPLETICS"
                   size="small"
                   sx={{
                     backgroundColor: "rgba(255, 255, 255, 0.2)",
@@ -205,7 +205,7 @@ const NewsSection = () => {
                     color: "white",
                   }}
                 >
-                  Opletics Launches Athletic Management Public Platform
+                  Opletics Plans to Launch a Public Parent Portal 2026
                 </Typography>
 
                 <Button
