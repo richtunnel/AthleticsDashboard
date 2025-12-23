@@ -160,16 +160,28 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     }
   }
 
-  // Format as local datetime string for Google Calendar (YYYY-MM-DDTHH:mm:ss)
-  // This represents the local time in the specified timezone WITHOUT UTC conversion
+  // Format as RFC3339 datetime string for Google Calendar
+  // Google Calendar API requires proper RFC3339 format with timezone offset
   const pad = (n: number) => n.toString().padStart(2, '0');
-  const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
+  
+  // Create Date object to get timezone offset (handles DST automatically)
+  const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+  const timezoneOffset = startDate.getTimezoneOffset(); // in minutes
+  const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+  const offsetMinutes = Math.abs(timezoneOffset) % 60;
+  const offsetSign = timezoneOffset <= 0 ? '+' : '-'; // Note: getTimezoneOffset returns negative for positive offsets
+  const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
+  
+  const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
   
   // Calculate end time (2 hours later)
-  const endHours = hours + 2;
-  const endDay = endHours >= 24 ? day + 1 : day;
-  const normalizedEndHours = endHours % 24;
-  const endDateTime = `${year}-${pad(month)}-${pad(endDay)}T${pad(normalizedEndHours)}:${pad(minutes)}:00`;
+  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+  const endYear = endDate.getFullYear();
+  const endMonth = endDate.getMonth() + 1;
+  const endDay = endDate.getDate();
+  const endHours = endDate.getHours();
+  const endMinutes = endDate.getMinutes();
+  const endDateTime = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHours)}:${pad(endMinutes)}:00${offsetString}`;
 
   // Build location string, properly handling null/undefined values
   let location = "TBD";
