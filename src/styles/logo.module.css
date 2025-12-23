@@ -102,6 +102,11 @@
   height: 89vh;
 }
 
+.newSectionTitle {
+  max-width: 600px;
+  font-weight: 700;
+}
+
 /* iPhone 12 Pro Max, 11 Pro Max, XS Max - Max screens */
 @media all and (min-width: 428px) and (max-width: 768px) {
   .mobileHeroContainer {

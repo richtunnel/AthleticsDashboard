@@ -119,7 +119,7 @@ export default function HomePageContent() {
                   color: "#0f172a",
                 }}
               >
-                Automate <br /> Game Schedules
+                Automate Your <br /> Sports Schedules
               </h3>
               <p
                 className="text-xl mb-8"
@@ -222,10 +222,10 @@ export default function HomePageContent() {
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
                 <h4 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white" }}>
-                  Automate Your Game Schedules
+                  Automate Your Sports Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  A platform built to give athletic departments the clarity, control, and automation they deserve.
+                  Opletics gives you tools to signifcantly reduce the amount of time you spend planning and communicating. Take control of how much time you spend planning and communicating
                 </p>
               </div>
 
