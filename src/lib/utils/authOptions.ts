@@ -242,26 +242,9 @@ export const authOptions: NextAuthOptions = {
         if (account?.provider === "google") {
           const email = profile?.email ?? user?.email ?? undefined;
 
-          if (email) {
-            // CRITICAL: Check if user exists in database
-            // If user doesn't exist, they must go through signup flow first
-            // This prevents auto-creation of accounts during sign-in
+          if (email && user?.id) {
+            // User exists (either found or created by adapter) - update their Google Calendar tokens
             try {
-              const existingUser = (await prisma.user.findUnique({
-                where: { email },
-                select: {
-                  id: true,
-                  googleCalendarEmail: true,
-                },
-              } as any)) as { id: string; googleCalendarEmail?: string | null } | null;
-
-              if (!existingUser) {
-                console.error('[Google Sign-In] User does not exist:', email);
-                // Block sign-in and force user to signup
-                return false;
-              }
-
-              // User exists - update their Google Calendar tokens
               const updateData: Record<string, any> = {};
 
               if (account.refresh_token) {
@@ -276,22 +259,36 @@ export const authOptions: NextAuthOptions = {
                 updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
               }
 
-              updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+              // Get current googleCalendarEmail if not in profile
+              if (!profile?.email) {
+                const dbUser = await prisma.user.findUnique({
+                  where: { id: user.id },
+                  select: { googleCalendarEmail: true },
+                });
+                updateData.googleCalendarEmail = dbUser?.googleCalendarEmail ?? email;
+              } else {
+                updateData.googleCalendarEmail = profile.email;
+              }
 
               if (Object.keys(updateData).length > 0) {
                 await prisma.user.update({
-                  where: { id: existingUser.id },
+                  where: { id: user.id },
                   data: updateData,
                 });
               }
             } catch (googleUpdateError) {
-              console.error("Failed to check/update Google account during sign-in", {
+              console.error("Failed to update Google account during sign-in", {
+                userId: user.id,
                 email,
                 error: googleUpdateError,
               });
-              // Block sign-in if we can't verify user exists
-              return false;
+              // Don't block sign-in if token update fails - user can still sign in
+              // Tokens will be refreshed next time if needed
             }
+          } else if (email && !user?.id) {
+            // This shouldn't happen - if adapter found/created user, user.id should exist
+            console.error('[Google Sign-In] User ID missing after adapter processed sign-in:', email);
+            return false;
           }
 
           // Send welcome email for existing users (non-blocking)
