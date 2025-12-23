@@ -54,14 +54,9 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate column name
-    const existingColumn = organization.customColumns.find(
-      (col) => col.name.toLowerCase() === name.trim().toLowerCase()
-    );
+    const existingColumn = organization.customColumns.find((col) => col.name.toLowerCase() === name.trim().toLowerCase());
     if (existingColumn) {
-      return new Response(
-        JSON.stringify({ error: "A column with this name already exists" }),
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: "A column with this name already exists" }), { status: 400 });
     }
 
     const newColumn = await prisma.customColumn.create({
@@ -82,7 +77,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await requireAuth();
-    const url = new URL(request.url);
+    const url = new URL(`${process.env.NEXTAUTH_URL}`);
     const columnId = url.searchParams.get("id");
 
     if (!columnId) {
