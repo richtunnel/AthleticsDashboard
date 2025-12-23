@@ -171,11 +171,26 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   const normalizedEndHours = endHours % 24;
   const endDateTime = `${year}-${pad(month)}-${pad(endDay)}T${pad(normalizedEndHours)}:${pad(minutes)}:00`;
 
+  // Build location string, properly handling null/undefined values
+  let location = "TBD";
+  if (game.isHome) {
+    location = "Home Field";
+  } else if (game.venue) {
+    const locationParts = [
+      game.venue.name,
+      game.venue.address,
+      game.venue.city,
+      game.venue.state
+    ].filter(part => part && part.trim()); // Filter out null, undefined, and empty strings
+    
+    location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
+  }
+
   const event: calendar_v3.Schema$Event = {
     status: CALENDAR_EVENT_STATUS_SCHEDULED,
     summary: buildEventSummary(game),
     description: buildEventDescription(game),
-    location: game.isHome ? "Home Field" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city || ""}, ${game.venue.state || ""}` : "TBD",
+    location,
     start: {
       dateTime: startDateTime,
       timeZone: "America/New_York",
@@ -192,6 +207,14 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       ],
     },
   };
+  
+  console.log("[Calendar Sync] Event payload:", {
+    gameId,
+    summary: event.summary,
+    location: event.location,
+    startDateTime,
+    endDateTime,
+  });
 
   try {
     // Resolve which calendar to sync to based on game data and user mappings
@@ -229,9 +252,26 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       htmlLink: response.data.htmlLink,
       success: true,
     };
-  } catch (error) {
-    console.error("Calendar sync failed:", error);
-    throw new Error("Failed to sync to Google Calendar");
+  } catch (error: any) {
+    console.error("[Calendar Sync] Failed:", {
+      error: error.message,
+      status: error.code || error.status,
+      gameId,
+      response: error.response?.data || error.response || "No response data",
+    });
+    
+    // Provide more specific error messages based on error code
+    if (error.code === 400 || error.status === 400) {
+      throw new Error(`Invalid event data: ${error.message || "Check event fields for malformed data"}`);
+    } else if (error.code === 401 || error.status === 401) {
+      throw new Error("Google Calendar authentication failed. Please reconnect your calendar.");
+    } else if (error.code === 403 || error.status === 403) {
+      throw new Error("Permission denied. Please ensure calendar access is granted.");
+    } else if (error.code === 404 || error.status === 404) {
+      throw new Error("Calendar or event not found.");
+    }
+    
+    throw new Error(`Failed to sync to Google Calendar: ${error.message || "Unknown error"}`);
   }
 }
 
