@@ -14,19 +14,13 @@ export async function GET(request: NextRequest) {
 
     const mappings = await prisma.calendarGroupMapping.findMany({
       where: { userId: session.user.id },
-      orderBy: [
-        { columnName: 'asc' },
-        { columnValue: 'asc' },
-      ],
+      orderBy: [{ columnName: "asc" }, { columnValue: "asc" }],
     });
 
     return NextResponse.json({ mappings });
   } catch (error) {
     console.error("Error fetching calendar group mappings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch calendar group mappings" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch calendar group mappings" }, { status: 500 });
   }
 }
 
@@ -43,10 +37,7 @@ export async function POST(request: NextRequest) {
     const { columnName, columnValue, googleCalendarId, googleCalendarName } = body;
 
     if (!columnName || !columnValue || !googleCalendarId || !googleCalendarName) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const mapping = await prisma.calendarGroupMapping.create({
@@ -62,19 +53,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ mapping });
   } catch (error: any) {
     console.error("Error creating calendar group mapping:", error);
-    
+
     // Handle unique constraint violation
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: "A mapping for this column and value already exists" },
-        { status: 409 }
-      );
+    if (error.code === "P2002") {
+      return NextResponse.json({ error: "A mapping for this column and value already exists" }, { status: 409 });
     }
 
-    return NextResponse.json(
-      { error: "Failed to create calendar group mapping" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create calendar group mapping" }, { status: 500 });
   }
 }
 
@@ -87,7 +72,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(`${process.env.NEXTAUTH_URL}`);
     const id = searchParams.get("id");
 
     if (id) {
@@ -102,15 +87,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json(
-      { error: "Missing mapping ID" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing mapping ID" }, { status: 400 });
   } catch (error) {
     console.error("Error deleting calendar group mapping:", error);
-    return NextResponse.json(
-      { error: "Failed to delete calendar group mapping" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete calendar group mapping" }, { status: 500 });
   }
 }

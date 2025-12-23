@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("Calendar OAuth error:", error);
-    return NextResponse.redirect(new URL(`/dashboard/settings?error=${encodeURIComponent(error)}`, request.url));
+    return NextResponse.redirect(new URL(`/dashboard/settings?error=${encodeURIComponent(error)}`, process.env.NEXTAUTH_URL!));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/dashboard/settings?error=no_code", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?error=no_code", process.env.NEXTAUTH_URL!));
   }
 
   try {
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user) {
       console.error("❌ No active session - user must be logged in");
-      return NextResponse.redirect(new URL("/login?error=must_be_logged_in", request.url));
+      return NextResponse.redirect(new URL("/login?error=must_be_logged_in", process.env.NEXTAUTH_URL));
     }
 
     console.log("📅 Connecting calendar for user:", session.user.email);
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Verify state matches user ID (optional security check)
     if (state && state !== session.user.id) {
       console.error("❌ State mismatch - possible CSRF attack");
-      return NextResponse.redirect(new URL("/dashboard/settings?error=invalid_state", request.url));
+      return NextResponse.redirect(new URL("/dashboard/settings?error=invalid_state", process.env.NEXTAUTH_URL));
     }
 
     // Exchange authorization code for tokens
@@ -91,10 +91,10 @@ export async function GET(request: NextRequest) {
 
     console.log("✅ Calendar connected to user:", session.user.email);
 
-    return NextResponse.redirect(new URL("/dashboard/settings?calendar=connected", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?calendar=connected", process.env.NEXTAUTH_URL));
   } catch (error) {
     console.error("❌ Calendar OAuth error:", error);
 
-    return NextResponse.redirect(new URL("/dashboard/settings?error=calendar_connection_failed", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?error=calendar_connection_failed", process.env.NEXTAUTH_URL));
   }
 }

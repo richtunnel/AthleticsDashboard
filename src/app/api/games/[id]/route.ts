@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function PATCH(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const url = new URL(request.url);
+    const url = new URL(`${process.env.NEXTAUTH_URL}`);
     const gameId = url.pathname.split("/").pop(); // Get game ID from URL
 
     if (!gameId) {
@@ -64,15 +64,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Normalize time field - convert empty strings to null and validate/normalize format
-    if ('time' in body) {
+    if ("time" in body) {
       try {
         body.time = normalizeTimeFormat(body.time);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid time format";
-        return NextResponse.json({ 
-          success: false, 
-          error: `${message}. Use HH:MM format (e.g., 14:30, 09:00) for Google Calendar compatibility.` 
-        }, { status: 400 });
+        return NextResponse.json(
+          {
+            success: false,
+            error: `${message}. Use HH:MM format (e.g., 14:30, 09:00) for Google Calendar compatibility.`,
+          },
+          { status: 400 }
+        );
       }
     }
 
@@ -92,7 +95,7 @@ export async function PATCH(request: NextRequest) {
           // Also update the main date field so calendar widget sees the change
           body.date = new Date(body.customFields[dateColumnName]);
         }
-        
+
         // Also check for time column mapping and normalize
         const timeColumnName = Object.keys(columnMapping).find((col) => columnMapping[col] === "time");
         if (timeColumnName && body.customFields[timeColumnName]) {
@@ -103,10 +106,13 @@ export async function PATCH(request: NextRequest) {
             body.time = normalizedTime;
           } catch (error) {
             const message = error instanceof Error ? error.message : "Invalid time format";
-            return NextResponse.json({ 
-              success: false, 
-              error: `Invalid time in imported column "${timeColumnName}": ${message}` 
-            }, { status: 400 });
+            return NextResponse.json(
+              {
+                success: false,
+                error: `Invalid time in imported column "${timeColumnName}": ${message}`,
+              },
+              { status: 400 }
+            );
           }
         }
       }
