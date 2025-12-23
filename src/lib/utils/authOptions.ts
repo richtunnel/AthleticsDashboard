@@ -231,68 +231,51 @@ export const authOptions: NextAuthOptions = {
           const email = profile?.email ?? user?.email ?? undefined;
 
           if (email) {
-            // CRITICAL: Check if user exists in database
-            // If user doesn't exist, they must go through signup flow first
-            // This prevents auto-creation of accounts during sign-in
             try {
-              const existingUser = (await prisma.user.findUnique({
+              const existingUser = await prisma.user.findUnique({
                 where: { email },
                 select: {
                   id: true,
                   googleCalendarEmail: true,
                 },
-              } as any)) as { id: string; googleCalendarEmail?: string | null } | null;
+              });
 
-              if (!existingUser) {
-                console.error("[Google Sign-In] User does not exist:", email);
-                // Block sign-in and force user to signup
-                return false;
+              // Allow account creation during signup flow
+              // The customAdapter.createUser will handle signup validation (90-day block check)
+              if (existingUser) {
+                // User exists - update their Google Calendar tokens
+                const updateData: Record<string, any> = {};
+
+                if (account.refresh_token) {
+                  updateData.googleCalendarRefreshToken = account.refresh_token;
+                }
+
+                if (account.access_token) {
+                  updateData.googleCalendarAccessToken = account.access_token;
+                }
+
+                if (typeof account.expires_at === "number") {
+                  updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
+                }
+
+                updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+
+                if (Object.keys(updateData).length > 0) {
+                  await prisma.user.update({
+                    where: { id: existingUser.id },
+                    data: updateData,
+                  });
+                }
               }
-
-              // User exists - update their Google Calendar tokens
-              const updateData: Record<string, any> = {};
-
-              if (account.refresh_token) {
-                updateData.googleCalendarRefreshToken = account.refresh_token;
-              }
-
-              if (account.access_token) {
-                updateData.googleCalendarAccessToken = account.access_token;
-              }
-
-              if (typeof account.expires_at === "number") {
-                updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
-              }
-
-              updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
-
-              if (Object.keys(updateData).length > 0) {
-                await prisma.user.update({
-                  where: { id: existingUser.id },
-                  data: updateData,
-                });
-              }
+              // If user doesn't exist, allow NextAuth + PrismaAdapter to create them
+              // The customAdapter.createUser method will check for 90-day signup blocks
             } catch (googleUpdateError) {
               console.error("Failed to check/update Google account during sign-in", {
                 email,
                 error: googleUpdateError,
               });
-              // Block sign-in if we can't verify user exists
-              return false;
+              // Don't block - let it proceed
             }
-          }
-
-          // Send welcome email for existing users (non-blocking)
-          if (user && typeof user.id === "string" && user.email) {
-            void runNonCritical(
-              () =>
-                emailService.sendWelcomeEmail({
-                  id: user.id,
-                  email: user.email!,
-                  name: user.name,
-                }),
-              `welcome email for user ${user.id}`
-            );
           }
         }
 
@@ -308,10 +291,10 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
-        return true;
+        return true; // Always return true for Google OAuth
       } catch (error) {
         console.error("SignIn callback error:", error);
-        return true;
+        return true; // Don't block on errors
       }
     },
 
