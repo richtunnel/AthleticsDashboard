@@ -1136,14 +1136,19 @@ export function GamesTable() {
 
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
+      console.log("[Calendar Sync] Starting sync for game:", gameId);
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
       if (!res.ok) {
         const error = await res.json();
+        console.error("[Calendar Sync] API Error:", error);
         throw new Error(error.error || "Failed to sync calendar.");
       }
-      return res.json();
+      const result = await res.json();
+      console.log("[Calendar Sync] Success:", result);
+      return result;
     },
     onMutate: async (gameId: string) => {
+      console.log("[Calendar Sync] onMutate - Starting optimistic update for game:", gameId);
       // use the parametrized key used by the table query
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
 
@@ -1176,22 +1181,29 @@ export function GamesTable() {
 
       return { previousGames };
     },
-    onError: (err, gameId, context: any) => {
+    onError: (err: Error, gameId, context: any) => {
+      console.error("[Calendar Sync] onError - Failed to sync game:", gameId, err);
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
       if (context?.previousGames) {
         queryClient.setQueryData(GAMES_KEY, context.previousGames);
       }
-      addNotification("Failed to sync calendar", "error");
+      // Show the actual error message from the API
+      const errorMessage = err.message || "Failed to sync calendar";
+      addNotification(errorMessage, "error");
     },
     onSuccess: (data, gameId) => {
+      console.log("[Calendar Sync] onSuccess - Successfully synced game:", gameId, data);
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
 
       // apply authoritative server result if present
+      // API response structure: { success: true, data: { eventId: "...", htmlLink: "..." } }
+      const eventId = data?.data?.eventId;
+      
       queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         if (Array.isArray(oldData)) {
-          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g));
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: eventId ?? g.googleCalendarEventId } : g));
         }
 
         if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1199,7 +1211,7 @@ export function GamesTable() {
             ...oldData,
             data: {
               ...oldData.data,
-              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g)),
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: eventId ?? g.googleCalendarEventId } : g)),
             },
           };
         }
