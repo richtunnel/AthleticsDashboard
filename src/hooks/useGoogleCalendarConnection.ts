@@ -54,8 +54,11 @@ export function useGoogleCalendarConnection(): UseGoogleCalendarConnectionReturn
       return response.json();
     },
     onSuccess: () => {
-      // Refetch status after disconnect
+      // Invalidate all calendar-related queries to update all components
       queryClient.invalidateQueries({ queryKey: ["googleCalendarStatus"] });
+      queryClient.invalidateQueries({ queryKey: ["googleCalendars"] });
+      queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
+      queryClient.invalidateQueries({ queryKey: ["autoCalendarSync"] });
     },
   });
 

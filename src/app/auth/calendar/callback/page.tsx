@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Box, CircularProgress, Typography, Alert, Button } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import { useQueryClient } from "@tanstack/react-query";
 
 /**
  * Google Calendar OAuth Callback Handler
@@ -14,6 +15,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 function CalendarCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState<string>("");
 
@@ -71,6 +73,9 @@ function CalendarCallbackContent() {
         // Success!
         setStatus("success");
         setMessage("Google Calendar connected successfully!");
+
+        // Invalidate calendar connection status query to update all components
+        queryClient.invalidateQueries({ queryKey: ["googleCalendarStatus"] });
 
         // Redirect after 2 seconds
         setTimeout(() => {

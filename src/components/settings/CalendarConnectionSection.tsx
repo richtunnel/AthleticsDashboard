@@ -4,7 +4,8 @@ import { Card, CardContent, Typography, Box, Button, Alert } from "@mui/material
 import { ConnectGoogleCalendarButton } from "@/components/auth/ConnectGoogleCalendarButton";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
-import { useState } from "react";
+import { CalendarConnectionSuccessHandler } from "@/components/calendar/CalendarConnectionSuccessHandler";
+import { useState, Suspense } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoIcon from "@mui/icons-material/Info";
 
@@ -39,6 +40,11 @@ export function CalendarConnectionSection() {
   return (
     <Card sx={{ mb: 3, boxShadow: "none!important" }}>
       <CardContent>
+        {/* Handler to invalidate cache when redirected with success parameter */}
+        <Suspense fallback={null}>
+          <CalendarConnectionSuccessHandler />
+        </Suspense>
+        
         <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
           Google Calendar Integration
         </Typography>

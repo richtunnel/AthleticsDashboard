@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Box, Typography, CircularProgress, Alert, Stack, Skeleton } from "@mui/material";
 import { CalendarMonth, CheckCircleOutline, CheckCircle, LinkOff, SyncLock } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
@@ -14,7 +14,7 @@ import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappin
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
-  const res = await fetch("/api/user/calendar-status");
+  const res = await fetch("/api/auth/google-calendar/status");
   if (!res.ok) throw new Error("Failed to fetch calendar status");
   return res.json();
 };
@@ -26,7 +26,8 @@ function CalendarConnectionHandler({ refetch }: { refetch: () => void }) {
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (searchParams.get("calendar_connected") === "true") {
+    // Check for both old and new success parameters
+    if (searchParams.get("calendar_connected") === "true" || searchParams.get("calendar") === "connected") {
       setConnectionMessage("Google Calendar connected successfully! You can now sync games.");
       refetch();
       router.replace("/dashboard/gsync");
@@ -50,15 +51,16 @@ function ConnectionHandlerFallback() {
 // Main component
 function GoogleCalendarSyncMenuContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Fetch the user's current connection status
+  // Fetch the user's current connection status - using standardized query key
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["calendarConnectionStatus"],
+    queryKey: ["googleCalendarStatus"],
     queryFn: fetchConnectionStatus,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const isConnected = data?.isConnected;
+  const isConnected = data?.connected;
 
   const handleConnect = () => {
     router.push("/api/auth/calendar-connect");
@@ -68,7 +70,11 @@ function GoogleCalendarSyncMenuContent() {
     if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
       try {
         await fetch("/api/user/calendar-disconnect", { method: "POST" });
-        refetch();
+        // Invalidate all calendar-related queries to update all components
+        queryClient.invalidateQueries({ queryKey: ["googleCalendarStatus"] });
+        queryClient.invalidateQueries({ queryKey: ["googleCalendars"] });
+        queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
+        queryClient.invalidateQueries({ queryKey: ["autoCalendarSync"] });
       } catch (error) {
         console.error("Failed to disconnect calendar:", error);
       }
