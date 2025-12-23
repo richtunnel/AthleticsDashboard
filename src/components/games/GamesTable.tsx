@@ -5466,7 +5466,7 @@ export function GamesTable() {
         );
       }
       case "actions": {
-        const isSyncingCurrentGame = syncGameMutation.isPending && (syncGameMutation.variables as string | undefined) === game.id;
+        const isSyncingThisGame = syncGameMutation.isPending && syncGameMutation.variables === game.id;
         return (
           <TableCell key="actions" sx={{ py: 0 }}>
             <Stack direction="row" spacing={0}>
@@ -5480,9 +5480,9 @@ export function GamesTable() {
                   <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sync to Calendar">
-                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
-                  {isSyncingCurrentGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
+              <Tooltip title={game.calendarSynced ? "Update in Calendar" : "Sync to Calendar"}>
+                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={isSyncingThisGame} color={game.calendarSynced ? "success" : "default"}>
+                  {isSyncingThisGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Delete">
