@@ -219,6 +219,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   console.log("[Calendar Sync] Event payload:", {
     gameId,
     summary: event.summary,
+    description: event.description,
     location: event.location,
     startDateTime,
     endDateTime,

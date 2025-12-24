@@ -418,6 +418,8 @@ export class CalendarService {
       location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
     }
 
+    // ✅ FIX: Don't include timeZone field when using RFC3339 datetime with offset
+    // Google Calendar API expects EITHER datetime with offset OR datetime + timeZone, not both
     const event: calendar_v3.Schema$Event = {
       status: CALENDAR_EVENT_STATUS_SCHEDULED,
       summary: this.buildEventSummary(game),
@@ -425,11 +427,11 @@ export class CalendarService {
       location,
       start: {
         dateTime: startDateTime,
-        timeZone: timezone,
+        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
       },
       end: {
         dateTime: endDateTime,
-        timeZone: timezone,
+        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
       },
       reminders: {
         useDefault: false,
@@ -443,6 +445,7 @@ export class CalendarService {
     console.log("[Calendar Sync] Event payload:", {
       gameId,
       summary: event.summary,
+      description: event.description,
       location: event.location,
       startDateTime,
       endDateTime,
