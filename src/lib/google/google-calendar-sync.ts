@@ -245,42 +245,62 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   if (game.isHome) {
     location = "Home Field";
   } else if (game.venue) {
-    const locationParts = [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter((part) => part && part.trim()); // Filter out null, undefined, and empty strings
-
+    const locationParts = [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter((part) => part && part.trim());
     location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
   }
 
-  // ✅ FIX: Don't include timeZone field when using RFC3339 datetime with offset
-  // Google Calendar API expects EITHER datetime with offset OR datetime + timeZone, not both
+  // Sanitize strings to prevent issues
+  const sanitize = (str: string | null | undefined): string => {
+    if (!str) return "";
+    return String(str)
+      .trim()
+      .replace(/[\x00-\x1F\x7F]/g, ""); // Remove control characters
+  };
+
+  const summary = sanitize(buildEventSummary(game)) || "Game";
+  const description = sanitize(buildEventDescription(game)) || "";
+  const loc = sanitize(location) || "";
+
+  // Validate datetime format
+  const datetimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+  if (!datetimeRegex.test(startDateTime) || !datetimeRegex.test(endDateTime)) {
+    throw new Error(`Invalid datetime format: start=${startDateTime}, end=${endDateTime}`);
+  }
+
+  // ✅ Create minimal, clean event object
   const event: calendar_v3.Schema$Event = {
-    status: CALENDAR_EVENT_STATUS_SCHEDULED,
-    summary: buildEventSummary(game),
-    description: buildEventDescription(game),
-    location,
+    summary: summary,
+    description: description,
+    location: loc,
     start: {
       dateTime: startDateTime,
-      // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
+      // No timeZone field when using RFC3339 with offset
     },
     end: {
       dateTime: endDateTime,
-      // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
-    },
-    reminders: {
-      useDefault: false,
-      overrides: [
-        { method: "email", minutes: 24 * 60 }, // 1 day before
-        { method: "notification", minutes: 60 }, // 1 hour before
-      ],
+      // No timeZone field when using RFC3339 with offset
     },
   };
+
+  // Only add optional fields if they're valid
+  if (event.description && event.description.length > 0) {
+    event.reminders = {
+      useDefault: false,
+      overrides: [
+        { method: "email", minutes: 24 * 60 },
+        { method: "popup", minutes: 60 }, // Changed from "notification" to "popup"
+      ],
+    };
+  }
 
   console.log("[Calendar Sync] Event payload:", {
     gameId,
     summary: event.summary,
-    description: event.description,
+    description: event.description?.substring(0, 100) + (event.description && event.description.length > 100 ? "..." : ""),
     location: event.location,
     startDateTime,
     endDateTime,
+    hasReminders: !!event.reminders,
   });
 
   try {
@@ -289,18 +309,65 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     let response;
 
     if (game.googleCalendarEventId) {
-      // Update existing event
-      response = await calendar.events.update({
-        calendarId,
-        eventId: game.googleCalendarEventId,
-        requestBody: event,
-      });
+      // Try to update existing event
+      try {
+        console.log(`[Calendar Sync] Attempting to update event: ${game.googleCalendarEventId}`);
+
+        response = await calendar.events.update({
+          calendarId,
+          eventId: game.googleCalendarEventId,
+          requestBody: event,
+        });
+
+        console.log(`[Calendar Sync] Successfully updated event: ${game.googleCalendarEventId}`);
+      } catch (updateError: any) {
+        console.error(`[Calendar Sync] Update failed, will delete and recreate:`, {
+          error: updateError.message,
+          status: updateError.code || updateError.status,
+          eventId: game.googleCalendarEventId,
+        });
+
+        // If update fails, try to delete the old event first
+        try {
+          await calendar.events.delete({
+            calendarId,
+            eventId: game.googleCalendarEventId,
+          });
+          console.log(`[Calendar Sync] Deleted old event: ${game.googleCalendarEventId}`);
+        } catch (deleteError) {
+          console.log(`[Calendar Sync] Could not delete old event (may not exist): ${game.googleCalendarEventId}`);
+        }
+
+        // Create new event
+        console.log(`[Calendar Sync] Creating new event after failed update`);
+        response = await calendar.events.insert({
+          calendarId,
+          requestBody: event,
+        });
+
+        console.log(`[Calendar Sync] Successfully created new event: ${response.data.id}`);
+
+        // Update game with new event ID
+        await prisma.game.update({
+          where: { id: gameId },
+          data: {
+            googleCalendarEventId: response.data.id || null,
+            googleCalendarHtmlLink: response.data.htmlLink || null,
+            calendarSynced: true,
+            lastSyncedAt: new Date(),
+          },
+        });
+      }
     } else {
       // Create new event
+      console.log(`[Calendar Sync] Creating new event (no existing eventId)`);
+
       response = await calendar.events.insert({
         calendarId,
         requestBody: event,
       });
+
+      console.log(`[Calendar Sync] Successfully created event: ${response.data.id}`);
 
       // Update game with event ID
       await prisma.game.update({
@@ -328,6 +395,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       error: error.message,
       status: error.code || error.status,
       gameId,
+      eventPayload: event, // Log the full event object for debugging
       response: error.response?.data || error.response || "No response data",
       detailedErrors: detailedErrors || "No detailed errors",
     });
