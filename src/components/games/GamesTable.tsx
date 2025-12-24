@@ -1136,8 +1136,11 @@ export function GamesTable() {
 
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
-      console.log("[Calendar Sync] Starting sync for game:", gameId);
+      console.log("🔄 Mutation function called with gameId:", gameId);
+
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
+      console.log("🔄 Response status:", res.status);
+
       if (!res.ok) {
         const error = await res.json();
         console.error("[Calendar Sync] API Error:", error);
@@ -1198,7 +1201,7 @@ export function GamesTable() {
       // apply authoritative server result if present
       // API response structure: { success: true, data: { eventId: "...", htmlLink: "..." } }
       const eventId = data?.data?.eventId;
-      
+
       queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
@@ -1533,6 +1536,8 @@ export function GamesTable() {
   }, []);
 
   const handleSyncCalendar = (gameId: string) => {
+    console.log("🔄 Sync button clicked for game:", gameId);
+    console.log("🔄 Mutation pending:", syncGameMutation.isPending);
     syncGameMutation.mutate(gameId);
   };
 

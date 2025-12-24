@@ -48,9 +48,9 @@ async function resolveCalendarId(game: any, userId: string, calendar: any): Prom
     }
 
     // Check custom fields from imported CSV columns
-    if (game.customFields && typeof game.customFields === 'object') {
+    if (game.customFields && typeof game.customFields === "object") {
       Object.entries(game.customFields).forEach(([key, value]) => {
-        if (value && typeof value === 'string') {
+        if (value && typeof value === "string") {
           valuesToCheck.push({ columnName: key, value: value as string });
         }
       });
@@ -58,12 +58,10 @@ async function resolveCalendarId(game: any, userId: string, calendar: any): Prom
 
     // Try to find a matching mapping
     for (const { columnName, value } of valuesToCheck) {
-      const mapping = mappings.find(
-        (m) => m.columnName === columnName && m.columnValue === value
-      );
+      const mapping = mappings.find((m) => m.columnName === columnName && m.columnValue === value);
       if (mapping) {
         console.log(`[Calendar Sync] Matched mapping: ${columnName} = ${value} → ${mapping.googleCalendarName}`);
-        
+
         // Verify the calendar still exists in user's Google Calendar
         try {
           await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
@@ -141,14 +139,14 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   // Safari-friendly date parsing: extract date components from ISO string
   // Handle both Date objects and strings
   const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
-  const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
-  const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-  
+  const dateStr = isoString.includes("T") ? isoString.split("T")[0] : isoString;
+  const [year, month, day] = dateStr.split("-").map((num) => parseInt(num, 10));
+
   // Parse time components (HH:mm format)
   let hours = 12; // Default to noon if no time specified
   let minutes = 0;
-  
-  if (game.time && typeof game.time === 'string' && game.time.trim()) {
+
+  if (game.time && typeof game.time === "string" && game.time.trim()) {
     const timeParts = game.time.trim().split(":");
     if (timeParts.length >= 2) {
       const parsedHours = parseInt(timeParts[0], 10);
@@ -160,20 +158,21 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     }
   }
 
-  // Format as RFC3339 datetime string for Google Calendar
-  // Google Calendar API requires proper RFC3339 format with timezone offset
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  
+  // ✅ FIX: Format as RFC3339 datetime string for Google Calendar
+  // Google Calendar API accepts RFC3339 format with timezone offset
+  // When using datetime with offset, DO NOT include the timeZone field
+  const pad = (n: number) => n.toString().padStart(2, "0");
+
   // Create Date object to get timezone offset (handles DST automatically)
   const startDate = new Date(year, month - 1, day, hours, minutes, 0);
   const timezoneOffset = startDate.getTimezoneOffset(); // in minutes
   const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
   const offsetMinutes = Math.abs(timezoneOffset) % 60;
-  const offsetSign = timezoneOffset <= 0 ? '+' : '-'; // Note: getTimezoneOffset returns negative for positive offsets
+  const offsetSign = timezoneOffset <= 0 ? "+" : "-"; // Note: getTimezoneOffset returns negative for positive offsets
   const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
-  
+
   const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
-  
+
   // Calculate end time (2 hours later)
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
   const endYear = endDate.getFullYear();
@@ -188,16 +187,13 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   if (game.isHome) {
     location = "Home Field";
   } else if (game.venue) {
-    const locationParts = [
-      game.venue.name,
-      game.venue.address,
-      game.venue.city,
-      game.venue.state
-    ].filter(part => part && part.trim()); // Filter out null, undefined, and empty strings
-    
+    const locationParts = [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter((part) => part && part.trim()); // Filter out null, undefined, and empty strings
+
     location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
   }
 
+  // ✅ FIX: Don't include timeZone field when using RFC3339 datetime with offset
+  // Google Calendar API expects EITHER datetime with offset OR datetime + timeZone, not both
   const event: calendar_v3.Schema$Event = {
     status: CALENDAR_EVENT_STATUS_SCHEDULED,
     summary: buildEventSummary(game),
@@ -205,11 +201,11 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     location,
     start: {
       dateTime: startDateTime,
-      timeZone: "America/New_York",
+      // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
     },
     end: {
       dateTime: endDateTime,
-      timeZone: "America/New_York",
+      // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
     },
     reminders: {
       useDefault: false,
@@ -219,7 +215,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       ],
     },
   };
-  
+
   console.log("[Calendar Sync] Event payload:", {
     gameId,
     summary: event.summary,
@@ -271,7 +267,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       gameId,
       response: error.response?.data || error.response || "No response data",
     });
-    
+
     // Provide more specific error messages based on error code
     if (error.code === 400 || error.status === 400) {
       throw new Error(`Invalid event data: ${error.message || "Check event fields for malformed data"}`);
@@ -282,7 +278,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     } else if (error.code === 404 || error.status === 404) {
       throw new Error("Calendar or event not found.");
     }
-    
+
     throw new Error(`Failed to sync to Google Calendar: ${error.message || "Unknown error"}`);
   }
 }
@@ -301,7 +297,7 @@ function getPrimaryTeamName(game: any): string {
   if (customTeam) {
     return customTeam;
   }
-  
+
   // Fall back to default columns
   const teamName = game.homeTeam?.name?.trim();
   if (teamName) {
@@ -333,13 +329,13 @@ function getSummarySeparator(isHome?: boolean): string {
 function buildEventDescription(game: any): string {
   // Helper to get value from custom fields or default columns
   const customFields = (game.customFields as Record<string, any>) || {};
-  
+
   // Check custom fields first, fall back to default columns
   const sport = customFields["Sport"] || game.homeTeam?.sport?.name || "TBD";
   const level = customFields["Level"] || game.homeTeam?.level || "TBD";
   const team = customFields["Team"] || game.homeTeam?.name || "TBD";
   const status = customFields["Status"] || game.status || "TBD";
-  
+
   let description = `Sport: ${sport}\n`;
   description += `Level: ${level}\n`;
   description += `Team: ${team}\n`;
