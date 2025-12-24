@@ -4,6 +4,7 @@ import React from "react";
 import { Box, Container, Typography, GridLegacy as Grid, Card, CardContent, Button, Chip, useTheme } from "@mui/material";
 import { ArrowForward, CheckCircle, Schedule, Notifications, Sync, CalendarMonth, People } from "@mui/icons-material";
 import BaseHeaderWhite from "@/components/headers/_baseWhite";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 
 const ParentPortalPage = () => {
   const theme = useTheme();
@@ -179,7 +180,7 @@ const ParentPortalPage = () => {
                     transition: "all 0.3s ease",
                   }}
                 >
-                  Start Free
+                  Join the waitlist&nbsp; <NavigateNextIcon />
                 </Button>
                 {/* <Button
                   variant="outlined"
@@ -213,7 +214,7 @@ const ParentPortalPage = () => {
                     <Box
                       sx={{
                         p: 3,
-                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                        backgroundColor: "rgb(25 28 60 / 66%);",
                         backdropFilter: "blur(10px)",
                         borderRadius: 3,
                         border: "1px solid rgba(255, 255, 255, 0.2)",
