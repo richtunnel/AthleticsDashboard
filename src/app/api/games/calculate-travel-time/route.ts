@@ -91,14 +91,14 @@ export async function POST(request: Request) {
 }
 
 async function calculateTravelTime(origin: string, destination: string): Promise<number> {
-  if (!process.env.GOOGLE_MAPS_API_KEY) {
-    console.warn("Google Maps API key not configured, using default travel time");
+  if (!process.env.GOOGLE_DISTANCE_API_KEY) {
+    console.warn("Google Distance API key not configured, using default travel time");
     return 45; // Default fallback
   }
 
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(
     origin
-  )}&destinations=${encodeURIComponent(destination)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  )}&destinations=${encodeURIComponent(destination)}&key=${process.env.GOOGLE_DISTANCE_API_KEY}`;
 
   try {
     const response = await fetch(url);
