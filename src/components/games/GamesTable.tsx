@@ -19,7 +19,7 @@ import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -63,6 +63,11 @@ import {
   Collapse,
   Divider,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -549,6 +554,10 @@ export function GamesTable() {
     currentDepartTime?: string;
     currentAddress?: string;
   } | null>(null);
+
+  // Unsync confirmation dialog state
+  const [unsyncDialogOpen, setUnsyncDialogOpen] = useState(false);
+  const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -1226,6 +1235,81 @@ export function GamesTable() {
       addNotification("Successfully synced to Google Calendar", "success");
 
       // no refetch needed
+    },
+  });
+
+  const unsyncGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "DELETE" });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        console.error("[Calendar Unsync] API Error:", error);
+        throw new Error(error.error || "Failed to remove from calendar.");
+      }
+      const result = await res.json();
+      console.log("[Calendar Unsync] Success:", result);
+      return result;
+    },
+    onMutate: async (gameId: string) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      await queryClient.cancelQueries({ queryKey: GAMES_KEY });
+      const previousGames = queryClient.getQueryData<any>(GAMES_KEY);
+
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        if (!oldData) return oldData;
+
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g));
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g)),
+            },
+          };
+        }
+
+        return oldData;
+      });
+
+      return { previousGames };
+    },
+    onError: (err: Error, gameId, context: any) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      if (context?.previousGames) {
+        queryClient.setQueryData(GAMES_KEY, context.previousGames);
+      }
+      const errorMessage = err.message || "Failed to remove from calendar";
+      addNotification(errorMessage, "error");
+    },
+    onSuccess: (data, gameId) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        if (!oldData) return oldData;
+
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g));
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g)),
+            },
+          };
+        }
+
+        return oldData;
+      });
+
+      addNotification("Removed from Google Calendar", "success");
     },
   });
 
@@ -5484,6 +5568,8 @@ export function GamesTable() {
       }
       case "actions": {
         const isSyncingThisGame = syncGameMutation.isPending && syncGameMutation.variables === game.id;
+        const isUnsyncingThisGame = unsyncGameMutation.isPending && unsyncGameMutation.variables === game.id;
+        const isCalendarSynced = game.calendarSynced && game.googleCalendarEventId;
         return (
           <TableCell key="actions" sx={{ py: 0 }}>
             <Stack direction="row" spacing={0}>
@@ -5497,9 +5583,27 @@ export function GamesTable() {
                   <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={game.calendarSynced ? "Update in Calendar" : "Sync to Calendar"}>
-                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={isSyncingThisGame} color={game.calendarSynced ? "success" : "default"}>
-                  {isSyncingThisGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
+              <Tooltip title={isCalendarSynced ? "Calendar synced" : "Sync to Calendar"}>
+                <IconButton 
+                  size="small" 
+                  sx={{ p: 0.5 }} 
+                  onClick={() => {
+                    if (isCalendarSynced) {
+                      setGameToUnsync(game.id);
+                      setUnsyncDialogOpen(true);
+                    } else {
+                      handleSyncCalendar(game.id);
+                    }
+                  }} 
+                  disabled={isSyncingThisGame || isUnsyncingThisGame}
+                >
+                  {isSyncingThisGame || isUnsyncingThisGame ? (
+                    <CircularProgress size={16} />
+                  ) : isCalendarSynced ? (
+                    <SyncLock sx={{ fontSize: 18, color: "#babfb3" }} />
+                  ) : (
+                    <Sync sx={{ fontSize: 18 }} />
+                  )}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Delete">
@@ -6923,6 +7027,49 @@ export function GamesTable() {
           onSave={handleSaveTravelTime}
         />
       )}
+
+      {/* Unsync Confirmation Dialog */}
+      <Dialog
+        open={unsyncDialogOpen}
+        onClose={() => {
+          setUnsyncDialogOpen(false);
+          setGameToUnsync(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Remove from Google Calendar?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will remove the game from your Google Calendar. You can always sync it again later.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setUnsyncDialogOpen(false);
+              setGameToUnsync(null);
+            }}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              if (gameToUnsync) {
+                unsyncGameMutation.mutate(gameToUnsync);
+              }
+              setUnsyncDialogOpen(false);
+              setGameToUnsync(null);
+            }}
+            variant="contained"
+            color="error"
+            disabled={unsyncGameMutation.isPending}
+          >
+            {unsyncGameMutation.isPending ? <CircularProgress size={20} /> : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
