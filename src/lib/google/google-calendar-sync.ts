@@ -205,11 +205,11 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     location,
     start: {
       dateTime: startDateTime,
-      timeZone: "America/New_York",
+      // Note: timeZone field removed because dateTime already includes timezone offset in RFC3339 format
     },
     end: {
       dateTime: endDateTime,
-      timeZone: "America/New_York",
+      // Note: timeZone field removed because dateTime already includes timezone offset in RFC3339 format
     },
     reminders: {
       useDefault: false,

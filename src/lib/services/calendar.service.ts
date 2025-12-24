@@ -425,11 +425,11 @@ export class CalendarService {
       location,
       start: {
         dateTime: startDateTime,
-        timeZone: timezone,
+        // Note: timeZone field removed because dateTime already includes timezone offset in RFC3339 format
       },
       end: {
         dateTime: endDateTime,
-        timeZone: timezone,
+        // Note: timeZone field removed because dateTime already includes timezone offset in RFC3339 format
       },
       reminders: {
         useDefault: false,
