@@ -39,7 +39,7 @@ export class TravelEnhancedService {
 
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(originAddress)}&destinations=${encodeURIComponent(
       destinationAddress
-    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_DISTANCE_API_KEY}`;
 
     try {
       const response = await fetch(url);
