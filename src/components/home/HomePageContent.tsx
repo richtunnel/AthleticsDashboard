@@ -175,7 +175,7 @@ export default function HomePageContent() {
                     },
                   }}
                 >
-                  Try Now
+                  Get Started
                 </AuthActionButton>
               </div>
             </div>
