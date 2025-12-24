@@ -23,7 +23,7 @@ export class TravelService {
     // For now, using a simple estimate - you should integrate the actual API
 
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(originAddress)}&destinations=${encodeURIComponent(destinationAddress)}&key=${
-      process.env.GOOGLE_MAPS_API_KEY
+      process.env.GOOGLE_DISTANCE_API_KEY
     }`;
 
     try {
