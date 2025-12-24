@@ -88,7 +88,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     select: { organizationId: true, googleCalendarRefreshToken: true },
   });
 
-  if (!user?.googleCalendarRefreshToken) return { success: false, skipped: true };
+  if (!user?.googleCalendarRefreshToken) return { success: false, skipped: true, message: "Google Calendar not connected" };
 
   const game = await prisma.game.findFirst({
     where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
@@ -178,7 +178,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
       },
     });
 
-    return { success: true, id: response.data.id };
+    return { success: true, id: response.data.id, htmlLink: response.data.htmlLink };
   } catch (error: any) {
     console.error("[Calendar Sync] Error details:", error.response?.data || error.message);
     throw error;
@@ -193,11 +193,29 @@ function buildEventSummary(game: any): string {
 }
 
 function getPrimaryTeamName(game: any): string {
-  // Check custom fields first
+  // Check custom fields first - try multiple common column names
   const customFields = (game.customFields as Record<string, any>) || {};
-  const customTeam = customFields["Team"]?.trim();
-  if (customTeam) {
-    return customTeam;
+  
+  // Try to build a descriptive name from Sport + Level if available
+  const sport = customFields["Sport"]?.trim();
+  const level = customFields["Level"]?.trim();
+  
+  if (sport && level) {
+    // Format: "Boys Varsity Basketball" or "B V Basketball"
+    return `${sport} ${level}`;
+  }
+  
+  if (sport) {
+    return sport;
+  }
+  
+  // Check various team column names
+  const teamVariations = ["Team", "Home", "Sports Level", "Team Level"];
+  for (const variation of teamVariations) {
+    const value = customFields[variation]?.trim();
+    if (value) {
+      return value;
+    }
   }
 
   // Fall back to default columns
@@ -213,6 +231,14 @@ function getPrimaryTeamName(game: any): string {
 }
 
 function getOpponentTeamName(game: any): string {
+  // Check custom fields first - try "Away" column
+  const customFields = (game.customFields as Record<string, any>) || {};
+  const awayTeam = customFields["Away"]?.trim();
+  if (awayTeam) {
+    return awayTeam;
+  }
+  
+  // Fall back to opponent/awayTeam relations
   const opponentName = game.opponent?.name?.trim();
   if (opponentName) {
     return opponentName;
@@ -280,4 +306,62 @@ function formatLocation(game: any): string {
 
 function sanitize(str: string | null | undefined): string {
   return (str || "").trim().replace(/[\x00-\x1F\x7F]/g, "");
+}
+
+export async function unsyncGameFromCalendar(gameId: string, userId: string) {
+  // Fetch user & game
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true, googleCalendarRefreshToken: true },
+  });
+
+  if (!user?.googleCalendarRefreshToken) {
+    throw new Error("Google Calendar not connected");
+  }
+
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
+    select: { id: true, googleCalendarEventId: true },
+  });
+
+  if (!game) {
+    throw new Error("Game not found");
+  }
+
+  if (!game.googleCalendarEventId) {
+    throw new Error("Game is not synced to calendar");
+  }
+
+  // Auth setup
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+  oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  try {
+    // Delete the event from Google Calendar
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: game.googleCalendarEventId,
+    });
+
+    // Update game in database
+    await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        googleCalendarEventId: null,
+        googleCalendarHtmlLink: null,
+        calendarSynced: false,
+        lastSyncedAt: null,
+      },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("[Calendar Unsync] Error:", error.response?.data || error.message);
+    throw error;
+  }
 }
