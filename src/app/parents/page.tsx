@@ -126,7 +126,7 @@ const ParentPortalPage = () => {
           <Container maxWidth="lg">
             <Box sx={{ position: "relative", zIndex: 1 }}>
               <Chip
-                label="✨ Introducing Parent Portal"
+                label="Introducing Parent Portal"
                 sx={{
                   mb: 3,
                   backgroundColor: "rgba(206, 255, 119, 0.15)",
