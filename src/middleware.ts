@@ -2,6 +2,9 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Force Node.js runtime for middleware (Prisma doesn't work in Edge Runtime)
+export const runtime = 'nodejs';
+
 export default withAuth(
   async function middleware(req: any) {
     const token = req.nextauth?.token;
