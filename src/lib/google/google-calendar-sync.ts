@@ -163,24 +163,82 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   // When using datetime with offset, DO NOT include the timeZone field
   const pad = (n: number) => n.toString().padStart(2, "0");
 
+  // Determine if the date is in Daylight Saving Time for Central Time
+  const isDST = (date: Date): boolean => {
+    // DST in US: Second Sunday in March to First Sunday in November
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+
+    // Before March or after November = Standard Time
+    if (month < 2 || month > 10) return false;
+
+    // April to October = Daylight Time
+    if (month > 2 && month < 10) return true;
+
+    // March and November need day-of-month check
+    const dstStart = new Date(year, 2, 1); // March 1
+    const dstEnd = new Date(year, 10, 1); // November 1
+
+    // Find second Sunday in March
+    const marchFirst = dstStart.getDay();
+    const marchSecondSunday = marchFirst === 0 ? 8 : 15 - marchFirst;
+
+    // Find first Sunday in November
+    const novFirst = dstEnd.getDay();
+    const novFirstSunday = novFirst === 0 ? 1 : 8 - novFirst;
+
+    if (month === 2) {
+      // March
+      return day >= marchSecondSunday;
+    }
+    if (month === 10) {
+      // November
+      return day < novFirstSunday;
+    }
+
+    return false;
+  };
+
+  const gameDate = new Date(year, month - 1, day, hours, minutes, 0);
+
   // Create Date object to get timezone offset (handles DST automatically)
-  const startDate = new Date(year, month - 1, day, hours, minutes, 0);
-  const timezoneOffset = startDate.getTimezoneOffset(); // in minutes
-  const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-  const offsetMinutes = Math.abs(timezoneOffset) % 60;
-  const offsetSign = timezoneOffset <= 0 ? "+" : "-"; // Note: getTimezoneOffset returns negative for positive offsets
-  const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
+  // Central Time: UTC-6 (CST) or UTC-5 (CDT)
+  const centralOffset = isDST(gameDate) ? -5 : -6;
+  const offsetSign = centralOffset >= 0 ? "+" : "-";
+  const offsetHours = Math.abs(centralOffset);
+  const offsetString = `${offsetSign}${pad(offsetHours)}:00`;
 
   const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
 
   // Calculate end time (2 hours later)
-  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-  const endYear = endDate.getFullYear();
-  const endMonth = endDate.getMonth() + 1;
-  const endDay = endDate.getDate();
-  const endHours = endDate.getHours();
-  const endMinutes = endDate.getMinutes();
-  const endDateTime = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHours)}:${pad(endMinutes)}:00${offsetString}`;
+  const endHours = hours + 2;
+  const endMinutes = minutes;
+  let endDay = day;
+  let endMonth = month;
+  let endYear = year;
+  let finalEndHours = endHours;
+
+  // Handle day overflow
+  if (endHours >= 24) {
+    finalEndHours = endHours - 24;
+    endDay += 1;
+
+    // Handle month overflow
+    const daysInMonth = new Date(endYear, endMonth, 0).getDate();
+    if (endDay > daysInMonth) {
+      endDay = 1;
+      endMonth += 1;
+
+      // Handle year overflow
+      if (endMonth > 12) {
+        endMonth = 1;
+        endYear += 1;
+      }
+    }
+  }
+
+  const endDateTime = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(finalEndHours)}:${pad(endMinutes)}:00${offsetString}`;
 
   // Build location string, properly handling null/undefined values
   let location = "TBD";
@@ -265,7 +323,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     // Extract detailed error information from Google API response
     const googleErrors = error.response?.data?.error?.errors || [];
     const detailedErrors = googleErrors.map((e: any) => `${e.domain}: ${e.message} (${e.reason})`).join("; ");
-    
+
     console.error("[Calendar Sync] Failed:", {
       error: error.message,
       status: error.code || error.status,
