@@ -88,8 +88,8 @@ export class DismissDepartService {
     destination: string,
     departureTime: Date
   ): Promise<{ travelTimeMinutes: number; trafficCondition: string }> {
-    if (!process.env.GOOGLE_MAPS_API_KEY) {
-      console.warn("Google Maps API key not configured, using default values");
+    if (!process.env.GOOGLE_DISTANCE_API_KEY) {
+      console.warn("Google Distance API key not configured, using default values");
       return {
         travelTimeMinutes: 45,
         trafficCondition: "unknown",
@@ -99,7 +99,7 @@ export class DismissDepartService {
     const departureTimestamp = Math.floor(departureTime.getTime() / 1000);
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(
       destination
-    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_DISTANCE_API_KEY}`;
 
     try {
       const response = await fetch(url);
