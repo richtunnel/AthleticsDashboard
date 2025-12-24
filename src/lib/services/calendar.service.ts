@@ -489,16 +489,22 @@ export class CalendarService {
         return response.data;
       }
     } catch (error: any) {
+      // Extract detailed error information from Google API response
+      const googleErrors = error.response?.data?.error?.errors || [];
+      const detailedErrors = googleErrors.map((e: any) => `${e.domain}: ${e.message} (${e.reason})`).join("; ");
+      
       console.error("[Calendar Sync] Failed:", {
         error: error.message,
         status: error.code || error.status,
         gameId,
         response: error.response?.data || error.response || "No response data",
+        detailedErrors: detailedErrors || "No detailed errors",
       });
       
       // Provide more specific error messages based on error code
       if (error.code === 400 || error.status === 400) {
-        throw new Error(`Invalid event data: ${error.message || "Check event fields for malformed data"}`);
+        const errorMsg = detailedErrors || error.message || "Check event fields for malformed data";
+        throw new Error(`Invalid event data: ${errorMsg}`);
       } else if (error.code === 401 || error.status === 401) {
         throw new Error("Google Calendar authentication failed. Please reconnect your calendar.");
       } else if (error.code === 403 || error.status === 403) {
