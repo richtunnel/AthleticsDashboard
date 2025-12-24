@@ -16,7 +16,8 @@ substitutions:
   _NEXTAUTH_SECRET: NEXTAUTH_SECRET # Secret Manager secret name for the NextAuth secret
   _GOOGLE_CALENDAR_CLIENT_ID_SECRET: GOOGLE_CALENDAR_CLIENT_ID # Secret name for the Google Calendar OAuth client ID
   _GOOGLE_CALENDAR_CLIENT_SECRET_SECRET: GOOGLE_CALENDAR_CLIENT_SECRET # Secret name for the Google Calendar OAuth client secret
-  _GOOGLE_MAPS_API_KEY_SECRET: GOOGLE_MAPS_API_KEY # Secret name for the Google Maps API key
+  _GOOGLE_MAPS_API_KEY_SECRET: GOOGLE_MAPS_API_KEY # Secret name for the Google Maps API key (address autocomplete)
+  _GOOGLE_DISTANCE_API_KEY_SECRET: GOOGLE_DISTANCE_API_KEY # Secret name for the Google Distance Matrix API key (travel time)
   _OPENWEATHER_API_KEY_SECRET: OPENWEATHER_API_KEY # Secret name for the OpenWeather API key
   _NEXT_PUBLIC_RESEND_API_KEY_SECRET: NEXT_PUBLIC_RESEND_API_KEY # Secret name for the Resend API key
   _OPENAI_API_KEY_SECRET: OPENAI_API_KEY # Secret name for the OpenAI API key
@@ -69,6 +70,7 @@ steps:
           --set-secrets=GOOGLE_CALENDAR_CLIENT_ID=${_GOOGLE_CALENDAR_CLIENT_ID_SECRET}:latest \
           --set-secrets=GOOGLE_CALENDAR_CLIENT_SECRET=${_GOOGLE_CALENDAR_CLIENT_SECRET_SECRET}:latest \
           --set-secrets=GOOGLE_MAPS_API_KEY=${_GOOGLE_MAPS_API_KEY_SECRET}:latest \
+          --set-secrets=GOOGLE_DISTANCE_API_KEY=${_GOOGLE_DISTANCE_API_KEY_SECRET}:latest \
           --set-secrets=OPENWEATHER_API_KEY=${_OPENWEATHER_API_KEY_SECRET}:latest \
           --set-secrets=NEXT_PUBLIC_RESEND_API_KEY=${_NEXT_PUBLIC_RESEND_API_KEY_SECRET}:latest \
           --set-secrets=OPENAI_API_KEY=${_OPENAI_API_KEY_SECRET}:latest \
