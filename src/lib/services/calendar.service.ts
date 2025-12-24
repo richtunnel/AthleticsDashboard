@@ -622,13 +622,31 @@ export class CalendarService {
   }
 
   private getPrimaryTeamName(game: any): string {
-    // Check custom fields first
+    // Check custom fields first - try multiple common column names
     const customFields = (game.customFields as Record<string, any>) || {};
-    const customTeam = customFields["Team"]?.trim();
-    if (customTeam) {
-      return customTeam;
+    
+    // Try to build a descriptive name from Sport + Level if available
+    const sport = customFields["Sport"]?.trim();
+    const level = customFields["Level"]?.trim();
+    
+    if (sport && level) {
+      // Format: "Boys Varsity Basketball" or "B V Basketball"
+      return `${sport} ${level}`;
     }
     
+    if (sport) {
+      return sport;
+    }
+    
+    // Check various team column names
+    const teamVariations = ["Team", "Home", "Sports Level", "Team Level"];
+    for (const variation of teamVariations) {
+      const value = customFields[variation]?.trim();
+      if (value) {
+        return value;
+      }
+    }
+
     // Fall back to default columns
     const teamName = game.homeTeam?.name?.trim();
     if (teamName) {
@@ -642,6 +660,14 @@ export class CalendarService {
   }
 
   private getOpponentTeamName(game: any): string {
+    // Check custom fields first - try "Away" column
+    const customFields = (game.customFields as Record<string, any>) || {};
+    const awayTeam = customFields["Away"]?.trim();
+    if (awayTeam) {
+      return awayTeam;
+    }
+    
+    // Fall back to opponent/awayTeam relations
     const opponentName = game.opponent?.name?.trim();
     if (opponentName) {
       return opponentName;
