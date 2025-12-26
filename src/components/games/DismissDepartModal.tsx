@@ -15,7 +15,7 @@ import {
   Alert,
   Chip,
 } from "@mui/material";
-import { DirectionsBus, Schedule, TrendingUp, Cloud } from "@mui/icons-material";
+import { DirectionsBus, Schedule, TrendingUp, Cloud, LocationOn } from "@mui/icons-material";
 
 interface DismissDepartModalProps {
   open: boolean;
@@ -33,6 +33,7 @@ interface RecommendationData {
   weatherNote: string;
   bufferMinutes: number;
   travelTimeMinutes: number;
+  distance?: string;
 }
 
 export function DismissDepartModal({
@@ -68,6 +69,12 @@ export function DismissDepartModal({
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle missing school address error
+        if (errorData.error?.includes("MISSING_SCHOOL_ADDRESS")) {
+          throw new Error("Please enter your school address in settings to calculate accurate travel times");
+        }
+        
         throw new Error(errorData.error || "Failed to calculate departure time");
       }
 
@@ -197,6 +204,14 @@ export function DismissDepartModal({
                     size="small"
                     variant="outlined"
                   />
+                  {recommendation.distance && (
+                    <Chip
+                      icon={<LocationOn />}
+                      label={recommendation.distance}
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
                 </Stack>
               </Stack>
             </Box>
