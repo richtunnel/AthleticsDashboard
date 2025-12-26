@@ -18,6 +18,7 @@ interface TravelCalculation {
   recommendedDepartureTime: string;
   travelTimeMinutes: number;
   bufferMinutes: number;
+  distance?: string;
 }
 
 const steps = ["Enter Dismissal Time", "Enter Opponent Address", "Review Recommendation"];
@@ -72,6 +73,12 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
 
       if (!response.ok) {
         const errorData = await response.json();
+        
+        // Handle missing school address error
+        if (errorData.error === "MISSING_SCHOOL_ADDRESS") {
+          throw new Error(errorData.message || "Please enter your school address in settings to calculate accurate travel times");
+        }
+        
         throw new Error(errorData.error || "Failed to calculate travel time");
       }
 
@@ -197,6 +204,14 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                         Travel Time: <strong>{calculation.travelTimeMinutes} minutes</strong>
                       </Typography>
                     </Box>
+                    {calculation.distance && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <LocationOn fontSize="small" color="action" />
+                        <Typography variant="body2">
+                          Distance: <strong>{calculation.distance}</strong>
+                        </Typography>
+                      </Box>
+                    )}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <DirectionsBus fontSize="small" color="action" />
                       <Typography variant="body2">
