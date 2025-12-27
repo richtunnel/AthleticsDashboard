@@ -2018,6 +2018,101 @@ export function GamesTable() {
     },
   });
 
+  const bulkSyncGamesMutation = useMutation({
+    mutationFn: async (gameIds: string[]) => {
+      const results = {
+        successful: [] as string[],
+        failed: [] as { gameId: string; error: string }[],
+        skipped: [] as string[],
+      };
+
+      // Sync games sequentially to avoid rate limiting
+      for (const gameId of gameIds) {
+        try {
+          const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
+          
+          if (!res.ok) {
+            const error = await res.json();
+            // Check if it was skipped due to no Google Calendar connection
+            if (error.skipped) {
+              results.skipped.push(gameId);
+            } else {
+              results.failed.push({ gameId, error: error.error || "Failed to sync" });
+            }
+          } else {
+            const result = await res.json();
+            results.successful.push(gameId);
+          }
+        } catch (error: any) {
+          results.failed.push({ gameId, error: error.message || "Network error" });
+        }
+      }
+
+      return results;
+    },
+    onMutate: async (gameIds: string[]) => {
+      // Show loading notification
+      addNotification(`Syncing ${gameIds.length} game${gameIds.length > 1 ? "s" : ""} to Google Calendar...`, "info");
+    },
+    onSuccess: (results, gameIds) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      
+      // Update cache with synced games
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        if (!oldData) return oldData;
+
+        const updateGame = (g: Game) => {
+          if (results.successful.includes(g.id)) {
+            return { ...g, calendarSynced: true };
+          }
+          return g;
+        };
+
+        if (Array.isArray(oldData)) {
+          return oldData.map(updateGame);
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map(updateGame),
+            },
+          };
+        }
+
+        return oldData;
+      });
+
+      // Build notification message
+      let message = "";
+      if (results.successful.length > 0) {
+        message += `✓ ${results.successful.length} game${results.successful.length > 1 ? "s" : ""} synced successfully`;
+      }
+      if (results.failed.length > 0) {
+        message += (message ? ". " : "") + `✗ ${results.failed.length} failed`;
+      }
+      if (results.skipped.length > 0) {
+        message += (message ? ". " : "") + `⊘ ${results.skipped.length} skipped (Google Calendar not connected)`;
+      }
+
+      const notificationType = results.failed.length > 0 
+        ? "warning" 
+        : results.skipped.length === gameIds.length 
+          ? "error" 
+          : "success";
+
+      addNotification(message, notificationType);
+
+      // Clear selections after sync
+      clearSelectedGameIds();
+    },
+    onError: (error: any) => {
+      addNotification(error?.message || "Failed to sync games to calendar", "error");
+    },
+  });
+
   // Track original value to prevent unnecessary saves
   const originalInlineValueRef = useRef<string>("");
 
@@ -3236,6 +3331,17 @@ export function GamesTable() {
 
       bulkDeleteMutation.mutate(selectedIds);
     }
+  };
+
+  const handleBulkSync = () => {
+    const count = selectedGames.size;
+
+    if (count === 0) {
+      return;
+    }
+
+    const selectedIds = Array.from(selectedGames);
+    bulkSyncGamesMutation.mutate(selectedIds);
   };
 
   const handleSaveDismissDepartTimes = async (dismissTime: string, departTime: string) => {
@@ -6527,6 +6633,27 @@ export function GamesTable() {
 
             {selectedGames.size > 0 && games.length > 0 && (
               <>
+                <Tooltip title="Sync calendars">
+                  <IconButton
+                    size="small"
+                    onClick={handleBulkSync}
+                    disabled={bulkSyncGamesMutation.isPending}
+                    sx={{
+                      minWidth: 32,
+                      width: 32,
+                      height: 32,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    {bulkSyncGamesMutation.isPending ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <Sync fontSize="small" />
+                    )}
+                  </IconButton>
+                </Tooltip>
                 <Button
                   variant="outlined"
                   color="primary"
