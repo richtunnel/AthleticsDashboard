@@ -37,11 +37,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
-    const url = new URL(`${process.env.NEXTAUTH_URL}`);
-    const gameId = url.pathname.split("/").pop(); // Get game ID from URL
+    const { id: gameId } = await params;
 
     if (!gameId) {
       return NextResponse.json({ success: false, error: "Game ID required" }, { status: 400 });

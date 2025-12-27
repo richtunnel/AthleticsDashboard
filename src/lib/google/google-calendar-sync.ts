@@ -196,9 +196,21 @@ function getPrimaryTeamName(game: any): string {
   // Check custom fields first - try multiple common column names
   const customFields = (game.customFields as Record<string, any>) || {};
   
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[]): string | undefined => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name]?.trim();
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key]?.trim();
+    }
+    return undefined;
+  };
+  
   // Try to build a descriptive name from Sport + Level if available
-  const sport = customFields["Sport"]?.trim();
-  const level = customFields["Level"]?.trim();
+  const sport = getField(["Sport"]);
+  const level = getField(["Level"]);
   
   if (sport && level) {
     // Format: "Boys Varsity Basketball" or "B V Basketball"
@@ -209,13 +221,10 @@ function getPrimaryTeamName(game: any): string {
     return sport;
   }
   
-  // Check various team column names
-  const teamVariations = ["Team", "Home", "Sports Level", "Team Level"];
-  for (const variation of teamVariations) {
-    const value = customFields[variation]?.trim();
-    if (value) {
-      return value;
-    }
+  // Check various team column names (case-insensitive)
+  const teamValue = getField(["Team", "Home", "Sports Level", "Team Level"]);
+  if (teamValue) {
+    return teamValue;
   }
 
   // Fall back to default columns
@@ -231,9 +240,22 @@ function getPrimaryTeamName(game: any): string {
 }
 
 function getOpponentTeamName(game: any): string {
-  // Check custom fields first - try "Away" column
+  // Check custom fields first - try "Away" column (case-insensitive)
   const customFields = (game.customFields as Record<string, any>) || {};
-  const awayTeam = customFields["Away"]?.trim();
+  
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[]): string | undefined => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name]?.trim();
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key]?.trim();
+    }
+    return undefined;
+  };
+  
+  const awayTeam = getField(["Away", "Opponent"]);
   if (awayTeam) {
     return awayTeam;
   }
@@ -258,11 +280,23 @@ function buildEventDescription(game: any): string {
   // Helper to get value from custom fields or default columns
   const customFields = (game.customFields as Record<string, any>) || {};
 
-  // Check custom fields first, fall back to default columns
-  const sport = customFields["Sport"] || game.homeTeam?.sport?.name || "TBD";
-  const level = customFields["Level"] || game.homeTeam?.level || "TBD";
-  const team = customFields["Team"] || game.homeTeam?.name || "TBD";
-  const status = customFields["Status"] || game.status || "TBD";
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[], defaultValue?: any): string => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name];
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key];
+    }
+    return defaultValue || "TBD";
+  };
+
+  // Check custom fields first (case-insensitive), fall back to default columns
+  const sport = getField(["Sport"], game.homeTeam?.sport?.name);
+  const level = getField(["Level"], game.homeTeam?.level);
+  const team = getField(["Team", "Home"], game.homeTeam?.name);
+  const status = getField(["Status"], game.status);
 
   let description = `Sport: ${sport}\n`;
   description += `Level: ${level}\n`;
