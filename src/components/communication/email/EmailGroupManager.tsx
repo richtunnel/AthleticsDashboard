@@ -2,30 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Alert,
-  Box,
-  Skeleton,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Skeleton, Snackbar, Stack, TextField, Typography } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { EmailGroupCard } from "./EmailGroupCard";
 import { ImportGroupsButton } from "./ImportGroupButtonG";
 import type { EmailGroup } from "./types";
-import {
-  addEmailsToGroup,
-  createEmailGroup,
-  deleteEmailGroup,
-  fetchEmailGroups,
-  removeEmailFromGroup,
-  updateEmailGroupName,
-  updateEmailInGroup,
-} from "@/lib/api/emailGroups";
+import { addEmailsToGroup, createEmailGroup, deleteEmailGroup, fetchEmailGroups, removeEmailFromGroup, updateEmailGroupName, updateEmailInGroup } from "@/lib/api/emailGroups";
+import { useTheme as customTheme } from "@mui/material/styles";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 
 type SnackbarState = {
   open: boolean;
@@ -45,6 +31,8 @@ export function EmailGroupManager() {
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
+  const { mode } = useTheme();
+  const theme = customTheme();
 
   const showMessage = (message: string, severity: AlertColor = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -93,7 +81,7 @@ export function EmailGroupManager() {
       setActiveGroupId(group.id);
       setAddingGroupId(group.id);
       showMessage(`Group "${group.name}" created!`);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
     },
     onError: (mutationError: Error) => {
       showMessage(mutationError.message, "error");
@@ -104,7 +92,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; name: string }) => updateEmailGroupName(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
     },
     onError: (mutationError: Error) => {
       showMessage(mutationError.message, "error");
@@ -115,7 +103,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; emails: string[] }) => addEmailsToGroup(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
     },
     onError: () => {
       // Card handles error display, so no message here to avoid duplicates
@@ -126,7 +114,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; emailId: string; email: string }) => updateEmailInGroup(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
     },
     onError: () => {
       // Card handles error display
@@ -137,7 +125,7 @@ export function EmailGroupManager() {
     mutationFn: (payload: { groupId: string; emailId: string }) => removeEmailFromGroup(payload),
     onSuccess: (group) => {
       updateCacheWithGroup(group);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
     },
     onError: () => {
       // Card handles error display
@@ -148,7 +136,7 @@ export function EmailGroupManager() {
     mutationFn: (groupId: string) => deleteEmailGroup(groupId),
     onSuccess: (_data, groupId) => {
       removeGroupFromCache(groupId);
-      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
 
       if (activeGroupId === groupId) {
         const nextGroups = queryClient.getQueryData<EmailGroup[]>(["email-groups"]);
@@ -187,27 +175,15 @@ export function EmailGroupManager() {
           </Typography>
         </Box>
 
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          alignItems={{ xs: "stretch", md: "center" }}
-          sx={{ flexWrap: "wrap" }}
-        >
-          <TextField
-            label="Name your group"
-            placeholder="e.g. Varsity Parents"
-            value={newGroupName}
-            onChange={(event) => setNewGroupName(event.target.value)}
-            fullWidth
-            sx={{ flex: { md: 1 } }}
-          />
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }} sx={{ flexWrap: "wrap" }}>
+          <TextField label="Name your group" placeholder="e.g. Varsity Parents" value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} fullWidth sx={{ flex: { md: 1 } }} />
           <LoadingButton
             startIcon={<AddCircleOutlineIcon />}
             loading={createGroupMutation.isPending}
             onClick={handleCreateGroup}
             loadingText="Creating"
             disabled={!newGroupName.trim()}
-            sx={{ width: { xs: "100%", md: "auto" }, maxWidth: { md: 220 } }}
+            sx={{ width: { xs: "100%", md: "auto" }, maxWidth: { md: 220 }, color: mode === "dark" ? "#000" : "#fff" }}
           >
             Create Group
           </LoadingButton>
@@ -216,9 +192,7 @@ export function EmailGroupManager() {
           </Box>
         </Stack>
 
-        {isError && (
-          <Alert severity="error">{error?.message || "Unable to load email groups."}</Alert>
-        )}
+        {isError && <Alert severity="error">{error?.message || "Unable to load email groups."}</Alert>}
 
         {isLoading ? (
           <Stack spacing={2}>
@@ -240,9 +214,7 @@ export function EmailGroupManager() {
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
               No email groups yet
             </Typography>
-            <Typography color="text.secondary">
-              Create your first group to start sending targeted announcements and updates.
-            </Typography>
+            <Typography color="text.secondary">Create your first group to start sending targeted announcements and updates.</Typography>
           </Box>
         ) : (
           <Stack spacing={3}>
@@ -264,19 +236,11 @@ export function EmailGroupManager() {
                 onUpdateEmail={async (emailId, email) => {
                   await updateEmailMutation.mutateAsync({ groupId: group.id, emailId, email });
                 }}
-                updateEmailLoadingId={
-                  updateEmailMutation.isPending && updateEmailMutation.variables?.groupId === group.id
-                    ? updateEmailMutation.variables?.emailId ?? null
-                    : null
-                }
+                updateEmailLoadingId={updateEmailMutation.isPending && updateEmailMutation.variables?.groupId === group.id ? (updateEmailMutation.variables?.emailId ?? null) : null}
                 onRemoveEmail={async (emailId) => {
                   await removeEmailMutation.mutateAsync({ groupId: group.id, emailId });
                 }}
-                removeEmailLoadingId={
-                  removeEmailMutation.isPending && removeEmailMutation.variables?.groupId === group.id
-                    ? removeEmailMutation.variables?.emailId ?? null
-                    : null
-                }
+                removeEmailLoadingId={removeEmailMutation.isPending && removeEmailMutation.variables?.groupId === group.id ? (removeEmailMutation.variables?.emailId ?? null) : null}
                 onRename={async (name) => {
                   await renameGroupMutation.mutateAsync({ groupId: group.id, name });
                 }}
@@ -292,12 +256,7 @@ export function EmailGroupManager() {
         )}
       </Stack>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={hideMessage}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={hideMessage} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
         <Alert onClose={hideMessage} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>

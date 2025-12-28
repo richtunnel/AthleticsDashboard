@@ -73,12 +73,12 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
 
       if (!response.ok) {
         const errorData = await response.json();
-        
+
         // Handle missing school address error
         if (errorData.error === "MISSING_SCHOOL_ADDRESS") {
           throw new Error(errorData.message || "Please enter your school address in settings to calculate accurate travel times");
         }
-        
+
         throw new Error(errorData.error || "Failed to calculate travel time");
       }
 
@@ -123,7 +123,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
         <Stepper activeStep={activeStep} sx={{ mb: 3, mt: 1 }}>
           {steps.map((label) => (
             <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+              <StepLabel sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeButtonText.contrast : "" }}>{label}</StepLabel>
             </Step>
           ))}
         </Stepper>

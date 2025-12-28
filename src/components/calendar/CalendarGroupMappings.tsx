@@ -31,6 +31,7 @@ import {
 } from "@mui/material";
 import { Add, Delete, Info, SyncLock } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useTheme as customTheme } from "@mui/material/styles";
 
 interface CalendarGroupMapping {
   id: string;
@@ -73,6 +74,7 @@ const fetchImportedColumns = async (): Promise<{ data: string[] }> => {
 
 export function CalendarGroupMappings() {
   const { addNotification } = useNotifications();
+  const theme = customTheme();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newMapping, setNewMapping] = useState({
@@ -190,21 +192,15 @@ export function CalendarGroupMappings() {
             Map your game columns to specific Google Calendar groups for organized scheduling
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setDialogOpen(true)}
-          sx={{ textTransform: "none" }}
-        >
+        <Button variant="contained" startIcon={<Add />} onClick={() => setDialogOpen(true)} sx={{ textTransform: "none", color: theme.palette.themeButtonText.main }}>
           Add Mapping
         </Button>
       </Box>
 
       <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
         <Typography variant="body2">
-          <strong>How it works:</strong> When syncing a game to Google Calendar, the system will check the column value 
-          (e.g., "Junior Varsity Basketball") and sync to the corresponding Google Calendar group if a mapping exists. 
-          Otherwise, it will sync to your primary calendar.
+          <strong>How it works:</strong> When syncing a game to Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
+          Calendar group if a mapping exists. Otherwise, it will sync to your primary calendar.
         </Typography>
       </Alert>
 
@@ -228,22 +224,18 @@ export function CalendarGroupMappings() {
                   <TableCell>{mapping.columnValue}</TableCell>
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <SyncLock 
-                        sx={{ 
-                          fontSize: 18, 
-                          color: "success.main"
-                        }} 
+                      <SyncLock
+                        sx={{
+                          fontSize: 18,
+                          color: "success.main",
+                        }}
                       />
                       {mapping.googleCalendarName}
                     </Box>
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Delete mapping">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteMapping(mapping.id)}
-                        disabled={deleteMappingMutation.isPending}
-                      >
+                      <IconButton size="small" onClick={() => handleDeleteMapping(mapping.id)} disabled={deleteMappingMutation.isPending}>
                         <Delete />
                       </IconButton>
                     </Tooltip>
@@ -281,11 +273,7 @@ export function CalendarGroupMappings() {
                   {...params}
                   label="Column Name"
                   placeholder="Enter or select column name"
-                  helperText={
-                    importedColumns.length > 0
-                      ? "Select from your imported columns or type a custom name"
-                      : "Type the column name from your games table"
-                  }
+                  helperText={importedColumns.length > 0 ? "Select from your imported columns or type a custom name" : "Type the column name from your games table"}
                   fullWidth
                 />
               )}
@@ -302,19 +290,13 @@ export function CalendarGroupMappings() {
 
             <FormControl fullWidth>
               <InputLabel>Google Calendar</InputLabel>
-              <Select
-                value={newMapping.googleCalendarId}
-                label="Google Calendar"
-                onChange={(e) => handleCalendarSelect(e.target.value)}
-              >
+              <Select value={newMapping.googleCalendarId} label="Google Calendar" onChange={(e) => handleCalendarSelect(e.target.value)}>
                 {calendarsData?.calendars.map((calendar) => (
                   <MenuItem key={calendar.id} value={calendar.id}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
                       <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
                       {calendar.name}
-                      {calendar.primary && (
-                        <Chip label="Primary" size="small" sx={{ ml: "auto" }} />
-                      )}
+                      {calendar.primary && <Chip label="Primary" size="small" sx={{ ml: "auto" }} />}
                     </Box>
                   </MenuItem>
                 ))}
@@ -323,9 +305,8 @@ export function CalendarGroupMappings() {
 
             <Alert severity="info" sx={{ mt: 1 }}>
               <Typography variant="caption">
-                <strong>Example:</strong> If your games table has a column with values like "Junior Varsity Basketball", 
-                enter the column name (e.g., "Sports Level" or "Team") and the exact value. All games matching that 
-                column value will sync to the selected Google Calendar.
+                <strong>Example:</strong> If your games table has a column with values like "Junior Varsity Basketball", enter the column name (e.g., "Sports Level" or "Team") and the exact value. All
+                games matching that column value will sync to the selected Google Calendar.
               </Typography>
             </Alert>
           </Box>
@@ -334,12 +315,7 @@ export function CalendarGroupMappings() {
           <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button
-            onClick={handleAddMapping}
-            variant="contained"
-            disabled={createMappingMutation.isPending}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={handleAddMapping} variant="contained" disabled={createMappingMutation.isPending} sx={{ textTransform: "none" }}>
             {createMappingMutation.isPending ? <CircularProgress size={20} /> : "Add Mapping"}
           </Button>
         </DialogActions>
