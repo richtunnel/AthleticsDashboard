@@ -1314,6 +1314,110 @@ export function GamesTable() {
     },
   });
 
+  // Bulk calendar sync mutation - syncs multiple games sequentially
+  const bulkSyncGamesMutation = useMutation({
+    mutationFn: async (gameIds: string[]) => {
+      const results = {
+        successful: [] as string[],
+        failed: [] as { gameId: string; error: string }[],
+        skipped: [] as string[],
+      };
+
+      // Sync games sequentially to avoid rate limiting
+      for (const gameId of gameIds) {
+        try {
+          const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
+          
+          if (!res.ok) {
+            const error = await res.json();
+            
+            // Check if skipped due to no calendar connection
+            if (error.skipped) {
+              results.skipped.push(gameId);
+            } else {
+              results.failed.push({ gameId, error: error.error || "Failed to sync" });
+            }
+          } else {
+            results.successful.push(gameId);
+          }
+        } catch (error: any) {
+          results.failed.push({ gameId, error: error.message || "Failed to sync" });
+        }
+      }
+
+      return results;
+    },
+    onMutate: async () => {
+      // Show initial notification
+      addNotification(`Syncing ${selectedGames.size} game(s) to Google Calendar...`, "info");
+    },
+    onSuccess: (results) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      // Update cache for successful syncs
+      if (results.successful.length > 0) {
+        queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+          if (!oldData) return oldData;
+
+          const successfulSet = new Set(results.successful);
+
+          if (Array.isArray(oldData)) {
+            return oldData.map((g: Game) => 
+              successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g
+            );
+          }
+
+          if (oldData.data && Array.isArray(oldData.data.games)) {
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                games: oldData.data.games.map((g: Game) =>
+                  successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g
+                ),
+              },
+            };
+          }
+
+          return oldData;
+        });
+      }
+
+      // Build result message
+      const messages: string[] = [];
+      
+      if (results.successful.length > 0) {
+        messages.push(`✓ ${results.successful.length} game(s) synced successfully`);
+      }
+      
+      if (results.failed.length > 0) {
+        messages.push(`✗ ${results.failed.length} failed`);
+      }
+      
+      if (results.skipped.length > 0) {
+        messages.push(`⊘ ${results.skipped.length} skipped (Google Calendar not connected)`);
+      }
+
+      const message = messages.join(". ");
+      
+      // Determine notification type
+      let type: "success" | "warning" | "error" = "success";
+      if (results.successful.length === 0 && results.skipped.length > 0) {
+        type = "error";
+      } else if (results.failed.length > 0 || results.skipped.length > 0) {
+        type = "warning";
+      }
+
+      addNotification(message, type);
+
+      // Clear selections after sync completes
+      clearSelectedGameIds();
+    },
+    onError: (error: any) => {
+      addNotification(error.message || "Failed to sync games", "error");
+    },
+  });
+
   const savePreferencesMutation = useMutation({
     mutationFn: async (payload: ColumnPreferencePayload) => {
       const res = await fetch("/api/user/table-preferences", {
@@ -3427,6 +3531,19 @@ export function GamesTable() {
     sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
     router.push("/dashboard/compose-email");
   };
+
+  const handleBulkSync = useCallback(() => {
+    if (selectedGames.size === 0) {
+      addNotification("No games selected to sync", "warning");
+      return;
+    }
+
+    // Get array of selected game IDs
+    const gameIdsToSync = Array.from(selectedGames);
+    
+    // Trigger bulk sync mutation
+    bulkSyncGamesMutation.mutate(gameIdsToSync);
+  }, [selectedGames, bulkSyncGamesMutation, addNotification]);
 
   const handleAddColumnsClick = () => {
     trackEvent("Add Columns Clicked", {
@@ -6543,6 +6660,23 @@ export function GamesTable() {
                 >
                   Copy ({selectedGames.size})
                 </Button>
+                <Tooltip title="Sync calendars">
+                  <IconButton
+                    onClick={handleBulkSync}
+                    disabled={bulkSyncGamesMutation.isPending}
+                    size="small"
+                    sx={{ 
+                      color: "primary.main",
+                      display: { xs: "none", sm: "inline-flex" }
+                    }}
+                  >
+                    {bulkSyncGamesMutation.isPending ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <Sync />
+                    )}
+                  </IconButton>
+                </Tooltip>
               </>
             )}
             {hiddenColumnCount > 0 && (
