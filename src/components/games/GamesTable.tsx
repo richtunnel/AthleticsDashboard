@@ -491,6 +491,9 @@ export function GamesTable() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Track latest date picker selection to avoid race condition with state updates
+  const latestDatePickerValueRef = useRef<string | null>(null);
+
   // Autosave mechanism - batched and debounced
   const pendingChangesRef = useRef<Map<string, Record<string, any>>>(new Map());
   const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -2353,6 +2356,7 @@ export function GamesTable() {
         setInlineEditState(null);
         setInlineEditValue("");
         setInlineEditError(null);
+        latestDatePickerValueRef.current = null;
       } catch (error: any) {
         if (error.name === "AbortError") {
           // Request was cancelled, ignore
@@ -2427,6 +2431,7 @@ export function GamesTable() {
         setSaveStatus("idle");
         setInlineEditState(null);
         setInlineEditValue("");
+        latestDatePickerValueRef.current = null;
       }
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
@@ -2436,16 +2441,24 @@ export function GamesTable() {
     (game: Game) => {
       if (!inlineEditState) return;
 
+      // For date fields, check the ref value to avoid race condition with DatePicker onChange
+      const valueToSave = inlineEditState.field === "date" && latestDatePickerValueRef.current 
+        ? latestDatePickerValueRef.current 
+        : inlineEditValue;
+
       // Only save if value has actually changed
-      if (inlineEditValue !== originalInlineValueRef.current) {
+      if (valueToSave !== originalInlineValueRef.current) {
         // Save immediately on blur
-        scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+        scheduleAutosave(game.id, inlineEditState.field, valueToSave, game, true);
       } else {
         // No changes, just exit edit mode quietly
         setInlineEditState(null);
         setInlineEditValue("");
         setSaveStatus("idle");
       }
+
+      // Clear the date picker ref after handling blur
+      latestDatePickerValueRef.current = null;
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
   );
@@ -5030,6 +5043,8 @@ export function GamesTable() {
                       if (newValue) {
                         const formattedDate = format(newValue, "yyyy-MM-dd");
                         console.log("📅 Date changed to:", formattedDate);
+                        // Store in ref immediately to avoid race condition with onClose
+                        latestDatePickerValueRef.current = formattedDate;
                         handleInlineChange(formattedDate, game);
                       }
                     }}
@@ -5760,6 +5775,15 @@ export function GamesTable() {
                         open={isEditingDate}
                         onClose={() => {
                           console.log("📅 Imported DatePicker closed");
+                          // Check if a date was selected via the ref
+                          if (latestDatePickerValueRef.current && inlineEditState) {
+                            const valueToSave = latestDatePickerValueRef.current;
+                            // Save immediately if value changed
+                            if (valueToSave !== originalInlineValueRef.current) {
+                              scheduleAutosave(game.id, column.id as InlineEditField, valueToSave, game, true);
+                            }
+                            latestDatePickerValueRef.current = null;
+                          }
                           setInlineEditState(null);
                           setInlineEditValue("");
                           setSaveStatus("idle");
@@ -5769,12 +5793,10 @@ export function GamesTable() {
                           if (newValue) {
                             const formattedDate = format(newValue, "yyyy-MM-dd");
                             console.log("📅 Date changed to:", formattedDate);
-                            // Save immediately when date is selected
-                            scheduleAutosave(game.id, column.id as InlineEditField, formattedDate, game, true);
-                            // Exit edit mode
-                            setInlineEditState(null);
-                            setInlineEditValue("");
-                            setSaveStatus("idle");
+                            // Store in ref immediately to avoid race condition with onClose
+                            latestDatePickerValueRef.current = formattedDate;
+                            // Update the value in state for UI display
+                            handleInlineValueChange(formattedDate);
                           }
                         }}
                         disabled={isInlineSaving}
@@ -5785,6 +5807,7 @@ export function GamesTable() {
                             onKeyDown: (e: any) => {
                               if (e.key === "Escape") {
                                 e.preventDefault();
+                                latestDatePickerValueRef.current = null;
                                 setInlineEditState(null);
                                 setInlineEditValue("");
                                 setSaveStatus("idle");
