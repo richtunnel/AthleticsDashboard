@@ -129,7 +129,7 @@ export default function HomePageContent() {
                   color: "#475569",
                 }}
               >
-                A platform built to give athletic departments the clarity, control, and automation they deserve.
+                Upload your sports schedule in a CSV and automate emailing, lookups, travel time and more.
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
@@ -225,7 +225,8 @@ export default function HomePageContent() {
                   Automate Your Sports Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  Opletics gives you tools to signifcantly reduce the amount of time you spend planning and communicating. Take control of how much time you spend planning and communicating
+                  {/* Opletics gives you tools to signifcantly reduce the amount of time you spend planning and communicating. Take control of how much time you spend planning and communicating */}
+                  Upload your sports schedule in a CSV and automate emailing, lookups, travel time and more.
                 </p>
               </div>
 
