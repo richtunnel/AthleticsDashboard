@@ -24,7 +24,7 @@ const darkTheme = createTheme({
 
     themeText: {
       text: "#C5C5D2",
-      contrastText: "#000",
+      contrastText: "#212121",
     },
     background: {
       default: "#212121", // Main dark background
