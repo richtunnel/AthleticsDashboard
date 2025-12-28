@@ -83,13 +83,13 @@ function DraggablePaper(props: any) {
 }
 
 const DAYS_OF_WEEK = [
-  { label: 'Sun', value: 0 },
-  { label: 'Mon', value: 1 },
-  { label: 'Tue', value: 2 },
-  { label: 'Wed', value: 3 },
-  { label: 'Thu', value: 4 },
-  { label: 'Fri', value: 5 },
-  { label: 'Sat', value: 6 },
+  { label: "Sun", value: 0 },
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
 ];
 
 export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, onClose, sport, level, onDateSelect }) => {
@@ -527,9 +527,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                       No Available Dates Found
                     </Typography>
-                    <Typography variant="body2">
-                      Try narrowing your search by being more specific using fewer words.
-                    </Typography>
+                    <Typography variant="body2">Try narrowing your search by being more specific using fewer words.</Typography>
                     {result.debug.notes.length > 0 && (
                       <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
                         {result.debug.notes.join(" • ")}
@@ -656,7 +654,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
           variant="contained"
           startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Search />}
           disabled={loading || !prompt.trim()}
-          sx={{ textTransform: "none", borderRadius: 2 }}
+          sx={(theme) => ({ color: theme.palette.mode === "dark" ? theme.palette.themeText.contrastText : "", textTransform: "none", borderRadius: 2 })}
         >
           {loading ? "Searching..." : "Find Dates"}
         </Button>
