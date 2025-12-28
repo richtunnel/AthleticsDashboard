@@ -20,6 +20,16 @@ const lightTheme = createTheme({
       default: "#F6F8FB",
       paper: "#FFFFFF",
     },
+
+    themeText: {
+      contrastText: "#C5C5D2",
+      text: "#0F172A",
+    },
+    themeButtonText: {
+      main: "#fff",
+      contrast: "#000",
+      subtle: "rgba(24, 27, 56, 0.4)",
+    },
     text: {
       primary: "#0F172A",
       secondary: "#475569",

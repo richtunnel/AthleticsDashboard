@@ -6,6 +6,8 @@ import Autocomplete from "@mui/material/Autocomplete";
 import { updateUserDetails } from "@/app/dashboard/settings/actions";
 import { ALLOWED_SETTINGS_ROLES, ROLE_OPTIONS, AllowedSettingsRole } from "@/lib/constants/role";
 import { getFirstName } from "@/lib/utils/name";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme as customTheme } from "@mui/material/styles";
 
 type OrgOption = { id: string; name: string };
 
@@ -22,6 +24,9 @@ type Props = {
 };
 
 export default function AccountDetailsForm({ user }: Props) {
+  const theme = customTheme();
+  const { mode } = useTheme();
+
   const [form, setForm] = useState({
     name: user.name ?? "",
     email: user.email ?? "",
@@ -212,7 +217,13 @@ export default function AccountDetailsForm({ user }: Props) {
               )}
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
-            <Button type="submit" variant="contained" disabled={!isDirty || loading} startIcon={loading ? <CircularProgress size={18} /> : undefined}>
+            <Button
+              sx={{ color: theme.palette.themeButtonText.main }}
+              type="submit"
+              variant="contained"
+              disabled={!isDirty || loading}
+              startIcon={loading ? <CircularProgress size={18} /> : undefined}
+            >
               {loading ? "Saving..." : "Save Changes"}
             </Button>
           </Stack>

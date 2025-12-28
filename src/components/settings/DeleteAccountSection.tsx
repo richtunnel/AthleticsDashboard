@@ -6,12 +6,14 @@ import { DeleteForever } from "@mui/icons-material";
 import DeleteAccountModal from "./DeleteAccountModal";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "@mui/material/styles";
 
 export default function DeleteAccountSection() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const theme = useTheme();
 
   const handleDeleteAccount = async () => {
     setError(null);
@@ -63,12 +65,13 @@ export default function DeleteAccountSection() {
               color="error"
               startIcon={<DeleteForever />}
               onClick={() => setModalOpen(true)}
-              sx={{ 
+              sx={{
                 fontWeight: 600,
                 borderWidth: 2,
+                borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
                 "&:hover": {
                   borderWidth: 2,
-                }
+                },
               }}
             >
               Delete Account
@@ -77,12 +80,7 @@ export default function DeleteAccountSection() {
         </CardContent>
       </Card>
 
-      <DeleteAccountModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onConfirm={handleDeleteAccount}
-        isDeleting={isDeleting}
-      />
+      <DeleteAccountModal open={modalOpen} onClose={() => setModalOpen(false)} onConfirm={handleDeleteAccount} isDeleting={isDeleting} />
     </>
   );
 }

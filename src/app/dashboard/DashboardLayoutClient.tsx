@@ -65,10 +65,10 @@ import { NotificationProvider, useNotifications } from "@/contexts/NotificationC
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
 import SupportModal from "@/components/support/SupportModal";
-import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { MUIThemeProvider } from "@/app/theme-provider";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
-import { useTheme as useMUITheme } from "@mui/material/styles";
+import { useTheme as customTheme } from "@mui/material/styles";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
@@ -97,6 +97,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { isLeftNavOpen, toggleLeftNav } = useNavigationStore();
   const [mounted, setMounted] = useState(false);
   const { mode } = useTheme();
+  const theme = customTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -177,9 +178,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   borderRadius: 1.5,
                   "&.Mui-selected": {
                     bgcolor: "primary.main",
-                    color: "white",
+                    color: `${mode}` === "dark" ? "#191919ff" : "white",
                     "&:hover": { bgcolor: "primary.dark" },
-                    "& .MuiListItemIcon-root": { color: "white" },
+                    "& .MuiListItemIcon-root, & .MuiListItemIcon-root svg": {
+                      color: mode === "dark" ? "#0f172a" : "#fff",
+                    },
                   },
                 }}
               >
