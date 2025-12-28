@@ -320,6 +320,7 @@ export function EmailGroupCard({
                   size="small"
                   variant="contained"
                   startIcon={<AddIcon />}
+                  sx={(theme) => ({ color: theme.palette.mode === "dark" ? theme.palette.themeButtonText.main : "" })}
                   onClick={(event) => {
                     event.stopPropagation();
                     onToggleAddEmails();
@@ -330,6 +331,10 @@ export function EmailGroupCard({
                 <Button
                   size="small"
                   variant="outlined"
+                  sx={(theme) => ({
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    color: theme.palette.text.primary,
+                  })}
                   startIcon={<EditIcon />}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -341,6 +346,10 @@ export function EmailGroupCard({
                 <Button
                   size="small"
                   variant="outlined"
+                  sx={(theme) => ({
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    color: theme.palette.text.primary,
+                  })}
                   color="error"
                   startIcon={<DeleteIcon />}
                   onClick={(event) => {
