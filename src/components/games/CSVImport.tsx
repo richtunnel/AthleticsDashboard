@@ -450,7 +450,15 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             </Paper>
 
             <Box textAlign="center">
-              <Button startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
+              <Button
+                sx={(theme) => ({
+                  borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                  color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                })}
+                startIcon={<Download />}
+                onClick={handleDownloadTemplate}
+                variant="outlined"
+              >
                 Download Sample Template
               </Button>
             </Box>
@@ -641,9 +649,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                 <Stack direction="row" spacing={2} flexWrap="wrap">
                   <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                   {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
-                  {(importResult.duplicates ?? 0) > 0 && (
-                    <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />
-                  )}
+                  {(importResult.duplicates ?? 0) > 0 && <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />}
                 </Stack>
 
                 {importResult.duplicateDetails && importResult.duplicateDetails.length > 0 && (
