@@ -8,7 +8,7 @@ const darkTheme = createTheme({
       main: "#c3f98fff", // Blue accent
       light: "#fafafaff",
       dark: "#90a7ddff",
-      contrastText: "#FFFFFF",
+      contrastText: "#000000", // Dark text for light cyan background
     },
     secondary: {
       main: "#10A37F", // Green accent
