@@ -262,7 +262,7 @@ export function EmailGroupCard({
               width: 48,
               height: 48,
               borderRadius: 2,
-              backgroundColor: theme.palette.mode === "darke" ? "#545557" : "primary.light",
+              backgroundColor: theme.palette.mode === "dark" ? "#545557" : "primary.light",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
