@@ -395,7 +395,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                       size="large"
                       sx={{
                         bgcolor: "primary.main",
-                        color: "#FFFFFF",
+                        color: `${theme.palette.mode}` === "dark" ? "#000" : "#fff",
                         "&:hover": {
                           bgcolor: "primary.dark",
                         },
@@ -432,7 +432,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                     No recovery email set
                   </Typography>
                   <Button
-                    sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit" }}
+                    sx={{ borderColor: theme.palette.themeText.text, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit" }}
                     variant="outlined"
                     size="small"
                     startIcon={<EmailIcon />}

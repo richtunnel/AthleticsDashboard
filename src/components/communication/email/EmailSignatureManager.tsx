@@ -226,7 +226,7 @@ export function EmailSignatureManager() {
                     startIcon={<PhotoCamera />}
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadMutation.isPending}
-                    sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit" }}
+                    sx={{ color: `${theme.palette.themeText.text}`, borderColor: theme.palette.themeText.text }}
                   >
                     {logoUrl ? "Change Logo" : "Upload Logo"}
                   </Button>
@@ -293,7 +293,14 @@ export function EmailSignatureManager() {
 
             {/* Save Button */}
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-              <LoadingButton startIcon={<SaveIcon />} loading={updateMutation.isPending} onClick={handleSave} loadingText="Saving" variant="contained">
+              <LoadingButton
+                sx={{ color: theme.palette.themeButtonText.main }}
+                startIcon={<SaveIcon />}
+                loading={updateMutation.isPending}
+                onClick={handleSave}
+                loadingText="Saving"
+                variant="contained"
+              >
                 Save Signature
               </LoadingButton>
             </Box>
