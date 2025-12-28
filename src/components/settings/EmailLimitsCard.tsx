@@ -3,6 +3,7 @@
 import { Card, CardContent, Typography, Box, LinearProgress, Tooltip, IconButton } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { useTheme } from "@mui/material/styles";
 
 interface EmailLimitsData {
   daily: {
@@ -20,6 +21,7 @@ interface EmailLimitsData {
 }
 
 export function EmailLimitsCard() {
+  const theme = useTheme();
   const { data, isLoading, error } = useQuery<{ data: EmailLimitsData }>({
     queryKey: ["emailLimits"],
     queryFn: async () => {
@@ -66,13 +68,13 @@ export function EmailLimitsCard() {
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Daily Limit
               </Typography>
-              <LinearProgress />
+              <LinearProgress sx={{ backgroundColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "" }} />
             </Box>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Monthly Limit (System-wide)
               </Typography>
-              <LinearProgress />
+              <LinearProgress sx={{ backgroundColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "" }} />
             </Box>
           </Box>
         ) : data?.data ? (

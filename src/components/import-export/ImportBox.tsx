@@ -38,6 +38,8 @@ import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { useTheme as customTheme } from "@mui/material/styles";
 
 const dateStringToUTCISOString = (dateValue: string): string => {
   // Use robust date parser that handles multiple formats
@@ -76,6 +78,8 @@ const DATABASE_FIELDS = [
 ];
 
 export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
+  const theme = customTheme();
+  const { mode } = useTheme();
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
@@ -439,7 +443,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                 sx={{
                   p: 6,
                   border: "2px dashed",
-                  borderColor: isDragActive ? "primary.main" : "divider",
+                  borderColor: isDragActive ? (mode === "dark" ? "divider" : "primary.main") : mode === "dark" ? "transparent" : "primary.main",
                   bgcolor: isDragActive ? "action.hover" : "background.paper",
                   cursor: "pointer",
                   textAlign: "center",
@@ -464,16 +468,21 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
               </Paper>
 
               <Box textAlign="center">
-                <Button sx={{ ml: "12px", marginBottom: "8px" }} startIcon={<Download />} onClick={handleDownloadTemplate} variant="outlined">
+                <Button
+                  sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}
+                  startIcon={<Download />}
+                  onClick={handleDownloadTemplate}
+                  variant="outlined"
+                >
                   Download Sample Template
                 </Button>
-                <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px" }}>
+                <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}>
                   <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank" style={{ color: "inherit" }}>
                     Open Googlesheets&nbsp;
                     <OpenInNewIcon fontSize="small" />
                   </Link>
                 </Button>
-                <Button sx={{ ml: "12px", marginBottom: "8px" }} variant="outlined">
+                <Button sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }} variant="outlined">
                   <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank" style={{ color: "inherit" }}>
                     Open excel&nbsp;
                     <OpenInNewIcon />
@@ -637,9 +646,7 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                       <Stack direction="row" spacing={2} flexWrap="wrap">
                         <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                         {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
-                        {(importResult.duplicates ?? 0) > 0 && (
-                          <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />
-                        )}
+                        {(importResult.duplicates ?? 0) > 0 && <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />}
                       </Stack>
                     </>
                   )}

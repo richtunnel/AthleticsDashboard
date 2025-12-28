@@ -5,9 +5,9 @@ const darkTheme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#677bf2", // Blue accent
-      light: "#8faae8",
-      dark: "#5577c9",
+      main: "#c3f98fff", // Blue accent
+      light: "#fafafaff",
+      dark: "#90a7ddff",
       contrastText: "#FFFFFF",
     },
     secondary: {
@@ -15,6 +15,16 @@ const darkTheme = createTheme({
       light: "#1AB88C",
       dark: "#0E8C6C",
       contrastText: "#FFFFFF",
+    },
+    themeButtonText: {
+      main: "#000",
+      contrast: "#fff",
+      subtle: "rgba(226, 226, 226, 0.94)",
+    },
+
+    themeText: {
+      text: "#C5C5D2",
+      contrastText: "#000",
     },
     background: {
       default: "#212121", // Main dark background

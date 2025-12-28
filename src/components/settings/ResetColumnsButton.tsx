@@ -64,7 +64,13 @@ export function ResetColumnsButton() {
         sx={{
           color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
           textTransform: "none",
+          borderColor: theme.palette.mode === "dark" ? `${theme.palette.themeText.text}!important` : "",
           borderRadius: 2,
+          MuiButton: {
+            styleOverrides: {
+              borderColor: theme.palette.themeText.text,
+            },
+          },
         }}
       >
         Reset to Default Columns

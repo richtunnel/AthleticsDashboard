@@ -99,6 +99,7 @@ import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import SendIcon from "@mui/icons-material/Send";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
   ssr: false,
@@ -1241,7 +1242,7 @@ export function GamesTable() {
   const unsyncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "DELETE" });
-      
+
       if (!res.ok) {
         const error = await res.json();
         console.error("[Calendar Unsync] API Error:", error);
@@ -5584,9 +5585,9 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
               <Tooltip title={isCalendarSynced ? "Calendar synced" : "Sync to Calendar"}>
-                <IconButton 
-                  size="small" 
-                  sx={{ p: 0.5 }} 
+                <IconButton
+                  size="small"
+                  sx={{ p: 0.5 }}
                   onClick={() => {
                     if (isCalendarSynced) {
                       setGameToUnsync(game.id);
@@ -5594,16 +5595,10 @@ export function GamesTable() {
                     } else {
                       handleSyncCalendar(game.id);
                     }
-                  }} 
+                  }}
                   disabled={isSyncingThisGame || isUnsyncingThisGame}
                 >
-                  {isSyncingThisGame || isUnsyncingThisGame ? (
-                    <CircularProgress size={16} />
-                  ) : isCalendarSynced ? (
-                    <SyncLock sx={{ fontSize: 18, color: "#babfb3" }} />
-                  ) : (
-                    <Sync sx={{ fontSize: 18 }} />
-                  )}
+                  {isSyncingThisGame || isUnsyncingThisGame ? <CircularProgress size={16} /> : isCalendarSynced ? <SyncLock sx={{ fontSize: 18, color: "#babfb3" }} /> : <Sync sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Delete">
@@ -6407,11 +6402,10 @@ export function GamesTable() {
             {selectedGames.size > 0 && games.length > 0 && (
               <Button
                 variant="contained"
-                color="primary"
-                startIcon={<GradientSendIcon />}
+                startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
                 onClick={handleSendEmail}
                 size="small"
-                sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
               >
                 Send Email ({selectedGames.size})
               </Button>
@@ -6436,7 +6430,14 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={handleNewGame}
+                disabled={isAddingNew}
+                size="small"
+                sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+              >
                 Create Game
               </Button>
             )}
@@ -6488,7 +6489,12 @@ export function GamesTable() {
                 startIcon={<ViewColumn />}
                 onClick={handleAddColumnsClick}
                 size="small"
-                sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                sx={{
+                  borderColor: theme.palette.themeButtonText.subtle,
+                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                  textTransform: "none",
+                  display: { xs: "none", sm: "inline-flex" },
+                }}
               >
                 Add Columns ({customColumns.length})
               </Button>
@@ -6519,7 +6525,7 @@ export function GamesTable() {
                 startIcon={<Tune />}
                 onClick={() => setIsColumnPreferencesOpen(true)}
                 size="small"
-                sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
               >
                 Columns ({visibleColumnIds.length})
               </Button>
@@ -6558,7 +6564,7 @@ export function GamesTable() {
               {/* Delete Button */}
               <LoadingButton
                 variant="outlined"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "red" }} />}
+                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
                 size="small"
@@ -6583,7 +6589,7 @@ export function GamesTable() {
               startIcon={<Upload />}
               onClick={handleImportClick}
               size="small"
-              sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
             >
               Import
             </Button>
@@ -6595,7 +6601,12 @@ export function GamesTable() {
               onClick={handleExport}
               disabled={games.length === 0}
               size="small"
-              sx={{ color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              sx={{
+                borderColor: theme.palette.themeButtonText.subtle,
+                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                textTransform: "none",
+                display: { xs: "none", sm: "inline-flex" },
+              }}
             >
               Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
             </Button>
@@ -6675,7 +6686,7 @@ export function GamesTable() {
           >
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "action.selected" }}>
+                <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
                   <TableCell padding="checkbox" sx={{ py: 0 }}>
                     <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
                   </TableCell>
@@ -7040,12 +7051,10 @@ export function GamesTable() {
       >
         <DialogTitle>Remove from Google Calendar?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            This will remove the game from your Google Calendar. You can always sync it again later.
-          </DialogContentText>
+          <DialogContentText>This will remove the game from your Google Calendar. You can always sync it again later.</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => {
               setUnsyncDialogOpen(false);
               setGameToUnsync(null);
@@ -7054,7 +7063,7 @@ export function GamesTable() {
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={() => {
               if (gameToUnsync) {
                 unsyncGameMutation.mutate(gameToUnsync);

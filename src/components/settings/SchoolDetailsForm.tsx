@@ -4,6 +4,8 @@ import React, { useState, useMemo } from "react";
 import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert } from "@mui/material";
 import { updateSchoolDetails } from "@/app/dashboard/settings/actions";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useTheme as customTheme } from "@mui/material/styles";
 
 type Props = {
   user: {
@@ -14,6 +16,8 @@ type Props = {
 };
 
 export default function SchoolDetailsForm({ user }: Props) {
+  const theme = customTheme();
+  const { mode } = useTheme();
   const [form, setForm] = useState({
     schoolName: user.schoolName ?? "",
     teamName: user.teamName ?? "",
@@ -33,11 +37,7 @@ export default function SchoolDetailsForm({ user }: Props) {
   );
 
   const isDirty = useMemo(() => {
-    return (
-      form.schoolName.trim() !== initialData.schoolName.trim() ||
-      form.teamName.trim() !== initialData.teamName.trim() ||
-      form.schoolAddress.trim() !== initialData.schoolAddress.trim()
-    );
+    return form.schoolName.trim() !== initialData.schoolName.trim() || form.teamName.trim() !== initialData.teamName.trim() || form.schoolAddress.trim() !== initialData.schoolAddress.trim();
   }, [form, initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,26 +103,8 @@ export default function SchoolDetailsForm({ user }: Props) {
 
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
-            <TextField
-              size="small"
-              label="School Name"
-              name="schoolName"
-              value={form.schoolName}
-              onChange={handleChange}
-              required
-              fullWidth
-              placeholder="e.g., Lincoln High School"
-            />
-            <TextField
-              size="small"
-              label="Team Name"
-              name="teamName"
-              value={form.teamName}
-              onChange={handleChange}
-              required
-              fullWidth
-              placeholder="e.g., Lincoln Lions"
-            />
+            <TextField size="small" label="School Name" name="schoolName" value={form.schoolName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln High School" />
+            <TextField size="small" label="Team Name" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" />
             <SchoolAddressAutocomplete
               value={form.schoolAddress}
               onChange={(value) => setForm((s) => ({ ...s, schoolAddress: value }))}
@@ -133,6 +115,7 @@ export default function SchoolDetailsForm({ user }: Props) {
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
             <Button
+              sx={{ color: theme.palette.themeButtonText.main }}
               type="submit"
               variant="contained"
               disabled={!isDirty || loading}
