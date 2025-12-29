@@ -28,6 +28,7 @@ import {
   Chip,
   Tooltip,
   Autocomplete,
+  FormHelperText,
 } from "@mui/material";
 import { Add, Delete, Info, SyncLock } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -91,7 +92,7 @@ export function CalendarGroupMappings() {
   });
 
   // Fetch Google Calendars
-  const { data: calendarsData, isLoading: calendarsLoading } = useQuery({
+  const { data: calendarsData, isLoading: calendarsLoading, error: calendarsError } = useQuery({
     queryKey: ["googleCalendars"],
     queryFn: fetchGoogleCalendars,
   });
@@ -299,19 +300,24 @@ export function CalendarGroupMappings() {
               helperText="Enter the exact value from your games table column"
             />
 
-            <FormControl fullWidth>
+            <FormControl fullWidth error={!!calendarsError}>
               <InputLabel>Google Calendar</InputLabel>
               <Select value={newMapping.googleCalendarId} label="Google Calendar" onChange={(e) => handleCalendarSelect(e.target.value)}>
-                {calendarsData?.calendars.map((calendar) => (
-                  <MenuItem key={calendar.id} value={calendar.id}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-                      <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
-                      {calendar.name}
-                      {calendar.primary && <Chip label="Primary" size="small" sx={{ ml: "auto" }} />}
-                    </Box>
-                  </MenuItem>
-                ))}
+                {calendarsData?.calendars && calendarsData.calendars.length > 0 ? (
+                  calendarsData.calendars.map((calendar) => (
+                    <MenuItem key={calendar.id} value={calendar.id}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
+                        <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
+                        {calendar.name}
+                        {calendar.primary && <Chip label="Primary" size="small" sx={{ ml: "auto" }} />}
+                      </Box>
+                    </MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled>No calendars found</MenuItem>
+                )}
               </Select>
+              {calendarsError && <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>}
             </FormControl>
 
             <Alert severity="info" sx={{ mt: 1 }}>
