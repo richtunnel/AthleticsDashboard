@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
@@ -138,24 +138,35 @@ export function CalendarGroupMappings() {
       const res = await fetch(`/api/calendar/group-mappings?id=${id}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to delete mapping");
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to delete mapping");
+      }
+
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
       addNotification("Calendar group mapping deleted successfully", "success");
     },
-    onError: () => {
-      addNotification("Failed to delete mapping", "error");
+    onError: (error: Error) => {
+      addNotification(error.message || "Failed to delete mapping", "error");
     },
   });
 
   const handleAddMapping = () => {
-    if (!newMapping.columnName || !newMapping.columnValue || !newMapping.googleCalendarId) {
+    if (!newMapping.columnName?.trim() || !newMapping.columnValue?.trim() || !newMapping.googleCalendarId?.trim() || !newMapping.googleCalendarName?.trim()) {
       addNotification("Please fill in all fields", "warning");
       return;
     }
-    createMappingMutation.mutate(newMapping);
+    createMappingMutation.mutate({
+      ...newMapping,
+      columnName: newMapping.columnName.trim(),
+      columnValue: newMapping.columnValue.trim(),
+      googleCalendarId: newMapping.googleCalendarId.trim(),
+      googleCalendarName: newMapping.googleCalendarName.trim(),
+    });
   };
 
   const handleCalendarSelect = (calendarId: string) => {

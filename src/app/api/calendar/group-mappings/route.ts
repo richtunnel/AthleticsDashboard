@@ -36,17 +36,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { columnName, columnValue, googleCalendarId, googleCalendarName } = body;
 
-    if (!columnName || !columnValue || !googleCalendarId || !googleCalendarName) {
+    const trimmedColumnName = typeof columnName === "string" ? columnName.trim() : "";
+    const trimmedColumnValue = typeof columnValue === "string" ? columnValue.trim() : "";
+    const trimmedCalendarId = typeof googleCalendarId === "string" ? googleCalendarId.trim() : "";
+    const trimmedCalendarName = typeof googleCalendarName === "string" ? googleCalendarName.trim() : "";
+
+    if (!trimmedColumnName || !trimmedColumnValue || !trimmedCalendarId || !trimmedCalendarName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const mapping = await prisma.calendarGroupMapping.create({
       data: {
         userId: session.user.id,
-        columnName,
-        columnValue,
-        googleCalendarId,
-        googleCalendarName,
+        columnName: trimmedColumnName,
+        columnValue: trimmedColumnValue,
+        googleCalendarId: trimmedCalendarId,
+        googleCalendarName: trimmedCalendarName,
       },
     });
 
@@ -72,22 +77,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(`${process.env.NEXTAUTH_URL}`);
+    const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    if (id) {
-      // Delete specific mapping
-      await prisma.calendarGroupMapping.delete({
-        where: {
-          id,
-          userId: session.user.id, // Ensure user owns this mapping
-        },
-      });
-
-      return NextResponse.json({ success: true });
+    if (!id) {
+      return NextResponse.json({ error: "Missing mapping ID" }, { status: 400 });
     }
 
-    return NextResponse.json({ error: "Missing mapping ID" }, { status: 400 });
+    // Delete specific mapping (scoped by user)
+    const result = await prisma.calendarGroupMapping.deleteMany({
+      where: {
+        id,
+        userId: session.user.id,
+      },
+    });
+
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Mapping not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting calendar group mapping:", error);
     return NextResponse.json({ error: "Failed to delete calendar group mapping" }, { status: 500 });
