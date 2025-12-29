@@ -247,7 +247,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               fullWidth
               multiline
               rows={3}
-              placeholder="e.g., 'Boys varsity basketball in December at least 3 days apart' or 'Girls varsity volleyball not on same days as boys JV basketball'"
+              placeholder="e.g., 'Boys varsity basketball in December at least 3 days apart''"
               value={prompt}
               onChange={(e) => handlePromptChange(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -260,7 +260,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Try: "B V Basketball in December at least 3 days apart" • "GV soccer not on same days as B JV basketball" • "Boys Varsity Volleyball"
+              Try: "B V Basketball in December at least 3 days apart" • "GV soccer not on same days as B JV basketball"
             </Typography>
           </Box>
 
