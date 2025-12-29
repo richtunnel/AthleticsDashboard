@@ -17,16 +17,26 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
 
   // Support both server-side and public environment variables
   // This ensures the frontend and backend use consistent price IDs
-  const monthly = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  const annual = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
+  const annual = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
 
-  if (monthly) {
-    mapping[monthly] = "MONTHLY";
-  }
+  if (monthly) mapping[monthly] = "MONTHLY";
+  if (annual) mapping[annual] = "ANNUAL";
 
-  if (annual) {
-    mapping[annual] = "ANNUAL";
-  }
+  // New plans
+  const standardMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
+  const standardYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
+  const teamMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
+  const teamYr = process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR;
+  const plusMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
+  const plusYr = process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR;
+
+  if (standardMo) mapping[standardMo] = "MONTHLY";
+  if (standardYr) mapping[standardYr] = "ANNUAL";
+  if (teamMo) mapping[teamMo] = "MONTHLY";
+  if (teamYr) mapping[teamYr] = "ANNUAL";
+  if (plusMo) mapping[plusMo] = "MONTHLY";
+  if (plusYr) mapping[plusYr] = "ANNUAL";
 
   return mapping;
 })();
@@ -142,9 +152,7 @@ export async function POST(req: NextRequest) {
                 `To fix this issue:\n` +
                 `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
-                `3. Update the following environment variables:\n` +
-                `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
-                `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n` +
+                `3. Update your environment variables with the correct Price IDs.\n` +
                 `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
                 `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
@@ -254,7 +262,7 @@ export async function POST(req: NextRequest) {
               ? `The Stripe price ID "${priceId}" does not exist in your Stripe account. Please verify your Stripe configuration:\n\n` +
                 `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"})\n` +
                 `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? "test mode" : "live mode"})\n` +
-                `3. Update NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
+                `3. Update your environment variables with the correct Price IDs\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
           },

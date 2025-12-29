@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return ApiResponse.unauthorized();
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(`${process.env.NEXTAUTH_URL}`);
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "25", 10);
     const status = searchParams.get("status");

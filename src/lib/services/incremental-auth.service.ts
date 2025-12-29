@@ -21,12 +21,7 @@ export interface CallbackResult {
 
 // Define available scope sets
 export const GOOGLE_SCOPES = {
-  PROFILE: [
-    "openid",
-    "email",
-    "profile",
-    "https://www.googleapis.com/auth/userinfo.email",
-  ] as string[],
+  PROFILE: ["openid", "email", "profile"] as string[],
   CALENDAR: ["https://www.googleapis.com/auth/calendar"] as string[],
   CONTACTS: ["https://www.googleapis.com/auth/contacts.readonly"] as string[],
 };
@@ -36,11 +31,7 @@ export type ScopeType = keyof typeof GOOGLE_SCOPES;
 /**
  * Generate OAuth URL for requesting additional scopes
  */
-export async function initiateIncrementalAuth(
-  userId: string,
-  scopeType: ScopeType,
-  redirectUrl: string
-): Promise<IncrementalAuthResult> {
+export async function initiateIncrementalAuth(userId: string, scopeType: ScopeType, redirectUrl: string): Promise<IncrementalAuthResult> {
   try {
     // Get user's existing account
     const account = await prisma.account.findFirst({
@@ -60,9 +51,7 @@ export async function initiateIncrementalAuth(
     // Check if user already has these scopes
     const requestedScopes = GOOGLE_SCOPES[scopeType];
     const existingScopes = account.scope?.split(" ") || [];
-    const hasAllScopes = requestedScopes.every((scope) =>
-      existingScopes.includes(scope)
-    );
+    const hasAllScopes = requestedScopes.every((scope) => existingScopes.includes(scope));
 
     if (hasAllScopes) {
       return {
@@ -71,12 +60,8 @@ export async function initiateIncrementalAuth(
       };
     }
 
-    // Create OAuth2 client
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CALENDAR_CLIENT_ID,
-      process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-      redirectUrl
-    );
+    // ✅ FIXED: Use the same OAuth client as NextAuth for incremental auth
+    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, redirectUrl);
 
     // Generate state token for CSRF protection
     const state = crypto.randomBytes(32).toString("hex");
@@ -85,7 +70,7 @@ export async function initiateIncrementalAuth(
     await prisma.user.update({
       where: { id: userId },
       data: {
-        resetToken: state, // Reusing resetToken field for state storage
+        resetToken: state,
         resetTokenExpiry: new Date(Date.now() + 5 * 60 * 1000),
       },
     });
@@ -97,6 +82,7 @@ export async function initiateIncrementalAuth(
       include_granted_scopes: true, // KEY: Include previously granted scopes
       state,
       prompt: "consent", // Force consent screen to get refresh token
+      login_hint: account.providerAccountId ? undefined : undefined, // Optional: hint which account to use
     });
 
     return {
@@ -115,12 +101,7 @@ export async function initiateIncrementalAuth(
 /**
  * Handle OAuth callback and update account with new tokens
  */
-export async function handleIncrementalAuthCallback(
-  userId: string,
-  code: string,
-  state: string,
-  redirectUrl: string
-): Promise<CallbackResult> {
+export async function handleIncrementalAuthCallback(userId: string, code: string, state: string, redirectUrl: string): Promise<CallbackResult> {
   try {
     // Verify state token
     const user = await prisma.user.findUnique({
@@ -131,13 +112,7 @@ export async function handleIncrementalAuthCallback(
       },
     });
 
-    if (
-      !user ||
-      !user.resetToken ||
-      user.resetToken !== state ||
-      !user.resetTokenExpiry ||
-      user.resetTokenExpiry < new Date()
-    ) {
+    if (!user || !user.resetToken || user.resetToken !== state || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
       return {
         success: false,
         error: "Invalid or expired state token",
@@ -153,12 +128,8 @@ export async function handleIncrementalAuthCallback(
       },
     });
 
-    // Exchange code for tokens
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CALENDAR_CLIENT_ID,
-      process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-      redirectUrl
-    );
+    // ✅ FIXED: Use the same OAuth client as NextAuth
+    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, redirectUrl);
 
     const { tokens } = await oauth2Client.getToken(code);
 
@@ -187,37 +158,32 @@ export async function handleIncrementalAuthCallback(
     // Merge scopes (new + existing)
     const existingScopes = account.scope?.split(" ") || [];
     const newScopes = tokens.scope?.split(" ") || [];
-    const mergedScopes = Array.from(
-      new Set([...existingScopes, ...newScopes])
-    );
+    const mergedScopes = Array.from(new Set([...existingScopes, ...newScopes]));
 
     // Update account with new tokens
     await prisma.account.update({
       where: { id: account.id },
       data: {
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || account.refresh_token, // Keep old refresh token if new one not provided
-        expires_at: tokens.expiry_date
-          ? Math.floor(tokens.expiry_date / 1000)
-          : account.expires_at,
+        refresh_token: tokens.refresh_token || account.refresh_token,
+        expires_at: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : account.expires_at,
         scope: mergedScopes.join(" "),
       },
     });
 
     // Also update User table for calendar-specific tokens
-    if (tokens.scope?.includes("calendar")) {
+    if (newScopes.some((scope) => scope.includes("calendar"))) {
+      const existingUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { googleCalendarRefreshToken: true },
+      });
+
       await prisma.user.update({
         where: { id: userId },
         data: {
           googleCalendarAccessToken: tokens.access_token,
-          googleCalendarRefreshToken:
-            tokens.refresh_token ||
-            (await prisma.user.findUnique({ where: { id: userId } }))
-              ?.googleCalendarRefreshToken ||
-            undefined,
-          calendarTokenExpiry: tokens.expiry_date
-            ? new Date(tokens.expiry_date)
-            : null,
+          googleCalendarRefreshToken: tokens.refresh_token || existingUser?.googleCalendarRefreshToken || null,
+          calendarTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
         },
       });
     }
@@ -238,10 +204,7 @@ export async function handleIncrementalAuthCallback(
 /**
  * Check if user has granted specific scopes
  */
-export async function hasScopes(
-  userId: string,
-  scopeType: ScopeType
-): Promise<boolean> {
+export async function hasScopes(userId: string, scopeType: ScopeType): Promise<boolean> {
   try {
     const account = await prisma.account.findFirst({
       where: {
@@ -296,10 +259,7 @@ export async function getGrantedScopes(userId: string): Promise<string[]> {
 /**
  * Revoke specific scopes (disconnect feature)
  */
-export async function revokeScopes(
-  userId: string,
-  scopeType: ScopeType
-): Promise<boolean> {
+export async function revokeScopes(userId: string, scopeType: ScopeType): Promise<boolean> {
   try {
     const account = await prisma.account.findFirst({
       where: {
@@ -314,9 +274,7 @@ export async function revokeScopes(
 
     const scopesToRevoke = GOOGLE_SCOPES[scopeType];
     const existingScopes = account.scope?.split(" ") || [];
-    const remainingScopes = existingScopes.filter(
-      (scope) => !(scopesToRevoke as string[]).includes(scope)
-    );
+    const remainingScopes = existingScopes.filter((scope) => !scopesToRevoke.includes(scope));
 
     // Update account with remaining scopes
     await prisma.account.update({
