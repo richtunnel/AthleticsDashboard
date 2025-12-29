@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
           lt: ninetyDaysAgo,
         },
         status: {
-          in: ["CLOSED", "RESOLVED"],
+          in: ["CLOSED"],
         },
       },
     });

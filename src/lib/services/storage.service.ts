@@ -46,7 +46,7 @@ function jsonSize(value: unknown): number {
 }
 
 export async function calculateOrganizationStorage(organizationId: string): Promise<bigint> {
-  let total = 0n;
+  let total = BigInt(0);
 
   const games = await prisma.game.findMany({
     where: {
@@ -73,7 +73,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(game.googleCalendarHtmlLink));
     total += BigInt(jsonSize(game.customFields));
     total += BigInt(jsonSize(game.customData));
-    total += 100n;
+    total += BigInt(100);
   }
 
   const teams = await prisma.team.findMany({
@@ -86,7 +86,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(team.name));
     total += BigInt(stringSize(team.level));
     total += BigInt(stringSize(team.gender));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const venues = await prisma.venue.findMany({
@@ -102,7 +102,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(venue.state));
     total += BigInt(stringSize(venue.zipCode));
     total += BigInt(stringSize(venue.notes));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const opponents = await prisma.opponent.findMany({
@@ -119,7 +119,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(opponent.phone));
     total += BigInt(stringSize(opponent.email));
     total += BigInt(stringSize(opponent.notes));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const emailLogs = await prisma.emailLog.findMany({
@@ -140,7 +140,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(log.subject));
     total += BigInt(stringSize(log.body));
     total += BigInt(stringSize(log.error));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const emailGroups = await prisma.emailGroup.findMany({
@@ -155,7 +155,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
       total += BigInt(stringSize(email.id));
       total += BigInt(stringSize(email.email));
     }
-    total += 50n;
+    total += BigInt(50);
   }
 
   const emailCampaigns = await prisma.emailCampaign.findMany({
@@ -172,7 +172,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(campaign.name));
     total += BigInt(stringSize(campaign.subject));
     total += BigInt(stringSize(campaign.body));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const customColumns = await prisma.customColumn.findMany({
@@ -183,7 +183,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
   for (const column of customColumns) {
     total += BigInt(stringSize(column.id));
     total += BigInt(stringSize(column.name));
-    total += 50n;
+    total += BigInt(50);
   }
 
   const travelRecommendations = await prisma.travelRecommendation.findMany({
@@ -201,7 +201,7 @@ export async function calculateOrganizationStorage(organizationId: string): Prom
     total += BigInt(stringSize(recommendation.id));
     total += BigInt(stringSize(recommendation.trafficCondition));
     total += BigInt(stringSize(recommendation.weatherCondition));
-    total += 100n;
+    total += BigInt(100);
   }
 
   return total;
@@ -253,7 +253,7 @@ export async function checkStorageLimit(
   const currentUsage = await updateOrganizationStorageUsage(organizationId);
   const quota = organization.storageQuotaBytes;
   const projectedUsage = currentUsage + BigInt(estimatedAdditionalBytes);
-  const percentUsed = quota > 0n ? (Number(currentUsage) / Number(quota)) * 100 : 0;
+  const percentUsed = quota > BigInt(0) ? (Number(currentUsage) / Number(quota)) * 100 : 0;
 
   return {
     hasSpace: projectedUsage <= quota,
