@@ -6634,6 +6634,10 @@ export function GamesTable() {
                   color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
                   textTransform: "none",
                   display: { xs: "none", sm: "inline-flex" },
+                  "&:hover": theme.palette.mode === "dark" ? {
+                    bgcolor: "transparent",
+                    borderColor: theme.palette.themeButtonText.subtle,
+                  } : {},
                 }}
               >
                 Add Columns ({customColumns.length})
@@ -6665,7 +6669,15 @@ export function GamesTable() {
                 startIcon={<Tune />}
                 onClick={() => setIsColumnPreferencesOpen(true)}
                 size="small"
-                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                sx={{ 
+                  borderColor: theme.palette.themeButtonText.subtle, 
+                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", 
+                  textTransform: "none",
+                  "&:hover": theme.palette.mode === "dark" ? {
+                    bgcolor: "transparent",
+                    borderColor: theme.palette.themeButtonText.subtle,
+                  } : {},
+                }}
               >
                 Columns ({visibleColumnIds.length})
               </Button>
@@ -6679,7 +6691,13 @@ export function GamesTable() {
                   startIcon={<ContentCopy />}
                   onClick={handleCopySelectedRows}
                   size="small"
-                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                  sx={{ 
+                    textTransform: "none", 
+                    display: { xs: "none", sm: "inline-flex" },
+                    "&:hover": theme.palette.mode === "dark" ? {
+                      bgcolor: "transparent",
+                    } : {},
+                  }}
                 >
                   Copy ({selectedGames.size})
                 </Button>
@@ -6732,7 +6750,13 @@ export function GamesTable() {
                   textTransform: "none",
                   background: "transparent",
                   boxShadow: 0,
-                  "&:hover": { boxShadow: 0 },
+                  "&:hover": theme.palette.mode === "dark" ? { 
+                    boxShadow: 0,
+                    bgcolor: "transparent",
+                    borderColor: "gray",
+                  } : { 
+                    boxShadow: 0 
+                  },
                 }}
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
@@ -6746,7 +6770,15 @@ export function GamesTable() {
               startIcon={<Upload />}
               onClick={handleImportClick}
               size="small"
-              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+              sx={{ 
+                borderColor: theme.palette.themeButtonText.subtle, 
+                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", 
+                textTransform: "none",
+                "&:hover": theme.palette.mode === "dark" ? {
+                  bgcolor: "transparent",
+                  borderColor: theme.palette.themeButtonText.subtle,
+                } : {},
+              }}
             >
               Import
             </Button>
@@ -6763,6 +6795,10 @@ export function GamesTable() {
                 color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
                 textTransform: "none",
                 display: { xs: "none", sm: "inline-flex" },
+                "&:hover": theme.palette.mode === "dark" ? {
+                  bgcolor: "transparent",
+                  borderColor: theme.palette.themeButtonText.subtle,
+                } : {},
               }}
             >
               Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
