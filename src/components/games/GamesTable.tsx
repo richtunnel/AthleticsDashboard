@@ -1330,10 +1330,10 @@ export function GamesTable() {
       for (const gameId of gameIds) {
         try {
           const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
-          
+
           if (!res.ok) {
             const error = await res.json();
-            
+
             // Check if skipped due to no calendar connection
             if (error.skipped) {
               results.skipped.push(gameId);
@@ -1365,9 +1365,7 @@ export function GamesTable() {
           const successfulSet = new Set(results.successful);
 
           if (Array.isArray(oldData)) {
-            return oldData.map((g: Game) => 
-              successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g
-            );
+            return oldData.map((g: Game) => (successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g));
           }
 
           if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1375,9 +1373,7 @@ export function GamesTable() {
               ...oldData,
               data: {
                 ...oldData.data,
-                games: oldData.data.games.map((g: Game) =>
-                  successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g
-                ),
+                games: oldData.data.games.map((g: Game) => (successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g)),
               },
             };
           }
@@ -1388,21 +1384,21 @@ export function GamesTable() {
 
       // Build result message
       const messages: string[] = [];
-      
+
       if (results.successful.length > 0) {
         messages.push(`✓ ${results.successful.length} game(s) synced successfully`);
       }
-      
+
       if (results.failed.length > 0) {
         messages.push(`✗ ${results.failed.length} failed`);
       }
-      
+
       if (results.skipped.length > 0) {
         messages.push(`⊘ ${results.skipped.length} skipped (Google Calendar not connected)`);
       }
 
       const message = messages.join(". ");
-      
+
       // Determine notification type
       let type: "success" | "warning" | "error" = "success";
       if (results.successful.length === 0 && results.skipped.length > 0) {
@@ -2546,9 +2542,7 @@ export function GamesTable() {
       if (!inlineEditState) return;
 
       // For date fields, check the ref value to avoid race condition with DatePicker onChange
-      const valueToSave = inlineEditState.field === "date" && latestDatePickerValueRef.current 
-        ? latestDatePickerValueRef.current 
-        : inlineEditValue;
+      const valueToSave = inlineEditState.field === "date" && latestDatePickerValueRef.current ? latestDatePickerValueRef.current : inlineEditValue;
 
       // Only save if value has actually changed
       if (valueToSave !== originalInlineValueRef.current) {
@@ -3553,7 +3547,7 @@ export function GamesTable() {
 
     // Get array of selected game IDs
     const gameIdsToSync = Array.from(selectedGames);
-    
+
     // Trigger bulk sync mutation
     bulkSyncGamesMutation.mutate(gameIdsToSync);
   }, [selectedGames, bulkSyncGamesMutation, addNotification]);
@@ -6679,7 +6673,12 @@ export function GamesTable() {
                   startIcon={<ContentCopy />}
                   onClick={handleCopySelectedRows}
                   size="small"
-                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                  sx={{
+                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    textTransform: "none",
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
                 >
                   Copy ({selectedGames.size})
                 </Button>
@@ -6688,16 +6687,12 @@ export function GamesTable() {
                     onClick={handleBulkSync}
                     disabled={bulkSyncGamesMutation.isPending}
                     size="small"
-                    sx={{ 
+                    sx={{
                       color: "primary.main",
-                      display: { xs: "none", sm: "inline-flex" }
+                      display: { xs: "none", sm: "inline-flex" },
                     }}
                   >
-                    {bulkSyncGamesMutation.isPending ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <Sync />
-                    )}
+                    {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
                   </IconButton>
                 </Tooltip>
               </>
