@@ -22,15 +22,15 @@ interface UpgradePlanCardProps {
   userPlan: string | null;
 }
 
-const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
-const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
+const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "";
+const ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? "";
 
 const premiumFeatures = [
-  "50,000+ batch email sends",
+  "250,000+ email/mo.",
   "AI Email Generation",
   "Schedule Conflict Detection",
-  "Game Date Discovery",
-  "Automated Bus Scheduling",
+  "Score Tracker & Budget Planner",
+  "Email time scheduler +verification",
   "Priority chat and email support",
 ];
 
@@ -89,7 +89,7 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
           <RocketIcon sx={{ fontSize: 40 }} />
           <Box>
             <Typography variant="h5" fontWeight={700} gutterBottom>
-              Upgrade to Directors Plan
+              Upgrade to Plus Plan
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9 }}>
               Unlock powerful AI features and advanced scheduling tools
@@ -115,7 +115,7 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
             }}
           >
             <Typography variant="h4" fontWeight={700}>
-              $40
+              $60
               <Typography component="span" variant="body2" sx={{ opacity: 0.8 }}>
                 /month
               </Typography>
@@ -164,13 +164,13 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
               }}
             />
             <Typography variant="h4" fontWeight={700}>
-              $250
+              $350
               <Typography component="span" variant="body2" sx={{ opacity: 0.8 }}>
                 /year
               </Typography>
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5, mb: 2 }}>
-              ~$21/month - Best value
+              ~$29/month - Best value
             </Typography>
             <Button
               variant="contained"
