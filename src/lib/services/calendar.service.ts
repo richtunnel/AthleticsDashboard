@@ -154,6 +154,115 @@ export class CalendarService {
     return google.calendar({ version: "v3", auth: oauth2Client });
   }
 
+  private normalizeMappingValue(input: string) {
+    return input.trim().replace(/\s+/g, " ").toLowerCase();
+  }
+
+  private async getCandidateCalendarIds(userId: string): Promise<string[]> {
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+      select: { googleCalendarId: true },
+    });
+
+    const ids = new Set<string>(["primary"]);
+    for (const m of mappings) {
+      if (m.googleCalendarId?.trim()) {
+        ids.add(m.googleCalendarId.trim());
+      }
+    }
+
+    return Array.from(ids);
+  }
+
+  /**
+   * Determine which calendar to use based on user-defined CalendarGroupMappings.
+   * This is case/whitespace-insensitive to avoid mismatches from CSV headers/values.
+   */
+  private async resolveCalendarIdForGame(game: any, userId: string, calendar: any): Promise<string> {
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+    });
+
+    if (!mappings.length) {
+      return "primary";
+    }
+
+    const mappingIndex = new Map<string, (typeof mappings)[number]>();
+    for (const m of mappings) {
+      mappingIndex.set(`${this.normalizeMappingValue(m.columnName)}::${this.normalizeMappingValue(m.columnValue)}`, m);
+    }
+
+    const valuesToCheck: { columnName: string; value: string }[] = [];
+
+    const addCandidate = (columnName: string, rawValue: unknown) => {
+      if (typeof rawValue !== "string") return;
+      const value = rawValue.trim();
+      if (!value) return;
+      valuesToCheck.push({ columnName, value });
+    };
+
+    const customFields: Record<string, unknown> =
+      game.customFields && typeof game.customFields === "object" && !Array.isArray(game.customFields)
+        ? (game.customFields as Record<string, unknown>)
+        : {};
+
+    const getCustomField = (fieldNames: string[]): string | undefined => {
+      const keys = Object.keys(customFields);
+      for (const name of fieldNames) {
+        const exact = customFields[name];
+        if (typeof exact === "string" && exact.trim()) return exact.trim();
+
+        const foundKey = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+        const value = foundKey ? customFields[foundKey] : undefined;
+        if (typeof value === "string" && value.trim()) return value.trim();
+      }
+      return undefined;
+    };
+
+    const sport = getCustomField(["Sport"]) || game.homeTeam?.sport?.name?.trim();
+    const level = getCustomField(["Level"]) || game.homeTeam?.level?.trim();
+    const team = getCustomField(["Team", "Home", "Sports Level", "Team Level"]) || game.homeTeam?.name?.trim();
+
+    if (team) {
+      addCandidate("Team", team);
+      addCandidate("Sports Level", team);
+      addCandidate("Team Level", team);
+    }
+
+    if (sport && level) {
+      const sportLevel = `${sport} ${level}`.trim();
+      addCandidate("Sport & Level", sportLevel);
+      addCandidate("Sports Level", sportLevel);
+    }
+
+    if (sport) {
+      addCandidate("Sport", sport);
+    }
+
+    if (level) {
+      addCandidate("Level", level);
+      addCandidate("Team Level", level);
+    }
+
+    for (const [key, value] of Object.entries(customFields)) {
+      addCandidate(key, value);
+    }
+
+    for (const { columnName, value } of valuesToCheck) {
+      const mapping = mappingIndex.get(`${this.normalizeMappingValue(columnName)}::${this.normalizeMappingValue(value)}`);
+      if (!mapping) continue;
+
+      try {
+        await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
+        return mapping.googleCalendarId;
+      } catch (error) {
+        console.warn(`[Calendar Sync] Calendar ${mapping.googleCalendarId} not found, falling back to primary`);
+      }
+    }
+
+    return "primary";
+  }
+
   async getUpcomingEvents(userId: string, daysAhead = 3): Promise<UpcomingCalendarEvent[]> {
     try {
       // Check if calendar is connected before proceeding
@@ -451,14 +560,51 @@ export class CalendarService {
       endDateTime,
     });
 
+    const targetCalendarId = await this.resolveCalendarIdForGame(game, userId, calendar);
+
     try {
       if (game.googleCalendarEventId) {
-        // Update existing event
-        const response = await calendar.events.update({
-          calendarId: "primary",
-          eventId: game.googleCalendarEventId,
-          requestBody: event,
-        });
+        const candidateCalendarIds = await this.getCandidateCalendarIds(userId);
+        const calendarIdsToTry = [targetCalendarId, ...candidateCalendarIds.filter((id) => id !== targetCalendarId)];
+
+        let response: any | null = null;
+
+        for (const calendarId of calendarIdsToTry) {
+          try {
+            response = await calendar.events.update({
+              calendarId,
+              eventId: game.googleCalendarEventId,
+              requestBody: event,
+            });
+            break;
+          } catch (err: any) {
+            const statusCode = err?.code ?? err?.status ?? err?.response?.status;
+            if (statusCode === 404) {
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        if (!response) {
+          // Event not found in any candidate calendar - create a new one in the target calendar
+          response = await calendar.events.insert({
+            calendarId: targetCalendarId,
+            requestBody: event,
+          });
+
+          await prisma.game.update({
+            where: { id: gameId },
+            data: {
+              googleCalendarEventId: response.data.id || null,
+              googleCalendarHtmlLink: response.data.htmlLink || null,
+              calendarSynced: true,
+              lastSyncedAt: new Date(),
+            },
+          });
+
+          return response.data;
+        }
 
         // Update sync timestamp
         await prisma.game.update({
@@ -471,26 +617,26 @@ export class CalendarService {
         });
 
         return response.data;
-      } else {
-        // Create new event
-        const response = await calendar.events.insert({
-          calendarId: "primary",
-          requestBody: event,
-        });
-
-        // Update game with event ID
-        await prisma.game.update({
-          where: { id: gameId },
-          data: {
-            googleCalendarEventId: response.data.id || null,
-            googleCalendarHtmlLink: response.data.htmlLink || null,
-            calendarSynced: true,
-            lastSyncedAt: new Date(),
-          },
-        });
-
-        return response.data;
       }
+
+      // Create new event
+      const response = await calendar.events.insert({
+        calendarId: targetCalendarId,
+        requestBody: event,
+      });
+
+      // Update game with event ID
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          googleCalendarEventId: response.data.id || null,
+          googleCalendarHtmlLink: response.data.htmlLink || null,
+          calendarSynced: true,
+          lastSyncedAt: new Date(),
+        },
+      });
+
+      return response.data;
     } catch (error: any) {
       // Extract detailed error information from Google API response
       const googleErrors = error.response?.data?.error?.errors || [];
@@ -531,13 +677,34 @@ export class CalendarService {
 
       console.info(`[Calendar] Attempting to delete event ${eventId} for user ${userId}`);
       const calendar = await this.getCalendarClient(userId);
+      const calendarIdsToTry = await this.getCandidateCalendarIds(userId);
 
-      await calendar.events.delete({
-        calendarId: "primary",
-        eventId,
-      });
+      for (const calendarId of calendarIdsToTry) {
+        try {
+          await calendar.events.delete({
+            calendarId,
+            eventId,
+          });
 
-      console.info(`[Calendar] Successfully deleted event ${eventId} for user ${userId}`);
+          console.info(`[Calendar] Successfully deleted event ${eventId} from calendar ${calendarId} for user ${userId}`);
+          return true;
+        } catch (error: any) {
+          const statusCode = error?.code ?? error?.status ?? error?.response?.status;
+
+          if (statusCode === 404) {
+            continue;
+          }
+
+          if (statusCode === 410) {
+            console.warn(`[Calendar] Event ${eventId} already deleted (410) for user ${userId}. Treating as success.`);
+            return true;
+          }
+
+          throw error;
+        }
+      }
+
+      console.warn(`[Calendar] Event ${eventId} not found in any candidate calendar for user ${userId}. Treating as success.`);
       return true;
     } catch (error: any) {
       const statusCode = error?.code ?? error?.status ?? error?.response?.status;
