@@ -184,6 +184,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       color: mode === "dark" ? "#0f172a" : "#fff",
                     },
                   },
+                  // Remove hover halo in dark mode, make text bold instead
+                  "&:hover": mode === "dark" ? {
+                    bgcolor: "transparent",
+                    "& .MuiListItemText-primary": {
+                      fontWeight: 600,
+                    },
+                  } : {},
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
