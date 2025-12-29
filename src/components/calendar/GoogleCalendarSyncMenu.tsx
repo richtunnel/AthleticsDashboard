@@ -69,7 +69,7 @@ function GoogleCalendarSyncMenuContent() {
   const handleDisconnect = async () => {
     if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
       try {
-        await fetch("/api/user/calendar-disconnect", { method: "POST" });
+        await fetch("/api/auth/google-calendar/disconnect", { method: "POST" });
         refetch();
       } catch (error) {
         console.error("Failed to disconnect calendar:", error);
