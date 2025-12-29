@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Box, CircularProgress, Typography, Alert, Button } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
@@ -14,6 +15,7 @@ import ErrorIcon from "@mui/icons-material/Error";
 function CalendarCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState<string>("");
 
@@ -68,7 +70,11 @@ function CalendarCallbackContent() {
           return;
         }
 
-        // Success!
+        // Success! Invalidate any cached calendar-status queries so the UI
+        // immediately reflects the newly granted permissions.
+        queryClient.invalidateQueries({ queryKey: ["googleCalendarStatus"] });
+        queryClient.invalidateQueries({ queryKey: ["calendarConnectionStatus"] });
+
         setStatus("success");
         setMessage("Google Calendar connected successfully!");
 
