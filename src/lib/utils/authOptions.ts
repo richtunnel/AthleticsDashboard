@@ -21,8 +21,8 @@ const customAdapter = {
     // Check if email is blocked due to recent account deletion (90-day rule)
     const signupCheck = await isSignupBlocked(user.email);
     if (signupCheck.blocked) {
-      console.error('[OAuth] Signup blocked for email:', user.email, 'Expires:', signupCheck.expiresAt);
-      throw new Error('This email was used for an account that was recently deleted. Please wait before signing up again or contact support.');
+      console.error("[OAuth] Signup blocked for email:", user.email, "Expires:", signupCheck.expiresAt);
+      throw new Error("This email was used for an account that was recently deleted. Please wait before signing up again or contact support.");
     }
 
     // Extract plan from user data if available (passed from callback URL)
@@ -81,15 +81,12 @@ const customAdapter = {
           userId: newUser.id,
           organizationId: newUser.organizationId,
         }),
-      `sample game creation for user ${newUser.id}`,
+      `sample game creation for user ${newUser.id}`
     );
 
     // Create initial column preferences for new user (non-blocking)
     // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
-    void runNonCritical(
-      () => createInitialColumnPreferences(newUser.id),
-      `initial column preferences for user ${newUser.id}`,
-    );
+    void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
 
     // Send welcome email (non-blocking)
     if (newUser.email) {
@@ -100,31 +97,28 @@ const customAdapter = {
             email: newUser.email,
             name: newUser.name,
           }),
-        `welcome email for user ${newUser.id}`,
+        `welcome email for user ${newUser.id}`
       );
     }
 
     // Track Google OAuth signup in Mixpanel (non-blocking)
-    void runNonCritical(
-      () => {
-        trackServerEvent("User Signup", {
-          distinct_id: newUser.id,
-          signup_method: "google",
-          plan: newUser.plan,
-          email: newUser.email,
-          name: newUser.name,
-        });
-        identifyServerUser(newUser.id, {
-          $email: newUser.email,
-          $name: newUser.name,
-          plan: newUser.plan,
-          role: newUser.role,
-          signup_method: "google",
-          signup_date: new Date().toISOString(),
-        });
-      },
-      `mixpanel tracking for user ${newUser.id}`,
-    );
+    void runNonCritical(() => {
+      trackServerEvent("User Signup", {
+        distinct_id: newUser.id,
+        signup_method: "google",
+        plan: newUser.plan,
+        email: newUser.email,
+        name: newUser.name,
+      });
+      identifyServerUser(newUser.id, {
+        $email: newUser.email,
+        $name: newUser.name,
+        plan: newUser.plan,
+        role: newUser.role,
+        signup_method: "google",
+        signup_date: new Date().toISOString(),
+      });
+    }, `mixpanel tracking for user ${newUser.id}`);
 
     return newUser;
   },
@@ -161,12 +155,7 @@ export const authOptions: NextAuthOptions = {
           response_type: "code",
           // ✅ INCREMENTAL AUTHORIZATION: Only request basic profile scopes initially
           // Calendar and Contacts scopes will be requested on-demand when needed
-          scope: [
-            "openid",
-            "email",
-            "profile",
-            "https://www.googleapis.com/auth/userinfo.email",
-          ].join(" "),
+          scope: ["openid", "email", "profile"].join(" "),
         },
       },
     }),
@@ -235,7 +224,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
@@ -243,68 +231,51 @@ export const authOptions: NextAuthOptions = {
           const email = profile?.email ?? user?.email ?? undefined;
 
           if (email) {
-            // CRITICAL: Check if user exists in database
-            // If user doesn't exist, they must go through signup flow first
-            // This prevents auto-creation of accounts during sign-in
             try {
-              const existingUser = (await prisma.user.findUnique({
+              const existingUser = await prisma.user.findUnique({
                 where: { email },
                 select: {
                   id: true,
                   googleCalendarEmail: true,
                 },
-              } as any)) as { id: string; googleCalendarEmail?: string | null } | null;
+              });
 
-              if (!existingUser) {
-                console.error('[Google Sign-In] User does not exist:', email);
-                // Block sign-in and force user to signup
-                return false;
+              // Allow account creation during signup flow
+              // The customAdapter.createUser will handle signup validation (90-day block check)
+              if (existingUser) {
+                // User exists - update their Google Calendar tokens
+                const updateData: Record<string, any> = {};
+
+                if (account.refresh_token) {
+                  updateData.googleCalendarRefreshToken = account.refresh_token;
+                }
+
+                if (account.access_token) {
+                  updateData.googleCalendarAccessToken = account.access_token;
+                }
+
+                if (typeof account.expires_at === "number") {
+                  updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
+                }
+
+                updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
+
+                if (Object.keys(updateData).length > 0) {
+                  await prisma.user.update({
+                    where: { id: existingUser.id },
+                    data: updateData,
+                  });
+                }
               }
-
-              // User exists - update their Google Calendar tokens
-              const updateData: Record<string, any> = {};
-
-              if (account.refresh_token) {
-                updateData.googleCalendarRefreshToken = account.refresh_token;
-              }
-
-              if (account.access_token) {
-                updateData.googleCalendarAccessToken = account.access_token;
-              }
-
-              if (typeof account.expires_at === "number") {
-                updateData.calendarTokenExpiry = new Date(account.expires_at * 1000);
-              }
-
-              updateData.googleCalendarEmail = profile?.email ?? existingUser.googleCalendarEmail ?? email;
-
-              if (Object.keys(updateData).length > 0) {
-                await prisma.user.update({
-                  where: { id: existingUser.id },
-                  data: updateData,
-                });
-              }
+              // If user doesn't exist, allow NextAuth + PrismaAdapter to create them
+              // The customAdapter.createUser method will check for 90-day signup blocks
             } catch (googleUpdateError) {
               console.error("Failed to check/update Google account during sign-in", {
                 email,
                 error: googleUpdateError,
               });
-              // Block sign-in if we can't verify user exists
-              return false;
+              // Don't block - let it proceed
             }
-          }
-
-          // Send welcome email for existing users (non-blocking)
-          if (user && typeof user.id === "string" && user.email) {
-            void runNonCritical(
-              () =>
-                emailService.sendWelcomeEmail({
-                  id: user.id,
-                  email: user.email!,
-                  name: user.name,
-                }),
-              `welcome email for user ${user.id}`,
-            );
           }
         }
 
@@ -320,10 +291,10 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
-        return true;
+        return true; // Always return true for Google OAuth
       } catch (error) {
         console.error("SignIn callback error:", error);
-        return true;
+        return true; // Don't block on errors
       }
     },
 
@@ -374,27 +345,25 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (account?.provider === "google" && token.email) {
-        const dbUser = (await prisma.user.findUnique(
-          {
-            where: { email: token.email },
-            select: {
-              id: true,
-              role: true,
-              organizationId: true,
-              organization: {
-                select: {
-                  id: true,
-                  name: true,
-                  timezone: true,
-                },
+        const dbUser = (await prisma.user.findUnique({
+          where: { email: token.email },
+          select: {
+            id: true,
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
               },
-              googleCalendarRefreshToken: true,
-              googleCalendarAccessToken: true,
-              calendarTokenExpiry: true,
-              googleCalendarEmail: true,
             },
-          } as any,
-        )) as any;
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
+            googleCalendarEmail: true,
+          },
+        } as any)) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -408,26 +377,24 @@ export const authOptions: NextAuthOptions = {
       }
 
       if ((trigger === "update" || !token.organization || !token.googleCalendarEmail) && token.email) {
-        const dbUser = (await prisma.user.findUnique(
-          {
-            where: { email: token.email },
-            select: {
-              role: true,
-              organizationId: true,
-              organization: {
-                select: {
-                  id: true,
-                  name: true,
-                  timezone: true,
-                },
+        const dbUser = (await prisma.user.findUnique({
+          where: { email: token.email },
+          select: {
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
               },
-              googleCalendarRefreshToken: true,
-              googleCalendarAccessToken: true,
-              calendarTokenExpiry: true,
-              googleCalendarEmail: true,
             },
-          } as any,
-        )) as any;
+            googleCalendarRefreshToken: true,
+            googleCalendarAccessToken: true,
+            calendarTokenExpiry: true,
+            googleCalendarEmail: true,
+          },
+        } as any)) as any;
 
         if (dbUser) {
           token.role = dbUser.role;
@@ -458,7 +425,7 @@ export const authOptions: NextAuthOptions = {
 
         // Check if this is a new user signup (indicated by newUser query param)
         const isNewUser = resolvedUrl.searchParams.has("newUser");
-        
+
         // For new users via Google OAuth, redirect to onboarding/details
         if (isNewUser && resolvedUrl.pathname === "/dashboard") {
           return `${baseUrl}/onboarding/details`;
@@ -493,9 +460,7 @@ export const authOptions: NextAuthOptions = {
 
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production" 
-        ? "__Secure-next-auth.session-token" 
-        : "next-auth.session-token",
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",

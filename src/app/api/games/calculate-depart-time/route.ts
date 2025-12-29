@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     const recommendation = await dismissDepartService.calculateDepartureTime(
       gameId,
       organizationId,
-      dismissalTime
+      dismissalTime,
+      session.user.id // Pass userId to get school address
     );
 
     return NextResponse.json({ success: true, data: recommendation });

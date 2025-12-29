@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     let excludeTeamsPrompt;
     let dateRange;
     let minSpacing;
+    let cleanPrompt = prompt; // Default to original prompt
     
     if (useAI !== false) { // Default to true
       try {
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
         // Extract minimum spacing if provided
         if (parsedQuery.minSpacing) {
           minSpacing = parsedQuery.minSpacing;
+        }
+        
+        // CRITICAL FIX: Reconstruct clean team-only prompt from parsed targetTeams
+        // This prevents constraint words (months, days, etc.) from interfering with team matching
+        if (parsedQuery.targetTeams && parsedQuery.targetTeams.length > 0) {
+          cleanPrompt = parsedQuery.targetTeams
+            .map(t => `${t.gender || ''} ${t.level || ''} ${t.sport || ''}`.trim())
+            .join(' ');
+          console.log('Reconstructed clean prompt from AI parsed teams:', cleanPrompt);
         }
         
         console.log('Parsed query:', parsedQuery);
@@ -138,8 +148,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find available dates using enhanced service with AI-parsed options
+    // Use cleanPrompt (reconstructed from AI parsed teams) instead of original prompt
     const result = await availableDatesService.findAvailableDates(
-      prompt,
+      cleanPrompt,
       gamesTable,
       finalCandidateDates,
       { 

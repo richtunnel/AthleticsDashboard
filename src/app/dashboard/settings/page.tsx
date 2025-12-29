@@ -3,14 +3,11 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { Card, CardContent, Typography, Box } from "@mui/material";
-import { ConnectCalendarButton } from "@/components/calendar/ConnectCalendarButton";
 import AccountDetailsForm from "@/components/settings/AccountDetailsForm";
 import SchoolDetailsForm from "@/components/settings/SchoolDetailsForm";
 import PasswordChangeForm from "@/components/settings/PasswordChangeForm";
 import SubscriptionOverviewCard from "@/components/settings/SubscriptionOverviewCard";
 import { getUserWithSubscription } from "@/lib/services/subscription";
-import { GoogleCalendarSyncMenu } from "@/components/calendar/GoogleCalendarSyncMenu";
-import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 import { AISchedulerToggle } from "@/components/settings/AISchedulerToggle";
 import { AITravelTimesToggle } from "@/components/settings/AITravelTimesToggle";
 import { AIEmailGenerationToggle } from "@/components/settings/AIEmailGenerationToggle";
@@ -21,6 +18,8 @@ import { ResetColumnsButton } from "@/components/settings/ResetColumnsButton";
 import { CalendarConnectionSection } from "@/components/settings/CalendarConnectionSection";
 import UpgradePlanCard from "@/components/settings/UpgradePlanCard";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
+import { SupportCard } from "@/components/settings/SupportCard";
+import { Assistant, AutoAwesome } from "@mui/icons-material";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -72,7 +71,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     throw new Error("User not found");
   }
 
-  const isCalendarConnected = !!user?.googleCalendarRefreshToken;
   const hasPassword = !!user.hashedPassword;
   const hasGoogleAccount = user.accounts.some((account) => account.provider === "google");
 
@@ -95,11 +93,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {/* Calendar Connection Section - uses incremental OAuth */}
         <CalendarConnectionSection />
 
+        {/* Support Card */}
+        <SupportCard />
+
         {/* AI Features Section - Disabled */}
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              AI Features (Coming Soon)
+              <AutoAwesome sx={{ color: "lightgray" }} /> AI Features
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
               Enable or disable AI-powered features to enhance your scheduling workflow.

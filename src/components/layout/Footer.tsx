@@ -142,7 +142,7 @@ export default function Footer() {
             fontWeight: 400,
           }}
         >
-          &copy; {new Date().getFullYear()} Opletics Inc.. All rights reserved.
+          &copy; {new Date().getFullYear()} Opletics Inc. All rights reserved.
         </span>
       </div>
     </footer>

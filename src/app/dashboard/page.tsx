@@ -14,11 +14,15 @@ import { getSession } from "next-auth/react";
 import Link from "next/link";
 import { DashboardErrorBoundary } from "@/components/ErrorBoundary";
 import { Typography } from "@mui/material";
+import { useTheme as customTheme } from "@mui/material/styles";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
+  const { mode } = useTheme();
+  const theme = customTheme();
 
   useEffect(() => {
     (async () => {
@@ -36,7 +40,7 @@ export default function DashboardPage() {
           </Typography>
           <Typography variant="body1" style={{ color: "var(--text-secondary)" }}>
             Import your CSV game schedules below and navigate to{" "}
-            <Link href="dashboard/games" style={{ color: "var(--main-blue)", fontWeight: "bold" }}>
+            <Link href="dashboard/games" style={{ color: theme.palette.text.primary, fontWeight: "bold" }}>
               Game Center
             </Link>{" "}
             to create, manage, update, email and automate your game schedules.

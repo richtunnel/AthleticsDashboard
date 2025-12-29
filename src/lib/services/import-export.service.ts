@@ -118,7 +118,7 @@ export class ImportExportService {
         if (!team) {
           const sportName = row["Sport"] || "Unknown Sport";
           const levelValue = row["Level"] || "VARSITY";
-          
+
           let sport = await prisma.sport.findFirst({
             where: {
               name: {
@@ -144,7 +144,14 @@ export class ImportExportService {
               level: levelValue as any,
               organizationId,
             },
+            include: { sport: true },
           });
+
+          teams.push(team);
+        }
+
+        if (!team) {
+          throw new Error("Failed to resolve team for imported row");
         }
 
         // Find opponent

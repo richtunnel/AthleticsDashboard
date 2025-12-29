@@ -2,21 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Divider,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-  IconButton,
-  Paper,
-  useTheme,
-} from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Divider, Snackbar, Stack, TextField, Typography, IconButton, Paper, useTheme } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -183,27 +169,27 @@ export function EmailSignatureManager() {
     }
 
     let html = `<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif;">`;
-    
+
     if (logoUrl) {
       html += `<img src="${logoUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
     }
-    
+
     html += `<div style="font-size: 14px; color: ${textPrimary};">`;
-    
+
     if (signatureText) {
       html += `<div style="margin-bottom: 8px; white-space: pre-wrap;">${signatureText}</div>`;
     }
-    
+
     if (phone) {
       html += `<div style="margin-bottom: 4px;">${phone}</div>`;
     }
-    
+
     if (website) {
       html += `<div style="margin-bottom: 4px;"><a href="${website}" style="color: ${linkColor}; text-decoration: none;">${website}</a></div>`;
     }
-    
-    html += '</div></div>';
-    
+
+    html += "</div></div>";
+
     return html;
   };
 
@@ -234,29 +220,19 @@ export function EmailSignatureManager() {
                   Company Logo
                 </Typography>
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                    style={{ display: "none" }}
-                    onChange={handleFileChange}
-                  />
+                  <input ref={fileInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" style={{ display: "none" }} onChange={handleFileChange} />
                   <Button
                     variant="outlined"
                     startIcon={<PhotoCamera />}
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadMutation.isPending}
+                    sx={{ color: `${theme.palette.themeText.text}`, borderColor: theme.palette.themeText.text }}
                   >
                     {logoUrl ? "Change Logo" : "Upload Logo"}
                   </Button>
                   {logoUrl && (
                     <>
-                      <IconButton
-                        color="error"
-                        onClick={handleRemoveLogo}
-                        size="small"
-                        disabled={uploadMutation.isPending}
-                      >
+                      <IconButton color="error" onClick={handleRemoveLogo} size="small" disabled={uploadMutation.isPending}>
                         <DeleteIcon />
                       </IconButton>
                       <Box
@@ -292,14 +268,7 @@ export function EmailSignatureManager() {
               />
 
               {/* Phone Number */}
-              <TextField
-                label="Phone Number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g., (555) 123-4567"
-                fullWidth
-                helperText="Your contact phone number"
-              />
+              <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., (555) 123-4567" fullWidth helperText="Your contact phone number" />
 
               {/* Website */}
               <TextField
@@ -319,16 +288,13 @@ export function EmailSignatureManager() {
               <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
                 Preview
               </Typography>
-              <Paper
-                variant="outlined"
-                sx={{ p: 2, bgcolor: "background.paper", minHeight: 100 }}
-                dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }}
-              />
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper", minHeight: 100 }} dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }} />
             </Box>
 
             {/* Save Button */}
             <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
               <LoadingButton
+                sx={{ color: theme.palette.themeButtonText.main }}
                 startIcon={<SaveIcon />}
                 loading={updateMutation.isPending}
                 onClick={handleSave}
@@ -342,12 +308,7 @@ export function EmailSignatureManager() {
         </CardContent>
       </Card>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={hideMessage}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={hideMessage} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
         <Alert onClose={hideMessage} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
