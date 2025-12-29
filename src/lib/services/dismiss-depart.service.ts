@@ -1,11 +1,20 @@
 import { prisma } from "../database/prisma";
 
 interface DepartureRecommendation {
-  recommendedDepartureTime: string; // HH:MM format
+  recommendedDepartureTime: string; // 12-hour format with AM/PM
   trafficCondition: string;
   weatherNote: string;
   bufferMinutes: number;
   travelTimeMinutes: number;
+  distance?: string;
+}
+
+// Helper function to format time with AM/PM
+function formatTimeWithAMPM(hours: number, minutes: number): string {
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12; // Convert 0 to 12 for midnight, and 13-23 to 1-11
+  const displayMinutes = minutes.toString().padStart(2, "0");
+  return `${displayHours}:${displayMinutes} ${period}`;
 }
 
 export class DismissDepartService {
@@ -16,7 +25,8 @@ export class DismissDepartService {
   async calculateDepartureTime(
     gameId: string,
     organizationId: string,
-    dismissalTime: string // HH:MM format
+    dismissalTime: string, // HH:MM format
+    userId?: string // Optional userId to fetch school address
   ): Promise<DepartureRecommendation> {
     // Fetch game with venue and organization details
     const game = await prisma.game.findFirst({
@@ -38,6 +48,24 @@ export class DismissDepartService {
       throw new Error("Game or venue not found");
     }
 
+    // Try to get user's school address if userId provided
+    let origin: string;
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { schoolAddress: true },
+      });
+      
+      if (user?.schoolAddress && user.schoolAddress.trim().length >= 5) {
+        origin = user.schoolAddress;
+      } else {
+        throw new Error("MISSING_SCHOOL_ADDRESS: Please enter your school address in settings to calculate accurate travel times");
+      }
+    } else {
+      // Fallback to organization name (less accurate)
+      origin = `${game.homeTeam.organization.name}, ${game.homeTeam.organization.state}`;
+    }
+
     // Parse dismissal time and game date
     const gameDate = new Date(game.date);
     const [dismissHours, dismissMinutes] = dismissalTime.split(":").map(Number);
@@ -45,8 +73,7 @@ export class DismissDepartService {
     const dismissalDateTime = new Date(gameDate);
     dismissalDateTime.setHours(dismissHours, dismissMinutes, 0, 0);
 
-    // Get origin and destination
-    const origin = `${game.homeTeam.organization.name}, ${game.homeTeam.organization.state}`;
+    // Get destination
     const destination = `${game.venue.address || game.venue.name}, ${game.venue.city}, ${game.venue.state}`;
 
     // Calculate traffic with Google Maps Distance Matrix API
@@ -66,10 +93,10 @@ export class DismissDepartService {
     const departureDateTime = new Date(dismissalDateTime);
     departureDateTime.setMinutes(departureDateTime.getMinutes() - totalMinutesNeeded);
 
-    // Format departure time as HH:MM
-    const departureHours = departureDateTime.getHours().toString().padStart(2, "0");
-    const departureMinutes = departureDateTime.getMinutes().toString().padStart(2, "0");
-    const recommendedDepartureTime = `${departureHours}:${departureMinutes}`;
+    // Format departure time with AM/PM
+    const departureHours = departureDateTime.getHours();
+    const departureMinutes = departureDateTime.getMinutes();
+    const recommendedDepartureTime = formatTimeWithAMPM(departureHours, departureMinutes);
 
     // Generate weather note
     const weatherNote = this.generateWeatherNote(weatherData);
@@ -80,6 +107,7 @@ export class DismissDepartService {
       weatherNote,
       bufferMinutes,
       travelTimeMinutes: trafficData.travelTimeMinutes,
+      distance: trafficData.distance,
     };
   }
 
@@ -87,19 +115,20 @@ export class DismissDepartService {
     origin: string,
     destination: string,
     departureTime: Date
-  ): Promise<{ travelTimeMinutes: number; trafficCondition: string }> {
-    if (!process.env.GOOGLE_MAPS_API_KEY) {
-      console.warn("Google Maps API key not configured, using default values");
+  ): Promise<{ travelTimeMinutes: number; trafficCondition: string; distance: string }> {
+    if (!process.env.GOOGLE_DISTANCE_API_KEY) {
+      console.warn("Google Distance API key not configured, using default values");
       return {
         travelTimeMinutes: 45,
         trafficCondition: "unknown",
+        distance: "Unknown",
       };
     }
 
     const departureTimestamp = Math.floor(departureTime.getTime() / 1000);
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(origin)}&destinations=${encodeURIComponent(
       destination
-    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+    )}&departure_time=${departureTimestamp}&traffic_model=best_guess&key=${process.env.GOOGLE_DISTANCE_API_KEY}`;
 
     try {
       const response = await fetch(url);
@@ -111,6 +140,7 @@ export class DismissDepartService {
         const trafficTime = element.duration_in_traffic
           ? Math.ceil(element.duration_in_traffic.value / 60)
           : normalTime;
+        const distance = element.distance.text; // e.g., "25.4 mi"
 
         let trafficCondition = "normal";
         const delayPercentage = ((trafficTime - normalTime) / normalTime) * 100;
@@ -126,6 +156,7 @@ export class DismissDepartService {
         return {
           travelTimeMinutes: trafficTime,
           trafficCondition,
+          distance,
         };
       }
     } catch (error) {
@@ -135,6 +166,7 @@ export class DismissDepartService {
     return {
       travelTimeMinutes: 45,
       trafficCondition: "unknown",
+      distance: "Unknown",
     };
   }
 

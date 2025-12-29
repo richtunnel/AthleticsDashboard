@@ -154,6 +154,115 @@ export class CalendarService {
     return google.calendar({ version: "v3", auth: oauth2Client });
   }
 
+  private normalizeMappingValue(input: string) {
+    return input.trim().replace(/\s+/g, " ").toLowerCase();
+  }
+
+  private async getCandidateCalendarIds(userId: string): Promise<string[]> {
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+      select: { googleCalendarId: true },
+    });
+
+    const ids = new Set<string>(["primary"]);
+    for (const m of mappings) {
+      if (m.googleCalendarId?.trim()) {
+        ids.add(m.googleCalendarId.trim());
+      }
+    }
+
+    return Array.from(ids);
+  }
+
+  /**
+   * Determine which calendar to use based on user-defined CalendarGroupMappings.
+   * This is case/whitespace-insensitive to avoid mismatches from CSV headers/values.
+   */
+  private async resolveCalendarIdForGame(game: any, userId: string, calendar: any): Promise<string> {
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+    });
+
+    if (!mappings.length) {
+      return "primary";
+    }
+
+    const mappingIndex = new Map<string, (typeof mappings)[number]>();
+    for (const m of mappings) {
+      mappingIndex.set(`${this.normalizeMappingValue(m.columnName)}::${this.normalizeMappingValue(m.columnValue)}`, m);
+    }
+
+    const valuesToCheck: { columnName: string; value: string }[] = [];
+
+    const addCandidate = (columnName: string, rawValue: unknown) => {
+      if (typeof rawValue !== "string") return;
+      const value = rawValue.trim();
+      if (!value) return;
+      valuesToCheck.push({ columnName, value });
+    };
+
+    const customFields: Record<string, unknown> =
+      game.customFields && typeof game.customFields === "object" && !Array.isArray(game.customFields)
+        ? (game.customFields as Record<string, unknown>)
+        : {};
+
+    const getCustomField = (fieldNames: string[]): string | undefined => {
+      const keys = Object.keys(customFields);
+      for (const name of fieldNames) {
+        const exact = customFields[name];
+        if (typeof exact === "string" && exact.trim()) return exact.trim();
+
+        const foundKey = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+        const value = foundKey ? customFields[foundKey] : undefined;
+        if (typeof value === "string" && value.trim()) return value.trim();
+      }
+      return undefined;
+    };
+
+    const sport = getCustomField(["Sport"]) || game.homeTeam?.sport?.name?.trim();
+    const level = getCustomField(["Level"]) || game.homeTeam?.level?.trim();
+    const team = getCustomField(["Team", "Home", "Sports Level", "Team Level"]) || game.homeTeam?.name?.trim();
+
+    if (team) {
+      addCandidate("Team", team);
+      addCandidate("Sports Level", team);
+      addCandidate("Team Level", team);
+    }
+
+    if (sport && level) {
+      const sportLevel = `${sport} ${level}`.trim();
+      addCandidate("Sport & Level", sportLevel);
+      addCandidate("Sports Level", sportLevel);
+    }
+
+    if (sport) {
+      addCandidate("Sport", sport);
+    }
+
+    if (level) {
+      addCandidate("Level", level);
+      addCandidate("Team Level", level);
+    }
+
+    for (const [key, value] of Object.entries(customFields)) {
+      addCandidate(key, value);
+    }
+
+    for (const { columnName, value } of valuesToCheck) {
+      const mapping = mappingIndex.get(`${this.normalizeMappingValue(columnName)}::${this.normalizeMappingValue(value)}`);
+      if (!mapping) continue;
+
+      try {
+        await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
+        return mapping.googleCalendarId;
+      } catch (error) {
+        console.warn(`[Calendar Sync] Calendar ${mapping.googleCalendarId} not found, falling back to primary`);
+      }
+    }
+
+    return "primary";
+  }
+
   async getUpcomingEvents(userId: string, daysAhead = 3): Promise<UpcomingCalendarEvent[]> {
     try {
       // Check if calendar is connected before proceeding
@@ -380,29 +489,58 @@ export class CalendarService {
       }
     }
 
-    // Format as local datetime string for Google Calendar (YYYY-MM-DDTHH:mm:ss)
-    // This represents the local time in the specified timezone WITHOUT UTC conversion
+    // Format as RFC3339 datetime string for Google Calendar
+    // Google Calendar API requires proper RFC3339 format with timezone offset
     const pad = (n: number) => n.toString().padStart(2, '0');
-    const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
+    
+    // Create Date object to get timezone offset (handles DST automatically)
+    const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+    const timezoneOffset = startDate.getTimezoneOffset(); // in minutes
+    const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+    const offsetMinutes = Math.abs(timezoneOffset) % 60;
+    const offsetSign = timezoneOffset <= 0 ? '+' : '-'; // Note: getTimezoneOffset returns negative for positive offsets
+    const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
+    
+    const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
     
     // Calculate end time (2 hours later)
-    const endHours = hours + 2;
-    const endDay = endHours >= 24 ? day + 1 : day;
-    const normalizedEndHours = endHours % 24;
-    const endDateTime = `${year}-${pad(month)}-${pad(endDay)}T${pad(normalizedEndHours)}:${pad(minutes)}:00`;
+    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+    const endYear = endDate.getFullYear();
+    const endMonth = endDate.getMonth() + 1;
+    const endDay = endDate.getDate();
+    const endHours = endDate.getHours();
+    const endMinutes = endDate.getMinutes();
+    const endDateTime = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHours)}:${pad(endMinutes)}:00${offsetString}`;
 
+    // Build location string, properly handling null/undefined values
+    let location = "TBD";
+    if (game.isHome) {
+      location = "Home";
+    } else if (game.venue) {
+      const locationParts = [
+        game.venue.name,
+        game.venue.address,
+        game.venue.city,
+        game.venue.state
+      ].filter(part => part && part.trim()); // Filter out null, undefined, and empty strings
+      
+      location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
+    }
+
+    // ✅ FIX: Don't include timeZone field when using RFC3339 datetime with offset
+    // Google Calendar API expects EITHER datetime with offset OR datetime + timeZone, not both
     const event: calendar_v3.Schema$Event = {
       status: CALENDAR_EVENT_STATUS_SCHEDULED,
       summary: this.buildEventSummary(game),
       description: this.buildEventDescription(game),
-      location: game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city}, ${game.venue.state}`.trim() : "TBD",
+      location,
       start: {
         dateTime: startDateTime,
-        timeZone: timezone,
+        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
       },
       end: {
         dateTime: endDateTime,
-        timeZone: timezone,
+        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
       },
       reminders: {
         useDefault: false,
@@ -412,15 +550,61 @@ export class CalendarService {
         ],
       },
     };
+    
+    console.log("[Calendar Sync] Event payload:", {
+      gameId,
+      summary: event.summary,
+      description: event.description,
+      location: event.location,
+      startDateTime,
+      endDateTime,
+    });
+
+    const targetCalendarId = await this.resolveCalendarIdForGame(game, userId, calendar);
 
     try {
       if (game.googleCalendarEventId) {
-        // Update existing event
-        const response = await calendar.events.update({
-          calendarId: "primary",
-          eventId: game.googleCalendarEventId,
-          requestBody: event,
-        });
+        const candidateCalendarIds = await this.getCandidateCalendarIds(userId);
+        const calendarIdsToTry = [targetCalendarId, ...candidateCalendarIds.filter((id) => id !== targetCalendarId)];
+
+        let response: any | null = null;
+
+        for (const calendarId of calendarIdsToTry) {
+          try {
+            response = await calendar.events.update({
+              calendarId,
+              eventId: game.googleCalendarEventId,
+              requestBody: event,
+            });
+            break;
+          } catch (err: any) {
+            const statusCode = err?.code ?? err?.status ?? err?.response?.status;
+            if (statusCode === 404) {
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        if (!response) {
+          // Event not found in any candidate calendar - create a new one in the target calendar
+          response = await calendar.events.insert({
+            calendarId: targetCalendarId,
+            requestBody: event,
+          });
+
+          await prisma.game.update({
+            where: { id: gameId },
+            data: {
+              googleCalendarEventId: response.data.id || null,
+              googleCalendarHtmlLink: response.data.htmlLink || null,
+              calendarSynced: true,
+              lastSyncedAt: new Date(),
+            },
+          });
+
+          return response.data;
+        }
 
         // Update sync timestamp
         await prisma.game.update({
@@ -433,29 +617,52 @@ export class CalendarService {
         });
 
         return response.data;
-      } else {
-        // Create new event
-        const response = await calendar.events.insert({
-          calendarId: "primary",
-          requestBody: event,
-        });
-
-        // Update game with event ID
-        await prisma.game.update({
-          where: { id: gameId },
-          data: {
-            googleCalendarEventId: response.data.id || null,
-            googleCalendarHtmlLink: response.data.htmlLink || null,
-            calendarSynced: true,
-            lastSyncedAt: new Date(),
-          },
-        });
-
-        return response.data;
       }
-    } catch (error) {
-      console.error("Calendar sync failed:", error);
-      throw new Error("Failed to sync to Google Calendar");
+
+      // Create new event
+      const response = await calendar.events.insert({
+        calendarId: targetCalendarId,
+        requestBody: event,
+      });
+
+      // Update game with event ID
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          googleCalendarEventId: response.data.id || null,
+          googleCalendarHtmlLink: response.data.htmlLink || null,
+          calendarSynced: true,
+          lastSyncedAt: new Date(),
+        },
+      });
+
+      return response.data;
+    } catch (error: any) {
+      // Extract detailed error information from Google API response
+      const googleErrors = error.response?.data?.error?.errors || [];
+      const detailedErrors = googleErrors.map((e: any) => `${e.domain}: ${e.message} (${e.reason})`).join("; ");
+      
+      console.error("[Calendar Sync] Failed:", {
+        error: error.message,
+        status: error.code || error.status,
+        gameId,
+        response: error.response?.data || error.response || "No response data",
+        detailedErrors: detailedErrors || "No detailed errors",
+      });
+      
+      // Provide more specific error messages based on error code
+      if (error.code === 400 || error.status === 400) {
+        const errorMsg = detailedErrors || error.message || "Check event fields for malformed data";
+        throw new Error(`Invalid event data: ${errorMsg}`);
+      } else if (error.code === 401 || error.status === 401) {
+        throw new Error("Google Calendar authentication failed. Please reconnect your calendar.");
+      } else if (error.code === 403 || error.status === 403) {
+        throw new Error("Permission denied. Please ensure calendar access is granted.");
+      } else if (error.code === 404 || error.status === 404) {
+        throw new Error("Calendar or event not found.");
+      }
+      
+      throw new Error(`Failed to sync to Google Calendar: ${error.message || "Unknown error"}`);
     }
   }
 
@@ -470,13 +677,34 @@ export class CalendarService {
 
       console.info(`[Calendar] Attempting to delete event ${eventId} for user ${userId}`);
       const calendar = await this.getCalendarClient(userId);
+      const calendarIdsToTry = await this.getCandidateCalendarIds(userId);
 
-      await calendar.events.delete({
-        calendarId: "primary",
-        eventId,
-      });
+      for (const calendarId of calendarIdsToTry) {
+        try {
+          await calendar.events.delete({
+            calendarId,
+            eventId,
+          });
 
-      console.info(`[Calendar] Successfully deleted event ${eventId} for user ${userId}`);
+          console.info(`[Calendar] Successfully deleted event ${eventId} from calendar ${calendarId} for user ${userId}`);
+          return true;
+        } catch (error: any) {
+          const statusCode = error?.code ?? error?.status ?? error?.response?.status;
+
+          if (statusCode === 404) {
+            continue;
+          }
+
+          if (statusCode === 410) {
+            console.warn(`[Calendar] Event ${eventId} already deleted (410) for user ${userId}. Treating as success.`);
+            return true;
+          }
+
+          throw error;
+        }
+      }
+
+      console.warn(`[Calendar] Event ${eventId} not found in any candidate calendar for user ${userId}. Treating as success.`);
       return true;
     } catch (error: any) {
       const statusCode = error?.code ?? error?.status ?? error?.response?.status;
@@ -561,13 +789,40 @@ export class CalendarService {
   }
 
   private getPrimaryTeamName(game: any): string {
-    // Check custom fields first
+    // Check custom fields first - try multiple common column names
     const customFields = (game.customFields as Record<string, any>) || {};
-    const customTeam = customFields["Team"]?.trim();
-    if (customTeam) {
-      return customTeam;
+    
+    // Helper function for case-insensitive field lookup
+    const getField = (fieldNames: string[]): string | undefined => {
+      for (const name of fieldNames) {
+        // Try exact match first
+        if (customFields[name]) return customFields[name]?.trim();
+        // Try case-insensitive match
+        const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+        if (key && customFields[key]) return customFields[key]?.trim();
+      }
+      return undefined;
+    };
+    
+    // Try to build a descriptive name from Sport + Level if available
+    const sport = getField(["Sport"]);
+    const level = getField(["Level"]);
+    
+    if (sport && level) {
+      // Format: "Boys Varsity Basketball" or "B V Basketball"
+      return `${sport} ${level}`;
     }
     
+    if (sport) {
+      return sport;
+    }
+    
+    // Check various team column names (case-insensitive)
+    const teamValue = getField(["Team", "Home", "Sports Level", "Team Level"]);
+    if (teamValue) {
+      return teamValue;
+    }
+
     // Fall back to default columns
     const teamName = game.homeTeam?.name?.trim();
     if (teamName) {
@@ -581,6 +836,27 @@ export class CalendarService {
   }
 
   private getOpponentTeamName(game: any): string {
+    // Check custom fields first - try "Away" column (case-insensitive)
+    const customFields = (game.customFields as Record<string, any>) || {};
+    
+    // Helper function for case-insensitive field lookup
+    const getField = (fieldNames: string[]): string | undefined => {
+      for (const name of fieldNames) {
+        // Try exact match first
+        if (customFields[name]) return customFields[name]?.trim();
+        // Try case-insensitive match
+        const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+        if (key && customFields[key]) return customFields[key]?.trim();
+      }
+      return undefined;
+    };
+    
+    const awayTeam = getField(["Away", "Opponent"]);
+    if (awayTeam) {
+      return awayTeam;
+    }
+    
+    // Fall back to opponent/awayTeam relations
     const opponentName = game.opponent?.name?.trim();
     if (opponentName) {
       return opponentName;
@@ -600,11 +876,23 @@ export class CalendarService {
     // Helper to get value from custom fields or default columns
     const customFields = (game.customFields as Record<string, any>) || {};
     
-    // Check custom fields first, fall back to default columns
-    const sport = customFields["Sport"] || game.homeTeam?.sport?.name || "TBD";
-    const level = customFields["Level"] || game.homeTeam?.level || "TBD";
-    const team = customFields["Team"] || game.homeTeam?.name || "TBD";
-    const status = customFields["Status"] || game.status || "TBD";
+    // Helper function for case-insensitive field lookup
+    const getField = (fieldNames: string[], defaultValue?: any): string => {
+      for (const name of fieldNames) {
+        // Try exact match first
+        if (customFields[name]) return customFields[name];
+        // Try case-insensitive match
+        const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+        if (key && customFields[key]) return customFields[key];
+      }
+      return defaultValue || "TBD";
+    };
+    
+    // Check custom fields first (case-insensitive), fall back to default columns
+    const sport = getField(["Sport"], game.homeTeam?.sport?.name);
+    const level = getField(["Level"], game.homeTeam?.level);
+    const team = getField(["Team", "Home"], game.homeTeam?.name);
+    const status = getField(["Status"], game.status);
     
     let description = `Sport: ${sport}\n`;
     description += `Level: ${level}\n`;

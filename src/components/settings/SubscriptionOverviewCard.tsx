@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, Typography, Box, Button, Chip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Alert, CircularProgress, Divider, Stack } from "@mui/material";
 import { CreditCard as CreditCardIcon, Cancel as CancelIcon, PlayArrow as PlayArrowIcon, Email as EmailIcon, History as HistoryIcon } from "@mui/icons-material";
 import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
+import { useTheme, alpha } from "@mui/material/styles";
 
 interface SubscriptionData {
   id: string;
@@ -55,6 +56,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
   const [optimisticState, setOptimisticState] = useState(subscription);
   const isRestrictedRole = userRole ? ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(userRole) : "";
+  const theme = useTheme();
 
   useEffect(() => {
     if (!checkoutStatus) {
@@ -374,31 +376,29 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     You are currently on the free plan with limited features.
                   </Typography>
-                  <Alert 
-                    severity="info" 
-                    sx={{ 
-                      bgcolor: (theme) => theme.palette.mode === 'dark' 
-                        ? 'rgba(109, 146, 226, 0.15)' 
-                        : 'primary.light',
-                      '& .MuiAlert-message': {
-                        color: 'text.primary'
-                      }
+                  <Alert
+                    severity="info"
+                    sx={{
+                      bgcolor: (theme) => (theme.palette.mode === "dark" ? "rgba(109, 146, 226, 0.15)" : "primary.light"),
+                      "& .MuiAlert-message": {
+                        color: "text.primary",
+                      },
                     }}
                   >
                     Upgrade to unlock AI-powered scheduling, advanced analytics, and priority support.
                   </Alert>
                   <Box>
-                    <Button 
-                      variant="contained" 
-                      color="primary" 
-                      href="/onboarding/plans" 
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      href="/onboarding/plans"
                       size="large"
                       sx={{
-                        bgcolor: 'primary.main',
-                        color: '#FFFFFF',
-                        '&:hover': {
-                          bgcolor: 'primary.dark'
-                        }
+                        bgcolor: "primary.main",
+                        color: `${theme.palette.mode}` === "dark" ? "#000" : "#fff",
+                        "&:hover": {
+                          bgcolor: "primary.dark",
+                        },
                       }}
                     >
                       Upgrade Now
@@ -431,7 +431,13 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     No recovery email set
                   </Typography>
-                  <Button variant="outlined" size="small" startIcon={<EmailIcon />} onClick={() => setRecoveryEmailDialogOpen(true)}>
+                  <Button
+                    sx={{ borderColor: theme.palette.themeText.text, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit" }}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<EmailIcon />}
+                    onClick={() => setRecoveryEmailDialogOpen(true)}
+                  >
                     Add Recovery Email
                   </Button>
                 </Box>

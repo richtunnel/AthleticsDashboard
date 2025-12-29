@@ -14,8 +14,12 @@ import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
-const DIRECTORS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID ?? "";
-const DIRECTORS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID ?? "";
+const STANDARD_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? "";
+const STANDARD_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? "";
+const TEAM_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO ?? "";
+const TEAM_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR ?? "";
+const PLUS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "";
+const PLUS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? "";
 
 function isValidPriceId(priceId: string): boolean {
   if (!priceId) return false;
@@ -26,7 +30,11 @@ function isValidPriceId(priceId: string): boolean {
 }
 
 function isPriceConfigured(): boolean {
-  return isValidPriceId(DIRECTORS_MONTHLY_PRICE_ID) && isValidPriceId(DIRECTORS_ANNUAL_PRICE_ID);
+  return (
+    isValidPriceId(STANDARD_MONTHLY_PRICE_ID) ||
+    isValidPriceId(TEAM_MONTHLY_PRICE_ID) ||
+    isValidPriceId(PLUS_MONTHLY_PRICE_ID)
+  );
 }
 
 type BillingInterval = "monthly" | "annual";
@@ -44,40 +52,58 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    name: "Free Trial Plan",
-    monthlyPrice: 0,
-    annualPrice: 0,
+    name: "Free Trial (Standard)",
+    monthlyPrice: 19,
+    annualPrice: 125,
     features: [
-      "Sync calendars with your spreadsheets",
-      "Import/Export and Sync your spreadsheets",
-      "Email your game schedules with bulk emails",
+      "Email game schedules using campaign manager",
       "200+ batch email campaigns",
-      // "Real-time reporting and analytics",
-      "Keep track of your game scores",
+      "Travel Recommendations (Bus Departure)",
+      "Table customization (filters, ordering)",
       "Basic chat and email support",
-      "Complete table customization, filters and add-ons",
-      "Complete control of your data",
-      "Automated Bus & Event scheduling (Beta)",
-      "2 weeks free trial",
+      "1 user",
+      "14 days free trial",
     ],
-    isFree: true,
+    monthlyPriceId: STANDARD_MONTHLY_PRICE_ID,
+    annualPriceId: STANDARD_ANNUAL_PRICE_ID,
   },
   {
-    name: "Directors plan",
-    monthlyPrice: 40,
+    name: "Team",
+    monthlyPrice: 37,
     annualPrice: 250,
     mostPopular: true,
     features: [
-      "Everything in Free plan plus...",
-      "50,000+ batch email sends",
-      "AI Email Generation",
-      "Schedule Conflict Detection",
-      "Game Date Discovery",
-      "Automated Bus Scheduling",
-      "Priority chat and email support",
+      "Sync schedule with your google calendars +groups",
+      "150,000 emails/mo. (Parents, Schools, etc.)",
+      "Use AI to scan for dates",
+      "Custom Email Signatures",
+      "4 Users",
+      "Premium chat and email support 24hrs.",
+      "Everything in Standard plan.",
+      "14 days free trial",
     ],
-    monthlyPriceId: DIRECTORS_MONTHLY_PRICE_ID,
-    annualPriceId: DIRECTORS_ANNUAL_PRICE_ID,
+    monthlyPriceId: TEAM_MONTHLY_PRICE_ID,
+    annualPriceId: TEAM_ANNUAL_PRICE_ID,
+  },
+  {
+    name: "Team+ (Plus)",
+    monthlyPrice: 60,
+    annualPrice: 350,
+    features: [
+      "Everything in Team plan plus...",
+      "250,000+ email/mo.",
+      "6 Users",
+      "AI Email Generation",
+      "Email time scheduler +verification",
+      "Schedule Conflict Detection",
+      "Score Tracker",
+      "Budget Planner",
+      "School Theme Customization",
+      "Priority chat and email support (Now)",
+      "14 days free trial",
+    ],
+    monthlyPriceId: PLUS_MONTHLY_PRICE_ID,
+    annualPriceId: PLUS_ANNUAL_PRICE_ID,
   },
 ];
 
@@ -201,7 +227,7 @@ function PricingPlansContent() {
 
     if (!priceId || !isValidPriceId(priceId)) {
       if (isDevelopment) {
-        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${billing === "monthly" ? "MONTHLY" : "ANNUAL"}_PRICE_ID in your .env.local file.`);
+        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${plan.name.toUpperCase()}_PRICE_ID_${billing === "monthly" ? "MO" : "YR"} in your .env.local file.`);
       } else {
         setError("This plan is not currently available. Please contact support.");
       }
@@ -298,10 +324,13 @@ function PricingPlansContent() {
               }}
             >
               <li>
-                Set <code>NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID</code> in your <code>.env.local</code> file
+                Set <code>NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO</code> in your <code>.env.local</code> file
               </li>
               <li>
-                Set <code>NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID</code> in your <code>.env.local</code> file
+                Set <code>NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO</code> in your <code>.env.local</code> file
+              </li>
+              <li>
+                Set <code>NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO</code> in your <code>.env.local</code> file
               </li>
             </Box>
             <Typography variant="caption" color="text.secondary">
@@ -354,9 +383,10 @@ function PricingPlansContent() {
                   elevation={plan.mostPopular ? 8 : 2}
                   sx={{
                     height: "100%",
-                    borderRadius: 4,
+                    borderRadius: 2,
                     border: plan.mostPopular && billing === "monthly" ? `2px solid ${theme.palette.primary.main}` : "1px solid #ddd",
                     position: "relative",
+                    minHeight: "650px",
                   }}
                 >
                   {plan.mostPopular && (

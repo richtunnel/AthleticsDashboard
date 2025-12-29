@@ -19,7 +19,7 @@ import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -63,6 +63,11 @@ import {
   Collapse,
   Divider,
   useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
@@ -94,6 +99,7 @@ import { parseAndConvertDate } from "@/lib/utils/dateTimeParser";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import SendIcon from "@mui/icons-material/Send";
 
 const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: mod.CSVImport })), {
   ssr: false,
@@ -419,7 +425,7 @@ export function GamesTable() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -485,6 +491,9 @@ export function GamesTable() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const saveStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Track latest date picker selection to avoid race condition with state updates
+  const latestDatePickerValueRef = useRef<string | null>(null);
+
   // Autosave mechanism - batched and debounced
   const pendingChangesRef = useRef<Map<string, Record<string, any>>>(new Map());
   const saveTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -549,6 +558,10 @@ export function GamesTable() {
     currentDepartTime?: string;
     currentAddress?: string;
   } | null>(null);
+
+  // Unsync confirmation dialog state
+  const [unsyncDialogOpen, setUnsyncDialogOpen] = useState(false);
+  const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
   // Constants
   const MAX_CHAR_LIMIT = 2500;
@@ -877,11 +890,11 @@ export function GamesTable() {
     if (preservedGameIds.size === 0) {
       return allGames;
     }
-    
+
     // Split games into preserved (newly created) and regular games
     const preserved: Game[] = [];
     const regular: Game[] = [];
-    
+
     allGames.forEach((game: Game) => {
       if (preservedGameIds.has(game.id)) {
         preserved.push(game);
@@ -889,7 +902,7 @@ export function GamesTable() {
         regular.push(game);
       }
     });
-    
+
     // Return regular games followed by preserved games at the end
     return [...regular, ...preserved];
   }, [allGames, preservedGameIds]);
@@ -1136,14 +1149,22 @@ export function GamesTable() {
 
   const syncGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
+      console.log("🔄 Mutation function called with gameId:", gameId);
+
       const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
+      console.log("🔄 Response status:", res.status);
+
       if (!res.ok) {
         const error = await res.json();
+        console.error("[Calendar Sync] API Error:", error);
         throw new Error(error.error || "Failed to sync calendar.");
       }
-      return res.json();
+      const result = await res.json();
+      console.log("[Calendar Sync] Success:", result);
+      return result;
     },
     onMutate: async (gameId: string) => {
+      console.log("[Calendar Sync] onMutate - Starting optimistic update for game:", gameId);
       // use the parametrized key used by the table query
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
 
@@ -1176,22 +1197,29 @@ export function GamesTable() {
 
       return { previousGames };
     },
-    onError: (err, gameId, context: any) => {
+    onError: (err: Error, gameId, context: any) => {
+      console.error("[Calendar Sync] onError - Failed to sync game:", gameId, err);
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
       if (context?.previousGames) {
         queryClient.setQueryData(GAMES_KEY, context.previousGames);
       }
-      addNotification("Failed to sync calendar", "error");
+      // Show the actual error message from the API
+      const errorMessage = err.message || "Failed to sync calendar";
+      addNotification(errorMessage, "error");
     },
     onSuccess: (data, gameId) => {
+      console.log("[Calendar Sync] onSuccess - Successfully synced game:", gameId, data);
       const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
 
       // apply authoritative server result if present
+      // API response structure: { success: true, data: { eventId: "...", htmlLink: "..." } }
+      const eventId = data?.data?.eventId;
+
       queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         if (Array.isArray(oldData)) {
-          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g));
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: eventId ?? g.googleCalendarEventId } : g));
         }
 
         if (oldData.data && Array.isArray(oldData.data.games)) {
@@ -1199,7 +1227,7 @@ export function GamesTable() {
             ...oldData,
             data: {
               ...oldData.data,
-              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: data?.eventId ?? g.googleCalendarEventId } : g)),
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: true, googleCalendarEventId: eventId ?? g.googleCalendarEventId } : g)),
             },
           };
         }
@@ -1211,6 +1239,181 @@ export function GamesTable() {
       addNotification("Successfully synced to Google Calendar", "success");
 
       // no refetch needed
+    },
+  });
+
+  const unsyncGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "DELETE" });
+
+      if (!res.ok) {
+        const error = await res.json();
+        console.error("[Calendar Unsync] API Error:", error);
+        throw new Error(error.error || "Failed to remove from calendar.");
+      }
+      const result = await res.json();
+      console.log("[Calendar Unsync] Success:", result);
+      return result;
+    },
+    onMutate: async (gameId: string) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      await queryClient.cancelQueries({ queryKey: GAMES_KEY });
+      const previousGames = queryClient.getQueryData<any>(GAMES_KEY);
+
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        if (!oldData) return oldData;
+
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g));
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g)),
+            },
+          };
+        }
+
+        return oldData;
+      });
+
+      return { previousGames };
+    },
+    onError: (err: Error, gameId, context: any) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      if (context?.previousGames) {
+        queryClient.setQueryData(GAMES_KEY, context.previousGames);
+      }
+      const errorMessage = err.message || "Failed to remove from calendar";
+      addNotification(errorMessage, "error");
+    },
+    onSuccess: (data, gameId) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        if (!oldData) return oldData;
+
+        if (Array.isArray(oldData)) {
+          return oldData.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g));
+        }
+
+        if (oldData.data && Array.isArray(oldData.data.games)) {
+          return {
+            ...oldData,
+            data: {
+              ...oldData.data,
+              games: oldData.data.games.map((g: Game) => (g.id === gameId ? { ...g, calendarSynced: false, googleCalendarEventId: null } : g)),
+            },
+          };
+        }
+
+        return oldData;
+      });
+
+      addNotification("Removed from Google Calendar", "success");
+    },
+  });
+
+  // Bulk calendar sync mutation - syncs multiple games sequentially
+  const bulkSyncGamesMutation = useMutation({
+    mutationFn: async (gameIds: string[]) => {
+      const results = {
+        successful: [] as string[],
+        failed: [] as { gameId: string; error: string }[],
+        skipped: [] as string[],
+      };
+
+      // Sync games sequentially to avoid rate limiting
+      for (const gameId of gameIds) {
+        try {
+          const res = await fetch(`/api/games/${gameId}/gsync-calendar`, { method: "POST" });
+
+          if (!res.ok) {
+            const error = await res.json();
+
+            // Check if skipped due to no calendar connection
+            if (error.skipped) {
+              results.skipped.push(gameId);
+            } else {
+              results.failed.push({ gameId, error: error.error || "Failed to sync" });
+            }
+          } else {
+            results.successful.push(gameId);
+          }
+        } catch (error: any) {
+          results.failed.push({ gameId, error: error.message || "Failed to sync" });
+        }
+      }
+
+      return results;
+    },
+    onMutate: async () => {
+      // Show initial notification
+      addNotification(`Syncing ${selectedGames.size} game(s) to Google Calendar...`, "info");
+    },
+    onSuccess: (results) => {
+      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+
+      // Update cache for successful syncs
+      if (results.successful.length > 0) {
+        queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+          if (!oldData) return oldData;
+
+          const successfulSet = new Set(results.successful);
+
+          if (Array.isArray(oldData)) {
+            return oldData.map((g: Game) => (successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g));
+          }
+
+          if (oldData.data && Array.isArray(oldData.data.games)) {
+            return {
+              ...oldData,
+              data: {
+                ...oldData.data,
+                games: oldData.data.games.map((g: Game) => (successfulSet.has(g.id) ? { ...g, calendarSynced: true } : g)),
+              },
+            };
+          }
+
+          return oldData;
+        });
+      }
+
+      // Build result message
+      const messages: string[] = [];
+
+      if (results.successful.length > 0) {
+        messages.push(`✓ ${results.successful.length} game(s) synced successfully`);
+      }
+
+      if (results.failed.length > 0) {
+        messages.push(`✗ ${results.failed.length} failed`);
+      }
+
+      if (results.skipped.length > 0) {
+        messages.push(`⊘ ${results.skipped.length} skipped (Google Calendar not connected)`);
+      }
+
+      const message = messages.join(". ");
+
+      // Determine notification type
+      let type: "success" | "warning" | "error" = "success";
+      if (results.successful.length === 0 && results.skipped.length > 0) {
+        type = "error";
+      } else if (results.failed.length > 0 || results.skipped.length > 0) {
+        type = "warning";
+      }
+
+      addNotification(message, type);
+
+      // Clear selections after sync completes
+      clearSelectedGameIds();
+    },
+    onError: (error: any) => {
+      addNotification(error.message || "Failed to sync games", "error");
     },
   });
 
@@ -1241,7 +1444,7 @@ export function GamesTable() {
         success: true,
         data: data.data,
       });
-      
+
       // CRITICAL FIX: Clear the reordering flag AFTER cache update completes
       // This prevents the useEffect from running until the cache is fully updated
       // Fixes double-render issue during column reordering
@@ -1320,7 +1523,7 @@ export function GamesTable() {
         persistColumnPreferences(nextState, previousState);
         return nextState;
       });
-      
+
       // Note: isUserReordering flag is cleared in savePreferencesMutation.onSuccess
       // This ensures the flag stays true until the cache is fully updated
     },
@@ -1521,6 +1724,8 @@ export function GamesTable() {
   }, []);
 
   const handleSyncCalendar = (gameId: string) => {
+    console.log("🔄 Sync button clicked for game:", gameId);
+    console.log("🔄 Mutation pending:", syncGameMutation.isPending);
     syncGameMutation.mutate(gameId);
   };
 
@@ -1571,10 +1776,10 @@ export function GamesTable() {
       resetNewGameData();
 
       const newGameId = newGame.id;
-      
+
       // Track this newly created game to preserve it from sort/filter
       setPreservedGameIds((prev) => new Set(prev).add(newGameId));
-      
+
       // Only sync to calendar if not explicitly skipped (e.g., during duplicate)
       if (!variables.skipCalendarSync) {
         syncGameMutation.mutate(newGameId);
@@ -2251,6 +2456,7 @@ export function GamesTable() {
         setInlineEditState(null);
         setInlineEditValue("");
         setInlineEditError(null);
+        latestDatePickerValueRef.current = null;
       } catch (error: any) {
         if (error.name === "AbortError") {
           // Request was cancelled, ignore
@@ -2325,6 +2531,7 @@ export function GamesTable() {
         setSaveStatus("idle");
         setInlineEditState(null);
         setInlineEditValue("");
+        latestDatePickerValueRef.current = null;
       }
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
@@ -2334,16 +2541,22 @@ export function GamesTable() {
     (game: Game) => {
       if (!inlineEditState) return;
 
+      // For date fields, check the ref value to avoid race condition with DatePicker onChange
+      const valueToSave = inlineEditState.field === "date" && latestDatePickerValueRef.current ? latestDatePickerValueRef.current : inlineEditValue;
+
       // Only save if value has actually changed
-      if (inlineEditValue !== originalInlineValueRef.current) {
+      if (valueToSave !== originalInlineValueRef.current) {
         // Save immediately on blur
-        scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+        scheduleAutosave(game.id, inlineEditState.field, valueToSave, game, true);
       } else {
         // No changes, just exit edit mode quietly
         setInlineEditState(null);
         setInlineEditValue("");
         setSaveStatus("idle");
       }
+
+      // Clear the date picker ref after handling blur
+      latestDatePickerValueRef.current = null;
     },
     [inlineEditState, inlineEditValue, scheduleAutosave]
   );
@@ -3274,7 +3487,7 @@ export function GamesTable() {
   const handleSort = (field: SortField) => {
     // Clear preserved games when user manually sorts
     setPreservedGameIds(new Set());
-    
+
     if (sortField === field) {
       // Cycle through: asc → desc → null (remove sort)
       if (sortOrder === "asc") {
@@ -3325,6 +3538,19 @@ export function GamesTable() {
     sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
     router.push("/dashboard/compose-email");
   };
+
+  const handleBulkSync = useCallback(() => {
+    if (selectedGames.size === 0) {
+      addNotification("No games selected to sync", "warning");
+      return;
+    }
+
+    // Get array of selected game IDs
+    const gameIdsToSync = Array.from(selectedGames);
+
+    // Trigger bulk sync mutation
+    bulkSyncGamesMutation.mutate(gameIdsToSync);
+  }, [selectedGames, bulkSyncGamesMutation, addNotification]);
 
   const handleAddColumnsClick = () => {
     trackEvent("Add Columns Clicked", {
@@ -4928,6 +5154,8 @@ export function GamesTable() {
                       if (newValue) {
                         const formattedDate = format(newValue, "yyyy-MM-dd");
                         console.log("📅 Date changed to:", formattedDate);
+                        // Store in ref immediately to avoid race condition with onClose
+                        latestDatePickerValueRef.current = formattedDate;
                         handleInlineChange(formattedDate, game);
                       }
                     }}
@@ -5466,7 +5694,9 @@ export function GamesTable() {
         );
       }
       case "actions": {
-        const isSyncingCurrentGame = syncGameMutation.isPending && (syncGameMutation.variables as string | undefined) === game.id;
+        const isSyncingThisGame = syncGameMutation.isPending && syncGameMutation.variables === game.id;
+        const isUnsyncingThisGame = unsyncGameMutation.isPending && unsyncGameMutation.variables === game.id;
+        const isCalendarSynced = game.calendarSynced && game.googleCalendarEventId;
         return (
           <TableCell key="actions" sx={{ py: 0 }}>
             <Stack direction="row" spacing={0}>
@@ -5480,9 +5710,21 @@ export function GamesTable() {
                   <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Sync to Calendar">
-                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleSyncCalendar(game.id)} disabled={syncGameMutation.isPending}>
-                  {isSyncingCurrentGame ? <CircularProgress size={16} /> : <Sync sx={{ fontSize: 18 }} />}
+              <Tooltip title={isCalendarSynced ? "Calendar synced" : "Sync to Calendar"}>
+                <IconButton
+                  size="small"
+                  sx={{ p: 0.5 }}
+                  onClick={() => {
+                    if (isCalendarSynced) {
+                      setGameToUnsync(game.id);
+                      setUnsyncDialogOpen(true);
+                    } else {
+                      handleSyncCalendar(game.id);
+                    }
+                  }}
+                  disabled={isSyncingThisGame || isUnsyncingThisGame}
+                >
+                  {isSyncingThisGame || isUnsyncingThisGame ? <CircularProgress size={16} /> : isCalendarSynced ? <SyncLock sx={{ fontSize: 18, color: "#babfb3" }} /> : <Sync sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
               <Tooltip title="Delete">
@@ -5644,6 +5886,15 @@ export function GamesTable() {
                         open={isEditingDate}
                         onClose={() => {
                           console.log("📅 Imported DatePicker closed");
+                          // Check if a date was selected via the ref
+                          if (latestDatePickerValueRef.current && inlineEditState) {
+                            const valueToSave = latestDatePickerValueRef.current;
+                            // Save immediately if value changed
+                            if (valueToSave !== originalInlineValueRef.current) {
+                              scheduleAutosave(game.id, column.id as InlineEditField, valueToSave, game, true);
+                            }
+                            latestDatePickerValueRef.current = null;
+                          }
                           setInlineEditState(null);
                           setInlineEditValue("");
                           setSaveStatus("idle");
@@ -5653,12 +5904,10 @@ export function GamesTable() {
                           if (newValue) {
                             const formattedDate = format(newValue, "yyyy-MM-dd");
                             console.log("📅 Date changed to:", formattedDate);
-                            // Save immediately when date is selected
-                            scheduleAutosave(game.id, column.id as InlineEditField, formattedDate, game, true);
-                            // Exit edit mode
-                            setInlineEditState(null);
-                            setInlineEditValue("");
-                            setSaveStatus("idle");
+                            // Store in ref immediately to avoid race condition with onClose
+                            latestDatePickerValueRef.current = formattedDate;
+                            // Update the value in state for UI display
+                            handleInlineValueChange(formattedDate);
                           }
                         }}
                         disabled={isInlineSaving}
@@ -5669,6 +5918,7 @@ export function GamesTable() {
                             onKeyDown: (e: any) => {
                               if (e.key === "Escape") {
                                 e.preventDefault();
+                                latestDatePickerValueRef.current = null;
                                 setInlineEditState(null);
                                 setInlineEditValue("");
                                 setSaveStatus("idle");
@@ -6008,25 +6258,25 @@ export function GamesTable() {
   const renderMobileCard = (game: Game) => {
     const isSelected = selectedGames.has(game.id);
     const isExpanded = expandedCard === game.id;
-    
+
     // Format date
     const formattedDate = format(new Date(game.date), "MMM d, yyyy");
-    
+
     // Get opponent name
     const opponentName = game.opponent?.name || "—";
-    
+
     // Get time
     const timeDisplay = game.time || "TBD";
-    
+
     // Get status
     const statusConfig = getConfirmedStatus(game.status);
-    
+
     // Get team info
     const teamInfo = game.homeTeam ? `${game.homeTeam.sport?.name || "—"} ${formatLevelDisplay(game.homeTeam.level) || ""}` : "—";
-    
+
     // Get location
     const locationName = game.venue?.name || "—";
-    
+
     // Home/Away
     const homeAway = game.isHome ? "Home" : "Away";
 
@@ -6043,22 +6293,11 @@ export function GamesTable() {
         <CardContent sx={{ pb: 1 }}>
           {/* Header with checkbox and date */}
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-            <Checkbox
-              checked={isSelected}
-              onChange={() => handleSelectGame(game.id)}
-              sx={{ p: 0, mr: 1 }}
-            />
+            <Checkbox checked={isSelected} onChange={() => handleSelectGame(game.id)} sx={{ p: 0, mr: 1 }} />
             <Typography variant="h6" sx={{ flexGrow: 1, fontSize: "1rem", fontWeight: 600 }}>
               {formattedDate}
             </Typography>
-            {game.googleCalendarEventId && (
-              <Chip
-                size="small"
-                icon={<Sync sx={{ fontSize: 14 }} />}
-                label="Synced"
-                sx={{ height: 20, fontSize: "0.7rem", mr: 1 }}
-              />
-            )}
+            {game.googleCalendarEventId && <Chip size="small" icon={<Sync sx={{ fontSize: 14 }} />} label="Synced" sx={{ height: 20, fontSize: "0.7rem", mr: 1 }} />}
           </Box>
 
           {/* Team and Sport */}
@@ -6080,19 +6319,13 @@ export function GamesTable() {
               <Schedule sx={{ fontSize: 16, color: "text.secondary" }} />
               <Typography variant="body2">{timeDisplay}</Typography>
             </Box>
-            <Chip
-              size="small"
-              label={statusConfig.label}
-              icon={statusConfig.icon}
-              color={statusConfig.color as ChipProps["color"]}
-              sx={{ height: 20, fontSize: "0.7rem" }}
-            />
+            <Chip size="small" label={statusConfig.label} icon={statusConfig.icon} color={statusConfig.color as ChipProps["color"]} sx={{ height: 20, fontSize: "0.7rem" }} />
           </Box>
 
           {/* Expandable section */}
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Divider sx={{ my: 1 }} />
-            
+
             {/* Location */}
             <Box sx={{ mb: 1 }}>
               <Typography variant="caption" color="text.secondary">
@@ -6118,7 +6351,7 @@ export function GamesTable() {
                   Additional Info
                 </Typography>
                 {Object.entries(game.customData).map(([key, value]) => {
-                  const customColumn = customColumns.find(col => col.id === key);
+                  const customColumn = customColumns.find((col) => col.id === key);
                   const label = customColumn?.name || key;
                   return (
                     <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem" }}>
@@ -6142,12 +6375,7 @@ export function GamesTable() {
           </Collapse>
 
           {/* Expand/Collapse button */}
-          <Button
-            size="small"
-            onClick={() => handleExpandCard(game.id)}
-            endIcon={isExpanded ? <ExpandLess /> : <ExpandMore />}
-            sx={{ mt: 1, textTransform: "none" }}
-          >
+          <Button size="small" onClick={() => handleExpandCard(game.id)} endIcon={isExpanded ? <ExpandLess /> : <ExpandMore />} sx={{ mt: 1, textTransform: "none" }}>
             {isExpanded ? "Show Less" : "Show More"}
           </Button>
         </CardContent>
@@ -6308,11 +6536,10 @@ export function GamesTable() {
             {selectedGames.size > 0 && games.length > 0 && (
               <Button
                 variant="contained"
-                color="primary"
-                startIcon={<GradientSendIcon />}
+                startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
                 onClick={handleSendEmail}
                 size="small"
-                sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
               >
                 Send Email ({selectedGames.size})
               </Button>
@@ -6337,7 +6564,14 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="contained" startIcon={<Add />} onClick={handleNewGame} disabled={isAddingNew} size="small" sx={{ textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={handleNewGame}
+                disabled={isAddingNew}
+                size="small"
+                sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+              >
                 Create Game
               </Button>
             )}
@@ -6384,7 +6618,18 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="outlined" startIcon={<ViewColumn />} onClick={handleAddColumnsClick} size="small" sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}>
+              <Button
+                variant="outlined"
+                startIcon={<ViewColumn />}
+                onClick={handleAddColumnsClick}
+                size="small"
+                sx={{
+                  borderColor: theme.palette.themeButtonText.subtle,
+                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                  textTransform: "none",
+                  display: { xs: "none", sm: "inline-flex" },
+                }}
+              >
                 Add Columns ({customColumns.length})
               </Button>
             )}
@@ -6409,7 +6654,13 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button variant="outlined" startIcon={<Tune />} onClick={() => setIsColumnPreferencesOpen(true)} size="small" sx={{ textTransform: "none" }}>
+              <Button
+                variant="outlined"
+                startIcon={<Tune />}
+                onClick={() => setIsColumnPreferencesOpen(true)}
+                size="small"
+                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+              >
                 Columns ({visibleColumnIds.length})
               </Button>
             )}
@@ -6422,17 +6673,35 @@ export function GamesTable() {
                   startIcon={<ContentCopy />}
                   onClick={handleCopySelectedRows}
                   size="small"
-                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                  sx={{
+                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    textTransform: "none",
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
                 >
                   Copy ({selectedGames.size})
                 </Button>
+                <Tooltip title="Sync calendars">
+                  <IconButton
+                    onClick={handleBulkSync}
+                    disabled={bulkSyncGamesMutation.isPending}
+                    size="small"
+                    sx={{
+                      color: "primary.main",
+                      display: { xs: "none", sm: "inline-flex" },
+                    }}
+                  >
+                    {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
+                  </IconButton>
+                </Tooltip>
               </>
             )}
             {hiddenColumnCount > 0 && (
-              <Button 
-                size="small" 
-                variant="text" 
-                onClick={() => setIsColumnPreferencesOpen(true)} 
+              <Button
+                size="small"
+                variant="text"
+                onClick={() => setIsColumnPreferencesOpen(true)}
                 startIcon={<VisibilityOff />}
                 sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
               >
@@ -6447,18 +6716,33 @@ export function GamesTable() {
               {/* Delete Button */}
               <LoadingButton
                 variant="outlined"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "red" }} />}
+                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
                 onClick={handleBulkDelete}
                 loading={bulkDeleteMutation.isPending}
                 size="small"
-                sx={{ border: "1px solid #181b38", borderRadius: "10px", padding: "3px 9px", textTransform: "none", background: "transparent", boxShadow: 0, "&:hover": { boxShadow: 0 } }}
+                sx={{
+                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
+                  borderRadius: "10px",
+                  padding: "3px 9px",
+                  textTransform: "none",
+                  background: "transparent",
+                  boxShadow: 0,
+                  "&:hover": { boxShadow: 0 },
+                }}
               >
                 {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
               </LoadingButton>
             </>
           )}
+          {/* Import Button */}
           <Tooltip title="Import games from CSV">
-            <Button variant="outlined" startIcon={<Upload />} onClick={handleImportClick} size="small" sx={{ textTransform: "none" }}>
+            <Button
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={handleImportClick}
+              size="small"
+              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+            >
               Import
             </Button>
           </Tooltip>
@@ -6469,7 +6753,12 @@ export function GamesTable() {
               onClick={handleExport}
               disabled={games.length === 0}
               size="small"
-              sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+              sx={{
+                borderColor: theme.palette.themeButtonText.subtle,
+                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                textTransform: "none",
+                display: { xs: "none", sm: "inline-flex" },
+              }}
             >
               Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
             </Button>
@@ -6506,9 +6795,7 @@ export function GamesTable() {
               </Typography>
             </Paper>
           ) : (
-            <Box>
-              {games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}
-            </Box>
+            <Box>{games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}</Box>
           )}
 
           {/* Loading overlay for data refresh */}
@@ -6551,96 +6838,96 @@ export function GamesTable() {
           >
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: "action.selected" }}>
+                <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
                   <TableCell padding="checkbox" sx={{ py: 0 }}>
                     <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
                   </TableCell>
                   {resolvedColumns.map((column) => renderHeaderCell(column))}
                 </TableRow>
               </TableHead>
-            {isLoading || !mounted ? (
-              <TableBody>
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={`skeleton-${index}`}>
-                    <TableCell padding="checkbox">
-                      <Skeleton
-                        variant="rectangular"
-                        width={18}
-                        height={18}
-                        sx={{
-                          borderRadius: 0.5,
-                          bgcolor: "rgba(0, 0, 0, 0.11)",
-                        }}
-                      />
-                    </TableCell>
-                    {resolvedColumns.map((column) => (
-                      <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+              {isLoading || !mounted ? (
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell padding="checkbox">
                         <Skeleton
                           variant="rectangular"
-                          width={
-                            column.id === "date"
-                              ? "80%"
-                              : column.id === "time"
-                                ? "60%"
-                                : column.id === "sport"
-                                  ? "70%"
-                                  : column.id === "level"
-                                    ? "65%"
-                                    : column.id === "opponent"
-                                      ? "85%"
-                                      : column.id === "status"
-                                        ? "50%"
-                                        : column.id === "isHome"
-                                          ? "55%"
-                                          : column.id === "location"
-                                            ? "75%"
-                                            : column.id === "busTravel"
-                                              ? "70%"
-                                              : column.id === "notes"
-                                                ? "90%"
-                                                : column.id === "actions"
-                                                  ? "90%"
-                                                  : "75%"
-                          }
-                          height={24}
+                          width={18}
+                          height={18}
                           sx={{
-                            borderRadius: 1,
+                            borderRadius: 0.5,
                             bgcolor: "rgba(0, 0, 0, 0.11)",
                           }}
                         />
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            ) : games.length === 0 && !isAddingNew ? (
-              <TableBody>
-                {renderNewRow()}
-                <TableRow>
-                  <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
-                    {isFetching ? (
-                      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                        <CircularProgress size={40} />
+                      {resolvedColumns.map((column) => (
+                        <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+                          <Skeleton
+                            variant="rectangular"
+                            width={
+                              column.id === "date"
+                                ? "80%"
+                                : column.id === "time"
+                                  ? "60%"
+                                  : column.id === "sport"
+                                    ? "70%"
+                                    : column.id === "level"
+                                      ? "65%"
+                                      : column.id === "opponent"
+                                        ? "85%"
+                                        : column.id === "status"
+                                          ? "50%"
+                                          : column.id === "isHome"
+                                            ? "55%"
+                                            : column.id === "location"
+                                              ? "75%"
+                                              : column.id === "busTravel"
+                                                ? "70%"
+                                                : column.id === "notes"
+                                                  ? "90%"
+                                                  : column.id === "actions"
+                                                    ? "90%"
+                                                    : "75%"
+                            }
+                            height={24}
+                            sx={{
+                              borderRadius: 1,
+                              bgcolor: "rgba(0, 0, 0, 0.11)",
+                            }}
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              ) : games.length === 0 && !isAddingNew ? (
+                <TableBody>
+                  {renderNewRow()}
+                  <TableRow>
+                    <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
+                      {isFetching ? (
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                          <CircularProgress size={40} />
+                          <Typography color="text.secondary" variant="body2">
+                            loading spreadsheet...
+                          </Typography>
+                        </Box>
+                      ) : (
                         <Typography color="text.secondary" variant="body2">
-                          loading spreadsheet...
+                          No games found. Click "Create Game" to add one.
                         </Typography>
-                      </Box>
-                    ) : (
-                      <Typography color="text.secondary" variant="body2">
-                        No games found. Click "Create Game" to add one.
-                      </Typography>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            ) : (
-              <TableBody>
-                {renderNewRow()}
-                {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
-              </TableBody>
-            )}
-          </Table>
-        </TableContainer>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              ) : (
+                <TableBody>
+                  {renderNewRow()}
+                  {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
+                </TableBody>
+              )}
+            </Table>
+          </TableContainer>
 
           {/* Loading overlay for data refresh (after import) */}
           {isFetching && mounted && !isLoading && (
@@ -6894,15 +7181,56 @@ export function GamesTable() {
 
       {/* Travel Time Modal for Travel Time custom column */}
       {travelTimeModal && (
-        <TravelTimeModal 
-          open={travelTimeModal.open} 
-          onClose={() => setTravelTimeModal(null)} 
-          gameId={travelTimeModal.gameId} 
-          gameName={travelTimeModal.gameName} 
+        <TravelTimeModal
+          open={travelTimeModal.open}
+          onClose={() => setTravelTimeModal(null)}
+          gameId={travelTimeModal.gameId}
+          gameName={travelTimeModal.gameName}
           columnName={travelTimeModal.columnName}
-          onSave={handleSaveTravelTime} 
+          onSave={handleSaveTravelTime}
         />
       )}
+
+      {/* Unsync Confirmation Dialog */}
+      <Dialog
+        open={unsyncDialogOpen}
+        onClose={() => {
+          setUnsyncDialogOpen(false);
+          setGameToUnsync(null);
+        }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Remove from Google Calendar?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>This will remove the game from your Google Calendar. You can always sync it again later.</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setUnsyncDialogOpen(false);
+              setGameToUnsync(null);
+            }}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (gameToUnsync) {
+                unsyncGameMutation.mutate(gameToUnsync);
+              }
+              setUnsyncDialogOpen(false);
+              setGameToUnsync(null);
+            }}
+            variant="contained"
+            color="error"
+            disabled={unsyncGameMutation.isPending}
+          >
+            {unsyncGameMutation.isPending ? <CircularProgress size={20} /> : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -2,24 +2,16 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  CircularProgress,
-  Alert,
-} from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, CircularProgress, Alert } from "@mui/material";
 import { RestartAlt } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useTheme, alpha } from "@mui/material/styles";
 
 export function ResetColumnsButton() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
+  const theme = useTheme();
 
   const resetMutation = useMutation({
     mutationFn: async () => {
@@ -39,18 +31,12 @@ export function ResetColumnsButton() {
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
       // Refresh imported columns for calendar group mappings
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
-      
-      addNotification(
-        data.message || "Custom columns reset successfully. Default columns restored.",
-        "success"
-      );
+
+      addNotification(data.message || "Custom columns reset successfully. Default columns restored.", "success");
       setDialogOpen(false);
     },
     onError: (error: Error) => {
-      addNotification(
-        error.message || "Failed to reset columns. Please try again.",
-        "error"
-      );
+      addNotification(error.message || "Failed to reset columns. Please try again.", "error");
     },
   });
 
@@ -76,34 +62,30 @@ export function ResetColumnsButton() {
         startIcon={<RestartAlt />}
         onClick={handleOpenDialog}
         sx={{
+          color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
           textTransform: "none",
+          borderColor: theme.palette.mode === "dark" ? `${theme.palette.themeText.text}!important` : "",
           borderRadius: 2,
+          MuiButton: {
+            styleOverrides: {
+              borderColor: theme.palette.themeText.text,
+            },
+          },
         }}
       >
         Reset to Default Columns
       </Button>
 
-      <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Reset to Default Columns?</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
-            This will remove your imported custom columns and restore the default spreadsheet columns.
-          </DialogContentText>
+          <DialogContentText sx={{ mb: 2 }}>This will remove your imported custom columns and restore the default spreadsheet columns.</DialogContentText>
           <Alert severity="info" sx={{ mb: 0 }}>
             Your game data will not be affected. Only the column layout will be reset to defaults.
           </Alert>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={handleCloseDialog}
-            disabled={resetMutation.isPending}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={handleCloseDialog} disabled={resetMutation.isPending} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
           <Button

@@ -2,7 +2,7 @@ export const CircularProjectIcon = ({ size = 20, color = "currentColor" }) => (
   <div style={{ display: "flex", alignItems: "center" }}>
     <svg width={size + 8} height={size + 8} viewBox="0 0 32 32" fill="none">
       {/* Outer border circle */}
-      <circle cx="16" cy="16" r="15" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="16" cy="16" r="15" stroke={color} strokeWidth="2.15" fill="none" />
 
       {/* Inner icon group - scaled and centered */}
       <g transform="translate(4, 4)">

@@ -79,7 +79,7 @@ export function AISchedulerToggle() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box>
               <Typography variant="body1" fontWeight={500}>
-                AI-Powered Scheduler
+                AI-Powered Scheduler (Coming Soon)
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
                 Get intelligent scheduling suggestions and conflict detection for your games.

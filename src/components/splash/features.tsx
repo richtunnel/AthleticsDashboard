@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { Section } from "../../components/splash/Section";
 import { SectionTitle, SectionTitleProps } from "./section-title";
+import styles from "../../styles/feature.module.css";
 
 const Revealer = ({ children }: any) => {
   return children;
@@ -51,7 +52,7 @@ export const Feature: React.FC<FeatureProps> = (props) => {
         </Avatar>
       )}
       <Box>
-        <Typography variant="h6" component="h3" sx={{ mb: 1 }}>
+        <Typography className={styles.featureSectionTitle} sx={{ mb: 1 }}>
           {title}
         </Typography>
         <Typography variant="body1" color="text.secondary">

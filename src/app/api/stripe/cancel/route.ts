@@ -61,9 +61,10 @@ export async function POST(req: NextRequest) {
       ? new Date(canceledSubscription.canceled_at * 1000)
       : null;
     const canceledAt = immediately ? new Date() : canceledAtFromStripe;
-    const currentPeriodEnd = canceledSubscription.current_period_end
-      ? new Date(canceledSubscription.current_period_end * 1000)
-      : null;
+
+    const firstItemPeriodEnd = canceledSubscription.items.data[0]?.current_period_end;
+    const currentPeriodEnd = typeof firstItemPeriodEnd === "number" ? new Date(firstItemPeriodEnd * 1000) : null;
+
     const cancelAtPeriodEnd = canceledSubscription.cancel_at_period_end ?? false;
     const { gracePeriodDays } = getAccountCleanupConfig();
     const graceReference = cancelAt ?? currentPeriodEnd ?? canceledAt;
