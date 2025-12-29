@@ -22,10 +22,7 @@ export interface CallbackResult {
 // Define available scope sets
 export const GOOGLE_SCOPES = {
   PROFILE: ["openid", "email", "profile"] as string[],
-  CALENDAR: [
-    "https://www.googleapis.com/auth/calendar.events",
-    "https://www.googleapis.com/auth/calendar.readonly",
-  ] as string[],
+  CALENDAR: ["https://www.googleapis.com/auth/calendar"] as string[],
   CONTACTS: ["https://www.googleapis.com/auth/contacts.readonly"] as string[],
 };
 
