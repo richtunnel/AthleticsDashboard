@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Token is required" }, { status: 400 });
     }
 
-    const recoveryEmail = await prisma.recoveryEmail.findUnique({
+    const recoveryEmail = await prisma.recoveryEmail.findFirst({
       where: { token },
     });
 

@@ -23,7 +23,7 @@ export class GoogleMapsService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = process.env.GOOGLE_MAPS_API_KEY || "";
+    this.apiKey = process.env.GOOGLE_DISTANCE_API_KEY || "";
   }
 
   async calculateTravelTime(
@@ -37,7 +37,7 @@ export class GoogleMapsService {
     trafficCondition: string;
   }> {
     if (!this.apiKey) {
-      throw new Error("Google Maps API key not configured");
+      throw new Error("Google Distance API key not configured");
     }
 
     const params = new URLSearchParams({

@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress, MenuItem, FormControl, InputLabel, Select, FormHelperText } from "@mui/material";
 
 interface FormData {
   issueType: string;
   subject: string;
   message: string;
-}
-
-interface SupportFormWithDropdownProps {
-  userName?: string;
-  userEmail?: string;
 }
 
 const ISSUE_TYPES = [
@@ -26,10 +21,11 @@ const ISSUE_TYPES = [
   { value: "Other", label: "Other" },
 ];
 
-export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWithDropdownProps) {
+export function SupportFormWithDropdown() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [issueType, setIssueType] = useState("");
   const [messageLength, setMessageLength] = useState(0);
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -46,7 +42,6 @@ export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWith
     },
   });
 
-  const message = watch("message");
   const subjectValue = watch("subject");
 
   // Update message length when message changes
@@ -98,6 +93,12 @@ export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWith
       });
       setIssueType("");
       setMessageLength(0);
+
+      // Invalidate tickets query to refetch the list
+      queryClient.invalidateQueries({ queryKey: ["support-tickets"] });
+
+      // Scroll to top to show the newly created ticket
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
   });
 
@@ -153,6 +154,7 @@ export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWith
                   message: "Subject must be at least 3 characters",
                 },
               })}
+              value={subjectValue || ""}
               fullWidth
               error={!!errors.subject}
               helperText={errors.subject?.message}
@@ -214,10 +216,10 @@ export function SupportFormWithDropdown({ userName, userEmail }: SupportFormWith
               {mutation.isPending ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1 }} />
-                  Submitting...
+                  Creating Ticket...
                 </>
               ) : (
-                "Submit Support Request"
+                "Create Ticket"
               )}
             </Button>
 

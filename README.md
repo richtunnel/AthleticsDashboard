@@ -248,7 +248,8 @@ Create a `.env.local` file in the root directory with the following variables:
 | `GOOGLE_CALENDAR_CLIENT_ID`     | Google OAuth 2.0 Client ID                           | [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials |
 | `GOOGLE_CALENDAR_CLIENT_SECRET` | Google OAuth 2.0 Client Secret                       | Same as above                                                                             |
 | `GOOGLE_REDIRECT_URI`           | Authorized OAuth callback URL registered with Google | Typically `http://localhost:3000/api/auth/calendar-callback` in development               |
-| `GOOGLE_MAPS_API_KEY`           | Google Maps API key for distance calculations        | Google Cloud Console → APIs & Services → Enable Maps JavaScript API                       |
+| `GOOGLE_MAPS_API_KEY`           | Google Maps API key for address autocomplete         | Google Cloud Console → APIs & Services → Enable Maps JavaScript API & Places API          |
+| `GOOGLE_DISTANCE_API_KEY`       | Google Distance Matrix API key for travel time calculations | Google Cloud Console → APIs & Services → Enable Distance Matrix API                       |
 
 ### Email Service (Resend)
 
@@ -271,8 +272,9 @@ Create a `.env.local` file in the root directory with the following variables:
 | ------------------------------------- | ---------------------------------------------- | -------------------------------------------------------- |
 | `STRIPE_SECRET_KEY`                   | Stripe secret key (use `sk_test_` for testing) | [Stripe Dashboard](https://dashboard.stripe.com/apikeys) |
 | `STRIPE_WEBHOOK_SECRET`               | Stripe webhook signing secret                  | Stripe Dashboard → Developers → Webhooks                 |
-| `NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID` | Price ID for monthly subscription              | Stripe Dashboard → Products                              |
-| `NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID`  | Price ID for annual subscription               | Stripe Dashboard → Products                              |
+| `NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO` | Price ID for Standard monthly subscription | Stripe Dashboard → Products                              |
+| `NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO`     | Price ID for Team monthly subscription     | Stripe Dashboard → Products                              |
+| `NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO`     | Price ID for Plus monthly subscription     | Stripe Dashboard → Products                              |
 
 **Testing Stripe Subscriptions**: The application includes comprehensive test mode support. See [STRIPE_TEST_MODE.md](./STRIPE_TEST_MODE.md) for setup instructions, or jump to the [Quick Start Guide](./docs/STRIPE_QUICK_START.md) for a 5-minute setup.
 

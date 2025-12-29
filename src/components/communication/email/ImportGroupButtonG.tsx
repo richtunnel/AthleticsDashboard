@@ -5,10 +5,14 @@ import { Button, CircularProgress, Alert, Stack } from "@mui/material";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import { importGoogleEmailGroups } from "@/app/actions/googleGroups";
 import { useState } from "react";
+import { useTheme as customTheme } from "@mui/material/styles";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 
 export function ImportGroupsButton() {
   const queryClient = useQueryClient();
   const [lastError, setLastError] = useState<string | null>(null);
+  const theme = customTheme();
+  const { mode } = useTheme();
 
   const importMutation = useMutation({
     mutationFn: importGoogleEmailGroups,
@@ -16,7 +20,7 @@ export function ImportGroupsButton() {
       setLastError(null); // Clear any previous error
       if (result.success) {
         // Invalidate the query that fetches email groups to refresh the list
-        queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
         // Optionally, you might have a query for all user data/settings
         queryClient.invalidateQueries({ queryKey: ["user-data"] });
       } else {
@@ -37,6 +41,7 @@ export function ImportGroupsButton() {
         startIcon={importMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
         onClick={() => importMutation.mutate()}
         disabled={importMutation.isPending}
+        sx={{ color: mode === "dark" ? "#000" : "#fff" }}
       >
         {importMutation.isPending ? "Importing Groups..." : "Import Google Groups"}
       </Button>

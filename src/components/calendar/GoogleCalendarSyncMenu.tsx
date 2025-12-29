@@ -11,6 +11,7 @@ import styles from "@/styles/override.module.css";
 import Link from "next/link";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappings";
+import { useTheme as customTheme } from "@mui/material/styles";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -50,6 +51,7 @@ function ConnectionHandlerFallback() {
 // Main component
 function GoogleCalendarSyncMenuContent() {
   const router = useRouter();
+  const theme = customTheme();
 
   // Fetch the user's current connection status
   const { data, isLoading, refetch } = useQuery({
@@ -67,7 +69,7 @@ function GoogleCalendarSyncMenuContent() {
   const handleDisconnect = async () => {
     if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
       try {
-        await fetch("/api/user/calendar-disconnect", { method: "POST" });
+        await fetch("/api/auth/google-calendar/disconnect", { method: "POST" });
         refetch();
       } catch (error) {
         console.error("Failed to disconnect calendar:", error);
@@ -114,7 +116,20 @@ function GoogleCalendarSyncMenuContent() {
             </Typography>
 
             <AutoCalendarSyncToggle />
-            <Button variant="outlined" color="error" startIcon={<LinkOff />} onClick={handleDisconnect} sx={{ textTransform: "none", width: "fit-content", mt: 2 }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<LinkOff sx={{ color: "#10a37f" }} />}
+              onClick={handleDisconnect}
+              sx={{
+                color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.themeButtonText.main,
+                backgroundColor: theme.palette.mode === "light" ? "rgb(24 27 56)" : "",
+                borderColor: theme.palette.themeButtonText.subtle,
+                textTransform: "none",
+                width: "fit-content",
+                mt: 2,
+              }}
+            >
               Disconnect Calendar
             </Button>
           </Box>

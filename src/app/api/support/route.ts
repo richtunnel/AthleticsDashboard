@@ -55,6 +55,14 @@ export async function POST(request: NextRequest) {
       ticketNumber,
     }).catch(err => console.error('Failed to send support email:', err));
 
+    // Send confirmation email to user (non-blocking)
+    emailService.sendTicketConfirmationEmail({
+      userEmail: session.user.email || "",
+      userName: session.user.name || "User",
+      ticketNumber,
+      subject,
+    }).catch(err => console.error('Failed to send ticket confirmation email:', err));
+
     // Send Slack notification (non-blocking)
     slackService.sendFeedbackNotification({
       time: new Date().toISOString(),

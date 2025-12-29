@@ -10,68 +10,94 @@ const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "con
  */
 async function resolveCalendarId(game: any, userId: string, calendar: any): Promise<string> {
   try {
-    // Check if user has any calendar group mappings
     const mappings = await prisma.calendarGroupMapping.findMany({
       where: { userId },
     });
 
     if (!mappings || mappings.length === 0) {
-      return "primary"; // No mappings configured, use primary calendar
+      return "primary";
     }
 
-    // Build a list of values to check from the game
+    const normalize = (input: string) => input.trim().replace(/\s+/g, " ").toLowerCase();
+    const mappingIndex = new Map<string, (typeof mappings)[number]>();
+
+    for (const m of mappings) {
+      mappingIndex.set(`${normalize(m.columnName)}::${normalize(m.columnValue)}`, m);
+    }
+
     const valuesToCheck: { columnName: string; value: string }[] = [];
 
-    // Check team name (e.g., "Junior Varsity Basketball")
-    if (game.homeTeam?.name) {
-      valuesToCheck.push({ columnName: "Team", value: game.homeTeam.name });
-      valuesToCheck.push({ columnName: "Sports Level", value: game.homeTeam.name });
-      valuesToCheck.push({ columnName: "Team Level", value: game.homeTeam.name });
+    const addCandidate = (columnName: string, rawValue: unknown) => {
+      if (typeof rawValue !== "string") return;
+      const value = rawValue.trim();
+      if (!value) return;
+      valuesToCheck.push({ columnName, value });
+    };
+
+    const customFields: Record<string, unknown> =
+      game.customFields && typeof game.customFields === "object" && !Array.isArray(game.customFields)
+        ? (game.customFields as Record<string, unknown>)
+        : {};
+
+    const getCustomField = (fieldNames: string[]): string | undefined => {
+      const keys = Object.keys(customFields);
+      for (const name of fieldNames) {
+        const exact = customFields[name];
+        if (typeof exact === "string" && exact.trim()) return exact.trim();
+
+        const foundKey = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+        const value = foundKey ? customFields[foundKey] : undefined;
+        if (typeof value === "string" && value.trim()) return value.trim();
+      }
+      return undefined;
+    };
+
+    // Prefer custom fields for sport/level/team (CSV imports), but fall back to core fields.
+    const sport = getCustomField(["Sport"]) || game.homeTeam?.sport?.name?.trim();
+    const level = getCustomField(["Level"]) || game.homeTeam?.level?.trim();
+
+    // Team name can come from many CSV headers; check common ones case-insensitively.
+    const team =
+      getCustomField(["Team", "Home", "Sports Level", "Team Level"]) ||
+      game.homeTeam?.name?.trim();
+
+    if (team) {
+      addCandidate("Team", team);
+      addCandidate("Sports Level", team);
+      addCandidate("Team Level", team);
     }
 
-    // Check sport + level combination
-    if (game.homeTeam?.sport?.name && game.homeTeam?.level) {
-      const sportLevel = `${game.homeTeam.sport.name} ${game.homeTeam.level}`;
-      valuesToCheck.push({ columnName: "Sport & Level", value: sportLevel });
-      valuesToCheck.push({ columnName: "Sports Level", value: sportLevel });
+    if (sport && level) {
+      const sportLevel = `${sport} ${level}`.trim();
+      addCandidate("Sport & Level", sportLevel);
+      addCandidate("Sports Level", sportLevel);
     }
 
-    // Check sport alone
-    if (game.homeTeam?.sport?.name) {
-      valuesToCheck.push({ columnName: "Sport", value: game.homeTeam.sport.name });
+    if (sport) {
+      addCandidate("Sport", sport);
     }
 
-    // Check level alone
-    if (game.homeTeam?.level) {
-      valuesToCheck.push({ columnName: "Level", value: game.homeTeam.level });
-      valuesToCheck.push({ columnName: "Team Level", value: game.homeTeam.level });
+    if (level) {
+      addCandidate("Level", level);
+      addCandidate("Team Level", level);
     }
 
-    // Check custom fields from imported CSV columns
-    if (game.customFields && typeof game.customFields === 'object') {
-      Object.entries(game.customFields).forEach(([key, value]) => {
-        if (value && typeof value === 'string') {
-          valuesToCheck.push({ columnName: key, value: value as string });
-        }
-      });
+    // Add every custom field value as a candidate (exact column name from CSV header).
+    for (const [key, value] of Object.entries(customFields)) {
+      addCandidate(key, value);
     }
 
-    // Try to find a matching mapping
     for (const { columnName, value } of valuesToCheck) {
-      const mapping = mappings.find(
-        (m) => m.columnName === columnName && m.columnValue === value
-      );
-      if (mapping) {
-        console.log(`[Calendar Sync] Matched mapping: ${columnName} = ${value} → ${mapping.googleCalendarName}`);
-        
-        // Verify the calendar still exists in user's Google Calendar
-        try {
-          await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
-          return mapping.googleCalendarId;
-        } catch (error) {
-          console.warn(`[Calendar Sync] Calendar ${mapping.googleCalendarId} not found, falling back to primary`);
-          continue;
-        }
+      const mapping = mappingIndex.get(`${normalize(columnName)}::${normalize(value)}`);
+      if (!mapping) continue;
+
+      console.log(`[Calendar Sync] Matched mapping: ${columnName} = ${value} → ${mapping.googleCalendarName}`);
+
+      try {
+        await calendar.calendars.get({ calendarId: mapping.googleCalendarId });
+        return mapping.googleCalendarId;
+      } catch (error) {
+        console.warn(`[Calendar Sync] Calendar ${mapping.googleCalendarId} not found, falling back to primary`);
       }
     }
 
@@ -79,159 +105,111 @@ async function resolveCalendarId(game: any, userId: string, calendar: any): Prom
     return "primary";
   } catch (error) {
     console.error("[Calendar Sync] Error resolving calendar ID:", error);
-    return "primary"; // Fail gracefully, use primary calendar
+    return "primary";
   }
 }
 
 export async function syncGameToCalendar(gameId: string, userId: string) {
-  // Get the user's Google account credentials
+  // 1. Fetch user & game (Logic is correct)
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      organizationId: true,
-      googleCalendarRefreshToken: true,
-      googleCalendarAccessToken: true,
-      calendarTokenExpiry: true,
-    },
+    select: { organizationId: true, googleCalendarRefreshToken: true },
   });
 
-  if (!user) {
-    throw new Error("User not found");
-  }
+  if (!user?.googleCalendarRefreshToken) return { success: false, skipped: true, message: "Google Calendar not connected" };
 
-  if (!user?.googleCalendarRefreshToken) {
-    return {
-      success: false,
-      skipped: true,
-      message: "Google Calendar not connected",
-    };
-  }
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
+    include: { homeTeam: { include: { sport: true } }, opponent: true, awayTeam: true, venue: true },
+  });
 
+  if (!game) throw new Error("Game not found");
+
+  // 2. Auth setup
   const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
-
-  oauth2Client.setCredentials({
-    refresh_token: user.googleCalendarRefreshToken,
-  });
-
+  oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // ✅ VALIDATE: Game belongs to user's organization
-  const game = await prisma.game.findFirst({
-    where: {
-      id: gameId,
-      homeTeam: {
-        organizationId: user.organizationId,
-      },
-    },
-    include: {
-      homeTeam: {
-        include: { sport: true },
-      },
-      opponent: true,
-      awayTeam: true,
-      venue: true,
-    },
-  });
+  // 3. DATE CONSTRUCTION
+  const isoDateOnly = game.date instanceof Date ? game.date.toISOString().split("T")[0] : String(game.date).split("T")[0];
 
-  if (!game) {
-    throw new Error("Game not found");
-  }
-
-  // Prepare event data
-  // Safari-friendly date parsing: extract date components from ISO string
-  // Handle both Date objects and strings
-  const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
-  const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
-  const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-  
-  // Parse time components (HH:mm format)
-  let hours = 12; // Default to noon if no time specified
-  let minutes = 0;
-  
-  if (game.time && typeof game.time === 'string' && game.time.trim()) {
-    const timeParts = game.time.trim().split(":");
-    if (timeParts.length >= 2) {
-      const parsedHours = parseInt(timeParts[0], 10);
-      const parsedMinutes = parseInt(timeParts[1], 10);
-      if (!isNaN(parsedHours) && !isNaN(parsedMinutes) && parsedHours >= 0 && parsedHours <= 23 && parsedMinutes >= 0 && parsedMinutes <= 59) {
-        hours = parsedHours;
-        minutes = parsedMinutes;
-      }
+  let hours = 12,
+    minutes = 0;
+  if (game.time && typeof game.time === "string") {
+    const [h, m] = game.time.split(":").map(Number);
+    if (!isNaN(h)) {
+      hours = h;
+      minutes = m || 0;
     }
   }
 
-  // Format as local datetime string for Google Calendar (YYYY-MM-DDTHH:mm:ss)
-  // This represents the local time in the specified timezone WITHOUT UTC conversion
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00`;
-  
-  // Calculate end time (2 hours later)
-  const endHours = hours + 2;
-  const endDay = endHours >= 24 ? day + 1 : day;
-  const normalizedEndHours = endHours % 24;
-  const endDateTime = `${year}-${pad(month)}-${pad(endDay)}T${pad(normalizedEndHours)}:${pad(minutes)}:00`;
+  // We construct the date object.
+  // IMPORTANT: Ensure your server environment variable TZ is set to the user's local timezone
+  // or use a timezone-aware library if this is a multi-timezone app.
+  const startDate = new Date(`${isoDateOnly}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
+  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
+  const toRFC3339 = (date: Date) => {
+    const offset = -date.getTimezoneOffset();
+    const absOffset = Math.abs(offset);
+    const z = (n: number) => String(n).padStart(2, "0");
+    const sign = offset >= 0 ? "+" : "-";
+    const offsetStr = `${sign}${z(Math.floor(absOffset / 60))}:${z(absOffset % 60)}`;
+    return `${date.getFullYear()}-${z(date.getMonth() + 1)}-${z(date.getDate())}T${z(date.getHours())}:${z(date.getMinutes())}:${z(date.getSeconds())}${offsetStr}`;
+  };
+
+  // 4. PAYLOAD
   const event: calendar_v3.Schema$Event = {
-    status: CALENDAR_EVENT_STATUS_SCHEDULED,
-    summary: buildEventSummary(game),
-    description: buildEventDescription(game),
-    location: game.isHome ? "Home Field" : game.venue ? `${game.venue.name}, ${game.venue.address || ""}, ${game.venue.city || ""}, ${game.venue.state || ""}` : "TBD",
-    start: {
-      dateTime: startDateTime,
-      timeZone: "America/New_York",
-    },
-    end: {
-      dateTime: endDateTime,
-      timeZone: "America/New_York",
-    },
+    summary: sanitize(buildEventSummary(game)),
+    description: sanitize(buildEventDescription(game)),
+    location: sanitize(formatLocation(game)),
+    start: { dateTime: toRFC3339(startDate) },
+    end: { dateTime: toRFC3339(endDate) },
+    status: "confirmed",
     reminders: {
       useDefault: false,
       overrides: [
-        { method: "email", minutes: 24 * 60 }, // 1 day before
-        { method: "notification", minutes: 60 }, // 1 hour before
+        { method: "email", minutes: 1440 },
+        { method: "popup", minutes: 60 },
       ],
     },
   };
 
+  // 5. THE SYNC (The try/catch logic you wrote is excellent)
   try {
-    // Resolve which calendar to sync to based on game data and user mappings
     const calendarId = await resolveCalendarId(game, userId, calendar);
     let response;
 
     if (game.googleCalendarEventId) {
-      // Update existing event
-      response = await calendar.events.update({
-        calendarId,
-        eventId: game.googleCalendarEventId,
-        requestBody: event,
-      });
+      try {
+        response = await calendar.events.update({
+          calendarId,
+          eventId: game.googleCalendarEventId,
+          requestBody: event,
+        });
+      } catch (err: any) {
+        if (err.code === 404) {
+          response = await calendar.events.insert({ calendarId, requestBody: event });
+        } else throw err;
+      }
     } else {
-      // Create new event
-      response = await calendar.events.insert({
-        calendarId,
-        requestBody: event,
-      });
-
-      // Update game with event ID
-      await prisma.game.update({
-        where: { id: gameId },
-        data: {
-          googleCalendarEventId: response.data.id || null,
-          googleCalendarHtmlLink: response.data.htmlLink || null,
-          calendarSynced: true,
-          lastSyncedAt: new Date(),
-        },
-      });
+      response = await calendar.events.insert({ calendarId, requestBody: event });
     }
 
-    return {
-      id: response.data.id,
-      htmlLink: response.data.htmlLink,
-      success: true,
-    };
-  } catch (error) {
-    console.error("Calendar sync failed:", error);
-    throw new Error("Failed to sync to Google Calendar");
+    await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        googleCalendarEventId: response.data.id,
+        googleCalendarHtmlLink: response.data.htmlLink,
+        calendarSynced: true,
+        lastSyncedAt: new Date(),
+      },
+    });
+
+    return { success: true, id: response.data.id, htmlLink: response.data.htmlLink };
+  } catch (error: any) {
+    console.error("[Calendar Sync] Error details:", error.response?.data || error.message);
+    throw error;
   }
 }
 
@@ -243,13 +221,40 @@ function buildEventSummary(game: any): string {
 }
 
 function getPrimaryTeamName(game: any): string {
-  // Check custom fields first
+  // Check custom fields first - try multiple common column names
   const customFields = (game.customFields as Record<string, any>) || {};
-  const customTeam = customFields["Team"]?.trim();
-  if (customTeam) {
-    return customTeam;
+  
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[]): string | undefined => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name]?.trim();
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key]?.trim();
+    }
+    return undefined;
+  };
+  
+  // Try to build a descriptive name from Sport + Level if available
+  const sport = getField(["Sport"]);
+  const level = getField(["Level"]);
+  
+  if (sport && level) {
+    // Format: "Boys Varsity Basketball" or "B V Basketball"
+    return `${sport} ${level}`;
   }
   
+  if (sport) {
+    return sport;
+  }
+  
+  // Check various team column names (case-insensitive)
+  const teamValue = getField(["Team", "Home", "Sports Level", "Team Level"]);
+  if (teamValue) {
+    return teamValue;
+  }
+
   // Fall back to default columns
   const teamName = game.homeTeam?.name?.trim();
   if (teamName) {
@@ -263,6 +268,27 @@ function getPrimaryTeamName(game: any): string {
 }
 
 function getOpponentTeamName(game: any): string {
+  // Check custom fields first - try "Away" column (case-insensitive)
+  const customFields = (game.customFields as Record<string, any>) || {};
+  
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[]): string | undefined => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name]?.trim();
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key]?.trim();
+    }
+    return undefined;
+  };
+  
+  const awayTeam = getField(["Away", "Opponent"]);
+  if (awayTeam) {
+    return awayTeam;
+  }
+  
+  // Fall back to opponent/awayTeam relations
   const opponentName = game.opponent?.name?.trim();
   if (opponentName) {
     return opponentName;
@@ -281,13 +307,25 @@ function getSummarySeparator(isHome?: boolean): string {
 function buildEventDescription(game: any): string {
   // Helper to get value from custom fields or default columns
   const customFields = (game.customFields as Record<string, any>) || {};
-  
-  // Check custom fields first, fall back to default columns
-  const sport = customFields["Sport"] || game.homeTeam?.sport?.name || "TBD";
-  const level = customFields["Level"] || game.homeTeam?.level || "TBD";
-  const team = customFields["Team"] || game.homeTeam?.name || "TBD";
-  const status = customFields["Status"] || game.status || "TBD";
-  
+
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[], defaultValue?: any): string => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name];
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key];
+    }
+    return defaultValue || "TBD";
+  };
+
+  // Check custom fields first (case-insensitive), fall back to default columns
+  const sport = getField(["Sport"], game.homeTeam?.sport?.name);
+  const level = getField(["Level"], game.homeTeam?.level);
+  const team = getField(["Team", "Home"], game.homeTeam?.name);
+  const status = getField(["Status"], game.status);
+
   let description = `Sport: ${sport}\n`;
   description += `Level: ${level}\n`;
   description += `Team: ${team}\n`;
@@ -319,4 +357,104 @@ function buildEventDescription(game: any): string {
   }
 
   return description;
+}
+
+// Helper to clean up location logic
+function formatLocation(game: any): string {
+  if (game.isHome) return "Home Field";
+  if (!game.venue) return "TBD";
+  return [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter(Boolean).join(", ");
+}
+
+function sanitize(str: string | null | undefined): string {
+  return (str || "").trim().replace(/[\x00-\x1F\x7F]/g, "");
+}
+
+export async function unsyncGameFromCalendar(gameId: string, userId: string) {
+  // Fetch user & game
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true, googleCalendarRefreshToken: true },
+  });
+
+  if (!user?.googleCalendarRefreshToken) {
+    throw new Error("Google Calendar not connected");
+  }
+
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
+    select: { id: true, googleCalendarEventId: true },
+  });
+
+  if (!game) {
+    throw new Error("Game not found");
+  }
+
+  if (!game.googleCalendarEventId) {
+    throw new Error("Game is not synced to calendar");
+  }
+
+  // Auth setup
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CALENDAR_CLIENT_ID,
+    process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+  oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  try {
+    const mappings = await prisma.calendarGroupMapping.findMany({
+      where: { userId },
+      select: { googleCalendarId: true },
+    });
+
+    const calendarIdsToTry = Array.from(
+      new Set([
+        "primary",
+        ...mappings
+          .map((m) => m.googleCalendarId)
+          .filter((id): id is string => Boolean(id && id.trim())),
+      ])
+    );
+
+    let deleted = false;
+
+    for (const calendarId of calendarIdsToTry) {
+      try {
+        await calendar.events.delete({
+          calendarId,
+          eventId: game.googleCalendarEventId,
+        });
+        deleted = true;
+        break;
+      } catch (err: any) {
+        const statusCode = err?.code ?? err?.status ?? err?.response?.status;
+        if (statusCode === 404) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!deleted) {
+      console.warn(`[Calendar Unsync] Event ${game.googleCalendarEventId} not found in any candidate calendar. Treating as success.`);
+    }
+
+    // Update game in database
+    await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        googleCalendarEventId: null,
+        googleCalendarHtmlLink: null,
+        calendarSynced: false,
+        lastSyncedAt: null,
+      },
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("[Calendar Unsync] Error:", error.response?.data || error.message);
+    throw error;
+  }
 }
