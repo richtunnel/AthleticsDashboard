@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
-import { prisma } from "@/lib/database/prisma";
+import { hasScopes } from "@/lib/services/incremental-auth.service";
 
 export async function GET() {
   try {
     const session = await requireAuth();
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { googleCalendarRefreshToken: true },
-    });
-
-    const isConnected = !!user?.googleCalendarRefreshToken;
+    // Use the same calendar scope check as the settings page
+    const isConnected = await hasScopes(session.user.id, "CALENDAR");
 
     return NextResponse.json({ isConnected });
   } catch (error) {
