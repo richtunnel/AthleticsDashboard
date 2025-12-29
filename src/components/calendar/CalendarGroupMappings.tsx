@@ -30,7 +30,7 @@ import {
   Autocomplete,
   FormHelperText,
 } from "@mui/material";
-import { Add, Delete, Info, SyncLock } from "@mui/icons-material";
+import { Add, Delete, Info, SyncLock, Warning } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme as customTheme } from "@mui/material/styles";
 
@@ -62,7 +62,10 @@ const fetchCalendarGroupMappings = async (): Promise<{ mappings: CalendarGroupMa
 // Fetch Google Calendars
 const fetchGoogleCalendars = async (): Promise<{ calendars: GoogleCalendar[] }> => {
   const res = await fetch("/api/calendar/list-calendars");
-  if (!res.ok) throw new Error("Failed to fetch Google Calendars");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to fetch Google Calendars");
+  }
   return res.json();
 };
 
@@ -78,6 +81,7 @@ export function CalendarGroupMappings() {
   const theme = customTheme();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [newMapping, setNewMapping] = useState({
     columnName: "",
     columnValue: "",
@@ -92,9 +96,14 @@ export function CalendarGroupMappings() {
   });
 
   // Fetch Google Calendars
-  const { data: calendarsData, isLoading: calendarsLoading, error: calendarsError } = useQuery({
+  const {
+    data: calendarsData,
+    isLoading: calendarsLoading,
+    error: calendarsError,
+  } = useQuery({
     queryKey: ["googleCalendars"],
     queryFn: fetchGoogleCalendars,
+    retry: false, // Don't retry on auth errors
   });
 
   // Fetch imported column names
@@ -185,6 +194,40 @@ export function CalendarGroupMappings() {
     }
   };
 
+  // Handle reconnection when scopes are insufficient
+  const handleReconnect = async () => {
+    try {
+      setIsReconnecting(true);
+
+      // Step 1: Disconnect to clear old tokens
+      const disconnectRes = await fetch("/api/user/calendar-disconnect", {
+        method: "POST",
+      });
+
+      if (!disconnectRes.ok) {
+        throw new Error("Failed to disconnect calendar");
+      }
+
+      addNotification("Redirecting to Google to update permissions...", "info");
+
+      // Step 2: Redirect to reconnect with new scopes
+      setTimeout(() => {
+        window.location.href = "/api/auth/calendar-connect";
+      }, 500);
+    } catch (error) {
+      console.error("Reconnection error:", error);
+      addNotification("Failed to reconnect calendar. Please try again.", "error");
+      setIsReconnecting(false);
+    }
+  };
+
+  // Check for scope errors
+  const hasInsufficientScopes = calendarsError instanceof Error && (
+    calendarsError.message.includes("Insufficient permissions") ||
+    calendarsError.message.includes("insufficient authentication scopes") ||
+    calendarsError.message.includes("reconnect")
+  );
+
   const importedColumns = importedColumnsData?.data || [];
 
   if (mappingsLoading || calendarsLoading || importedColumnsLoading) {
@@ -197,6 +240,37 @@ export function CalendarGroupMappings() {
 
   return (
     <Box sx={{ mt: 3 }}>
+      {/* Scope Error Banner */}
+      {hasInsufficientScopes && (
+        <Alert
+          severity="warning"
+          icon={<Warning />}
+          sx={{ mb: 3 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={handleReconnect}
+              disabled={isReconnecting}
+              sx={{ textTransform: "none" }}
+            >
+              {isReconnecting ? (
+                <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
+              ) : null}
+              {isReconnecting ? "Reconnecting..." : "Reconnect Now"}
+            </Button>
+          }
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Calendar Permissions Update Required
+          </Typography>
+          <Typography variant="body2">
+            Your Google Calendar connection needs additional permissions to list calendars.
+            Please reconnect to grant access.
+          </Typography>
+        </Alert>
+      )}
+
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Box>
           <Typography variant="h6">Calendar Group Mappings</Typography>
@@ -204,17 +278,33 @@ export function CalendarGroupMappings() {
             Map your game columns to specific Google Calendar groups for organized scheduling
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setDialogOpen(true)} sx={{ textTransform: "none", color: theme.palette.themeButtonText.main }}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setDialogOpen(true)}
+          disabled={hasInsufficientScopes || calendarsLoading || calendarsError !== null}
+          sx={{ textTransform: "none", color: theme.palette.themeButtonText.main }}
+        >
           Add Mapping
         </Button>
       </Box>
 
-      <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
-        <Typography variant="body2">
-          <strong>How it works:</strong> When syncing a game to Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
-          Calendar group if a mapping exists. Otherwise, it will sync to your primary calendar.
-        </Typography>
-      </Alert>
+      {/* Show loading state for calendars */}
+      {calendarsLoading && (
+        <Alert severity="info" icon={<CircularProgress size={20} />} sx={{ mb: 2 }}>
+          Loading your Google Calendars...
+        </Alert>
+      )}
+
+      {/* Info banner (only show if no scope error) */}
+      {!hasInsufficientScopes && !calendarsError && (
+        <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>How it works:</strong> When syncing a game to Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
+            Calendar group if a mapping exists. Otherwise, it will sync to your primary calendar.
+          </Typography>
+        </Alert>
+      )}
 
       {mappingsData?.mappings && mappingsData.mappings.length > 0 ? (
         <TableContainer component={Paper}>
@@ -287,6 +377,7 @@ export function CalendarGroupMappings() {
                   placeholder="Enter or select column name"
                   helperText={importedColumns.length > 0 ? "Select from your imported columns or type a custom name" : "Type the column name from your games table"}
                   fullWidth
+                  disabled={hasInsufficientScopes}
                 />
               )}
             />
@@ -298,11 +389,17 @@ export function CalendarGroupMappings() {
               onChange={(e) => setNewMapping({ ...newMapping, columnValue: e.target.value })}
               fullWidth
               helperText="Enter the exact value from your games table column"
+              disabled={hasInsufficientScopes}
             />
 
-            <FormControl fullWidth error={!!calendarsError}>
+            <FormControl fullWidth error={!!calendarsError && !hasInsufficientScopes}>
               <InputLabel>Google Calendar</InputLabel>
-              <Select value={newMapping.googleCalendarId} label="Google Calendar" onChange={(e) => handleCalendarSelect(e.target.value)}>
+              <Select
+                value={newMapping.googleCalendarId}
+                label="Google Calendar"
+                onChange={(e) => handleCalendarSelect(e.target.value)}
+                disabled={hasInsufficientScopes || calendarsLoading || (calendarsError !== null && !hasInsufficientScopes)}
+              >
                 {calendarsData?.calendars && calendarsData.calendars.length > 0 ? (
                   calendarsData.calendars.map((calendar) => (
                     <MenuItem key={calendar.id} value={calendar.id}>
@@ -314,10 +411,18 @@ export function CalendarGroupMappings() {
                     </MenuItem>
                   ))
                 ) : (
-                  <MenuItem disabled>No calendars found</MenuItem>
+                  <MenuItem disabled>
+                    {hasInsufficientScopes
+                      ? "Please reconnect your calendar first"
+                      : calendarsError
+                      ? "Error loading calendars"
+                      : "No calendars found"}
+                  </MenuItem>
                 )}
               </Select>
-              {calendarsError && <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>}
+              {calendarsError && !hasInsufficientScopes && (
+                <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>
+              )}
             </FormControl>
 
             <Alert severity="info" sx={{ mt: 1 }}>
@@ -332,7 +437,12 @@ export function CalendarGroupMappings() {
           <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button onClick={handleAddMapping} variant="contained" disabled={createMappingMutation.isPending} sx={{ textTransform: "none" }}>
+          <Button
+            onClick={handleAddMapping}
+            variant="contained"
+            disabled={createMappingMutation.isPending || hasInsufficientScopes}
+            sx={{ textTransform: "none" }}
+          >
             {createMappingMutation.isPending ? <CircularProgress size={20} /> : "Add Mapping"}
           </Button>
         </DialogActions>
