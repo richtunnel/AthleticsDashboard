@@ -89,6 +89,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Keep incremental-auth (Account.scope) in sync when a user connected via the
+    // legacy calendar OAuth flow.
+    const tokenScopes = tokens.scope?.split(" ").filter(Boolean) ?? [];
+    if (tokenScopes.length > 0) {
+      const account = await prisma.account.findFirst({
+        where: {
+          userId: session.user.id,
+          provider: "google",
+        },
+        select: {
+          id: true,
+          scope: true,
+        },
+      });
+
+      if (account) {
+        const existingScopes = account.scope?.split(" ").filter(Boolean) ?? [];
+        const mergedScopes = Array.from(new Set([...existingScopes, ...tokenScopes]));
+
+        await prisma.account.update({
+          where: { id: account.id },
+          data: {
+            scope: mergedScopes.join(" "),
+          },
+        });
+      }
+    }
+
     console.log("✅ Calendar connected to user:", session.user.email);
 
     return NextResponse.redirect(new URL("/dashboard/settings?calendar=connected", process.env.NEXTAUTH_URL));

@@ -63,8 +63,21 @@ export async function POST(request: NextRequest) {
       take: 50, // Analyze last 50 games
     });
 
+    const gamesForPattern = games.map((game) => ({
+      id: game.id,
+      date: game.date instanceof Date ? game.date.toISOString() : String(game.date),
+      time: game.time,
+      homeTeam: {
+        sport: { name: game.homeTeam.sport.name },
+        level: game.homeTeam.level,
+      },
+      opponent: game.opponent ? { name: game.opponent.name } : null,
+    }));
+
+    const currentDate = typeof date === "string" ? date : undefined;
+
     // Detect pattern
-    const pattern = GameTimePatternService.detectTimePattern(games, date);
+    const pattern = GameTimePatternService.detectTimePattern(gamesForPattern, currentDate);
 
     return NextResponse.json({
       success: true,
