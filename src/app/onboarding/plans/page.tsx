@@ -52,15 +52,15 @@ type Plan = {
 
 const plans: Plan[] = [
   {
-    name: "Standard",
-    monthlyPrice: 19.29,
+    name: "Free Trial (Standard)",
+    monthlyPrice: 19,
     annualPrice: 125,
     features: [
-      "Email your game schedules with bulk emails",
-      "200+ batch email campaigns (Parents, Schools, etc.)",
+      "Email game schedules using campaign manager",
+      "200+ batch email campaigns",
       "Travel Recommendations (Bus Departure)",
-      "Table customization (filters, ordering, etc.)",
-      "Basic chat and email support 3 days",
+      "Table customization (filters, ordering)",
+      "Basic chat and email support",
       "1 user",
       "14 days free trial",
     ],
@@ -69,8 +69,9 @@ const plans: Plan[] = [
   },
   {
     name: "Team",
-    monthlyPrice: 37.5,
+    monthlyPrice: 37,
     annualPrice: 250,
+    mostPopular: true,
     features: [
       "Sync schedule with your google calendars +groups",
       "150,000 emails/mo. (Parents, Schools, etc.)",
@@ -88,7 +89,6 @@ const plans: Plan[] = [
     name: "Team+ (Plus)",
     monthlyPrice: 60,
     annualPrice: 350,
-    mostPopular: true,
     features: [
       "Everything in Team plan plus...",
       "250,000+ email/mo.",
@@ -383,9 +383,10 @@ function PricingPlansContent() {
                   elevation={plan.mostPopular ? 8 : 2}
                   sx={{
                     height: "100%",
-                    borderRadius: 4,
+                    borderRadius: 2,
                     border: plan.mostPopular && billing === "monthly" ? `2px solid ${theme.palette.primary.main}` : "1px solid #ddd",
                     position: "relative",
+                    minHeight: "650px",
                   }}
                 >
                   {plan.mostPopular && (
