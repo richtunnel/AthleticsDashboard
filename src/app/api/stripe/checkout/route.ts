@@ -30,8 +30,8 @@ export async function POST(req: NextRequest) {
     // Support both server-side and public environment variables for consistency
     const priceId =
       planType === "MONTHLY"
-        ? (process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID)
-        : (process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID);
+        ? (process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO)
+        : (process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR);
 
     if (!priceId) {
       console.error(`Missing price ID for plan type: ${planType}`);
@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
                 `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
                 `3. Update the following environment variables:\n` +
-                `   - NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID\n` +
-                `   - NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID\n\n` +
+                `   - NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO\n` +
+                `   - NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR\n\n` +
                 `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
                 `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest) {
               ? `The Stripe price ID "${priceId}" does not exist in your Stripe account. Please verify your Stripe configuration:\n\n` +
                 `1. Check that the price ID exists in your Stripe Dashboard (${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"})\n` +
                 `2. Ensure you're using the correct Stripe API keys (${config.isTestMode ? "test mode" : "live mode"})\n` +
-                `3. Update NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID in your environment variables\n\n` +
+                `3. Update NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO and NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR in your environment variables\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
           },
