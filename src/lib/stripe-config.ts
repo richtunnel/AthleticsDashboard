@@ -10,6 +10,12 @@ export interface StripeConfig {
   webhookSecret: string;
   monthlyPriceId: string;
   annualPriceId: string;
+  standardPriceIdMo: string;
+  standardPriceIdYr: string;
+  teamPriceIdMo: string;
+  teamPriceIdYr: string;
+  plusPriceIdMo: string;
+  plusPriceIdYr: string;
   isTestMode: boolean;
   testModeWarningEnabled: boolean;
 }
@@ -34,11 +40,25 @@ export function getStripeConfig(): StripeConfig {
   const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID || "";
   const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID || "";
 
+  // New plans
+  const standardPriceIdMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO || "";
+  const standardPriceIdYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR || "";
+  const teamPriceIdMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO || "";
+  const teamPriceIdYr = process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR || "";
+  const plusPriceIdMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO || "";
+  const plusPriceIdYr = process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR || "";
+
   return {
     secretKey,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
     monthlyPriceId,
     annualPriceId,
+    standardPriceIdMo,
+    standardPriceIdYr,
+    teamPriceIdMo,
+    teamPriceIdYr,
+    plusPriceIdMo,
+    plusPriceIdYr,
     isTestMode,
     testModeWarningEnabled: process.env.NODE_ENV !== "production" && isTestMode,
   };
@@ -51,6 +71,7 @@ export function isValidPriceId(priceId?: string): boolean {
   if (!priceId) return false;
   if (priceId.includes("your_monthly_price_id")) return false;
   if (priceId.includes("your_annual_price_id")) return false;
+  if (priceId.includes("price_your_")) return false;
   if (!priceId.startsWith("price_")) return false;
   return priceId.length > 10;
 }
@@ -63,22 +84,29 @@ export function validateStripeConfig(): { valid: boolean; missing: string[]; inv
   const missing = required.filter((key) => !process.env[key]);
 
   // Check for price IDs in both server-side and public variables
-  const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  const standardPriceIdMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
+  const teamPriceIdMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
+  const plusPriceIdMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
 
-  if (!monthlyPriceId) {
-    missing.push("STRIPE_MONTHLY_PRICE_ID or NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
+  if (!standardPriceIdMo) {
+    missing.push("STRIPE_STANDARD_PRICE_ID_MO");
   }
-  if (!annualPriceId) {
-    missing.push("STRIPE_ANNUAL_PRICE_ID or NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
+  if (!teamPriceIdMo) {
+    missing.push("STRIPE_TEAM_PRICE_ID_MO");
+  }
+  if (!plusPriceIdMo) {
+    missing.push("STRIPE_PLUS_PRICE_ID_MO");
   }
 
   const invalid: string[] = [];
-  if (monthlyPriceId && !isValidPriceId(monthlyPriceId)) {
-    invalid.push("STRIPE_MONTHLY_PRICE_ID/NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
+  if (standardPriceIdMo && !isValidPriceId(standardPriceIdMo)) {
+    invalid.push("STRIPE_STANDARD_PRICE_ID_MO");
   }
-  if (annualPriceId && !isValidPriceId(annualPriceId)) {
-    invalid.push("STRIPE_ANNUAL_PRICE_ID/NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
+  if (teamPriceIdMo && !isValidPriceId(teamPriceIdMo)) {
+    invalid.push("STRIPE_TEAM_PRICE_ID_MO");
+  }
+  if (plusPriceIdMo && !isValidPriceId(plusPriceIdMo)) {
+    invalid.push("STRIPE_PLUS_PRICE_ID_MO");
   }
 
   if (missing.length > 0) {
@@ -100,26 +128,24 @@ export function validateStripeConfig(): { valid: boolean; missing: string[]; inv
  * Validates client-side Stripe configuration (for use in components)
  */
 export function validateClientStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = ["NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID", "NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID"];
+  const required = [
+    "NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO",
+    "NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO",
+    "NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO"
+  ];
 
   const missing: string[] = [];
   const invalid: string[] = [];
 
   if (typeof window !== "undefined") {
-    const monthlyPriceId = process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-    const annualPriceId = process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
-
-    if (!monthlyPriceId) {
-      missing.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
-    } else if (!isValidPriceId(monthlyPriceId)) {
-      invalid.push("NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID");
-    }
-
-    if (!annualPriceId) {
-      missing.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
-    } else if (!isValidPriceId(annualPriceId)) {
-      invalid.push("NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID");
-    }
+    required.forEach(key => {
+      const value = process.env[key];
+      if (!value) {
+        missing.push(key);
+      } else if (!isValidPriceId(value)) {
+        invalid.push(key);
+      }
+    });
 
     if (missing.length > 0 || invalid.length > 0) {
       console.warn(
@@ -218,9 +244,11 @@ export function getTrialPeriodDays(): number {
   const config = getStripeConfig();
 
   // In test mode, you can reduce trial period for faster testing
-  // Set STRIPE_TEST_TRIAL_DAYS to override the default 14 days
-  if (config.isTestMode && process.env.STRIPE_TEST_TRIAL_DAYS) {
-    const testDays = parseInt(process.env.STRIPE_TEST_TRIAL_DAYS, 10);
+  // Set STRIPE_TEST_TRIAL_DAYS or STRIPE_TEST_TRIAL_DAY to override the default 14 days
+  const trialDaysEnv = process.env.STRIPE_TEST_TRIAL_DAYS || process.env.STRIPE_TEST_TRIAL_DAY;
+  
+  if (config.isTestMode && trialDaysEnv) {
+    const testDays = parseInt(trialDaysEnv, 10);
     if (!isNaN(testDays) && testDays > 0) {
       console.log(`[Stripe Test Mode] Using ${testDays}-day trial period for testing`);
       return testDays;
