@@ -69,7 +69,8 @@ const DreamSection = () => {
               color: theme.palette.text.primary,
             }}
           >
-            Help students dream BIG.
+            Help students <br />
+            dream BIG.
           </Typography>
 
           <Typography
