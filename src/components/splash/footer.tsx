@@ -50,21 +50,24 @@ export const Footer: React.FC<FooterProps> = (props) => {
             </Stack>
             <Copyright>{siteConfig.footer.copyright}</Copyright>
             <CopyRight />
+            {/* Social Icons */}
+            <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
+              <LayoutFooter />
+            </Stack>
           </Stack>
-          <Stack direction="row" justifyContent="flex-end" spacing={2} alignItems="flex-end">
+          {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
             {siteConfig.footer?.links?.map(({ href, label }) => (
               <FooterLink key={href} href={href}>
                 {label}
               </FooterLink>
             ))}
-          </Stack>
+          </Stack> */}
+
           {/* <Stack>
             <CopyRight />
           </Stack> */}
         </Box>
-        <Box sx={{ mt: 4 }}>
-          <LayoutFooter />
-        </Box>
+        {/* <Box sx={{ mt: 0 }}></Box> */}
       </Container>
     </Box>
   );

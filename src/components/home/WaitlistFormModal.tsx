@@ -80,8 +80,8 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
       <DialogTitle>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <School color="primary" />
-            <Typography variant="h6">Join Parent Portal Waitlist</Typography>
+            {/* <School color="primary" /> */}
+            <Typography variant="h6">Parent Portal Waitlist</Typography>
           </Box>
           <IconButton onClick={handleClose} size="small" disabled={mutation.isPending}>
             <Close />
@@ -89,7 +89,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
         </Box>
       </DialogTitle>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form style={{ padding: "0px 24px 20px 24px" }} onSubmit={handleSubmit(onSubmit)}>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Be the first to access your child&apos;s complete athletic schedule—anytime, anywhere, on any device.
@@ -174,11 +174,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
             )}
 
             {/* Error Message */}
-            {mutation.isError && (
-              <Alert severity="error">
-                {mutation.error?.message || "Failed to join waitlist. Please try again."}
-              </Alert>
-            )}
+            {mutation.isError && <Alert severity="error">{mutation.error?.message || "Failed to join waitlist. Please try again."}</Alert>}
           </Box>
         </DialogContent>
 
