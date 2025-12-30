@@ -20,8 +20,8 @@ const siteConfig = {
     title: "Opletics",
     description: "A Smart Spreadsheet for Athletic Departments.",
   } as SeoConfig,
-  termsUrl: "#",
-  privacyUrl: "#",
+  termsUrl: "/terms",
+  privacyUrl: "/privacy",
   header: {
     links: [
       {
@@ -62,21 +62,21 @@ const siteConfig = {
       //     label: "Help",
       //   },
       {
-        href: "https://x.com/",
+        href: "https://x.com/opletics",
         label: <XIcon />,
       },
       {
-        href: "https://instagram.com/",
+        href: "https://instagram.com/opletics",
         label: <InstagramIcon />,
       },
       {
-        href: "https://facebook.com/",
+        href: "https://facebook.com/opletics",
         label: <Facebook />,
       },
     ],
   },
   signup: {
-    title: "Athletic Directors Hub",
+    title: "Opletics",
     features: [
       {
         icon: FiCheck,
