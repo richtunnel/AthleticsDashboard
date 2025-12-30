@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { Box, Typography } from "@mui/material";
@@ -6,6 +8,14 @@ import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
 import styles from "@/styles/custom.form.module.css";
 import { getFirstName } from "@/lib/utils/name";
+
+export const metadata: Metadata = {
+  title: "Support",
+  description: "Contact Opletics support. We typically respond within 48 hours.",
+  alternates: {
+    canonical: "/support",
+  },
+};
 
 export default async function PublicFeedbackPage() {
   const session = await getServerSession(authOptions);

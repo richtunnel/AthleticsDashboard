@@ -117,6 +117,22 @@ export default function Footer() {
           Privacy
         </Link>
         <Link
+          href="/disclaimer"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          Disclaimer
+        </Link>
+        <Link
           href="/support"
           style={{
             color: "var(--text-secondary)",

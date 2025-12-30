@@ -79,7 +79,7 @@ export default function HomePageContent() {
       >
         {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
-          <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
+          <Image src="/assets/images/green-energy.jpg" alt="Opletics athletic department scheduling software" fill className="object-cover" priority />
         </div>
 
         {/* Desktop content */}
