@@ -270,7 +270,9 @@ function PricingPlansContent() {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <BaseHeader pt="20px" pl="20px" />
+      <BaseHeader pt="20px" pl="20px">
+        <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min"} />
+      </BaseHeader>
       <Box sx={{ py: 4, px: 2, textAlign: "center", flex: 1 }}>
         <Typography variant="body1">
           <button style={{ cursor: "pointer" }} type="button" className="button" onClick={handleBackClick}>
@@ -286,10 +288,6 @@ function PricingPlansContent() {
         <Typography variant="body1" color="text.secondary" gutterBottom>
           or get an assist from one of our experts
         </Typography>
-
-        {/* <Box sx={{ mt: 2, mb: 3 }}>
-          <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min"} />
-        </Box> */}
 
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 0 }}>
           <TestModeIndicator variant="banner" />
