@@ -3,6 +3,7 @@ import NextLink from "next/link";
 import CopyRight from "../copyright";
 import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
 import { NewsletterSubscription } from "./NewsletterSubscription";
+import LayoutFooter from "../layout/Footer";
 
 import siteConfig from "./config";
 
@@ -60,6 +61,9 @@ export const Footer: React.FC<FooterProps> = (props) => {
           {/* <Stack>
             <CopyRight />
           </Stack> */}
+        </Box>
+        <Box sx={{ mt: 4 }}>
+          <LayoutFooter />
         </Box>
       </Container>
     </Box>
