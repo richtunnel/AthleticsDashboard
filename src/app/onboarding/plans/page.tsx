@@ -30,11 +30,7 @@ function isValidPriceId(priceId: string): boolean {
 }
 
 function isPriceConfigured(): boolean {
-  return (
-    isValidPriceId(STANDARD_MONTHLY_PRICE_ID) ||
-    isValidPriceId(TEAM_MONTHLY_PRICE_ID) ||
-    isValidPriceId(PLUS_MONTHLY_PRICE_ID)
-  );
+  return isValidPriceId(STANDARD_MONTHLY_PRICE_ID) || isValidPriceId(TEAM_MONTHLY_PRICE_ID) || isValidPriceId(PLUS_MONTHLY_PRICE_ID);
 }
 
 type BillingInterval = "monthly" | "annual";
@@ -62,7 +58,7 @@ const plans: Plan[] = [
       "Table customization (filters, ordering)",
       "Basic chat and email support",
       "1 user",
-      "14 days free trial",
+      "2 weeks Free Trial",
     ],
     monthlyPriceId: STANDARD_MONTHLY_PRICE_ID,
     annualPriceId: STANDARD_ANNUAL_PRICE_ID,
@@ -80,7 +76,6 @@ const plans: Plan[] = [
       "4 Users",
       "Premium chat and email support 24hrs.",
       "Everything in Standard plan.",
-      "14 days free trial",
     ],
     monthlyPriceId: TEAM_MONTHLY_PRICE_ID,
     annualPriceId: TEAM_ANNUAL_PRICE_ID,
@@ -100,7 +95,6 @@ const plans: Plan[] = [
       "Budget Planner",
       "School Theme Customization",
       "Priority chat and email support (Now)",
-      "14 days free trial",
     ],
     monthlyPriceId: PLUS_MONTHLY_PRICE_ID,
     annualPriceId: PLUS_ANNUAL_PRICE_ID,
