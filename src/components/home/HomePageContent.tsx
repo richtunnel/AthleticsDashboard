@@ -27,7 +27,7 @@ import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import SolutionSection from "../sections/SolutionSection";
 import TopFooter from "../footer/topFooter";
-
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
@@ -166,19 +166,19 @@ export default function HomePageContent() {
                   disabled={signInAuth.loading}
                   variant="text"
                   sx={{
-                    fontSize: "1.05rem",
+                    fontSize: "1.095rem",
                     border: "none",
                     background: "transparent",
                     cursor: "pointer",
                     color: "var(--accent-contrast)",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     textDecoration: "underline",
                     "&:hover": {
                       background: "transparent",
                     },
                   }}
                 >
-                  Get Started
+                  Get Started&nbsp; <ChevronRightIcon />
                 </AuthActionButton>
               </div>
             </div>
