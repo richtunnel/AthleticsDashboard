@@ -33,11 +33,11 @@ const NewsSection = () => {
   return (
     <Box
       sx={{
-        py: { xs: 6, md: 10 },
+        py: { xs: 6, md: 12 },
         backgroundColor: "transparent",
       }}
     >
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{ marginTop: "60px" }}>
         <Grid container spacing={6}>
           {/* Left Column - News Items */}
           <Grid size={{ xs: 12, md: 7 }}>
