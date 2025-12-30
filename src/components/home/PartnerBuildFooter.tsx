@@ -21,11 +21,12 @@ const PartnerBuildSectionFooter = () => {
     <>
       <Box
         sx={{
-          py: { xs: 6, md: 10 },
+          paddingTop: "80px",
+          paddingBottom: "40px",
           backgroundColor: "transparent",
         }}
       >
-        <Container className={styles.footerContainer} maxWidth="lg" style={{ margin: "0" }}>
+        <Container className={styles.footerContainer} maxWidth="lg" style={{ margin: "0", padding: "0" }}>
           {/* Title */}
           <Typography
             className={styles.partnerFooterTitle}
@@ -43,7 +44,7 @@ const PartnerBuildSectionFooter = () => {
           </Typography>
 
           {/* Cards Grid */}
-          <Grid container spacing={3} sx={{ maxWidth: 900 }}>
+          <Grid container spacing={3} sx={{ maxWidth: 900, padding: "0" }}>
             {/* Partner Card */}
             <Grid size={{ xs: 12, md: 6 }} sx={{ margin: "0", paddding: "0" }}>
               <Card
@@ -112,7 +113,7 @@ const PartnerBuildSectionFooter = () => {
                     },
                   }}
                 >
-                  Get started
+                  Partner with us
                 </Button>
               </Card>
             </Grid>

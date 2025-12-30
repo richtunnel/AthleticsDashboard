@@ -99,7 +99,7 @@ const PartnerBuildSection = () => {
                   },
                 }}
               >
-                Get started
+                Start now
               </Button>
             </Card>
           </Grid>

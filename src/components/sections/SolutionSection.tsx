@@ -143,7 +143,7 @@ const SolutionSection = () => {
                 height: { xs: 400, md: 500 },
                 borderRadius: 4,
                 background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
-                backgroundImage: "url(assets/images/calendar-ai-infographic.png)",
+                backgroundImage: "url(assets/images/office-basketball.jpg)",
                 backgroundRepeat: "no-repeat",
                 backgroundSize: "100%",
                 backgroundPosition: "center",
