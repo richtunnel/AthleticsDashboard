@@ -1,0 +1,196 @@
+"use client";
+
+import { useState } from "react";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { useMutation } from "@tanstack/react-query";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, IconButton, Alert, CircularProgress, InputAdornment } from "@mui/material";
+import { Close, School, Person, Email } from "@mui/icons-material";
+
+interface PartnerFormData {
+  fullName: string;
+  email: string;
+  schoolOrCollege: string;
+}
+
+interface PartnerFormModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function PartnerFormModal({ open, onClose }: PartnerFormModalProps) {
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<PartnerFormData>({
+    defaultValues: {
+      fullName: "",
+      email: "",
+      schoolOrCollege: "",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: PartnerFormData) => {
+      const res = await fetch("/api/partners/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to submit partnership request");
+      }
+
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setSuccessMessage(data.message || "Thank you for your interest! Our team will contact you shortly.");
+      reset({
+        fullName: "",
+        email: "",
+        schoolOrCollege: "",
+      });
+      setTimeout(() => {
+        handleClose();
+      }, 3000);
+    },
+  });
+
+  const onSubmit: SubmitHandler<PartnerFormData> = (data) => {
+    setSuccessMessage(null);
+    mutation.mutate(data);
+  };
+
+  const handleClose = () => {
+    if (!mutation.isPending) {
+      reset();
+      setSuccessMessage(null);
+      mutation.reset();
+      onClose();
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <School color="primary" />
+            <Typography variant="h6">Partner with Opletics</Typography>
+          </Box>
+          <IconButton onClick={handleClose} size="small" disabled={mutation.isPending}>
+            <Close />
+          </IconButton>
+        </Box>
+      </DialogTitle>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Join the Opletics network to unlock access to our comprehensive ecosystem of athletic management tools and integrations.
+          </Typography>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {/* Full Name Field */}
+            <TextField
+              label="Full Name"
+              {...register("fullName", {
+                required: "Full name is required",
+                minLength: {
+                  value: 2,
+                  message: "Name must be at least 2 characters",
+                },
+              })}
+              fullWidth
+              error={!!errors.fullName}
+              helperText={errors.fullName?.message}
+              disabled={mutation.isPending}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person color="action" fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* Email Field */}
+            <TextField
+              label="Email Address"
+              type="email"
+              {...register("email", {
+                required: "Email is required",
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: "Invalid email address",
+                },
+              })}
+              fullWidth
+              error={!!errors.email}
+              helperText={errors.email?.message}
+              disabled={mutation.isPending}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email color="action" fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* School or College Field */}
+            <TextField
+              label="School or College"
+              {...register("schoolOrCollege", {
+                required: "School or college name is required",
+                minLength: {
+                  value: 2,
+                  message: "School name must be at least 2 characters",
+                },
+              })}
+              fullWidth
+              error={!!errors.schoolOrCollege}
+              helperText={errors.schoolOrCollege?.message}
+              disabled={mutation.isPending}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <School color="action" fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+
+            {/* Success Message */}
+            {successMessage && (
+              <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+                {successMessage}
+              </Alert>
+            )}
+
+            {/* Error Message */}
+            {mutation.isError && (
+              <Alert severity="error">
+                {mutation.error?.message || "Failed to submit partnership request. Please try again."}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleClose} color="inherit" disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" disabled={mutation.isPending} startIcon={mutation.isPending ? <CircularProgress size={20} color="inherit" /> : null}>
+            {mutation.isPending ? "Submitting..." : "Submit Request"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+}
