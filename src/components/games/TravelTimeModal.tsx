@@ -188,10 +188,10 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                     textAlign: "center",
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[100] : theme.palette.grey[900], display: "block", mb: 1 }}>
+                  <Typography variant="caption" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[900], display: "block", mb: 1 }}>
                     Recommended Departure Time
                   </Typography>
-                  <Typography variant="h3" sx={{ color: theme.palette.mode === "dark" ? theme.palette.grey[100] : theme.palette.grey[900], fontWeight: 600 }}>
+                  <Typography variant="h3" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[900], fontWeight: 600 }}>
                     {calculation.recommendedDepartureTime}
                   </Typography>
                 </Box>
@@ -249,6 +249,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
             variant="contained"
             disabled={isCalculating}
             sx={{
+              color: theme.palette.mode === "dark" ? "#fff" : "",
               bgcolor: "#0f172a",
               "&:hover": { bgcolor: "#1e293b" },
             }}
@@ -261,6 +262,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
             variant="contained"
             disabled={!calculation}
             sx={{
+              color: theme.palette.mode === "dark" ? "#fff" : "",
               bgcolor: "#0f172a",
               "&:hover": { bgcolor: "#1e293b" },
             }}

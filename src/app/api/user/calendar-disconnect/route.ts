@@ -1,39 +1,62 @@
 // src/app/api/user/calendar-disconnect/route.ts
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/auth";
-import { revokeScopes } from "@/lib/services/incremental-auth.service";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 
 /**
- * Legacy endpoint for disconnecting Google Calendar.
- * 
- * This endpoint is maintained for backward compatibility.
- * New code should use /api/auth/google-calendar/disconnect instead.
+ * Disconnect Google Calendar and clear all tokens.
+ * This forces the user to go through the OAuth flow again with fresh scopes.
  */
 export async function POST() {
   try {
-    const session = await requireAuth();
+    const session = await getServerSession(authOptions);
 
-    // Use the same logic as the new disconnect endpoint
-    const revoked = await revokeScopes(session.user.id, "CALENDAR");
-
-    if (!revoked) {
-      // Legacy fallback: clear stored tokens so status endpoints flip to disconnected
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: {
-          googleCalendarAccessToken: null,
-          googleCalendarRefreshToken: null,
-          calendarTokenExpiry: null,
-          googleCalendarId: null,
-          googleCalendarEmail: null,
-        },
-      });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true });
+    console.log("🔌 Disconnecting calendar for user:", session.user.email);
+
+    // Clear both Account tokens (incremental auth) and User tokens (legacy)
+    await Promise.all([
+      // Update Account table - clear scope to force re-authorization with new scopes
+      prisma.account.updateMany({
+        where: {
+          userId: session.user.id,
+          provider: "google",
+        },
+        data: {
+          scope: null, // Clear scopes to force re-authorization with new scopes
+          access_token: null,
+          refresh_token: null,
+          expires_at: null,
+        },
+      }),
+      // Clear User table tokens (legacy system)
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: {
+          googleCalendarRefreshToken: null,
+          googleCalendarAccessToken: null,
+          googleCalendarEmail: null,
+          calendarTokenExpiry: null,
+          googleCalendarId: null,
+        },
+      }),
+    ]);
+
+    console.log("✅ Calendar disconnected successfully");
+
+    return NextResponse.json({
+      success: true,
+      message: "Calendar disconnected successfully. Please reconnect to grant access.",
+    });
   } catch (error) {
-    console.error("Calendar Disconnect Error:", error);
-    return NextResponse.json({ success: false, error: "Failed to disconnect." }, { status: 500 });
+    console.error("❌ Error disconnecting calendar:", error);
+    return NextResponse.json(
+      { error: "Failed to disconnect calendar" },
+      { status: 500 }
+    );
   }
 }
