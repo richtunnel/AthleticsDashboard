@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { Box, Typography } from "@mui/material";
@@ -6,6 +8,14 @@ import { GoogleFeedbackForm } from "@/components/support/GoogleFeedbackForm";
 import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
 import { getFirstName } from "@/lib/utils/name";
+
+export const metadata: Metadata = {
+  title: "Feedback",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function PublicFeedbackPage() {
   const session = await getServerSession(authOptions);
