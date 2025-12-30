@@ -5,19 +5,19 @@ import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
-export default function Footer() {
+export default function TopFooter() {
   return (
     <footer
       style={{
-        padding: "0rem",
+        padding: "1.5rem 1rem",
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
-        alignItems: "left",
-        marginTop: "0",
+        alignItems: "center",
+        marginTop: "auto",
       }}
     >
-      <div style={{ display: "flex", gap: "1rem", alignItems: "left" }}>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <a
           href="https://www.instagram.com/opletics"
           target="_blank"
@@ -67,7 +67,7 @@ export default function Footer() {
           <FaXTwitter />
         </a>
       </div>
-      <div style={{ display: "flex", gap: "1rem", alignItems: "left", flexWrap: "wrap", justifyContent: "left" }}>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
         <Link
           href="/about"
           target="_blank"
@@ -134,7 +134,7 @@ export default function Footer() {
           Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
         </Link>
       </div>
-      {/* <div>
+      <div>
         <span
           style={{
             color: "var(--text-secondary)",
@@ -144,7 +144,7 @@ export default function Footer() {
         >
           &copy; {new Date().getFullYear()} Opletics Inc. All rights reserved.
         </span>
-      </div> */}
+      </div>
     </footer>
   );
 }
