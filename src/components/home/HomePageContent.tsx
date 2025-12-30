@@ -25,6 +25,8 @@ import NewsSection from "./NewsSection";
 import PartnerBuildSectionFooter from "./PartnerBuildFooter";
 import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import SolutionSection from "../sections/SolutionSection";
+import TopFooter from "../footer/topFooter";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
@@ -126,9 +128,11 @@ export default function HomePageContent() {
                 style={{
                   maxWidth: "665px",
                   padding: 0,
-                  color: "#475569",
+                  color: "rgb(97 98 99)",
+                  fontWeight: "500",
                 }}
               >
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
                 A platform built to give athletic departments the clarity, control, and automation they’ve always deserved.{" "}
@@ -137,6 +141,9 @@ export default function HomePageContent() {
 >>>>>>> main
 =======
                 Upload your sports schedule spreadsheet as a CSV and start automating emails, scheduling, planning, travel time and more.
+>>>>>>> main
+=======
+                Upload your sports schedule spreadsheet as a CSV and start automating your daily workflow.
 >>>>>>> main
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
@@ -189,7 +196,7 @@ export default function HomePageContent() {
             </div>
           </div>
 
-          <Footer />
+          <TopFooter />
         </div>
 
         {/* Mobile: Full height container like Buyable */}
@@ -233,7 +240,7 @@ export default function HomePageContent() {
                   Automate Your Sports Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  Upload your sports schedule spreadsheet as a CSV and start automating emails, scheduling, planning, travel time and more.
+                  Upload your sports schedule spreadsheet as a CSV and start automating your daily workflow.
                 </p>
               </div>
 
@@ -348,7 +355,8 @@ export default function HomePageContent() {
       </div>
       <ArcCard />
       <HeroSection />
-      <FeaturesSection />
+      <SolutionSection />
+      {/* <FeaturesSection /> */}
       <NewsSection />
       <br />
       <br />

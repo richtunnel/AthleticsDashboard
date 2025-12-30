@@ -29,7 +29,7 @@ import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
-import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { formatLevelDisplay, extractDatePart } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
@@ -109,29 +109,6 @@ const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: 
     </Box>
   ),
 });
-
-const extractDatePart = (dateValue: string): string => {
-  if (!dateValue) return "";
-  try {
-    // If it's already in YYYY-MM-DD format, return it
-    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateValue;
-    }
-    // If it includes time (ISO string), extract date part
-    if (dateValue.includes("T")) {
-      return dateValue.split("T")[0];
-    }
-    // Try to parse and format
-    const parsed = new Date(dateValue);
-    if (!isNaN(parsed.getTime())) {
-      return format(parsed, "yyyy-MM-dd");
-    }
-    return dateValue;
-  } catch (error) {
-    console.warn("Error extracting date part:", error);
-    return dateValue;
-  }
-};
 
 const dateStringToUTCISOString = (dateValue: string): string => {
   if (!dateValue) return "";
@@ -1010,14 +987,20 @@ export function GamesTable() {
 
       // Add date value
       if (game.date) {
-        const datePart = game.date.split("T")[0];
+        const datePart = extractDatePart(game.date);
         values.date.add(datePart);
       }
 
       const customData = (game.customData as any) || {};
       customColumns.forEach((col: any) => {
         const value = customData[col.id] || "";
-        if (value) values[col.id].add(value);
+        if (value) {
+          if (col.type === "DATETIME") {
+            values[col.id].add(extractDatePart(String(value)));
+          } else {
+            values[col.id].add(value);
+          }
+        }
       });
 
       // Add values for imported columns
@@ -1026,7 +1009,13 @@ export function GamesTable() {
         importedColumns.forEach((colName) => {
           const value = customFields[colName];
           if (value) {
-            values[`imported:${colName}`].add(String(value));
+            const strValue = String(value);
+            // For imported columns, if it looks like an ISO date, extract the date part
+            if (strValue.includes("T") && !isNaN(Date.parse(strValue))) {
+              values[`imported:${colName}`].add(extractDatePart(strValue));
+            } else {
+              values[`imported:${colName}`].add(strValue);
+            }
           }
         });
       }
