@@ -13,6 +13,7 @@ import { TestModeIndicator } from "@/components/stripe/TestModeIndicator";
 import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import TopFooter from "@/components/footer/topFooter";
 
 const STANDARD_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? "";
 const STANDARD_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? "";
@@ -286,11 +287,11 @@ function PricingPlansContent() {
           or get an assist from one of our experts
         </Typography>
 
-        <Box sx={{ mt: 2, mb: 3 }}>
+        {/* <Box sx={{ mt: 2, mb: 3 }}>
           <BookDemoButton calendlyUrl={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min"} />
-        </Box>
+        </Box> */}
 
-        <Box sx={{ maxWidth: 800, mx: "auto", mt: 3 }}>
+        <Box sx={{ maxWidth: 800, mx: "auto", mt: 0 }}>
           <TestModeIndicator variant="banner" />
         </Box>
 
@@ -459,7 +460,7 @@ function PricingPlansContent() {
           })}
         </Grid>
       </Box>
-      <Footer />
+      <TopFooter />
     </Box>
   );
 }
