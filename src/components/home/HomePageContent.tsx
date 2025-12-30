@@ -26,6 +26,7 @@ import PartnerBuildSectionFooter from "./PartnerBuildFooter";
 import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import SolutionSection from "../sections/SolutionSection";
+import TopFooter from "../footer/topFooter";
 
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
@@ -127,7 +128,7 @@ export default function HomePageContent() {
                 style={{
                   maxWidth: "665px",
                   padding: 0,
-                  color: "rgb(75 77 79)",
+                  color: "rgb(97 98 99)",
                   fontWeight: "500",
                 }}
               >
@@ -183,7 +184,7 @@ export default function HomePageContent() {
             </div>
           </div>
 
-          <Footer />
+          <TopFooter />
         </div>
 
         {/* Mobile: Full height container like Buyable */}
