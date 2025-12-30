@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Container, Typography, GridLegacy as Grid, Button, useTheme } from "@mui/material";
 import { CheckCircle, Schedule, Notifications, Sync, CalendarMonth, People, AutoAwesome, Send, DepartureBoard } from "@mui/icons-material";
+import Link from "next/link";
 
 const SolutionSection = () => {
   const theme = useTheme();
@@ -121,6 +122,8 @@ const SolutionSection = () => {
             <Button
               variant="contained"
               size="large"
+              component={Link}
+              href="/onboarding/plans"
               sx={{
                 backgroundColor: theme.palette.primary.main,
                 color: "white",
