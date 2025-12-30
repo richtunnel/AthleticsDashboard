@@ -9,15 +9,15 @@ export default function Footer() {
   return (
     <footer
       style={{
-        padding: "1.5rem 1rem",
+        padding: "0rem",
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
-        alignItems: "center",
-        marginTop: "auto",
+        alignItems: "left",
+        marginTop: "0",
       }}
     >
-      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+      {/* <div style={{ display: "flex", gap: "1rem", alignItems: "left" }}>
         <a
           href="https://www.instagram.com/opletics"
           target="_blank"
@@ -66,8 +66,8 @@ export default function Footer() {
         >
           <FaXTwitter />
         </a>
-      </div>
-      <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
+      </div> */}
+      <div style={{ display: "flex", gap: "1rem", alignItems: "left", flexWrap: "wrap", justifyContent: "left" }}>
         <Link
           href="/about"
           target="_blank"
@@ -134,7 +134,7 @@ export default function Footer() {
           Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
         </Link>
       </div>
-      <div>
+      {/* <div>
         <span
           style={{
             color: "var(--text-secondary)",
@@ -144,7 +144,7 @@ export default function Footer() {
         >
           &copy; {new Date().getFullYear()} Opletics Inc. All rights reserved.
         </span>
-      </div>
+      </div> */}
     </footer>
   );
 }
