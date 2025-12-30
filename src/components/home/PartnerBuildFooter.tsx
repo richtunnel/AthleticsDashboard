@@ -135,7 +135,7 @@ const PartnerBuildSectionFooter = () => {
                     color: "white",
                   }}
                 >
-                  Build with Opletics
+                  Parent Portal
                 </Typography>
 
                 <Typography
@@ -147,7 +147,7 @@ const PartnerBuildSectionFooter = () => {
                     mb: 4,
                   }}
                 >
-                  Explore our Developer Console to see how you can integrate Opletics solutions for your athletic department.
+                  Opletics Parent Portal gives you a centralized hub where you can access your child's complete athletic schedule—anytime, anywhere, on any device.{" "}
                 </Typography>
               </CardContent>
 
@@ -171,7 +171,7 @@ const PartnerBuildSectionFooter = () => {
                   },
                 }}
               >
-                Start building
+                Join Waitlist
               </Button>
             </Card>
           </Grid>
