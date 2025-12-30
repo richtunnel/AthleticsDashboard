@@ -95,12 +95,12 @@ const SolutionSection = () => {
                       width: 40,
                       height: 40,
                       borderRadius: "50%",
-                      backgroundColor: "#d5ff88",
-                      color: "#000",
+                      backgroundColor: "#171b38",
+                      color: "#fff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      border: "25px solid #d6ff88",
+                      border: "25px solid #171b38",
                       flexShrink: 0,
                     }}
                   >
