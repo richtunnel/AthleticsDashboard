@@ -357,35 +357,73 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       break;
     }
 
-    case "date":
-      // For date, we'd need to parse the dates
-      const dates = values.map((v) => new Date(v));
-      where.date = { in: dates };
+    case "date": {
+      const dateConditions = values
+        .map((v) => {
+          const d = new Date(v);
+          if (isNaN(d.getTime())) return null;
+
+          const start = new Date(d);
+          start.setUTCHours(0, 0, 0, 0);
+          const end = new Date(d);
+          end.setUTCHours(23, 59, 59, 999);
+
+          return {
+            date: {
+              gte: start,
+              lte: end,
+            },
+          };
+        })
+        .filter(Boolean);
+
+      if (dateConditions.length > 0) {
+        if (!where.AND) where.AND = [];
+        where.AND.push({ OR: dateConditions });
+      }
       break;
+    }
 
     default:
       // Handle custom columns and imported columns
-      if (columnId.startsWith("custom:")) {
-        // Custom column - stored in customData with UUID
-        const customId = columnId.split(":")[1];
+      if (columnId.startsWith("custom:") || columnId.length > 10) {
+        // Custom column - stored in customData
+        const customId = columnId.startsWith("custom:") ? columnId.split(":")[1] : columnId;
         if (customId) {
-          where.customData = {
-            path: [customId],
-            in: values,
-          };
+          const orConditions = values.map((value) => {
+            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
+            return {
+              customData: {
+                path: [customId],
+                [isDatePart ? "string_contains" : "equals"]: value,
+              },
+            };
+          });
+
+          if (orConditions.length > 0) {
+            if (where.OR) {
+              where.AND = where.AND || [];
+              where.AND.push({ OR: orConditions });
+            } else {
+              where.OR = orConditions;
+            }
+          }
         }
       } else if (columnId.startsWith("imported:")) {
         // Imported column - stored in customFields with column name
         const columnName = columnId.split(":")[1];
         if (columnName) {
           // Build OR conditions for each value to check in customFields
-          const orConditions = values.map((value) => ({
-            customFields: {
-              path: [columnName],
-              equals: value,
-            },
-          }));
-          
+          const orConditions = values.map((value) => {
+            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
+            return {
+              customFields: {
+                path: [columnName],
+                [isDatePart ? "string_contains" : "equals"]: value,
+              },
+            };
+          });
+
           if (orConditions.length > 0) {
             if (where.OR) {
               // If OR already exists, combine with AND
@@ -396,12 +434,6 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
             }
           }
         }
-      } else if (columnId.length > 10) {
-        // Legacy: Likely a UUID for custom column (backward compatibility)
-        where.customData = {
-          path: [columnId],
-          in: values,
-        };
       }
       break;
   }

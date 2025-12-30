@@ -64,7 +64,16 @@ export function CalendarConnectionSection() {
           {!isConnected ? (
             <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/settings" />
           ) : (
-            <Button variant="outlined" color="error" onClick={handleDisconnect} disabled={isDisconnecting}>
+            <Button
+              sx={(theme) => ({
+                // color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+              })}
+              variant="outlined"
+              color="error"
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+            >
               {isDisconnecting ? "Disconnecting..." : "Disconnect Calendar"}
             </Button>
           )}
