@@ -39,42 +39,44 @@ export async function importGoogleEmailGroups() {
 
     let processedGroups = 0;
 
-    for (const group of contactGroups) {
-      const dbGroup = await prisma.emailGroup.upsert({
-        where: {
-          organizationId_name: {
-            organizationId: user.organizationId,
+    await prisma.$transaction(async (tx) => {
+      for (const group of contactGroups) {
+        const dbGroup = await tx.emailGroup.upsert({
+          where: {
+            organizationId_name: {
+              organizationId: user.organizationId,
+              name: group.name,
+            },
+          },
+          update: {
             name: group.name,
           },
-        },
-        update: {
-          name: group.name,
-        },
-        create: {
-          name: group.name,
-          userId: user.id,
-          organizationId: user.organizationId,
-        },
-      });
+          create: {
+            name: group.name,
+            userId: user.id,
+            organizationId: user.organizationId,
+          },
+        });
 
-      processedGroups += 1;
+        processedGroups += 1;
 
-      await prisma.emailAddress.deleteMany({
-        where: { groupId: dbGroup.id },
-      });
+        await tx.emailAddress.deleteMany({
+          where: { groupId: dbGroup.id },
+        });
 
-      if (group.memberEmails.length === 0) {
-        continue;
+        if (group.memberEmails.length === 0) {
+          continue;
+        }
+
+        await tx.emailAddress.createMany({
+          data: group.memberEmails.map((email) => ({
+            email,
+            groupId: dbGroup.id,
+          })),
+          skipDuplicates: true,
+        });
       }
-
-      await prisma.emailAddress.createMany({
-        data: group.memberEmails.map((email) => ({
-          email,
-          groupId: dbGroup.id,
-        })),
-        skipDuplicates: true,
-      });
-    }
+    });
 
     return {
       success: true,
