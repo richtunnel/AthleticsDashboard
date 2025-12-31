@@ -48,166 +48,93 @@ function jsonSize(value: unknown): number {
 export async function calculateOrganizationStorage(organizationId: string): Promise<bigint> {
   let total = BigInt(0);
 
-  const games = await prisma.game.findMany({
+  // Use aggregate or raw queries for better performance and less memory usage
+  // Game storage
+  const gamesCount = await prisma.game.count({
     where: {
-      homeTeam: {
-        organizationId,
-      },
-    },
-    select: {
-      id: true,
-      notes: true,
-      customFields: true,
-      customData: true,
-      time: true,
-      googleCalendarEventId: true,
-      googleCalendarHtmlLink: true,
+      homeTeam: { organizationId },
     },
   });
+  // Average game row size estimate (including notes and JSON)
+  total += BigInt(gamesCount) * BigInt(500);
 
-  for (const game of games) {
-    total += BigInt(stringSize(game.id));
-    total += BigInt(stringSize(game.notes));
-    total += BigInt(stringSize(game.time));
-    total += BigInt(stringSize(game.googleCalendarEventId));
-    total += BigInt(stringSize(game.googleCalendarHtmlLink));
-    total += BigInt(jsonSize(game.customFields));
-    total += BigInt(jsonSize(game.customData));
-    total += BigInt(100);
-  }
-
-  const teams = await prisma.team.findMany({
+  // Teams
+  const teamsCount = await prisma.team.count({
     where: { organizationId },
-    select: { id: true, name: true, level: true, gender: true },
   });
+  total += BigInt(teamsCount) * BigInt(200);
 
-  for (const team of teams) {
-    total += BigInt(stringSize(team.id));
-    total += BigInt(stringSize(team.name));
-    total += BigInt(stringSize(team.level));
-    total += BigInt(stringSize(team.gender));
-    total += BigInt(50);
-  }
-
-  const venues = await prisma.venue.findMany({
+  // Venues
+  const venuesCount = await prisma.venue.count({
     where: { organizationId },
-    select: { id: true, name: true, address: true, city: true, state: true, zipCode: true, notes: true },
   });
+  total += BigInt(venuesCount) * BigInt(300);
 
-  for (const venue of venues) {
-    total += BigInt(stringSize(venue.id));
-    total += BigInt(stringSize(venue.name));
-    total += BigInt(stringSize(venue.address));
-    total += BigInt(stringSize(venue.city));
-    total += BigInt(stringSize(venue.state));
-    total += BigInt(stringSize(venue.zipCode));
-    total += BigInt(stringSize(venue.notes));
-    total += BigInt(50);
-  }
-
-  const opponents = await prisma.opponent.findMany({
+  // Opponents
+  const opponentsCount = await prisma.opponent.count({
     where: { organizationId },
-    select: { id: true, name: true, mascot: true, colors: true, contact: true, phone: true, email: true, notes: true },
   });
+  total += BigInt(opponentsCount) * BigInt(300);
 
-  for (const opponent of opponents) {
-    total += BigInt(stringSize(opponent.id));
-    total += BigInt(stringSize(opponent.name));
-    total += BigInt(stringSize(opponent.mascot));
-    total += BigInt(stringSize(opponent.colors));
-    total += BigInt(stringSize(opponent.contact));
-    total += BigInt(stringSize(opponent.phone));
-    total += BigInt(stringSize(opponent.email));
-    total += BigInt(stringSize(opponent.notes));
-    total += BigInt(50);
-  }
-
-  const emailLogs = await prisma.emailLog.findMany({
+  // Email logs - these can be large, so we estimate more
+  const emailLogsCount = await prisma.emailLog.count({
     where: {
-      game: {
-        homeTeam: {
-          organizationId,
-        },
-      },
+      OR: [
+        { game: { homeTeam: { organizationId } } },
+        { sentBy: { organizationId } }
+      ]
     },
-    select: { id: true, to: true, cc: true, subject: true, body: true, error: true },
   });
+  total += BigInt(emailLogsCount) * BigInt(2000); // 2KB per email average
 
-  for (const log of emailLogs) {
-    total += BigInt(stringSize(log.id));
-    total += BigInt(stringSize(log.to.join(",")));
-    total += BigInt(stringSize(log.cc.join(",")));
-    total += BigInt(stringSize(log.subject));
-    total += BigInt(stringSize(log.body));
-    total += BigInt(stringSize(log.error));
-    total += BigInt(50);
-  }
-
-  const emailGroups = await prisma.emailGroup.findMany({
+  // Email groups and addresses
+  const emailGroupsCount = await prisma.emailGroup.count({
     where: { organizationId },
-    include: { emails: true },
   });
+  total += BigInt(emailGroupsCount) * BigInt(200);
 
-  for (const group of emailGroups) {
-    total += BigInt(stringSize(group.id));
-    total += BigInt(stringSize(group.name));
-    for (const email of group.emails) {
-      total += BigInt(stringSize(email.id));
-      total += BigInt(stringSize(email.email));
-    }
-    total += BigInt(50);
-  }
-
-  const emailCampaigns = await prisma.emailCampaign.findMany({
-    where: {
-      user: {
-        organizationId,
-      },
-    },
-    select: { id: true, name: true, subject: true, body: true },
+  const emailAddressesCount = await prisma.emailAddress.count({
+    where: { group: { organizationId } },
   });
+  total += BigInt(emailAddressesCount) * BigInt(100);
 
-  for (const campaign of emailCampaigns) {
-    total += BigInt(stringSize(campaign.id));
-    total += BigInt(stringSize(campaign.name));
-    total += BigInt(stringSize(campaign.subject));
-    total += BigInt(stringSize(campaign.body));
-    total += BigInt(50);
-  }
+  // Email campaigns
+  const campaignsCount = await prisma.emailCampaign.count({
+    where: { user: { organizationId } },
+  });
+  total += BigInt(campaignsCount) * BigInt(2000);
 
-  const customColumns = await prisma.customColumn.findMany({
+  // Custom columns
+  const customColumnsCount = await prisma.customColumn.count({
     where: { organizationId },
-    select: { id: true, name: true },
   });
+  total += BigInt(customColumnsCount) * BigInt(100);
 
-  for (const column of customColumns) {
-    total += BigInt(stringSize(column.id));
-    total += BigInt(stringSize(column.name));
-    total += BigInt(50);
-  }
-
-  const travelRecommendations = await prisma.travelRecommendation.findMany({
-    where: {
-      game: {
-        homeTeam: {
-          organizationId,
-        },
-      },
-    },
-    select: { id: true, trafficCondition: true, weatherCondition: true },
+  // Travel recommendations
+  const travelRecsCount = await prisma.travelRecommendation.count({
+    where: { game: { homeTeam: { organizationId } } },
   });
-
-  for (const recommendation of travelRecommendations) {
-    total += BigInt(stringSize(recommendation.id));
-    total += BigInt(stringSize(recommendation.trafficCondition));
-    total += BigInt(stringSize(recommendation.weatherCondition));
-    total += BigInt(100);
-  }
+  total += BigInt(travelRecsCount) * BigInt(200);
 
   return total;
 }
 
 export async function updateOrganizationStorageUsage(organizationId: string): Promise<bigint> {
+  // Add throttling to avoid too many calculations
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { lastStorageCalculation: true, storageUsageBytes: true },
+  });
+
+  if (org?.lastStorageCalculation) {
+    const lastCalc = new Date(org.lastStorageCalculation).getTime();
+    const now = Date.now();
+    if (now - lastCalc < 60 * 1000) {
+      // Don't recalculate more than once per minute
+      return org.storageUsageBytes;
+    }
+  }
+
   const usage = await calculateOrganizationStorage(organizationId);
 
   await prisma.organization.update({
