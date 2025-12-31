@@ -791,7 +791,7 @@ export class CalendarService {
   private getPrimaryTeamName(game: any): string {
     // Check custom fields first - try multiple common column names
     const customFields = (game.customFields as Record<string, any>) || {};
-    
+
     // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
@@ -803,24 +803,36 @@ export class CalendarService {
       }
       return undefined;
     };
-    
-    // Try to build a descriptive name from Sport + Level if available
+
+    // PRIORITY 1: Check for explicit Home column first (highest priority)
+    const homeTeam = getField(["Home"]);
+    if (homeTeam) {
+      return homeTeam;
+    }
+
+    // PRIORITY 2: Check for Team column (second priority)
+    const teamValue = getField(["Team"]);
+    if (teamValue) {
+      return teamValue;
+    }
+
+    // PRIORITY 3: Try to build a descriptive name from Sport + Level if available
     const sport = getField(["Sport"]);
     const level = getField(["Level"]);
-    
+
     if (sport && level) {
       // Format: "Boys Varsity Basketball" or "B V Basketball"
       return `${sport} ${level}`;
     }
-    
+
     if (sport) {
       return sport;
     }
-    
-    // Check various team column names (case-insensitive)
-    const teamValue = getField(["Team", "Home", "Sports Level", "Team Level"]);
-    if (teamValue) {
-      return teamValue;
+
+    // PRIORITY 4: Check other common team column names
+    const teamLevelValue = getField(["Sports Level", "Team Level"]);
+    if (teamLevelValue) {
+      return teamLevelValue;
     }
 
     // Fall back to default columns
@@ -836,9 +848,9 @@ export class CalendarService {
   }
 
   private getOpponentTeamName(game: any): string {
-    // Check custom fields first - try "Away" column (case-insensitive)
+    // Check custom fields first - try multiple common column names for opponent/away team
     const customFields = (game.customFields as Record<string, any>) || {};
-    
+
     // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
@@ -850,12 +862,25 @@ export class CalendarService {
       }
       return undefined;
     };
-    
-    const awayTeam = getField(["Away", "Opponent"]);
+
+    // PRIORITY 1: Check for explicit Away column first (highest priority)
+    const awayTeam = getField(["Away"]);
     if (awayTeam) {
       return awayTeam;
     }
-    
+
+    // PRIORITY 2: Check for Opponent column
+    const opponent = getField(["Opponent"]);
+    if (opponent) {
+      return opponent;
+    }
+
+    // PRIORITY 3: Check for other common opponent column names
+    const otherOpponent = getField(["Enemy", "Visiting Team", "Visitor"]);
+    if (otherOpponent) {
+      return otherOpponent;
+    }
+
     // Fall back to opponent/awayTeam relations
     const opponentName = game.opponent?.name?.trim();
     if (opponentName) {
