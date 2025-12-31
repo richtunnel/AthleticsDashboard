@@ -217,7 +217,14 @@ function buildEventSummary(game: any): string {
   const primaryTeamName = getPrimaryTeamName(game);
   const opponentName = getOpponentTeamName(game);
   const separator = getSummarySeparator(game.isHome);
-  return `${primaryTeamName}${separator}${opponentName}`;
+  const sportLevelInfo = getSportLevelInfo(game);
+  
+  let summary = `${primaryTeamName}${separator}${opponentName}`;
+  if (sportLevelInfo) {
+    summary += ` - ${sportLevelInfo}`;
+  }
+  
+  return summary;
 }
 
 function getPrimaryTeamName(game: any): string {
@@ -327,6 +334,68 @@ function getOpponentTeamName(game: any): string {
 
 function getSummarySeparator(isHome?: boolean): string {
   return isHome ? " vs " : " @ ";
+}
+
+function getSportLevelInfo(game: any): string | null {
+  const customFields = (game.customFields as Record<string, any>) || {};
+
+  // Helper function for case-insensitive field lookup
+  const getField = (fieldNames: string[]): string | undefined => {
+    for (const name of fieldNames) {
+      // Try exact match first
+      if (customFields[name]) return customFields[name]?.trim();
+      // Try case-insensitive match
+      const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+      if (key && customFields[key]) return customFields[key]?.trim();
+    }
+    return undefined;
+  };
+
+  // Check for combined sport/level columns first
+  const sportLevel = getField(["Sport Level", "Sport/Level", "Sports Level", "Team Level"]);
+  if (sportLevel) {
+    return sportLevel;
+  }
+
+  // Check for tier information
+  const tier = getField(["Tier", "Tiers"]);
+  if (tier) {
+    return tier;
+  }
+
+  // Try to build from separate Sport + Level columns
+  const sport = getField(["Sport"]);
+  const level = getField(["Level"]);
+
+  if (sport && level) {
+    return `${sport} ${level}`;
+  }
+
+  if (sport) {
+    return sport;
+  }
+
+  if (level) {
+    return level;
+  }
+
+  // Fall back to database fields if custom fields don't exist
+  const dbSport = game.homeTeam?.sport?.name?.trim();
+  const dbLevel = game.homeTeam?.level?.trim();
+
+  if (dbSport && dbLevel) {
+    return `${dbSport} ${dbLevel}`;
+  }
+
+  if (dbSport) {
+    return dbSport;
+  }
+
+  if (dbLevel) {
+    return dbLevel;
+  }
+
+  return null;
 }
 
 function buildEventDescription(game: any): string {
