@@ -18,7 +18,7 @@
     "migrate:resolve:rollback": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-rolled-back",
     "migrate:resolve:applied": "bash ./scripts/prisma-migration-troubleshoot.sh resolve-applied",
     "migrate:check": "bash ./scripts/prisma-predeploy-check.sh",
-    "start:prod": "DATABASE_URL='postgresql://adscheduler:AVNS_K8MQ1YWINrYG61lRUi7@app-2dd01d8a-31e6-4723-b689-814bd76312a9-do-user-11349805-0.h.db.ondigitalocean.com:25060/adscheduler?sslmode=require' yarn migrate:deploy && yarn start",
+    "start:prod": "DATABASE_URL='postgresql://doadmin:AVNS_SoTBRjOHsdAV14bMYay@db-postgresql-sfo3-47383-do-user-30558861-0.j.db.ondigitalocean.com:25060/adscheduler?sslmode=require",
     "type-check": "tsc --noEmit",
     "docker:build": "docker build -t athletics-dashboard:latest .",
     "docker:build:prod": "docker build --no-cache -t athletics-dashboard:latest .",
