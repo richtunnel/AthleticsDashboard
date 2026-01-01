@@ -6,7 +6,13 @@
 import { PrismaClient } from "@prisma/client";
 import { updateOrganizationStorageUsage, formatBytes } from "../src/lib/services/storage.service";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
 
 async function main() {
   console.log("Starting storage calculation for all organizations...\n");
