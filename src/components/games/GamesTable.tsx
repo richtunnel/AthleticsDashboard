@@ -45,6 +45,7 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Badge,
   Button,
   TextField,
   Stack,
@@ -402,7 +403,8 @@ export function GamesTable() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isPhone = useMediaQuery(theme.breakpoints.down("sm"));
+  const isCompactActions = useMediaQuery(theme.breakpoints.down("md"));
   const [mounted, setMounted] = useState(false);
 
   const {
@@ -6454,6 +6456,16 @@ export function GamesTable() {
   const isAllSelected = games.length > 0 && selectedGames.size === games.length;
   const isIndeterminate = selectedGames.size > 0 && selectedGames.size < games.length;
 
+  const compactActionButtonSx = isCompactActions
+    ? {
+        minWidth: 36,
+        px: 1,
+        "& .MuiButton-startIcon": {
+          m: 0,
+        },
+      }
+    : {};
+
   const activeFilterCount = Object.values(columnFilters).filter((filter) => {
     if (filter.type === "condition") {
       // For condition filters, check if we have a condition set
@@ -6521,18 +6533,51 @@ export function GamesTable() {
               />
             )}
           </Typography>
-          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              mt: 2,
+              flexWrap: { xs: "nowrap", md: "wrap" },
+              overflowX: { xs: "auto", md: "visible" },
+              pb: { xs: 0.5, md: 0 },
+              alignItems: "center",
+              "&::-webkit-scrollbar": { display: "none" },
+            }}
+          >
             {selectedGames.size > 0 && games.length > 0 && (
-              <Button
-                variant="contained"
-                startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
-                onClick={handleSendEmail}
-                size="small"
-                sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-              >
-                Send Email ({selectedGames.size})
-              </Button>
+              <Tooltip title={`Send Email (${selectedGames.size})`}>
+                <span>
+                  <Button
+                    variant="contained"
+                    aria-label="Send Email"
+                    startIcon={
+                      isCompactActions ? (
+                        <Badge badgeContent={selectedGames.size} color="secondary" max={99}>
+                          {theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
+                        </Badge>
+                      ) : theme.palette.mode === "dark" ? (
+                        <SendIcon sx={{ color: theme.palette.themeButtonText.main }} />
+                      ) : (
+                        <GradientSendIcon />
+                      )
+                    }
+                    onClick={handleSendEmail}
+                    size="small"
+                    sx={{
+                      color: theme.palette.themeButtonText.main,
+                      textTransform: "none",
+                      boxShadow: 0,
+                      "&:hover": { boxShadow: 2 },
+                      ...compactActionButtonSx,
+                    }}
+                  >
+                    {!isCompactActions && `Send Email (${selectedGames.size})`}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
+
             {/* Create Game Button - conditional rendering based on selection */}
             {selectedGames.size > 0 ? (
               <Tooltip title="Create Game">
@@ -6553,37 +6598,52 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={handleNewGame}
-                disabled={isAddingNew}
-                size="small"
-                sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-              >
-                Create Game
-              </Button>
+              <Tooltip title="Create Game">
+                <span>
+                  <Button
+                    variant="contained"
+                    aria-label="Create Game"
+                    startIcon={<Add />}
+                    onClick={handleNewGame}
+                    disabled={isAddingNew}
+                    size="small"
+                    sx={{
+                      color: theme.palette.mode === "dark" ? "#121212" : "white",
+                      textTransform: "none",
+                      boxShadow: 0,
+                      "&:hover": { boxShadow: 2 },
+                      ...compactActionButtonSx,
+                    }}
+                  >
+                    {!isCompactActions && "Create Game"}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
 
             <Tooltip title="Use AI to find available dates in your schedule">
-              <Button
-                variant="outlined"
-                startIcon={<AutoAwesome />}
-                onClick={handleFindAvailableDates}
-                size="small"
-                sx={{
-                  textTransform: "none",
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
-                  border: "none",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+              <span>
+                <Button
+                  variant="outlined"
+                  aria-label="Find Dates"
+                  startIcon={<AutoAwesome />}
+                  onClick={handleFindAvailableDates}
+                  size="small"
+                  sx={{
+                    textTransform: "none",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
                     border: "none",
-                  },
-                }}
-              >
-                Find Dates
-              </Button>
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                      border: "none",
+                    },
+                    ...compactActionButtonSx,
+                  }}
+                >
+                  {!isCompactActions && "Find Dates"}
+                </Button>
+              </span>
             </Tooltip>
 
             {/* Add Columns Button - conditional rendering based on selection */}
@@ -6600,27 +6660,39 @@ export function GamesTable() {
                     border: "1px solid",
                     borderColor: "divider",
                     borderRadius: 1,
-                    display: { xs: "none", sm: "inline-flex" },
                   }}
                 >
                   <ViewColumn fontSize="small" />
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button
-                variant="outlined"
-                startIcon={<ViewColumn />}
-                onClick={handleAddColumnsClick}
-                size="small"
-                sx={{
-                  borderColor: theme.palette.themeButtonText.subtle,
-                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                  textTransform: "none",
-                  display: { xs: "none", sm: "inline-flex" },
-                }}
-              >
-                Add Columns ({customColumns.length})
-              </Button>
+              <Tooltip title={`Add Columns (${customColumns.length})`}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    aria-label="Add Columns"
+                    startIcon={
+                      isCompactActions ? (
+                        <Badge badgeContent={customColumns.length} color="primary" max={99}>
+                          <ViewColumn />
+                        </Badge>
+                      ) : (
+                        <ViewColumn />
+                      )
+                    }
+                    onClick={handleAddColumnsClick}
+                    size="small"
+                    sx={{
+                      borderColor: theme.palette.themeButtonText.subtle,
+                      color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                      textTransform: "none",
+                      ...compactActionButtonSx,
+                    }}
+                  >
+                    {!isCompactActions && `Add Columns (${customColumns.length})`}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
 
             {/* Columns Button - conditional rendering based on selection */}
@@ -6643,114 +6715,204 @@ export function GamesTable() {
                 </IconButton>
               </Tooltip>
             ) : (
-              <Button
-                variant="outlined"
-                startIcon={<Tune />}
-                onClick={() => setIsColumnPreferencesOpen(true)}
-                size="small"
-                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-              >
-                Columns ({visibleColumnIds.length})
-              </Button>
+              <Tooltip title={`Columns (${visibleColumnIds.length})`}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    aria-label="Columns"
+                    startIcon={
+                      isCompactActions ? (
+                        <Badge badgeContent={visibleColumnIds.length} color="primary" max={99}>
+                          <Tune />
+                        </Badge>
+                      ) : (
+                        <Tune />
+                      )
+                    }
+                    onClick={() => setIsColumnPreferencesOpen(true)}
+                    size="small"
+                    sx={{
+                      borderColor: theme.palette.themeButtonText.subtle,
+                      color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                      textTransform: "none",
+                      ...compactActionButtonSx,
+                    }}
+                  >
+                    {!isCompactActions && `Columns (${visibleColumnIds.length})`}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
 
             {selectedGames.size > 0 && games.length > 0 && (
               <>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<ContentCopy />}
-                  onClick={handleCopySelectedRows}
-                  size="small"
-                  sx={{
-                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                    textTransform: "none",
-                    display: { xs: "none", sm: "inline-flex" },
-                  }}
-                >
-                  Copy ({selectedGames.size})
-                </Button>
+                <Tooltip title={`Copy (${selectedGames.size})`}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      aria-label="Copy"
+                      startIcon={
+                        isCompactActions ? (
+                          <Badge badgeContent={selectedGames.size} color="primary" max={99}>
+                            <ContentCopy />
+                          </Badge>
+                        ) : (
+                          <ContentCopy />
+                        )
+                      }
+                      onClick={handleCopySelectedRows}
+                      size="small"
+                      sx={{
+                        color: theme.palette.mode === "dark" ? theme.palette.themeText.text : undefined,
+                        borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : undefined,
+                        textTransform: "none",
+                        ...compactActionButtonSx,
+                      }}
+                    >
+                      {!isCompactActions && `Copy (${selectedGames.size})`}
+                    </Button>
+                  </span>
+                </Tooltip>
+
                 <Tooltip title="Sync calendars">
-                  <IconButton
-                    onClick={handleBulkSync}
-                    disabled={bulkSyncGamesMutation.isPending}
-                    size="small"
-                    sx={{
-                      color: "primary.main",
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
-                  </IconButton>
+                  <span>
+                    <IconButton
+                      onClick={handleBulkSync}
+                      disabled={bulkSyncGamesMutation.isPending}
+                      size="small"
+                      sx={{ color: "primary.main" }}
+                    >
+                      {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </>
             )}
+
             {hiddenColumnCount > 0 && (
-              <Button
-                size="small"
-                variant="text"
-                onClick={() => setIsColumnPreferencesOpen(true)}
-                startIcon={<VisibilityOff />}
-                sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
-              >
-                {hiddenColumnCount} hidden
-              </Button>
+              <Tooltip title={`${hiddenColumnCount} hidden column${hiddenColumnCount === 1 ? "" : "s"}`}>
+                <span>
+                  <Button
+                    size="small"
+                    variant="text"
+                    aria-label="Hidden columns"
+                    onClick={() => setIsColumnPreferencesOpen(true)}
+                    startIcon={
+                      isCompactActions ? (
+                        <Badge badgeContent={hiddenColumnCount} color="warning" max={99}>
+                          <VisibilityOff />
+                        </Badge>
+                      ) : (
+                        <VisibilityOff />
+                      )
+                    }
+                    sx={{ textTransform: "none", ...compactActionButtonSx }}
+                  >
+                    {!isCompactActions && `${hiddenColumnCount} hidden`}
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </Stack>
         </Box>
-        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            flexShrink: 0,
+            flexWrap: { xs: "nowrap", md: "wrap" },
+            overflowX: { xs: "auto", md: "visible" },
+            pb: { xs: 0.5, md: 0 },
+            alignItems: "center",
+            "&::-webkit-scrollbar": { display: "none" },
+          }}
+        >
           {selectedGames.size > 0 && games.length > 0 && (
-            <>
-              {/* Delete Button */}
-              <LoadingButton
-                variant="outlined"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
-                onClick={handleBulkDelete}
-                loading={bulkDeleteMutation.isPending}
-                size="small"
-                sx={{
-                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
-                  borderRadius: "10px",
-                  padding: "3px 9px",
-                  textTransform: "none",
-                  background: "transparent",
-                  boxShadow: 0,
-                  "&:hover": { boxShadow: 0 },
-                }}
-              >
-                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
-              </LoadingButton>
-            </>
+            <Tooltip title={`Delete selected (${selectedGames.size})`}>
+              <span>
+                <LoadingButton
+                  variant="outlined"
+                  aria-label="Delete"
+                  startIcon={
+                    !bulkDeleteMutation.isPending &&
+                    (isCompactActions ? (
+                      <Badge badgeContent={selectedGames.size} color="error" max={99}>
+                        <DeleteOutline sx={{ color: "darkgray" }} />
+                      </Badge>
+                    ) : (
+                      <DeleteOutline sx={{ color: "darkgray" }} />
+                    ))
+                  }
+                  onClick={handleBulkDelete}
+                  loading={bulkDeleteMutation.isPending}
+                  size="small"
+                  sx={{
+                    border: theme.palette.mode === "dark" ? "1px solid gray" : "1px solid #181b38",
+                    borderRadius: isCompactActions ? 1 : "10px",
+                    py: 0.25,
+                    textTransform: "none",
+                    background: "transparent",
+                    boxShadow: 0,
+                    "&:hover": { boxShadow: 0 },
+                    ...compactActionButtonSx,
+                  }}
+                >
+                  {bulkDeleteMutation.isPending ? "Deleting..." : !isCompactActions ? `Delete (${selectedGames.size})` : null}
+                </LoadingButton>
+              </span>
+            </Tooltip>
           )}
+
           {/* Import Button */}
           <Tooltip title="Import games from CSV">
-            <Button
-              variant="outlined"
-              startIcon={<Upload />}
-              onClick={handleImportClick}
-              size="small"
-              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-            >
-              Import
-            </Button>
+            <span>
+              <Button
+                variant="outlined"
+                aria-label="Import"
+                startIcon={<Upload />}
+                onClick={handleImportClick}
+                size="small"
+                sx={{
+                  borderColor: theme.palette.themeButtonText.subtle,
+                  color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                  textTransform: "none",
+                  ...compactActionButtonSx,
+                }}
+              >
+                {!isCompactActions && "Import"}
+              </Button>
+            </span>
           </Tooltip>
+
           <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleExport}
-              disabled={games.length === 0}
-              size="small"
-              sx={{
-                borderColor: theme.palette.themeButtonText.subtle,
-                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                textTransform: "none",
-                display: { xs: "none", sm: "inline-flex" },
-              }}
-            >
-              Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
-            </Button>
+            <span>
+              <Button
+                variant="outlined"
+                aria-label="Export"
+                startIcon={
+                  isCompactActions && selectedGames.size > 0 ? (
+                    <Badge badgeContent={selectedGames.size} color="primary" max={99}>
+                      <Download />
+                    </Badge>
+                  ) : (
+                    <Download />
+                  )
+                }
+                onClick={handleExport}
+                disabled={games.length === 0}
+                size="small"
+                sx={{
+                  borderColor: theme.palette.themeButtonText.subtle,
+                  color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                  textTransform: "none",
+                  ...compactActionButtonSx,
+                }}
+              >
+                {!isCompactActions && (selectedGames.size > 0 ? `Export (${selectedGames.size})` : "Export")}
+              </Button>
+            </span>
           </Tooltip>
         </Stack>
       </Box>
@@ -6761,8 +6923,8 @@ export function GamesTable() {
       {/* Sample Game Banner */}
       <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
 
-      {/* Mobile Card View */}
-      {isMobile ? (
+      {/* Phone Card View */}
+      {isPhone ? (
         <Box sx={{ position: "relative" }}>
           {isLoading || !mounted ? (
             <Stack spacing={2}>
