@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Box, Button, Card, CardContent, TextField, Typography, Alert, CircularProgress } from "@mui/material";
+import TopFooter from "../footer/topFooter";
 
 interface FormData {
   name: string;
@@ -120,109 +121,114 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
   };
 
   return (
-    <Card sx={{ boxShadow: "none", maxWidth: { xs: "100%", md: 800 } }}>
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {/* Name Field */}
-            <TextField
-              label="Name"
-              {...register("name", {
-                ...(isPublic && {
-                  required: "Name is required",
-                  minLength: {
-                    value: 2,
-                    message: "Name must be at least 2 characters",
-                  },
-                }),
-              })}
-              fullWidth
-              disabled={!isPublic}
-              InputProps={{
-                readOnly: !isPublic,
-              }}
-              error={!!errors.name}
-              helperText={errors.name?.message}
-            />
-
-            {/* Email Field - Only show for public users */}
-            {isPublic && (
+    <>
+      <Card sx={{ boxShadow: "none", maxWidth: { xs: "100%", md: 900 } }}>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, minWidth: "700px" }}>
+              {/* Name Field */}
               <TextField
-                label="Email"
-                {...register("email", {
-                  required: "Email is required",
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: "Invalid email address",
+                label="Name"
+                {...register("name", {
+                  ...(isPublic && {
+                    required: "Name is required",
+                    minLength: {
+                      value: 2,
+                      message: "Name must be at least 2 characters",
+                    },
+                  }),
+                })}
+                fullWidth
+                disabled={!isPublic}
+                InputProps={{
+                  readOnly: !isPublic,
+                }}
+                error={!!errors.name}
+                helperText={errors.name?.message}
+              />
+
+              {/* Email Field - Only show for public users */}
+              {isPublic && (
+                <TextField
+                  label="Email"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Invalid email address",
+                    },
+                  })}
+                  fullWidth
+                  type="email"
+                  error={!!errors.email}
+                  helperText={errors.email?.message}
+                />
+              )}
+
+              {/* Subject Field */}
+              <TextField
+                label="Subject"
+                {...register("subject", {
+                  required: "Subject is required",
+                  minLength: {
+                    value: 3,
+                    message: "Subject must be at least 3 characters",
                   },
                 })}
                 fullWidth
-                type="email"
-                error={!!errors.email}
-                helperText={errors.email?.message}
+                error={!!errors.subject}
+                helperText={errors.subject?.message}
               />
-            )}
 
-            {/* Subject Field */}
-            <TextField
-              label="Subject"
-              {...register("subject", {
-                required: "Subject is required",
-                minLength: {
-                  value: 3,
-                  message: "Subject must be at least 3 characters",
-                },
-              })}
-              fullWidth
-              error={!!errors.subject}
-              helperText={errors.subject?.message}
-            />
+              {/* Description Field */}
+              <TextField
+                label={mode === "support" ? "Description" : "Message"}
+                {...register("description", {
+                  required: `${mode === "support" ? "Description" : "Message"} is required`,
+                  minLength: {
+                    value: 10,
+                    message: `${mode === "support" ? "Description" : "Message"} must be at least 10 characters`,
+                  },
+                })}
+                fullWidth
+                multiline
+                rows={6}
+                error={!!errors.description}
+                helperText={errors.description?.message}
+              />
 
-            {/* Description Field */}
-            <TextField
-              label={mode === "support" ? "Description" : "Message"}
-              {...register("description", {
-                required: `${mode === "support" ? "Description" : "Message"} is required`,
-                minLength: {
-                  value: 10,
-                  message: `${mode === "support" ? "Description" : "Message"} must be at least 10 characters`,
-                },
-              })}
-              fullWidth
-              multiline
-              rows={6}
-              error={!!errors.description}
-              helperText={errors.description?.message}
-            />
-
-            {/* Success Message */}
-            {successMessage && (
-              <Alert severity="success" onClose={() => setSuccessMessage(null)}>
-                {successMessage}
-              </Alert>
-            )}
-
-            {/* Error Message */}
-            {mutation.isError && <Alert severity="error">{mutation.error?.message || `Failed to ${mode === "support" && ticketNumber ? "update" : "submit"}`}</Alert>}
-
-            {/* Submit Button */}
-            <Button type="submit" variant="contained" disabled={mutation.isPending} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
-              {mutation.isPending ? (
-                <>
-                  <CircularProgress size={20} sx={{ mr: 1 }} />
-                  {mode === "support" && ticketNumber ? "Updating..." : "Submitting..."}
-                </>
-              ) : mode === "support" && ticketNumber ? (
-                "Update Ticket"
-              ) : mode === "support" ? (
-                "Submit Ticket"
-              ) : (
-                "Submit Feedback"
+              {/* Success Message */}
+              {successMessage && (
+                <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+                  {successMessage}
+                </Alert>
               )}
-            </Button>
-          </Box>
-        </form>
-      </CardContent>
-    </Card>
+
+              {/* Error Message */}
+              {mutation.isError && <Alert severity="error">{mutation.error?.message || `Failed to ${mode === "support" && ticketNumber ? "update" : "submit"}`}</Alert>}
+
+              {/* Submit Button */}
+              <Button type="submit" variant="contained" disabled={mutation.isPending} sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}>
+                {mutation.isPending ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    {mode === "support" && ticketNumber ? "Updating..." : "Submitting..."}
+                  </>
+                ) : mode === "support" && ticketNumber ? (
+                  "Update Ticket"
+                ) : mode === "support" ? (
+                  "Submit Ticket"
+                ) : (
+                  "Submit Feedback"
+                )}
+              </Button>
+            </Box>
+          </form>
+        </CardContent>
+      </Card>
+      <br />
+      <br />
+      <TopFooter />
+    </>
   );
 }
