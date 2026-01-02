@@ -132,7 +132,7 @@ export default function HomePageContent() {
                   fontWeight: "500",
                 }}
               >
-                Upload your sports schedule CSV and start automating your daily workflow.
+                Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
@@ -235,7 +235,7 @@ export default function HomePageContent() {
                   Automate Your Sports Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  Upload your sports schedule CSV and start automating your daily workflow.
+                  Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
                 </p>
               </div>
 
