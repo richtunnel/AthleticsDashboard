@@ -70,7 +70,7 @@ export const ArcCard: React.FC = () => {
             </Box>
 
             {/* right content */}
-            <Stack spacing={2} sx={{ flex: 1 }}>
+            <Stack className={styles.HomePageIpadSection} spacing={2} sx={{ flex: 1 }}>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Chip label="Opletics Spreadsheets" color="secondary" variant="outlined" sx={{ px: 1.5, py: 0.5 }} />
               </Stack>
