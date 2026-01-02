@@ -271,7 +271,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
 
   return (
     <>
-      <Box sx={{ px: 3, pb: 3 }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, pb: 3 }}>
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1, pt: "12px" }}>

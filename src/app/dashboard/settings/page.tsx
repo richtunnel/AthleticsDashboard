@@ -79,7 +79,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   return (
     <>
-      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, pb: 3, pt: 0 }}>
         <Typography sx={{ mb: 1, fontWeight: 700 }} variant="h4">
           Settings
         </Typography>
@@ -147,20 +147,20 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         userPlan={user.plan}
         checkoutStatus={checkoutStatus}
       />
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}>
         <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
           Account Details
         </Typography>
 
         <AccountDetailsForm user={user} />
       </Box>
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}>
         <SchoolDetailsForm user={user} />
       </Box>
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
       </Box>
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{ px: { xs: 1.5, sm: 3 }, py: { xs: 2, sm: 3 } }}>
         <DeleteAccountSection />
       </Box>
     </>
