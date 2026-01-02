@@ -222,11 +222,9 @@ export function CalendarGroupMappings() {
   };
 
   // Check for scope errors
-  const hasInsufficientScopes = calendarsError instanceof Error && (
-    calendarsError.message.includes("Insufficient permissions") ||
-    calendarsError.message.includes("insufficient authentication scopes") ||
-    calendarsError.message.includes("reconnect")
-  );
+  const hasInsufficientScopes =
+    calendarsError instanceof Error &&
+    (calendarsError.message.includes("Insufficient permissions") || calendarsError.message.includes("insufficient authentication scopes") || calendarsError.message.includes("reconnect"));
 
   const importedColumns = importedColumnsData?.data || [];
 
@@ -247,16 +245,8 @@ export function CalendarGroupMappings() {
           icon={<Warning />}
           sx={{ mb: 3 }}
           action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={handleReconnect}
-              disabled={isReconnecting}
-              sx={{ textTransform: "none" }}
-            >
-              {isReconnecting ? (
-                <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />
-              ) : null}
+            <Button color="inherit" size="small" onClick={handleReconnect} disabled={isReconnecting} sx={{ textTransform: "none" }}>
+              {isReconnecting ? <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} /> : null}
               {isReconnecting ? "Reconnecting..." : "Reconnect Now"}
             </Button>
           }
@@ -264,13 +254,10 @@ export function CalendarGroupMappings() {
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
             Calendar Permissions Update Required
           </Typography>
-          <Typography variant="body2">
-            Your Google Calendar connection needs additional permissions to list calendars.
-            Please reconnect to grant access.
-          </Typography>
-          <Typography variant="caption" sx={{ mt: 1, display: 'block', fontStyle: 'italic', opacity: 0.8 }}>
+          <Typography variant="body2">Your Google Calendar connection needs additional permissions to list calendars. Please reconnect to grant access.</Typography>
+          {/* <Typography variant="caption" sx={{ mt: 1, display: 'block', fontStyle: 'italic', opacity: 0.8 }}>
             Read-only access is used only to list calendars so we know where to sync events.
-          </Typography>
+          </Typography> */}
         </Alert>
       )}
 
@@ -414,18 +401,10 @@ export function CalendarGroupMappings() {
                     </MenuItem>
                   ))
                 ) : (
-                  <MenuItem disabled>
-                    {hasInsufficientScopes
-                      ? "Please reconnect your calendar first"
-                      : calendarsError
-                      ? "Error loading calendars"
-                      : "No calendars found"}
-                  </MenuItem>
+                  <MenuItem disabled>{hasInsufficientScopes ? "Please reconnect your calendar first" : calendarsError ? "Error loading calendars" : "No calendars found"}</MenuItem>
                 )}
               </Select>
-              {calendarsError && !hasInsufficientScopes && (
-                <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>
-              )}
+              {calendarsError && !hasInsufficientScopes && <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>}
             </FormControl>
 
             <Alert severity="info" sx={{ mt: 1 }}>
@@ -440,12 +419,7 @@ export function CalendarGroupMappings() {
           <Button onClick={() => setDialogOpen(false)} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button
-            onClick={handleAddMapping}
-            variant="contained"
-            disabled={createMappingMutation.isPending || hasInsufficientScopes}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={handleAddMapping} variant="contained" disabled={createMappingMutation.isPending || hasInsufficientScopes} sx={{ textTransform: "none" }}>
             {createMappingMutation.isPending ? <CircularProgress size={20} /> : "Add Mapping"}
           </Button>
         </DialogActions>
