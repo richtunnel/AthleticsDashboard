@@ -268,6 +268,9 @@ export function CalendarGroupMappings() {
             Your Google Calendar connection needs additional permissions to list calendars.
             Please reconnect to grant access.
           </Typography>
+          <Typography variant="caption" sx={{ mt: 1, display: 'block', fontStyle: 'italic', opacity: 0.8 }}>
+            Read-only access is used only to list calendars so we know where to sync events.
+          </Typography>
         </Alert>
       )}
 

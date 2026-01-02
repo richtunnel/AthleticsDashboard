@@ -91,7 +91,7 @@ export function CalendarConnectionSection() {
           <Typography variant="caption" color="text.secondary" display="block">
             {isConnected
               ? "You can disconnect your calendar anytime. Existing calendar events will remain until manually deleted."
-              : "Connecting allows you to sync games to your calendar with one click. You'll be asked to grant permissions via Google."}
+              : "Connecting allows you to sync games to your calendar with one click. You'll be asked to grant permissions via Google. Read-only access is used only to list calendars so we know where to sync events."}
           </Typography>
         </Box>
       </CardContent>
