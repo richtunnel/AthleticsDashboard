@@ -28,6 +28,7 @@ import { FaXTwitter } from "react-icons/fa6";
 import SolutionSection from "../sections/SolutionSection";
 import TopFooter from "../footer/topFooter";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Parallax } from "../splash/parallax";
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
@@ -215,7 +216,7 @@ export default function HomePageContent() {
             />
           </div>
 
-          {/* Full height hero container - 90% like Buyable */}
+          {/* Full height hero container  */}
           <div className={`relative flex-1 ${styles.fullHeightMobileHero}`}>
             {/* Content overlay */}
             <div className="absolute inset-0 px-4 flex flex-col justify-between z-20">
@@ -348,8 +349,9 @@ export default function HomePageContent() {
           </div>
         </div>
       </div>
-      <ArcCard />
       <HeroSection />
+      <Parallax />
+      <ArcCard />
       <SolutionSection />
       {/* <FeaturesSection /> */}
       <NewsSection />
