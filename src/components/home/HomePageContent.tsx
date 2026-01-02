@@ -79,7 +79,7 @@ export default function HomePageContent() {
       >
         {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
-          <Image src="/assets/images/green-energy.jpg" alt="Opletics athletic department scheduling software" fill className="object-cover" priority />
+          <Image src="/assets/images/green-energy.jpg" alt="Opletics athletic department scheduling software" fill className="object-cover" unoptimized />
         </div>
 
         {/* Desktop content */}
@@ -220,7 +220,14 @@ export default function HomePageContent() {
             {/* Content overlay */}
             <div className="absolute inset-0 px-4 flex flex-col justify-between z-20">
               <div className={styles.mobileSpreadsheetContainer}>
-                <Image className={styles.mobileSpreadsheetImg} fill src="/assets/images/spreadsheet-illustration-dark-01.png" alt="spreadsheet illustration" style={{ objectFit: "contain" }} />
+                <Image
+                  fill
+                  unoptimized
+                  className={styles.mobileSpreadsheetImg}
+                  src="/assets/images/spreadsheet-illustration-dark-01.png"
+                  alt="spreadsheet illustration"
+                  style={{ objectFit: "contain" }}
+                />
               </div>
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
