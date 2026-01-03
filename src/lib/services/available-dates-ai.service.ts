@@ -21,6 +21,7 @@ interface ParsedQuery {
     start?: string;
     end?: string;
     month?: string;
+    months?: string[]; // Support multiple months
   };
   minSpacing?: number; // Minimum days between dates
   maxResults?: number;
@@ -66,12 +67,17 @@ Examples:
 - "not on the same days as boys JV basketball" → exclude Boys Junior Varsity Basketball dates
 - "find open dates in December for boys varsity basketball" → targetTeams: Boys Varsity Basketball, dateRange: {month: "December"}
 - "find available dates for girls varsity volleyball" → targetTeams: Girls Varsity Volleyball
+- "find open dates in september, july and august for boys varsity basketball" → targetTeams: Boys Varsity Basketball, dateRange: {months: ["September", "July", "August"]}
+
+IMPORTANT: When multiple months are mentioned (e.g., "september, july and august"), use the "months" array field, not "month":
+- Single month: use "month" field → {"month": "December"}
+- Multiple months: use "months" array field → {"months": ["September", "July", "August"]}
 
 Return JSON format:
 {
   "targetTeams": [{"sport": "Basketball", "gender": "Boys", "level": "Varsity"}],
   "excludeTeams": [{"sport": "Basketball", "gender": "Boys", "level": "Junior Varsity"}],
-  "dateRange": {"month": "December", "start": "2024-12-01", "end": "2024-12-31"},
+  "dateRange": {"months": ["September", "July", "August"]},
   "minSpacing": 3,
   "excludeDays": [0, 6],
   "maxResults": 10,
