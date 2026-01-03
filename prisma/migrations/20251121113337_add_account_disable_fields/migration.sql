@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "User" ADD COLUMN "isDisabled" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "User" ADD COLUMN "disabledAt" TIMESTAMP(3);
-ALTER TABLE "User" ADD COLUMN "disableReason" TEXT;
