@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { createSignupLog } from "@/lib/services/signup-log.service";
-import { UserRole } from "@/lib/utils/auth";
+import { UserRole } from "@/lib/utils/auth-client";
 
 export async function DELETE(req: NextRequest) {
   try {

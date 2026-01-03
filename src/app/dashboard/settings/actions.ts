@@ -58,19 +58,11 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
     };
   }
 
-  // Restrict role changes for SUPER_ADMIN and VENDOR_READ_ONLY
-  if (user.role === "SUPER_ADMIN" || user.role === "VENDOR_READ_ONLY") {
-    return {
-      success: false,
-      error: "Your role cannot be changed from this page. Contact support for assistance.",
-    };
-  }
-
   // Validate role
   if (role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(role as AllowedSettingsRole)) {
     return {
       success: false,
-      error: "Invalid role. Must be one of: Athletic Director, Assistant AD, Coach, Staff",
+      error: "Invalid role. Must be one of: Admin, Member",
     };
   }
 
@@ -256,12 +248,14 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
 
 export async function cleanupRoles() {
   try {
+    // Since we only have ADMIN and MEMBER now, all existing users with invalid roles
+    // will default to ADMIN to maintain access
     const result = await prisma.user.updateMany({
       where: {
-        role: { in: ["SUPER_ADMIN", "VENDOR_READ_ONLY"] },
+        role: { notIn: ["ADMIN", "MEMBER"] },
       },
       data: {
-        role: "ATHLETIC_DIRECTOR", // Or set to a default like ALLOWED_SETTINGS_ROLES.STAFF
+        role: "ADMIN",
       },
     });
 
