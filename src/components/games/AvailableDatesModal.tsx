@@ -54,7 +54,7 @@ interface DebugInfo {
   excludedClusterDates?: string[];
   notes: string[];
   excludedDays?: string[];
-  dateRange?: { start?: string; end?: string; month?: string };
+  dateRange?: { start?: string; end?: string; month?: string; months?: string[] };
   minSpacing?: number;
 }
 
@@ -610,7 +610,8 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                             Date Range Filter:
                           </Typography>
                           <Typography variant="caption" display="block">
-                            {result.debug.dateRange.month && `Month: ${result.debug.dateRange.month}`}
+                            {result.debug.dateRange.months && `Months: ${result.debug.dateRange.months.join(', ')}`}
+                            {result.debug.dateRange.month && !result.debug.dateRange.months && `Month: ${result.debug.dateRange.month}`}
                             {result.debug.dateRange.start && ` Start: ${result.debug.dateRange.start}`}
                             {result.debug.dateRange.end && ` End: ${result.debug.dateRange.end}`}
                           </Typography>
