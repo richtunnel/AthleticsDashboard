@@ -23,7 +23,7 @@ async function updateAITravelTimesSetting(enabled: boolean) {
   return res.json();
 }
 
-export function AITravelTimesToggle() {
+export function AITravelTimesToggle({ disabled }: { disabled?: boolean }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -100,7 +100,7 @@ export function AITravelTimesToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || disabled}
           />
         }
         label={
@@ -119,7 +119,7 @@ export function AITravelTimesToggle() {
               placement="top"
               arrow
             >
-              <IconButton size="small" sx={{ ml: 0.5 }}>
+              <IconButton size="small" sx={{ ml: 0.5 }} disabled={disabled}>
                 <InfoOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>

@@ -8,7 +8,7 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 
-export default function DeleteAccountSection() {
+export default function DeleteAccountSection({ disabled }: { disabled?: boolean }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +65,7 @@ export default function DeleteAccountSection() {
               color="error"
               startIcon={<DeleteForever />}
               onClick={() => setModalOpen(true)}
+              disabled={disabled}
               sx={{
                 fontWeight: 600,
                 borderWidth: 2,

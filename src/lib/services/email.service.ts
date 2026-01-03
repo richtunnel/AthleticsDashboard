@@ -229,6 +229,44 @@ export class EmailService {
     });
   }
 
+  async sendCollaborationInvite(params: {
+    to: string;
+    inviterName: string;
+    organizationName: string;
+    role: string;
+    inviteToken: string;
+  }) {
+    const { to, inviterName, organizationName, role, inviteToken } = params;
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const inviteUrl = `${baseUrl}/invite/accept?token=${inviteToken}`;
+
+    const subject = `Invitation to join ${organizationName} on Opletics`;
+    const body = `
+      <p>Hi there,</p>
+      <p><strong>${inviterName}</strong> has invited you to join <strong>${organizationName}</strong> on Opletics as a <strong>${role}</strong>.</p>
+      <p>Opletics is an athletic program management platform that helps streamline scheduling and communication.</p>
+      <p>Click the button below to accept the invitation and set up your account:</p>
+      <p style="margin-top: 24px;">
+        <a
+          href="${inviteUrl}"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          Accept Invitation
+        </a>
+      </p>
+      <p>If you already have an Opletics account, you'll be able to join this organization after logging in.</p>
+      <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+      <p>${inviteUrl}</p>
+      <p>Best regards,<br>The Opletics Team</p>
+    `;
+
+    return this.sendEmail({
+      to: [to],
+      subject,
+      body,
+    });
+  }
+
   async sendBulkGameNotifications(filters: { sportId?: string; level?: string; startDate?: Date; endDate?: Date }, recipientEmails: string[], sentById: string) {
     // Build the where clause step by step to avoid type conflicts
     const where: any = {};
