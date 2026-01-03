@@ -89,6 +89,12 @@ export function ConnectGoogleCalendarDialog({ open, onClose, returnTo }: Connect
               <ListItemIcon sx={{ minWidth: 36 }}>
                 <CheckCircleOutlineIcon fontSize="small" color="success" />
               </ListItemIcon>
+              <ListItemText primary="List your calendars to choose where to sync events" />
+            </ListItem>
+            <ListItem>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <CheckCircleOutlineIcon fontSize="small" color="success" />
+              </ListItemIcon>
               <ListItemText primary="Update events when game details change" />
             </ListItem>
             <ListItem>
@@ -120,6 +126,9 @@ export function ConnectGoogleCalendarDialog({ open, onClose, returnTo }: Connect
 
         <Typography variant="caption" color="text.secondary" display="block">
           By clicking "Connect", you'll be redirected to Google to grant permissions. You can revoke access anytime from your Google Account settings.
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
+          Read-only access is used only to list calendars so we know where to sync events.
         </Typography>
       </DialogContent>
 

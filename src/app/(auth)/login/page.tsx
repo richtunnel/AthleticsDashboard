@@ -108,7 +108,7 @@ function LoginForm() {
               Sign In
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-              Welcome back to the Hub
+              Welcome back to Opletics
             </Typography>
 
             {resetSuccess === "success" && (

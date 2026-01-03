@@ -785,13 +785,20 @@ export class CalendarService {
     const primaryTeamName = this.getPrimaryTeamName(game);
     const opponentName = this.getOpponentTeamName(game);
     const separator = this.getSummarySeparator(game.isHome);
-    return `${primaryTeamName}${separator}${opponentName}`;
+    const sportLevelInfo = this.getSportLevelInfo(game);
+    
+    let summary = `${primaryTeamName}${separator}${opponentName}`;
+    if (sportLevelInfo) {
+      summary += ` - ${sportLevelInfo}`;
+    }
+    
+    return summary;
   }
 
   private getPrimaryTeamName(game: any): string {
     // Check custom fields first - try multiple common column names
     const customFields = (game.customFields as Record<string, any>) || {};
-    
+
     // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
@@ -803,24 +810,36 @@ export class CalendarService {
       }
       return undefined;
     };
-    
-    // Try to build a descriptive name from Sport + Level if available
+
+    // PRIORITY 1: Check for explicit Home column first (highest priority)
+    const homeTeam = getField(["Home"]);
+    if (homeTeam) {
+      return homeTeam;
+    }
+
+    // PRIORITY 2: Check for Team column (second priority)
+    const teamValue = getField(["Team"]);
+    if (teamValue) {
+      return teamValue;
+    }
+
+    // PRIORITY 3: Try to build a descriptive name from Sport + Level if available
     const sport = getField(["Sport"]);
     const level = getField(["Level"]);
-    
+
     if (sport && level) {
       // Format: "Boys Varsity Basketball" or "B V Basketball"
       return `${sport} ${level}`;
     }
-    
+
     if (sport) {
       return sport;
     }
-    
-    // Check various team column names (case-insensitive)
-    const teamValue = getField(["Team", "Home", "Sports Level", "Team Level"]);
-    if (teamValue) {
-      return teamValue;
+
+    // PRIORITY 4: Check other common team column names
+    const teamLevelValue = getField(["Sports Level", "Team Level"]);
+    if (teamLevelValue) {
+      return teamLevelValue;
     }
 
     // Fall back to default columns
@@ -836,9 +855,9 @@ export class CalendarService {
   }
 
   private getOpponentTeamName(game: any): string {
-    // Check custom fields first - try "Away" column (case-insensitive)
+    // Check custom fields first - try multiple common column names for opponent/away team
     const customFields = (game.customFields as Record<string, any>) || {};
-    
+
     // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
@@ -850,12 +869,25 @@ export class CalendarService {
       }
       return undefined;
     };
-    
-    const awayTeam = getField(["Away", "Opponent"]);
+
+    // PRIORITY 1: Check for explicit Away column first (highest priority)
+    const awayTeam = getField(["Away"]);
     if (awayTeam) {
       return awayTeam;
     }
-    
+
+    // PRIORITY 2: Check for Opponent column
+    const opponent = getField(["Opponent"]);
+    if (opponent) {
+      return opponent;
+    }
+
+    // PRIORITY 3: Check for other common opponent column names
+    const otherOpponent = getField(["Enemy", "Visiting Team", "Visitor"]);
+    if (otherOpponent) {
+      return otherOpponent;
+    }
+
     // Fall back to opponent/awayTeam relations
     const opponentName = game.opponent?.name?.trim();
     if (opponentName) {
@@ -870,6 +902,68 @@ export class CalendarService {
 
   private getSummarySeparator(isHome?: boolean): string {
     return isHome ? " vs " : " @ ";
+  }
+
+  private getSportLevelInfo(game: any): string | null {
+    const customFields = (game.customFields as Record<string, any>) || {};
+
+    // Helper function for case-insensitive field lookup
+    const getField = (fieldNames: string[]): string | undefined => {
+      for (const name of fieldNames) {
+        // Try exact match first
+        if (customFields[name]) return customFields[name]?.trim();
+        // Try case-insensitive match
+        const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
+        if (key && customFields[key]) return customFields[key]?.trim();
+      }
+      return undefined;
+    };
+
+    // Check for combined sport/level columns first
+    const sportLevel = getField(["Sport Level", "Sport/Level", "Sports Level", "Team Level"]);
+    if (sportLevel) {
+      return sportLevel;
+    }
+
+    // Check for tier information
+    const tier = getField(["Tier", "Tiers"]);
+    if (tier) {
+      return tier;
+    }
+
+    // Try to build from separate Sport + Level columns
+    const sport = getField(["Sport"]);
+    const level = getField(["Level"]);
+
+    if (sport && level) {
+      return `${sport} ${level}`;
+    }
+
+    if (sport) {
+      return sport;
+    }
+
+    if (level) {
+      return level;
+    }
+
+    // Fall back to database fields if custom fields don't exist
+    const dbSport = game.homeTeam?.sport?.name?.trim();
+    const dbLevel = game.homeTeam?.level?.trim();
+
+    if (dbSport && dbLevel) {
+      return `${dbSport} ${dbLevel}`;
+    }
+
+    if (dbSport) {
+      return dbSport;
+    }
+
+    if (dbLevel) {
+      return dbLevel;
+    }
+
+    return null;
   }
 
   private buildEventDescription(game: any): string {
