@@ -36,10 +36,10 @@ export default function DashboardPage() {
       <div className="space-y-6 md:space-y-8">
         <div>
           <Typography variant="h2" className="mb-2" sx={{ color: "text.primary", fontSize: "2rem", fontWeight: 700 }}>
-            Import your spreadsheets
+            Import your game schedules
           </Typography>
           <Typography variant="body1" style={{ color: "var(--text-secondary)" }}>
-            Import your CSV game schedules below and navigate to{" "}
+            Import your CSV files or upload calendar images to extract game data with AI. Navigate to{" "}
             <Link href="dashboard/games" style={{ color: theme.palette.text.primary, fontWeight: "bold" }}>
               Game Center
             </Link>{" "}
