@@ -313,7 +313,9 @@ export class AvailableDatesService {
       'find', 'me', 'available', 'dates', 'for', 'the', 'a', 'an', 'and', 'or',
       'show', 'get', 'give', 'list', 'search', 'when', 'what', 'is', 'are',
       'can', 'i', 'have', 'need', 'want', 'looking', 'schedule', 'schedules',
-      'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams'
+      'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams',
+      // Words describing TYPE of dates (not team characteristics)
+      'open', 'free', 'empty', 'clear', 'good', 'best', 'suitable'
     ]);
     
     // Words related to constraints (not team identifiers) - should be filtered out
