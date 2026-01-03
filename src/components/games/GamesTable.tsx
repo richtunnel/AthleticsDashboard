@@ -977,11 +977,11 @@ export function GamesTable() {
     }
 
     games.forEach((game: Game) => {
-      values.sport.add(game.homeTeam.sport.name);
-      values.level.add(game.homeTeam.level);
-      values.opponent.add(game.opponent?.name || "TBD");
+      values.sport.add(game.homeTeam.sport.name.trim());
+      values.level.add(game.homeTeam.level.trim());
+      values.opponent.add((game.opponent?.name || "TBD").trim());
       values.status.add(game.status);
-      const locationValue = game.location || game.venue?.name || "TBD";
+      const locationValue = (game.location || game.venue?.name || "TBD").trim();
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
 
@@ -998,7 +998,7 @@ export function GamesTable() {
           if (col.type === "DATETIME") {
             values[col.id].add(extractDatePart(String(value)));
           } else {
-            values[col.id].add(value);
+            values[col.id].add(String(value).trim());
           }
         }
       });
@@ -1009,7 +1009,7 @@ export function GamesTable() {
         importedColumns.forEach((colName) => {
           const value = customFields[colName];
           if (value) {
-            const strValue = String(value);
+            const strValue = String(value).trim();
             // For imported columns, if it looks like an ISO date, extract the date part
             if (strValue.includes("T") && !isNaN(Date.parse(strValue))) {
               values[`imported:${colName}`].add(extractDatePart(strValue));
@@ -2316,14 +2316,14 @@ export function GamesTable() {
             const columnId = field.replace("custom:", "");
             updateData.customData = {
               ...updateData.customData,
-              [columnId]: value.slice(0, MAX_CHAR_LIMIT),
+              [columnId]: typeof value === "string" ? value.trim().slice(0, MAX_CHAR_LIMIT) : value,
             };
           } else if (field.startsWith("imported:")) {
             const columnName = field.replace("imported:", "");
             // For imported columns, update customFields
             updateData.customFields = {
               ...(game.customFields || {}),
-              [columnName]: value.slice(0, MAX_CHAR_LIMIT),
+              [columnName]: typeof value === "string" ? value.trim().slice(0, MAX_CHAR_LIMIT) : value,
             };
 
             // CRITICAL FIX: If this imported column maps to date, also update main date field
@@ -2909,8 +2909,12 @@ export function GamesTable() {
         status: newGameData.status || "SCHEDULED",
         notes: newGameData.notes || null,
         location: newGameData.location || null,
-        customData: newGameData.customData || {},
-        customFields: newGameData.customFields || {}, // This contains all the imported data
+        customData: Object.fromEntries(
+          Object.entries(newGameData.customData || {}).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v])
+        ),
+        customFields: Object.fromEntries(
+          Object.entries(newGameData.customFields || {}).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v])
+        ), // This contains all the imported data
       };
       console.log("🚀 Creating imported game with data:", gameData);
       createGameMutation.mutate({ gameData });
@@ -3026,8 +3030,12 @@ export function GamesTable() {
       status: newGameData.status || "SCHEDULED",
       notes: newGameData.notes || null,
       location: newGameData.location || null,
-      customData: newGameData.customData || {},
-      customFields: newGameData.customFields || {}, // This contains all the imported data
+      customData: Object.fromEntries(
+        Object.entries(newGameData.customData || {}).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v])
+      ),
+      customFields: Object.fromEntries(
+        Object.entries(newGameData.customFields || {}).map(([k, v]) => [k, typeof v === "string" ? v.trim() : v])
+      ), // This contains all the imported data
     };
     console.log("🚀 Creating game with data:", gameData);
     createGameMutation.mutate({ gameData });
