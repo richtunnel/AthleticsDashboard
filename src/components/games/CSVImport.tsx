@@ -29,8 +29,11 @@ import {
   Stepper,
   Step,
   StepLabel,
+  Tabs,
+  Tab,
+  CircularProgress,
 } from "@mui/material";
-import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download } from "@mui/icons-material";
+import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Image as ImageIcon, Description } from "@mui/icons-material";
 import Link from "next/link";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
 import { DateRequiredModal } from "./DateRequiredModal";
@@ -65,6 +68,7 @@ const DATABASE_FIELDS = [
 ];
 
 export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
+  const [importMode, setImportMode] = useState<"csv" | "image">("csv"); // Toggle between CSV and Image import
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
@@ -76,47 +80,126 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showDateRequiredModal, setShowDateRequiredModal] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [ocrMetadata, setOcrMetadata] = useState<{
+    calendarType?: string;
+    month?: string;
+    year?: string;
+    notes?: string;
+  } | null>(null);
+
+  // Handle image OCR processing
+  const handleImageOCR = useCallback(async (file: File) => {
+    setIsProcessingOCR(true);
+    setValidationErrors([]);
+    setOcrMetadata(null);
+
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Call OCR API
+      const response = await fetch("/api/import/games/ocr", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!result.success || !result.data) {
+        setValidationErrors([result.error || "Failed to extract data from image"]);
+        setIsProcessingOCR(false);
+        return;
+      }
+
+      // Store metadata
+      setOcrMetadata(result.data.metadata);
+
+      // Set extracted data
+      setHeaders(result.data.headers);
+      setParsedData(result.data.rows);
+
+      // Auto-map fields
+      const autoMapping = autoMapFields(result.data.headers);
+      setFieldMapping(autoMapping);
+
+      // Show any warnings from OCR
+      if (result.data.warnings && result.data.warnings.length > 0) {
+        setValidationWarnings(result.data.warnings);
+      }
+
+      // Move to mapping step
+      setStep(1);
+    } catch (error) {
+      console.error("OCR processing error:", error);
+      setValidationErrors([`OCR processing failed: ${error instanceof Error ? error.message : "Unknown error"}`]);
+    } finally {
+      setIsProcessingOCR(false);
+    }
+  }, []);
 
   // Drag and drop handling
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
 
-    setFile(file);
-    setValidationErrors([]);
+      setFile(file);
+      setValidationErrors([]);
 
-    // Parse CSV
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      transformHeader: (header: string) => header.trim(),
-      complete: (results: { data: ParsedRow[]; meta: { fields?: string[] } }) => {
-        const data = results.data;
-        const headers = results.meta.fields || [];
+      // Check if it's an image file for OCR processing
+      const isImageFile = file.type.startsWith("image/") || file.type === "application/pdf";
 
-        setHeaders(headers);
-        setParsedData(data);
+      if (importMode === "image" && isImageFile) {
+        // Process image with OCR
+        handleImageOCR(file);
+      } else if (importMode === "csv" || file.type === "text/csv" || file.name.endsWith(".csv")) {
+        // Parse CSV
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          transformHeader: (header: string) => header.trim(),
+          complete: (results: { data: ParsedRow[]; meta: { fields?: string[] } }) => {
+            const data = results.data;
+            const headers = results.meta.fields || [];
 
-        // Auto-map common fields
-        const autoMapping = autoMapFields(headers);
-        setFieldMapping(autoMapping);
+            setHeaders(headers);
+            setParsedData(data);
 
-        // Move to mapping step
-        setStep(1);
-      },
-      error: (error: Error) => {
-        setValidationErrors([`CSV Parse Error: ${error.message}`]);
-      },
-    });
-  }, []);
+            // Auto-map common fields
+            const autoMapping = autoMapFields(headers);
+            setFieldMapping(autoMapping);
+
+            // Move to mapping step
+            setStep(1);
+          },
+          error: (error: Error) => {
+            setValidationErrors([`CSV Parse Error: ${error.message}`]);
+          },
+        });
+      } else {
+        setValidationErrors(["Invalid file type. Please upload a CSV file or switch to Image mode for calendar images."]);
+      }
+    },
+    [importMode, handleImageOCR]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "text/csv": [".csv"],
-      "application/vnd.ms-excel": [".csv"],
-    },
+    accept:
+      importMode === "csv"
+        ? {
+            "text/csv": [".csv"],
+            "application/vnd.ms-excel": [".csv"],
+          }
+        : {
+            "image/jpeg": [".jpg", ".jpeg"],
+            "image/png": [".png"],
+            "image/webp": [".webp"],
+            "application/pdf": [".pdf"],
+          },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024, // 10MB
   });
@@ -365,8 +448,11 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     setHeaders([]);
     setFieldMapping({});
     setValidationErrors([]);
+    setValidationWarnings([]);
     setImportResult(null);
     setImportProgress(0);
+    setOcrMetadata(null);
+    setIsProcessingOCR(false);
   };
 
   // Download sample CSV template
@@ -393,7 +479,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Import Games from CSV</Typography>
+          <Typography variant="h6">Import Games</Typography>
           <IconButton onClick={onClose} size="small">
             <Close />
           </IconButton>
@@ -404,7 +490,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {/* Stepper */}
         <Stepper activeStep={step} sx={{ mb: 4 }}>
           <Step>
-            <StepLabel>Upload CSV</StepLabel>
+            <StepLabel>Upload</StepLabel>
           </Step>
           <Step>
             <StepLabel>Map Fields</StepLabel>
@@ -420,48 +506,109 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {/* Step 0: Upload */}
         {step === 0 && (
           <Stack spacing={3}>
-            <Paper
-              {...getRootProps()}
-              sx={{
-                p: 6,
-                border: "2px dashed",
-                borderColor: isDragActive ? "primary.main" : "divider",
-                bgcolor: isDragActive ? "action.hover" : "background.paper",
-                cursor: "pointer",
-                textAlign: "center",
-                transition: "all 0.3s",
-                "&:hover": {
-                  borderColor: "primary.main",
-                  bgcolor: "action.hover",
-                },
-              }}
-            >
-              <input {...getInputProps()} />
-              <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                or click to browse files
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Maximum file size: 10MB • Supported format: CSV
-              </Typography>
-            </Paper>
-
-            <Box textAlign="center">
-              <Button
-                sx={(theme) => ({
-                  borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                  color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                })}
-                startIcon={<Download />}
-                onClick={handleDownloadTemplate}
-                variant="outlined"
-              >
-                Download Sample Template
-              </Button>
+            {/* Import Mode Tabs */}
+            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+              <Tabs value={importMode} onChange={(e, newValue) => setImportMode(newValue)} aria-label="import mode tabs">
+                <Tab icon={<Description />} iconPosition="start" label="CSV File" value="csv" />
+                <Tab icon={<ImageIcon />} iconPosition="start" label="Calendar Image (OCR)" value="image" />
+              </Tabs>
             </Box>
+
+            {/* Import Mode Description */}
+            {importMode === "csv" && (
+              <Alert severity="info">
+                Upload a CSV file containing your game schedule. The file must include a <strong>Date</strong> column. All other columns will be preserved as custom fields.
+              </Alert>
+            )}
+
+            {importMode === "image" && (
+              <Alert severity="info" icon={<ImageIcon />}>
+                Upload a photo of your printed calendar or handwritten schedule. Our AI will extract the game data automatically. Supported formats: JPG, PNG, WEBP, PDF.
+              </Alert>
+            )}
+
+            {/* Upload Area */}
+            {isProcessingOCR ? (
+              <Paper
+                sx={{
+                  p: 6,
+                  border: "2px dashed",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  textAlign: "center",
+                }}
+              >
+                <CircularProgress size={64} sx={{ mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Processing Image with AI...
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Extracting game schedule data from your calendar image. This may take a moment.
+                </Typography>
+              </Paper>
+            ) : (
+              <Paper
+                {...getRootProps()}
+                sx={{
+                  p: 6,
+                  border: "2px dashed",
+                  borderColor: isDragActive ? "primary.main" : "divider",
+                  bgcolor: isDragActive ? "action.hover" : "background.paper",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.3s",
+                  "&:hover": {
+                    borderColor: "primary.main",
+                    bgcolor: "action.hover",
+                  },
+                }}
+              >
+                <input {...getInputProps()} />
+                {importMode === "csv" ? (
+                  <>
+                    <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>
+                      {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      or click to browse files
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Maximum file size: 10MB • Supported format: CSV
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                    <Typography variant="h6" gutterBottom>
+                      {isDragActive ? "Drop your calendar image here" : "Drag & drop calendar or schedule image"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      or click to browse files
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Maximum file size: 10MB • Supported formats: JPG, PNG, WEBP, PDF
+                    </Typography>
+                  </>
+                )}
+              </Paper>
+            )}
+
+            {importMode === "csv" && (
+              <Box textAlign="center">
+                <Button
+                  sx={(theme) => ({
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                  })}
+                  startIcon={<Download />}
+                  onClick={handleDownloadTemplate}
+                  variant="outlined"
+                >
+                  Download Sample Template
+                </Button>
+              </Box>
+            )}
 
             {validationErrors.length > 0 && (
               <Alert severity="error">
@@ -481,8 +628,24 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               to import.
             </Alert>
 
+            {/* Show OCR metadata if available */}
+            {ocrMetadata && (
+              <Alert severity="success">
+                <Typography variant="subtitle2" gutterBottom>
+                  <strong>AI Extraction Complete!</strong>
+                </Typography>
+                <Typography variant="body2">
+                  Detected {ocrMetadata.calendarType} format
+                  {ocrMetadata.month && ` for ${ocrMetadata.month}`}
+                  {ocrMetadata.year && ` ${ocrMetadata.year}`}
+                  {ocrMetadata.notes && ` • ${ocrMetadata.notes}`}
+                </Typography>
+              </Alert>
+            )}
+
             <Typography variant="subtitle2" color="text.secondary">
               File: <strong>{file?.name}</strong> • Rows: <strong>{parsedData.length}</strong>
+              {ocrMetadata && " • Source: OCR Extraction"}
             </Typography>
 
             <TableContainer component={Paper} variant="outlined">
