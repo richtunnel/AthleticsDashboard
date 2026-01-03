@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { createSignupLog } from "@/lib/services/signup-log.service";
+import { UserRole } from "@/lib/utils/auth";
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -12,6 +13,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    if (session.user.role === UserRole.MEMBER) {
+      return NextResponse.json(
+        { error: "Forbidden - Members cannot delete accounts" },
+        { status: 403 }
       );
     }
 

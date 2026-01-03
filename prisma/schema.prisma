@@ -76,6 +76,7 @@ model User {
   rewardPoints             RewardPoints?             @relation("UserRewardPoints")
   tablePreferences         TablePreference[]
   calendarGroupMappings    CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
+  sentInvitations          Invitation[]              @relation("SentInvitations")
 
   @@index([organizationId])
   @@map("User")
@@ -162,10 +163,11 @@ model Organization {
   travelSettings          TravelSettings?
 
   // Relations
-  users     User[]
-  teams     Team[]
-  venues    Venue[]
-  opponents Opponent[]
+  users           User[]
+  teams           Team[]
+  venues          Venue[]
+  opponents       Opponent[]
+  invitations     Invitation[]
 }
 
 // Sports & Teams
@@ -528,6 +530,8 @@ enum UserRole {
   COACH
   STAFF
   VENDOR_READ_ONLY
+  ADMIN
+  MEMBER
 }
 
 enum TeamLevel {
@@ -720,4 +724,31 @@ enum WaitlistStatus {
   NOTIFIED
   CONVERTED
   REMOVED
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  role           UserRole         @default(MEMBER)
+  organizationId String
+  invitedById    String
+  token          String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User             @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([invitedById])
+  @@map("Invitation")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
 }

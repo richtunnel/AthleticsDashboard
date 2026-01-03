@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/auth";
+import { requireAuth, requireSettingsPermission } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
 /**
@@ -9,7 +9,7 @@ import { prisma } from "@/lib/database/prisma";
  */
 export async function POST() {
   try {
-    const session = await requireAuth();
+    const session = await requireSettingsPermission();
 
     // Fetch current table preferences
     const currentPreference = await prisma.tablePreference.findUnique({

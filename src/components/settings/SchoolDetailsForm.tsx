@@ -13,9 +13,10 @@ type Props = {
     teamName?: string | null;
     schoolAddress?: string | null;
   };
+  disabled?: boolean;
 };
 
-export default function SchoolDetailsForm({ user }: Props) {
+export default function SchoolDetailsForm({ user, disabled }: Props) {
   const theme = customTheme();
   const { mode } = useTheme();
   const [form, setForm] = useState({
@@ -103,8 +104,8 @@ export default function SchoolDetailsForm({ user }: Props) {
 
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
-            <TextField size="small" label="School Name" name="schoolName" value={form.schoolName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln High School" />
-            <TextField size="small" label="Team Name" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" />
+            <TextField size="small" label="School Name" name="schoolName" value={form.schoolName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln High School" disabled={disabled} />
+            <TextField size="small" label="Team Name" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" disabled={disabled} />
             <SchoolAddressAutocomplete
               value={form.schoolAddress}
               onChange={(value) => setForm((s) => ({ ...s, schoolAddress: value }))}
@@ -112,13 +113,14 @@ export default function SchoolDetailsForm({ user }: Props) {
               placeholder="Start typing to search for your school address..."
               required
               size="small"
+              disabled={disabled}
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
             <Button
               sx={{ color: theme.palette.themeButtonText.main }}
               type="submit"
               variant="contained"
-              disabled={!isDirty || loading}
+              disabled={!isDirty || loading || disabled}
               startIcon={loading ? <CircularProgress size={18} /> : undefined}
             >
               {loading ? "Saving..." : "Save Changes"}
