@@ -62,7 +62,7 @@ export function CalendarConnectionSection() {
         {/* Connection Actions */}
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
           {!isConnected ? (
-            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/settings" />
+            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/gsync" />
           ) : (
             <Button
               sx={(theme) => ({
@@ -91,7 +91,7 @@ export function CalendarConnectionSection() {
           <Typography variant="caption" color="text.secondary" display="block">
             {isConnected
               ? "You can disconnect your calendar anytime. Existing calendar events will remain until manually deleted."
-              : "Connecting allows you to sync games to your calendar with one click. You'll be asked to grant permissions via Google. Read-only access is used only to list calendars so we know where to sync events."}
+              : "Connecting allows you to sync games to your calendar with one click. You'll be asked to grant permissions via Google."}
           </Typography>
         </Box>
       </CardContent>
