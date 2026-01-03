@@ -27,7 +27,10 @@ export const GOOGLE_SCOPES = {
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
   ] as string[],
-  CONTACTS: ["https://www.googleapis.com/auth/contacts.readonly"] as string[],
+  CONTACTS: [
+    "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/contacts.other.readonly",
+  ] as string[],
 };
 
 export type ScopeType = keyof typeof GOOGLE_SCOPES;
@@ -57,7 +60,7 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     const existingScopes = account.scope?.split(" ") || [];
     const hasAllScopes = requestedScopes.every((scope) => existingScopes.includes(scope));
 
-    if (hasAllScopes) {
+    if (hasAllScopes && account.refresh_token) {
       return {
         success: true,
         error: "Scopes already granted",
