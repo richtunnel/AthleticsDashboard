@@ -965,7 +965,7 @@ export function GamesTable() {
     };
 
     customColumns.forEach((col: any) => {
-      values[col.id] = new Set();
+      values[`custom:${col.id}`] = new Set();
     });
 
     // Add sets for imported columns
@@ -996,9 +996,9 @@ export function GamesTable() {
         const value = customData[col.id] || "";
         if (value) {
           if (col.type === "DATETIME") {
-            values[col.id].add(extractDatePart(String(value)));
+            values[`custom:${col.id}`].add(extractDatePart(String(value)));
           } else {
-            values[col.id].add(String(value).trim());
+            values[`custom:${col.id}`].add(String(value).trim());
           }
         }
       });
@@ -4087,11 +4087,11 @@ export function GamesTable() {
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
-                  columnId={customId}
+                  columnId={column.id}
                   columnName={columnLabel}
                   columnType="text"
-                  uniqueValues={uniqueValues[customId] || []}
-                  currentFilter={columnFilters[customId]}
+                  uniqueValues={uniqueValues[column.id] || []}
+                  currentFilter={columnFilters[column.id]}
                   onFilterChange={handleColumnFilterChange}
                 />
                 <Tooltip title="Hide column">
