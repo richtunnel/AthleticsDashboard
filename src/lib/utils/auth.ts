@@ -10,11 +10,13 @@ export enum UserRole {
   COACH = "COACH",
   STAFF = "STAFF",
   VENDOR_READ_ONLY = "VENDOR_READ_ONLY",
+  ADMIN = "ADMIN",
+  MEMBER = "MEMBER",
 }
 
-export const WRITE_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ATHLETIC_DIRECTOR, UserRole.ASSISTANT_AD];
+export const WRITE_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ATHLETIC_DIRECTOR, UserRole.ASSISTANT_AD, UserRole.ADMIN];
 
-export const READ_ROLES: UserRole[] = [...WRITE_ROLES, UserRole.COACH, UserRole.STAFF, UserRole.VENDOR_READ_ONLY];
+export const READ_ROLES: UserRole[] = [...WRITE_ROLES, UserRole.COACH, UserRole.STAFF, UserRole.VENDOR_READ_ONLY, UserRole.MEMBER];
 
 const DEV_SESSION = {
   user: {
@@ -62,5 +64,13 @@ export async function requirePermission(allowedRoles: UserRole[]) {
     throw new Error("Forbidden - You do not have permission to perform this action");
   }
 
+  return session;
+}
+
+export async function requireSettingsPermission() {
+  const session = await requireAuth();
+  if (session.user.role === UserRole.MEMBER) {
+    throw new Error("Forbidden - Members cannot modify settings");
+  }
   return session;
 }

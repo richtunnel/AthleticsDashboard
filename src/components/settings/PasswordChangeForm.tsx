@@ -7,6 +7,7 @@ import { changePassword } from "@/app/dashboard/settings/actions";
 type Props = {
   hasPassword: boolean;
   hasGoogleAccount: boolean;
+  disabled?: boolean;
 };
 
 function getPasswordStrength(password: string): { score: number; label: string; color: "error" | "warning" | "success" } {
@@ -26,7 +27,7 @@ function getPasswordStrength(password: string): { score: number; label: string; 
   return { score, label: "Strong", color: "success" };
 }
 
-export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Props) {
+export default function PasswordChangeForm({ hasPassword, hasGoogleAccount, disabled }: Props) {
   const [form, setForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -130,6 +131,7 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
                 onChange={handleChange}
                 required
                 fullWidth
+                disabled={disabled}
               />
             )}
 
@@ -143,6 +145,7 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
               required
               fullWidth
               helperText="Minimum 8 characters"
+              disabled={disabled}
             />
 
             {form.newPassword && (
@@ -168,11 +171,12 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
               onChange={handleChange}
               required
               fullWidth
+              disabled={disabled}
             />
 
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
 
-            <Button type="submit" variant="contained" disabled={loading}>
+            <Button type="submit" variant="contained" disabled={loading || disabled}>
               {loading ? "Updating..." : "Update Password"}
             </Button>
           </Stack>

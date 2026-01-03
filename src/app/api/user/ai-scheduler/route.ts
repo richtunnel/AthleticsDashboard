@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/auth";
+import { requireAuth, requireSettingsPermission } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
 export async function GET() {
@@ -29,7 +29,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    const session = await requireSettingsPermission();
     const body = await request.json();
 
     const { enabled } = body;

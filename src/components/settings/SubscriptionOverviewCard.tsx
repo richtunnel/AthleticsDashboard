@@ -45,9 +45,20 @@ interface SubscriptionOverviewCardProps {
   userRole: UserRole | null;
   userPlan: string | null;
   checkoutStatus?: string | null;
+  disabled?: boolean;
 }
 
-export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan, checkoutStatus }: SubscriptionOverviewCardProps) {
+export default function SubscriptionOverviewCard({
+  subscription,
+  recoveryEmail,
+  lastLogin,
+  todayLoginCount,
+  stripeCustomerId,
+  userRole,
+  userPlan,
+  checkoutStatus,
+  disabled,
+}: SubscriptionOverviewCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -346,18 +357,18 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                   )}
 
                   <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                    <Button variant="outlined" startIcon={loading ? <CircularProgress size={16} /> : <CreditCardIcon />} onClick={handleOpenPortal} disabled={loading}>
+                    <Button variant="outlined" startIcon={loading ? <CircularProgress size={16} /> : <CreditCardIcon />} onClick={handleOpenPortal} disabled={loading || disabled}>
                       Manage Billing
                     </Button>
 
                     {displaySubscription.status === "ACTIVE" && !displaySubscription.cancelAtPeriodEnd && (
-                      <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={() => setCancelDialogOpen(true)} disabled={loading}>
+                      <Button variant="outlined" color="error" startIcon={<CancelIcon />} onClick={() => setCancelDialogOpen(true)} disabled={loading || disabled}>
                         Cancel Subscription
                       </Button>
                     )}
 
                     {displaySubscription.cancelAtPeriodEnd && displaySubscription.gracePeriodEndsAt && getDaysUntil(displaySubscription.gracePeriodEndsAt)! > 0 && (
-                      <Button variant="contained" color="success" startIcon={<PlayArrowIcon />} onClick={handleResumeSubscription} disabled={loading}>
+                      <Button variant="contained" color="success" startIcon={<PlayArrowIcon />} onClick={handleResumeSubscription} disabled={loading || disabled}>
                         Resume Subscription
                       </Button>
                     )}
@@ -393,6 +404,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                       color="primary"
                       href="/onboarding/plans"
                       size="large"
+                      disabled={disabled}
                       sx={{
                         bgcolor: "primary.main",
                         color: `${theme.palette.mode}` === "dark" ? "#000" : "#fff",
@@ -422,7 +434,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                     {recoveryEmail.verified && <Chip label="Verified" color="success" size="small" sx={{ ml: 1 }} />}
                     {!recoveryEmail.verified && <Chip label="Not Verified" color="warning" size="small" sx={{ ml: 1 }} />}
                   </Typography>
-                  <Button variant="text" size="small" onClick={() => setRecoveryEmailDialogOpen(true)} sx={{ mt: 1 }}>
+                  <Button variant="text" size="small" onClick={() => setRecoveryEmailDialogOpen(true)} sx={{ mt: 1 }} disabled={disabled}>
                     Update Recovery Email
                   </Button>
                 </Box>
@@ -437,6 +449,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                     size="small"
                     startIcon={<EmailIcon />}
                     onClick={() => setRecoveryEmailDialogOpen(true)}
+                    disabled={disabled}
                   >
                     Add Recovery Email
                   </Button>
