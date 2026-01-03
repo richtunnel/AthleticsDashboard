@@ -194,6 +194,9 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                   <Typography variant="h3" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[900], fontWeight: 600 }}>
                     {calculation.recommendedDepartureTime}
                   </Typography>
+                  <Typography variant="body2" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[800], mt: 1 }}>
+                    Based on your input: <strong>{arrivalTime}</strong>
+                  </Typography>
                 </Box>
 
                 <Box sx={{ p: 2, bgcolor: "rgba(0, 0, 0, 0.02)", borderRadius: 1 }}>
@@ -238,7 +241,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
         <Button onClick={handleClose} sx={{ color: "text.secondary" }}>
           Cancel
         </Button>
-        {activeStep > 0 && activeStep < 2 && (
+        {activeStep > 0 && (
           <Button onClick={handleBack} sx={{ color: "text.secondary" }}>
             Back
           </Button>

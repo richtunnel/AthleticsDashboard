@@ -27,10 +27,7 @@ export const GOOGLE_SCOPES = {
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
   ] as string[],
-  CONTACTS: [
-    "https://www.googleapis.com/auth/contacts.readonly",
-    "https://www.googleapis.com/auth/contacts.other.readonly",
-  ] as string[],
+  CONTACTS: ["https://www.googleapis.com/auth/contacts.readonly"] as string[],
 };
 
 export type ScopeType = keyof typeof GOOGLE_SCOPES;
