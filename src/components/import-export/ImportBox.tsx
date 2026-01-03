@@ -31,9 +31,12 @@ import {
   Step,
   StepLabel,
   Grid,
+  Tabs,
+  Tab,
+  CircularProgress,
 } from "@mui/material";
 import Link from "next/link";
-import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning } from "@mui/icons-material";
+import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Visibility, Warning, Image as ImageIcon, Description } from "@mui/icons-material";
 import GoogleIcon from "@mui/icons-material/Google";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
@@ -80,6 +83,7 @@ const DATABASE_FIELDS = [
 export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
   const theme = customTheme();
   const { mode } = useTheme();
+  const [importMode, setImportMode] = useState<"csv" | "image">("csv"); // Toggle between CSV and Image import
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
@@ -89,47 +93,121 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
   const [importProgress, setImportProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [ocrMetadata, setOcrMetadata] = useState<{
+    calendarType?: string;
+    month?: string;
+    year?: string;
+    notes?: string;
+  } | null>(null);
+
+  // Handle image OCR processing
+  const handleImageOCR = useCallback(async (file: File) => {
+    setIsProcessingOCR(true);
+    setValidationErrors([]);
+    setOcrMetadata(null);
+
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Call OCR API
+      const response = await fetch("/api/import/games/ocr", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!result.success || !result.data) {
+        setValidationErrors([result.error || "Failed to extract data from image"]);
+        setIsProcessingOCR(false);
+        return;
+      }
+
+      // Store metadata
+      setOcrMetadata(result.data.metadata);
+
+      // Set extracted data
+      setHeaders(result.data.headers);
+      setParsedData(result.data.rows);
+
+      // Auto-map fields
+      const autoMapping = autoMapFields(result.data.headers);
+      setFieldMapping(autoMapping);
+
+      // Move to mapping step
+      setStep(1);
+    } catch (error) {
+      console.error("OCR processing error:", error);
+      setValidationErrors([`OCR processing failed: ${error instanceof Error ? error.message : "Unknown error"}`]);
+    } finally {
+      setIsProcessingOCR(false);
+    }
+  }, []);
 
   // Drag and drop handling
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
 
-    setFile(file);
-    setValidationErrors([]);
+      setFile(file);
+      setValidationErrors([]);
 
-    // Parse CSV
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      transformHeader: (header: any) => header.trim(),
-      complete: (results: any) => {
-        const data = results.data as ParsedRow[];
-        const headers = results.meta.fields || [];
+      // Check if it's an image file for OCR processing
+      const isImageFile = file.type.startsWith("image/") || file.type === "application/pdf";
 
-        setHeaders(headers);
-        setParsedData(data);
+      if (importMode === "image" && isImageFile) {
+        // Process image with OCR
+        handleImageOCR(file);
+      } else if (importMode === "csv" || file.type === "text/csv" || file.name.endsWith(".csv")) {
+        // Parse CSV
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          transformHeader: (header: any) => header.trim(),
+          complete: (results: any) => {
+            const data = results.data as ParsedRow[];
+            const headers = results.meta.fields || [];
 
-        // Auto-map common fields
-        const autoMapping = autoMapFields(headers);
-        setFieldMapping(autoMapping);
+            setHeaders(headers);
+            setParsedData(data);
 
-        // Move to mapping step
-        setStep(1);
-      },
-      error: (error: any) => {
-        setValidationErrors([`CSV Parse Error: ${error.message}`]);
-      },
-    });
-  }, []);
+            // Auto-map common fields
+            const autoMapping = autoMapFields(headers);
+            setFieldMapping(autoMapping);
+
+            // Move to mapping step
+            setStep(1);
+          },
+          error: (error: any) => {
+            setValidationErrors([`CSV Parse Error: ${error.message}`]);
+          },
+        });
+      } else {
+        setValidationErrors(["Invalid file type. Please upload a CSV file or switch to Image mode for calendar images."]);
+      }
+    },
+    [importMode, handleImageOCR]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "text/csv": [".csv"],
-      "application/vnd.ms-excel": [".csv"],
-    },
+    accept:
+      importMode === "csv"
+        ? {
+            "text/csv": [".csv"],
+            "application/vnd.ms-excel": [".csv"],
+          }
+        : {
+            "image/jpeg": [".jpg", ".jpeg"],
+            "image/png": [".png"],
+            "image/webp": [".webp"],
+            "application/pdf": [".pdf"],
+          },
     maxFiles: 1,
     maxSize: 10 * 1024 * 1024, // 10MB
   });
@@ -393,6 +471,8 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
     setValidationErrors([]);
     setImportResult(null);
     setImportProgress(0);
+    setIsProcessingOCR(false);
+    setOcrMetadata(null);
   };
 
   // Download sample CSV template
@@ -438,57 +518,118 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           {/* Step 0: Upload */}
           {step === 0 && (
             <Stack spacing={3}>
-              <Paper
-                {...getRootProps()}
-                sx={{
-                  p: 6,
-                  border: "2px dashed",
-                  borderColor: isDragActive ? (mode === "dark" ? "divider" : "primary.main") : mode === "dark" ? "transparent" : "primary.main",
-                  bgcolor: isDragActive ? "action.hover" : "background.paper",
-                  cursor: "pointer",
-                  textAlign: "center",
-                  transition: "all 0.3s",
-                  "&:hover": {
-                    borderColor: "primary.main",
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <input {...getInputProps()} />
-                <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  or click to browse files
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Maximum file size: 10MB • Supported format: CSV
-                </Typography>
-              </Paper>
-
-              <Box textAlign="center">
-                <Button
-                  sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}
-                  startIcon={<Download />}
-                  onClick={handleDownloadTemplate}
-                  variant="outlined"
-                >
-                  Download Sample Template
-                </Button>
-                <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}>
-                  <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank" style={{ color: "inherit" }}>
-                    Open Googlesheets&nbsp;
-                    <OpenInNewIcon fontSize="small" />
-                  </Link>
-                </Button>
-                <Button sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }} variant="outlined">
-                  <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank" style={{ color: "inherit" }}>
-                    Open excel&nbsp;
-                    <OpenInNewIcon />
-                  </Link>
-                </Button>
+              {/* Import Mode Tabs */}
+              <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                <Tabs value={importMode} onChange={(e, newValue) => setImportMode(newValue)} aria-label="import mode tabs">
+                  <Tab icon={<Description />} iconPosition="start" label="CSV File" value="csv" />
+                  <Tab icon={<ImageIcon />} iconPosition="start" label="Calendar Image (OCR)" value="image" />
+                </Tabs>
               </Box>
+
+              {/* Import Mode Description */}
+              {importMode === "csv" && (
+                <Alert severity="info">
+                  Upload a CSV file containing your game schedule. The file must include a <strong>Date</strong> column. All other columns will be preserved as custom fields.
+                </Alert>
+              )}
+
+              {importMode === "image" && (
+                <Alert severity="info" icon={<ImageIcon />}>
+                  Upload a photo of your printed calendar or handwritten schedule. Our AI will extract the game data automatically. Supported formats: JPG, PNG, WEBP, PDF.
+                </Alert>
+              )}
+
+              {/* Upload Area */}
+              {isProcessingOCR ? (
+                <Paper
+                  sx={{
+                    p: 6,
+                    border: "2px dashed",
+                    borderColor: "divider",
+                    bgcolor: "background.paper",
+                    textAlign: "center",
+                  }}
+                >
+                  <CircularProgress size={64} sx={{ mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Processing Image with AI...
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Extracting game schedule data from your calendar image. This may take a moment.
+                  </Typography>
+                </Paper>
+              ) : (
+                <Paper
+                  {...getRootProps()}
+                  sx={{
+                    p: 6,
+                    border: "2px dashed",
+                    borderColor: isDragActive ? "primary.main" : mode === "dark" ? "transparent" : "primary.main",
+                    bgcolor: isDragActive ? "action.hover" : "background.paper",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      borderColor: "primary.main",
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <input {...getInputProps()} />
+                  {importMode === "csv" ? (
+                    <>
+                      <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        or click to browse files
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Maximum file size: 10MB • Supported format: CSV
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        {isDragActive ? "Drop your calendar image here" : "Drag & drop calendar or schedule image"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        or click to browse files
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Maximum file size: 10MB • Supported formats: JPG, PNG, WEBP, PDF
+                      </Typography>
+                    </>
+                  )}
+                </Paper>
+              )}
+
+              {importMode === "csv" && (
+                <Box textAlign="center">
+                  <Button
+                    sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}
+                    startIcon={<Download />}
+                    onClick={handleDownloadTemplate}
+                    variant="outlined"
+                  >
+                    Download Sample Template
+                  </Button>
+                  <Button variant="outlined" sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }}>
+                    <Link href="https://docs.google.com/spreadsheets/u/0/" rel="noopener" target="_blank" style={{ color: "inherit" }}>
+                      Open Googlesheets&nbsp;
+                      <OpenInNewIcon fontSize="small" />
+                    </Link>
+                  </Button>
+                  <Button sx={{ ml: "12px", marginBottom: "8px", borderColor: theme.palette.text.secondary, color: theme.palette.text.secondary }} variant="outlined">
+                    <Link href="https://excel.cloud.microsoft" rel="noopener" target="_blank" style={{ color: "inherit" }}>
+                      Open excel&nbsp;
+                      <OpenInNewIcon />
+                    </Link>
+                  </Button>
+                </Box>
+              )}
 
               {validationErrors.length > 0 && (
                 <Alert severity="error">
@@ -508,8 +649,24 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
                 want to import.
               </Alert>
 
+              {/* Show OCR metadata if available */}
+              {ocrMetadata && (
+                <Alert severity="success">
+                  <Typography variant="subtitle2" gutterBottom>
+                    <strong>AI Extraction Complete!</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    Detected {ocrMetadata.calendarType} format
+                    {ocrMetadata.month && ` for ${ocrMetadata.month}`}
+                    {ocrMetadata.year && ` ${ocrMetadata.year}`}
+                    {ocrMetadata.notes && ` • ${ocrMetadata.notes}`}
+                  </Typography>
+                </Alert>
+              )}
+
               <Typography variant="subtitle2" color="text.secondary">
                 File: <strong>{file?.name}</strong> • Rows: <strong>{parsedData.length}</strong>
+                {ocrMetadata && " • Source: OCR Extraction"}
               </Typography>
 
               <TableContainer component={Paper} variant="outlined">
