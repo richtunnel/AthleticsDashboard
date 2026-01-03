@@ -250,6 +250,10 @@
   .HomePageIpadSection {
     margin-left: 180px;
   }
+
+  .newSectionTitle {
+    margin-right: 80px !important;
+  }
 }
 
 @media all and (max-width: 565px) {
