@@ -67,6 +67,8 @@ export interface AvailableDatesResult {
     excludedDays?: string[]; // Days of week excluded (e.g., ["Sunday", "Saturday"])
     dateRange?: { start?: string; end?: string; month?: string }; // Applied date range filter
     minSpacing?: number; // Applied minimum spacing constraint
+    interpretation?: string; // AI interpretation
+    recommendation?: string; // AI recommendation
   };
 }
 
