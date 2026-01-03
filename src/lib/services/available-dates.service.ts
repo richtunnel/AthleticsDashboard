@@ -5,6 +5,8 @@ const ABBREVIATION_MAP: Record<string, string[]> = {
   // Genders
   'b': ['boys'],
   'g': ['girls'],
+  'boy': ['boys'],
+  'girl': ['girls'],
   'coed': ['coed'],
   
   // Levels
@@ -332,6 +334,7 @@ export class AvailableDatesService {
       'show', 'get', 'give', 'list', 'search', 'when', 'what', 'is', 'are',
       'can', 'i', 'have', 'need', 'want', 'looking', 'schedule', 'schedules',
       'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams',
+      'sport', 'level', 'gender', 'vs', 'of',
       // Words describing TYPE of dates (not team characteristics)
       'open', 'free', 'empty', 'clear', 'good', 'best', 'suitable'
     ]);
@@ -510,15 +513,21 @@ export class AvailableDatesService {
     const clusterDates = new Set<string>();
     let rowsWithoutDates = 0;
 
-    // Build exact team patterns to match (e.g., "Girls Varsity Basketball")
-    const teamPatterns = clusters.map(cluster => {
-      const patterns = [
-        `${cluster.gender} ${cluster.level} ${cluster.sport}`.toLowerCase(),
-        `${cluster.gender}${cluster.level}${cluster.sport}`.toLowerCase().replace(/\s+/g, ''),
-        `${cluster.gender.charAt(0)}${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "GV Basketball"
-        `${cluster.gender.charAt(0)} ${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "G V Basketball"
-      ];
-      return patterns;
+    // Level-defining tokens to help distinguish between e.g. "Varsity" and "Junior Varsity"
+    const LEVEL_TOKENS = new Set(['varsity', 'junior', 'frosh', 'soph', 'freshmen', 'freshman', 'flag']);
+
+    // Pre-calculate token sets for each cluster
+    const clusterInfo = clusters.map(cluster => {
+      const genderTokens = this.parsePrompt(cluster.gender);
+      const levelTokens = this.parsePrompt(cluster.level);
+      const sportTokens = this.parsePrompt(cluster.sport);
+      
+      return {
+        genderTokens: new Set(genderTokens),
+        levelTokens: new Set(levelTokens),
+        sportTokens: new Set(sportTokens),
+        combinedNoSpaces: `${cluster.gender}${cluster.level}${cluster.sport}`.toLowerCase().replace(/\s+/g, '')
+      };
     });
 
     for (const row of gamesTable) {
@@ -536,10 +545,35 @@ export class AvailableDatesService {
         .join(' ')
         .toLowerCase();
 
-      // Check if row matches ANY of the exact team patterns
+      const rowTokens = new Set(this.parsePrompt(searchableText));
+      const searchableTextNoSpaces = searchableText.replace(/\s+/g, '');
+
+      // Check if row matches ANY of the matched clusters
       let qualifies = false;
-      for (const patterns of teamPatterns) {
-        if (patterns.some(pattern => searchableText.includes(pattern))) {
+      for (const info of clusterInfo) {
+        // Match 1: Token-based match (order independent)
+        const hasGender = Array.from(info.genderTokens).every(t => rowTokens.has(t));
+        const hasSport = Array.from(info.sportTokens).every(t => rowTokens.has(t));
+        
+        // Special handling for level to avoid "Varsity" matching "Junior Varsity"
+        // 1. Must have all tokens of the cluster's level
+        const hasAllClusterLevelTokens = Array.from(info.levelTokens).every(t => rowTokens.has(t));
+        
+        // 2. Must not have any OTHER level-defining tokens that are NOT in the cluster's level
+        // This ensures "Varsity" doesn't match a row containing "Junior Varsity"
+        const hasExtraLevelTokens = Array.from(LEVEL_TOKENS).some(t => 
+          rowTokens.has(t) && !info.levelTokens.has(t)
+        );
+
+        const hasLevel = hasAllClusterLevelTokens && !hasExtraLevelTokens;
+
+        if (hasGender && hasLevel && hasSport) {
+          qualifies = true;
+          break;
+        }
+
+        // Match 2: Fallback to unspaced string matching
+        if (searchableTextNoSpaces.includes(info.combinedNoSpaces)) {
           qualifies = true;
           break;
         }
