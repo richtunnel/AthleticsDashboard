@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // === CHECK FOR DUPLICATE ROW ===
+        // === CHECK FOR DUPLICATE ROW (track but don't skip) ===
         const isDuplicate = await isDuplicateRow(
           parsedDate,
           gameData.customFields || {},
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
         if (isDuplicate) {
           duplicates.push(`Row ${rowNum}: Duplicate row detected (all fields match existing game)`);
           duplicateCount++;
-          continue; // Skip this row
+          // Continue to import anyway - duplicates are allowed
         }
 
         // === CREATE GAME WITH DATE AND CUSTOM FIELDS ===
