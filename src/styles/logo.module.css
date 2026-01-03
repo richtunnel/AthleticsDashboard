@@ -1,6 +1,7 @@
 .ad-hub-logo {
   color: var(--text-primary);
-  font-size: 1.5rem;
+  /* font-size: 1.5rem; */
+  font-size: 1.75rem;
   font-weight: 800;
   display: flex;
   position: relative;
@@ -14,7 +15,7 @@
 .ad-hub-logo svg {
   position: relative;
   letter-spacing: -0.25px;
-  top: 1px;
+  top: 1.5px;
 }
 
 .opleticsLogoText {
@@ -206,11 +207,6 @@
   .homePageContentContainer h3 {
     font-size: 3rem !important;
   }
-
-  .ad-hub-logo {
-    font-size: 1.85rem;
-  }
-
   .fullHeightMobileHero {
     border-radius: 0 0 32px 32px;
     background: "#000000";
@@ -250,6 +246,10 @@
     top: 10px;
     padding: 0px 40px;
   }
+
+  .HomePageIpadSection {
+    margin-left: 180px;
+  }
 }
 
 @media all and (max-width: 565px) {
@@ -261,6 +261,10 @@
   .mobile-hero-section {
     position: relative;
     margin-top: 6px;
+  }
+
+  .newSectionTitle {
+    font-size: 1.5rem !important;
   }
 }
 

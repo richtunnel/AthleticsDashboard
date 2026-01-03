@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
         await resendClient.emails.send({
           from: emailFrom,
           to: user.email,
-          subject: `Your Athletics Dashboard account will be deleted in ${countdownLabel}`,
+          subject: `Your Opletics account will be deleted in ${countdownLabel}`,
           html: buildReminderEmailHtml({
             recipientName,
             organizationName,
@@ -400,7 +400,7 @@ function buildReminderEmailHtml(params: { recipientName: string; organizationNam
       <div class="container">
         <h1>Account deletion scheduled (${countdownLabel} remaining)</h1>
         <p>Hi ${escapeHtml(recipientName)},</p>
-        <p>This is a friendly reminder that the AthleticsDashboard account for ${escapeHtml(organizationName)} is scheduled for permanent deletion on <strong>${escapeHtml(deletionDate)}</strong>.</p>
+        <p>This is a friendly reminder that the Opletics account for ${escapeHtml(organizationName)} is scheduled for permanent deletion on <strong>${escapeHtml(deletionDate)}</strong>.</p>
         <p class="highlight">Your data will be permanently removed after this time.</p>
         <p>If you wish to keep your account active, please log back in and reactivate your subscription before the deletion date.</p>
         <a class="cta" href="${manageUrl}">Review account settings</a>
@@ -420,7 +420,7 @@ function buildReminderEmailText(params: { recipientName: string; organizationNam
 
   return `Hi ${recipientName},
 
-The AthleticsDashboard account for ${organizationName} is scheduled for permanent deletion on ${deletionDate} (${countdownLabel} remaining).
+The Opletics account for ${organizationName} is scheduled for permanent deletion on ${deletionDate} (${countdownLabel} remaining).
 
 If you want to keep the account, please log in and reactivate your subscription before the deletion date: ${manageUrl}
 

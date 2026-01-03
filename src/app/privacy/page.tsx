@@ -75,8 +75,8 @@ export default function PrivacyPage() {
           5. Student Data and FERPA Compliance
         </Typography>
         <Typography variant="body1" paragraph>
-          The Opletics complies with the Family Educational Rights and Privacy Act (FERPA). We do not collect or store student personally identifiable information (PII) unless explicitly provided by
-          you and necessary for the platform's functionality. You are responsible for ensuring that any student data shared complies with FERPA and other applicable laws.
+          Opletics complies with the Family Educational Rights and Privacy Act (FERPA). We do not collect or store student personally identifiable information (PII) unless explicitly provided by you
+          and necessary for the platform's functionality. You are responsible for ensuring that any student data shared complies with FERPA and other applicable laws.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
