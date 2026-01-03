@@ -306,7 +306,8 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             break;
           case "preserve":
             // Store all preserved columns as custom fields with their original names
-            transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+            // Trim values to avoid filtering issues with trailing spaces
+            transformed.customFields[csvField] = value !== null && value !== undefined ? String(value).trim() : null;
             break;
         }
       });
