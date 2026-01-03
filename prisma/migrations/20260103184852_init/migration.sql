@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'ATHLETIC_DIRECTOR', 'ASSISTANT_AD', 'COACH', 'STAFF', 'VENDOR_READ_ONLY');
+CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER');
 
 -- CreateEnum
 CREATE TYPE "TeamLevel" AS ENUM ('VARSITY', 'JV', 'FRESHMAN', 'MIDDLE_SCHOOL', 'YOUTH');
@@ -28,13 +28,25 @@ CREATE TYPE "SupportTicketStatus" AS ENUM ('OPEN', 'PENDING_RESPONSE', 'CLOSED')
 -- CreateEnum
 CREATE TYPE "ReferralStatus" AS ENUM ('PENDING', 'SIGNED_UP', 'REWARDED');
 
+-- CreateEnum
+CREATE TYPE "CustomColumnType" AS ENUM ('TEXT', 'TIME', 'DROPDOWN', 'DATETIME');
+
+-- CreateEnum
+CREATE TYPE "PartnerStatus" AS ENUM ('PENDING', 'CONTACTED', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "WaitlistStatus" AS ENUM ('PENDING', 'NOTIFIED', 'CONVERTED', 'REMOVED');
+
+-- CreateEnum
+CREATE TYPE "InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT,
     "phone" TEXT,
-    "role" "UserRole" NOT NULL DEFAULT 'ATHLETIC_DIRECTOR',
+    "role" "UserRole" NOT NULL DEFAULT 'ADMIN',
     "image" TEXT,
     "emailVerified" TIMESTAMP(3),
     "hashedPassword" TEXT,
@@ -42,7 +54,7 @@ CREATE TABLE "User" (
     "resetTokenExpiry" TIMESTAMP(3),
     "schoolName" TEXT,
     "teamName" TEXT,
-    "mascot" TEXT,
+    "schoolAddress" TEXT,
     "stripeCustomerId" TEXT,
     "plan" TEXT,
     "priceId" TEXT,
@@ -53,11 +65,22 @@ CREATE TABLE "User" (
     "hasReceivedFreeTrial" BOOLEAN NOT NULL DEFAULT false,
     "cancellationDate" TIMESTAMP(3),
     "deletionScheduledAt" TIMESTAMP(3),
+    "isDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "disabledAt" TIMESTAMP(3),
+    "disableReason" TEXT,
     "googleCalendarRefreshToken" TEXT,
     "googleCalendarAccessToken" TEXT,
     "calendarTokenExpiry" TIMESTAMP(3),
     "googleCalendarId" TEXT,
     "googleCalendarEmail" TEXT,
+    "autoCalendarSyncEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "aiSchedulerEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "aiTravelTimesEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "aiEmailGenerationEnabled" BOOLEAN NOT NULL DEFAULT false,
+    "signaturePhone" TEXT,
+    "signatureWebsite" TEXT,
+    "signatureLogoUrl" TEXT,
+    "signatureText" TEXT,
     "city" TEXT,
     "lastLoginAt" TIMESTAMP(3),
     "lastLoginDate" TIMESTAMP(3),
@@ -111,6 +134,7 @@ CREATE TABLE "StripeWebhookEvent" (
 CREATE TABLE "CustomColumn" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "type" "CustomColumnType" NOT NULL DEFAULT 'TEXT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "organizationId" TEXT NOT NULL,
@@ -159,7 +183,7 @@ CREATE TABLE "Sport" (
 CREATE TABLE "Team" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "level" "TeamLevel" NOT NULL,
+    "level" TEXT NOT NULL,
     "gender" "Gender",
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -178,6 +202,8 @@ CREATE TABLE "Game" (
     "notes" TEXT,
     "location" TEXT,
     "isHome" BOOLEAN NOT NULL DEFAULT true,
+    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "isSampleGame" BOOLEAN NOT NULL DEFAULT false,
     "travelRequired" BOOLEAN NOT NULL DEFAULT false,
     "busTravel" BOOLEAN NOT NULL DEFAULT false,
     "estimatedTravelTime" INTEGER,
@@ -304,6 +330,23 @@ CREATE TABLE "Opponent" (
     "organizationId" TEXT NOT NULL,
 
     CONSTRAINT "Opponent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MatchupResult" (
+    "id" TEXT NOT NULL,
+    "organizationScore" INTEGER NOT NULL,
+    "opponentScore" INTEGER NOT NULL,
+    "isWin" BOOLEAN NOT NULL,
+    "sport" TEXT,
+    "gender" TEXT,
+    "level" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "opponentId" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+
+    CONSTRAINT "MatchupResult_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -461,6 +504,88 @@ CREATE TABLE "RewardPoints" (
     CONSTRAINT "RewardPoints_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "SignupLog" (
+    "id" TEXT NOT NULL,
+    "email" TEXT,
+    "phone" TEXT,
+    "deletedUserId" TEXT,
+    "deletedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SignupLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CalendarGroupMapping" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "columnName" TEXT NOT NULL,
+    "columnValue" TEXT NOT NULL,
+    "googleCalendarId" TEXT NOT NULL,
+    "googleCalendarName" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CalendarGroupMapping_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NewsletterSubscriber" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NewsletterSubscriber_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PartnerRequest" (
+    "id" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "schoolOrCollege" TEXT NOT NULL,
+    "status" "PartnerStatus" NOT NULL DEFAULT 'PENDING',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PartnerRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WaitlistEntry" (
+    "id" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "schoolOrCollege" TEXT NOT NULL,
+    "status" "WaitlistStatus" NOT NULL DEFAULT 'PENDING',
+    "notifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WaitlistEntry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Invitation" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'MEMBER',
+    "organizationId" TEXT NOT NULL,
+    "invitedById" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "status" "InvitationStatus" NOT NULL DEFAULT 'PENDING',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Invitation_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -481,6 +606,12 @@ CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
 
 -- CreateIndex
 CREATE INDEX "Session_userId_idx" ON "Session"("userId");
+
+-- CreateIndex
+CREATE INDEX "CustomColumn_organizationId_idx" ON "CustomColumn"("organizationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomColumn_organizationId_name_key" ON "CustomColumn"("organizationId", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TablePreference_userId_tableKey_key" ON "TablePreference"("userId", "tableKey");
@@ -508,6 +639,9 @@ CREATE INDEX "Game_venueId_idx" ON "Game"("venueId");
 
 -- CreateIndex
 CREATE INDEX "Game_opponentId_idx" ON "Game"("opponentId");
+
+-- CreateIndex
+CREATE INDEX "Game_createdById_sortOrder_idx" ON "Game"("createdById", "sortOrder");
 
 -- CreateIndex
 CREATE INDEX "Venue_organizationId_idx" ON "Venue"("organizationId");
@@ -546,6 +680,15 @@ CREATE INDEX "Opponent_organizationId_sort_order_idx" ON "Opponent"("organizatio
 CREATE INDEX "Opponent_organizationId_idx" ON "Opponent"("organizationId");
 
 -- CreateIndex
+CREATE INDEX "MatchupResult_organizationId_idx" ON "MatchupResult"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "MatchupResult_opponentId_idx" ON "MatchupResult"("opponentId");
+
+-- CreateIndex
+CREATE INDEX "MatchupResult_organizationId_sport_gender_level_idx" ON "MatchupResult"("organizationId", "sport", "gender", "level");
+
+-- CreateIndex
 CREATE INDEX "TravelRecommendation_gameId_idx" ON "TravelRecommendation"("gameId");
 
 -- CreateIndex
@@ -564,7 +707,10 @@ CREATE INDEX "EmailGroup_userId_idx" ON "EmailGroup"("userId");
 CREATE UNIQUE INDEX "EmailGroup_organizationId_name_key" ON "EmailGroup"("organizationId", "name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "EmailAddress_email_key" ON "EmailAddress"("email");
+CREATE INDEX "EmailAddress_groupId_idx" ON "EmailAddress"("groupId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmailAddress_email_groupId_key" ON "EmailAddress"("email", "groupId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Subscription_userId_key" ON "Subscription"("userId");
@@ -598,6 +744,48 @@ CREATE INDEX "Referral_referredEmail_idx" ON "Referral"("referredEmail");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RewardPoints_userId_key" ON "RewardPoints"("userId");
+
+-- CreateIndex
+CREATE INDEX "SignupLog_email_idx" ON "SignupLog"("email");
+
+-- CreateIndex
+CREATE INDEX "SignupLog_phone_idx" ON "SignupLog"("phone");
+
+-- CreateIndex
+CREATE INDEX "SignupLog_expiresAt_idx" ON "SignupLog"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "CalendarGroupMapping_userId_idx" ON "CalendarGroupMapping"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CalendarGroupMapping_userId_columnName_columnValue_key" ON "CalendarGroupMapping"("userId", "columnName", "columnValue");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NewsletterSubscriber_email_key" ON "NewsletterSubscriber"("email");
+
+-- CreateIndex
+CREATE INDEX "NewsletterSubscriber_email_idx" ON "NewsletterSubscriber"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PartnerRequest_email_key" ON "PartnerRequest"("email");
+
+-- CreateIndex
+CREATE INDEX "PartnerRequest_status_idx" ON "PartnerRequest"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WaitlistEntry_email_key" ON "WaitlistEntry"("email");
+
+-- CreateIndex
+CREATE INDEX "WaitlistEntry_status_idx" ON "WaitlistEntry"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
+
+-- CreateIndex
+CREATE INDEX "Invitation_organizationId_idx" ON "Invitation"("organizationId");
+
+-- CreateIndex
+CREATE INDEX "Invitation_invitedById_idx" ON "Invitation"("invitedById");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -633,7 +821,7 @@ ALTER TABLE "Game" ADD CONSTRAINT "Game_venueId_fkey" FOREIGN KEY ("venueId") RE
 ALTER TABLE "Game" ADD CONSTRAINT "Game_opponentId_fkey" FOREIGN KEY ("opponentId") REFERENCES "Opponent"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Game" ADD CONSTRAINT "Game_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Game" ADD CONSTRAINT "Game_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Venue" ADD CONSTRAINT "Venue_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -642,7 +830,7 @@ ALTER TABLE "Venue" ADD CONSTRAINT "Venue_organizationId_fkey" FOREIGN KEY ("org
 ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_sentById_fkey" FOREIGN KEY ("sentById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "EmailLog" ADD CONSTRAINT "EmailLog_sentById_fkey" FOREIGN KEY ("sentById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AccountDeletionReminder" ADD CONSTRAINT "AccountDeletionReminder_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -655,6 +843,9 @@ ALTER TABLE "FeedbackSubmission" ADD CONSTRAINT "FeedbackSubmission_userId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "Opponent" ADD CONSTRAINT "Opponent_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MatchupResult" ADD CONSTRAINT "MatchupResult_opponentId_fkey" FOREIGN KEY ("opponentId") REFERENCES "Opponent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "TravelRecommendation" ADD CONSTRAINT "TravelRecommendation_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -694,3 +885,12 @@ ALTER TABLE "Referral" ADD CONSTRAINT "Referral_referredUserId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "RewardPoints" ADD CONSTRAINT "RewardPoints_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CalendarGroupMapping" ADD CONSTRAINT "CalendarGroupMapping_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_invitedById_fkey" FOREIGN KEY ("invitedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
