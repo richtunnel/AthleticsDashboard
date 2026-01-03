@@ -30,6 +30,7 @@ import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore
 import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
+import { alpha } from "@mui/material/styles";
 
 interface AvailableDatesModalProps {
   open: boolean;
@@ -56,6 +57,8 @@ interface DebugInfo {
   excludedDays?: string[];
   dateRange?: { start?: string; end?: string; month?: string };
   minSpacing?: number;
+  interpretation?: string;
+  recommendation?: string;
 }
 
 interface AvailableDatesResult {
@@ -100,6 +103,13 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [showDebug, setShowDebug] = useState(false);
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
+
+  // Pre-fill prompt if sport and level are provided
+  React.useEffect(() => {
+    if (open && (sport || level) && !prompt) {
+      setPrompt(`Find available dates for ${sport || ""} ${level || ""}`.trim());
+    }
+  }, [open, sport, level]);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) {
@@ -247,7 +257,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               fullWidth
               multiline
               rows={3}
-              placeholder="e.g., 'Boys varsity basketball in December at least 3 days apart''"
+              placeholder="e.g., 'What are some good dates for Boys Varsity Basketball in December? Try to find ones at least 3 days apart.'"
               value={prompt}
               onChange={(e) => handlePromptChange(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -260,7 +270,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Try: "B V Basketball in December at least 3 days apart" • "GV soccer not on same days as B JV basketball"
+              Try: "Find open slots for B V Basketball in Dec, not on same days as G JV VB" • "Give me some dates for varsity soccer at least 4 days apart"
             </Typography>
           </Box>
 
@@ -365,6 +375,30 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
           {result && !loading && (
             <>
               <Divider />
+
+              {/* AI Interpretation & Recommendation */}
+              {(result.debug.interpretation || result.debug.recommendation) && (
+                <Alert
+                  severity="success"
+                  icon={<AutoAwesome />}
+                  sx={{
+                    borderRadius: 2,
+                    bgcolor: (theme) => (theme.palette.mode === "dark" ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.success.main, 0.05)),
+                    "& .MuiAlert-message": { width: "100%" },
+                  }}
+                >
+                  {result.debug.interpretation && (
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: result.debug.recommendation ? 0.5 : 0 }}>
+                      {result.debug.interpretation}
+                    </Typography>
+                  )}
+                  {result.debug.recommendation && (
+                    <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.primary" }}>
+                      "{result.debug.recommendation}"
+                    </Typography>
+                  )}
+                </Alert>
+              )}
 
               {/* Matched Teams Info */}
               {result.debug.matchedClusters.length > 0 && (
