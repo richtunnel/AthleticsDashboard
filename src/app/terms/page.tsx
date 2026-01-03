@@ -12,7 +12,7 @@ export default function TermsPage() {
           Terms of Service
         </Typography>
         <Typography variant="body1" paragraph>
-          Welcome to the Opletics. By using our platform, you agree to comply with and be bound by the following Terms of Service ("Terms"). Please read these Terms carefully. If you do not agree with
+          Welcome to Opletics. By using our platform, you agree to comply with and be bound by the following Terms of Service ("Terms"). Please read these Terms carefully. If you do not agree with
           these Terms, you must not use our platform.
         </Typography>
 
@@ -66,8 +66,8 @@ export default function TermsPage() {
           6. Compliance with Laws
         </Typography>
         <Typography variant="body1" paragraph>
-          You agree to comply with all applicable local, state, and federal laws, including those related to student data privacy (e.g., FERPA, COPPA) and intellectual property. The Athletics
-          Dashboard is not responsible for your failure to comply with these laws.
+          You agree to comply with all applicable local, state, and federal laws, including those related to student data privacy (e.g., FERPA, COPPA) and intellectual property. Opletics is not
+          responsible for your failure to comply with these laws.
         </Typography>
 
         <Typography variant="h6" gutterBottom>
