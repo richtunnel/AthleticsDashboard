@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       where.travelRequired = false;
     }
 
-    console.log("WHERE clause:", JSON.stringify(where, null, 2));
+    console.log("WHERE clause before filters:", JSON.stringify(where, null, 2));
 
     // Process column filters
     const filterParams = Array.from(searchParams.entries()).filter(([key]) => key.startsWith("filter_"));
@@ -45,15 +45,24 @@ export async function GET(request: NextRequest) {
     // Group filters by column
     const columnFilters: Record<string, any> = {};
     filterParams.forEach(([key, value]) => {
-      const parts = key.split("_");
-      if (parts.length >= 3) {
-        const columnId = parts[1];
-        const filterProp = parts.slice(2).join("_");
+      // Improved parsing to handle underscores in columnId
+      // We know the suffix is one of: type, values, condition, value, secondValue
+      const suffixes = ["type", "values", "condition", "value", "secondValue"];
+      let columnId = "";
+      let filterProp = "";
 
+      for (const suffix of suffixes) {
+        if (key.endsWith(`_${suffix}`)) {
+          filterProp = suffix;
+          columnId = key.substring(7, key.length - suffix.length - 1); // 7 is length of "filter_"
+          break;
+        }
+      }
+
+      if (columnId && filterProp) {
         if (!columnFilters[columnId]) {
           columnFilters[columnId] = {};
         }
-
         columnFilters[columnId][filterProp] = value;
       }
     });
@@ -64,17 +73,19 @@ export async function GET(request: NextRequest) {
 
       if (filterType === "values") {
         // Filter by selected values
-        const values = JSON.parse(filter.values || "[]");
+        let values: string[] = [];
+        try {
+          values = JSON.parse(filter.values || "[]");
+        } catch (e) {
+          console.error(`Error parsing filter values for ${columnId}:`, e);
+          values = [];
+        }
+        
         if (values.length > 0) {
           applyValueFilter(where, columnId, values);
         }
       } else if (filterType === "condition") {
-        // Filter by condition
-        const condition = filter.condition;
-        const value = filter.value;
-        const secondValue = filter.secondValue;
-
-        applyConditionFilter(where, columnId, condition, value, secondValue);
+        applyConditionFilter(where, columnId, filter.condition, filter.value, filter.secondValue);
       }
     });
 
@@ -220,12 +231,13 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    // 🔍 DEBUG: Log first game's organization
+    // 🔍 DEBUG: Log results
     if (games.length > 0) {
-      console.log("First game org ID:", games[0].homeTeam.organizationId);
-      console.log("First game org name:", games[0].homeTeam.organization?.name);
-      console.log("==================");
+      console.log(`Found ${games.length} games. First game org ID:`, games[0].homeTeam.organizationId);
+    } else {
+      console.log("No games found matching where clause:", JSON.stringify(where, null, 2));
     }
+    console.log("==================");
 
     const totalPages = Math.ceil(totalCount / limit);
 
@@ -255,6 +267,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Helper to add a condition to the where clause using AND
+function addCondition(where: any, condition: any) {
+  if (!where.AND) {
+    where.AND = [];
+  }
+  where.AND.push(condition);
+}
+
+// Helper to add an OR condition to the where clause
+function addOrCondition(where: any, orConditions: any[]) {
+  if (orConditions.length === 0) return;
+  
+  if (where.OR) {
+    // If OR already exists at top level, combine with AND
+    addCondition(where, { OR: orConditions });
+  } else {
+    where.OR = orConditions;
+  }
+}
+
 // Helper function to apply value filters
 function applyValueFilter(where: any, columnId: string, values: string[]) {
   switch (columnId) {
@@ -277,16 +309,21 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
     case "opponent":
       // Handle "TBD" case
       if (values.includes("TBD")) {
-        where.OR = [{ opponent: { name: { in: values.filter((v) => v !== "TBD") } } }, { opponent: null }];
+        addOrCondition(where, [
+          { opponent: { name: { in: values.filter((v) => v !== "TBD") } } }, 
+          { opponentId: null }
+        ]);
       } else {
-        where.opponent = {
-          name: { in: values },
-        };
+        addCondition(where, {
+          opponent: {
+            name: { in: values },
+          }
+        });
       }
       break;
 
     case "status":
-      where.status = { in: values };
+      addCondition(where, { status: { in: values } });
       break;
 
     case "location":
@@ -308,11 +345,11 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
         // Add condition for TBD (null locations and null venues)
         if (includeTBD) {
           orConditions.push(
-            { AND: [{ location: null }, { venue: null }] }
+            { AND: [{ location: null }, { venueId: null }] }
           );
         }
         
-        where.OR = orConditions;
+        addOrCondition(where, orConditions);
       }
       break;
 
@@ -345,14 +382,10 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       const includeHas = values.includes("Has notes");
       const includeNone = values.includes("No notes");
 
-      if (!where.AND) {
-        where.AND = [];
-      }
-
       if (includeHas && !includeNone) {
-        where.AND.push({ notes: { not: null } });
+        addCondition(where, { notes: { not: null } });
       } else if (!includeHas && includeNone) {
-        where.AND.push({ notes: null });
+        addCondition(where, { notes: null });
       }
       break;
     }
@@ -378,8 +411,7 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
         .filter(Boolean);
 
       if (dateConditions.length > 0) {
-        if (!where.AND) where.AND = [];
-        where.AND.push({ OR: dateConditions });
+        addOrCondition(where, dateConditions);
       }
       break;
     }
@@ -401,12 +433,7 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
           });
 
           if (orConditions.length > 0) {
-            if (where.OR) {
-              where.AND = where.AND || [];
-              where.AND.push({ OR: orConditions });
-            } else {
-              where.OR = orConditions;
-            }
+            addOrCondition(where, orConditions);
           }
         }
       } else if (columnId.startsWith("imported:")) {
@@ -425,13 +452,7 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
           });
 
           if (orConditions.length > 0) {
-            if (where.OR) {
-              // If OR already exists, combine with AND
-              where.AND = where.AND || [];
-              where.AND.push({ OR: orConditions });
-            } else {
-              where.OR = orConditions;
-            }
+            addOrCondition(where, orConditions);
           }
         }
       }
@@ -495,22 +516,23 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       break;
 
     case "opponent":
-      where.opponent = {
-        name: buildCondition("name"),
-      };
+      addCondition(where, {
+        opponent: {
+          name: buildCondition("name"),
+        }
+      });
       break;
 
     case "status":
-      where.status = buildCondition("status");
+      addCondition(where, { status: buildCondition("status") });
       break;
 
     case "location":
       // Check both location field and venue name
-      const locationCondition = buildCondition("location");
-      where.OR = [
-        { location: locationCondition },
+      addOrCondition(where, [
+        { location: buildCondition("location") },
         { venue: { name: buildCondition("name") } }
-      ];
+      ]);
       break;
 
     case "busTravel": {
@@ -522,30 +544,30 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       switch (condition) {
         case "not_equals":
         case "not_contains":
-          where.busTravel = { not: boolValue };
+          addCondition(where, { busTravel: { not: boolValue } });
           break;
         case "is_empty":
-          where.busTravel = false;
+          addCondition(where, { busTravel: false });
           break;
         case "is_not_empty":
-          where.busTravel = true;
+          addCondition(where, { busTravel: true });
           break;
         default:
-          where.busTravel = boolValue;
+          addCondition(where, { busTravel: boolValue });
       }
       break;
     }
 
     case "date":
-      where.date = buildCondition("date");
+      addCondition(where, { date: buildCondition("date") });
       break;
 
     case "time":
-      where.time = buildCondition("time");
+      addCondition(where, { time: buildCondition("time") });
       break;
 
     case "notes":
-      where.notes = buildCondition("notes");
+      addCondition(where, { notes: buildCondition("notes") });
       break;
 
     default:
@@ -580,7 +602,7 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
               jsonCondition.string_contains = value;
           }
           
-          where.customData = jsonCondition;
+          addCondition(where, { customData: jsonCondition });
         }
       } else if (columnId.startsWith("imported:")) {
         // Imported column - stored in customFields with column name
@@ -611,14 +633,16 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
               jsonCondition.string_contains = value;
           }
           
-          where.customFields = jsonCondition;
+          addCondition(where, { customFields: jsonCondition });
         }
       } else if (columnId.length > 10) {
         // Legacy: Likely a UUID for custom column (backward compatibility)
-        where.customData = {
-          path: [columnId],
-          string_contains: value, // Prisma JSON filtering
-        };
+        addCondition(where, {
+          customData: {
+            path: [columnId],
+            string_contains: value, // Prisma JSON filtering
+          }
+        });
       }
       break;
   }
@@ -775,66 +799,140 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Auto-generate travel recommendation if auto-fill is enabled and travel is required
-    if (game.travelRequired) {
-      try {
-        const travelSettings = await prisma.travelSettings.findUnique({
-          where: { organizationId: session.user.organizationId },
-        });
-
-        if (travelSettings?.autoFillEnabled && game.venue) {
-          await travelAIService.createTravelRecommendation(game.id, session.user.organizationId, { autoApply: true });
-          const refreshedGame = await prisma.game.findUnique({
-            where: { id: game.id },
-            include: {
-              homeTeam: {
-                include: { sport: true },
-              },
-              opponent: true,
-              venue: true,
-            },
-          });
-
-          if (refreshedGame) {
-            game = refreshedGame;
-          }
-        }
-      } catch (error) {
-        console.error("Error checking travel settings:", error);
-        // Don't fail the game creation if auto-fill fails
-      }
-    }
-
-    // Auto-sync to calendar if enabled
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { autoCalendarSyncEnabled: true },
-      });
-
-      if (user?.autoCalendarSyncEnabled) {
-        await calendarService.syncGameToCalendar(game.id, session.user.id);
-      }
-    } catch (error) {
-      console.error("Error auto-syncing to calendar:", error);
-      // Don't fail the game creation if auto-sync fails
-    }
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: game,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, data: game });
   } catch (error) {
     console.error("Error creating game:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to create game",
+    return NextResponse.json({ success: false, error: "Failed to create game" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+    const body = await request.json();
+    const { id, ...data } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Missing game ID" }, { status: 400 });
+    }
+
+    // ✅ CHECK STORAGE LIMIT: Check if organization has space for updated data
+    const storageCheckResult = await checkStorageBeforeWrite({
+      organizationId: session.user.organizationId,
+      userId: session.user.id,
+      data: body,
+    });
+
+    if (storageCheckResult) {
+      return storageCheckResult;
+    }
+
+    // VALIDATE: Game belongs to user's organization
+    const existingGame = await prisma.game.findUnique({
+      where: { id },
+      include: { homeTeam: true },
+    });
+
+    if (!existingGame || existingGame.homeTeam.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ success: false, error: "Game not found or access denied" }, { status: 403 });
+    }
+
+    // Normalize time field - convert empty strings to null and validate/normalize format
+    if ('time' in data) {
+      try {
+        data.time = normalizeTimeFormat(data.time);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Invalid time format";
+        return NextResponse.json({ 
+          success: false, 
+          error: `${message}. Use HH:MM format (e.g., 14:30, 09:00) for Google Calendar compatibility.` 
+        }, { status: 400 });
+      }
+    }
+
+    // VALIDATE: notes field character limit
+    const MAX_CHAR_LIMIT = 2500;
+    if (data.notes && typeof data.notes === "string" && data.notes.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json({ success: false, error: `Notes field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+    }
+
+    // VALIDATE: location field character limit
+    if (data.location && typeof data.location === "string" && data.location.length > MAX_CHAR_LIMIT) {
+      return NextResponse.json({ success: false, error: `Location field exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+    }
+
+    // VALIDATE: custom data fields character limits
+    if (data.customData && typeof data.customData === "object") {
+      for (const [key, value] of Object.entries(data.customData)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json({ success: false, error: `Custom field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+        }
+      }
+    }
+
+    // VALIDATE: custom fields (imported columns) character limits
+    if (data.customFields && typeof data.customFields === "object") {
+      for (const [key, value] of Object.entries(data.customFields)) {
+        if (typeof value === "string" && value.length > MAX_CHAR_LIMIT) {
+          return NextResponse.json({ success: false, error: `Imported field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
+        }
+      }
+    }
+
+    // If actualDepartureTime or actualArrivalTime are provided, they are expected as full ISO strings (UTC)
+    const updateData = { ...data };
+    
+    // Explicitly handle date if it's in body (already handled by body spread, but good to be aware of format)
+    if (updateData.date && typeof updateData.date === "string") {
+      updateData.date = new Date(updateData.date);
+    }
+
+    const game = await prisma.game.update({
+      where: { id },
+      data: updateData,
+      include: {
+        homeTeam: {
+          include: { sport: true },
+        },
+        opponent: true,
+        venue: true,
       },
-      { status: 500 }
-    );
+    });
+
+    return NextResponse.json({ success: true, data: game });
+  } catch (error) {
+    console.error("Error updating game:", error);
+    return NextResponse.json({ success: false, error: "Failed to update game" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Missing game ID" }, { status: 400 });
+    }
+
+    // VALIDATE: Game belongs to user's organization
+    const existingGame = await prisma.game.findUnique({
+      where: { id },
+      include: { homeTeam: true },
+    });
+
+    if (!existingGame || existingGame.homeTeam.organizationId !== session.user.organizationId) {
+      return NextResponse.json({ success: false, error: "Game not found or access denied" }, { status: 403 });
+    }
+
+    await prisma.game.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting game:", error);
+    return NextResponse.json({ success: false, error: "Failed to delete game" }, { status: 500 });
   }
 }
