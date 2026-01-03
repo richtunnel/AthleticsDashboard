@@ -60,16 +60,22 @@ export const ArcCard: React.FC = () => {
                 p: 0,
               }}
             >
-              <Image src="/assets/images/fm-basketball-vertical.png" alt="Arc logo" width={625} height={685} style={{ objectFit: "contain", width: "auto", height: "685px", borderRadius: "20px" }} />
+              <Image
+                src="/assets/images/op-illustration-ipad-dark.png"
+                alt="Arc logo"
+                width={625}
+                height={685}
+                style={{ objectFit: "contain", width: "auto", height: "685px", borderRadius: "20px" }}
+              />
             </Box>
 
             {/* right content */}
-            <Stack spacing={2} sx={{ flex: 1 }}>
+            <Stack className={styles.HomePageIpadSection} spacing={2} sx={{ flex: 1 }}>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Chip label="Opletics Spreadsheets" color="secondary" variant="outlined" sx={{ px: 1.5, py: 0.5 }} />
               </Stack>
 
-              <Typography className={`${styles.newSectionTitle}`} variant="h4" component="h3" sx={{ lineHeight: 1.2 }}>
+              <Typography className={`${styles.newSectionTitle}`} variant="h4" component="h4" sx={{ lineHeight: 1.2 }}>
                 Schedule games without the endless back-and-forth
               </Typography>
 
@@ -96,83 +102,6 @@ export const ArcCard: React.FC = () => {
           </Stack>
         </Box>
       </Container>
-
-      {/* Parallax Section */}
-      <Box
-        ref={parallaxRef}
-        sx={{
-          position: "relative",
-          height: { xs: "100vh", lg: "100vh" },
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {/* Parallax Background Image */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "130%",
-            willChange: "transform",
-            transform: `translate3d(0, ${parallaxOffset}px, 0)`,
-          }}
-        >
-          <Image src="/assets/images/bball-court01.jpg" alt="Basketball Court" fill style={{ objectFit: "cover" }} priority />
-        </Box>
-
-        {/* Overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            bgcolor: "rgba(0, 0, 0, 0.50)",
-            zIndex: 1,
-          }}
-        />
-
-        {/* Centered Text Content */}
-        <Container
-          maxWidth="md"
-          sx={{
-            position: "relative",
-            zIndex: 2,
-            textAlign: "center",
-            px: { xs: 3, md: 4 },
-          }}
-        >
-          <Typography
-            variant="h3"
-            component="h2"
-            sx={{
-              color: "white",
-              fontWeight: 700,
-              mb: 3,
-              fontSize: { xs: "1.75rem", sm: "2.5rem", md: "3rem" },
-              lineHeight: 1.2,
-            }}
-          >
-            Spend more time on the move than at a desk.
-          </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              color: "white",
-              fontSize: { xs: "1rem", sm: "1.125rem", md: "1.25rem" },
-              lineHeight: 1.6,
-              fontWeight: 400,
-            }}
-          >
-            Free up space in your schedule by passing us the rock. Find dates using natural language, sync your calendar and automate processes.
-          </Typography>
-        </Container>
-      </Box>
     </>
   );
 };

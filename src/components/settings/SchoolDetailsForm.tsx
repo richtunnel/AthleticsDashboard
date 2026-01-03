@@ -104,7 +104,7 @@ export default function SchoolDetailsForm({ user }: Props) {
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
             <TextField size="small" label="School Name" name="schoolName" value={form.schoolName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln High School" />
-            <TextField size="small" label="Team Name" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" />
+            <TextField size="small" label="Mascot" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" />
             <SchoolAddressAutocomplete
               value={form.schoolAddress}
               onChange={(value) => setForm((s) => ({ ...s, schoolAddress: value }))}

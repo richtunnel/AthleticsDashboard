@@ -27,7 +27,8 @@ import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import SolutionSection from "../sections/SolutionSection";
 import TopFooter from "../footer/topFooter";
-
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Parallax } from "../splash/parallax";
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
@@ -79,7 +80,7 @@ export default function HomePageContent() {
       >
         {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
-          <Image src="/assets/images/green-energy.jpg" alt="Athletics Dashboard Illustration" fill className="object-cover" priority />
+          <Image src="/assets/images/green-energy.jpg" alt="Opletics athletic department scheduling software" fill className="object-cover" unoptimized />
         </div>
 
         {/* Desktop content */}
@@ -97,7 +98,7 @@ export default function HomePageContent() {
                 color: "#0f172a",
               }}
             >
-              <CircularProjectIcon />
+              <CircularProjectIcon size={22} />
               <span className={styles.opleticsLogoText} style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>
                 opletics
               </span>
@@ -135,6 +136,7 @@ export default function HomePageContent() {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 A platform built to give athletic departments the clarity, control, and automation they’ve always deserved.{" "}
 =======
                 A platform built to give athletic departments the clarity, control, and automation they deserve.
@@ -144,6 +146,9 @@ export default function HomePageContent() {
 >>>>>>> main
 =======
                 Upload your sports schedule spreadsheet as a CSV and start automating your daily workflow.
+>>>>>>> main
+=======
+                Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
 >>>>>>> main
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
@@ -178,19 +183,19 @@ export default function HomePageContent() {
                   disabled={signInAuth.loading}
                   variant="text"
                   sx={{
-                    fontSize: "1.05rem",
+                    fontSize: "1.095rem",
                     border: "none",
                     background: "transparent",
                     cursor: "pointer",
                     color: "var(--accent-contrast)",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     textDecoration: "underline",
                     "&:hover": {
                       background: "transparent",
                     },
                   }}
                 >
-                  Get Started
+                  Get Started&nbsp; <ChevronRightIcon />
                 </AuthActionButton>
               </div>
             </div>
@@ -227,12 +232,19 @@ export default function HomePageContent() {
             />
           </div>
 
-          {/* Full height hero container - 90% like Buyable */}
+          {/* Full height hero container  */}
           <div className={`relative flex-1 ${styles.fullHeightMobileHero}`}>
             {/* Content overlay */}
             <div className="absolute inset-0 px-4 flex flex-col justify-between z-20">
               <div className={styles.mobileSpreadsheetContainer}>
-                <Image className={styles.mobileSpreadsheetImg} fill src="/assets/images/spreadsheet-illustration-dark-01.png" alt="spreadsheet illustration" style={{ objectFit: "contain" }} />
+                <Image
+                  fill
+                  unoptimized
+                  className={styles.mobileSpreadsheetImg}
+                  src="/assets/images/spreadsheet-illustration-dark-01.png"
+                  alt="spreadsheet illustration"
+                  style={{ objectFit: "contain" }}
+                />
               </div>
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
@@ -240,7 +252,7 @@ export default function HomePageContent() {
                   Automate Your Sports Schedules
                 </h4>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  Upload your sports schedule spreadsheet as a CSV and start automating your daily workflow.
+                  Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
                 </p>
               </div>
 
@@ -353,8 +365,9 @@ export default function HomePageContent() {
           </div>
         </div>
       </div>
-      <ArcCard />
       <HeroSection />
+      <Parallax />
+      <ArcCard />
       <SolutionSection />
       {/* <FeaturesSection /> */}
       <NewsSection />

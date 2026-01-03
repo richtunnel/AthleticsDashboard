@@ -80,7 +80,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   return (
     <>
       <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
-        <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem", lg: "2.125rem" } }} variant="h4">
+        <Typography sx={{ mb: 1, fontWeight: 700 }} variant="h4">
           Settings
         </Typography>
 
