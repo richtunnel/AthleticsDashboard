@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         email: normalizedEmail,
         name,
         hashedPassword,
-        role: "ATHLETIC_DIRECTOR",
+        role: "ADMIN",
         plan: plan || "free_trial_plan",
         stripeCustomerId,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null, // 14 days from now

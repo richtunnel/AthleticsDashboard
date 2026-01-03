@@ -29,7 +29,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import { UserRole } from "@/lib/utils/auth";
+import { UserRole } from "@/lib/utils/auth-client";
 import {
   sendInvitation,
   getInvitations,
@@ -191,11 +191,11 @@ export default function RoleAssignment() {
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <Chip 
-                    label={member.role} 
-                    size="small" 
-                    color={member.role === UserRole.ADMIN || member.role === UserRole.ATHLETIC_DIRECTOR ? "primary" : "default"} 
-                    variant="outlined" 
+                  <Chip
+                    label={member.role}
+                    size="small"
+                    color={member.role === UserRole.ADMIN ? "primary" : "default"}
+                    variant="outlined"
                   />
                 </TableCell>
                 <TableCell>
