@@ -48,6 +48,10 @@ Extract the following information:
 5. Days of week to exclude (e.g., "no Sundays", "weekdays only")
 6. Maximum number of results
 
+IMPORTANT: When parsing team information, IGNORE the following words that describe the TYPE of dates being requested (not team characteristics):
+- "open", "available", "free", "empty", "clear", "good", "best", "suitable"
+- These words describe what KIND of dates the user wants, not which team they are
+
 Common abbreviations:
 - B/Boys, G/Girls for gender
 - V/Varsity, JV/Junior Varsity, Frosh/Freshman for level
@@ -57,6 +61,8 @@ Examples:
 - "B V Basketball" → Boys Varsity Basketball
 - "GV soccer" → Girls Varsity Soccer
 - "not on the same days as boys JV basketball" → exclude Boys Junior Varsity Basketball dates
+- "find open dates in December for boys varsity basketball" → targetTeams: Boys Varsity Basketball, dateRange: {month: "December"}
+- "find available dates for girls varsity volleyball" → targetTeams: Girls Varsity Volleyball
 
 Return JSON format:
 {
