@@ -195,7 +195,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                     {calculation.recommendedDepartureTime}
                   </Typography>
                   <Typography variant="body2" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[800], mt: 1 }}>
-                    Based on your input: <strong>{dismissalTime}</strong>
+                    Based on your input: <strong>{arrivalTime}</strong>
                   </Typography>
                 </Box>
 
