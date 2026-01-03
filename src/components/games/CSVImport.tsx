@@ -328,8 +328,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     const totalBatches = Math.ceil(parsedData.length / batchSize);
     let successCount = 0;
     let failedCount = 0;
+    let duplicateCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
+    const allDuplicateDetails: string[] = [];
     const allCreatedGameIds: string[] = [];
 
     // Extract column names and order from CSV headers
@@ -389,11 +391,15 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             if (result.success) {
               successCount += result.data.success || 0;
               failedCount += result.data.failed || 0;
+              duplicateCount += result.data.duplicates || 0;
               if (result.data.errors) {
                 errors.push(...result.data.errors);
               }
               if (result.data.warnings) {
                 warnings.push(...result.data.warnings);
+              }
+              if (result.data.duplicateDetails) {
+                allDuplicateDetails.push(...result.data.duplicateDetails);
               }
               // Collect created game IDs
               if (result.data.createdGameIds) {
@@ -419,8 +425,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       const finalResult: ImportResult = {
         success: successCount,
         failed: failedCount,
+        duplicates: duplicateCount,
         errors,
         warnings,
+        duplicateDetails: allDuplicateDetails,
         createdGameIds: allCreatedGameIds,
       };
 
@@ -431,8 +439,10 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       setImportResult({
         success: successCount,
         failed: failedCount + parsedData.length - successCount - failedCount,
+        duplicates: duplicateCount,
         errors: [...errors, `Critical error: ${error instanceof Error ? error.message : "Unknown error"}`],
         warnings,
+        duplicateDetails: allDuplicateDetails,
         createdGameIds: allCreatedGameIds,
       });
     } finally {
@@ -812,13 +822,13 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
                 <Stack direction="row" spacing={2} flexWrap="wrap">
                   <Chip icon={<CheckCircle />} label={`${importResult.success} Successful`} color="success" />
                   {importResult.failed > 0 && <Chip icon={<ErrorIcon />} label={`${importResult.failed} Failed`} color="error" />}
-                  {(importResult.duplicates ?? 0) > 0 && <Chip label={`${importResult.duplicates} Duplicates Skipped`} color="warning" />}
+                  {(importResult.duplicates ?? 0) > 0 && <Chip label={`${importResult.duplicates} Duplicates Found`} color="warning" />}
                 </Stack>
 
                 {importResult.duplicateDetails && importResult.duplicateDetails.length > 0 && (
                   <Alert severity="warning" sx={{ width: "100%" }}>
                     <Typography variant="subtitle2" gutterBottom>
-                      Duplicate Rows Skipped ({importResult.duplicateDetails.length}):
+                      Duplicate Rows Found ({importResult.duplicateDetails.length}):
                     </Typography>
                     <Box sx={{ maxHeight: 150, overflow: "auto" }}>
                       {importResult.duplicateDetails.slice(0, 10).map((duplicate, idx) => (
