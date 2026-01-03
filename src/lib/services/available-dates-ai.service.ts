@@ -35,6 +35,8 @@ export class AvailableDatesAIService {
    * Parse natural language query using OpenAI LLM
    */
   async parseQuery(prompt: string): Promise<ParsedQuery> {
+    console.log("🔑 OpenAI client exists:", !!openai);
+    console.log("🔑 API Key configured:", !!process.env.OPENAI_API_KEY);
     if (!openai) {
       console.log("[Available Dates AI] OpenAI API key not configured. Using fallback parsing for advanced constraints.");
       console.log("[Available Dates AI] Basic team matching will still work via rule-based service.");
@@ -121,20 +123,7 @@ Return JSON format:
     }
 
     // Try to extract month
-    const months = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ];
+    const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
     for (const month of months) {
       if (lowerPrompt.includes(month)) {
         result.dateRange = { month };
