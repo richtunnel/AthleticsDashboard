@@ -147,7 +147,7 @@ export default function AccountDetailsForm({ user }: Props) {
             <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth />
             <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth />
             <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />
-            <Autocomplete
+            {/* <Autocomplete
               size="small"
               options={ROLE_OPTIONS}
               getOptionLabel={(option) => option.label}
@@ -168,7 +168,7 @@ export default function AccountDetailsForm({ user }: Props) {
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 Your role ({user.role}) cannot be changed from this page. Contact support for assistance.
               </Typography>
-            )}
+            )} */}
             <TextField size="small" label="Profile Image URL" name="image" value={form.image} onChange={handleChange} fullWidth />
             <Autocomplete
               freeSolo
