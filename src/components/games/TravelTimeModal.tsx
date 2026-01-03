@@ -21,11 +21,11 @@ interface TravelCalculation {
   distance?: string;
 }
 
-const steps = ["Enter Dismissal Time", "Enter Opponent Address", "Review Recommendation"];
+const steps = ["Arrival Time", "Enter Opponent Address", "Review Recommendation"];
 
 export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, onSave }: TravelTimeModalProps) {
   const [activeStep, setActiveStep] = useState(0);
-  const [dismissalTime, setDismissalTime] = useState("");
+  const [arrivalTime, setArrivalTime] = useState("");
   const [opponentAddress, setOpponentAddress] = useState("");
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculation, setCalculation] = useState<TravelCalculation | null>(null);
@@ -33,8 +33,8 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
   const theme = useTheme();
 
   const handleNext = async () => {
-    if (activeStep === 0 && !dismissalTime) {
-      setError("Please enter a dismissal or meetup time");
+    if (activeStep === 0 && !arrivalTime) {
+      setError("Please enter a time that you'd like to arrive at your destination.");
       return;
     }
 
@@ -66,7 +66,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameId,
-          dismissalTime,
+          arrivalTime,
           opponentAddress,
         }),
       });
@@ -100,7 +100,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
 
   const handleClose = () => {
     setActiveStep(0);
-    setDismissalTime("");
+    setArrivalTime("");
     setOpponentAddress("");
     setCalculation(null);
     setError(null);
@@ -134,20 +134,20 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
           </Alert>
         )}
 
-        {/* Step 1: Dismissal Time */}
+        {/* Step 1: Arrival Time */}
         {activeStep === 0 && (
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
-              When will the athletes be dismissed or meet up?
+              What time do you want to arrive at your destination or the game start ?
             </Typography>
             <TextField
-              label="Dismissal or Meetup Time"
+              label="Arrival Time"
               type="time"
-              value={dismissalTime}
-              onChange={(e) => setDismissalTime(e.target.value)}
+              value={arrivalTime}
+              onChange={(e) => setArrivalTime(e.target.value)}
               fullWidth
               InputLabelProps={{ shrink: true }}
-              helperText="Enter the time students will be ready to leave"
+              helperText="Enter the time that you'd like to arrive at your destination."
               autoFocus
             />
           </Stack>
