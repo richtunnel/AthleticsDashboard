@@ -21,7 +21,7 @@ async function updateAutoSyncSetting(enabled: boolean) {
   return res.json();
 }
 
-export function AutoCalendarSyncToggle() {
+export function AutoCalendarSyncToggle({ disabled }: { disabled?: boolean }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -70,7 +70,7 @@ export function AutoCalendarSyncToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || disabled}
           />
         }
         label={

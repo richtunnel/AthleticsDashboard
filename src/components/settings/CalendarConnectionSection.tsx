@@ -17,7 +17,7 @@ import InfoIcon from "@mui/icons-material/Info";
  * - Auto-sync toggle (when connected)
  * - Uses incremental OAuth authorization
  */
-export function CalendarConnectionSection() {
+export function CalendarConnectionSection({ disabled }: { disabled?: boolean }) {
   const { isConnected, isLoading, disconnect } = useGoogleCalendarConnection();
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
@@ -62,7 +62,7 @@ export function CalendarConnectionSection() {
         {/* Connection Actions */}
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
           {!isConnected ? (
-            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/gsync" />
+            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/gsync" disabled={disabled} />
           ) : (
             <Button
               sx={(theme) => ({
@@ -72,7 +72,7 @@ export function CalendarConnectionSection() {
               variant="outlined"
               color="error"
               onClick={handleDisconnect}
-              disabled={isDisconnecting}
+              disabled={isDisconnecting || disabled}
             >
               {isDisconnecting ? "Disconnecting..." : "Disconnect Calendar"}
             </Button>
@@ -82,7 +82,7 @@ export function CalendarConnectionSection() {
         {/* Auto-Sync Toggle (only when connected) */}
         {isConnected && (
           <Box sx={{ mt: 3, pt: 3, borderTop: "1px solid", borderColor: "divider" }}>
-            <AutoCalendarSyncToggle />
+            <AutoCalendarSyncToggle disabled={disabled} />
           </Box>
         )}
 

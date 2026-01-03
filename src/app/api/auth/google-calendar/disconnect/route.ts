@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/auth";
+import { requireAuth, requireSettingsPermission } from "@/lib/utils/auth";
 import { revokeScopes } from "@/lib/services/incremental-auth.service";
 import { prisma } from "@/lib/database/prisma";
 
@@ -15,7 +15,7 @@ import { prisma } from "@/lib/database/prisma";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    const session = await requireSettingsPermission();
 
     // Revoke Calendar scopes (incremental auth)
     const revoked = await revokeScopes(session.user.id, "CALENDAR");

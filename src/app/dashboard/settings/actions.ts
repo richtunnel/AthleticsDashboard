@@ -50,6 +50,14 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
     return { success: false, error: "User not found." };
   }
 
+  // Restrict modifications for MEMBER role
+  if (user.role === "MEMBER") {
+    return {
+      success: false,
+      error: "You do not have permission to modify settings.",
+    };
+  }
+
   // Restrict role changes for SUPER_ADMIN and VENDOR_READ_ONLY
   if (user.role === "SUPER_ADMIN" || user.role === "VENDOR_READ_ONLY") {
     return {
@@ -154,11 +162,15 @@ export async function changePassword(payload: ChangePasswordPayload) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { hashedPassword: true },
+      select: { hashedPassword: true, role: true },
     });
 
     if (!user) {
       return { success: false, error: "User not found." };
+    }
+
+    if (user.role === "MEMBER") {
+      return { success: false, error: "You do not have permission to change your password." };
     }
 
     if (user.hashedPassword && payload.currentPassword) {
@@ -213,6 +225,19 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
   }
 
   try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      return { success: false, error: "User not found." };
+    }
+
+    if (user.role === "MEMBER") {
+      return { success: false, error: "You do not have permission to update school details." };
+    }
+
     await prisma.user.update({
       where: { id: userId },
       data: {

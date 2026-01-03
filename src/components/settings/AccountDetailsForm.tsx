@@ -21,9 +21,10 @@ type Props = {
     role?: string | null;
     image?: string | null;
   };
+  disabled?: boolean;
 };
 
-export default function AccountDetailsForm({ user }: Props) {
+export default function AccountDetailsForm({ user, disabled }: Props) {
   const theme = customTheme();
   const { mode } = useTheme();
 
@@ -144,9 +145,9 @@ export default function AccountDetailsForm({ user }: Props) {
 
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
-            <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth />
-            <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth />
-            <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />
+            <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth disabled={disabled} />
+            <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth disabled={disabled} />
+            <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth disabled={disabled} />
             {/* <Autocomplete
               size="small"
               options={ROLE_OPTIONS}
@@ -162,14 +163,14 @@ export default function AccountDetailsForm({ user }: Props) {
                   {option.label}
                 </li>
               )}
-              disabled={isRoleLocked}
+              disabled={isRoleLocked || disabled}
             />
             {isRoleLocked && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 Your role ({user.role}) cannot be changed from this page. Contact support for assistance.
               </Typography>
             )} */}
-            <TextField size="small" label="Profile Image URL" name="image" value={form.image} onChange={handleChange} fullWidth />
+            <TextField size="small" label="Profile Image URL" name="image" value={form.image} onChange={handleChange} fullWidth disabled={disabled} />
             <Autocomplete
               freeSolo
               options={orgOptions}
@@ -194,6 +195,7 @@ export default function AccountDetailsForm({ user }: Props) {
                 if (reason === "input") setOrgInputValue(val);
                 if (val === "") setOrgSelected(null);
               }}
+              disabled={disabled}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -221,7 +223,7 @@ export default function AccountDetailsForm({ user }: Props) {
               sx={{ color: theme.palette.themeButtonText.main }}
               type="submit"
               variant="contained"
-              disabled={!isDirty || loading}
+              disabled={!isDirty || loading || disabled}
               startIcon={loading ? <CircularProgress size={18} /> : undefined}
             >
               {loading ? "Saving..." : "Save Changes"}

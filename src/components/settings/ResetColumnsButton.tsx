@@ -7,7 +7,7 @@ import { RestartAlt } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme, alpha } from "@mui/material/styles";
 
-export function ResetColumnsButton() {
+export function ResetColumnsButton({ disabled }: { disabled?: boolean }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
@@ -61,6 +61,7 @@ export function ResetColumnsButton() {
         color="primary"
         startIcon={<RestartAlt />}
         onClick={handleOpenDialog}
+        disabled={disabled}
         sx={{
           color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
           textTransform: "none",

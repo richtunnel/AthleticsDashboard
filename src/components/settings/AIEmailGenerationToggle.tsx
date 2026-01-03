@@ -22,7 +22,7 @@ async function updateAIEmailGenerationSetting(enabled: boolean) {
   return res.json();
 }
 
-export function AIEmailGenerationToggle() {
+export function AIEmailGenerationToggle({ disabled }: { disabled?: boolean }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -71,7 +71,7 @@ export function AIEmailGenerationToggle() {
           <Switch
             checked={isEnabled}
             onChange={handleToggle}
-            // disabled={mutation.isPending}
+            // disabled={mutation.isPending || disabled}
             disabled
           />
         }
@@ -90,7 +90,7 @@ export function AIEmailGenerationToggle() {
               placement="top"
               arrow
             >
-              <IconButton size="small" sx={{ ml: 0.5 }}>
+              <IconButton size="small" sx={{ ml: 0.5 }} disabled={disabled}>
                 <InfoOutlinedIcon fontSize="small" />
               </IconButton>
             </Tooltip>
