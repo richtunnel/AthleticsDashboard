@@ -25,6 +25,8 @@ interface ParsedQuery {
   minSpacing?: number; // Minimum days between dates
   maxResults?: number;
   excludeDays?: number[]; // Days of week to exclude (0=Sunday, 6=Saturday)
+  interpretation?: string; // Human-friendly interpretation of the query
+  recommendation?: string; // AI recommendation/summary based on results
 }
 
 export class AvailableDatesAIService {
@@ -47,6 +49,7 @@ Extract the following information:
 4. Minimum spacing between dates (e.g., "at least 3 days apart")
 5. Days of week to exclude (e.g., "no Sundays", "weekdays only")
 6. Maximum number of results
+7. interpretation: A human-friendly sentence explaining what you understood from the query (e.g., "Finding available dates for Boys Varsity Basketball in December, avoiding dates when Girls JV Volleyball is playing.")
 
 IMPORTANT: When parsing team information, IGNORE the following words that describe the TYPE of dates being requested (not team characteristics):
 - "open", "available", "free", "empty", "clear", "good", "best", "suitable"
@@ -71,7 +74,8 @@ Return JSON format:
   "dateRange": {"month": "December", "start": "2024-12-01", "end": "2024-12-31"},
   "minSpacing": 3,
   "excludeDays": [0, 6],
-  "maxResults": 10
+  "maxResults": 10,
+  "interpretation": "Finding available dates for Boys Varsity Basketball in December with at least 3 days between games, excluding weekends."
 }`;
 
     try {
@@ -101,6 +105,7 @@ Return JSON format:
     const result: ParsedQuery = {
       targetTeams: [],
       excludeTeams: [],
+      interpretation: "Using basic keyword matching (AI is currently unavailable).",
     };
 
     // Try to extract spacing requirements
@@ -152,7 +157,40 @@ Return JSON format:
       minSpacing: typeof raw.minSpacing === "number" ? raw.minSpacing : undefined,
       maxResults: typeof raw.maxResults === "number" ? raw.maxResults : undefined,
       excludeDays: Array.isArray(raw.excludeDays) ? raw.excludeDays : undefined,
+      interpretation: typeof raw.interpretation === "string" ? raw.interpretation : undefined,
     };
+  }
+
+  /**
+   * Generate a human-friendly recommendation/summary based on the found dates
+   */
+  async generateRecommendation(prompt: string, recommendations: string[], interpretation?: string): Promise<string> {
+    if (!openai || recommendations.length === 0) {
+      return "";
+    }
+
+    const systemPrompt = `You are a sports scheduling assistant. Based on the user's request and the available dates found, provide a brief, helpful summary or recommendation (1-2 sentences).
+    
+User Request: "${prompt}"
+Interpretation: "${interpretation || "Finding available dates"}"
+Number of dates found: ${recommendations.length}
+Dates found: ${recommendations.slice(0, 10).join(", ")}${recommendations.length > 10 ? "..." : ""}
+
+Provide a friendly response that summarizes the results and maybe highlights why these dates are good (e.g., "I've found several great options for you in December, mostly on Tuesdays and Thursdays which seem to be your preferred game days.").`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: systemPrompt }],
+        temperature: 0.7,
+        max_tokens: 100,
+      });
+
+      return completion.choices[0].message.content || "";
+    } catch (error) {
+      console.error("AI recommendation generation failed:", error);
+      return "";
+    }
   }
 }
 

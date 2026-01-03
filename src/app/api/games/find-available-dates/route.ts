@@ -28,11 +28,13 @@ export async function POST(request: NextRequest) {
     let excludeTeamsPrompt;
     let dateRange;
     let minSpacing;
+    let interpretation;
     let cleanPrompt = prompt; // Default to original prompt
     
     if (useAI !== false) { // Default to true
       try {
         parsedQuery = await availableDatesAIService.parseQuery(prompt);
+        interpretation = parsedQuery.interpretation;
         
         // Extract exclude teams prompt if provided
         if (parsedQuery.excludeTeams && parsedQuery.excludeTeams.length > 0) {
@@ -162,6 +164,27 @@ export async function POST(request: NextRequest) {
         minSpacing, // Minimum spacing between dates (from AI)
       }
     );
+
+    // Add AI interpretation to debug info
+    if (interpretation) {
+      result.debug.interpretation = interpretation;
+    }
+
+    // Generate AI recommendation based on results
+    if (useAI !== false && result.recommendations.length > 0) {
+      try {
+        const recommendation = await availableDatesAIService.generateRecommendation(
+          prompt,
+          result.recommendations,
+          interpretation
+        );
+        if (recommendation) {
+          result.debug.recommendation = recommendation;
+        }
+      } catch (error) {
+        console.error("Failed to generate AI recommendation:", error);
+      }
+    }
 
     return NextResponse.json({
       recommendations: result.recommendations,
