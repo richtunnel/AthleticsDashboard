@@ -103,6 +103,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [showDebug, setShowDebug] = useState(false);
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   // Pre-fill prompt if sport and level are provided
   React.useEffect(() => {
@@ -128,6 +129,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
       level,
       source: "games_table",
       excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
+      year: selectedYear,
     });
 
     try {
@@ -140,6 +142,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
           prompt: prompt.trim(),
           excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
           maxResults,
+          year: selectedYear,
         }),
       });
 
@@ -158,6 +161,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
         level,
         datesFound: data.recommendations.length,
         source: "games_table",
+        year: selectedYear,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
@@ -214,6 +218,22 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
       setResult(null);
       setError(null);
     }
+  };
+
+  // Handle year change
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    // Clear results when filter changes
+    if (result) {
+      setResult(null);
+      setError(null);
+    }
+  };
+
+  // Generate year options (current year and next 2 years)
+  const generateYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear, currentYear + 1, currentYear + 2];
   };
 
   return (
@@ -274,49 +294,75 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
             </Typography>
           </Box>
 
-          {/* Exclude Days Filter */}
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-              Exclude Days (Optional)
-            </Typography>
-            <ToggleButtonGroup
-              value={excludeDays}
-              onChange={handleDayToggle}
-              aria-label="exclude days of week"
-              size="small"
-              disabled={loading}
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 0.5,
-                "& .MuiToggleButton-root": {
-                  borderRadius: 1,
-                  px: 1.5,
-                  py: 0.5,
-                  textTransform: "none",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  "&.Mui-selected": {
-                    bgcolor: "error.light",
-                    color: "error.dark",
-                    borderColor: "error.main",
-                    "&:hover": {
-                      bgcolor: "error.main",
-                      color: "white",
+          {/* Filters Row - Year and Exclude Days */}
+          <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+            {/* Year Filter */}
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                Year
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select
+                  value={selectedYear}
+                  onChange={(e) => handleYearChange(e.target.value as number)}
+                  disabled={loading}
+                >
+                  {generateYearOptions().map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                Select the year to search through all 12 months
+              </Typography>
+            </Box>
+
+            {/* Exclude Days Filter */}
+            <Box sx={{ flex: 2, minWidth: 250 }}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                Exclude Days (Optional)
+              </Typography>
+              <ToggleButtonGroup
+                value={excludeDays}
+                onChange={handleDayToggle}
+                aria-label="exclude days of week"
+                size="small"
+                disabled={loading}
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 0.5,
+                  "& .MuiToggleButton-root": {
+                    borderRadius: 1,
+                    px: 1.5,
+                    py: 0.5,
+                    textTransform: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    "&.Mui-selected": {
+                      bgcolor: "error.light",
+                      color: "error.dark",
+                      borderColor: "error.main",
+                      "&:hover": {
+                        bgcolor: "error.main",
+                        color: "white",
+                      },
                     },
                   },
-                },
-              }}
-            >
-              {DAYS_OF_WEEK.map((day) => (
-                <ToggleButton key={day.value} value={day.value} aria-label={day.label}>
-                  {day.label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Click to exclude days from the search results
-            </Typography>
+                }}
+              >
+                {DAYS_OF_WEEK.map((day) => (
+                  <ToggleButton key={day.value} value={day.value} aria-label={day.label}>
+                    {day.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                Click to exclude days from the search results
+              </Typography>
+            </Box>
           </Box>
 
           {/* Number of Results */}
