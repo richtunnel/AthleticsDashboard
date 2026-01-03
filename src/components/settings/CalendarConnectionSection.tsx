@@ -62,7 +62,7 @@ export function CalendarConnectionSection({ disabled }: { disabled?: boolean }) 
         {/* Connection Actions */}
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
           {!isConnected ? (
-            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/gsync" disabled={disabled} />
+            <ConnectGoogleCalendarButton variant="contained" size="medium" returnTo="/dashboard/gsync" />
           ) : (
             <Button
               sx={(theme) => ({

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
-import { UserRole } from "@/lib/utils/auth";
+import { UserRole } from "@/lib/utils/auth-client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { EmailService } from "@/lib/services/email.service";
 import crypto from "crypto";
-import { UserRole } from "@/lib/utils/auth";
+import { UserRole } from "@/lib/utils/auth-client";
 import { revalidatePath } from "next/cache";
 
 const emailService = new EmailService();

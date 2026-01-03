@@ -5,7 +5,7 @@ import { enableAccount } from "@/lib/services/account-disable.service";
 
 /**
  * Manually enable a user account (remove disabled status)
- * Only accessible to SUPER_ADMIN users
+ * Only accessible to ADMIN users
  */
 export async function POST(req: NextRequest) {
   try {
@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only allow SUPER_ADMIN to enable accounts manually
-    if (session.user.role !== "SUPER_ADMIN") {
+    // Only allow ADMIN to enable accounts manually
+    if (session.user.role !== "ADMIN") {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
     }
 
