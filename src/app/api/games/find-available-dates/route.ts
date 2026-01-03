@@ -131,19 +131,110 @@ export async function POST(request: NextRequest) {
     if (candidateDates && Array.isArray(candidateDates) && candidateDates.length > 0) {
       finalCandidateDates = candidateDates;
     } else {
-      // Default: generate next 3 months as candidate pool
+      // If specific month is mentioned in dateRange, generate candidates for that month
+      // Otherwise, default to next 3 months as candidate pool
       finalCandidateDates = [];
       const today = new Date();
-      const threeMonthsLater = new Date(today);
-      threeMonthsLater.setMonth(today.getMonth() + 3);
       
-      const current = new Date(today);
-      while (current <= threeMonthsLater) {
-        const year = current.getFullYear();
-        const month = String(current.getMonth() + 1).padStart(2, '0');
-        const day = String(current.getDate()).padStart(2, '0');
-        finalCandidateDates.push(`${year}-${month}-${day}`);
-        current.setDate(current.getDate() + 1);
+      if (dateRange?.months && Array.isArray(dateRange.months) && dateRange.months.length > 0) {
+        // Generate dates for multiple specified months
+        const monthNames = [
+          'january', 'february', 'march', 'april', 'may', 'june',
+          'july', 'august', 'september', 'october', 'november', 'december'
+        ];
+        
+        const allMonthDates: string[] = [];
+        
+        for (const monthName of dateRange.months) {
+          const targetMonthIndex = monthNames.indexOf(monthName.toLowerCase());
+          
+          if (targetMonthIndex !== -1) {
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth();
+            
+            // If requested month has passed this year, use next year; otherwise use current year
+            const targetYear = targetMonthIndex < currentMonth ? currentYear + 1 : currentYear;
+            
+            // Generate all dates in the target month
+            const startDate = new Date(targetYear, targetMonthIndex, 1);
+            const endDate = new Date(targetYear, targetMonthIndex + 1, 0); // Last day of month
+            
+            const current = new Date(startDate);
+            while (current <= endDate) {
+              const year = current.getFullYear();
+              const month = String(current.getMonth() + 1).padStart(2, '0');
+              const day = String(current.getDate()).padStart(2, '0');
+              allMonthDates.push(`${year}-${month}-${day}`);
+              current.setDate(current.getDate() + 1);
+            }
+            
+            console.log(`Generated ${endDate.getDate()} candidate dates for ${monthName} ${targetYear}`);
+          }
+        }
+        
+        // Sort all dates chronologically
+        finalCandidateDates = allMonthDates.sort();
+        console.log(`Total ${finalCandidateDates.length} candidate dates across ${dateRange.months.length} months`);
+      } else if (dateRange?.month) {
+        // Generate dates for a single specified month (backward compatibility)
+        const monthNames = [
+          'january', 'february', 'march', 'april', 'may', 'june',
+          'july', 'august', 'september', 'october', 'november', 'december'
+        ];
+        const targetMonthIndex = monthNames.indexOf(dateRange.month.toLowerCase());
+        
+        if (targetMonthIndex !== -1) {
+          const currentYear = today.getFullYear();
+          const currentMonth = today.getMonth();
+          
+          // If requested month has passed this year, use next year; otherwise use current year
+          const targetYear = targetMonthIndex < currentMonth ? currentYear + 1 : currentYear;
+          
+          // Generate all dates in the target month
+          const startDate = new Date(targetYear, targetMonthIndex, 1);
+          const endDate = new Date(targetYear, targetMonthIndex + 1, 0); // Last day of month
+          
+          const current = new Date(startDate);
+          while (current <= endDate) {
+            const year = current.getFullYear();
+            const month = String(current.getMonth() + 1).padStart(2, '0');
+            const day = String(current.getDate()).padStart(2, '0');
+            finalCandidateDates.push(`${year}-${month}-${day}`);
+            current.setDate(current.getDate() + 1);
+          }
+          
+          console.log(`Generated ${finalCandidateDates.length} candidate dates for ${dateRange.month} ${targetYear}`);
+        }
+      } else if (dateRange?.start || dateRange?.end) {
+        // If specific date range provided, generate candidates within that range
+        const startDate = dateRange.start ? new Date(dateRange.start + 'T00:00:00') : today;
+        const endDate = dateRange.end ? new Date(dateRange.end + 'T00:00:00') : new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
+        
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const year = current.getFullYear();
+          const month = String(current.getMonth() + 1).padStart(2, '0');
+          const day = String(current.getDate()).padStart(2, '0');
+          finalCandidateDates.push(`${year}-${month}-${day}`);
+          current.setDate(current.getDate() + 1);
+        }
+        
+        console.log(`Generated ${finalCandidateDates.length} candidate dates from ${dateRange.start || 'today'} to ${dateRange.end || '90 days'}`);
+      } else {
+        // Default: generate next 3 months as candidate pool
+        const threeMonthsLater = new Date(today);
+        threeMonthsLater.setMonth(today.getMonth() + 3);
+        
+        const current = new Date(today);
+        while (current <= threeMonthsLater) {
+          const year = current.getFullYear();
+          const month = String(current.getMonth() + 1).padStart(2, '0');
+          const day = String(current.getDate()).padStart(2, '0');
+          finalCandidateDates.push(`${year}-${month}-${day}`);
+          current.setDate(current.getDate() + 1);
+        }
+        
+        console.log(`Generated ${finalCandidateDates.length} candidate dates for next 3 months`);
       }
     }
 
