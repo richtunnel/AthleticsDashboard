@@ -53,7 +53,7 @@ export default function AccountDetailsForm({ user, disabled }: Props) {
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ severity: "success" | "error"; message: string } | null>(null);
-  const isRoleLocked = ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(user.role || "");
+  const isRoleLocked = ["ADMIN"].includes(user.role || "");
 
   // Track initial state for comparison
   const initialData = useMemo(

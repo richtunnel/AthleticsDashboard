@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
-import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
+import { requireAuth } from "@/lib/utils/auth";
+import { hasPermission, WRITE_ROLES } from "@/lib/utils/auth-client";
 import { emailService } from "@/lib/services/email.service";
 import { prisma } from "@/lib/database/prisma";
 

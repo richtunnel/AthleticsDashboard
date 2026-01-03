@@ -66,7 +66,7 @@ export default function SubscriptionOverviewCard({
   const [recoveryEmailDialogOpen, setRecoveryEmailDialogOpen] = useState(false);
   const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
   const [optimisticState, setOptimisticState] = useState(subscription);
-  const isRestrictedRole = userRole ? ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(userRole) : "";
+  const isRestrictedRole = userRole ? ["ADMIN"].includes(userRole) : "";
   const theme = useTheme();
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function SubscriptionOverviewCard({
   }, [checkoutStatus]);
 
   const displaySubscription = optimisticState || subscription;
-  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isSuperAdmin = userRole === "ADMIN";
   const isFreePlan = !displaySubscription && !isSuperAdmin;
 
   const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : isSuperAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan";
@@ -310,14 +310,14 @@ export default function SubscriptionOverviewCard({
                     <Typography variant="body1" fontWeight="medium">
                       Plan: Admin Account
                     </Typography>
-                    <Chip label="SUPER ADMIN" color="info" size="small" />
+                    <Chip label="ADMIN" color="info" size="small" />
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    You have full access to all features as a super administrator. No active subscription is required.
+                    You have full access to all features as an administrator. No active subscription is required.
                   </Typography>
                   {!displaySubscription && (
                     <Typography variant="body2" color="text.secondary">
-                      Billing for super admin accounts is managed outside of this workspace.
+                      Billing for admin accounts is managed outside of this workspace.
                     </Typography>
                   )}
                 </Stack>
