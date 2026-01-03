@@ -14,11 +14,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { prompt, candidateDates, excludeDays, maxResults, useAI } = body;
+    const { prompt, candidateDates, excludeDays, maxResults, useAI, year } = body;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
         { error: "Prompt is required and must be a string" },
+        { status: 400 }
+      );
+    }
+
+    // Validate year if provided
+    if (year !== undefined && (typeof year !== 'number' || year < 2000 || year > 2100)) {
+      return NextResponse.json(
+        { error: "year must be a number between 2000 and 2100" },
         { status: 400 }
       );
     }
@@ -133,12 +141,29 @@ export async function POST(request: NextRequest) {
     if (candidateDates && Array.isArray(candidateDates) && candidateDates.length > 0) {
       finalCandidateDates = candidateDates;
     } else {
+      // If year is provided, generate candidates for entire year
       // If specific month is mentioned in dateRange, generate candidates for that month
-      // Otherwise, default to next 3 months as candidate pool
+      // Otherwise, default to next 12 months as candidate pool
       finalCandidateDates = [];
       const today = new Date();
-      
-      if (dateRange?.months && Array.isArray(dateRange.months) && dateRange.months.length > 0) {
+
+      // If year is explicitly provided, generate all dates for that year
+      if (year !== undefined) {
+        const startDate = new Date(year, 0, 1); // January 1st of the specified year
+        const endDate = new Date(year, 11, 31); // December 31st of the specified year
+
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const yearNum = current.getFullYear();
+          const month = String(current.getMonth() + 1).padStart(2, '0');
+          const day = String(current.getDate()).padStart(2, '0');
+          finalCandidateDates.push(`${yearNum}-${month}-${day}`);
+          current.setDate(current.getDate() + 1);
+        }
+
+        console.log(`Generated ${finalCandidateDates.length} candidate dates for year ${year}`);
+      }
+      else if (dateRange?.months && Array.isArray(dateRange.months) && dateRange.months.length > 0) {
         // Generate dates for multiple specified months
         const monthNames = [
           'january', 'february', 'march', 'april', 'may', 'june',
@@ -223,20 +248,20 @@ export async function POST(request: NextRequest) {
         
         console.log(`Generated ${finalCandidateDates.length} candidate dates from ${dateRange.start || 'today'} to ${dateRange.end || '90 days'}`);
       } else {
-        // Default: generate next 3 months as candidate pool
-        const threeMonthsLater = new Date(today);
-        threeMonthsLater.setMonth(today.getMonth() + 3);
-        
+        // Default: generate next 12 months as candidate pool
+        const twelveMonthsLater = new Date(today);
+        twelveMonthsLater.setMonth(today.getMonth() + 12);
+
         const current = new Date(today);
-        while (current <= threeMonthsLater) {
+        while (current <= twelveMonthsLater) {
           const year = current.getFullYear();
           const month = String(current.getMonth() + 1).padStart(2, '0');
           const day = String(current.getDate()).padStart(2, '0');
           finalCandidateDates.push(`${year}-${month}-${day}`);
           current.setDate(current.getDate() + 1);
         }
-        
-        console.log(`Generated ${finalCandidateDates.length} candidate dates for next 3 months`);
+
+        console.log(`Generated ${finalCandidateDates.length} candidate dates for next 12 months`);
       }
     }
 
