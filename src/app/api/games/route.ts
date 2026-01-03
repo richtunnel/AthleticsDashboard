@@ -76,6 +76,8 @@ export async function GET(request: NextRequest) {
         let values: string[] = [];
         try {
           values = JSON.parse(filter.values || "[]");
+          // Trim all values to be resilient to trailing spaces
+          values = values.map(v => String(v).trim());
         } catch (e) {
           console.error(`Error parsing filter values for ${columnId}:`, e);
           values = [];
@@ -423,11 +425,11 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
         const customId = columnId.startsWith("custom:") ? columnId.split(":")[1] : columnId;
         if (customId) {
           const orConditions = values.map((value) => {
-            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
+            // Use string_contains for all custom string filters to be resilient to trailing spaces
             return {
               customData: {
                 path: [customId],
-                [isDatePart ? "string_contains" : "equals"]: value,
+                string_contains: value,
               },
             };
           });
@@ -442,11 +444,12 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
         if (columnName) {
           // Build OR conditions for each value to check in customFields
           const orConditions = values.map((value) => {
-            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
+            // Use string_contains for all imported string filters to be resilient to trailing spaces
+            // and other minor formatting differences.
             return {
               customFields: {
                 path: [columnName],
-                [isDatePart ? "string_contains" : "equals"]: value,
+                string_contains: value,
               },
             };
           });
