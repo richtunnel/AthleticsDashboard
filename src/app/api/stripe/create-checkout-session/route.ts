@@ -102,6 +102,17 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
+    const config = getStripeConfig();
+
+    // Log helpful debugging info in development
+    if (process.env.NODE_ENV !== "production") {
+      const maskedKey = config.secretKey ? `${config.secretKey.substring(0, 7)}...${config.secretKey.substring(config.secretKey.length - 4)}` : "NOT_SET";
+      console.log(`[Stripe Debug] Using secret key: ${maskedKey} (${config.isTestMode ? "test mode" : "live mode"})`);
+      
+      if (config.secretKey.includes("_your_") || config.secretKey === "sk_test_your_stripe_secret_key") {
+        console.warn("[Stripe Debug] WARNING: You are using a placeholder STRIPE_SECRET_KEY. Please update it in your .env file.");
+      }
+    }
 
     let customerId = user.stripeCustomerId;
 
@@ -140,28 +151,36 @@ export async function POST(req: NextRequest) {
     try {
       await stripe.prices.retrieve(priceId);
     } catch (priceError: any) {
+      const isDevelopment = process.env.NODE_ENV !== "production";
+      const config = getStripeConfig();
+      
       if (priceError.type === "StripeInvalidRequestError" && priceError.code === "resource_missing") {
-        const isDevelopment = process.env.NODE_ENV !== "production";
-        const config = getStripeConfig();
         console.error(`Stripe price validation failed: ${priceId}`, priceError);
 
-        return NextResponse.json(
-          {
-            error: isDevelopment
-              ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? "test" : "live"} Stripe account.\n\n` +
-                `To fix this issue:\n` +
-                `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
-                `2. Create or locate your subscription products and copy the Price IDs\n` +
-                `3. Update your environment variables with the correct Price IDs.\n` +
-                `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
-                `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
-              : "This subscription plan is not currently available. Please contact support for assistance.",
-          },
-          { status: 400 }
-        );
+        if (isDevelopment) {
+          // In development, we log a warning but allow it to proceed to see if sessions.create works
+          // This helps if there are synchronization issues or restricted key permissions
+          console.warn(`[Stripe Development] Price ID ${priceId} not found via retrieve(), but proceeding to attempt checkout session creation anyway.`);
+        } else {
+          return NextResponse.json(
+            {
+              error: isDevelopment
+                ? `The Stripe price ID "${priceId}" does not exist in your ${config.isTestMode ? "test" : "live"} Stripe account.\n\n` +
+                  `To fix this issue:\n` +
+                  `1. Go to your Stripe Dashboard: ${config.isTestMode ? "https://dashboard.stripe.com/test/products" : "https://dashboard.stripe.com/products"}\n` +
+                  `2. Create or locate your subscription products and copy the Price IDs\n` +
+                  `3. Update your environment variables with the correct Price IDs.\n` +
+                  `Currently configured ${planType.toLowerCase()} price ID: ${priceId}\n\n` +
+                  `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
+                : "This subscription plan is not currently available. Please contact support for assistance.",
+            },
+            { status: 400 }
+          );
+        }
+      } else {
+        // If it's another error, log it but continue (maybe transient network issue)
+        console.warn(`Failed to validate price ${priceId}, continuing anyway:`, priceError);
       }
-      // If it's another error, log it but continue (maybe transient network issue)
-      console.warn(`Failed to validate price ${priceId}, continuing anyway:`, priceError);
     }
 
     logTestModeInfo("Creating checkout session (by price ID)", {
