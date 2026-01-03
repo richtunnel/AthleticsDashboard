@@ -35,8 +35,9 @@ export class AvailableDatesAIService {
    * Parse natural language query using OpenAI LLM
    */
   async parseQuery(prompt: string): Promise<ParsedQuery> {
-    console.log("🔑 OpenAI client exists:", !!openai);
-    console.log("🔑 API Key configured:", !!process.env.OPENAI_API_KEY);
+    console.log("🔑 OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY);
+    console.log("🔑 OPENAI_API_KEY length:", process.env.OPENAI_API_KEY?.length);
+    console.log("🔑 OpenAI client created:", !!openai);
     if (!openai) {
       console.log("[Available Dates AI] OpenAI API key not configured. Using fallback parsing for advanced constraints.");
       console.log("[Available Dates AI] Basic team matching will still work via rule-based service.");
