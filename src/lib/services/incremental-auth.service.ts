@@ -57,7 +57,7 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     const existingScopes = account.scope?.split(" ") || [];
     const hasAllScopes = requestedScopes.every((scope) => existingScopes.includes(scope));
 
-    if (hasAllScopes) {
+    if (hasAllScopes && account.refresh_token) {
       return {
         success: true,
         error: "Scopes already granted",
