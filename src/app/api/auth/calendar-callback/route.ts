@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
-  const state = searchParams.get("state"); // user ID
+  const rawState = searchParams.get("state");
 
   if (error) {
     console.error("Calendar OAuth error:", error);
@@ -30,8 +30,27 @@ export async function GET(request: NextRequest) {
 
     console.log("📅 Connecting calendar for user:", session.user.email);
 
+    let stateUserId: string | null = rawState;
+    let returnTo: string | null = null;
+
+    if (rawState) {
+      try {
+        const decoded = Buffer.from(rawState, "base64url").toString("utf8");
+        const parsed = JSON.parse(decoded);
+
+        if (parsed && typeof parsed.userId === "string") {
+          stateUserId = parsed.userId;
+          if (typeof parsed.returnTo === "string") {
+            returnTo = parsed.returnTo;
+          }
+        }
+      } catch {
+        // Ignore parse errors and fall back to legacy state format
+      }
+    }
+
     // Verify state matches user ID (optional security check)
-    if (state && state !== session.user.id) {
+    if (stateUserId && stateUserId !== session.user.id) {
       console.error("❌ State mismatch - possible CSRF attack");
       return NextResponse.redirect(new URL("/dashboard/settings?error=invalid_state", process.env.NEXTAUTH_URL));
     }
@@ -119,7 +138,10 @@ export async function GET(request: NextRequest) {
 
     console.log("✅ Calendar connected to user:", session.user.email);
 
-    return NextResponse.redirect(new URL("/dashboard/settings?calendar=connected", process.env.NEXTAUTH_URL));
+    const safeReturnTo = returnTo && returnTo.startsWith("/") ? returnTo : null;
+    const redirectPath = safeReturnTo || "/dashboard/settings?calendar=connected";
+
+    return NextResponse.redirect(new URL(redirectPath, process.env.NEXTAUTH_URL!));
   } catch (error) {
     console.error("❌ Calendar OAuth error:", error);
 

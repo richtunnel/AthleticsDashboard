@@ -67,7 +67,6 @@ class GoogleGroupsService {
 
     const emails = new Set<string>();
     const contactResourceNames = resourceNames.filter((name) => !name.startsWith("contactGroups/"));
-
     const chunkSize = 100;
 
     for (let index = 0; index < contactResourceNames.length; index += chunkSize) {
@@ -84,8 +83,9 @@ class GoogleGroupsService {
         const emailAddresses = response.person?.emailAddresses ?? [];
 
         for (const email of emailAddresses) {
-          if (email?.value) {
-            emails.add(email.value);
+          const normalized = email?.value?.trim().toLowerCase();
+          if (normalized) {
+            emails.add(normalized);
           }
         }
       }

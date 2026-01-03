@@ -65,8 +65,10 @@ export interface AvailableDatesResult {
     excludedClusterDates?: string[]; // Dates to avoid based on excluded teams
     notes: string[];
     excludedDays?: string[]; // Days of week excluded (e.g., ["Sunday", "Saturday"])
-    dateRange?: { start?: string; end?: string; month?: string }; // Applied date range filter
+    dateRange?: { start?: string; end?: string; month?: string; months?: string[] }; // Applied date range filter
     minSpacing?: number; // Applied minimum spacing constraint
+    interpretation?: string; // AI interpretation
+    recommendation?: string; // AI recommendation
   };
 }
 
@@ -83,7 +85,7 @@ export class AvailableDatesService {
       threshold?: number; 
       excludeDays?: number[];
       excludeTeamsPrompt?: string; // Teams whose dates should be avoided
-      dateRange?: { start?: string; end?: string; month?: string }; // Date range filter
+      dateRange?: { start?: string; end?: string; month?: string; months?: string[] }; // Date range filter
       minSpacing?: number; // Minimum days between dates
     }
   ): Promise<AvailableDatesResult> {
@@ -182,8 +184,23 @@ export class AvailableDatesService {
       availableDates = availableDates.filter(dateStr => {
         const date = new Date(dateStr + 'T00:00:00');
         
-        // Filter by month if specified
-        if (dateRange.month) {
+        // Filter by multiple months if specified
+        if (dateRange.months && Array.isArray(dateRange.months) && dateRange.months.length > 0) {
+          const monthNames = [
+            'january', 'february', 'march', 'april', 'may', 'june',
+            'july', 'august', 'september', 'october', 'november', 'december'
+          ];
+          const targetMonthIndices = dateRange.months
+            .map(m => monthNames.indexOf(m.toLowerCase()))
+            .filter(idx => idx !== -1);
+          
+          // Date must be in ONE of the target months
+          if (targetMonthIndices.length > 0 && !targetMonthIndices.includes(date.getMonth())) {
+            return false;
+          }
+        }
+        // Filter by single month if specified (backward compatibility)
+        else if (dateRange.month) {
           const monthNames = [
             'january', 'february', 'march', 'april', 'may', 'june',
             'july', 'august', 'september', 'october', 'november', 'december'
@@ -215,7 +232,8 @@ export class AvailableDatesService {
       
       const filteredCount = beforeRangeCount - availableDates.length;
       if (filteredCount > 0) {
-        const rangeDesc = dateRange.month ? `month: ${dateRange.month}` : 
+        const rangeDesc = dateRange.months ? `months: ${dateRange.months.join(', ')}` :
+                         dateRange.month ? `month: ${dateRange.month}` : 
                          `${dateRange.start || 'start'} to ${dateRange.end || 'end'}`;
         debug.notes.push(`Filtered ${filteredCount} dates outside range (${rangeDesc})`);
       }
@@ -313,7 +331,9 @@ export class AvailableDatesService {
       'find', 'me', 'available', 'dates', 'for', 'the', 'a', 'an', 'and', 'or',
       'show', 'get', 'give', 'list', 'search', 'when', 'what', 'is', 'are',
       'can', 'i', 'have', 'need', 'want', 'looking', 'schedule', 'schedules',
-      'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams'
+      'game', 'games', 'match', 'matches', 'my', 'our', 'team', 'teams',
+      // Words describing TYPE of dates (not team characteristics)
+      'open', 'free', 'empty', 'clear', 'good', 'best', 'suitable'
     ]);
     
     // Words related to constraints (not team identifiers) - should be filtered out
