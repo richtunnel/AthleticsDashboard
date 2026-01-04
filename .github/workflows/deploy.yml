@@ -1,51 +1,54 @@
-name: CI/CD Deploy Next.js
+name: Build and Deploy to Droplet
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
 
 jobs:
-  build-and-deploy:
+  build_and_push:
     runs-on: ubuntu-latest
     steps:
-      # 1️⃣ Checkout code
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # 2️⃣ Set up Node.js
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
         with:
-          node-version: 20
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      # 3️⃣ Install dependencies
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 1200
 
-      # 4️⃣ Build Next.js app
-      - name: Build Next.js
+      - name: Build and Push
         run: |
-          yarn prisma generate
-          yarn build
+          docker build --target production -t registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest .
+          docker push registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
 
-      # 5️⃣ Copy Dockerfile to artifact (optional if using local build)
-      - name: Build Docker image
-        run: |
-          docker build -t athletics-dashboard:latest .
-
-      # 6️⃣ SSH deploy
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.7
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Droplet via SSH
+        uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/AthleticsDashboard
-            git pull origin main
-            # Rebuild and restart Docker
-            docker-compose down
-            docker-compose build --no-cache
-            docker-compose up -d
+            # Login to registry (only needed once, but safe to run)
+            doctl registry login --expiry-seconds 1200
+
+            # Pull the new image
+            docker pull registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
+
+            # Stop and remove the old container (if it exists)
+            docker stop my-app || true
+            docker rm my-app || true
+
+            # Run the new container
+            # Add your -e ENV_VARS here or use an .env file
+            docker run -d \
+              --name my-app \
+              --restart always \
+              -p 3000:3000 \
+              registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
