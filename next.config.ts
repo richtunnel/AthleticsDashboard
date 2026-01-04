@@ -6,11 +6,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ["react-dropzone", "file-selector"],
 
-  experimental: {
-    outputFileTracingIncludes: {
-      "/": ["node_modules/.prisma/**"],
-    },
-  } as any,
+  outputFileTracingIncludes: {
+    "/": ["node_modules/.prisma/**"],
+  },
 
   // webpack: (config, { isServer }) => {
   //   if (isServer) {
