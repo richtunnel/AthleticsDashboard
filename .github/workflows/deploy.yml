@@ -17,13 +17,14 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Log in to DigitalOcean Container Registry
+        # This bypasses the doctl auth glitch by piping the token directly to Docker
         run: echo ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} | docker login registry.digitalocean.com -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} --password-stdin
 
       - name: Build and Push
         run: |
-          # Target is 'runner' to match your Dockerfile
-          docker build --target runner -t registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest .
-          docker push registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
+          # Using 'runner' target exactly as defined in your Dockerfile
+          docker build --target runner -t registry.digitalocean.com/opletics-app-registry/opletics-web:latest .
+          docker push registry.digitalocean.com/opletics-app-registry/opletics-web:latest
 
   deploy:
     needs: build_and_push
@@ -36,20 +37,20 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Authenticate doctl on the droplet
+            # Authenticate the droplet session
             doctl auth init --access-token ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
             doctl registry login --expiry-seconds 1200
 
-            # Pull the fresh image
-            docker pull registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
+            # Pull the new image from your registry
+            docker pull registry.digitalocean.com/opletics-app-registry/opletics-web:latest
 
-            # Cleanup old container
+            # Remove old container if it exists
             docker stop opletics-web || true
             docker rm opletics-web || true
 
-            # Start new container
+            # Start the container on port 3000
             docker run -d \
               --name opletics-web \
               --restart always \
               -p 3000:3000 \
-              registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
+              registry.digitalocean.com/opletics-app-registry/opletics-web:latest
