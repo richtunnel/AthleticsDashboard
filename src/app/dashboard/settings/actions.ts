@@ -50,8 +50,8 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
     return { success: false, error: "User not found." };
   }
 
-  // Restrict role changes for ADMIN
-  if (user.role === "ADMIN") {
+  // Restrict role changes for SUPER_ADMIN and ATHLETIC_DIRECTOR
+  if (user.role === "SUPER_ADMIN" || user.role === "ATHLETIC_DIRECTOR") {
     return {
       success: false,
       error: "Your role cannot be changed from this page. Contact support for assistance.",
@@ -62,7 +62,7 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
   if (role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(role as AllowedSettingsRole)) {
     return {
       success: false,
-      error: "Invalid role. Must be one of: Admin, Member",
+      error: "Invalid role. Must be one of: Super Admin, Athletic Director, Assistant AD, Coach, Staff, Vendor (Read Only)",
     };
   }
 
@@ -231,9 +231,8 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
 
 export async function cleanupRoles() {
   try {
-    // Since we updated the schema to only have ADMIN and MEMBER,
-    // this function is no longer needed but we keep it for backwards compatibility
-    return { success: true, count: 0, message: "Role system already updated to ADMIN/MEMBER" };
+    // This function is kept for backwards compatibility
+    return { success: true, count: 0, message: "Role system is using original 6 roles" };
   } catch (error: any) {
     console.error("cleanupRoles error:", error);
     return { success: false, error: "Failed to clean up roles." };

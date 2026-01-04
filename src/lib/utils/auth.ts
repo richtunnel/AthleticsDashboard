@@ -7,7 +7,7 @@ const DEV_SESSION = {
     id: "dev-user-id",
     name: "Dev User",
     email: "dev@example.com",
-    role: UserRole.ADMIN,
+    role: UserRole.ATHLETIC_DIRECTOR,
     organizationId: "dev-org-id",
     organization: {
       id: "dev-org-id",

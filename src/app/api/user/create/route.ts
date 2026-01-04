@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         name,
         email: email.toLowerCase(),
         hashedPassword,
-        role: "ADMIN",
+        role: "ATHLETIC_DIRECTOR",
         organization: {
           create: {
             name: `${name}'s Organization`,
