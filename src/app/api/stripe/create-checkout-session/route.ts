@@ -17,19 +17,19 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
 
   // Support both server-side and public environment variables
   // This ensures the frontend and backend use consistent price IDs
-  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  const annual = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
+  const monthly = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
+  const annual = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
 
   if (monthly) mapping[monthly] = "MONTHLY";
   if (annual) mapping[annual] = "ANNUAL";
 
   // New plans
-  const standardMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
-  const standardYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
-  const teamMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
-  const teamYr = process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR;
-  const plusMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
-  const plusYr = process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR;
+  const standardMo = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
+  const standardYr = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
+  const teamMo = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
+  const teamYr = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR;
+  const plusMo = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
+  const plusYr = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR;
 
   if (standardMo) mapping[standardMo] = "MONTHLY";
   if (standardYr) mapping[standardYr] = "ANNUAL";
@@ -77,9 +77,7 @@ export async function POST(req: NextRequest) {
       const isDevelopment = process.env.NODE_ENV !== "production";
       return NextResponse.json(
         {
-          error: isDevelopment
-            ? `Invalid price ID:. Please verify that NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
-            : "Unsupported price. Please contact support.",
+          error: isDevelopment ? `Invalid price ID:. Please verify that ENVS are correctly configured in your environment variables.` : "Unsupported price. Please contact support.",
         },
         { status: 400 }
       );
@@ -108,7 +106,7 @@ export async function POST(req: NextRequest) {
     if (process.env.NODE_ENV !== "production") {
       const maskedKey = config.secretKey ? `${config.secretKey.substring(0, 7)}...${config.secretKey.substring(config.secretKey.length - 4)}` : "NOT_SET";
       console.log(`[Stripe Debug] Using secret key: ${maskedKey} (${config.isTestMode ? "test mode" : "live mode"})`);
-      
+
       if (config.secretKey.includes("_your_") || config.secretKey === "sk_test_your_stripe_secret_key") {
         console.warn("[Stripe Debug] WARNING: You are using a placeholder STRIPE_SECRET_KEY. Please update it in your .env file.");
       }
@@ -153,7 +151,7 @@ export async function POST(req: NextRequest) {
     } catch (priceError: any) {
       const isDevelopment = process.env.NODE_ENV !== "production";
       const config = getStripeConfig();
-      
+
       if (priceError.type === "StripeInvalidRequestError" && priceError.code === "resource_missing") {
         console.error(`Stripe price validation failed: ${priceId}`, priceError);
 
@@ -219,7 +217,7 @@ export async function POST(req: NextRequest) {
 
     const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
     const baseUrl = normalizeBrowserUrl(rawBaseUrl);
-    
+
     const successUrl = `${baseUrl}/dashboard/settings?checkout=success`;
     const cancelUrl = `${baseUrl}/onboarding/plans?checkout=cancelled`;
 

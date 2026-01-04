@@ -8,7 +8,7 @@ export function getStripe(): Stripe {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
       // Do NOT construct Stripe without a key; only throw when actually used
-      throw new Error("STRIPE_SECRET_KEY is not set");
+      throw new Error("STRIPE_SECRET_KEYis not set");
     }
 
     const testMode = isStripeTestMode(key);
