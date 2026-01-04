@@ -3,9 +3,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
-import { changePlanSchema } from "@/lib/validations/subscription";
+import { changePlanSchema, type ChangePlan } from "@/lib/validations/subscription";
 import { updateStorageQuotaForPlanChange } from "@/lib/services/storage.service";
 import { getStripeConfig } from "@/lib/stripe-config";
+
+// Helper function to get the correct price ID based on plan tier and billing cycle
+function getPriceIdForPlan(planTier: ChangePlan['planTier'], billingCycle: ChangePlan['billingCycle']): string {
+  const envVarPrefix = billingCycle === "MONTHLY" ? "_PRICE_ID_MO" : "_PRICE_ID_YR";
+  const planVarName = `STRIPE_${planTier}${envVarPrefix}`;
+  
+  const priceId = process.env[planVarName];
+  
+  if (!priceId) {
+    throw new Error(`Missing price ID for ${planTier} ${billingCycle}: ${planVarName} is not set`);
+  }
+  
+  return priceId;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,13 +38,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid request", details: validationResult.error.format() }, { status: 400 });
     }
 
-    const { planType } = validationResult.data;
+    const { planTier, billingCycle } = validationResult.data;
 
-    // Use the new plan price IDs based on plan type
-    const priceId = planType === "MONTHLY" ? process.env.STRIPE_STANDARD_PRICE_ID_MO : process.env.STRIPE_STANDARD_PRICE_ID_YR;
+    // Get the correct price ID based on plan tier and billing cycle
+    const priceId = getPriceIdForPlan(planTier, billingCycle);
 
     if (!priceId) {
-      console.error(`Missing price ID for plan type: ${planType}`);
+      console.error(`Missing price ID for ${planTier} ${billingCycle}`);
       return NextResponse.json({ error: "Subscription plan configuration error. Please contact support." }, { status: 500 });
     }
 
@@ -69,7 +83,7 @@ export async function POST(req: NextRequest) {
                 `To fix this issue:\n` +
                 `1. Go to your Stripe Dashboard: ${config.isTestMode ? 'https://dashboard.stripe.com/test/products' : 'https://dashboard.stripe.com/products'}\n` +
                 `2. Create or locate your subscription products and copy the Price IDs\n` +
-                `3. Update the environment variables for plan type: ${planType}\n\n` +
+                `3. Update STRIPE_${planTier}_${billingCycle === "MONTHLY" ? "PRICE_ID_MO" : "PRICE_ID_YR"} in your environment variables\n\n` +
                 `Currently configured price ID: ${priceId}\n\n` +
                 `See docs/STRIPE_QUICK_START.md for detailed setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
@@ -125,8 +139,8 @@ export async function POST(req: NextRequest) {
     await prisma.subscription.update({
       where: { userId: user.id },
       data: {
-        planType,
-        billingCycle: planType,
+        planType: billingCycle,
+        billingCycle,
         priceId,
         currentPeriodStart: currentPeriodStart ? new Date(currentPeriodStart * 1000) : null,
         currentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : null,
@@ -136,7 +150,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Plan changed successfully",
-      planType,
+      planTier,
+      billingCycle,
     });
   } catch (error: any) {
     console.error("Plan change error:", error);
