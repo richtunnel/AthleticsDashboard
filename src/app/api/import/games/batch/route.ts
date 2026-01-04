@@ -115,6 +115,22 @@ export async function POST(request: NextRequest) {
     const duplicates: string[] = [];
     const createdGameIds: string[] = [];
 
+    // Validate organization exists before proceeding
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.user.organizationId },
+      select: { id: true, name: true },
+    });
+
+    if (!organization) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: "Organization not found. Please try signing out and back in." 
+        },
+        { status: 400 }
+      );
+    }
+
     // Find or create default team for custom-only imports
     let defaultTeam = await prisma.team.findFirst({
       where: {
@@ -141,18 +157,30 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Create default team
-      defaultTeam = await prisma.team.create({
-        data: {
-          name: "General Schedule",
-          sportId: defaultSport.id,
-          level: "VARSITY",
-          organizationId: session.user.organizationId,
-        },
-        include: {
-          sport: true,
-        },
-      });
+      try {
+        // Create default team with proper error handling
+        defaultTeam = await prisma.team.create({
+          data: {
+            name: "General Schedule",
+            sportId: defaultSport.id,
+            level: "VARSITY",
+            organizationId: session.user.organizationId,
+          },
+          include: {
+            sport: true,
+          },
+        });
+      } catch (teamCreateError) {
+        console.error("Failed to create default team:", teamCreateError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Failed to create default team. Please ensure your organization is properly set up and try again.",
+            details: teamCreateError instanceof Error ? teamCreateError.message : "Unknown error",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Process each game
@@ -233,16 +261,38 @@ export async function POST(request: NextRequest) {
           sortOrder: 0,
         };
 
-        const createdGame = await prisma.game.create({
-          data: gameCreateData,
-          include: {
-            homeTeam: {
-              include: {
-                sport: true,
+        let createdGame;
+        try {
+          createdGame = await prisma.game.create({
+            data: gameCreateData,
+            include: {
+              homeTeam: {
+                include: {
+                  sport: true,
+                },
               },
             },
-          },
-        });
+          });
+        } catch (gameCreateError) {
+          console.error(`Row ${rowNum} game creation error:`, gameCreateError);
+          
+          // Handle specific Prisma errors
+          if (gameCreateError instanceof Error && 'code' in gameCreateError) {
+            const prismaError = gameCreateError as any;
+            if (prismaError.code === 'P2003') {
+              errors.push(`Row ${rowNum}: Foreign key constraint violation - the organization or team referenced doesn't exist`);
+            } else if (prismaError.code === 'P2002') {
+              errors.push(`Row ${rowNum}: Duplicate entry - a game with these details already exists`);
+            } else {
+              errors.push(`Row ${rowNum}: Database error (${prismaError.code}): ${prismaError.message}`);
+            }
+          } else {
+            errors.push(`Row ${rowNum}: ${gameCreateError instanceof Error ? gameCreateError.message : "Unknown error creating game"}`);
+          }
+          
+          failedCount++;
+          continue;
+        }
 
         // === VALIDATE CREATED GAME ===
         if (!createdGame || !createdGame.id) {
