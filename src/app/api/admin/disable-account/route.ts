@@ -6,7 +6,7 @@ import type { DisableReason } from "@/lib/services/account-disable.service";
 
 /**
  * Manually disable a user account
- * Only accessible to ADMIN users
+ * Only accessible to SUPER_ADMIN users
  */
 export async function POST(req: NextRequest) {
   try {
@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Only allow ADMIN to disable accounts manually
-    if (session.user.role !== "ADMIN") {
+    // Only allow SUPER_ADMIN to disable accounts manually
+    if (session.user.role !== "SUPER_ADMIN") {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
     }
 
