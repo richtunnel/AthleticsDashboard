@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const planTypeSchema = z.enum(["MONTHLY", "ANNUAL"]);
+export const planTierSchema = z.enum(["STANDARD", "TEAM", "PLUS"]);
 
 export const createCheckoutSessionSchema = z.object({
   planType: planTypeSchema,
@@ -15,7 +16,8 @@ export const cancelSubscriptionSchema = z.object({
 });
 
 export const changePlanSchema = z.object({
-  planType: planTypeSchema,
+  planTier: planTierSchema,
+  billingCycle: planTypeSchema,
 });
 
 export const subscriptionStatusSchema = z.enum([
@@ -33,4 +35,5 @@ export type CreateCheckoutSessionByPrice = z.infer<typeof createCheckoutSessionB
 export type CancelSubscription = z.infer<typeof cancelSubscriptionSchema>;
 export type ChangePlan = z.infer<typeof changePlanSchema>;
 export type PlanType = z.infer<typeof planTypeSchema>;
+export type PlanTier = z.infer<typeof planTierSchema>;
 export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
