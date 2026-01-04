@@ -21,8 +21,8 @@ jobs:
 
       - name: Build and Push
         run: |
-          docker build --target production -t registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest .
-          docker push registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
+          docker build --target runner -t registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest .
+          docker push registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
 
   deploy:
     needs: build_and_push
@@ -39,16 +39,16 @@ jobs:
             doctl registry login --expiry-seconds 1200
 
             # Pull the new image
-            docker pull registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
+            docker pull registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
 
             # Stop and remove the old container (if it exists)
-            docker stop my-app || true
-            docker rm my-app || true
+            docker stop opletics-web || true
+            docker rm opletics-web || true
 
             # Run the new container
             # Add your -e ENV_VARS here or use an .env file
             docker run -d \
-              --name my-app \
+              --name opletics-web \
               --restart always \
               -p 3000:3000 \
-              registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/my-app:latest
+              registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
