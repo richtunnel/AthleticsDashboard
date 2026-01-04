@@ -50,8 +50,8 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
     return { success: false, error: "User not found." };
   }
 
-  // Restrict role changes for SUPER_ADMIN and VENDOR_READ_ONLY
-  if (user.role === "SUPER_ADMIN" || user.role === "VENDOR_READ_ONLY") {
+  // Restrict role changes for ADMIN
+  if (user.role === "ADMIN") {
     return {
       success: false,
       error: "Your role cannot be changed from this page. Contact support for assistance.",
@@ -62,7 +62,7 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
   if (role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(role as AllowedSettingsRole)) {
     return {
       success: false,
-      error: "Invalid role. Must be one of: Athletic Director, Assistant AD, Coach, Staff",
+      error: "Invalid role. Must be one of: Admin, Member",
     };
   }
 
@@ -231,17 +231,9 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
 
 export async function cleanupRoles() {
   try {
-    const result = await prisma.user.updateMany({
-      where: {
-        role: { in: ["SUPER_ADMIN", "VENDOR_READ_ONLY"] },
-      },
-      data: {
-        role: "ATHLETIC_DIRECTOR", // Or set to a default like ALLOWED_SETTINGS_ROLES.STAFF
-      },
-    });
-
-    console.log(`Cleaned up ${result.count} users with invalid roles.`);
-    return { success: true, count: result.count };
+    // Since we updated the schema to only have ADMIN and MEMBER,
+    // this function is no longer needed but we keep it for backwards compatibility
+    return { success: true, count: 0, message: "Role system already updated to ADMIN/MEMBER" };
   } catch (error: any) {
     console.error("cleanupRoles error:", error);
     return { success: false, error: "Failed to clean up roles." };

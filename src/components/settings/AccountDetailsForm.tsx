@@ -52,7 +52,7 @@ export default function AccountDetailsForm({ user }: Props) {
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ severity: "success" | "error"; message: string } | null>(null);
-  const isRoleLocked = ["SUPER_ADMIN", "VENDOR_READ_ONLY"].includes(user.role || "");
+  const isRoleLocked = ["ADMIN"].includes(user.role || "");
 
   // Track initial state for comparison
   const initialData = useMemo(
@@ -86,7 +86,7 @@ export default function AccountDetailsForm({ user }: Props) {
       return "Name must be at least 2 characters";
     }
     if (form.role && !Object.values(ALLOWED_SETTINGS_ROLES).includes(form.role as AllowedSettingsRole)) {
-      return "Invalid role selected. Choose from: Athletic Director, Assistant AD, Coach, Staff";
+      return "Invalid role selected. Choose from: Admin, Member";
     }
     return null;
   };
