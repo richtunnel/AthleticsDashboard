@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
 
     const { planType } = validationResult.data;
 
-    const priceId = planType === "MONTHLY" ? process.env.STRIPE_STANDARD_MONTHLY_PRICE_ID : process.env.STRIPE_STANDARD_FREE_PRICE_ID;
+    // Use Standard plan pricing for plan changes
+    const priceId = planType === "MONTHLY" 
+      ? (process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO)
+      : (process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR);
 
     if (!priceId) {
       console.error(`Missing price ID for plan type: ${planType}`);
