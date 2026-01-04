@@ -20,6 +20,28 @@ function validateAndParseDate(dateString: string): Date {
   return date;
 }
 
+// Helper function to create a signature for duplicate detection within batch
+function createGameSignature(date: Date, customFields: Record<string, any>): string {
+  // Normalize custom fields for comparison (same logic as in isDuplicateRow)
+  const normalizeFields = (fields: Record<string, any>): Record<string, any> => {
+    const normalized: Record<string, any> = {};
+    for (const [key, value] of Object.entries(fields || {})) {
+      // Only include non-null, non-undefined, non-empty values
+      if (value !== null && value !== undefined && value !== "") {
+        normalized[key] = String(value).trim(); // Convert to string and trim for comparison
+      }
+    }
+    return normalized;
+  };
+
+  const normalizedFields = normalizeFields(customFields);
+  const dateStr = date.toISOString().split("T")[0];
+  const keys = Object.keys(normalizedFields).sort();
+  const values = keys.map(key => normalizedFields[key]);
+  
+  return JSON.stringify({ date: dateStr, keys, values });
+}
+
 /**
  * Check if an imported row is a duplicate of an existing game.
  * A row is considered duplicate if ALL of the following match:
@@ -29,8 +51,15 @@ function validateAndParseDate(dateString: string): Date {
 async function isDuplicateRow(
   date: Date,
   customFields: Record<string, any>,
-  organizationId: string
+  organizationId: string,
+  batchGameSignatures: Set<string> = new Set()
 ): Promise<boolean> {
+  // Check for duplicates within current batch first
+  const gameSignature = createGameSignature(date, customFields);
+  if (batchGameSignatures.has(gameSignature)) {
+    return true; // Duplicate found within current batch
+  }
+
   // Normalize the date to compare (ignore time portion)
   const dateStr = date.toISOString().split("T")[0];
 
@@ -114,6 +143,9 @@ export async function POST(request: NextRequest) {
     const warnings: string[] = [];
     const duplicates: string[] = [];
     const createdGameIds: string[] = [];
+
+    // Track games in current batch to avoid duplicate detection within batch
+    const batchGameSignatures: Set<string> = new Set();
 
     // Validate organization exists before proceeding
     const organization = await prisma.organization.findUnique({
@@ -240,7 +272,8 @@ export async function POST(request: NextRequest) {
         const isDuplicate = await isDuplicateRow(
           parsedDate,
           gameData.customFields || {},
-          session.user.organizationId
+          session.user.organizationId,
+          batchGameSignatures
         );
 
         if (isDuplicate) {
@@ -304,6 +337,10 @@ export async function POST(request: NextRequest) {
         // === SUCCESS ===
         createdGameIds.push(createdGame.id);
         successCount++;
+
+        // Add to batch signatures to prevent duplicate detection within batch
+        const gameSignature = createGameSignature(parsedDate, gameData.customFields || {});
+        batchGameSignatures.add(gameSignature);
       } catch (error) {
         console.error(`Row ${rowNum} import error:`, error);
         errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);

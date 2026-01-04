@@ -245,6 +245,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     const totalBatches = Math.ceil(parsedData.length / batchSize);
     let successCount = 0;
     let failedCount = 0;
+    let duplicateCount = 0;
     const errors: string[] = [];
     const warnings: string[] = [];
     const allCreatedGameIds: string[] = [];
@@ -306,6 +307,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             if (result.success) {
               successCount += result.data.success || 0;
               failedCount += result.data.failed || 0;
+              duplicateCount += result.data.duplicates || 0;
               if (result.data.errors) {
                 errors.push(...result.data.errors);
               }
@@ -336,6 +338,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
       const finalResult: ImportResult = {
         success: successCount,
         failed: failedCount,
+        duplicates: duplicateCount,
         errors,
         warnings,
         createdGameIds: allCreatedGameIds,
