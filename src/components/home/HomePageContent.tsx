@@ -133,23 +133,7 @@ export default function HomePageContent() {
                   fontWeight: "500",
                 }}
               >
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-                A platform built to give athletic departments the clarity, control, and automation they’ve always deserved.{" "}
-=======
-                A platform built to give athletic departments the clarity, control, and automation they deserve.
->>>>>>> main
-=======
-                Upload your sports schedule spreadsheet as a CSV and start automating emails, scheduling, planning, travel time and more.
->>>>>>> main
-=======
-                Upload your sports schedule spreadsheet as a CSV and start automating your daily workflow.
->>>>>>> main
-=======
                 Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
->>>>>>> main
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
