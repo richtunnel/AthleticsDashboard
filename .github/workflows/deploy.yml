@@ -17,10 +17,11 @@ jobs:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
       - name: Log in to DigitalOcean Container Registry
-        run: doctl registry login --expiry-seconds 1200
+        run: echo ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} | docker login registry.digitalocean.com -u ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} --password-stdin
 
       - name: Build and Push
         run: |
+          # Target is 'runner' to match your Dockerfile
           docker build --target runner -t registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest .
           docker push registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
 
@@ -35,18 +36,18 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Login to registry (only needed once, but safe to run)
+            # Authenticate doctl on the droplet
+            doctl auth init --access-token ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
             doctl registry login --expiry-seconds 1200
 
-            # Pull the new image
+            # Pull the fresh image
             docker pull registry.digitalocean.com/${{ secrets.REGISTRY_NAME }}/opletics-web:latest
 
-            # Stop and remove the old container (if it exists)
+            # Cleanup old container
             docker stop opletics-web || true
             docker rm opletics-web || true
 
-            # Run the new container
-            # Add your -e ENV_VARS here or use an .env file
+            # Start new container
             docker run -d \
               --name opletics-web \
               --restart always \
