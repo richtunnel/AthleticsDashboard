@@ -20,8 +20,8 @@ async function main() {
   // 2. Create User (fixed 'adminUser')
   const adminUser = await prisma.user.upsert({
     where: { id: "dev-user-id" },
-    update: { name: "John Smith", email: "dev@example.com", role: UserRole.ATHLETIC_DIRECTOR, organizationId: org.id },
-    create: { id: "dev-user-id", name: "John Smith", email: "dev@example.com", role: UserRole.ATHLETIC_DIRECTOR, organizationId: org.id },
+    update: { name: "John Smith", email: "dev@example.com", role: UserRole.ADMIN, organizationId: org.id },
+    create: { id: "dev-user-id", name: "John Smith", email: "dev@example.com", role: UserRole.ADMIN, organizationId: org.id },
   });
   console.log("✅ User ready:", adminUser.name);
 
