@@ -24,8 +24,7 @@ const PLUS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? 
 
 function isValidPriceId(priceId: string): boolean {
   if (!priceId) return false;
-  if (priceId.includes("your_monthly_price_id")) return false;
-  if (priceId.includes("your_annual_price_id")) return false;
+  if (priceId.includes("price_your_")) return false;
   if (!priceId.startsWith("price_")) return false;
   return priceId.length > 10;
 }
@@ -38,18 +37,18 @@ type BillingInterval = "monthly" | "annual";
 
 type Plan = {
   name: string;
+  tier: 'standard' | 'team' | 'plus';
   monthlyPrice: number;
   annualPrice: number;
   features: string[];
   mostPopular?: boolean;
-  monthlyPriceId?: string;
-  annualPriceId?: string;
   isFree?: boolean;
 };
 
 const plans: Plan[] = [
   {
     name: "Free Trial (Standard)",
+    tier: "standard",
     monthlyPrice: 19,
     annualPrice: 125,
     features: [
@@ -61,11 +60,10 @@ const plans: Plan[] = [
       "1 user",
       "2 weeks Free Trial",
     ],
-    monthlyPriceId: STANDARD_MONTHLY_PRICE_ID,
-    annualPriceId: STANDARD_ANNUAL_PRICE_ID,
   },
   {
     name: "Team",
+    tier: "team",
     monthlyPrice: 37,
     annualPrice: 250,
     mostPopular: true,
@@ -78,11 +76,10 @@ const plans: Plan[] = [
       "Premium chat and email support 24hrs.",
       "Everything in Standard plan.",
     ],
-    monthlyPriceId: TEAM_MONTHLY_PRICE_ID,
-    annualPriceId: TEAM_ANNUAL_PRICE_ID,
   },
   {
     name: "Team+ (Plus)",
+    tier: "plus",
     monthlyPrice: 60,
     annualPrice: 350,
     features: [
@@ -97,8 +94,6 @@ const plans: Plan[] = [
       "School Theme Customization",
       "Priority chat and email support (Now)",
     ],
-    monthlyPriceId: PLUS_MONTHLY_PRICE_ID,
-    annualPriceId: PLUS_ANNUAL_PRICE_ID,
   },
 ];
 
@@ -218,11 +213,23 @@ function PricingPlansContent() {
       return;
     }
 
-    const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
+    // Get price ID based on plan tier and billing cycle
+    let priceId = "";
+    switch (plan.tier) {
+      case "standard":
+        priceId = billing === "monthly" ? STANDARD_MONTHLY_PRICE_ID : STANDARD_ANNUAL_PRICE_ID;
+        break;
+      case "team":
+        priceId = billing === "monthly" ? TEAM_MONTHLY_PRICE_ID : TEAM_ANNUAL_PRICE_ID;
+        break;
+      case "plus":
+        priceId = billing === "monthly" ? PLUS_MONTHLY_PRICE_ID : PLUS_ANNUAL_PRICE_ID;
+        break;
+    }
 
     if (!priceId || !isValidPriceId(priceId)) {
       if (isDevelopment) {
-        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${plan.name.toUpperCase()}_PRICE_ID_${billing === "monthly" ? "MO" : "YR"} in your .env.local file.`);
+        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${plan.tier.toUpperCase()}_PRICE_ID_${billing === "monthly" ? "MO" : "YR"} in your .env.local file.`);
       } else {
         setError("This plan is not currently available. Please contact support.");
       }
@@ -363,7 +370,21 @@ function PricingPlansContent() {
         <Grid container spacing={4} justifyContent="center" sx={{ maxWidth: 1100, mx: "auto" }}>
           {plans.map((plan) => {
             const planKey = plan.isFree ? `${plan.name}-free` : `${plan.name}-${billing}`;
-            const selectedPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
+            
+            // Get price ID based on plan tier and billing cycle
+            let selectedPriceId = "";
+            switch (plan.tier) {
+              case "standard":
+                selectedPriceId = billing === "monthly" ? STANDARD_MONTHLY_PRICE_ID : STANDARD_ANNUAL_PRICE_ID;
+                break;
+              case "team":
+                selectedPriceId = billing === "monthly" ? TEAM_MONTHLY_PRICE_ID : TEAM_ANNUAL_PRICE_ID;
+                break;
+              case "plus":
+                selectedPriceId = billing === "monthly" ? PLUS_MONTHLY_PRICE_ID : PLUS_ANNUAL_PRICE_ID;
+                break;
+            }
+            
             const requiresPriceId = !plan.isFree;
             const disableForMissingPrice = requiresPriceId && !selectedPriceId && !(hasActiveSubscription && !plan.isFree);
             const buttonDisabled = Boolean(loadingKey) || disableForMissingPrice;

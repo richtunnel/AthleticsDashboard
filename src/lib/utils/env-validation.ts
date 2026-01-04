@@ -9,11 +9,21 @@ export function validateStripeEnv() {
 }
 
 /**
- * Gets the price ID for a given plan type
+ * Gets the price ID for a given plan type and tier
  */
-export function getStripePriceId(planType: 'MONTHLY' | 'ANNUAL'): string | undefined {
+export function getStripePriceId(tier: 'standard' | 'team' | 'plus', cycle: 'monthly' | 'annual'): string | undefined {
   const config = getStripeConfig();
-  return planType === 'MONTHLY' ? config.monthlyPriceId : config.annualPriceId;
+  
+  switch (tier) {
+    case 'standard':
+      return cycle === 'monthly' ? config.standardPriceIdMo : config.standardPriceIdYr;
+    case 'team':
+      return cycle === 'monthly' ? config.teamPriceIdMo : config.teamPriceIdYr;
+    case 'plus':
+      return cycle === 'monthly' ? config.plusPriceIdMo : config.plusPriceIdYr;
+    default:
+      return undefined;
+  }
 }
 
 /**

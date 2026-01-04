@@ -17,13 +17,6 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
 
   // Support both server-side and public environment variables
   // This ensures the frontend and backend use consistent price IDs
-  const monthly = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID;
-  const annual = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID;
-
-  if (monthly) mapping[monthly] = "MONTHLY";
-  if (annual) mapping[annual] = "ANNUAL";
-
-  // New plans
   const standardMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
   const standardYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
   const teamMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
@@ -78,7 +71,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: isDevelopment
-            ? `Invalid price ID:. Please verify that NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID and NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID are correctly configured in your environment variables.`
+            ? `Invalid price ID:. Please verify that the Stripe Price IDs for Standard, Team, and Plus plans are correctly configured in your environment variables.`
             : "Unsupported price. Please contact support.",
         },
         { status: 400 }

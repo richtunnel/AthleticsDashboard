@@ -8,8 +8,6 @@
 export interface StripeConfig {
   secretKey: string;
   webhookSecret: string;
-  monthlyPriceId: string;
-  annualPriceId: string;
   standardPriceIdMo: string;
   standardPriceIdYr: string;
   teamPriceIdMo: string;
@@ -35,12 +33,7 @@ export function getStripeConfig(): StripeConfig {
   const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
   const isTestMode = isStripeTestMode(secretKey);
 
-  // Support both server-side and public environment variables for consistency
-  // This ensures frontend and backend use the same price IDs
-  const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID || "";
-  const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID || "";
-
-  // New plans
+  // New tiered pricing model
   const standardPriceIdMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO || "";
   const standardPriceIdYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR || "";
   const teamPriceIdMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO || "";
@@ -51,8 +44,6 @@ export function getStripeConfig(): StripeConfig {
   return {
     secretKey,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-    monthlyPriceId,
-    annualPriceId,
     standardPriceIdMo,
     standardPriceIdYr,
     teamPriceIdMo,
@@ -69,8 +60,6 @@ export function getStripeConfig(): StripeConfig {
  */
 export function isValidPriceId(priceId?: string): boolean {
   if (!priceId) return false;
-  if (priceId.includes("your_monthly_price_id")) return false;
-  if (priceId.includes("your_annual_price_id")) return false;
   if (priceId.includes("price_your_")) return false;
   if (!priceId.startsWith("price_")) return false;
   return priceId.length > 10;
