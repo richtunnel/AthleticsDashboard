@@ -4,15 +4,32 @@
  * NO imports from next/headers, next-auth, or authOptions
  */
 
-// Define UserRole enum with only ADMIN and MEMBER
+// Define UserRole enum with original 6 roles
 export enum UserRole {
-  ADMIN = "ADMIN",
-  MEMBER = "MEMBER",
+  SUPER_ADMIN = "SUPER_ADMIN",
+  ATHLETIC_DIRECTOR = "ATHLETIC_DIRECTOR",
+  ASSISTANT_AD = "ASSISTANT_AD",
+  COACH = "COACH",
+  STAFF = "STAFF",
+  VENDOR_READ_ONLY = "VENDOR_READ_ONLY",
 }
 
-export const WRITE_ROLES: UserRole[] = [UserRole.ADMIN];
+export const WRITE_ROLES: UserRole[] = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ATHLETIC_DIRECTOR,
+  UserRole.ASSISTANT_AD,
+  UserRole.COACH,
+  UserRole.STAFF,
+];
 
-export const READ_ROLES: UserRole[] = [UserRole.ADMIN, UserRole.MEMBER];
+export const READ_ROLES: UserRole[] = [
+  UserRole.SUPER_ADMIN,
+  UserRole.ATHLETIC_DIRECTOR,
+  UserRole.ASSISTANT_AD,
+  UserRole.COACH,
+  UserRole.STAFF,
+  UserRole.VENDOR_READ_ONLY,
+];
 
 /**
  * Check if a user has permission based on their role
