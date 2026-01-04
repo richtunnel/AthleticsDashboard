@@ -21,7 +21,7 @@ substitutions:
   _OPENWEATHER_API_KEY_SECRET: OPENWEATHER_API_KEY # Secret name for the OpenWeather API key
   _NEXT_PUBLIC_RESEND_API_KEY_SECRET: NEXT_PUBLIC_RESEND_API_KEY # Secret name for the Resend API key
   _OPENAI_API_KEY_SECRET: OPENAI_API_KEY # Secret name for the OpenAI API key
-  _STRIPE_SECRET_KEY_SECRET: STRIPE_SECRET_KEY # Secret name for the Stripe secret key
+  _STRIPE_SECRET_KEY_SECRET: STRIPE_SECRET_KEY# Secret name for the Stripe secret key
   _STRIPE_WEBHOOK_SECRET_SECRET: STRIPE_WEBHOOK_SECRET # Secret name for the Stripe webhook signing secret
 
 steps:

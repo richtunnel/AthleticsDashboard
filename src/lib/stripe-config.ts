@@ -8,8 +8,6 @@
 export interface StripeConfig {
   secretKey: string;
   webhookSecret: string;
-  monthlyPriceId: string;
-  annualPriceId: string;
   standardPriceIdMo: string;
   standardPriceIdYr: string;
   teamPriceIdMo: string;
@@ -32,27 +30,22 @@ export function isStripeTestMode(secretKey?: string): boolean {
  * Gets the current Stripe configuration
  */
 export function getStripeConfig(): StripeConfig {
-  const secretKey = process.env.STRIPE_SECRET_KEY ?? "";
+  const secretKey = process.env.STRIPE_SECRET_KEY || "";
   const isTestMode = isStripeTestMode(secretKey);
 
   // Support both server-side and public environment variables for consistency
   // This ensures frontend and backend use the same price IDs
-  const monthlyPriceId = process.env.STRIPE_MONTHLY_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID || "";
-  const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_ANNUAL_PRICE_ID || "";
-
   // New plans
-  const standardPriceIdMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO || "";
-  const standardPriceIdYr = process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR || "";
-  const teamPriceIdMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO || "";
-  const teamPriceIdYr = process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR || "";
-  const plusPriceIdMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO || "";
-  const plusPriceIdYr = process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR || "";
+  const standardPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO || "";
+  const standardPriceIdYr = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR || "";
+  const teamPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO || "";
+  const teamPriceIdYr = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR || "";
+  const plusPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO || "";
+  const plusPriceIdYr = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR || "";
 
   return {
     secretKey,
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-    monthlyPriceId,
-    annualPriceId,
     standardPriceIdMo,
     standardPriceIdYr,
     teamPriceIdMo,
@@ -84,9 +77,9 @@ export function validateStripeConfig(): { valid: boolean; missing: string[]; inv
   const missing = required.filter((key) => !process.env[key]);
 
   // Check for price IDs in both server-side and public variables
-  const standardPriceIdMo = process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
-  const teamPriceIdMo = process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
-  const plusPriceIdMo = process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
+  const standardPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO || "";
+  const teamPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO || "";
+  const plusPriceIdMo = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO || "";
 
   if (!standardPriceIdMo) {
     missing.push("STRIPE_STANDARD_PRICE_ID_MO");
@@ -128,17 +121,13 @@ export function validateStripeConfig(): { valid: boolean; missing: string[]; inv
  * Validates client-side Stripe configuration (for use in components)
  */
 export function validateClientStripeConfig(): { valid: boolean; missing: string[]; invalid: string[] } {
-  const required = [
-    "NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO",
-    "NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO",
-    "NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO"
-  ];
+  const required = ["NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO", "NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO", "NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO"];
 
   const missing: string[] = [];
   const invalid: string[] = [];
 
   if (typeof window !== "undefined") {
-    required.forEach(key => {
+    required.forEach((key) => {
       const value = process.env[key];
       if (!value) {
         missing.push(key);
@@ -246,7 +235,7 @@ export function getTrialPeriodDays(): number {
   // In test mode, you can reduce trial period for faster testing
   // Set STRIPE_TEST_TRIAL_DAYS or STRIPE_TEST_TRIAL_DAY to override the default 14 days
   const trialDaysEnv = process.env.STRIPE_TEST_TRIAL_DAYS || process.env.STRIPE_TEST_TRIAL_DAY;
-  
+
   if (config.isTestMode && trialDaysEnv) {
     const testDays = parseInt(trialDaysEnv, 10);
     if (!isNaN(testDays) && testDays > 0) {
