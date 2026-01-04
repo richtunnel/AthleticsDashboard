@@ -55,7 +55,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const [recoveryEmailDialogOpen, setRecoveryEmailDialogOpen] = useState(false);
   const [recoveryEmailInput, setRecoveryEmailInput] = useState("");
   const [optimisticState, setOptimisticState] = useState(subscription);
-  const isRestrictedRole = userRole ? ["ADMIN"].includes(userRole) : "";
+  const isRestrictedRole = userRole ? ["SUPER_ADMIN", "ATHLETIC_DIRECTOR"].includes(userRole) : "";
   const theme = useTheme();
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   }, [checkoutStatus]);
 
   const displaySubscription = optimisticState || subscription;
-  const isAdmin = userRole === "ADMIN";
+  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ATHLETIC_DIRECTOR";
   const isFreePlan = !displaySubscription && !isAdmin;
 
   const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : isAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan";

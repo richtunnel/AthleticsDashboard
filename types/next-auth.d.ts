@@ -2,7 +2,7 @@ import { DefaultSession, DefaultUser } from "next-auth";
 import { DefaultJWT } from "next-auth/jwt";
 
 // Define UserRole locally to avoid Prisma dependency
-export type UserRole = "ADMIN" | "MEMBER";
+export type UserRole = "SUPER_ADMIN" | "ATHLETIC_DIRECTOR" | "ASSISTANT_AD" | "COACH" | "STAFF" | "VENDOR_READ_ONLY";
 
 declare module "next-auth" {
   interface Session {

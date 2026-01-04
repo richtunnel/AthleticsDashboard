@@ -14,7 +14,7 @@ model User {
   email                      String    @unique
   name                       String?
   phone                      String?   @unique
-  role                       UserRole  @default(ADMIN)
+  role                       UserRole  @default(ATHLETIC_DIRECTOR)
   image                      String?
   emailVerified              DateTime?
   hashedPassword             String?
@@ -522,8 +522,12 @@ model RecoveryEmail {
 
 // Enums
 enum UserRole {
-  ADMIN
-  MEMBER
+  SUPER_ADMIN
+  ATHLETIC_DIRECTOR
+  ASSISTANT_AD
+  COACH
+  STAFF
+  VENDOR_READ_ONLY
 }
 
 enum TeamLevel {
