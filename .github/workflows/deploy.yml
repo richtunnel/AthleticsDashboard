@@ -1,0 +1,51 @@
+name: CI/CD Deploy Next.js
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # 3️⃣ Install dependencies
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # 4️⃣ Build Next.js app
+      - name: Build Next.js
+        run: |
+          yarn prisma generate
+          yarn build
+
+      # 5️⃣ Copy Dockerfile to artifact (optional if using local build)
+      - name: Build Docker image
+        run: |
+          docker build -t athletics-dashboard:latest .
+
+      # 6️⃣ SSH deploy
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            cd ~/AthleticsDashboard
+            git pull origin main
+            # Rebuild and restart Docker
+            docker-compose down
+            docker-compose build --no-cache
+            docker-compose up -d
