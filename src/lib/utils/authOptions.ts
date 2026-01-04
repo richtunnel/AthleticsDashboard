@@ -57,7 +57,7 @@ const customAdapter = {
         email: user.email,
         image: user.image,
         emailVerified: user.emailVerified,
-        role: "ADMIN", // Set default role
+        role: "ATHLETIC_DIRECTOR", // Set default role
         plan: plan,
         stripeCustomerId,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
