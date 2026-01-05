@@ -442,7 +442,9 @@ function isActiveOrTrialing(status: string | null | undefined): boolean {
 }
 
 function mapStripeStatus(status: Stripe.Subscription.Status | string | null | undefined): SubscriptionStatusEnum {
-  switch ((status ?? "").toLowerCase()) {
+  const normalized = (status ?? "").toLowerCase();
+
+  switch (normalized) {
     case "trialing":
       return "TRIALING";
     case "active":
@@ -454,10 +456,13 @@ function mapStripeStatus(status: Stripe.Subscription.Status | string | null | un
     case "unpaid":
       return "UNPAID";
     case "incomplete_expired":
+      console.log(`[Webhook] Mapping Stripe status 'incomplete_expired' to INCOMPLETE_EXPIRED`);
       return "INCOMPLETE_EXPIRED";
     case "incomplete":
+      console.log(`[Webhook] Mapping Stripe status 'incomplete' to INCOMPLETE`);
       return "INCOMPLETE";
     default:
+      console.warn(`[Webhook] Unknown Stripe status '${normalized}', defaulting to INCOMPLETE`);
       return "INCOMPLETE";
   }
 }
