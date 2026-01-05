@@ -250,6 +250,12 @@ async function syncSubscription(stripeSubscription: Stripe.Subscription, eventId
   const userUpdate: Prisma.UserUpdateInput = {
     plan: nextPlan,
     trialEnd,
+    ...(status === "CANCELED" && {
+      cancellationDate: canceledAt ?? new Date(),
+    }),
+    ...((status === "CANCELED" || cancelAtPeriodEnd || status === "TRIALING") && {
+      hasReceivedFreeTrial: true,
+    }),
   };
 
   if (isActiveOrTrialing(stripeSubscription.status)) {
