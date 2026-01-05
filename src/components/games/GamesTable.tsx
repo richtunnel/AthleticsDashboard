@@ -34,6 +34,7 @@ import { ImportUndoButton } from "./ImportUndoButton";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { GameStatus } from "@prisma/client";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import {
   Box,
@@ -6536,6 +6537,7 @@ export function GamesTable() {
           >
             Game Schedules
           </Typography>
+
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             {/* Manage your athletic schedules and create your own customized columns. */}
             Import your spreadsheet as a CSV or Image and start managing your schedule.
@@ -6561,6 +6563,15 @@ export function GamesTable() {
               />
             )}
           </Typography>
+          <Tooltip
+            title="After importing your spreadsheets using the Import button above the table you can start syncing to your google calendar and create email campaigns in Email Manager to create contact groups and rapidly send out your schedules. "
+            placement="top"
+            arrow
+          >
+            <IconButton size="small" sx={{ ml: 0.5 }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
             {selectedGames.size > 0 && games.length > 0 && (
               <Button
@@ -6574,8 +6585,8 @@ export function GamesTable() {
               </Button>
             )}
             {/* Create Game Button - conditional rendering based on selection */}
-            {selectedGames.size > 0 ? (
-              <Tooltip title="Create Game">
+            <Tooltip title="Create Game">
+              {selectedGames.size > 0 ? (
                 <IconButton
                   disabled
                   size="small"
@@ -6591,19 +6602,19 @@ export function GamesTable() {
                 >
                   <Add fontSize="small" />
                 </IconButton>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={handleNewGame}
-                disabled={isAddingNew}
-                size="small"
-                sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-              >
-                Create Game
-              </Button>
-            )}
+              ) : (
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={handleNewGame}
+                  disabled={isAddingNew}
+                  size="small"
+                  sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                >
+                  Create Game
+                </Button>
+              )}
+            </Tooltip>
 
             <Tooltip title="Use AI to find available dates in your schedule">
               <Button
