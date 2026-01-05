@@ -217,8 +217,8 @@ function PricingPlansContent() {
     }
 
     if (sessionStatus !== "authenticated" || !session?.user) {
-      const callbackUrl = encodeURIComponent("/onboarding/plans");
-      router.push(`/login?callbackUrl=${callbackUrl}`);
+      // Instead of redirecting to login, redirect to signup to force school details flow
+      router.push("/onboarding/signup");
       return;
     }
 
