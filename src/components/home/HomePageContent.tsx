@@ -46,7 +46,7 @@ export default function HomePageContent() {
       } else {
         await signInAuth.executeAction({
           type: "navigation",
-          navigationPath: "/login",
+          navigationPath: "/onboarding/plans",
         });
       }
     } catch (error) {
