@@ -215,7 +215,6 @@ function PricingPlansContent() {
 
     if (sessionStatus !== "authenticated" || !session?.user) {
       const callbackUrl = encodeURIComponent("/onboarding/plans");
-      console.log(`[Plans] User not authenticated, redirecting to login with callbackUrl: ${callbackUrl}`);
       router.push(`/login?callbackUrl=${callbackUrl}`);
       return;
     }
