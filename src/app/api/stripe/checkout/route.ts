@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
       ],
       success_url: `${baseUrl}/onboarding/details?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/onboarding/plans?canceled=true`,
+      phone_number_collection: { enabled: true },
       metadata: getTestModeMetadata({
         userId: user.id,
         planType,
