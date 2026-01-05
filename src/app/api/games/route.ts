@@ -277,7 +277,13 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
     case "opponent":
       // Handle "TBD" case
       if (values.includes("TBD")) {
-        where.OR = [{ opponent: { name: { in: values.filter((v) => v !== "TBD") } } }, { opponent: null }];
+        const orConditions = [{ opponent: { name: { in: values.filter((v) => v !== "TBD") } } }, { opponent: null }];
+        if (where.OR) {
+          where.AND = where.AND || [];
+          where.AND.push({ OR: orConditions });
+        } else {
+          where.OR = orConditions;
+        }
       } else {
         where.opponent = {
           name: { in: values },
@@ -312,7 +318,12 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
           );
         }
         
-        where.OR = orConditions;
+        if (where.OR) {
+          where.AND = where.AND || [];
+          where.AND.push({ OR: orConditions });
+        } else {
+          where.OR = orConditions;
+        }
       }
       break;
 
@@ -507,10 +518,16 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
     case "location":
       // Check both location field and venue name
       const locationCondition = buildCondition("location");
-      where.OR = [
+      const locationOrConditions = [
         { location: locationCondition },
         { venue: { name: buildCondition("name") } }
       ];
+      if (where.OR) {
+        where.AND = where.AND || [];
+        where.AND.push({ OR: locationOrConditions });
+      } else {
+        where.OR = locationOrConditions;
+      }
       break;
 
     case "busTravel": {
@@ -580,7 +597,12 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
               jsonCondition.string_contains = value;
           }
           
-          where.customData = jsonCondition;
+          if (where.customData) {
+            where.AND = where.AND || [];
+            where.AND.push({ customData: jsonCondition });
+          } else {
+            where.customData = jsonCondition;
+          }
         }
       } else if (columnId.startsWith("imported:")) {
         // Imported column - stored in customFields with column name
@@ -611,14 +633,25 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
               jsonCondition.string_contains = value;
           }
           
-          where.customFields = jsonCondition;
+          if (where.customFields) {
+            where.AND = where.AND || [];
+            where.AND.push({ customFields: jsonCondition });
+          } else {
+            where.customFields = jsonCondition;
+          }
         }
       } else if (columnId.length > 10) {
         // Legacy: Likely a UUID for custom column (backward compatibility)
-        where.customData = {
+        const jsonCondition = {
           path: [columnId],
           string_contains: value, // Prisma JSON filtering
         };
+        if (where.customData) {
+          where.AND = where.AND || [];
+          where.AND.push({ customData: jsonCondition });
+        } else {
+          where.customData = jsonCondition;
+        }
       }
       break;
   }
