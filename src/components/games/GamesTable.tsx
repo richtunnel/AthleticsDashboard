@@ -6588,7 +6588,7 @@ export function GamesTable() {
               </Button>
             )}
             {/* Create Game Button - conditional rendering based on selection */}
-            <Tooltip title="Create Game">
+            <Tooltip title="Create a new row in the table below">
               {selectedGames.size > 0 ? (
                 <IconButton
                   disabled
@@ -6641,8 +6641,8 @@ export function GamesTable() {
             </Tooltip>
 
             {/* Add Columns Button - conditional rendering based on selection */}
-            {selectedGames.size > 0 ? (
-              <Tooltip title="Add Columns">
+            <Tooltip title="Add a custom column to the table below.">
+              {selectedGames.size > 0 ? (
                 <IconButton
                   disabled
                   size="small"
@@ -6659,27 +6659,27 @@ export function GamesTable() {
                 >
                   <ViewColumn fontSize="small" />
                 </IconButton>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="outlined"
-                startIcon={<ViewColumn />}
-                onClick={handleAddColumnsClick}
-                size="small"
-                sx={{
-                  borderColor: theme.palette.themeButtonText.subtle,
-                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                  textTransform: "none",
-                  display: { xs: "none", sm: "inline-flex" },
-                }}
-              >
-                Add Columns ({customColumns.length})
-              </Button>
-            )}
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<ViewColumn />}
+                  onClick={handleAddColumnsClick}
+                  size="small"
+                  sx={{
+                    borderColor: theme.palette.themeButtonText.subtle,
+                    color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                    textTransform: "none",
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
+                >
+                  Add Columns ({customColumns.length})
+                </Button>
+              )}
+            </Tooltip>
 
             {/* Columns Button - conditional rendering based on selection */}
-            {selectedGames.size > 0 ? (
-              <Tooltip title="Columns">
+            <Tooltip title="Arrange your columns using drag and drop.">
+              {selectedGames.size > 0 ? (
                 <IconButton
                   disabled
                   size="small"
@@ -6695,18 +6695,18 @@ export function GamesTable() {
                 >
                   <Tune fontSize="small" />
                 </IconButton>
-              </Tooltip>
-            ) : (
-              <Button
-                variant="outlined"
-                startIcon={<Tune />}
-                onClick={() => setIsColumnPreferencesOpen(true)}
-                size="small"
-                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-              >
-                Columns ({visibleColumnIds.length})
-              </Button>
-            )}
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<Tune />}
+                  onClick={() => setIsColumnPreferencesOpen(true)}
+                  size="small"
+                  sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                >
+                  Columns ({visibleColumnIds.length})
+                </Button>
+              )}
+            </Tooltip>
 
             {selectedGames.size > 0 && games.length > 0 && (
               <>
