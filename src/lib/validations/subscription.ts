@@ -8,6 +8,7 @@ export const createCheckoutSessionSchema = z.object({
 
 export const createCheckoutSessionByPriceSchema = z.object({
   priceId: z.string().min(1),
+  isOnboarding: z.boolean().optional(),
 });
 
 export const cancelSubscriptionSchema = z.object({
