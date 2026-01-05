@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { priceId } = validationResult.data;
+    const { priceId, isOnboarding } = validationResult.data;
     const planType = priceIdToPlanTypeMap[priceId];
 
     if (!planType) {
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
-    const trialEligible = !user.hasReceivedFreeTrial;
+    const trialEligible = Boolean(isOnboarding) || !user.hasReceivedFreeTrial;
     const trialPeriodDays = getTrialPeriodDays();
     const trialEnd = trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null;
 
@@ -207,6 +207,7 @@ export async function POST(req: NextRequest) {
       trialEligible,
       trialPeriodDays,
       customerId,
+      isOnboarding: Boolean(isOnboarding),
     });
 
     const subscriptionRecord = await prisma.subscription.upsert({
