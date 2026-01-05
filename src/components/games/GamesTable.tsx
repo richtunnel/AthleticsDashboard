@@ -990,12 +990,14 @@ export function GamesTable() {
       status: new Set(),
       location: new Set(),
       busTravel: new Set(),
+      isHome: new Set(),
+      time: new Set(),
       notes: new Set(["Has notes", "No notes"]),
       date: new Set(),
     };
 
     customColumns.forEach((col: any) => {
-      values[col.id] = new Set();
+      values[`custom:${col.id}`] = new Set();
     });
 
     // Add sets for imported columns
@@ -1014,6 +1016,10 @@ export function GamesTable() {
       const locationValue = game.location || game.venue?.name || "TBD";
       values.location.add(locationValue);
       values.busTravel.add(game.busTravel ? "Yes" : "No");
+      values.isHome.add(game.isHome ? "Home" : "Away");
+      if (game.time) {
+        values.time.add(game.time);
+      }
 
       // Add date value
       if (game.date) {
@@ -1026,9 +1032,9 @@ export function GamesTable() {
         const value = customData[col.id] || "";
         if (value) {
           if (col.type === "DATETIME") {
-            values[col.id].add(extractDatePart(String(value)));
+            values[`custom:${col.id}`].add(extractDatePart(String(value)));
           } else {
-            values[col.id].add(value);
+            values[`custom:${col.id}`].add(value);
           }
         }
       });
@@ -4102,18 +4108,17 @@ export function GamesTable() {
         if (column.id.startsWith("custom:")) {
           const customColumn = column.customColumn;
           const columnLabel = customColumn?.name || getColumnLabel(column.id);
-          const customId = customColumn?.id || column.id.split(":")[1];
 
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
-                  columnId={customId}
+                  columnId={column.id}
                   columnName={columnLabel}
                   columnType="text"
-                  uniqueValues={uniqueValues[customId] || []}
-                  currentFilter={columnFilters[customId]}
+                  uniqueValues={uniqueValues[column.id] || []}
+                  currentFilter={columnFilters[column.id]}
                   onFilterChange={handleColumnFilterChange}
                 />
                 <Tooltip title="Hide column">
