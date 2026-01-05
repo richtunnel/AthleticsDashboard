@@ -33,6 +33,22 @@ const nextConfig: NextConfig = {
   turbopack: {
     // ...
   },
+
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'www.(?<domain>.*)',
+          },
+        ],
+        permanent: true,
+        destination: 'https://:domain/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
