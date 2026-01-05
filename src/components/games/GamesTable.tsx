@@ -546,7 +546,26 @@ export function GamesTable() {
   const MIN_COLUMN_WIDTH = 100;
   const MAX_COLUMN_WIDTH = 600;
   const DEFAULT_COLUMN_WIDTH = 150;
-  const GAMES_QUERY_KEY = useMemo(() => ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const, [columnFilters, sortField, sortOrder, page, rowsPerPage]);
+
+  // Deep clone columnFilters for stable query key comparison
+  // This prevents unnecessary refetches when the object reference changes but content is the same
+  const stableColumnFilters = useMemo(() => {
+    return JSON.parse(JSON.stringify(columnFilters));
+  }, [columnFilters]);
+
+  // Use stable filter representation in query key to ensure proper cache invalidation
+  const GAMES_QUERY_KEY = useMemo(() => {
+    // Create a stable string representation of filters for the query key
+    const filterKey = Object.keys(stableColumnFilters)
+      .sort()
+      .map((key) => {
+        const filter = stableColumnFilters[key];
+        return `${key}:${filter.type}:${filter.condition || ""}:${filter.values ? JSON.stringify(filter.values.sort()) : ""}`;
+      })
+      .join("|");
+
+    return ["games", filterKey, sortField, sortOrder, page + 1, rowsPerPage] as const;
+  }, [stableColumnFilters, sortField, sortOrder, page, rowsPerPage]);
 
   const getCharacterCounterColor = (length: number) => {
     if (length >= MAX_CHAR_LIMIT) {
@@ -648,6 +667,12 @@ export function GamesTable() {
     queryFn: async () => {
       const params = new URLSearchParams();
 
+      // Debug logging for filter changes
+      const filterCount = Object.keys(columnFilters).length;
+      if (filterCount > 0) {
+        console.log("[GamesTable] Applying filters:", JSON.stringify(columnFilters));
+      }
+
       Object.entries(columnFilters).forEach(([columnId, filter]) => {
         params.append(`filter_${columnId}_type`, filter.type);
         if (filter.type === "condition") {
@@ -673,7 +698,12 @@ export function GamesTable() {
 
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
-      return res.json();
+      const data = await res.json();
+      
+      // Debug logging for response
+      console.log("[GamesTable] Fetched games:", data.data?.games?.length || 0, "games");
+      
+      return data;
     },
     placeholderData: (previousData) => previousData,
   });
@@ -6476,7 +6506,11 @@ export function GamesTable() {
 
   // Wait for both games data AND column preferences to load before rendering
   // This prevents default columns from flashing on page refresh when user has imported columns
-  if (!mounted || isLoading || isLoadingPreferences) {
+  // Also show loading when fetching with filters and no data yet (prevents "No games found" flash)
+  const isInitialLoading = !mounted || isLoading || isLoadingPreferences;
+  const isFilterLoading = isFetching && games.length === 0 && activeFilterCount > 0;
+  
+  if (isInitialLoading || isFilterLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
         <Typography color="text.secondary">Loading games...</Typography>
@@ -6764,7 +6798,8 @@ export function GamesTable() {
       {/* Mobile Card View */}
       {isMobile ? (
         <Box sx={{ position: "relative" }}>
-          {isLoading || !mounted ? (
+          {/* Show skeleton loader on initial load OR when fetching with no data */}
+          {(isLoading || (!mounted && !isAddingNew)) ? (
             <Stack spacing={2}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <Card key={`skeleton-${index}`}>
@@ -6787,8 +6822,8 @@ export function GamesTable() {
             <Box>{games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}</Box>
           )}
 
-          {/* Loading overlay for data refresh */}
-          {isFetching && mounted && !isLoading && (
+          {/* Loading overlay for data refresh - show when fetching and we have previous data */}
+          {isFetching && mounted && !isLoading && games.length > 0 && (
             <Box
               sx={{
                 position: "absolute",
@@ -6834,7 +6869,8 @@ export function GamesTable() {
                   {resolvedColumns.map((column) => renderHeaderCell(column))}
                 </TableRow>
               </TableHead>
-              {isLoading || !mounted ? (
+              {/* Show skeleton loader on initial load OR when fetching with no data */}
+              {(isLoading || (!mounted && !isAddingNew)) ? (
                 <TableBody>
                   {Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={`skeleton-${index}`}>
@@ -6894,11 +6930,12 @@ export function GamesTable() {
                   {renderNewRow()}
                   <TableRow>
                     <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
+                      {/* Show loading indicator when fetching with no results, otherwise show empty state */}
                       {isFetching ? (
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                           <CircularProgress size={40} />
                           <Typography color="text.secondary" variant="body2">
-                            loading spreadsheet...
+                            Loading spreadsheet...
                           </Typography>
                         </Box>
                       ) : (
