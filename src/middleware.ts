@@ -7,6 +7,15 @@ export const runtime = 'nodejs';
 
 export default withAuth(
   async function middleware(req: any) {
+    // Redirect www to non-www
+    const host = req.headers.get('host');
+    if (host && host.startsWith('www.')) {
+      const nonWwwHost = host.replace('www.', '');
+      const newUrl = new URL(req.url);
+      newUrl.host = nonWwwHost;
+      return NextResponse.redirect(newUrl, 301);
+    }
+
     const token = req.nextauth?.token;
 
     // Check payment status for dashboard routes (except settings and account-disabled)
