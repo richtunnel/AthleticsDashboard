@@ -77,6 +77,7 @@ const plans: Plan[] = [
       "4 Users",
       "Premium chat and email support 24hrs.",
       "Everything in Standard plan.",
+      "2 weeks Free Trial",
     ],
     monthlyPriceId: TEAM_MONTHLY_PRICE_ID,
     annualPriceId: TEAM_ANNUAL_PRICE_ID,
@@ -96,6 +97,7 @@ const plans: Plan[] = [
       "Budget Planner",
       "School Theme Customization",
       "Priority chat and email support (Now)",
+      "2 weeks Free Trial",
     ],
     monthlyPriceId: PLUS_MONTHLY_PRICE_ID,
     annualPriceId: PLUS_ANNUAL_PRICE_ID,
@@ -241,7 +243,7 @@ function PricingPlansContent() {
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId }),
+        body: JSON.stringify({ priceId, isOnboarding: true }),
       });
 
       const data = await response.json().catch(() => null);
