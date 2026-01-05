@@ -14,6 +14,7 @@ import Footer from "@/components/layout/Footer";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import TopFooter from "@/components/footer/topFooter";
+import styles from "@/styles/onboarding.module.css";
 
 const STANDARD_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? "";
 const STANDARD_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? "";
@@ -286,7 +287,9 @@ function PricingPlansContent() {
           </button>
         </Typography>
         <Typography style={{ marginBottom: "0.25rem" }} variant="h4" fontWeight={400} gutterBottom>
-          <span style={{ fontWeight: 700, fontStyle: "normal" }}>Choose the automation you need</span>
+          <span className={styles.PlansTitle} style={{ fontWeight: 700, fontStyle: "normal" }}>
+            Choose the automation you need
+          </span>
         </Typography>
         <Typography variant="body1" color="text.secondary" gutterBottom>
           or get an assist from one of our experts
@@ -349,10 +352,7 @@ function PricingPlansContent() {
         )}
 
         {hasIncompleteSubscription && (
-          <Alert
-            severity="info"
-            sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}
-          >
+          <Alert severity="info" sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}>
             You have an incomplete subscription. You can select a plan below to complete your subscription. If you're experiencing issues, please contact support.
           </Alert>
         )}

@@ -1,0 +1,9 @@
+.PlansTitle {
+  font-size: 2.125rem;
+}
+
+@media all and (max-width: 525px) {
+  .PlansTitle {
+    font-size: 1.85rem;
+  }
+}
