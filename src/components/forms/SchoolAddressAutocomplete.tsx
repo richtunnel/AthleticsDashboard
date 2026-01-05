@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   TextField,
   Autocomplete,
@@ -65,6 +65,7 @@ export default function SchoolAddressAutocomplete({
   const [options, setOptions] = useState<PlacePrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSchool, setIsSchool] = useState(false);
+  const [placesApiAvailable, setPlacesApiAvailable] = useState(true);
   const sessionTokenRef = useRef<string>(generateSessionToken());
 
   // Generate a unique session token for billing optimization
@@ -93,6 +94,7 @@ export default function SchoolAddressAutocomplete({
       // Gracefully handle non-OK responses (500, 401, etc.)
       if (!response.ok) {
         console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        setPlacesApiAvailable(false);
         setOptions([]);
         return;
       }
@@ -100,15 +102,18 @@ export default function SchoolAddressAutocomplete({
       const data = await response.json();
 
       if (data.success && data.predictions) {
+        setPlacesApiAvailable(true);
         setOptions(data.predictions);
       } else {
         // Silently fail and allow manual entry - don't confuse users with errors
         console.warn("Google Places API unavailable, using manual entry mode:", data.error);
+        setPlacesApiAvailable(false);
         setOptions([]);
       }
     } catch (error) {
       // Silently fail and allow manual entry - API issues should not block user
       console.warn("Google Places API connection failed, using manual entry mode:", error);
+      setPlacesApiAvailable(false);
       setOptions([]);
     } finally {
       setLoading(false);
@@ -119,8 +124,14 @@ export default function SchoolAddressAutocomplete({
   const debouncedFetch = useDebounce(fetchPredictions, 300);
 
   // Handle input change
-  const handleInputChange = (event: any, newInputValue: string) => {
+  const handleInputChange = (_event: any, newInputValue: string, reason: string) => {
     setInputValue(newInputValue);
+
+    if (reason === "input" || reason === "clear") {
+      setIsSchool(false);
+      onChange(newInputValue);
+    }
+
     debouncedFetch(newInputValue);
   };
 
@@ -139,6 +150,7 @@ export default function SchoolAddressAutocomplete({
       // Gracefully handle non-OK responses (500, 401, etc.)
       if (!response.ok) {
         console.warn(`Google Places API returned ${response.status}, using manual entry mode`);
+        setPlacesApiAvailable(false);
         return null;
       }
 
@@ -146,20 +158,23 @@ export default function SchoolAddressAutocomplete({
 
       if (data.success && data.result) {
         const placeDetails: PlaceDetails = data.result;
+        setPlacesApiAvailable(true);
         setIsSchool(placeDetails.isSchool);
-        
+
         // Generate new session token after completing a session
         sessionTokenRef.current = generateSessionToken();
-        
+
         return placeDetails;
       } else {
         // Silently fail and allow manual entry
         console.warn("Google Places API unavailable for details, using description:", data.error);
+        setPlacesApiAvailable(false);
         return null;
       }
     } catch (error) {
       // Silently fail and allow manual entry
       console.warn("Google Places API connection failed for details:", error);
+      setPlacesApiAvailable(false);
       return null;
     }
   };
@@ -233,7 +248,12 @@ export default function SchoolAddressAutocomplete({
             required={required}
             size={size}
             error={error}
-            helperText={helperText || "Start typing or enter address manually"}
+            helperText={
+              helperText ||
+              (placesApiAvailable
+                ? "Start typing to search, or enter the address manually"
+                : "Address search is unavailable right now — please enter the address manually")
+            }
             onBlur={handleBlur}
             InputProps={{
               ...params.InputProps,

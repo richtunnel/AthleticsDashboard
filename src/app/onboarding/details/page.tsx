@@ -119,12 +119,17 @@ export default function DetailsPage() {
                 size="small"
               />
             </Box>
-            <AuthActionButton 
-              fullWidth 
-              variant="contained" 
+            <AuthActionButton
+              fullWidth
+              variant="contained"
               type="submit"
               loading={submitting}
-              disabled={submitting || !schoolName || !teamName || !schoolAddress}
+              disabled={
+                submitting ||
+                schoolName.trim().length < 2 ||
+                teamName.trim().length < 2 ||
+                schoolAddress.trim().length < 5
+              }
             >
               Complete Setup
             </AuthActionButton>
