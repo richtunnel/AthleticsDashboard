@@ -251,6 +251,7 @@ export async function POST(req: NextRequest) {
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
+      phone_number_collection: { enabled: true },
       client_reference_id: user.id,
       metadata: getTestModeMetadata({
         userId: user.id,
