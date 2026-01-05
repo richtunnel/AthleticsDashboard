@@ -132,6 +132,7 @@ function PricingPlansContent() {
   const checkoutStatus = searchParams.get("checkout");
   const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
   const hasActiveSubscription = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
+  const hasIncompleteSubscription = subscriptionStatus === "INCOMPLETE" || subscriptionStatus === "INCOMPLETE_EXPIRED";
   const priceConfigured = isPriceConfigured();
   const isDevelopment = process.env.NODE_ENV !== "production";
 
@@ -342,6 +343,15 @@ function PricingPlansContent() {
             }}
           >
             Your payment was cancelled. You can try again whenever you&apos;re ready.
+          </Alert>
+        )}
+
+        {hasIncompleteSubscription && (
+          <Alert
+            severity="info"
+            sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}
+          >
+            You have an incomplete subscription. You can select a plan below to complete your subscription. If you're experiencing issues, please contact support.
           </Alert>
         )}
 

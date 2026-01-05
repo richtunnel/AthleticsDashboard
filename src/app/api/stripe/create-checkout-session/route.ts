@@ -98,6 +98,49 @@ export async function POST(req: NextRequest) {
 
     let customerId = user.stripeCustomerId;
 
+    // Check for existing incomplete/expired subscriptions in Stripe
+    if (user.subscription && user.subscription.stripeSubscriptionId) {
+      try {
+        const stripeSubscription = await stripe.subscriptions.retrieve(user.subscription.stripeSubscriptionId);
+        const stripeStatus = stripeSubscription.status;
+
+        console.log(`[Checkout] User ${user.id} has existing Stripe subscription`, {
+          stripeSubscriptionId: user.subscription.stripeSubscriptionId,
+          dbStatus: user.subscription.status,
+          stripeStatus,
+        });
+
+        // If subscription is incomplete or expired, we can allow a new checkout attempt
+        // The webhook will update the database status when it fires
+        if (stripeStatus === 'incomplete' || stripeStatus === 'incomplete_expired') {
+          console.log(`[Checkout] Allowing new checkout for user with ${stripeStatus} subscription`);
+        }
+        // If subscription is canceled, we can also allow new checkout
+        else if (stripeStatus === 'canceled' || stripeStatus === 'past_due') {
+          console.log(`[Checkout] Allowing new checkout for user with ${stripeStatus} subscription`);
+        }
+        // Don't allow if they have an active or trialing subscription
+        else if (stripeStatus === 'active' || stripeStatus === 'trialing') {
+          const isDevelopment = process.env.NODE_ENV !== 'production';
+          return NextResponse.json(
+            {
+              error: isDevelopment
+                ? `You already have an ${stripeStatus} subscription. Visit Settings to manage it.`
+                : "You already have an active subscription. Visit Settings to manage your plan.",
+            },
+            { status: 400 }
+          );
+        }
+      } catch (err: any) {
+        // If subscription doesn't exist in Stripe anymore, allow proceeding
+        if (err.type === 'StripeInvalidRequestError' && err.code === 'resource_missing') {
+          console.log(`[Checkout] Stripe subscription ${user.subscription.stripeSubscriptionId} not found, allowing new checkout`);
+        } else {
+          console.warn(`[Checkout] Error checking existing subscription:`, err);
+        }
+      }
+    }
+
     if (!customerId) {
       try {
         const customer = await stripe.customers.create({
@@ -258,6 +301,26 @@ export async function POST(req: NextRequest) {
                 `3. Update your environment variables with the correct Price IDs\n\n` +
                 `See docs/STRIPE_QUICK_START.md for setup instructions.`
               : "This subscription plan is not currently available. Please contact support for assistance.",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Handle errors related to existing incomplete subscriptions
+      if (stripeError.message && stripeError.message.toLowerCase().includes("subscription")) {
+        const isDevelopment = process.env.NODE_ENV !== "production";
+        console.error(`Stripe checkout session creation failed with subscription-related error:`, {
+          userId: user.id,
+          customerId,
+          priceId,
+          error: stripeError.message,
+        });
+
+        return NextResponse.json(
+          {
+            error: isDevelopment
+              ? `Unable to create checkout session: ${stripeError.message}. You may have an incomplete subscription that expired after 24 hours. Please try again or contact support.`
+              : "Unable to create checkout session. Please try again or contact support if the issue persists.",
           },
           { status: 400 }
         );
