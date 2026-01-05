@@ -56,12 +56,11 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       };
     }
 
-    // Active, trialing, or incomplete = no lock (incomplete means user is in checkout flow)
+    // Active, trialing, or incomplete = no lock
     if (
       subscription.status === 'ACTIVE' ||
       subscription.status === 'TRIALING' ||
-      subscription.status === 'INCOMPLETE' ||
-      subscription.status === 'INCOMPLETE_EXPIRED'
+      subscription.status === 'INCOMPLETE'
     ) {
       return {
         isOverdue: false,
