@@ -45,10 +45,13 @@ export async function GET(request: NextRequest) {
     // Group filters by column
     const columnFilters: Record<string, any> = {};
     filterParams.forEach(([key, value]) => {
-      const parts = key.split("_");
-      if (parts.length >= 3) {
-        const columnId = parts[1];
-        const filterProp = parts.slice(2).join("_");
+      // Use more robust splitting to handle column IDs with underscores
+      const suffixes = ["_secondValue", "_type", "_condition", "_value", "_values"];
+      const suffix = suffixes.find((s) => key.endsWith(s));
+
+      if (suffix) {
+        const columnId = key.substring(7, key.lastIndexOf(suffix));
+        const filterProp = suffix.substring(1); // remove leading underscore
 
         if (!columnFilters[columnId]) {
           columnFilters[columnId] = {};
@@ -397,32 +400,9 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
 
     default:
       // Handle custom columns and imported columns
-      if (columnId.startsWith("custom:") || columnId.length > 10) {
-        // Custom column - stored in customData
-        const customId = columnId.startsWith("custom:") ? columnId.split(":")[1] : columnId;
-        if (customId) {
-          const orConditions = values.map((value) => {
-            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
-            return {
-              customData: {
-                path: [customId],
-                [isDatePart ? "string_contains" : "equals"]: value,
-              },
-            };
-          });
-
-          if (orConditions.length > 0) {
-            if (where.OR) {
-              where.AND = where.AND || [];
-              where.AND.push({ OR: orConditions });
-            } else {
-              where.OR = orConditions;
-            }
-          }
-        }
-      } else if (columnId.startsWith("imported:")) {
+      if (columnId.startsWith("imported:")) {
         // Imported column - stored in customFields with column name
-        const columnName = columnId.split(":")[1];
+        const columnName = columnId.substring(9);
         if (columnName) {
           // Build OR conditions for each value to check in customFields
           const orConditions = values.map((value) => {
@@ -438,6 +418,29 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
           if (orConditions.length > 0) {
             if (where.OR) {
               // If OR already exists, combine with AND
+              where.AND = where.AND || [];
+              where.AND.push({ OR: orConditions });
+            } else {
+              where.OR = orConditions;
+            }
+          }
+        }
+      } else if (columnId.startsWith("custom:") || columnId.length > 10) {
+        // Custom column - stored in customData
+        const customId = columnId.startsWith("custom:") ? columnId.substring(7) : columnId;
+        if (customId) {
+          const orConditions = values.map((value) => {
+            const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
+            return {
+              customData: {
+                path: [customId],
+                [isDatePart ? "string_contains" : "equals"]: value,
+              },
+            };
+          });
+
+          if (orConditions.length > 0) {
+            if (where.OR) {
               where.AND = where.AND || [];
               where.AND.push({ OR: orConditions });
             } else {
@@ -569,7 +572,7 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       // Handle custom columns and imported columns with condition filtering
       if (columnId.startsWith("custom:")) {
         // Custom column - stored in customData with UUID
-        const customId = columnId.split(":")[1];
+        const customId = columnId.substring(7);
         if (customId) {
           // Build condition based on filter type
           const jsonCondition: any = { path: [customId] };
@@ -606,7 +609,7 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
         }
       } else if (columnId.startsWith("imported:")) {
         // Imported column - stored in customFields with column name
-        const columnName = columnId.split(":")[1];
+        const columnName = columnId.substring(9);
         if (columnName) {
           const jsonCondition: any = { path: [columnName] };
           
