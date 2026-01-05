@@ -699,10 +699,10 @@ export function GamesTable() {
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
       const data = await res.json();
-      
+
       // Debug logging for response
       console.log("[GamesTable] Fetched games:", data.data?.games?.length || 0, "games");
-      
+
       return data;
     },
     placeholderData: (previousData) => previousData,
@@ -6514,7 +6514,7 @@ export function GamesTable() {
   // Also show loading when fetching with filters and no data yet (prevents "No games found" flash)
   const isInitialLoading = !mounted || isLoading || isLoadingPreferences;
   const isFilterLoading = isFetching && games.length === 0 && activeFilterCount > 0;
-  
+
   if (isInitialLoading || isFilterLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -6537,7 +6537,8 @@ export function GamesTable() {
             Game Schedules
           </Typography>
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Manage your athletic schedules and create your own customized columns.
+            {/* Manage your athletic schedules and create your own customized columns. */}
+            Import your spreadsheet as a CSV or Image and start managing your schedule.
             {activeFilterCount > 0 && (
               <Chip
                 label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`}
@@ -6804,7 +6805,7 @@ export function GamesTable() {
       {isMobile ? (
         <Box sx={{ position: "relative" }}>
           {/* Show skeleton loader on initial load OR when fetching with no data */}
-          {(isLoading || (!mounted && !isAddingNew)) ? (
+          {isLoading || (!mounted && !isAddingNew) ? (
             <Stack spacing={2}>
               {Array.from({ length: 3 }).map((_, index) => (
                 <Card key={`skeleton-${index}`}>
@@ -6875,7 +6876,7 @@ export function GamesTable() {
                 </TableRow>
               </TableHead>
               {/* Show skeleton loader on initial load OR when fetching with no data */}
-              {(isLoading || (!mounted && !isAddingNew)) ? (
+              {isLoading || (!mounted && !isAddingNew) ? (
                 <TableBody>
                   {Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={`skeleton-${index}`}>
