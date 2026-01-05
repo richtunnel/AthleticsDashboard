@@ -6541,6 +6541,17 @@ export function GamesTable() {
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             {/* Manage your athletic schedules and create your own customized columns. */}
             Import your spreadsheet as a CSV or Image and start managing your schedule.
+            <span>
+              <Tooltip
+                title="After importing your spreadsheets using the Import button above the table you can start syncing to your google calendar and create email campaigns in Email Manager to create contact groups and rapidly send out your schedules. "
+                placement="top"
+                arrow
+              >
+                <IconButton size="small" sx={{ ml: 0.5 }}>
+                  <InfoOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </span>
             {activeFilterCount > 0 && (
               <Chip
                 label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`}
@@ -6563,15 +6574,7 @@ export function GamesTable() {
               />
             )}
           </Typography>
-          <Tooltip
-            title="After importing your spreadsheets using the Import button above the table you can start syncing to your google calendar and create email campaigns in Email Manager to create contact groups and rapidly send out your schedules. "
-            placement="top"
-            arrow
-          >
-            <IconButton size="small" sx={{ ml: 0.5 }}>
-              <InfoOutlinedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+
           <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
             {selectedGames.size > 0 && games.length > 0 && (
               <Button
