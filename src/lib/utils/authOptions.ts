@@ -10,8 +10,12 @@ import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
-import { createSampleGame } from "@/lib/services/sample-game.service";
+import { createSampleGame, hasSampleGames } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
+
+const MEMBER_ACCESS_CODE = "opletics25";
+const MEMBER_ACCESS_ORG_ID = "members-org-opletics25";
+const MEMBER_ACCESS_EMAIL = "members+opletics25@opletics.com";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -219,6 +223,86 @@ export const authOptions: NextAuthOptions = {
           googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
           googleCalendarEmail: (user as any).googleCalendarEmail ?? undefined,
+        };
+      },
+    }),
+
+    CredentialsProvider({
+      id: "member-code",
+      name: "Member Code",
+      credentials: {
+        code: { label: "Member Code", type: "text" },
+      },
+      async authorize(credentials) {
+        const code = credentials?.code?.trim().toLowerCase();
+
+        if (!code || code !== MEMBER_ACCESS_CODE) {
+          throw new Error("Invalid member code");
+        }
+
+        const org = await prisma.organization.upsert({
+          where: { id: MEMBER_ACCESS_ORG_ID },
+          update: {
+            name: "Opletics Members",
+            timezone: "America/New_York",
+          },
+          create: {
+            id: MEMBER_ACCESS_ORG_ID,
+            name: "Opletics Members",
+            timezone: "America/New_York",
+          },
+        });
+
+        const user = await prisma.user.upsert({
+          where: { email: MEMBER_ACCESS_EMAIL },
+          update: {
+            name: "Member Access",
+            role: "ATHLETIC_DIRECTOR",
+            organizationId: org.id,
+          },
+          create: {
+            email: MEMBER_ACCESS_EMAIL,
+            name: "Member Access",
+            role: "ATHLETIC_DIRECTOR",
+            organizationId: org.id,
+            plan: "free_trial_plan",
+            trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          },
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
+              },
+            },
+          },
+        });
+
+        void runNonCritical(async () => {
+          const alreadyHasSample = await hasSampleGames(user.id);
+          if (!alreadyHasSample) {
+            await createSampleGame({
+              userId: user.id,
+              organizationId: user.organizationId,
+            });
+          }
+
+          await createInitialColumnPreferences(user.id);
+        }, `member access bootstrap for user ${user.id}`);
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          image: user.image,
+          role: user.role,
+          organizationId: user.organizationId,
+          organization: user.organization,
+          googleCalendarRefreshToken: user.googleCalendarRefreshToken ?? undefined,
+          googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
+          calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
+          googleCalendarEmail: user.googleCalendarEmail ?? undefined,
         };
       },
     }),

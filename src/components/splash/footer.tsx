@@ -54,6 +54,9 @@ export const Footer: React.FC<FooterProps> = (props) => {
             <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
               <LayoutFooter />
             </Stack>
+            <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center" }}>
+              <FooterLink href="/members">members</FooterLink>
+            </Stack>
           </Stack>
           {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
             {siteConfig.footer?.links?.map(({ href, label }) => (
