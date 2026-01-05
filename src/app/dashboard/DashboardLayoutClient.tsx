@@ -521,7 +521,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               <MenuItem
                 onClick={() => {
                   handleClose();
-                  signOut({ callbackUrl: "/?postLogout=true" });
+                  // Force signOut to completely kill the session
+                  signOut({ callbackUrl: "/?postLogout=true", redirect: true });
                 }}
               >
                 <ListItemIcon>
