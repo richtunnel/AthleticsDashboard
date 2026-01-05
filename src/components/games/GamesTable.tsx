@@ -6543,7 +6543,7 @@ export function GamesTable() {
             Import your spreadsheet as a CSV or Image and start managing your schedule.
             <span>
               <Tooltip
-                title="After importing your spreadsheets using the Import button above the table you can start syncing to your google calendar and create email campaigns in Email Manager to create contact groups and rapidly send out your schedules. "
+                title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
                 placement="top"
                 arrow
               >
