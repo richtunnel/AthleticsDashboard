@@ -45,14 +45,19 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
+    
+    // Check if the user is in a free trial
+    const isTrialing = user.subscription.status === "TRIALING" || 
+                      (user.subscription.trialEnd && new Date() < user.subscription.trialEnd);
 
-    const canceledSubscription = await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      {
-        cancel_at_period_end: !immediately,
-        ...(immediately && { cancel_at: "now" as any }),
-      }
-    );
+    // Force immediate cancellation if in trial to ensure no charges are made
+    const effectiveImmediately = immediately || isTrialing;
+
+    const canceledSubscription = effectiveImmediately
+      ? await stripe.subscriptions.cancel(user.subscription.stripeSubscriptionId)
+      : await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
+          cancel_at_period_end: true,
+        });
 
     const cancelAt = canceledSubscription.cancel_at
       ? new Date(canceledSubscription.cancel_at * 1000)
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
     const canceledAtFromStripe = canceledSubscription.canceled_at
       ? new Date(canceledSubscription.canceled_at * 1000)
       : null;
-    const canceledAt = immediately ? new Date() : canceledAtFromStripe;
+    const canceledAt = effectiveImmediately ? new Date() : canceledAtFromStripe;
 
     const firstItemPeriodEnd = canceledSubscription.items.data[0]?.current_period_end;
     const currentPeriodEnd = typeof firstItemPeriodEnd === "number" ? new Date(firstItemPeriodEnd * 1000) : null;
@@ -72,23 +77,37 @@ export async function POST(req: NextRequest) {
       ? calculateDeletionDeadline(graceReference, gracePeriodDays)
       : null;
 
-    const updatedSubscription = await prisma.subscription.update({
-      where: { userId: user.id },
-      data: {
-        status: immediately ? "CANCELED" : user.subscription.status,
-        cancelAt,
-        cancelAtPeriodEnd,
-        canceledAt: canceledAt ?? user.subscription.canceledAt,
-        currentPeriodEnd,
-        gracePeriodEndsAt,
-        deletionScheduledAt: gracePeriodEndsAt ?? user.subscription.deletionScheduledAt,
-      },
+    const { status: currentStatus, canceledAt: currentCanceledAt, deletionScheduledAt: currentDeletionScheduledAt } = user.subscription;
+
+    const updatedSubscription = await prisma.$transaction(async (tx) => {
+      const sub = await tx.subscription.update({
+        where: { userId: user.id },
+        data: {
+          status: effectiveImmediately ? "CANCELED" : currentStatus,
+          cancelAt,
+          cancelAtPeriodEnd,
+          canceledAt: canceledAt ?? currentCanceledAt,
+          currentPeriodEnd,
+          gracePeriodEndsAt,
+          deletionScheduledAt: gracePeriodEndsAt ?? currentDeletionScheduledAt,
+        },
+      });
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          hasReceivedFreeTrial: true,
+          cancellationDate: new Date(),
+        },
+      });
+
+      return sub;
     });
 
     return NextResponse.json({
       success: true,
-      message: immediately
-        ? "Subscription canceled immediately"
+      message: effectiveImmediately
+        ? isTrialing ? "Trial subscription canceled successfully. No charges will be made." : "Subscription canceled immediately"
         : "Subscription will be canceled at the end of the billing period",
       subscription: {
         status: updatedSubscription.status,

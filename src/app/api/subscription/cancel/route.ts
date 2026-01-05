@@ -31,13 +31,22 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
     
-    // Cancel the subscription at period end
-    const stripeSubscription = await stripe.subscriptions.update(
-      user.subscription.stripeSubscriptionId,
-      {
-        cancel_at_period_end: true,
-      }
-    );
+    // Advanced Logic: Ensure no charges are made if cancelled during trial
+    const isTrialing = user.subscription.status === "TRIALING" || 
+                      (user.subscription.trialEnd && new Date() < user.subscription.trialEnd);
+
+    if (isTrialing) {
+      // If trialing, cancel immediately to guarantee no charge is attempted
+      await stripe.subscriptions.cancel(user.subscription.stripeSubscriptionId);
+    } else {
+      // If not trialing, cancel at the end of the billing period
+      await stripe.subscriptions.update(
+        user.subscription.stripeSubscriptionId,
+        {
+          cancel_at_period_end: true,
+        }
+      );
+    }
 
     // Calculate grace period (30 days after current period end)
     const gracePeriodEndsAt = user.subscription.currentPeriodEnd
@@ -45,20 +54,31 @@ export async function POST(req: NextRequest) {
       : null;
 
     // Update our database
-    await prisma.subscription.update({
-      where: { id: user.subscription.id },
-      data: {
-        cancelAtPeriodEnd: true,
-        canceledAt: new Date(),
-        status: "CANCELED",
-        gracePeriodEndsAt,
-        deletionScheduledAt: gracePeriodEndsAt,
-      },
-    });
+    await prisma.$transaction([
+      prisma.subscription.update({
+        where: { id: user.subscription.id },
+        data: {
+          cancelAtPeriodEnd: !isTrialing,
+          canceledAt: new Date(),
+          status: "CANCELED",
+          gracePeriodEndsAt,
+          deletionScheduledAt: gracePeriodEndsAt,
+        },
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          hasReceivedFreeTrial: true,
+          cancellationDate: new Date(),
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      message: "Subscription cancelled successfully",
+      message: isTrialing 
+        ? "Trial subscription cancelled successfully. No charges will be made." 
+        : "Subscription cancelled successfully",
       gracePeriodEndsAt,
     });
   } catch (err: any) {
