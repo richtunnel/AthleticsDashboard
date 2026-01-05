@@ -29,8 +29,14 @@ import {
   Stepper,
   Step,
   StepLabel,
+  ToggleButton,
+  ToggleButtonGroup,
+  Card,
+  CardContent,
+  CardMedia,
+  Skeleton,
 } from "@mui/material";
-import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download } from "@mui/icons-material";
+import { CloudUpload, Close, CheckCircle, Error as ErrorIcon, Download, Image, TableChart, Lightbulb, Timer } from "@mui/icons-material";
 import Link from "next/link";
 import { parseAndConvertDate, parseAndConvertTime } from "@/lib/utils/dateTimeParser";
 import { DateRequiredModal } from "./DateRequiredModal";
@@ -66,16 +72,19 @@ const DATABASE_FIELDS = [
 
 export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
+  const [importMode, setImportMode] = useState<'csv' | 'ocr'>('csv'); // Add OCR mode
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [fieldMapping, setFieldMapping] = useState<FieldMapping>({});
   const [isImporting, setIsImporting] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [showDateRequiredModal, setShowDateRequiredModal] = useState(false);
+  const [ocrMetadata, setOcrMetadata] = useState<any>(null);
 
   // Drag and drop handling
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -84,41 +93,98 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
 
     setFile(file);
     setValidationErrors([]);
+    setOcrMetadata(null);
 
-    // Parse CSV
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      transformHeader: (header: string) => header.trim(),
-      complete: (results: { data: ParsedRow[]; meta: { fields?: string[] } }) => {
-        const data = results.data;
-        const headers = results.meta.fields || [];
+    if (importMode === 'csv') {
+      // Parse CSV
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: true,
+        transformHeader: (header: string) => header.trim(),
+        complete: (results: { data: ParsedRow[]; meta: { fields?: string[] } }) => {
+          const data = results.data;
+          const headers = results.meta.fields || [];
 
-        setHeaders(headers);
+          setHeaders(headers);
+          setParsedData(data);
+
+          // Auto-map common fields
+          const autoMapping = autoMapFields(headers);
+          setFieldMapping(autoMapping);
+
+          // Move to mapping step
+          setStep(1);
+        },
+        error: (error: Error) => {
+          setValidationErrors([`CSV Parse Error: ${error.message}`]);
+        },
+      });
+    } else {
+      // Process OCR
+      handleOCRProcessing(file);
+    }
+  }, [importMode]);
+
+  // OCR processing
+  const handleOCRProcessing = async (file: File) => {
+    setIsProcessingOCR(true);
+    setValidationErrors([]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/import/games/ocr', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const { data, headers: ocrHeaders, metadata } = result.data.importData;
+        
         setParsedData(data);
+        setHeaders(ocrHeaders);
+        setOcrMetadata(metadata);
 
-        // Auto-map common fields
-        const autoMapping = autoMapFields(headers);
+        // Auto-map OCR fields
+        const autoMapping = autoMapFields(ocrHeaders);
         setFieldMapping(autoMapping);
 
         // Move to mapping step
         setStep(1);
-      },
-      error: (error: Error) => {
-        setValidationErrors([`CSV Parse Error: ${error.message}`]);
-      },
-    });
-  }, []);
+      } else {
+        setValidationErrors([
+          result.error || 'OCR processing failed',
+          ...(result.data?.suggestions || []),
+        ]);
+      }
+    } catch (error) {
+      setValidationErrors([
+        `OCR processing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'Try improving image quality or convert to CSV',
+      ]);
+    } finally {
+      setIsProcessingOCR(false);
+    }
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "text/csv": [".csv"],
-      "application/vnd.ms-excel": [".csv"],
-    },
+    accept: importMode === 'csv' 
+      ? {
+          "text/csv": [".csv"],
+          "application/vnd.ms-excel": [".csv"],
+        }
+      : {
+          "image/jpeg": [".jpg", ".jpeg"],
+          "image/png": [".png"],
+          "image/webp": [".webp"],
+        },
     maxFiles: 1,
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: importMode === 'csv' ? 10 * 1024 * 1024 : 200 * 1024, // 10MB for CSV, 200KB for images
   });
 
   // Auto-map common field names - now only looks for date column
@@ -196,7 +262,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     }
   };
 
-  // Transform CSV data to game format - new structure preserves custom columns
+  // Transform CSV/OCR data to game format - new structure preserves custom columns
   const transformData = (row: ParsedRow, rowIndex?: number): Record<string, any> => {
     try {
       const transformed: Record<string, any> = {
@@ -370,6 +436,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     setValidationErrors([]);
     setImportResult(null);
     setImportProgress(0);
+    setOcrMetadata(null);
   };
 
   // Download sample CSV template
@@ -396,7 +463,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
     <Dialog open={true} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Import Games from CSV</Typography>
+          <Typography variant="h6">Import Games</Typography>
           <IconButton onClick={onClose} size="small">
             <Close />
           </IconButton>
@@ -407,7 +474,7 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {/* Stepper */}
         <Stepper activeStep={step} sx={{ mb: 4 }}>
           <Step>
-            <StepLabel>Upload CSV</StepLabel>
+            <StepLabel>Upload</StepLabel>
           </Step>
           <Step>
             <StepLabel>Map Fields</StepLabel>
@@ -419,6 +486,40 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
             <StepLabel>Import</StepLabel>
           </Step>
         </Stepper>
+
+        {/* Import Mode Selection */}
+        {step === 0 && (
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Choose Import Method
+            </Typography>
+            <ToggleButtonGroup
+              value={importMode}
+              exclusive
+              onChange={(_, newMode) => {
+                if (newMode) {
+                  setImportMode(newMode);
+                  setFile(null);
+                  setParsedData([]);
+                  setHeaders([]);
+                  setFieldMapping({});
+                  setValidationErrors([]);
+                  setOcrMetadata(null);
+                }
+              }}
+              sx={{ mb: 3 }}
+            >
+              <ToggleButton value="csv">
+                <TableChart sx={{ mr: 1 }} />
+                CSV File
+              </ToggleButton>
+              <ToggleButton value="ocr">
+                <Image sx={{ mr: 1 }} />
+                Image OCR
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        )}
 
         {/* Step 0: Upload */}
         {step === 0 && (
@@ -440,31 +541,118 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
               }}
             >
               <input {...getInputProps()} />
-              <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                or click to browse files
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Maximum file size: 10MB • Supported format: CSV
-              </Typography>
+              {isProcessingOCR ? (
+                <Box>
+                  <Skeleton variant="circular" width={64} height={64} sx={{ mx: "auto", mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Processing Image...
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Extracting game data with AI OCR
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    This may take a few moments
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  {importMode === 'csv' ? (
+                    <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                  ) : (
+                    <Image sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                  )}
+                  <Typography variant="h6" gutterBottom>
+                    {isDragActive 
+                      ? `Drop your ${importMode.toUpperCase()} file here` 
+                      : `Drag & drop ${importMode.toUpperCase()} file here`
+                    }
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    or click to browse files
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {importMode === 'csv' 
+                      ? "Maximum file size: 10MB • Supported format: CSV"
+                      : "Maximum file size: 200KB • Supported formats: JPEG, PNG, WebP"
+                    }
+                  </Typography>
+                </Box>
+              )}
             </Paper>
 
-            <Box textAlign="center">
-              <Button
-                sx={(theme) => ({
-                  borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                  color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                })}
-                startIcon={<Download />}
-                onClick={handleDownloadTemplate}
-                variant="outlined"
-              >
-                Download Sample Template
-              </Button>
-            </Box>
+            {importMode === 'ocr' && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle2" gutterBottom>
+                    <Lightbulb sx={{ mr: 1, verticalAlign: "middle" }} />
+                    OCR Tips for Best Results
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 2, mb: 0 }}>
+                    <li><Typography variant="body2">Use clear, high-contrast images</Typography></li>
+                    <li><Typography variant="body2">Ensure good lighting when taking photos</Typography></li>
+                    <li><Typography variant="body2">Handwriting should be clear and legible</Typography></li>
+                    <li><Typography variant="body2">Keep file size under 200KB</Typography></li>
+                    <li><Typography variant="body2">If OCR fails, convert to CSV for better accuracy</Typography></li>
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+
+            {importMode === 'csv' && (
+              <Box textAlign="center">
+                <Button
+                  sx={(theme) => ({
+                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                  })}
+                  startIcon={<Download />}
+                  onClick={handleDownloadTemplate}
+                  variant="outlined"
+                >
+                  Download Sample Template
+                </Button>
+              </Box>
+            )}
+
+            {/* OCR Metadata Display */}
+            {ocrMetadata && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle2" gutterBottom>
+                    OCR Processing Results
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                    <Chip 
+                      label={`Games Found: ${ocrMetadata.totalGames}`}
+                      color="primary"
+                      size="small"
+                    />
+                    <Chip 
+                      label={`Image Quality: ${ocrMetadata.imageQuality}`}
+                      color={ocrMetadata.imageQuality === 'excellent' || ocrMetadata.imageQuality === 'good' ? 'success' : 'warning'}
+                      size="small"
+                    />
+                    <Chip 
+                      label={`Handwriting: ${ocrMetadata.handwritingLegibility}`}
+                      color={ocrMetadata.handwritingLegibility === 'excellent' || ocrMetadata.handwritingLegibility === 'good' ? 'success' : 'warning'}
+                      size="small"
+                    />
+                    <Chip 
+                      label={<><Timer sx={{ fontSize: 14, mr: 0.5 }} />{Math.round(ocrMetadata.processingTime / 1000)}s</>}
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Stack>
+                  {ocrMetadata.suggestions && ocrMetadata.suggestions.length > 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <Typography variant="caption">
+                        Suggestions: {ocrMetadata.suggestions.join(' • ')}
+                      </Typography>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {validationErrors.length > 0 && (
               <Alert severity="error">
@@ -480,12 +668,15 @@ export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
         {step === 1 && (
           <Stack spacing={3}>
             <Alert severity="info">
-              Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they appear in your spreadsheet. You can skip any columns you don&apos;t want
+              Only the <strong>Date</strong> column is required for import. All other columns will be preserved exactly as they appear in your {importMode === 'ocr' ? 'OCR extraction' : 'spreadsheet'}. You can skip any columns you don&apos;t want
               to import.
             </Alert>
 
             <Typography variant="subtitle2" color="text.secondary">
               File: <strong>{file?.name}</strong> • Rows: <strong>{parsedData.length}</strong>
+              {importMode === 'ocr' && ocrMetadata && (
+                <span> • Source: <strong>OCR ({ocrMetadata.source})</strong></span>
+              )}
             </Typography>
 
             <TableContainer component={Paper} variant="outlined">
