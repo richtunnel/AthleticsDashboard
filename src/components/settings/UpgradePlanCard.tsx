@@ -54,7 +54,7 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ priceId }),
+        body: JSON.stringify({ priceId, isOnboarding: false }),
       });
 
       const data = await response.json();
