@@ -27,7 +27,7 @@ function CalendarConnectionHandler({ refetch }: { refetch: () => void }) {
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (searchParams.get("calendar_connected") === "true") {
+    if (searchParams.get("calendar_connected") === "true" || searchParams.get("calendar") === "connected") {
       setConnectionMessage("Google Calendar connected successfully! You can now sync games.");
       refetch();
       router.replace("/dashboard/gsync");
@@ -63,7 +63,7 @@ function GoogleCalendarSyncMenuContent() {
   const isConnected = data?.isConnected;
 
   const handleConnect = () => {
-    router.push("/api/auth/calendar-connect");
+    router.push("/api/auth/calendar-connect?returnTo=/dashboard/gsync");
   };
 
   const handleDisconnect = async () => {

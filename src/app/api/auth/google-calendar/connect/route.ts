@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     
     // Get redirect URL from request body (optional, defaults to callback)
     const body = await request.json().catch(() => ({}));
-    const returnTo = body.returnTo || "/dashboard/games";
+    const returnTo = body.returnTo || "/dashboard/gsync";
     
     // Construct callback URL
     const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin;
