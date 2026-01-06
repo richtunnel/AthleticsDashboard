@@ -1191,14 +1191,12 @@ export function GamesTable() {
     },
     onMutate: async (gameId: string) => {
       console.log("[Calendar Sync] onMutate - Starting optimistic update for game:", gameId);
-      // use the parametrized key used by the table query
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
+      // Use the same query key as the main games query
+      await queryClient.cancelQueries({ queryKey: GAMES_QUERY_KEY });
 
-      await queryClient.cancelQueries({ queryKey: GAMES_KEY });
+      const previousGames = queryClient.getQueryData<any>(GAMES_QUERY_KEY);
 
-      const previousGames = queryClient.getQueryData<any>(GAMES_KEY);
-
-      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         // Case 1: cache is a raw array of games
@@ -1225,9 +1223,8 @@ export function GamesTable() {
     },
     onError: (err: Error, gameId, context: any) => {
       console.error("[Calendar Sync] onError - Failed to sync game:", gameId, err);
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
       if (context?.previousGames) {
-        queryClient.setQueryData(GAMES_KEY, context.previousGames);
+        queryClient.setQueryData(GAMES_QUERY_KEY, context.previousGames);
       }
       // Show the actual error message from the API
       const errorMessage = err.message || "Failed to sync calendar";
@@ -1235,13 +1232,12 @@ export function GamesTable() {
     },
     onSuccess: (data, gameId) => {
       console.log("[Calendar Sync] onSuccess - Successfully synced game:", gameId, data);
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
 
       // apply authoritative server result if present
       // API response structure: { success: true, data: { eventId: "...", htmlLink: "..." } }
       const eventId = data?.data?.eventId;
 
-      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         if (Array.isArray(oldData)) {
@@ -1260,6 +1256,9 @@ export function GamesTable() {
 
         return oldData;
       });
+
+      // Also invalidate the dashboard widget to ensure sync state is consistent everywhere
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // Show success notification
       addNotification("Successfully synced to Google Calendar", "success");
@@ -1282,11 +1281,11 @@ export function GamesTable() {
       return result;
     },
     onMutate: async (gameId: string) => {
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
-      await queryClient.cancelQueries({ queryKey: GAMES_KEY });
-      const previousGames = queryClient.getQueryData<any>(GAMES_KEY);
+      // Use the same query key as the main games query
+      await queryClient.cancelQueries({ queryKey: GAMES_QUERY_KEY });
+      const previousGames = queryClient.getQueryData<any>(GAMES_QUERY_KEY);
 
-      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         if (Array.isArray(oldData)) {
@@ -1309,17 +1308,14 @@ export function GamesTable() {
       return { previousGames };
     },
     onError: (err: Error, gameId, context: any) => {
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
       if (context?.previousGames) {
-        queryClient.setQueryData(GAMES_KEY, context.previousGames);
+        queryClient.setQueryData(GAMES_QUERY_KEY, context.previousGames);
       }
       const errorMessage = err.message || "Failed to remove from calendar";
       addNotification(errorMessage, "error");
     },
     onSuccess: (data, gameId) => {
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
-
-      queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+      queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
         if (!oldData) return oldData;
 
         if (Array.isArray(oldData)) {
@@ -1338,6 +1334,9 @@ export function GamesTable() {
 
         return oldData;
       });
+
+      // Also invalidate the dashboard widget to ensure sync state is consistent everywhere
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       addNotification("Removed from Google Calendar", "success");
     },
@@ -1381,11 +1380,9 @@ export function GamesTable() {
       addNotification(`Syncing ${selectedGames.size} game(s) to Google Calendar...`, "info");
     },
     onSuccess: (results) => {
-      const GAMES_KEY = ["games", columnFilters, sortField, sortOrder, page + 1, rowsPerPage] as const;
-
       // Update cache for successful syncs
       if (results.successful.length > 0) {
-        queryClient.setQueryData(GAMES_KEY, (oldData: any) => {
+        queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
           if (!oldData) return oldData;
 
           const successfulSet = new Set(results.successful);
@@ -1407,6 +1404,9 @@ export function GamesTable() {
           return oldData;
         });
       }
+
+      // Also invalidate the dashboard widget to ensure sync state is consistent everywhere
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
 
       // Build result message
       const messages: string[] = [];
