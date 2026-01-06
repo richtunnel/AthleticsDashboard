@@ -6,6 +6,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { DAY_IN_MS, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 import { createSignupLog } from "@/lib/services/signup-log.service";
+import { revokeGoogleToken } from "@/lib/google/revoke";
 const emailFrom = process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>";
 const appBaseUrl = process.env.NEXTAUTH_URL || process.env.APP_URL || "http://localhost:3000";
 
@@ -39,6 +40,12 @@ type DeletionCandidate = {
   email: string | null;
   name: string | null;
   phone: string | null;
+  googleCalendarRefreshToken: string | null;
+  googleCalendarAccessToken: string | null;
+  accounts: {
+    refresh_token: string | null;
+    access_token: string | null;
+  }[];
   subscription: {
     stripeSubscriptionId: string | null;
     status: string;
@@ -211,6 +218,15 @@ export async function POST(req: NextRequest) {
         email: true,
         name: true,
         phone: true,
+        googleCalendarRefreshToken: true,
+        googleCalendarAccessToken: true,
+        accounts: {
+          where: { provider: "google" },
+          select: {
+            refresh_token: true,
+            access_token: true,
+          },
+        },
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -264,6 +280,29 @@ export async function POST(req: NextRequest) {
       }
     } else {
       console.log(`[AccountCleanup] No failed payments, allowing immediate re-signup for user ${user.id}`);
+    }
+
+    const googleTokensToRevoke = new Set<string>();
+    if (user.googleCalendarRefreshToken) {
+      googleTokensToRevoke.add(user.googleCalendarRefreshToken);
+    }
+
+    if (user.googleCalendarAccessToken) {
+      googleTokensToRevoke.add(user.googleCalendarAccessToken);
+    }
+
+    for (const account of user.accounts) {
+      if (account.refresh_token) {
+        googleTokensToRevoke.add(account.refresh_token);
+      }
+
+      if (account.access_token) {
+        googleTokensToRevoke.add(account.access_token);
+      }
+    }
+
+    if (googleTokensToRevoke.size > 0) {
+      await Promise.all(Array.from(googleTokensToRevoke).map((token) => revokeGoogleToken(token)));
     }
 
     try {
