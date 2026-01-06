@@ -11,7 +11,7 @@ const parseCodes = (raw: string | undefined): string[] => {
     .filter(Boolean);
 };
 
-const DEFAULT_DISABLED_CODES = ["opletics25"];
+const DEFAULT_DISABLED_CODES: string[] = [];
 
 export const DISABLED_MEMBER_ACCESS_CODES = new Set<string>([
   ...DEFAULT_DISABLED_CODES,
