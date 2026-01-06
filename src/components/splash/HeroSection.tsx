@@ -128,6 +128,7 @@ export const HeroSection: React.FC = () => {
             className={styles.laptopImageContainer}
             sx={{
               position: "relative",
+              display: { md: "none", lg: "none" },
               width: "80vw",
               maxWidth: "1100px",
               margin: "0 auto",
