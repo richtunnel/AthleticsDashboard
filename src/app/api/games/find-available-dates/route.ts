@@ -172,17 +172,14 @@ export async function POST(request: NextRequest) {
         
         const allMonthDates: string[] = [];
         
+        // If a specific year is provided, use it; otherwise use current year logic
+        const targetYear = year !== undefined ? year : today.getFullYear();
+        
         for (const monthName of dateRange.months) {
           const targetMonthIndex = monthNames.indexOf(monthName.toLowerCase());
           
           if (targetMonthIndex !== -1) {
-            const currentYear = today.getFullYear();
-            const currentMonth = today.getMonth();
-            
-            // If requested month has passed this year, use next year; otherwise use current year
-            const targetYear = targetMonthIndex < currentMonth ? currentYear + 1 : currentYear;
-            
-            // Generate all dates in the target month
+            // Generate all dates in the target month for the target year
             const startDate = new Date(targetYear, targetMonthIndex, 1);
             const endDate = new Date(targetYear, targetMonthIndex + 1, 0); // Last day of month
             
@@ -211,11 +208,8 @@ export async function POST(request: NextRequest) {
         const targetMonthIndex = monthNames.indexOf(dateRange.month.toLowerCase());
         
         if (targetMonthIndex !== -1) {
-          const currentYear = today.getFullYear();
-          const currentMonth = today.getMonth();
-          
-          // If requested month has passed this year, use next year; otherwise use current year
-          const targetYear = targetMonthIndex < currentMonth ? currentYear + 1 : currentYear;
+          // If a specific year is provided, use it; otherwise use current year logic
+          const targetYear = year !== undefined ? year : today.getFullYear();
           
           // Generate all dates in the target month
           const startDate = new Date(targetYear, targetMonthIndex, 1);
