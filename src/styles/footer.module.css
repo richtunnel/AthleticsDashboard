@@ -25,11 +25,18 @@
   .SplashFooterLinks {
     align-items: center !important;
     text-align: center;
+    justify-content: center !important;
+  }
+
+  .SpashFooterBoxWrapper,
+  .SpashFooterBoxContainer {
+    align-items: center !important;
+    text-align: center;
   }
 
   .footerContainer {
     padding: 0px 12px;
-    display: flex;
+    display: block;
     justify-content: center;
     text-align: center;
   }
