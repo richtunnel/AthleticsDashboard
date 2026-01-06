@@ -1,6 +1,12 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import {
+  getMemberAccessExpiresAtMs,
+  isMemberAccessCodeDisabled,
+  isMemberAccessToken,
+  normalizeMemberAccessCode,
+} from "@/lib/utils/memberAccess";
 
 // Force Node.js runtime for middleware (Prisma doesn't work in Edge Runtime)
 export const runtime = 'nodejs';
@@ -62,6 +68,20 @@ export default withAuth(
       authorized: ({ token }) => {
         if (!token) {
           return false;
+        }
+
+        if (isMemberAccessToken(token)) {
+          const fallbackCode = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "opletics25";
+          const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
+
+          if (isMemberAccessCodeDisabled(memberCode)) {
+            return false;
+          }
+
+          const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
+          if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
+            return false;
+          }
         }
 
         const { exp } = token as { exp?: number | string };

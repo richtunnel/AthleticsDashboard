@@ -45,6 +45,9 @@ declare module "next-auth" {
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;
+    memberAccessCode?: string;
+    memberAccessIssuedAt?: number;
+    memberAccessExpiresAt?: number;
   }
 }
 
@@ -66,5 +69,8 @@ declare module "next-auth/jwt" {
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;
+    memberAccessCode?: string;
+    memberAccessIssuedAt?: number;
+    memberAccessExpiresAt?: number;
   }
 }
