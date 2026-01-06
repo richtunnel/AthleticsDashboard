@@ -219,7 +219,7 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-2xl font-bold">{isEditing ? "Edit Game" : "Create New Game"}</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition">
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
               <X size={20} />
             </button>
           </div>
@@ -383,10 +383,10 @@ export function GameForm({ onClose, onSuccess, gameId }: GameFormProps) {
 
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-6 border-t">
-              <button type="button" onClick={onClose} className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition">
+              <button type="button" onClick={onClose} className="px-6 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                 Cancel
               </button>
-              <button type="submit" disabled={mutation.isPending} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              <button type="submit" disabled={mutation.isPending} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
                 {mutation.isPending ? "Saving..." : isEditing ? "Update Game" : "Create Game"}
               </button>
             </div>
