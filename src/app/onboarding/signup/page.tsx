@@ -135,6 +135,9 @@ function SignupForm() {
         <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
           Sign up with Google
         </AuthActionButton>
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
+          If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in” even if you deleted your Opletics account.
+        </Typography>
         <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled sx={{ mb: 2 }}>
           Sign up with Microsoft
         </AuthActionButton>
