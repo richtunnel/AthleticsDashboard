@@ -26,7 +26,7 @@ function CalendarCallbackContent() {
         const code = searchParams.get("code");
         const state = searchParams.get("state");
         const error = searchParams.get("error");
-        const returnTo = searchParams.get("returnTo") || "/dashboard/games";
+        const returnTo = searchParams.get("returnTo") || "/dashboard/gsync";
 
         // Check for OAuth errors
         if (error) {
@@ -80,7 +80,9 @@ function CalendarCallbackContent() {
 
         // Redirect after 2 seconds
         setTimeout(() => {
-          router.push(returnTo);
+          const redirectUrl = new URL(returnTo, window.location.origin);
+          redirectUrl.searchParams.set("calendar", "connected");
+          router.push(redirectUrl.pathname + redirectUrl.search);
         }, 2000);
       } catch (error) {
         console.error("Callback error:", error);
@@ -160,10 +162,10 @@ function CalendarCallbackContent() {
             </Alert>
             <Button
               variant="contained"
-              onClick={() => router.push("/dashboard/games")}
+              onClick={() => router.push("/dashboard/gsync")}
               fullWidth
             >
-              Return to Dashboard
+              Return to Calendar Sync
             </Button>
           </>
         )}
