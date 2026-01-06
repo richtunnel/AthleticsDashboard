@@ -1,4 +1,4 @@
-@media all and (max-width: 657px) {
+@media all and (min-width: 657px) {
   .laptopImageContainer {
     display: none !important;
   }
