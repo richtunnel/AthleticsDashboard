@@ -10,6 +10,7 @@ import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
+import TopFooter from "@/components/footer/topFooter";
 
 function SignupForm() {
   const router = useRouter();
@@ -105,9 +106,9 @@ function SignupForm() {
   const handleGoogleSignup = async () => {
     setError("");
     try {
-      await googleAuth.executeAction({ 
+      await googleAuth.executeAction({
         type: "google",
-        authorizationParams: { prompt: "select_account consent" }
+        authorizationParams: { prompt: "select_account consent" },
       });
     } catch (error) {
       // Error handled by onError callback
@@ -144,7 +145,7 @@ function SignupForm() {
               Sign up with Google
             </AuthActionButton>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
-              If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in” even if you deleted your Opletics account.
+              If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in”.
             </Typography>
 
             <Divider sx={{ my: 2 }}>OR</Divider>
@@ -223,7 +224,7 @@ function SignupForm() {
           </Paper>
         </Box>
       </Container>
-      <Footer />
+      <TopFooter />
     </Box>
   );
 }
