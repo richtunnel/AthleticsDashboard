@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     if (!refreshToken && !accessToken) {
       return NextResponse.json(
-        { error: "Google Calendar not connected. Please connect your calendar in settings." },
+        { error: "Google Calendar not connected. Please connect your calendar in Calendar Sync." },
         { status: 400 }
       );
     }

@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("Calendar OAuth error:", error);
-    return NextResponse.redirect(new URL(`/dashboard/settings?error=${encodeURIComponent(error)}`, process.env.NEXTAUTH_URL!));
+    return NextResponse.redirect(new URL(`/dashboard/gsync?error=${encodeURIComponent(error)}`, process.env.NEXTAUTH_URL!));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/dashboard/settings?error=no_code", process.env.NEXTAUTH_URL!));
+    return NextResponse.redirect(new URL("/dashboard/gsync?error=no_code", process.env.NEXTAUTH_URL!));
   }
 
   try {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Verify state matches user ID (optional security check)
     if (stateUserId && stateUserId !== session.user.id) {
       console.error("❌ State mismatch - possible CSRF attack");
-      return NextResponse.redirect(new URL("/dashboard/settings?error=invalid_state", process.env.NEXTAUTH_URL));
+      return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
     }
 
     // Exchange authorization code for tokens
@@ -139,12 +139,12 @@ export async function GET(request: NextRequest) {
     console.log("✅ Calendar connected to user:", session.user.email);
 
     const safeReturnTo = returnTo && returnTo.startsWith("/") ? returnTo : null;
-    const redirectPath = safeReturnTo || "/dashboard/settings?calendar=connected";
+    const redirectPath = safeReturnTo || "/dashboard/gsync?calendar=connected";
 
     return NextResponse.redirect(new URL(redirectPath, process.env.NEXTAUTH_URL!));
   } catch (error) {
     console.error("❌ Calendar OAuth error:", error);
 
-    return NextResponse.redirect(new URL("/dashboard/settings?error=calendar_connection_failed", process.env.NEXTAUTH_URL));
+    return NextResponse.redirect(new URL("/dashboard/gsync?error=calendar_connection_failed", process.env.NEXTAUTH_URL));
   }
 }

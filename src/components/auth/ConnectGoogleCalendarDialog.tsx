@@ -114,7 +114,7 @@ export function ConnectGoogleCalendarDialog({ open, onClose, returnTo }: Connect
 
         <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>Your privacy matters:</strong> Your calendar data is never shared with third parties. You can disconnect at any time from your settings page.
+            <strong>Your privacy matters:</strong> Your calendar data is never shared with third parties. You can disconnect at any time from your Calendar Sync page.
           </Typography>
         </Alert>
 
