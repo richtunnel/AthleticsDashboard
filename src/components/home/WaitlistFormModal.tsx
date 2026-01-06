@@ -88,7 +88,6 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
           maxHeight: { xs: "100%", sm: "none" },
           width: { xs: "100%", sm: "90%" },
           margin: { xs: 0, sm: "auto" },
-          borderRadius: { xs: 0, sm: 2 },
         },
       }}
     >

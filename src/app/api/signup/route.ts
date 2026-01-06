@@ -7,40 +7,84 @@ import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.s
 import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
+import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-limiter";
+import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
+import { sanitizeEmail, sanitizeString, validatePassword } from "@/lib/security/sanitizer";
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting - strict limit for signup to prevent abuse
+  const clientIp = getClientIp(request);
+  const { allowed: rateLimitAllowed, retryAfter } = await rateLimit(
+    request,
+    RateLimitConfig.auth
+  );
+
+  if (!rateLimitAllowed) {
+    const response = NextResponse.json(
+      { error: "Too many signup attempts. Please try again later." },
+      { status: 429 }
+    );
+    response.headers.set('Retry-After', retryAfter?.toString() || '900');
+    return applyAllSecurityHeaders(request, response);
+  }
+
   try {
     const body = await request.json();
     const { email, password, name, plan, referrerEmail, phone } = body;
 
-    console.log("[Signup] Signup attempt for email:", email?.toLowerCase());
+    // Sanitize inputs
+    const sanitizedEmail = sanitizeEmail(email);
+    const sanitizedName = sanitizeString(name || '');
+    const sanitizedReferrerEmail = referrerEmail ? sanitizeEmail(referrerEmail) : null;
+    const sanitizedPhone = phone ? phone.replace(/[^+\d]/g, '') : null;
+
+    console.log("[Signup] Signup attempt for email:", sanitizedEmail);
 
     // Validation
-    if (!email || !password || !name) {
-      console.error("[Signup] Missing required fields:", { email: !!email, password: !!password, name: !!name });
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!sanitizedEmail || !password || !sanitizedName) {
+      console.error("[Signup] Missing required fields:", {
+        email: !!sanitizedEmail,
+        password: !!password,
+        name: !!sanitizedName,
+      });
+      const response = NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+      return applyAllSecurityHeaders(request, response);
     }
 
-    if (password.length < 8) {
-      console.error("[Signup] Password too short for email:", email?.toLowerCase());
-      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      console.error("[Signup] Password validation failed for email:", sanitizedEmail, passwordValidation.errors);
+      const response = NextResponse.json(
+        {
+          error: "Password does not meet requirements",
+          details: passwordValidation.errors,
+          strength: passwordValidation.strength,
+        },
+        { status: 400 }
+      );
+      return applyAllSecurityHeaders(request, response);
     }
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = sanitizedEmail.toLowerCase();
 
     // Check if email/phone is blocked due to recent account deletion (90-day rule)
-    const signupCheck = await isSignupBlocked(normalizedEmail, phone);
+    const signupCheck = await isSignupBlocked(normalizedEmail, sanitizedPhone);
     if (signupCheck.blocked) {
       const daysRemaining = signupCheck.expiresAt ? getDaysRemaining(signupCheck.expiresAt) : 90;
       console.error("[Signup] Signup blocked for email:", normalizedEmail, "Days remaining:", daysRemaining);
-      return NextResponse.json(
-        { 
+      const response = NextResponse.json(
+        {
           error: `This email/phone was used for an account that was recently deleted. Please wait ${daysRemaining} more days before signing up again, or contact support if you believe this is an error.`,
           blocked: true,
           daysRemaining,
         },
         { status: 403 }
       );
+      return applyAllSecurityHeaders(request, response);
     }
 
     // Check if user already exists
@@ -50,7 +94,11 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       console.error("[Signup] User already exists:", normalizedEmail);
-      return NextResponse.json({ error: "User with this email already exists" }, { status: 400 });
+      const response = NextResponse.json(
+        { error: "User with this email already exists" },
+        { status: 400 }
+      );
+      return applyAllSecurityHeaders(request, response);
     }
 
     // Hash password
@@ -64,7 +112,7 @@ export async function POST(request: NextRequest) {
         const stripe = getStripe();
         const customer = await stripe.customers.create({
           email: normalizedEmail,
-          name,
+          name: sanitizedName,
           metadata: {
             plan: plan,
             source: "onboarding",
@@ -82,7 +130,8 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
-        name,
+        name: sanitizedName,
+        phone: sanitizedPhone,
         hashedPassword,
         role: "ATHLETIC_DIRECTOR",
         plan: plan || "free_trial_plan",
@@ -90,7 +139,7 @@ export async function POST(request: NextRequest) {
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null, // 14 days from now
         organization: {
           create: {
-            name: `${name}'s Organization`,
+            name: `${sanitizedName}'s Organization`,
             timezone: "America/New_York",
           },
         },
@@ -117,10 +166,10 @@ export async function POST(request: NextRequest) {
     });
 
     // Track referral if referrerEmail is provided
-    if (referrerEmail) {
+    if (sanitizedReferrerEmail) {
       try {
-        await trackReferral(referrerEmail, user.id, normalizedEmail);
-        console.log("[Signup] Referral tracked for:", referrerEmail);
+        await trackReferral(sanitizedReferrerEmail, user.id, normalizedEmail);
+        console.log("[Signup] Referral tracked for:", sanitizedReferrerEmail);
       } catch (referralError) {
         console.error("[Signup] Failed to track referral:", referralError);
         // Don't fail signup if referral tracking fails
@@ -135,7 +184,7 @@ export async function POST(request: NextRequest) {
         plan: user.plan,
         email: normalizedEmail,
         name: user.name,
-        has_referrer: !!referrerEmail,
+        has_referrer: !!sanitizedReferrerEmail,
       });
       identifyServerUser(user.id, {
         $email: normalizedEmail,
@@ -150,7 +199,7 @@ export async function POST(request: NextRequest) {
       // Don't fail signup if tracking fails
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: "Account created successfully",
@@ -165,8 +214,13 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
+    return applyAllSecurityHeaders(request, response);
   } catch (error) {
     console.error("[Signup] Unexpected error during signup:", error);
-    return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
+    const response = NextResponse.json(
+      { error: "Failed to create account" },
+      { status: 500 }
+    );
+    return applyAllSecurityHeaders(request, response);
   }
 }

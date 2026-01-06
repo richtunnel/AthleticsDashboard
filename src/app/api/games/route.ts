@@ -5,8 +5,25 @@ import { travelAIService } from "@/lib/services/travelAI";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 import { calendarService } from "@/lib/services/calendar.service";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-limiter";
+import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 
 export async function GET(request: NextRequest) {
+  // Apply rate limiting for games API
+  const { allowed: rateLimitAllowed, retryAfter } = await rateLimit(
+    request,
+    RateLimitConfig.games
+  );
+
+  if (!rateLimitAllowed) {
+    const response = NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+    response.headers.set('Retry-After', retryAfter?.toString() || '900');
+    return applyAllSecurityHeaders(request, response);
+  }
+
   try {
     const session = await requireAuth();
     console.log("=== GAMES API DEBUG ===");
@@ -232,7 +249,7 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         games: serializedGames,
@@ -246,15 +263,17 @@ export async function GET(request: NextRequest) {
         },
       },
     });
+    return applyAllSecurityHeaders(request, response);
   } catch (error) {
     console.error("Error fetching games:", error);
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: false,
         error: "Failed to fetch games",
       },
       { status: 500 }
     );
+    return applyAllSecurityHeaders(request, response);
   }
 }
 
