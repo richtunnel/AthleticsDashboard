@@ -6540,14 +6540,14 @@ export function GamesTable() {
 
           <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
             {/* Manage your athletic schedules and create your own customized columns. */}
-            Import your spreadsheet as a CSV or Image and start managing your schedule.
+            Import your CSV or image game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
             <span>
               <Tooltip
                 title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
                 placement="top"
                 arrow
               >
-                <IconButton size="small" sx={{ ml: 0.5 }}>
+                <IconButton size="small" sx={{ ml: 0, pl: 0 }}>
                   <InfoOutlinedIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
