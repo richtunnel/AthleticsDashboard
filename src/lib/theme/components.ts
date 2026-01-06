@@ -2,9 +2,16 @@ import { alpha, type Components, type Theme } from "@mui/material/styles";
 
 export const buildThemeComponents = (theme: Theme): Components<Theme> => {
   const primaryMain = theme.palette.primary.main;
+  const isDark = theme.palette.mode === "dark";
   const paperBorderColor = alpha("#0F172A", 0.06);
   const cardShadow = "0 20px 45px rgba(15, 23, 42, 0.20)";
+
   const hoverOverlay = alpha(primaryMain, 0.08);
+
+  const buttonHoverOverlay = isDark ? alpha(theme.palette.common.white, 0.1) : hoverOverlay;
+  const buttonHoverOverlayStrong = isDark ? alpha(theme.palette.common.white, 0.14) : alpha(primaryMain, 0.12);
+  const buttonOutlineBorder = isDark ? alpha(theme.palette.common.white, 0.28) : alpha(primaryMain, 0.4);
+  const buttonOutlineBorderHover = isDark ? alpha(theme.palette.common.white, 0.42) : primaryMain;
 
   return {
     MuiAppBar: {
@@ -100,20 +107,20 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
         contained: {
           boxShadow: "none",
           "&:hover": {
-            boxShadow: `0 12px 20px ${alpha(primaryMain, 0.22)}`,
+            boxShadow: isDark ? "none" : `0 12px 20px ${alpha(primaryMain, 0.22)}`,
           },
         },
         outlined: {
           borderWidth: 1.5,
-          borderColor: alpha(primaryMain, 0.4),
+          borderColor: buttonOutlineBorder,
           "&:hover": {
-            borderColor: primaryMain,
-            backgroundColor: alpha(primaryMain, 0.12),
+            borderColor: buttonOutlineBorderHover,
+            backgroundColor: buttonHoverOverlayStrong,
           },
         },
         text: {
           "&:hover": {
-            backgroundColor: hoverOverlay,
+            backgroundColor: buttonHoverOverlay,
           },
         },
       },
@@ -128,7 +135,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
           minHeight: 44,
           padding: theme.spacing(1),
           "&:hover": {
-            backgroundColor: hoverOverlay,
+            backgroundColor: buttonHoverOverlay,
             color: theme.palette.text.primary,
           },
         },
