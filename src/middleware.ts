@@ -13,6 +13,22 @@ export const runtime = 'nodejs';
 
 export default withAuth(
   async function middleware(req: any) {
+    // Apply security headers to all responses
+    const response = NextResponse.next();
+
+    // Security headers
+    response.headers.set('X-DNS-Prefetch-Control', 'on');
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+    // HSTS header (only in production)
+    if (process.env.NODE_ENV === 'production') {
+      response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+    }
+
     // Redirect www to non-www
     const host = req.headers.get('host');
     if (host && host.startsWith('www.')) {
@@ -22,14 +38,41 @@ export default withAuth(
       return NextResponse.redirect(newUrl, 301);
     }
 
+    // CORS handling for API routes
+    const origin = req.headers.get('origin');
+    const allowedOrigins = [
+      'https://opletics.com',
+      'https://www.opletics.com',
+      'https://athleticdirectorhub.com',
+      'https://www.athleticdirectorhub.com',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ];
+
+    if (origin && allowedOrigins.includes(origin)) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Idempotency-Key, X-CSRF-Token');
+      response.headers.set('Access-Control-Max-Age', '86400');
+    }
+
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: response.headers,
+      });
+    }
+
     const token = req.nextauth?.token;
 
     // Check payment status for dashboard routes (except settings and account-disabled)
     const pathname = req.nextUrl.pathname;
-    
+
     // Allow settings page and account-disabled page regardless of payment status
     if (pathname.startsWith('/dashboard/settings') || pathname.startsWith('/dashboard/account-disabled')) {
-      return NextResponse.next();
+      return response;
     }
 
     // Check if user has overdue payment or disabled account
@@ -61,7 +104,7 @@ export default withAuth(
       }
     }
 
-    return NextResponse.next();
+    return response;
   },
   {
     callbacks: {
