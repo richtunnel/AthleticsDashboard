@@ -34,7 +34,7 @@ export function ExportButton() {
   };
 
   return (
-    <button onClick={handleExport} disabled={isExporting} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition disabled:opacity-50">
+    <button onClick={handleExport} disabled={isExporting} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition disabled:opacity-50">
       {isExporting ? <FileSpreadsheet size={18} className="animate-pulse" /> : <Download size={18} />}
       Export to CSV
     </button>
@@ -111,12 +111,12 @@ export function ImportButton() {
   return (
     <div className="flex items-center gap-2">
       <input type="file" accept=".csv" onChange={handleFileChange} className="hidden" id="csv-upload" />
-      <label htmlFor="csv-upload" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 transition cursor-pointer">
+      <label htmlFor="csv-upload" className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer">
         <Upload size={18} />
         {file ? file.name : "Choose CSV File"}
       </label>
       {file && (
-        <button onClick={handleImport} disabled={mutation.isPending} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+        <button onClick={handleImport} disabled={mutation.isPending} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-gray-700 transition disabled:opacity-50">
           {mutation.isPending ? "Importing..." : "Import"}
         </button>
       )}

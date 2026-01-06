@@ -41,10 +41,10 @@ export class DashboardErrorBoundary extends React.Component<DashboardErrorBounda
           <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
           <p className="text-gray-600 mb-4">There was an error loading the dashboard. Please refresh the page.</p>
           <div className="space-x-2">
-            <button onClick={this.reset} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            <button onClick={this.reset} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 dark:hover:bg-gray-700">
               Try Again
             </button>
-            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 dark:hover:bg-gray-700">
               Refresh Page
             </button>
           </div>

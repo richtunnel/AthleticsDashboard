@@ -67,7 +67,7 @@ export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncBut
       onClick={handleClick}
       disabled={isLoading}
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-        synced ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+        synced ? "bg-green-100 text-green-700 hover:bg-green-200 dark:hover:bg-gray-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700"
       } disabled:opacity-50 disabled:cursor-not-allowed`}
       title={synced ? "Synced to Google Calendar" : "Sync to Google Calendar"}
     >
@@ -108,7 +108,7 @@ export function SyncAllButton() {
     <button
       onClick={() => mutation.mutate()}
       disabled={mutation.isPending}
-      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-gray-700 transition disabled:opacity-50"
     >
       {mutation.isPending ? <RefreshCw size={18} className="animate-spin" /> : <Calendar size={18} />}
       Sync All to Calendar
