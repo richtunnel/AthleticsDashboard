@@ -25,8 +25,11 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
-import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess, DragIndicator } from "@mui/icons-material";
+import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess, DragIndicator, Settings } from "@mui/icons-material";
 import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
@@ -104,6 +107,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [showConfiguration, setShowConfiguration] = useState<boolean>(true);
 
   // Pre-fill prompt if sport and level are provided
   React.useEffect(() => {
@@ -271,130 +275,166 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
 
       <DialogContent>
         <Stack spacing={3}>
-          {/* Search Input */}
-          <Box>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="e.g., 'What are some good dates for Boys Varsity Basketball in December? Try to find ones at least 3 days apart.'"
-              value={prompt}
-              onChange={(e) => handlePromptChange(e.target.value)}
-              onKeyPress={handleKeyPress}
-              disabled={loading}
-              variant="outlined"
+          {/* Configuration Accordion */}
+          <Accordion 
+            expanded={showConfiguration} 
+            onChange={() => setShowConfiguration(!showConfiguration)}
+            sx={{
+              boxShadow: 'none',
+              '&:before': { display: 'none' },
+              '&.Mui-expanded': { margin: 0 },
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMore />}
+              aria-controls="configuration-content"
+              id="configuration-header"
               sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: 2,
+                minHeight: 56,
+                '&.Mui-expanded': { minHeight: 56 },
+                borderRadius: 1,
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                '&:hover': {
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
                 },
               }}
-            />
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Try: "Find open slots for B V Basketball in Dec, not on same days as G JV VB" • "Give me some dates for varsity soccer at least 4 days apart"
-            </Typography>
-          </Box>
-
-          {/* Filters Row - Year and Exclude Days */}
-          <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-            {/* Year Filter */}
-            <Box sx={{ flex: 1, minWidth: 200 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                Year
-              </Typography>
-              <FormControl size="small" fullWidth>
-                <Select value={selectedYear} onChange={(e) => handleYearChange(e.target.value as number)} disabled={loading}>
-                  {generateYearOptions().map((year) => (
-                    <MenuItem key={year} value={year}>
-                      {year}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                Select the year to search through all 12 months
-              </Typography>
-            </Box>
-
-            {/* Exclude Days Filter */}
-            <Box sx={{ flex: 2, minWidth: 250 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-                Exclude Days (Optional)
-              </Typography>
-              <ToggleButtonGroup
-                value={excludeDays}
-                onChange={handleDayToggle}
-                aria-label="exclude days of week"
-                size="small"
-                disabled={loading}
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 0.5,
-                  "& .MuiToggleButton-root": {
-                    borderRadius: 1,
-                    px: 1.5,
-                    py: 0.5,
-                    textTransform: "none",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    "&.Mui-selected": {
-                      bgcolor: "error.light",
-                      color: "error.dark",
-                      borderColor: "error.main",
-                      "&:hover": {
-                        bgcolor: "error.main",
-                        color: "white",
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Settings sx={{ color: 'primary.main', fontSize: 20 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Configuration & Search Settings
+                </Typography>
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 0, pt: 2 }}>
+              <Stack spacing={3}>
+                {/* Search Input */}
+                <Box>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    placeholder="e.g., 'What are some good dates for Boys Varsity Basketball in December? Try to find ones at least 3 days apart.'"
+                    value={prompt}
+                    onChange={(e) => handlePromptChange(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={loading}
+                    variant="outlined"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: 2,
                       },
-                    },
-                  },
-                }}
-              >
-                {DAYS_OF_WEEK.map((day) => (
-                  <ToggleButton key={day.value} value={day.value} aria-label={day.label}>
-                    {day.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                Click to exclude days from the search results
-              </Typography>
-            </Box>
-          </Box>
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    Try: "Find open slots for B V Basketball in Dec, not on same days as G JV VB" • "Give me some dates for varsity soccer at least 4 days apart"
+                  </Typography>
+                </Box>
 
-          {/* Number of Results */}
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-              Number of Results
-            </Typography>
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <Select
-                value={maxResults}
-                onChange={(e) => {
-                  setMaxResults(e.target.value as number);
-                  // Clear results when limit changes
-                  if (result) {
-                    setResult(null);
-                    setError(null);
-                  }
-                }}
-                disabled={loading}
-              >
-                <MenuItem value={10}>10 dates</MenuItem>
-                <MenuItem value={25}>25 dates</MenuItem>
-                <MenuItem value={50}>50 dates</MenuItem>
-              </Select>
-            </FormControl>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              Maximum number of dates to display
-            </Typography>
-          </Box>
+                {/* Filters Row - Year and Exclude Days */}
+                <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                  {/* Year Filter */}
+                  <Box sx={{ flex: 1, minWidth: 200 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                      Year
+                    </Typography>
+                    <FormControl size="small" fullWidth>
+                      <Select value={selectedYear} onChange={(e) => handleYearChange(e.target.value as number)} disabled={loading}>
+                        {generateYearOptions().map((year) => (
+                          <MenuItem key={year} value={year}>
+                            {year}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      Select the year to search through all 12 months
+                    </Typography>
+                  </Box>
 
-          {/* AI Info Banner */}
-          <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
-            <Typography variant="body2">
-              <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
-            </Typography>
-          </Alert>
+                  {/* Exclude Days Filter */}
+                  <Box sx={{ flex: 2, minWidth: 250 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                      Exclude Days (Optional)
+                    </Typography>
+                    <ToggleButtonGroup
+                      value={excludeDays}
+                      onChange={handleDayToggle}
+                      aria-label="exclude days of week"
+                      size="small"
+                      disabled={loading}
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 0.5,
+                        "& .MuiToggleButton-root": {
+                          borderRadius: 1,
+                          px: 1.5,
+                          py: 0.5,
+                          textTransform: "none",
+                          border: "1px solid",
+                          borderColor: "divider",
+                          "&.Mui-selected": {
+                            bgcolor: "error.light",
+                            color: "error.dark",
+                            borderColor: "error.main",
+                            "&:hover": {
+                              bgcolor: "error.main",
+                              color: "white",
+                            },
+                          },
+                        },
+                      }}
+                    >
+                      {DAYS_OF_WEEK.map((day) => (
+                        <ToggleButton key={day.value} value={day.value} aria-label={day.label}>
+                          {day.label}
+                        </ToggleButton>
+                      ))}
+                    </ToggleButtonGroup>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      Click to exclude days from the search results
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Number of Results */}
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                    Number of Results
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <Select
+                      value={maxResults}
+                      onChange={(e) => {
+                        setMaxResults(e.target.value as number);
+                        // Clear results when limit changes
+                        if (result) {
+                          setResult(null);
+                          setError(null);
+                        }
+                      }}
+                      disabled={loading}
+                    >
+                      <MenuItem value={10}>10 dates</MenuItem>
+                      <MenuItem value={25}>25 dates</MenuItem>
+                      <MenuItem value={50}>50 dates</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    Maximum number of dates to display
+                  </Typography>
+                </Box>
+
+                {/* AI Info Banner */}
+                <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2">
+                    <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
+                  </Typography>
+                </Alert>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
 
           {/* Loading State */}
           {loading && (
