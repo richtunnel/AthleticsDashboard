@@ -2,6 +2,10 @@
   margin: 50px 0px 26px 0px;
 }
 
+.SplashFooterOptInStack {
+  align-items: flex-start;
+}
+
 @media all and (max-width: 565px) {
   .partnerFooterTitle {
     text-align: center;
@@ -12,6 +16,10 @@
     display: flex;
     text-align: center;
     justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .SplashFooterOptInStack {
     align-items: center !important;
   }
 
