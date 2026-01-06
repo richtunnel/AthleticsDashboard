@@ -3,16 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { createSignupLog } from "@/lib/services/signup-log.service";
+import { revokeGoogleToken } from "@/lib/google/revoke";
 
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -22,6 +20,13 @@ export async function DELETE(req: NextRequest) {
       where: { id: userId },
       include: {
         subscription: true,
+        accounts: {
+          where: { provider: "google" },
+          select: {
+            refresh_token: true,
+            access_token: true,
+          },
+        },
       },
     });
 
@@ -64,6 +69,29 @@ export async function DELETE(req: NextRequest) {
       }
     } else {
       console.log('[DeleteAccount] No failed payments, allowing immediate re-signup for user:', userId);
+    }
+
+    const googleTokensToRevoke = new Set<string>();
+    if (user.googleCalendarRefreshToken) {
+      googleTokensToRevoke.add(user.googleCalendarRefreshToken);
+    }
+
+    if (user.googleCalendarAccessToken) {
+      googleTokensToRevoke.add(user.googleCalendarAccessToken);
+    }
+
+    for (const account of user.accounts) {
+      if (account.refresh_token) {
+        googleTokensToRevoke.add(account.refresh_token);
+      }
+
+      if (account.access_token) {
+        googleTokensToRevoke.add(account.access_token);
+      }
+    }
+
+    if (googleTokensToRevoke.size > 0) {
+      await Promise.all(Array.from(googleTokensToRevoke).map((token) => revokeGoogleToken(token)));
     }
 
     // Delete user - Prisma will cascade delete related records:
