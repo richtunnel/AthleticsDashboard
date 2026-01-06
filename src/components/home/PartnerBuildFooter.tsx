@@ -93,6 +93,7 @@ const PartnerBuildSectionFooter = () => {
                 </CardContent>
 
                 <Button
+                  className={styles.PartnerFooterLinks}
                   variant="text"
                   endIcon={<ArrowForward />}
                   onClick={handlePartnerModalOpen}
@@ -166,6 +167,7 @@ const PartnerBuildSectionFooter = () => {
                 </CardContent>
 
                 <Button
+                  className={styles.PartnerFooterLinks}
                   variant="text"
                   endIcon={<ArrowForward />}
                   onClick={handleWaitlistModalOpen}

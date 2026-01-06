@@ -5,6 +5,7 @@ import CopyRight from "../copyright";
 import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
 import { NewsletterSubscription } from "./NewsletterSubscription";
 import LayoutFooter from "../layout/Footer";
+import styles from "@/styles/footer.module.css";
 
 import siteConfig from "./config";
 
@@ -41,12 +42,12 @@ export const Footer: React.FC<FooterProps> = (props) => {
           }}
         >
           <PartnerBuildSectionFooter />
-          <Stack spacing={4}>
+          <Stack spacing={4} className={styles.bottomFooterContent}>
             <Stack alignItems="flex-start">
               <Box sx={{ display: "flex" }}>
                 <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
               </Box>
-              <Typography variant="body1" color="#a3abb5">
+              <Typography variant="body1" color="#a3abb5" sx={{ mb: 0 }}>
                 {siteConfig.seo.description}
               </Typography>
               <NewsletterSubscription />

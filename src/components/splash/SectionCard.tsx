@@ -65,8 +65,8 @@ export const ArcCard: React.FC = () => {
                 src="/assets/images/op-illustration-ipad-dark.png"
                 alt="Arc logo"
                 width={625}
-                height={685}
-                style={{ objectFit: "contain", width: "auto", height: "685px", borderRadius: "20px" }}
+                height={420}
+                style={{ objectFit: "contain", width: "auto", borderRadius: "20px" }}
               />
             </Box>
 
