@@ -114,13 +114,9 @@ export default function MembersPage() {
     >
       <header className="flex items-center justify-between px-5 pt-5">
         <Link href="/">
-          <CircularProjectIcon color="#fff" />
+          <CircularProjectIcon color="#fff" size={40} />
         </Link>
-        <Link
-          href="/"
-          className="text-sm font-medium"
-          style={{ color: "rgb(197, 197, 210)", textDecoration: "none" }}
-        >
+        <Link href="/" className="text-sm font-medium" style={{ color: "rgb(197, 197, 210)", textDecoration: "none" }}>
           Close
         </Link>
       </header>
