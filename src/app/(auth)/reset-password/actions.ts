@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
 import { getResendClientOptional } from "@/lib/resend";
+import { sanitizeEmail, validatePassword } from "@/lib/security/sanitizer";
 
 interface ValidateTokenResult {
   valid: boolean;
@@ -16,7 +17,14 @@ interface ResetPasswordResult {
 
 export async function validateResetToken(token: string, email: string): Promise<ValidateTokenResult> {
   try {
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
+
+    if (!normalizedEmail) {
+      return {
+        valid: false,
+        message: "Invalid email address",
+      };
+    }
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -72,7 +80,14 @@ export async function validateResetToken(token: string, email: string): Promise<
 
 export async function resetPassword(token: string, email: string, newPassword: string, confirmPassword: string): Promise<ResetPasswordResult> {
   try {
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
+
+    if (!normalizedEmail) {
+      return {
+        success: false,
+        message: "Invalid email address",
+      };
+    }
 
     // Validate passwords match
     if (newPassword !== confirmPassword) {
@@ -83,21 +98,11 @@ export async function resetPassword(token: string, email: string, newPassword: s
     }
 
     // Validate password strength
-    if (newPassword.length < 8) {
+    const passwordValidation = validatePassword(newPassword);
+    if (!passwordValidation.valid) {
       return {
         success: false,
-        message: "Password must be at least 8 characters long",
-      };
-    }
-
-    // Check for at least one number and one letter (basic complexity)
-    const hasLetter = /[a-zA-Z]/.test(newPassword);
-    const hasNumber = /[0-9]/.test(newPassword);
-
-    if (!hasLetter || !hasNumber) {
-      return {
-        success: false,
-        message: "Password must contain at least one letter and one number",
+        message: passwordValidation.errors[0] || "Password does not meet requirements",
       };
     }
 
