@@ -4,13 +4,9 @@ import { prisma } from "@/lib/database/prisma";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { getResendClientOptional } from "@/lib/resend";
+import { sanitizeEmail } from "@/lib/security/sanitizer";
 
-// TODO: Rate limiting store (in production, use Redis)
-const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
-
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX_ATTEMPTS = 3;
-
+// Use centralized rate limiting - removed local store
 interface ForgotPasswordResult {
   success: boolean;
   message: string;
@@ -18,7 +14,14 @@ interface ForgotPasswordResult {
 
 export async function requestPasswordReset(email: string): Promise<ForgotPasswordResult> {
   try {
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = sanitizeEmail(email);
+
+    if (!normalizedEmail) {
+      return {
+        success: false,
+        message: "Please enter a valid email address",
+      };
+    }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,26 +30,6 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
         success: false,
         message: "Please enter a valid email address",
       };
-    }
-
-    // Rate limiting check
-    const now = Date.now();
-    const rateLimit = rateLimitStore.get(normalizedEmail);
-
-    if (rateLimit) {
-      if (now - rateLimit.timestamp < RATE_LIMIT_WINDOW) {
-        if (rateLimit.count >= RATE_LIMIT_MAX_ATTEMPTS) {
-          return {
-            success: false,
-            message: "Too many reset attempts. Please try again later.",
-          };
-        }
-        rateLimit.count++;
-      } else {
-        rateLimitStore.set(normalizedEmail, { count: 1, timestamp: now });
-      }
-    } else {
-      rateLimitStore.set(normalizedEmail, { count: 1, timestamp: now });
     }
 
     // Find user
