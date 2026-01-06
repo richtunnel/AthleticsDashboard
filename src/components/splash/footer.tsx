@@ -1,5 +1,6 @@
 import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material";
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import CopyRight from "../copyright";
 import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
 import { NewsletterSubscription } from "./NewsletterSubscription";
@@ -14,6 +15,8 @@ export interface FooterProps extends Omit<BoxProps, "children"> {
 
 export const Footer: React.FC<FooterProps> = (props) => {
   const { columns = 1, ...rest } = props;
+  const pathname = usePathname();
+  const isHomepage = pathname === "/";
 
   return (
     <Box
@@ -50,12 +53,26 @@ export const Footer: React.FC<FooterProps> = (props) => {
             </Stack>
             <Copyright>{siteConfig.footer.copyright}</Copyright>
             <CopyRight />
-            {/* Social Icons */}
+            {/* Social Icons and Footer Links */}
             <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
               <LayoutFooter />
-            </Stack>
-            <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center" }}>
-              <FooterLink href="/members">members</FooterLink>
+              {isHomepage && (
+                <Link
+                  component={NextLink}
+                  href="/members"
+                  style={{
+                    color: "#a3abb5",
+                    fontSize: "0.875rem",
+                    fontWeight: 400,
+                    textDecoration: "none",
+                    transition: "color 0.2s ease",
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.color = "#ceff77")}
+                  onMouseOut={(e) => (e.currentTarget.style.color = "#a3abb5")}
+                >
+                  members
+                </Link>
+              )}
             </Stack>
           </Stack>
           {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
