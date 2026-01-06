@@ -6,12 +6,37 @@ import { FallInPlace } from "../../components/splash/fall-in-place";
 import { ButtonLink } from "../../components/splash/button-link";
 import { Hero } from "../../components/splash/hero";
 import Image from "next/image";
+import styles from "@/styles/hero.module.css";
 
 export const HeroSection: React.FC = () => {
   return (
     <Box sx={{ position: "relative", overflow: "hidden", padding: "0" }}>
       {/* <BackgroundGradient height="100%" zIndex="-1" /> */}
       <Container maxWidth="xl" sx={{ pt: { xs: 2, lg: 20 }, pb: { xs: 4, lg: 20 } }}>
+        <Box
+          sx={{
+            height: "600px",
+            position: "absolute",
+            display: { xs: "none", lg: "block" },
+            left: { lg: "60%", xl: "55%" },
+            width: "80vw",
+            maxWidth: "1100px",
+            margin: "0 auto",
+            borderRadius: "20px",
+          }}
+        >
+          <FallInPlace delay={1}>
+            <Box
+              sx={{
+                overflow: "hidden",
+                height: "100%",
+                borderRadius: "20px",
+              }}
+            >
+              <Image src="/assets/images/gtable3.png" width={1400} height={762} alt="Opletics Dashboard" quality="75" priority />
+            </Box>
+          </FallInPlace>
+        </Box>
         <Stack direction={{ xs: "column", lg: "row" }} alignItems="center">
           <Hero
             id="home"
@@ -85,6 +110,27 @@ export const HeroSection: React.FC = () => {
               maxWidth: "1100px",
               margin: "0 auto",
               borderRadius: "20px",
+            }}
+          >
+            <FallInPlace delay={1}>
+              <Box
+                sx={{
+                  overflow: "hidden",
+                  height: "100%",
+                  borderRadius: "20px",
+                }}
+              >
+                <Image src="/assets/images/gtable3.png" width={1400} height={762} alt="Opletics Dashboard" quality="75" priority />
+              </Box>
+            </FallInPlace>
+          </Box>
+          <Box
+            className={styles.laptopImageContainer}
+            sx={{
+              position: "relative",
+              width: "80vw",
+              maxWidth: "1100px",
+              margin: "0 auto",
             }}
           >
             <FallInPlace delay={1}>
