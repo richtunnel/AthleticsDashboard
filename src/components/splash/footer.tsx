@@ -21,6 +21,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
 
   return (
     <Box
+      className={styles.SpashFooterBoxWrapper}
       sx={{
         bgcolor: "#0e1125",
         color: "#a3abb5",
@@ -34,6 +35,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
     >
       <Container maxWidth="xl" sx={{ px: 0, py: 4, color: "#a3abb5" }}>
         <Box
+          className={styles.SpashFooterBoxContainer}
           sx={{
             display: "grid",
             gridTemplateColumns: `repeat(${columns}, 1fr)`,
@@ -43,7 +45,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
         >
           <PartnerBuildSectionFooter />
           <Stack spacing={4} className={styles.bottomFooterContent}>
-            <Stack alignItems="flex-start">
+            <Stack sx={{ alignItems: { xs: "center" } }} alignItems="flex-start">
               <Box sx={{ display: "flex" }}>
                 <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
               </Box>
