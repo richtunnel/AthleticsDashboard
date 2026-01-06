@@ -24,7 +24,7 @@ export const HeroSection: React.FC = () => {
                   variant="h2"
                   component="h1"
                   sx={{
-                    fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem", lg: "3.5rem" },
+                    fontSize: { xs: "2.5rem", sm: "2.5rem", md: "3rem", lg: "3.5rem" },
                     lineHeight: 1.2,
                     fontWeight: 700,
                     maxWidth: "600px",
@@ -81,7 +81,7 @@ export const HeroSection: React.FC = () => {
               height: { xs: "320px", md: "420px", lg: "600px" },
               position: { xs: "relative", md: "absolute" },
               display: { xs: "block", lg: "block" },
-              left: { xs: "100%", lg: "60%", xl: "55%" },
+              left: { xs: "0", lg: "60%", xl: "55%" },
               width: { xs: "100vw", md: "80vw" },
               maxWidth: "1100px",
               margin: "0 auto",

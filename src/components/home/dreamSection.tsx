@@ -64,6 +64,7 @@ const DreamSection = () => {
             sx={{
               fontWeight: 700,
               mb: 3,
+              textAlign: { xs: "center" },
               fontSize: { xs: "2rem", md: "3rem", lg: "3.5rem" },
               lineHeight: 1.2,
               color: theme.palette.text.primary,
