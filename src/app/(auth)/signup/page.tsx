@@ -33,6 +33,7 @@ function SignupForm() {
   }, [status, session, router, callbackUrl]);
 
   const googleAuth = useAuthButton({
+    callbackUrl,
     onError: (err) => setError(err),
   });
 
@@ -104,10 +105,9 @@ function SignupForm() {
   const handleGoogleSignup = async () => {
     setError("");
     try {
-      const consentUrl = `/onboarding/google-consent?mode=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`;
-      await googleAuth.executeAction({
-        type: "navigation",
-        navigationPath: consentUrl,
+      await googleAuth.executeAction({ 
+        type: "google",
+        authorizationParams: { prompt: "select_account consent" }
       });
     } catch (error) {
       // Error handled by onError callback
