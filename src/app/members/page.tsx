@@ -47,11 +47,13 @@ export default function MembersPage() {
     setAttempts(storedAttempts);
   }, [router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [router, status]);
+  // Remove the redirect for authenticated users to allow access to members page
+  // while logged in
+  // useEffect(() => {
+  //   if (status === "authenticated") {
+  //     router.replace("/dashboard");
+  //   }
+  // }, [router, status]);
 
   const attemptsRemaining = useMemo(() => Math.max(0, MAX_ATTEMPTS - attempts), [attempts]);
 
