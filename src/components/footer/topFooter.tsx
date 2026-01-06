@@ -29,7 +29,7 @@ export default function TopFooter() {
             display: "flex",
             alignItems: "center",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           <FaInstagram />
@@ -45,7 +45,7 @@ export default function TopFooter() {
             display: "flex",
             alignItems: "center",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           <FaFacebook />
@@ -61,7 +61,7 @@ export default function TopFooter() {
             display: "flex",
             alignItems: "center",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           <FaXTwitter />
@@ -79,7 +79,7 @@ export default function TopFooter() {
             textDecoration: "none",
             transition: "color 0.2s ease",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           About Us
@@ -95,7 +95,7 @@ export default function TopFooter() {
             textDecoration: "none",
             transition: "color 0.2s ease",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           Terms
@@ -111,7 +111,7 @@ export default function TopFooter() {
             textDecoration: "none",
             transition: "color 0.2s ease",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           Privacy
@@ -127,7 +127,7 @@ export default function TopFooter() {
             textDecoration: "none",
             transition: "color 0.2s ease",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           Disclaimer
@@ -144,7 +144,7 @@ export default function TopFooter() {
             alignItems: "center",
             gap: "0.25rem",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
           Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
