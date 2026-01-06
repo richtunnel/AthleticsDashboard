@@ -1,0 +1,16 @@
+@media all and (max-width: 657px) {
+  .laptopImageContainer {
+    display: none !important;
+  }
+}
+
+@media all and (max-width: 656px) {
+  .heroBoxContainer {
+  }
+  .laptopImageContainer {
+    display: block !important;
+    min-height: 380px;
+    width: 100vw;
+    left: unset !important;
+  }
+}
