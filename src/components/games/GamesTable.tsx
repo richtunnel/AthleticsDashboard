@@ -6463,6 +6463,9 @@ export function GamesTable() {
               bgcolor: (theme) => alpha(theme.palette.primary.main, 0.2) + " !important",
             },
           },
+          // Dark mode: dim the row borders (using alpha to make them more subtle)
+          borderTop: (theme) => (theme.palette.mode === "dark" ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.action.hover : theme.palette.divider}` : 'none'),
+          borderBottom: (theme) => (theme.palette.mode === "dark" ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.action.hover : theme.palette.divider}` : 'none'),
         }}
       >
         <TableCell padding="checkbox">
