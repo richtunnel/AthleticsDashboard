@@ -102,11 +102,11 @@ export const HeroSection: React.FC = () => {
           </Hero>
           <Box
             sx={{
-              height: "600px",
-              position: "absolute",
-              display: { xs: "none", lg: "block" },
-              left: { lg: "60%", xl: "55%" },
-              width: "80vw",
+              height: { xs: "320px", md: "420px", lg: "600px" },
+              position: { xs: "relative", md: "absolute" },
+              display: { xs: "block", lg: "block" },
+              left: { xs: "100%", lg: "60%", xl: "55%" },
+              width: { xs: "100vw", md: "80vw" },
               maxWidth: "1100px",
               margin: "0 auto",
               borderRadius: "20px",
@@ -124,7 +124,7 @@ export const HeroSection: React.FC = () => {
               </Box>
             </FallInPlace>
           </Box>
-          <Box
+          {/* <Box
             className={styles.laptopImageContainer}
             sx={{
               position: "relative",
@@ -145,7 +145,7 @@ export const HeroSection: React.FC = () => {
                 <Image src="/assets/images/gtable3.png" width={1400} height={762} alt="Opletics Dashboard" quality="75" priority />
               </Box>
             </FallInPlace>
-          </Box>
+          </Box> */}
         </Stack>
       </Container>
     </Box>
