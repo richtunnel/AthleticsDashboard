@@ -61,6 +61,7 @@ export const ArcCard: React.FC = () => {
               }}
             >
               <Image
+                className={styles.ipadImage}
                 src="/assets/images/op-illustration-ipad-dark.png"
                 alt="Arc logo"
                 width={625}

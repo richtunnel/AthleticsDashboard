@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import { usePathname } from "next/navigation";
+import NextLink from "next/link";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
 export default function Footer() {
+  const pathname = usePathname();
+  const isHomepage = pathname === "/";
   return (
     <footer
       style={{
@@ -132,7 +136,7 @@ export default function Footer() {
         >
           Disclaimer
         </Link>
-        <Link
+        <a
           href="/support"
           style={{
             color: "var(--text-secondary)",
@@ -146,9 +150,27 @@ export default function Footer() {
           }}
           onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
-        </Link>
+        </a>
+        {isHomepage && (
+          <Link
+            href="/members"
+            style={{
+              color: "#a3abb5",
+              fontSize: "0.875rem",
+              fontWeight: 400,
+              textDecoration: "none",
+              transition: "color 0.2s ease",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.color = "#ceff77")}
+            onMouseOut={(e) => (e.currentTarget.style.color = "#a3abb5")}
+          >
+            members
+          </Link>
+        )}
       </div>
       {/* <div>
         <span
