@@ -10,6 +10,7 @@ import BaseHeader from "@/components/headers/_base";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import Footer from "@/components/layout/Footer";
+import TopFooter from "@/components/footer/topFooter";
 
 function SignupForm() {
   const searchParams = useSearchParams();
@@ -42,9 +43,9 @@ function SignupForm() {
   const handleGoogleLogin = async () => {
     setError("");
     try {
-      await googleAuth.executeAction({ 
+      await googleAuth.executeAction({
         type: "google",
-        authorizationParams: { prompt: "select_account consent" }
+        authorizationParams: { prompt: "select_account consent" },
       });
     } catch (error) {
       // Error handled by onError callback
@@ -136,7 +137,7 @@ function SignupForm() {
           Sign up with Google
         </AuthActionButton>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
-          If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in” even if you deleted your Opletics account.
+          If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in”.
         </Typography>
         <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled sx={{ mb: 2 }}>
           Sign up with Microsoft
@@ -187,7 +188,7 @@ function SignupForm() {
           </Button>
         </Typography>
       </Box>
-      <Footer />
+      <TopFooter />
     </Box>
   );
 }

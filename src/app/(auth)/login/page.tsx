@@ -10,6 +10,7 @@ import { useAuthButton } from "@/lib/hooks/useAuthButton";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
+import TopFooter from "@/components/footer/topFooter";
 
 function LoginForm() {
   const router = useRouter();
@@ -80,8 +81,8 @@ function LoginForm() {
     try {
       // For sign-in, directly trigger Google OAuth without consent page
       // Existing users don't need to see calendar permissions explanation again
-      await googleAuth.executeAction({ 
-        type: "google"
+      await googleAuth.executeAction({
+        type: "google",
       });
     } catch (error) {
       // Error already handled by onError callback
@@ -181,7 +182,7 @@ function LoginForm() {
           </Paper>
         </Box>
       </Container>
-      <Footer />
+      <TopFooter />
     </Box>
   );
 }
