@@ -18,6 +18,7 @@ interface AuthActionParams {
   };
   navigationPath?: string;
   customAction?: () => Promise<void>;
+  authorizationParams?: Record<string, string>;
 }
 
 export function useAuthButton(options: UseAuthButtonOptions = {}) {
@@ -36,7 +37,7 @@ export function useAuthButton(options: UseAuthButtonOptions = {}) {
           case "google":
           case "azure-ad":
             // For OAuth providers, signIn redirects automatically
-            await signIn(type, { callbackUrl });
+            await signIn(type, { callbackUrl }, params.authorizationParams);
             // If we reach here without redirect, keep loading state
             break;
 
