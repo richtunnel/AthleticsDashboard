@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+import CloseIcon from "@mui/icons-material/Close";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
@@ -117,7 +118,7 @@ export default function MembersPage() {
           <CircularProjectIcon color="#fff" size={40} />
         </Link>
         <Link href="/" className="text-sm font-medium" style={{ color: "rgb(197, 197, 210)", textDecoration: "none" }}>
-          Close
+          <CloseIcon sx={{ color: "rgb(197, 197, 210)" }} />
         </Link>
       </header>
 
