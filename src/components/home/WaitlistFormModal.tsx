@@ -76,7 +76,22 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          height: { xs: "100%", sm: "auto" },
+          maxHeight: { xs: "100%", sm: "none" },
+          width: { xs: "100%", sm: "90%" },
+          margin: { xs: 0, sm: "auto" },
+          borderRadius: { xs: 0, sm: 2 },
+        },
+      }}
+    >
       <DialogTitle>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
