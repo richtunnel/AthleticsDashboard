@@ -15,7 +15,7 @@ export function ConnectCalendarButton({ isConnected }: ConnectCalendarButtonProp
   const error = searchParams.get("error");
 
   const handleConnect = () => {
-    window.location.href = "/api/auth/calendar-connect";
+    window.location.href = "/api/auth/calendar-connect?returnTo=/dashboard/gsync";
   };
 
   return (
