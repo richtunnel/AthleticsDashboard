@@ -302,11 +302,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                 Year
               </Typography>
               <FormControl size="small" fullWidth>
-                <Select
-                  value={selectedYear}
-                  onChange={(e) => handleYearChange(e.target.value as number)}
-                  disabled={loading}
-                >
+                <Select value={selectedYear} onChange={(e) => handleYearChange(e.target.value as number)} disabled={loading}>
                   {generateYearOptions().map((year) => (
                     <MenuItem key={year} value={year}>
                       {year}
@@ -423,7 +419,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               <Divider />
 
               {/* AI Interpretation & Recommendation */}
-              {(result.debug.interpretation || result.debug.recommendation) && (
+              {/* {(result.debug.interpretation || result.debug.recommendation) && (
                 <Alert
                   severity="success"
                   icon={<AutoAwesome />}
@@ -444,7 +440,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     </Typography>
                   )}
                 </Alert>
-              )}
+              )} */}
 
               {/* Matched Teams Info */}
               {result.debug.matchedClusters.length > 0 && (
@@ -690,7 +686,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                             Date Range Filter:
                           </Typography>
                           <Typography variant="caption" display="block">
-                            {result.debug.dateRange.months && `Months: ${result.debug.dateRange.months.join(', ')}`}
+                            {result.debug.dateRange.months && `Months: ${result.debug.dateRange.months.join(", ")}`}
                             {result.debug.dateRange.month && !result.debug.dateRange.months && `Month: ${result.debug.dateRange.month}`}
                             {result.debug.dateRange.start && ` Start: ${result.debug.dateRange.start}`}
                             {result.debug.dateRange.end && ` End: ${result.debug.dateRange.end}`}
