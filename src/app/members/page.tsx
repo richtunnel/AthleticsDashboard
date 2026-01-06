@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
@@ -111,16 +112,21 @@ export default function MembersPage() {
         color: "rgb(197, 197, 210)",
       }}
     >
-      <div className="flex-1 flex items-center justify-center px-5 py-14">
-        <div className="w-full max-w-xl relative">
-          <Link
-            href="/"
-            className="absolute right-0 -top-10 text-sm font-medium"
-            style={{ color: "rgb(197, 197, 210)", textDecoration: "none" }}
-          >
-            Close
-          </Link>
+      <header className="flex items-center justify-between px-5 pt-5">
+        <Link href="/">
+          <CircularProjectIcon color="#fff" />
+        </Link>
+        <Link
+          href="/"
+          className="text-sm font-medium"
+          style={{ color: "rgb(197, 197, 210)", textDecoration: "none" }}
+        >
+          Close
+        </Link>
+      </header>
 
+      <div className="flex-1 flex items-center justify-center px-5 py-14">
+        <div className="w-full max-w-xl">
           <div className="text-center">
             <h1 className="text-5xl font-semibold tracking-tight">Howdy!</h1>
             <p className="mt-4 text-lg" style={{ color: "rgb(197, 197, 210)" }}>
