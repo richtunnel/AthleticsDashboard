@@ -345,8 +345,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       display: "flex",
                       alignItems: "center",
                       whiteSpace: "nowrap",
-                      bgcolor: isActive ? "transparent" : "transparent", // Remove action.selected
-                      boxShadow: isActive ? "none" : "none", // Explicitly remove any shadow
+                      bgcolor: "transparent",
+                      boxShadow: "none",
                       transition: "color 0.2s ease, background-color 0.2s ease",
                       "&::after": {
                         content: '""',
@@ -361,7 +361,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       },
                       "&:hover": {
                         color: "primary.main",
-                        bgcolor: "action.hover",
+                        bgcolor: (theme) => (theme.palette.mode === "dark" ? "transparent" : "action.hover"),
                         textDecoration: "none",
                         "&::after": {
                           backgroundColor: "primary.main",
