@@ -38,6 +38,11 @@
   height: 100%;
 }
 
+.ipadImage {
+  height: 685px;
+  width: auto;
+}
+
 .homeHeaderContainer {
   display: flex;
   justify-content: space-between;
@@ -294,6 +299,10 @@
     text-align: left;
   }
 
+  .ipadImage {
+    height: 420px !important;
+  }
+
   .heroTitle {
     margin-bottom: 0 !important;
   }
@@ -304,7 +313,7 @@
   }
 
   .newSectionTitle {
-    font-size: 1.5rem !important;
+    font-size: 2rem !important;
   }
 }
 

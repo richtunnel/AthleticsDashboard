@@ -5,6 +5,7 @@ import { FaInstagram, FaFacebook } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { usePathname } from "next/navigation";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import styles from "@/styles/footer.module.css";
 
 export default function Footer() {
   const pathname = usePathname();
@@ -19,6 +20,7 @@ export default function Footer() {
         alignItems: "left",
         marginTop: "0",
       }}
+      className={styles.SplashFooterCTA}
     >
       <div style={{ display: "flex", gap: "1rem", alignItems: "left" }}>
         <a
@@ -70,7 +72,7 @@ export default function Footer() {
           <FaXTwitter />
         </a>
       </div>
-      <div style={{ display: "flex", gap: "1rem", alignItems: "left", flexWrap: "wrap", justifyContent: "left" }}>
+      <div className={styles.SplashFooterLinks} style={{ display: "flex", gap: "1rem", alignItems: "left", flexWrap: "wrap", justifyContent: "left" }}>
         <Link
           href="/about"
           target="_blank"
