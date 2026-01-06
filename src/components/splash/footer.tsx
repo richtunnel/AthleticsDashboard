@@ -45,7 +45,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
         >
           <PartnerBuildSectionFooter />
           <Stack spacing={4} className={styles.bottomFooterContent}>
-            <Stack sx={{ alignItems: { xs: "center", md: "left" } }} alignItems="flex-start">
+            <Stack sx={{ alignItems: { xs: "center", md: "flex-start", lg: "flex-start" } }} alignItems="flex-start">
               <Box sx={{ display: "flex" }}>
                 <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
               </Box>
