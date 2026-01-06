@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
+import { encode as defaultJwtEncode, decode as defaultJwtDecode } from "next-auth/jwt";
 import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
@@ -12,10 +13,17 @@ import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.s
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame, hasSampleGames } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
+import {
+  MEMBER_ACCESS_EMAIL,
+  MEMBER_ACCESS_ORG_ID,
+  MEMBER_SESSION_MAX_AGE_MS,
+  getMemberAccessExpiresAtMs,
+  isMemberAccessCodeDisabled,
+  isMemberAccessToken,
+  normalizeMemberAccessCode,
+} from "@/lib/utils/memberAccess";
 
-const MEMBER_ACCESS_CODE = "opletics25";
-const MEMBER_ACCESS_ORG_ID = "members-org-opletics25";
-const MEMBER_ACCESS_EMAIL = "members+opletics25@opletics.com";
+const MEMBER_ACCESS_CODE = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "opletics25";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -234,9 +242,17 @@ export const authOptions: NextAuthOptions = {
         code: { label: "Member Code", type: "text" },
       },
       async authorize(credentials) {
-        const code = credentials?.code?.trim().toLowerCase();
+        const code = normalizeMemberAccessCode(credentials?.code);
 
-        if (!code || code !== MEMBER_ACCESS_CODE) {
+        if (!code) {
+          throw new Error("Invalid member code");
+        }
+
+        if (isMemberAccessCodeDisabled(code)) {
+          throw new Error("Member code deactivated");
+        }
+
+        if (code !== MEMBER_ACCESS_CODE) {
           throw new Error("Invalid member code");
         }
 
@@ -291,6 +307,8 @@ export const authOptions: NextAuthOptions = {
           await createInitialColumnPreferences(user.id);
         }, `member access bootstrap for user ${user.id}`);
 
+        const issuedAt = Date.now();
+
         return {
           id: user.id,
           email: user.email,
@@ -303,6 +321,9 @@ export const authOptions: NextAuthOptions = {
           googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
           googleCalendarEmail: user.googleCalendarEmail ?? undefined,
+          memberAccessCode: code,
+          memberAccessIssuedAt: issuedAt,
+          memberAccessExpiresAt: issuedAt + MEMBER_SESSION_MAX_AGE_MS,
         };
       },
     }),
@@ -397,6 +418,14 @@ export const authOptions: NextAuthOptions = {
         session.user.calendarTokenExpiry = token.calendarTokenExpiry;
         session.user.googleCalendarEmail = token.googleCalendarEmail;
       }
+
+      if (isMemberAccessToken(token)) {
+        const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
+        if (memberExpiresAtMs) {
+          session.expires = new Date(memberExpiresAtMs).toISOString();
+        }
+      }
+
       return session;
     },
 
@@ -491,6 +520,24 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      const nowMs = Date.now();
+
+      if (account?.provider === "member-code" || (user as any)?.memberAccessCode) {
+        const issuedAtMs = typeof (user as any)?.memberAccessIssuedAt === "number" ? (user as any).memberAccessIssuedAt : nowMs;
+        token.memberAccessCode = normalizeMemberAccessCode((user as any)?.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+        token.memberAccessIssuedAt = issuedAtMs;
+        token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
+      } else if (isMemberAccessToken(token)) {
+        const issuedAtMs = typeof token.memberAccessIssuedAt === "number" ? token.memberAccessIssuedAt : typeof token.iat === "number" ? token.iat * 1000 : nowMs;
+        token.memberAccessIssuedAt = issuedAtMs;
+        token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
+        token.memberAccessCode = normalizeMemberAccessCode(token.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+      }
+
+      if (isMemberAccessToken(token) && isMemberAccessCodeDisabled(token.memberAccessCode ?? MEMBER_ACCESS_CODE)) {
+        token.memberAccessExpiresAt = nowMs - 1000;
+      }
+
       return token;
     },
 
@@ -534,6 +581,22 @@ export const authOptions: NextAuthOptions = {
       } catch {
         return baseUrl;
       }
+    },
+  },
+
+  jwt: {
+    async encode(params) {
+      const expiresAtMs = typeof (params.token as any)?.memberAccessExpiresAt === "number" ? (params.token as any).memberAccessExpiresAt : null;
+
+      if (expiresAtMs) {
+        const remainingSeconds = Math.max(0, Math.floor(expiresAtMs / 1000 - Date.now() / 1000));
+        return defaultJwtEncode({ ...params, maxAge: remainingSeconds } as any);
+      }
+
+      return defaultJwtEncode(params as any);
+    },
+    async decode(params) {
+      return defaultJwtDecode(params as any);
     },
   },
 
