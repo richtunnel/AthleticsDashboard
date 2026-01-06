@@ -240,6 +240,41 @@
   }
 }
 
+@media all and (min-width: 728px) and (max-width: 1023px) {
+  .mobileSpreadsheetContainer {
+    width: 800px;
+  }
+
+  .heroTitle {
+    margin-bottom: 0;
+  }
+
+  .logo_mobile-hero-section {
+    text-align: center;
+  }
+
+  .fullHeightMobileHero {
+    min-height: 761px;
+    background: #000;
+  }
+
+  .border-radius {
+    border-radius: 0;
+  }
+
+  .mobileHeroContainer {
+  }
+
+  .ipadImage {
+    height: 420px;
+  }
+
+  .mobile-hero-section {
+    min-width: 100%;
+    text-align: center;
+  }
+}
+
 @media all and (min-width: 1168px) {
   .homePageContentContainer {
     position: relative;
@@ -256,6 +291,10 @@
   .homePageContentContainer {
     justify-content: flex-start;
     text-align: left;
+  }
+
+  .heroTitle {
+    margin-bottom: 0 !important;
   }
 
   .mobile-hero-section {

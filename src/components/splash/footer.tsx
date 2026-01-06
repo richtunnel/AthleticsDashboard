@@ -56,23 +56,6 @@ export const Footer: React.FC<FooterProps> = (props) => {
             {/* Social Icons and Footer Links */}
             <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
               <LayoutFooter />
-              {isHomepage && (
-                <Link
-                  component={NextLink}
-                  href="/members"
-                  style={{
-                    color: "#a3abb5",
-                    fontSize: "0.875rem",
-                    fontWeight: 400,
-                    textDecoration: "none",
-                    transition: "color 0.2s ease",
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.color = "#ceff77")}
-                  onMouseOut={(e) => (e.currentTarget.style.color = "#a3abb5")}
-                >
-                  members
-                </Link>
-              )}
             </Stack>
           </Stack>
           {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
