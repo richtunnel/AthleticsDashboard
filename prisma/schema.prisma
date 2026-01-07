@@ -45,6 +45,8 @@ model User {
   aiSchedulerEnabled         Boolean   @default(false) // Enable/disable AI-powered scheduling suggestions
   aiTravelTimesEnabled       Boolean   @default(false) // Enable/disable AI-powered travel time calculations with traffic and weather
   aiEmailGenerationEnabled   Boolean   @default(false) // Enable/disable AI-powered email generation
+  costBudgetEnabled          Boolean   @default(false) // Enable/disable Cost & Budget calculator
+  monthlyBudget              Float?    // Monthly budget for cost tracking
   signaturePhone             String? // Phone number for email signature
   signatureWebsite           String? // Website/link for email signature
   signatureLogoUrl           String? // Logo URL for email signature (max 120px recommended)
@@ -213,6 +215,7 @@ model Game {
   departureTime            DateTime?
   busCount                 Int?
   travelCost               Float?
+  cost                     Float? // General cost for cost & budget tracking
   // AI Travel Recommendations
   recommendedDepartureTime DateTime?
   recommendedArrivalTime   DateTime?
