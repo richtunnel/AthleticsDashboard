@@ -125,7 +125,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
       <Card sx={{ boxShadow: "none", maxWidth: { xs: "100%", md: 900 } }}>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, minWidth: "700px" }}>
+            <Box sx={{ minWidth: { lg: "700px" }, display: "flex", flexDirection: "column", gap: 3 }}>
               {/* Name Field */}
               <TextField
                 label="Name"
