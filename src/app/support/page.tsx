@@ -40,7 +40,6 @@ export default async function PublicFeedbackPage() {
 
           <SupportFeedbackForm mode="support" userName={getFirstName(session?.user?.name) || ""} userEmail={session?.user?.email || ""} isPublic={!session?.user} />
         </Box>
-        <Footer />
       </Box>
     </>
   );
