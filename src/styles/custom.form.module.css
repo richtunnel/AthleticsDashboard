@@ -2,7 +2,7 @@
   padding: 10px;
 }
 
-@media all and (min-width: 665px) {
+@media all and (min-width: 728px) {
   .supportContainer {
     min-width: 600px !important;
   }
@@ -11,5 +11,13 @@
 @media all and (max-width: 768px) {
   .supportContainer {
     width: 100% !important;
+    padding: 24px 8px;
+  }
+}
+
+@media all and (max-width: 565px) {
+  .supportContainer {
+    width: 100% !important;
+    padding: 24px 8px;
   }
 }
