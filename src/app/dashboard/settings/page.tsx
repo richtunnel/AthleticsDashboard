@@ -19,7 +19,9 @@ import { CalendarConnectionSection } from "@/components/settings/CalendarConnect
 import UpgradePlanCard from "@/components/settings/UpgradePlanCard";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { SupportCard } from "@/components/settings/SupportCard";
-import { Assistant, AutoAwesome } from "@mui/icons-material";
+import { CostBudgetToggle } from "@/components/settings/CostBudgetToggle";
+import { CostBudgetTab } from "@/components/settings/CostBudgetTab";
+import { Assistant, AutoAwesome, AttachMoney } from "@mui/icons-material";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -135,6 +137,25 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         <EmailLimitsCard />
       </Box>
+
+      {/* Cost & Budget Calculator Section */}
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            <AttachMoney sx={{ color: "text.secondary" }} /> Cost & Budget Calculator
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Track and manage costs for your games. Set a monthly budget and monitor expenses throughout the season.
+          </Typography>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <CostBudgetToggle />
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Cost & Budget Analysis Tab - Shown when enabled */}
+      <CostBudgetTab />
 
       {/* Billing & Subscription Card */}
       <SubscriptionOverviewCard
