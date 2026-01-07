@@ -19,7 +19,8 @@ import { ConflictDetectionModal } from "./ConflictDetectionModal";
 import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock } from "@mui/icons-material";
+import { CostModal } from "./CostModal";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -201,6 +202,7 @@ interface Game {
   actualArrivalTime: string | null;
   calendarSynced?: boolean;
   googleCalendarEventId?: string | null;
+  cost?: number | null; // Cost for cost & budget tracking
   customFields?: Record<string, any>; // For imported CSV columns
   homeTeam: {
     id?: string;
@@ -537,6 +539,14 @@ export function GamesTable() {
     currentAddress?: string;
   } | null>(null);
 
+  // Cost Modal state (for Cost custom column)
+  const [costModal, setCostModal] = useState<{
+    open: boolean;
+    gameId: string;
+    gameName: string;
+    currentCost?: number | null;
+  } | null>(null);
+
   // Unsync confirmation dialog state
   const [unsyncDialogOpen, setUnsyncDialogOpen] = useState(false);
   const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
@@ -782,6 +792,19 @@ export function GamesTable() {
   });
 
   const aiTravelTimesEnabled = aiTravelTimesResponse?.aiTravelTimesEnabled ?? false;
+
+  // Fetch Cost & Budget setting
+  const { data: costBudgetResponse } = useQuery({
+    queryKey: ["costBudgetEnabled"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/cost-budget");
+      if (!res.ok) throw new Error("Failed to fetch Cost & Budget setting");
+      return res.json();
+    },
+  });
+
+  const costBudgetEnabled = costBudgetResponse?.costBudgetEnabled ?? false;
+  const monthlyBudget = costBudgetResponse?.monthlyBudget ?? null;
 
   const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
   const customColumnsMap = useMemo(() => {
@@ -3479,6 +3502,31 @@ export function GamesTable() {
     }
   };
 
+  const handleSaveCost = async (cost: number) => {
+    if (!costModal) return;
+
+    const { gameId } = costModal;
+
+    try {
+      const response = await fetch(`/api/games/${gameId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cost: cost === 0 ? null : cost }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save cost");
+      }
+
+      // Refresh games data and cost budget data
+      await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ["costBudgetEnabled"] });
+      addNotification("Cost saved successfully", "success");
+    } catch (error: any) {
+      addNotification(error.message || "Failed to save cost", "error");
+    }
+  };
+
   const handleColumnFilterChange = useCallback(
     (columnId: string, filter: ColumnFilterValue | null) => {
       // Clear preserved games when user manually applies a filter
@@ -4561,6 +4609,20 @@ export function GamesTable() {
           const customColumn = column.customColumn as CustomColumn;
           const customId = customColumn?.id || column.id.split(":")[1];
           const columnType = customColumn?.type || "TEXT";
+
+          // Check if this is "Cost" column (case-insensitive)
+          const isCostColumn = customColumn?.name && /^cost$/i.test(customColumn.name.trim());
+
+          // Special rendering for Cost column with Cost & Budget feature
+          if (isCostColumn && costBudgetEnabled) {
+            return (
+              <TableCell key={column.id} sx={{ py: 1, minWidth: 150, textAlign: "center" }}>
+                <Typography variant="body2" sx={{ fontSize: 13, color: "text.secondary", fontStyle: "italic" }}>
+                  Add cost
+                </Typography>
+              </TableCell>
+            );
+          }
 
           // If this custom column is TIME type, render a time input
           if (columnType === "TIME") {
@@ -6048,6 +6110,51 @@ export function GamesTable() {
           // Check if this is the "Travel Time" column (case-insensitive)
           const isTravelTimeColumn = customColumn?.name && /^travel time$/i.test(customColumn.name.trim());
 
+          // Check if this is the "Cost" column (case-insensitive)
+          const isCostColumn = customColumn?.name && /^cost$/i.test(customColumn.name.trim());
+
+          // Special rendering for Cost column with Cost & Budget feature
+          if (isCostColumn && costBudgetEnabled) {
+            const gameCost = game.cost || null;
+
+            return (
+              <TableCell
+                key={column.id}
+                sx={{
+                  py: 1,
+                  minWidth: 150,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "action.hover",
+                  },
+                }}
+                onClick={() => {
+                  const opponentName = game.opponent?.name || "TBD";
+                  const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
+                  setCostModal({
+                    open: true,
+                    gameId: game.id,
+                    gameName,
+                    currentCost: gameCost,
+                  });
+                }}
+              >
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 0.5 }}>
+                  {gameCost !== null ? (
+                    <Typography variant="body2" sx={{ fontSize: 13, fontWeight: 500 }}>
+                      ${gameCost.toFixed(2)}
+                    </Typography>
+                  ) : (
+                    <Typography variant="body2" sx={{ fontSize: 13, color: "text.secondary", fontStyle: "italic" }}>
+                      Add cost
+                    </Typography>
+                  )}
+                </Box>
+              </TableCell>
+            );
+          }
+
           // Special rendering for Travel Time column with Enhanced Travel Times
           if (isTravelTimeColumn && aiTravelTimesEnabled) {
             // Read data from customFields (where enhanced travel time feature stores data)
@@ -7237,6 +7344,20 @@ export function GamesTable() {
           gameName={travelTimeModal.gameName}
           columnName={travelTimeModal.columnName}
           onSave={handleSaveTravelTime}
+        />
+      )}
+
+      {/* Cost Modal for Cost custom column */}
+      {costModal && (
+        <CostModal
+          open={costModal.open}
+          onClose={() => setCostModal(null)}
+          gameId={costModal.gameId}
+          gameName={costModal.gameName}
+          currentCost={costModal.currentCost}
+          onSave={handleSaveCost}
+          allGamesCosts={response?.data?.games?.reduce((sum: number, game: any) => sum + (game.cost || 0), 0) || 0}
+          monthlyBudget={monthlyBudget}
         />
       )}
 
