@@ -45,6 +45,7 @@ model User {
   aiSchedulerEnabled         Boolean   @default(false) // Enable/disable AI-powered scheduling suggestions
   aiTravelTimesEnabled       Boolean   @default(false) // Enable/disable AI-powered travel time calculations with traffic and weather
   aiEmailGenerationEnabled   Boolean   @default(false) // Enable/disable AI-powered email generation
+  scoreTrackerEnabled       Boolean   @default(false) // Enable/disable Score Tracker functionality
   costBudgetEnabled          Boolean   @default(false) // Enable/disable Cost & Budget calculator
   monthlyBudget              Float?    // Monthly budget for cost tracking
   signaturePhone             String? // Phone number for email signature
