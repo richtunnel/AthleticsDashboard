@@ -275,62 +275,62 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
 
       <DialogContent>
         <Stack spacing={3}>
-          {/* Configuration Accordion */}
-          <Accordion 
-            expanded={showConfiguration} 
-            onChange={() => setShowConfiguration(!showConfiguration)}
-            sx={{
-              boxShadow: 'none',
-              '&:before': { display: 'none' },
-              '&.Mui-expanded': { margin: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<ExpandMore />}
-              aria-controls="configuration-content"
-              id="configuration-header"
+          <Stack spacing={3}>
+            {/* Search Input */}
+            <Box>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="e.g., 'Find me open days for girls varsity soccer 3 days apart.'"
+                value={prompt}
+                onChange={(e) => handlePromptChange(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+                variant="outlined"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: 2,
+                  },
+                }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                Try: "Give me some dates for girls varsity soccer at least 4 days apart"
+              </Typography>
+            </Box>
+
+            {/* Configuration Accordion */}
+            <Accordion
+              expanded={showConfiguration}
+              onChange={() => setShowConfiguration(!showConfiguration)}
               sx={{
-                minHeight: 56,
-                '&.Mui-expanded': { minHeight: 56 },
-                borderRadius: 1,
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                '&:hover': {
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-                },
+                boxShadow: "none",
+                "&:before": { display: "none" },
+                "&.Mui-expanded": { margin: 0 },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Settings sx={{ color: 'primary.main', fontSize: 20 }} />
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  Configuration & Search Settings
-                </Typography>
-              </Box>
-            </AccordionSummary>
-            <AccordionDetails sx={{ p: 0, pt: 2 }}>
-              <Stack spacing={3}>
-                {/* Search Input */}
-                <Box>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    placeholder="e.g., 'What are some good dates for Boys Varsity Basketball in December? Try to find ones at least 3 days apart.'"
-                    value={prompt}
-                    onChange={(e) => handlePromptChange(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={loading}
-                    variant="outlined"
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        borderRadius: 2,
-                      },
-                    }}
-                  />
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                    Try: "Find open slots for B V Basketball in Dec, not on same days as G JV VB" • "Give me some dates for varsity soccer at least 4 days apart"
+              <AccordionSummary
+                expandIcon={<ExpandMore />}
+                aria-controls="configuration-content"
+                id="configuration-header"
+                sx={{
+                  minHeight: 56,
+                  "&.Mui-expanded": { minHeight: 56 },
+                  borderRadius: 1,
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                  "&:hover": {
+                    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+                  },
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Settings sx={{ color: "primary.main", fontSize: 20 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Search Settings
                   </Typography>
                 </Box>
-
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0, pt: 2 }}>
                 {/* Filters Row - Year and Exclude Days */}
                 <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                   {/* Year Filter */}
@@ -432,9 +432,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
                   </Typography>
                 </Alert>
-              </Stack>
-            </AccordionDetails>
-          </Accordion>
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
 
           {/* Loading State */}
           {loading && (
