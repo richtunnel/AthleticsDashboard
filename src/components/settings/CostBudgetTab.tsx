@@ -122,7 +122,7 @@ export function CostBudgetTab() {
           Track and analyze your game expenses throughout the month.
         </Typography>
 
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 2, md: 3 }}>
           {/* Budget Overview */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Card>
