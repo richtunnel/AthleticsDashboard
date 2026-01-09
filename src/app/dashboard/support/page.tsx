@@ -37,7 +37,7 @@ export default async function DashboardSupportPage() {
       <Divider sx={{ my: 4 }} />
 
       {/* Support Form */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4, width: "100%" }}>
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           Create New Ticket
         </Typography>
