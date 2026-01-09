@@ -8,6 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Tooltip } from "@mui/material";
 import { getFirstName } from "@/lib/utils/name";
 import FeedbackIcon from "@mui/icons-material/Feedback";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   AppBar,
@@ -74,12 +75,12 @@ import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
 const DRAWER_WIDTH = 240;
 
-const navigation = [
+const baseNavigation = [
   { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
   { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
-  { name: "Teams", href: "/dashboard/opponents", icon: Groups },
+  { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
@@ -88,6 +89,27 @@ const navigation = [
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
+  
+  // Fetch score tracker setting
+  const { data: scoreTrackerData } = useQuery({
+    queryKey: ["scoreTrackerEnabled"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/score-tracker");
+      if (!res.ok) throw new Error("Failed to fetch score tracker setting");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
+
+  // Filter navigation based on feature toggles
+  const navigation = baseNavigation.filter(item => {
+    if (item.requiresScoreTracker && !isScoreTrackerEnabled) {
+      return false;
+    }
+    return true;
+  });
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
