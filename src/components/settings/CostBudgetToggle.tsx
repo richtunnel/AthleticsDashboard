@@ -38,24 +38,38 @@ export function CostBudgetToggle() {
       // First update the setting
       await updateCostBudgetSetting(enabled);
 
-      // If enabling, create the "Cost" custom column
+      // If enabling, create the "Cost" or "Expenses" custom column
       if (enabled) {
         try {
           const checkRes = await fetch("/api/organizations/custom-columns");
           const checkData = await checkRes.json();
-          const existingColumn = checkData.data?.find(
+          
+          // Check if a "Cost" column already exists
+          const existingCostColumn = checkData.data?.find(
             (col: any) => col.name.toLowerCase() === "cost"
           );
 
-          if (!existingColumn) {
+          // Check if an "Expenses" column already exists
+          const existingExpensesColumn = checkData.data?.find(
+            (col: any) => col.name.toLowerCase() === "expenses"
+          );
+
+          // If a "Cost" column exists, use it (overwrite behavior)
+          // If no "Cost" column exists, create one
+          // If "Cost" exists but we want to use "Expenses" naming, check if "Expenses" exists
+          if (!existingCostColumn && !existingExpensesColumn) {
+            // No cost-related column exists, create "Cost"
             await fetch("/api/organizations/custom-columns", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ name: "Cost", type: "TEXT" }),
             });
           }
+          // If Cost column exists, we'll use it (overwrite/reuse behavior)
+          // If Expenses column exists, we'll use it
+          // No need to create a new column in these cases
         } catch (error) {
-          console.error("Failed to create Cost column:", error);
+          console.error("Failed to create Cost/Expenses column:", error);
           // Don't fail the toggle if column creation fails
         }
       }
@@ -112,7 +126,7 @@ export function CostBudgetToggle() {
                 Cost & Budget Calculator
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
-                Enable cost tracking to add a &quot;Cost&quot; column to your spreadsheet. Track expenses per game and manage your monthly budget with real-time calculations.
+                Enable cost tracking to add a &quot;Cost&quot; column to your spreadsheet. Track expenses per game and manage your monthly budget with real-time calculations. If you already have a cost-related column, it will be used automatically.
               </Typography>
             </Box>
             <Tooltip
