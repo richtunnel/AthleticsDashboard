@@ -25,7 +25,7 @@ export function SupportCard() {
           Need assistance? Our support team is here to help you. Create a ticket and we&apos;ll respond within 48 hours.
         </Typography>
         <Button variant="contained" startIcon={<ConfirmationNumberIcon />} onClick={() => router.push("/dashboard/support")} sx={{ textTransform: "none", color: mode === "dark" ? "#000" : "#fff" }}>
-          View Support Tickets
+          Support Tickets
         </Button>
       </CardContent>
     </Card>
