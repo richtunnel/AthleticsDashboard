@@ -111,9 +111,9 @@ export function SupportFormWithDropdown() {
   const showMinCharError = messageLength > 0 && messageLength < 10;
 
   return (
-    <Card sx={{ boxShadow: "none", maxWidth: { xs: "100%", md: 800 } }}>
+    <Card sx={{ boxShadow: "none", maxWidth: { xs: "100%", md: "100%" } }}>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form style={{ maxWidth: 800 }} onSubmit={handleSubmit(onSubmit)}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {/* Issue Type Dropdown */}
             <FormControl fullWidth error={!!errors.issueType}>
