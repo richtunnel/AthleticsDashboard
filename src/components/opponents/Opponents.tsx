@@ -102,7 +102,7 @@ interface MatchupResult {
 // MEMOIZED COMPONENTS
 // ============================================================================
 
-const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onOpenScoreModal }: any) => {
+const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, onDelete, onCancelEdit, updateField, onOpenScoreModal, isScoreTrackerEnabled }: any) => {
   return (
     <Card
       sx={{
@@ -178,24 +178,26 @@ const OpponentCard = memo(({ opponent, isEditing, editingId, onEdit, onUpdate, o
               </Stack>
             ) : (
               <Stack direction="row" spacing={0.5}>
-                <Tooltip title="Enter game score">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenScoreModal(opponent);
-                    }}
-                    sx={{
-                      bgcolor: "rgba(33, 150, 243, 0.15)",
-                      color: "primary.main",
-                      "&:hover": {
-                        bgcolor: "rgba(33, 150, 243, 0.25)",
-                      },
-                    }}
-                  >
-                    <ScoreboardIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {isScoreTrackerEnabled && (
+                  <Tooltip title="Enter game score">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenScoreModal(opponent);
+                      }}
+                      sx={{
+                        bgcolor: "rgba(33, 150, 243, 0.15)",
+                        color: "primary.main",
+                        "&:hover": {
+                          bgcolor: "rgba(33, 150, 243, 0.25)",
+                        },
+                      }}
+                    >
+                      <ScoreboardIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <IconButton
                   size="small"
                   color="primary"
@@ -403,6 +405,19 @@ export default function OpponentsPage() {
 
   // Score filter state
   const [selectedFilter, setSelectedFilter] = useState<SportLevelOption | null>(null);
+
+  // Score tracker setting
+  const { data: scoreTrackerData } = useQuery({
+    queryKey: ["scoreTrackerEnabled"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/score-tracker");
+      if (!res.ok) throw new Error("Failed to fetch score tracker setting");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -796,7 +811,7 @@ export default function OpponentsPage() {
                   <Chip label={opponents.length} size="small" sx={{ ml: 1 }} />
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0, py: 0 }}>
-                  Click the scoreboard icon to enter game scores and track results
+                  {isScoreTrackerEnabled ? "Click the scoreboard icon to enter game scores and track results" : "Enable Score Tracker in settings to access score entry functionality"}
                 </Typography>
               </Box>
               <Tooltip title="Add Opponent">
@@ -843,6 +858,7 @@ export default function OpponentsPage() {
                     }}
                     updateField={updateField}
                     onOpenScoreModal={handleOpenScoreModal}
+                    isScoreTrackerEnabled={isScoreTrackerEnabled}
                   />
                 ))}
               </Box>

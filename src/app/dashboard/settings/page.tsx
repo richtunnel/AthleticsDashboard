@@ -21,6 +21,7 @@ import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { SupportCard } from "@/components/settings/SupportCard";
 import { CostBudgetToggle } from "@/components/settings/CostBudgetToggle";
 import { CostBudgetTab } from "@/components/settings/CostBudgetTab";
+import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
 import { Assistant, AutoAwesome, AttachMoney } from "@mui/icons-material";
 
 interface SettingsPageProps {
@@ -120,6 +121,19 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 <BookDemoButton>Learn More</BookDemoButton>
               </Box>
             </Box>
+          </CardContent>
+        </Card>
+
+        {/* Score Tracker Section */}
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Score Tracker
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Enable score tracking to add game results and view team performance statistics. This adds score entry functionality to teams menu options.
+            </Typography>
+            <ScoreTrackerToggle />
           </CardContent>
         </Card>
 
