@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     await writeFile(originalFilepath, buffer);
 
     // Optimize image with Sharp and create WebP version
-    const timestamp = Date.now();
     const webpFilename = `signature-${session.user.id}-${timestamp}.webp`;
     const webpFilepath = path.join(uploadDir, webpFilename);
     
