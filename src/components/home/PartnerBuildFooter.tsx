@@ -22,7 +22,7 @@ const PartnerBuildSectionFooter = () => {
       <Box
         sx={{
           paddingTop: "80px",
-          paddingBottom: "40px",
+          paddingBottom: "0px",
           backgroundColor: "transparent",
         }}
       >
@@ -38,6 +38,7 @@ const PartnerBuildSectionFooter = () => {
               color: "#fff",
               textAlign: "left",
               maxWidth: 800,
+              marginBottom: "12px",
             }}
           >
             Save Time Scheduling Games
