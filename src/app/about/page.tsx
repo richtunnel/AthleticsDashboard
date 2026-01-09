@@ -5,6 +5,7 @@ import Image from "next/image";
 import styles from "../../styles/logo.module.css";
 import { VscGithubProject } from "react-icons/vsc";
 import Footer from "@/components/layout/Footer";
+import TopFooter from "@/components/footer/topFooter";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 
 export default function AboutUsPage() {
@@ -103,7 +104,7 @@ export default function AboutUsPage() {
           </div>
         </div>
 
-        <Footer />
+        <TopFooter />
       </div>
     </div>
   );
