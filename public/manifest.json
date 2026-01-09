@@ -1,0 +1,17 @@
+{
+  "name": "Opletics Image Caching",
+  "short_name": "Opletics",
+  "description": "Athletic department management platform with advanced image caching",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "gcm_sender_id": "103953800507"
+}

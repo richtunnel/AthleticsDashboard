@@ -7,12 +7,19 @@ import {
   isMemberAccessToken,
   normalizeMemberAccessCode,
 } from "@/lib/utils/memberAccess";
+import { etagMiddleware } from "./middleware/etag-middleware";
 
 // Force Node.js runtime for middleware (Prisma doesn't work in Edge Runtime)
 export const runtime = 'nodejs';
 
 export default withAuth(
   async function middleware(req: any) {
+    // Check if this is an image request and handle ETag
+    const etagResponse = etagMiddleware(req);
+    if (etagResponse) {
+      return etagResponse;
+    }
+
     // Apply security headers to all responses
     const response = NextResponse.next();
 
