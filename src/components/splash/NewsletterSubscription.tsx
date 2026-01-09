@@ -44,8 +44,8 @@ export const NewsletterSubscription = () => {
   };
 
   return (
-    <Box sx={{ mt: 4, width: "100%", maxWidth: 492 }}>
-      <Typography variant="body1" sx={{ mb: 2, color: "#a3abb5" }}>
+    <Box sx={{ mt: "8px", width: "100%", maxWidth: 492 }}>
+      <Typography variant="h6" sx={{ fontSize: { xs: "1.15" }, mb: 2, color: "#a3abb5" }}>
         Stay updated with the latest features and news!
       </Typography>
 
