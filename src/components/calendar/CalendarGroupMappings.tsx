@@ -33,6 +33,7 @@ import {
 import { Add, Delete, Info, SyncLock, Warning } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme as customTheme } from "@mui/material/styles";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface CalendarGroupMapping {
   id: string;
@@ -170,6 +171,14 @@ export function CalendarGroupMappings() {
       addNotification("Please fill in all fields", "warning");
       return;
     }
+    
+    trackEvent("Calendar Mapping Created", {
+      source: "calendar_sync_page",
+      action: "create_calendar_mapping",
+      column_name: newMapping.columnName,
+      calendar_name: newMapping.googleCalendarName,
+    });
+
     createMappingMutation.mutate({
       ...newMapping,
       columnName: newMapping.columnName.trim(),
@@ -271,7 +280,13 @@ export function CalendarGroupMappings() {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => setDialogOpen(true)}
+          onClick={() => {
+            trackEvent("Calendar Mapping Add Clicked", {
+              source: "calendar_sync_page",
+              action: "open_add_mapping_dialog",
+            });
+            setDialogOpen(true);
+          }}
           disabled={hasInsufficientScopes || calendarsLoading || calendarsError !== null}
           sx={{ textTransform: "none", color: theme.palette.themeButtonText.main }}
         >

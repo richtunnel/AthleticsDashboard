@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
 import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, Typography } from "@mui/material";
 import { Close, DragIndicator, DeleteOutline } from "@mui/icons-material";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface ColumnMenuItem {
   id: string;
@@ -144,7 +145,18 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} variant="contained">
+        <Button 
+          onClick={() => {
+            trackEvent("Customize Columns Done Clicked", {
+              source: "column_preferences_menu",
+              action: "done_customize_columns",
+              visible_columns_count: items.filter(item => item.visible).length,
+              total_columns_count: items.length,
+            });
+            onClose();
+          }} 
+          variant="contained"
+        >
           Done
         </Button>
       </DialogActions>
