@@ -35,6 +35,7 @@ import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { getSportLevelOptions, formatSportLevelLabel, type SportLevelOption } from "@/lib/utils/sportLevelOptions";
+import { useTheme } from "@mui/material/styles";
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T & { cancel: () => void } {
   let timeout: NodeJS.Timeout | null = null;
@@ -383,6 +384,7 @@ export default function OpponentsPage() {
   const { opponents, isLoading, isCreating, setOpponents, setLoading, setCreating, addOpponent, updateOpponent: storeUpdateOpponent, deleteOpponent, reorderOpponents } = useOpponentsStore();
 
   const queryClient = useQueryClient();
+  const theme = useTheme();
 
   // State management
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
@@ -822,7 +824,7 @@ export default function OpponentsPage() {
                   sx={{
                     fontSize: "0.95rem",
                     bgcolor: "primary.main",
-                    color: "white",
+                    color: `${theme.palette.mode}` === "dark" ? "#000" : "white",
                     "&:hover": {
                       bgcolor: "primary.dark",
                     },
