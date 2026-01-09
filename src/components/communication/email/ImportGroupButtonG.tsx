@@ -8,6 +8,7 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 
 import { importGoogleEmailGroups } from "@/app/actions/googleGroups";
 import { useTheme } from "@/contexts/ThemeContext";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 export function ImportGroupsButton() {
   const queryClient = useQueryClient();
@@ -78,6 +79,10 @@ export function ImportGroupsButton() {
         variant="contained"
         startIcon={importMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
         onClick={() => {
+          trackEvent("Import Google Groups Clicked", {
+            source: "email_manager",
+            action: "import_google_groups",
+          });
           setLastError(null);
           importMutation.mutate({ returnTo: buildReturnTo(true) });
         }}
