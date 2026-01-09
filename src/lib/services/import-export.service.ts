@@ -36,6 +36,7 @@ export class ImportExportService {
       "Travel Time (min)",
       "Bus Count",
       "Travel Cost",
+      "Cost",
       "Notes",
     ];
 
@@ -57,6 +58,7 @@ export class ImportExportService {
       game.estimatedTravelTime?.toString() || "",
       game.busCount?.toString() || "",
       game.travelCost?.toString() || "",
+      game.cost?.toString() || "",
       game.notes || "",
     ]);
 
@@ -232,6 +234,60 @@ export class ImportExportService {
       opponent.phone || "",
       opponent.email || "",
       opponent.notes || "",
+    ]);
+
+    return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
+  }
+
+  async exportMatchupResultsToCSV(organizationId: string): Promise<string> {
+    const results = await prisma.matchupResult.findMany({
+      where: { organizationId },
+      include: { opponent: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const headers = ["Date", "Sport", "Level", "Gender", "Opponent", "Your Score", "Opponent Score", "Result"];
+
+    const rows = results.map((result: any) => [
+      format(new Date(result.createdAt), "yyyy-MM-dd"),
+      result.sport || "",
+      result.level || "",
+      result.gender || "",
+      result.opponent.name,
+      result.organizationScore.toString(),
+      result.opponentScore.toString(),
+      result.isWin ? "Win" : result.organizationScore === result.opponentScore ? "Draw" : "Loss",
+    ]);
+
+    return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
+  }
+
+  async exportCostBudgetToCSV(organizationId: string): Promise<string> {
+    const games = await prisma.game.findMany({
+      where: {
+        homeTeam: { organizationId },
+        cost: { not: null },
+      },
+      include: {
+        homeTeam: {
+          include: { sport: true },
+        },
+        opponent: true,
+        venue: true,
+      },
+      orderBy: { date: "asc" },
+    });
+
+    const headers = ["Date", "Sport", "Level", "Team", "Opponent", "Venue", "Cost"];
+
+    const rows = games.map((game: any) => [
+      format(new Date(game.date), "yyyy-MM-dd"),
+      game.homeTeam.sport.name,
+      game.homeTeam.level,
+      game.homeTeam.name,
+      game.opponent?.name || "",
+      game.venue?.name || "",
+      game.cost?.toString() || "0",
     ]);
 
     return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
