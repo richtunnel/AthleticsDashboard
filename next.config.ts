@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
     "/": ["node_modules/.prisma/**"],
   },
 
+  // Image optimization configuration
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    dangerouslyAllowSVG: false,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+    ],
+  },
+
   // webpack: (config, { isServer }) => {
   //   if (isServer) {
   //     // SERVER-SIDE CONFIGURATION
@@ -75,6 +89,7 @@ const nextConfig: NextConfig = {
           "connect-src 'self' https: wss: *.google.com *.gstatic.com *.stripe.com",
           "frame-src 'self' https://*.google.com https://*.stripe.com",
           "worker-src 'self' blob:",
+        "manifest-src 'self'",
         ].join('; ')
       }
     ];
