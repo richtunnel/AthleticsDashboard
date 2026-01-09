@@ -46,20 +46,22 @@ export const Footer: React.FC<FooterProps> = (props) => {
           <PartnerBuildSectionFooter />
           <Stack spacing={4} className={styles.bottomFooterContent}>
             <Stack className={styles.SplashFooterOptInStack} alignItems="flex-start">
-              <Box sx={{ display: "flex" }}>
-                <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px" }} />
-              </Box>
-              <Typography variant="body1" color="#a3abb5" sx={{ mb: 0 }}>
-                {siteConfig.seo.description}
-              </Typography>
               <NewsletterSubscription />
+              <Stack sx={{ mt: 4 }}>
+                <Box sx={{ display: "flex", mb: 0.85 }}>
+                  <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
+                </Box>
+                <Typography variant="body1" color="#a3abb5" sx={{ mb: 0.25 }}>
+                  {siteConfig.seo.description}
+                </Typography>
+                <Copyright>{siteConfig.footer.copyright}</Copyright>
+              </Stack>
             </Stack>
-            <Copyright>{siteConfig.footer.copyright}</Copyright>
-            <CopyRight />
             {/* Social Icons and Footer Links */}
-            <Stack direction="row" justifyContent="flex-start" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
+            <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
               <LayoutFooter />
             </Stack>
+            <CopyRight />
           </Stack>
           {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
             {siteConfig.footer?.links?.map(({ href, label }) => (
