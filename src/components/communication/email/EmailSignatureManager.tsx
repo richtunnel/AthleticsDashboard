@@ -9,6 +9,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { LoadingButton } from "@/components/utils/LoadingButton";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 type SnackbarState = {
   open: boolean;
@@ -125,6 +126,15 @@ export function EmailSignatureManager() {
   });
 
   const handleSave = () => {
+    trackEvent("Email Signature Saved", {
+      source: "email_manager",
+      action: "save_signature",
+      has_phone: Boolean(phone?.trim()),
+      has_website: Boolean(website?.trim()),
+      has_logo: Boolean(logoUrl?.trim()),
+      has_text: Boolean(signatureText?.trim()),
+    });
+
     updateMutation.mutate({
       signaturePhone: phone,
       signatureWebsite: website,

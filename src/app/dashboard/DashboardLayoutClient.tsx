@@ -9,6 +9,7 @@ import { Tooltip } from "@mui/material";
 import { getFirstName } from "@/lib/utils/name";
 import FeedbackIcon from "@mui/icons-material/Feedback";
 import { useQuery } from "@tanstack/react-query";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 import {
   AppBar,
@@ -243,6 +244,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       >
         <Link href="/dashboard/feedback" style={{ textDecoration: "none", display: "block" }}>
           <Typography
+            onClick={() => {
+              trackEvent("Leave Feedback Clicked", {
+                source: "dashboard_sidebar",
+                action: "open_feedback",
+              });
+            }}
             sx={{
               color: "text.disabled",
               fontSize: "0.875rem",
