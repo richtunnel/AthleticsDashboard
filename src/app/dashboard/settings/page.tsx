@@ -169,7 +169,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         <EmailLimitsCard />
         {/* Support Card */}
-        <SupportCard />
       </Box>
 
       {/* Billing & Subscription Card */}
@@ -193,8 +192,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <SchoolDetailsForm user={user} />
       </Box>
+
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+      </Box>
+      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+        <SupportCard />
       </Box>
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <DeleteAccountSection />
