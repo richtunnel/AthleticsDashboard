@@ -5,6 +5,7 @@ import { Calendar, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { FaGoogle } from "react-icons/fa";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface CalendarSyncButtonProps {
   gameId: string;
@@ -53,6 +54,13 @@ export function CalendarSyncButton({ gameId, isSynced = false }: CalendarSyncBut
   });
 
   const handleClick = () => {
+    trackEvent("Calendar Sync Button Clicked", {
+      source: "calendar_sync_button",
+      action: synced ? "unsync_from_calendar" : "sync_to_calendar",
+      game_id: gameId,
+      was_synced: synced,
+    });
+
     if (synced) {
       unsyncMutation.mutate();
     } else {
@@ -106,7 +114,13 @@ export function SyncAllButton() {
 
   return (
     <button
-      onClick={() => mutation.mutate()}
+      onClick={() => {
+        trackEvent("Calendar Sync All Clicked", {
+          source: "calendar_sync_button",
+          action: "sync_all_to_calendar",
+        });
+        mutation.mutate();
+      }}
       disabled={mutation.isPending}
       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-gray-700 transition disabled:opacity-50"
     >

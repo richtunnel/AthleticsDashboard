@@ -5,6 +5,7 @@ import { Card, CardContent, Typography, Box, Button, Chip, Dialog, DialogTitle, 
 import { CreditCard as CreditCardIcon, Cancel as CancelIcon, PlayArrow as PlayArrowIcon, Email as EmailIcon, History as HistoryIcon } from "@mui/icons-material";
 import type { PlanType, SubscriptionStatus, UserRole } from "@prisma/client";
 import { useTheme, alpha } from "@mui/material/styles";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 interface SubscriptionData {
   id: string;
@@ -80,6 +81,11 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const showBillingLabel = !!displaySubscription && !!billingLabelRaw && billingLabelRaw !== planLabel;
 
   const handleOpenPortal = async () => {
+    trackEvent("Manage Billing Clicked", {
+      source: "settings_page",
+      action: "open_billing_portal",
+    });
+
     setLoading(true);
     setError(null);
     try {
