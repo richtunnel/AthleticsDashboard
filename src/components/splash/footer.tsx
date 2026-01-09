@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
                 <Box sx={{ display: "flex", mb: 0.85 }}>
                   <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
                 </Box>
-                <Typography variant="body1" color="#a3abb5" sx={{ mb: 0.25 }}>
+                <Typography variant="body1" color="#a3abb5" sx={{ mb: 0.25, fontSize: "0.875rem" }}>
                   {siteConfig.seo.description}
                 </Typography>
                 <Copyright>{siteConfig.footer.copyright}</Copyright>
