@@ -56,3 +56,38 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Failed to update cost budget settings" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await requireAuth();
+
+    // 1. Reset user's monthly budget
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        monthlyBudget: null,
+      },
+    });
+
+    // 2. Reset costs for all games in the organization
+    // Note: We use organizationId from session to ensure we clear all games for the school/org
+    await prisma.game.updateMany({
+      where: {
+        homeTeam: {
+          organizationId: session.user.organizationId,
+        },
+      },
+      data: {
+        cost: null,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Cost and budget data reset successfully",
+    });
+  } catch (error) {
+    console.error("Error resetting cost budget data:", error);
+    return NextResponse.json({ error: "Failed to reset cost budget data" }, { status: 500 });
+  }
+}
