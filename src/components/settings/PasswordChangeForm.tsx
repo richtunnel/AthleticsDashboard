@@ -95,7 +95,7 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
 
   if (hasGoogleAccount && !hasPassword) {
     return (
-      <Card sx={{ border: "none", boxShadow: "none", maxWidth: "720px" }}>
+      <Card sx={{ border: "none", boxShadow: "none", maxWidth: "100%" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Password
@@ -109,7 +109,7 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
   }
 
   return (
-    <Card sx={{ border: "none", boxShadow: "none", maxWidth: "720px" }}>
+    <Card sx={{ border: "none", boxShadow: "none", maxWidth: "100%" }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
           Change Password
@@ -118,32 +118,11 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
           Update your password to keep your account secure.
         </Typography>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ maxWidth: "720px" }}>
           <Stack spacing={2}>
-            {hasPassword && (
-              <TextField
-                size="small"
-                label="Current Password"
-                name="currentPassword"
-                type="password"
-                value={form.currentPassword}
-                onChange={handleChange}
-                required
-                fullWidth
-              />
-            )}
+            {hasPassword && <TextField size="small" label="Current Password" name="currentPassword" type="password" value={form.currentPassword} onChange={handleChange} required fullWidth />}
 
-            <TextField
-              size="small"
-              label="New Password"
-              name="newPassword"
-              type="password"
-              value={form.newPassword}
-              onChange={handleChange}
-              required
-              fullWidth
-              helperText="Minimum 8 characters"
-            />
+            <TextField size="small" label="New Password" name="newPassword" type="password" value={form.newPassword} onChange={handleChange} required fullWidth helperText="Minimum 8 characters" />
 
             {form.newPassword && (
               <Box>
@@ -159,16 +138,7 @@ export default function PasswordChangeForm({ hasPassword, hasGoogleAccount }: Pr
               </Box>
             )}
 
-            <TextField
-              size="small"
-              label="Confirm New Password"
-              name="confirmPassword"
-              type="password"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-              fullWidth
-            />
+            <TextField size="small" label="Confirm New Password" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} required fullWidth />
 
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
 

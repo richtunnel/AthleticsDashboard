@@ -153,23 +153,25 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       </Box>
 
       {/* Cost & Budget Calculator Section */}
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            <AttachMoney sx={{ color: "text.secondary" }} /> Cost & Budget Calculator
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Track and manage costs for your games. Set a monthly budget and monitor expenses throughout the season.
-          </Typography>
+      <Box sx={{ pl: { md: "24px" }, pr: { md: "24px" } }}>
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              <AttachMoney sx={{ color: "text.secondary" }} /> Cost & Budget Calculator
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Track and manage costs for your games. Set a monthly budget and monitor expenses throughout the season.
+            </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <CostBudgetToggle />
-          </Box>
-        </CardContent>
-      </Card>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <CostBudgetToggle />
+            </Box>
+          </CardContent>
+        </Card>
 
-      {/* Cost & Budget Analysis Tab - Shown when enabled */}
-      <CostBudgetTab />
+        {/* Cost & Budget Analysis Tab - Shown when enabled */}
+        <CostBudgetTab />
+      </Box>
 
       {/* Billing & Subscription Card */}
       <SubscriptionOverviewCard
