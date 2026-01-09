@@ -48,7 +48,7 @@ export const Footer: React.FC<FooterProps> = (props) => {
             <Stack className={styles.SplashFooterOptInStack} alignItems="flex-start">
               <NewsletterSubscription />
               <Stack sx={{ mt: 4 }}>
-                <Box sx={{ display: "flex", mb: 0.85 }}>
+                <Box sx={{ display: "flex", mb: "12px" }}>
                   <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
                 </Box>
                 <Typography variant="body1" color="#a3abb5" sx={{ mb: 0.25, fontSize: "0.875rem" }}>
