@@ -30,7 +30,7 @@ import {
   FormControl,
   InputLabel,
 } from "@mui/material";
-import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow, FilterList } from "@mui/icons-material";
+import { Add, Edit, Delete, Save, Cancel, School, Person, Close, PlayArrow, FilterList, Download } from "@mui/icons-material";
 import ScoreboardIcon from "@mui/icons-material/Scoreboard";
 import { useOpponentsStore } from "@/lib/stores/OpponentStore";
 import { LoadingButton } from "@/components/utils/LoadingButton";
@@ -905,6 +905,23 @@ export default function OpponentsPage() {
                     }}
                   />
                 </Box>
+                {matchupResults.length > 0 && (
+                  <Button
+                    size="small"
+                    startIcon={<Download />}
+                    onClick={() => window.open("/api/export/score-tracker", "_blank")}
+                    sx={{
+                      textTransform: "none",
+                      color: "primary.main",
+                      ml: 1,
+                      "&:hover": {
+                        bgcolor: "rgba(33, 150, 243, 0.08)",
+                      },
+                    }}
+                  >
+                    Download CSV
+                  </Button>
+                )}
               </Box>
               {availableFilters.length > 0 && (
                 <Autocomplete

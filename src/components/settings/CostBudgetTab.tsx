@@ -19,7 +19,7 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown } from "@mui/icons-material";
+import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown, Download, Delete } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 
 async function fetchCostBudgetData() {
@@ -65,6 +65,23 @@ export function CostBudgetTab() {
       refetch();
     } catch (err) {
       console.error("Failed to update budget:", err);
+    }
+  };
+
+  const handleResetData = async () => {
+    if (!confirm("Are you sure you want to reset all cost and budget data? This will clear your monthly budget and all costs associated with your games. This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const res = await fetch("/api/user/cost-budget", {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to reset data");
+      setBudgetInput("");
+      refetch();
+    } catch (err) {
+      console.error("Failed to reset budget data:", err);
     }
   };
 
@@ -158,9 +175,33 @@ export function CostBudgetTab() {
         </AccordionSummary>
         
         <AccordionDetails sx={{ px: 3, pb: 3 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Track and analyze your game expenses throughout the month.
-          </Typography>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2, mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Track and analyze your game expenses throughout the month.
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                startIcon={<Download />}
+                onClick={() => window.open("/api/export/cost-budget", "_blank")}
+                sx={{ textTransform: "none" }}
+              >
+                Download CSV
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                startIcon={<Delete />}
+                onClick={handleResetData}
+                sx={{ textTransform: "none" }}
+              >
+                Reset All Data
+              </Button>
+            </Box>
+          </Box>
 
           <Grid container spacing={{ xs: 2, md: 3 }}>
             {/* Budget Overview */}
