@@ -96,9 +96,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {/* Calendar Connection Section - uses incremental OAuth */}
         <CalendarConnectionSection />
 
-        {/* Support Card */}
-        <SupportCard />
-
         {/* AI Features Section - Disabled */}
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
@@ -124,36 +121,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </CardContent>
         </Card>
 
-        {/* Score Tracker Section */}
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              Score Tracker
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Enable score tracking to add game results and view team performance statistics. This adds score entry functionality to teams menu options.
-            </Typography>
-            <ScoreTrackerToggle />
-          </CardContent>
-        </Card>
+        {/* Cost & Budget Calculator Section */}
 
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              Spreadsheet Columns
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want to return to the standard view.
-            </Typography>
-            <ResetColumnsButton />
-          </CardContent>
-        </Card>
-
-        <EmailLimitsCard />
-      </Box>
-
-      {/* Cost & Budget Calculator Section */}
-      <Box sx={{ pl: { md: "24px" }, pr: { md: "24px" } }}>
         <Card sx={{ mb: 3, boxShadow: "none!important" }}>
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
@@ -171,6 +140,36 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         {/* Cost & Budget Analysis Tab - Shown when enabled */}
         <CostBudgetTab />
+      </Box>
+
+      <Box sx={{ pl: { md: "24px" }, pr: { md: "24px" } }}>
+        {/* Score Tracker Section */}
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Score Tracker
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Enable score tracking to add game results and view team performance statistics. This adds score entry functionality to teams menu options.
+            </Typography>
+            <ScoreTrackerToggle />
+          </CardContent>
+        </Card>
+        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Spreadsheet Columns
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want to return to the standard view.
+            </Typography>
+            <ResetColumnsButton />
+          </CardContent>
+        </Card>
+
+        <EmailLimitsCard />
+        {/* Support Card */}
+        <SupportCard />
       </Box>
 
       {/* Billing & Subscription Card */}
