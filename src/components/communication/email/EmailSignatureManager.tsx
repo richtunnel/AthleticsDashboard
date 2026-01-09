@@ -10,6 +10,7 @@ import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import { getOptimizedImageUrl } from "@/lib/utils/image";
 
 type SnackbarState = {
   open: boolean;
@@ -181,7 +182,9 @@ export function EmailSignatureManager() {
     let html = `<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif;">`;
 
     if (logoUrl) {
-      html += `<img src="${logoUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
+      // Use optimized image URL for better performance
+      const optimizedUrl = getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "webp" });
+      html += `<img src="${optimizedUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" loading="lazy" />`;
     }
 
     html += `<div style="font-size: 14px; color: ${textPrimary};">`;
@@ -247,7 +250,7 @@ export function EmailSignatureManager() {
                       </IconButton>
                       <Box
                         component="img"
-                        src={logoUrl}
+                        src={getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "webp" })}
                         alt="Logo preview"
                         sx={{
                           maxWidth: 120,
@@ -256,6 +259,7 @@ export function EmailSignatureManager() {
                           borderRadius: 1,
                           p: 1,
                         }}
+                        loading="lazy"
                       />
                     </>
                   )}

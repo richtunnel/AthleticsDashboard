@@ -5,6 +5,7 @@ import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
 import { MixpanelProvider } from "./mixpanel.provider";
 import { Suspense } from "react";
+import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegistration";
 
 import { getSiteUrl, getSiteUrlAsUrl } from "@/lib/utils/siteUrl";
 
@@ -95,6 +96,8 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1976d2" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script id="ld-website" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         {/* Google Analytics Script */}
@@ -114,6 +117,7 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <AnalyticsProvider />
           </Suspense>
+          <ServiceWorkerRegistration />
           {children}
         </Providers>
       </body>
