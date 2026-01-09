@@ -7,6 +7,7 @@ import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection
 import { useState } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import InfoIcon from "@mui/icons-material/Info";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 /**
  * Settings section for managing Google Calendar connection
@@ -25,6 +26,11 @@ export function CalendarConnectionSection() {
     if (!confirm("Are you sure you want to disconnect Google Calendar? You can reconnect anytime.")) {
       return;
     }
+
+    trackEvent("Calendar Disconnect Clicked", {
+      source: "settings_page",
+      action: "disconnect_calendar",
+    });
 
     try {
       setIsDisconnecting(true);
