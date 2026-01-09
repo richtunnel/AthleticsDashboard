@@ -6110,8 +6110,8 @@ export function GamesTable() {
           // Check if this is the "Travel Time" column (case-insensitive)
           const isTravelTimeColumn = customColumn?.name && /^travel time$/i.test(customColumn.name.trim());
 
-          // Check if this is the "Cost" column (case-insensitive)
-          const isCostColumn = customColumn?.name && /^cost$/i.test(customColumn.name.trim());
+          // Check if this is the "Cost" or "Expenses" column (case-insensitive)
+          const isCostColumn = customColumn?.name && (/^cost$/i.test(customColumn.name.trim()) || /^expenses$/i.test(customColumn.name.trim()));
 
           // Special rendering for Cost column with Cost & Budget feature
           if (isCostColumn && costBudgetEnabled) {
