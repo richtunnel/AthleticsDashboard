@@ -12,6 +12,7 @@ import Link from "next/link";
 import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncToggle";
 import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappings";
 import { useTheme as customTheme } from "@mui/material/styles";
+import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -68,6 +69,11 @@ function GoogleCalendarSyncMenuContent() {
 
   const handleDisconnect = async () => {
     if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
+      trackEvent("Calendar Disconnect Clicked", {
+        source: "calendar_sync_page",
+        action: "disconnect_calendar",
+      });
+
       try {
         await fetch("/api/auth/google-calendar/disconnect", { method: "POST" });
         refetch();

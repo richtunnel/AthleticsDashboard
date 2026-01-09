@@ -1775,6 +1775,11 @@ export function GamesTable() {
   const handleSyncCalendar = (gameId: string) => {
     console.log("🔄 Sync button clicked for game:", gameId);
     console.log("🔄 Mutation pending:", syncGameMutation.isPending);
+    trackEvent("Calendar Sync Individual Game", {
+      source: "games_table",
+      action: "sync_to_calendar",
+      game_id: gameId,
+    });
     syncGameMutation.mutate(gameId);
   };
 
@@ -3614,6 +3619,12 @@ export function GamesTable() {
   };
 
   const handleBulkSync = useCallback(() => {
+    trackEvent("Calendar Bulk Sync Clicked", {
+      source: "games_table",
+      action: "bulk_sync_to_calendar",
+      selected_games_count: selectedGames.size,
+    });
+
     if (selectedGames.size === 0) {
       addNotification("No games selected to sync", "warning");
       return;
@@ -6809,7 +6820,14 @@ export function GamesTable() {
                 <Button
                   variant="outlined"
                   startIcon={<Tune />}
-                  onClick={() => setIsColumnPreferencesOpen(true)}
+                  onClick={() => {
+                    trackEvent("Columns Button Clicked", {
+                      source: "games_table",
+                      action: "customize_columns",
+                      visible_columns_count: visibleColumnIds.length,
+                    });
+                    setIsColumnPreferencesOpen(true);
+                  }}
                   size="small"
                   sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
                 >
@@ -6854,7 +6872,15 @@ export function GamesTable() {
               <Button
                 size="small"
                 variant="text"
-                onClick={() => setIsColumnPreferencesOpen(true)}
+                onClick={() => {
+                  trackEvent("Columns Hidden Indicator Clicked", {
+                    source: "games_table",
+                    action: "customize_columns",
+                    hidden_columns_count: hiddenColumnCount,
+                    visible_columns_count: visibleColumnIds.length,
+                  });
+                  setIsColumnPreferencesOpen(true);
+                }}
                 startIcon={<VisibilityOff />}
                 sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
               >
@@ -7388,6 +7414,11 @@ export function GamesTable() {
           <Button
             onClick={() => {
               if (gameToUnsync) {
+                trackEvent("Calendar Unsync Individual Game", {
+                  source: "games_table",
+                  action: "unsync_from_calendar",
+                  game_id: gameToUnsync,
+                });
                 unsyncGameMutation.mutate(gameToUnsync);
               }
               setUnsyncDialogOpen(false);
