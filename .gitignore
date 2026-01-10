@@ -58,3 +58,5 @@ dockerenv
 .dockerenv
 appspec.sh
 appspec
+/docs
+
