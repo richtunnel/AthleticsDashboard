@@ -36,7 +36,6 @@ export const NewsletterSubscription = () => {
         setMessage({ text: data.error || "Subscription unsuccessful. Please try again.", type: "error" });
       }
     } catch (error) {
-      console.error("Subscription error:", error);
       setMessage({ text: "Subscription unsuccessful. Please try again later.", type: "error" });
     } finally {
       setLoading(false);

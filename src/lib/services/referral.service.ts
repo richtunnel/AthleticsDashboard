@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database/prisma";
 import { ReferralStatus } from "@prisma/client";
 import { Resend } from "resend";
 
-const resend = process.env.NEXT_PUBLIC_RESEND_API_KEY ? new Resend(process.env.NEXT_PUBLIC_RESEND_API_KEY) : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 export interface ReferralStats {
   totalReferrals: number;

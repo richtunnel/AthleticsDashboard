@@ -6,7 +6,6 @@ let isInitialized = false;
 
 export const initMixpanel = () => {
   if (!MIXPANEL_TOKEN) {
-    console.warn("Mixpanel token missing");
     return;
   }
 
@@ -25,7 +24,7 @@ export const initMixpanel = () => {
     });
     isInitialized = true;
   } catch (err) {
-    console.error("Mixpanel init error:", err);
+    // Mixpanel initialization failed - analytics will not be available
   }
 };
 
@@ -38,7 +37,7 @@ export const trackEvent = (event: string, properties?: Record<string, any>) => {
       mixpanel.track(event, properties);
     }
   } catch (err) {
-    console.error("Mixpanel track error:", err);
+    // Analytics event tracking failed
   }
 };
 
@@ -54,7 +53,7 @@ export const identifyUser = (userId: string, properties?: Record<string, any>) =
       }
     }
   } catch (err) {
-    console.error("Mixpanel identify error:", err);
+    // Analytics user identification failed
   }
 };
 
@@ -64,6 +63,6 @@ export const resetMixpanel = () => {
       mixpanel.reset();
     }
   } catch (err) {
-    console.error("Mixpanel reset error:", err);
+    // Mixpanel reset failed
   }
 };
