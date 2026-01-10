@@ -11,8 +11,6 @@ export function ServiceWorkerRegistration() {
             scope: "/",
           });
 
-          console.log("Service Worker registered with scope:", registration.scope);
-
           // Handle updates
           registration.onupdatefound = () => {
             const installingWorker = registration.installing;
@@ -21,17 +19,17 @@ export function ServiceWorkerRegistration() {
                 if (installingWorker.state === "installed") {
                   if (navigator.serviceWorker.controller) {
                     // New update available
-                    console.log("New Service Worker update available");
+                    // Service Worker updates are handled automatically
                   } else {
                     // Service Worker installed for the first time
-                    console.log("Service Worker installed for the first time");
+                    // Ready for offline functionality
                   }
                 }
               };
             }
           };
         } catch (error) {
-          console.error("Service Worker registration failed:", error);
+          // Service Worker registration failed - app will continue to work without offline support
         }
       };
 

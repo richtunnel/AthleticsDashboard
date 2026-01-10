@@ -38,7 +38,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
 
   const resend = getResendClientOptional();
   if (!resend) {
-    throw new Error("Email service not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
+    throw new Error("Email service not configured. Please set RESEND_API_KEY.");
   }
 
   // Check email limits before sending

@@ -57,7 +57,7 @@ export class EmailService {
 
     const resend = getResendClientOptional();
     if (!resend) {
-      throw new Error("Email service not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
+      throw new Error("Email service not configured. Please set RESEND_API_KEY.");
     }
 
     try {
@@ -145,7 +145,7 @@ export class EmailService {
       const resend = getResendClientOptional();
 
       if (!resend) {
-        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set NEXT_PUBLIC_RESEND_API_KEY.`);
+        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
         return;
       }
 
