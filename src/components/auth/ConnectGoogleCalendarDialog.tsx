@@ -33,7 +33,6 @@ export function ConnectGoogleCalendarDialog({ open, onClose, returnTo }: Connect
       await connect(returnTo);
       // User will be redirected to Google, so dialog will unmount
     } catch (err) {
-      console.error("Error connecting calendar:", err);
       setError(err instanceof Error ? err.message : "Failed to connect");
       setIsConnecting(false);
     }

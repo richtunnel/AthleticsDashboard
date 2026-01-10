@@ -50,7 +50,7 @@ export default function HomePageContent() {
         });
       }
     } catch (error) {
-      console.error("Navigation error:", error);
+      // Navigation errors are typically user-initiated cancellations
     }
   };
 
@@ -65,7 +65,7 @@ export default function HomePageContent() {
         navigationPath: "/onboarding/plans",
       });
     } catch (error) {
-      console.error("Navigation error:", error);
+      // Navigation errors are typically user-initiated cancellations
     }
   };
 

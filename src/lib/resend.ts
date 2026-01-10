@@ -5,14 +5,14 @@ import { Resend } from "resend";
  * This prevents the client from being created at build time.
  *
  * @returns Resend client instance
- * @throws Error if NEXT_PUBLIC_RESEND_API_KEY is not configured
+ * @throws Error if RESEND_API_KEY is not configured
  */
 export function getResendClient(): Resend {
-  const apiKey = process.env.NEXT_PUBLIC_RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey) {
-    console.error("NEXT_PUBLIC_RESEND_API_KEY environment variable is not set");
-    throw new Error("Email service is not configured. Please set NEXT_PUBLIC_RESEND_API_KEY.");
+    console.error("RESEND_API_KEY environment variable is not set");
+    throw new Error("Email service is not configured. Please set RESEND_API_KEY.");
   }
 
   return new Resend(apiKey);
@@ -25,7 +25,7 @@ export function getResendClient(): Resend {
  * @returns Resend client instance or null
  */
 export function getResendClientOptional(): Resend | null {
-  const apiKey = process.env.NEXT_PUBLIC_RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey || apiKey.trim() === "") {
     return null;
