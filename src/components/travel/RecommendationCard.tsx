@@ -79,7 +79,7 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
       await onAdd(game.id, recommendation.id);
       setIsAdded(true);
     } catch (error) {
-      console.error("Failed to add recommendation:", error);
+      // Recommendation addition failed - handled by UI state
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +91,7 @@ export function RecommendationCard({ game, recommendation, onAdd, onUndo }: Reco
       await onUndo(game.id);
       setIsAdded(false);
     } catch (error) {
-      console.error("Failed to undo recommendation:", error);
+      // Undo operation failed - handled by UI state
     } finally {
       setIsLoading(false);
     }
