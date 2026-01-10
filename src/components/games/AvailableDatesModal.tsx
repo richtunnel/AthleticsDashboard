@@ -18,7 +18,6 @@ import {
   Paper,
   Tooltip,
   IconButton,
-  Collapse,
   ToggleButton,
   ToggleButtonGroup,
   MenuItem,
@@ -29,7 +28,7 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from "@mui/material";
-import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, ExpandMore, ExpandLess, DragIndicator, Settings } from "@mui/icons-material";
+import { Search, AutoAwesome, EventAvailable, Info, AddCircleOutline, DragIndicator, Settings, Close, ExpandMore } from "@mui/icons-material";
 import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
@@ -103,11 +102,11 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AvailableDatesResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showDebug, setShowDebug] = useState(false);
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [showConfiguration, setShowConfiguration] = useState<boolean>(true);
+  const [showMatchedTeamsAlert, setShowMatchedTeamsAlert] = useState(true);
 
   // Pre-fill prompt if sport and level are provided
   React.useEffect(() => {
@@ -157,6 +156,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
       }
 
       setResult(data);
+
+      // Reset matched teams alert visibility for new search
+      setShowMatchedTeamsAlert(true);
 
       // Track success event
       trackEvent("Available Dates - Search Completed", {
@@ -483,8 +485,22 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               )} */}
 
               {/* Matched Teams Info */}
-              {result.debug.matchedClusters.length > 0 && (
-                <Alert severity="info" icon={<EventAvailable />} sx={{ borderRadius: 2 }}>
+              {result.debug.matchedClusters.length > 0 && showMatchedTeamsAlert && (
+                <Alert
+                  severity="info"
+                  icon={<EventAvailable />}
+                  sx={{ borderRadius: 2 }}
+                  action={
+                    <IconButton
+                      size="small"
+                      aria-label="close"
+                      color="inherit"
+                      onClick={() => setShowMatchedTeamsAlert(false)}
+                    >
+                      <Close fontSize="small" />
+                    </IconButton>
+                  }
+                >
                   <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
                     Matched Teams:
                   </Typography>
@@ -652,111 +668,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                   </Alert>
                 </Box>
               )}
-
-              {/* Debug Info (Collapsible) */}
-              <Box>
-                <Button size="small" onClick={() => setShowDebug(!showDebug)} endIcon={showDebug ? <ExpandLess /> : <ExpandMore />} sx={{ textTransform: "none" }}>
-                  {showDebug ? "Hide" : "Show"} Debug Info
-                </Button>
-                <Collapse in={showDebug}>
-                  <Paper variant="outlined" sx={{ p: 2, mt: 1, bgcolor: "grey.50" }}>
-                    <Stack spacing={1.5}>
-                      <Box>
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          Parsed Tokens:
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {result.debug.parsedTokens.join(", ")}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          Matched Clusters ({result.debug.matchedClusters.length}):
-                        </Typography>
-                        {result.debug.matchedClusters.map((c, i) => (
-                          <Typography key={i} variant="caption" display="block">
-                            • {c.gender} {c.level} {c.sport} (score: {c.confidence.toFixed(2)})
-                          </Typography>
-                        ))}
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          Cluster Dates ({result.debug.clusterDates.length}):
-                        </Typography>
-                        <Typography variant="caption" display="block">
-                          {result.debug.clusterDates.join(", ")}
-                        </Typography>
-                      </Box>
-                      {result.debug.excludedClusters && result.debug.excludedClusters.length > 0 && (
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            Excluded Teams ({result.debug.excludedClusters.length}):
-                          </Typography>
-                          {result.debug.excludedClusters.map((c, i) => (
-                            <Typography key={i} variant="caption" display="block">
-                              • {c.gender} {c.level} {c.sport} (score: {c.confidence.toFixed(2)})
-                            </Typography>
-                          ))}
-                        </Box>
-                      )}
-                      {result.debug.excludedClusterDates && result.debug.excludedClusterDates.length > 0 && (
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            Excluded Team Dates ({result.debug.excludedClusterDates.length}):
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            {result.debug.excludedClusterDates.slice(0, 10).join(", ")}
-                            {result.debug.excludedClusterDates.length > 10 && " ..."}
-                          </Typography>
-                        </Box>
-                      )}
-                      {result.debug.excludedDays && result.debug.excludedDays.length > 0 && (
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            Excluded Days:
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            {result.debug.excludedDays.join(", ")}
-                          </Typography>
-                        </Box>
-                      )}
-                      {result.debug.dateRange && (
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            Date Range Filter:
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            {result.debug.dateRange.months && `Months: ${result.debug.dateRange.months.join(", ")}`}
-                            {result.debug.dateRange.month && !result.debug.dateRange.months && `Month: ${result.debug.dateRange.month}`}
-                            {result.debug.dateRange.start && ` Start: ${result.debug.dateRange.start}`}
-                            {result.debug.dateRange.end && ` End: ${result.debug.dateRange.end}`}
-                          </Typography>
-                        </Box>
-                      )}
-                      {result.debug.minSpacing && (
-                        <Box>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                            Minimum Spacing:
-                          </Typography>
-                          <Typography variant="caption" display="block">
-                            {result.debug.minSpacing} days between dates
-                          </Typography>
-                        </Box>
-                      )}
-                      <Box>
-                        <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                          Notes:
-                        </Typography>
-                        {result.debug.notes.map((note, i) => (
-                          <Typography key={i} variant="caption" display="block">
-                            • {note}
-                          </Typography>
-                        ))}
-                      </Box>
-                    </Stack>
-                  </Paper>
-                </Collapse>
-              </Box>
             </>
           )}
         </Stack>
