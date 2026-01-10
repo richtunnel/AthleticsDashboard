@@ -47,7 +47,6 @@ export function TicketList() {
       setClosingTicketId(null);
     },
     onError: (error) => {
-      console.error("Failed to close ticket:", error);
       setClosingTicketId(null);
       alert("Failed to close ticket. Please try again.");
     },
