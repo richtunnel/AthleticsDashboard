@@ -20,7 +20,7 @@ import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
 import { CostModal } from "./CostModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -29,6 +29,7 @@ import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
 import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
+import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay, extractDatePart } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
@@ -551,6 +552,26 @@ export function GamesTable() {
   const [unsyncDialogOpen, setUnsyncDialogOpen] = useState(false);
   const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
+  // Workbook management state
+  const {
+    workbooks,
+    selectedWorkbookId,
+    showWorkbookSelector,
+    setWorkbooks,
+    addWorkbook,
+    updateWorkbook,
+    deleteWorkbook,
+    setSelectedWorkbookId,
+    setShowWorkbookSelector,
+  } = useGamesWorkbookStore();
+
+  // Workbook edit dialog state
+  const [editingWorkbookDialog, setEditingWorkbookDialog] = useState<{
+    open: boolean;
+    workbookId: string;
+    currentName: string;
+  } | null>(null);
+
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
@@ -575,8 +596,8 @@ export function GamesTable() {
       })
       .join("|");
 
-    return ["games", filterKey, sortField, sortOrder, page + 1, rowsPerPage] as const;
-  }, [stableColumnFilters, sortField, sortOrder, page, rowsPerPage]);
+    return ["games", filterKey, sortField, sortOrder, page + 1, rowsPerPage, selectedWorkbookId] as const;
+  }, [stableColumnFilters, sortField, sortOrder, page, rowsPerPage, selectedWorkbookId]);
 
   const getCharacterCounterColor = (length: number) => {
     if (length >= MAX_CHAR_LIMIT) {
@@ -707,6 +728,11 @@ export function GamesTable() {
       params.append("page", String(page + 1));
       params.append("limit", String(rowsPerPage));
 
+      // Add workbook filter if a workbook is selected
+      if (selectedWorkbookId) {
+        params.append("workbookId", selectedWorkbookId);
+      }
+
       const res = await fetch(`/api/games?${params}`);
       if (!res.ok) throw new Error("Failed to fetch games");
       const data = await res.json();
@@ -805,6 +831,77 @@ export function GamesTable() {
 
   const costBudgetEnabled = costBudgetResponse?.costBudgetEnabled ?? false;
   const monthlyBudget = costBudgetResponse?.monthlyBudget ?? null;
+
+  // Fetch workbooks
+  const { data: workbooksResponse, isLoading: isLoadingWorkbooks } = useQuery({
+    queryKey: ["gamesWorkbooks"],
+    queryFn: async () => {
+      const res = await fetch("/api/games-workbooks");
+      if (!res.ok) throw new Error("Failed to fetch workbooks");
+      return res.json();
+    },
+  });
+
+  // Update workbooks store when data changes
+  useEffect(() => {
+    if (workbooksResponse?.data) {
+      setWorkbooks(workbooksResponse.data);
+
+      // If no workbook is selected and there are workbooks, select the first one
+      if (!selectedWorkbookId && workbooksResponse.data.length > 0) {
+        setSelectedWorkbookId(workbooksResponse.data[0].id);
+      } else if (selectedWorkbookId && workbooksResponse.data.length === 0) {
+        setSelectedWorkbookId(null);
+      }
+    }
+  }, [workbooksResponse, selectedWorkbookId, setWorkbooks, setSelectedWorkbookId]);
+
+  // Create workbook mutation
+  const createWorkbookMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch("/api/games-workbooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to create workbook");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      addWorkbook(data.data);
+      addNotification("Workbook created successfully", "success");
+      trackEvent("Games Table Create Table Clicked", {
+        source: "games_table",
+        action: "create_workbook",
+        workbookId: data.data.id,
+        workbookName: data.data.name,
+      });
+    },
+    onError: (error: any) => {
+      addNotification(error.message || "Failed to create workbook", "error");
+    },
+  });
+
+  // Update workbook mutation
+  const updateWorkbookMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await fetch(`/api/games-workbooks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) throw new Error("Failed to update workbook");
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      updateWorkbook(variables.id, variables.name);
+      addNotification("Workbook renamed successfully", "success");
+      setEditingWorkbookDialog(null);
+    },
+    onError: (error: any) => {
+      addNotification(error.message || "Failed to update workbook", "error");
+    },
+  });
 
   const customColumns = useMemo(() => (customColumnsResponse?.data || []) as any[], [customColumnsResponse?.data]);
   const customColumnsMap = useMemo(() => {
@@ -6740,6 +6837,41 @@ export function GamesTable() {
               )}
             </Tooltip>
 
+            {/* Create Table Button - to create separate tables */}
+            <Tooltip title="Add a separate table">
+              {selectedGames.size > 0 ? (
+                <IconButton
+                  disabled
+                  size="small"
+                  sx={{
+                    opacity: 0.5,
+                    minWidth: 32,
+                    width: 32,
+                    height: 32,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <TableChart fontSize="small" />
+                </IconButton>
+              ) : (
+                <Button
+                  variant="outlined"
+                  startIcon={<TableChart />}
+                  onClick={() => setShowWorkbookSelector(true)}
+                  size="small"
+                  sx={{
+                    borderColor: theme.palette.themeButtonText.subtle,
+                    color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                    textTransform: "none",
+                  }}
+                >
+                  Create Table
+                </Button>
+              )}
+            </Tooltip>
+
             <Tooltip title="Use AI to find available dates in your schedule">
               <Button
                 variant="outlined"
@@ -6947,6 +7079,177 @@ export function GamesTable() {
 
       {/* Save Status Banner */}
       <SaveStatusBanner status={saveStatus} />
+
+      {/* Workbook Selector View - shows when user clicks "Create Table" */}
+      {showWorkbookSelector && (
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+            Select or Create a Table
+          </Typography>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(auto-fill, minmax(280px, 1fr))",
+                sm: "repeat(auto-fill, minmax(320px, 1fr))",
+                md: "repeat(auto-fill, minmax(360px, 1fr))",
+              },
+              gap: 3,
+            }}
+          >
+            {/* Render existing workbooks */}
+            {workbooks.map((workbook) => (
+              <Card
+                key={workbook.id}
+                sx={{
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  border: selectedWorkbookId === workbook.id ? "2px solid" : "1px solid",
+                  borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "divider",
+                  bgcolor: "background.paper",
+                  "&:hover": {
+                    boxShadow: 3,
+                    transform: "translateY(-2px)",
+                  },
+                }}
+                onClick={() => setSelectedWorkbookId(workbook.id)}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem" }}>
+                      {workbook.name}
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 0.5 }}>
+                      <Tooltip title="Rename table">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingWorkbookDialog({
+                              open: true,
+                              workbookId: workbook.id,
+                              currentName: workbook.name,
+                            });
+                          }}
+                          sx={{ p: 0.5 }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      {workbooks.length > 1 && workbook._count?.games === 0 && (
+                        <Tooltip title="Delete table">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteWorkbook(workbook.id);
+                            }}
+                            sx={{ p: 0.5, color: "error.main" }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {workbook._count?.games || 0} game{workbook._count?.games !== 1 ? "s" : ""}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+
+            {/* Add new workbook card */}
+            <Card
+              sx={{
+                cursor: "pointer",
+                border: "2px dashed",
+                borderColor: "divider",
+                bgcolor: "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 140,
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  borderColor: "primary.main",
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+                },
+              }}
+              onClick={() => {
+                const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
+                createWorkbookMutation.mutate(newWorkbookName);
+              }}
+            >
+              <CardContent sx={{ textAlign: "center", p: 3 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                  <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Create Table
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Start a new games table
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        </Box>
+      )}
+
+      {/* Edit Workbook Name Dialog */}
+      <Dialog open={editingWorkbookDialog?.open ?? false} onClose={() => setEditingWorkbookDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Rename Table</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Table Name"
+            defaultValue={editingWorkbookDialog?.currentName}
+            variant="outlined"
+            sx={{ mt: 2 }}
+             onKeyDown={(e) => {
+               if (e.key === "Enter") {
+                 e.preventDefault();
+                 if (editingWorkbookDialog?.currentName.trim()) {
+                   updateWorkbookMutation.mutate({
+                     id: editingWorkbookDialog.workbookId,
+                     name: editingWorkbookDialog.currentName.trim(),
+                   });
+                 }
+               }
+             }}
+             onChange={(e) => {
+               if (editingWorkbookDialog) {
+                 setEditingWorkbookDialog({
+                   ...editingWorkbookDialog,
+                   currentName: e.target.value,
+                 });
+               }
+             }}
+             />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingWorkbookDialog(null)}>Cancel</Button>
+          <LoadingButton
+            onClick={() => {
+              if (editingWorkbookDialog?.currentName.trim()) {
+                updateWorkbookMutation.mutate({
+                  id: editingWorkbookDialog.workbookId,
+                  name: editingWorkbookDialog.currentName.trim(),
+                });
+              }
+            }}
+            loading={updateWorkbookMutation.isPending}
+            variant="contained"
+            disabled={!editingWorkbookDialog?.currentName.trim()}
+          >
+            Rename
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+
 
       {/* Sample Game Banner */}
       <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
