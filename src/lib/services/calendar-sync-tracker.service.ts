@@ -100,7 +100,7 @@ export class CalendarSyncTrackerService {
   async incrementSyncedUserCount(): Promise<void> {
     try {
       const tracker = await prisma.googleCalendarSyncTracker.findFirst({
-        select: { count: true },
+        select: { id: true, count: true },
       });
 
       if (tracker) {
@@ -134,7 +134,7 @@ export class CalendarSyncTrackerService {
   async decrementSyncedUserCount(): Promise<void> {
     try {
       const tracker = await prisma.googleCalendarSyncTracker.findFirst({
-        select: { count: true },
+        select: { id: true, count: true },
       });
 
       if (!tracker || tracker.count <= 0) {
