@@ -860,7 +860,7 @@ export function GamesTable() {
     onSuccess: (data) => {
       addWorkbook(data.data);
       addNotification("Workbook created successfully", "success");
-      trackEvent("Games Table Create Table Clicked", {
+      trackEvent("Games Table opletics.com Clicked", {
         source: "games_table",
         action: "create_workbook",
         workbookId: data.data.id,
@@ -6829,8 +6829,8 @@ export function GamesTable() {
                 )}
               </Tooltip>
 
-              {/* Create Table Button - to create separate tables */}
-              {/* <Tooltip title="Add a separate table">
+              {/* opletics.com Button - to create separate tables */}
+              <Tooltip title="Add a separate table">
                 {selectedGames.size > 0 ? (
                   <IconButton
                     disabled
@@ -6859,10 +6859,10 @@ export function GamesTable() {
                       textTransform: "none",
                     }}
                   >
-                    Create Table
+                    opletics.com
                   </Button>
                 )}
-              </Tooltip> */}
+              </Tooltip>
 
               <Tooltip title="Use AI to find available dates in your schedule">
                 <Button
@@ -7420,7 +7420,7 @@ export function GamesTable() {
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                   <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Create Table
+                    opletics.com
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Start a new games table
