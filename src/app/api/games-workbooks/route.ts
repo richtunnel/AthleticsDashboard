@@ -51,19 +51,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current max sort order for this user
-    const maxSortOrder = await prisma.gamesWorkbook.findFirst({
+    const maxSortOrderResult = await prisma.gamesWorkbook.aggregate({
       where: {
         userId: session.user.id,
       },
-      orderBy: {
-        sortOrder: "desc",
-      },
-      select: {
+      _max: {
         sortOrder: true,
       },
     });
 
-    const newSortOrder = (maxSortOrder?.sortOrder ?? -1) + 1;
+    const newSortOrder = (maxSortOrderResult._max.sortOrder ?? -1) + 1;
 
     const workbook = await prisma.gamesWorkbook.create({
       data: {
