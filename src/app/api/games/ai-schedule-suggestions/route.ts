@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { schedulerAIService } from "@/lib/services/scheduler-ai.service";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +10,15 @@ export async function POST(req: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.FIND_DATES);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "This feature is not available on your current plan. Please upgrade to Team or Team Plus to use AI schedule suggestions." },
+        { status: 403 }
+      );
     }
 
     const user = session.user as any;

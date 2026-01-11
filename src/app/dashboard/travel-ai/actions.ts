@@ -4,11 +4,18 @@ import { prisma } from "@/lib/database/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { travelAIService } from "@/lib/services/travelAI";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function generateRecommendation(gameId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
+  }
+
+  // Feature access check
+  const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+  if (!hasAccess) {
+    return { success: false, error: "Travel Recommendations are not available on your current plan." };
   }
 
   try {
@@ -53,6 +60,12 @@ export async function generateBatchRecommendations(gameIds: string[]) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
+  }
+
+  // Feature access check
+  const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+  if (!hasAccess) {
+    return { success: false, error: "Travel Recommendations are not available on your current plan." };
   }
 
   try {
@@ -180,6 +193,12 @@ export async function toggleAutoFill(enabled: boolean) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return { success: false, error: "Unauthorized" };
+  }
+
+  // Feature access check
+  const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+  if (!hasAccess) {
+    return { success: false, error: "Travel Recommendations are not available on your current plan." };
   }
 
   try {
