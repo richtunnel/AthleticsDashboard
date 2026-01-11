@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
 import { emailService } from "@/lib/services/email.service";
+import { slackService } from "@/lib/services/slack.service";
 import { logTestModeInfo } from "@/lib/stripe-config";
 import type { PlanType, Prisma, SubscriptionStatus } from "@prisma/client";
 import { runNonCritical } from "@/lib/utils/nonCritical";
@@ -313,11 +314,11 @@ async function maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventT
   }
 
   const planName = derivePlanName(result);
-  
+
   // Check if this is an upgrade from free plan
   const previousUserPlan = result.user.plan?.toLowerCase() || "free";
   const isUpgrade = previousUserPlan === "free" || previousUserPlan === "free_plan" || !result.user.plan;
-  
+
   await emailService.sendSubscriptionEmail({
     type: isUpgrade ? "upgrade" : "confirmation",
     user: {
@@ -330,6 +331,14 @@ async function maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventT
     currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
     previousPlan: isUpgrade ? "Free Plan" : undefined,
   });
+
+  // Send Slack notification for new signups (non-blocking)
+  slackService.sendSignupNotification({
+    time: new Date().toISOString(),
+    endpoint: '/api/stripe/webhook',
+    customer: `${result.user.name || 'User'} (${result.user.email})`,
+    body: `Plan: ${planName || 'Unknown'} | Status: ${result.subscription.status} | Previous Plan: ${result.user.plan || 'None'}`,
+  }).catch(err => console.error('Failed to send Slack notification:', err));
 
   console.info("stripe.webhook.email.subscription_confirmation", {
     subscriptionId: result.subscription.id,
