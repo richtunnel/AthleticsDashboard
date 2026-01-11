@@ -59,7 +59,6 @@ const plans: Plan[] = [
       "Travel Recommendations (Bus Departure)",
       "Table customization (filters, ordering)",
       "Basic chat and email support",
-      "1 user",
       "2 weeks Free Trial",
     ],
     monthlyPriceId: STANDARD_MONTHLY_PRICE_ID,
@@ -75,7 +74,6 @@ const plans: Plan[] = [
       "150,000 emails/mo. (Parents, Schools, etc.)",
       "Use AI to scan for dates",
       "Custom Email Signatures",
-      "4 Users",
       "Premium chat and email support 24hrs.",
       "Everything in Standard plan.",
       "2 weeks Free Trial",
@@ -90,7 +88,6 @@ const plans: Plan[] = [
     features: [
       "Everything in Team plan plus...",
       "250,000+ email/mo.",
-      "6 Users",
       "AI Email Generation",
       "Email time scheduler +verification",
       "Schedule Conflict Detection",
