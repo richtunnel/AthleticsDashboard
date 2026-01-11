@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Subject is required");
     }
 
-    // Fetch user's email signature
+    // Fetch user's email signature and school email
     const user = (await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -226,6 +226,7 @@ export async function POST(request: NextRequest) {
         signatureWebsite: true,
         signatureLogoUrl: true,
         signatureText: true,
+        schoolEmail: true,
       } as any,
     })) as any;
 
@@ -237,6 +238,8 @@ export async function POST(request: NextRequest) {
           signatureText: user.signatureText,
         })
       : "";
+    
+    const replyTo = user?.schoolEmail || undefined;
 
     let toEmails: string[] = [];
     let emailBody: string;
@@ -362,6 +365,7 @@ export async function POST(request: NextRequest) {
       subject,
       html: emailBody,
       sentById: session.user.id,
+      replyTo: replyTo,
       gameIds: gameIds || [],
       groupId: groupId || null,
       campaignId: campaignId || null,
