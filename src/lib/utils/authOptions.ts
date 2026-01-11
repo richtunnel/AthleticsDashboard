@@ -11,11 +11,13 @@ import { emailService } from "@/lib/services/email.service";
 import { runNonCritical } from "@/lib/utils/nonCritical";
 import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.server";
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
-import { createSampleGame, hasSampleGames } from "@/lib/services/sample-game.service";
+import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 import {
-  MEMBER_ACCESS_EMAIL,
-  MEMBER_ACCESS_ORG_ID,
+  generateMemberSessionId,
+  generateMemberEmail,
+  generateMemberOrgId,
+  generateMemberOrgName,
   MEMBER_SESSION_MAX_AGE_MS,
   getMemberAccessExpiresAtMs,
   isMemberAccessCodeDisabled,
@@ -240,6 +242,7 @@ export const authOptions: NextAuthOptions = {
       name: "Member Code",
       credentials: {
         code: { label: "Member Code", type: "text" },
+        sessionId: { label: "Session ID", type: "text" },
       },
       async authorize(credentials) {
         const code = normalizeMemberAccessCode(credentials?.code);
@@ -256,33 +259,48 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid member code");
         }
 
+        // Generate a unique session ID for this member
+        const sessionId = credentials?.sessionId || generateMemberSessionId();
+        const memberEmail = generateMemberEmail(sessionId);
+        const memberOrgId = generateMemberOrgId(sessionId);
+
+        // First, check if this session already exists and clean up any old data
+        // This ensures a fresh start for each member
+        const existingUser = await prisma.user.findUnique({
+          where: { email: memberEmail },
+        });
+
+        if (existingUser) {
+          // Delete the old session data to ensure fresh start
+          await prisma.user.delete({
+            where: { id: existingUser.id },
+          });
+          console.log(`[MemberAccess] Cleaned up previous session for: ${memberEmail}`);
+        }
+
+        // Create a unique organization for this member
         const org = await prisma.organization.upsert({
-          where: { id: MEMBER_ACCESS_ORG_ID },
+          where: { id: memberOrgId },
           update: {
-            name: "Opletics Members",
+            name: generateMemberOrgName(),
             timezone: "America/New_York",
           },
           create: {
-            id: MEMBER_ACCESS_ORG_ID,
-            name: "Opletics Members",
+            id: memberOrgId,
+            name: generateMemberOrgName(),
             timezone: "America/New_York",
           },
         });
 
-        const user = await prisma.user.upsert({
-          where: { email: MEMBER_ACCESS_EMAIL },
-          update: {
-            name: "Member Access",
-            role: "ATHLETIC_DIRECTOR",
-            organizationId: org.id,
-          },
-          create: {
-            email: MEMBER_ACCESS_EMAIL,
-            name: "Member Access",
+        // Create a new individual user account for this member
+        const user = await prisma.user.create({
+          data: {
+            email: memberEmail,
+            name: "Member",
             role: "ATHLETIC_DIRECTOR",
             organizationId: org.id,
             plan: "free_trial_plan",
-            trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hour trial
           },
           include: {
             organization: {
@@ -295,17 +313,18 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        void runNonCritical(async () => {
-          const alreadyHasSample = await hasSampleGames(user.id);
-          if (!alreadyHasSample) {
+        // Create sample game for new member (non-blocking)
+        void runNonCritical(
+          async () => {
             await createSampleGame({
               userId: user.id,
               organizationId: user.organizationId,
             });
-          }
 
-          await createInitialColumnPreferences(user.id);
-        }, `member access bootstrap for user ${user.id}`);
+            await createInitialColumnPreferences(user.id);
+          },
+          `member access bootstrap for user ${user.id}`
+        );
 
         const issuedAt = Date.now();
 
@@ -322,6 +341,7 @@ export const authOptions: NextAuthOptions = {
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
           googleCalendarEmail: user.googleCalendarEmail ?? undefined,
           memberAccessCode: code,
+          memberAccessSessionId: sessionId,
           memberAccessIssuedAt: issuedAt,
           memberAccessExpiresAt: issuedAt + MEMBER_SESSION_MAX_AGE_MS,
         };
@@ -525,6 +545,7 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "member-code" || (user as any)?.memberAccessCode) {
         const issuedAtMs = typeof (user as any)?.memberAccessIssuedAt === "number" ? (user as any).memberAccessIssuedAt : nowMs;
         token.memberAccessCode = normalizeMemberAccessCode((user as any)?.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+        token.memberAccessSessionId = (user as any)?.memberAccessSessionId;
         token.memberAccessIssuedAt = issuedAtMs;
         token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
       } else if (isMemberAccessToken(token)) {
@@ -532,6 +553,10 @@ export const authOptions: NextAuthOptions = {
         token.memberAccessIssuedAt = issuedAtMs;
         token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
         token.memberAccessCode = normalizeMemberAccessCode(token.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+        // Preserve session ID if not already set
+        if (!token.memberAccessSessionId) {
+          token.memberAccessSessionId = token.email?.replace("@opletics.com", "")?.replace("member-", "") || null;
+        }
       }
 
       if (isMemberAccessToken(token) && isMemberAccessCodeDisabled(token.memberAccessCode ?? MEMBER_ACCESS_CODE)) {
