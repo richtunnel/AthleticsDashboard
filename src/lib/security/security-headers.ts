@@ -8,26 +8,27 @@
  */
 export const defaultSecurityHeaders = {
   // Prevent clickjacking attacks
-  'X-Frame-Options': 'DENY',
-  
+  "X-Frame-Options": "DENY",
+
   // Enable XSS protection
-  'X-XSS-Protection': '1; mode=block',
-  
+  "X-XSS-Protection": "1; mode=block",
+
   // Prevent MIME type sniffing
-  'X-Content-Type-Options': 'nosniff',
-  
+  "X-Content-Type-Options": "nosniff",
+
   // Referrer policy for privacy
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+
   // Permissions policy (formerly Feature Policy)
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+
   // Content Security Policy (basic)
   // This should be enhanced in next.config.ts for production
-  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:;",
-  
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:;",
+
   // Strict Transport Security (HSTS)
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
 };
 
 /**
@@ -35,11 +36,11 @@ export const defaultSecurityHeaders = {
  */
 export function getApiSecurityHeaders(): HeadersInit {
   return {
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   };
 }
 
@@ -49,30 +50,22 @@ export function getApiSecurityHeaders(): HeadersInit {
 export const corsConfig = {
   allowedOrigins: [
     // Production domains
-    'https://opletics.com',
-    'https://www.opletics.com',
-    'https://athleticdirectorhub.com',
-    'https://www.athleticdirectorhub.com',
-    
+    "https://opletics.com",
+    "https://www.opletics.com",
+    "https://opletics.com",
+    "https://www.opletics.com",
+
     // Development domains
-    'http://localhost:3000',
-    'http://localhost:3001',
-    
+    "http://localhost:3000",
+    "http://localhost:3001",
+
     // Add your staging/other environments here
     // 'https://staging.opletics.com',
   ],
 
-  allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    'Idempotency-Key',
-    'X-CSRF-Token',
-  ],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "Idempotency-Key", "X-CSRF-Token"],
 
   exposedHeaders: [],
 
@@ -89,7 +82,7 @@ export function isOriginAllowed(origin: string | null): boolean {
     // Allow requests with no origin (like mobile apps, curl, etc.)
     return true;
   }
-  
+
   const allowedOrigins = corsConfig.allowedOrigins;
   return allowedOrigins.includes(origin);
 }
@@ -99,22 +92,22 @@ export function isOriginAllowed(origin: string | null): boolean {
  */
 export function getCorsHeaders(requestOrigin?: string | null): HeadersInit {
   const headers: HeadersInit = {};
-  
+
   if (requestOrigin && isOriginAllowed(requestOrigin)) {
-    headers['Access-Control-Allow-Origin'] = requestOrigin;
+    headers["Access-Control-Allow-Origin"] = requestOrigin;
   } else if (!requestOrigin) {
     // For same-origin requests or those without origin header
-    headers['Access-Control-Allow-Origin'] = '*';
+    headers["Access-Control-Allow-Origin"] = "*";
   }
-  
-  headers['Access-Control-Allow-Methods'] = corsConfig.allowedMethods.join(', ');
-  headers['Access-Control-Allow-Headers'] = corsConfig.allowedHeaders.join(', ');
-  headers['Access-Control-Max-Age'] = corsConfig.maxAge.toString();
-  
+
+  headers["Access-Control-Allow-Methods"] = corsConfig.allowedMethods.join(", ");
+  headers["Access-Control-Allow-Headers"] = corsConfig.allowedHeaders.join(", ");
+  headers["Access-Control-Max-Age"] = corsConfig.maxAge.toString();
+
   if (corsConfig.allowCredentials) {
-    headers['Access-Control-Allow-Credentials'] = 'true';
+    headers["Access-Control-Allow-Credentials"] = "true";
   }
-  
+
   return headers;
 }
 
@@ -122,9 +115,9 @@ export function getCorsHeaders(requestOrigin?: string | null): HeadersInit {
  * Handle CORS preflight requests
  */
 export function handleCorsPreflight(request: Request): Response {
-  const origin = request.headers.get('origin');
+  const origin = request.headers.get("origin");
   const headers = getCorsHeaders(origin);
-  
+
   return new Response(null, {
     status: 204,
     headers,
@@ -139,11 +132,11 @@ export function applySecurityHeaders(response: Response, extraHeaders: HeadersIn
     ...getApiSecurityHeaders(),
     ...extraHeaders,
   };
-  
+
   Object.entries(securityHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
-  
+
   return response;
 }
 
@@ -151,24 +144,20 @@ export function applySecurityHeaders(response: Response, extraHeaders: HeadersIn
  * Apply CORS headers to a NextResponse
  */
 export function applyCorsHeaders(request: Request, response: Response): Response {
-  const origin = request.headers.get('origin');
+  const origin = request.headers.get("origin");
   const corsHeaders = getCorsHeaders(origin);
-  
+
   Object.entries(corsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
-  
+
   return response;
 }
 
 /**
  * Apply both security and CORS headers
  */
-export function applyAllSecurityHeaders(
-  request: Request,
-  response: Response,
-  extraHeaders: HeadersInit = {}
-): Response {
+export function applyAllSecurityHeaders(request: Request, response: Response, extraHeaders: HeadersInit = {}): Response {
   response = applySecurityHeaders(response, extraHeaders);
   response = applyCorsHeaders(request, response);
   return response;
