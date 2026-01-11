@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "25");
     const sortBy = searchParams.get("sortBy") || "date";
     const sortOrder = searchParams.get("sortOrder") || "asc";
+    const workbookId = searchParams.get("workbookId");
 
     // Build where clause
     const where: any = {
@@ -47,6 +48,11 @@ export async function GET(request: NextRequest) {
         organizationId: session.user.organizationId,
       },
     };
+
+    // Filter by workbook if provided
+    if (workbookId) {
+      where.workbookId = workbookId;
+    }
 
     const travelRequiredParam = searchParams.get("travelRequired");
     if (travelRequiredParam === "true") {
@@ -824,6 +830,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...body,
         createdById: session.user.id,
+        workbookId: workbookId,
       },
       include: {
         homeTeam: {
@@ -831,6 +838,7 @@ export async function POST(request: NextRequest) {
         },
         opponent: true,
         venue: true,
+        workbook: true,
       },
     });
 
