@@ -7,6 +7,7 @@ import { calendarService } from "@/lib/services/calendar.service";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-limiter";
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
+import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
 
 export async function GET(request: NextRequest) {
   // Apply rate limiting for games API
@@ -702,7 +703,10 @@ function parseBoolean(value: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const body = await request.json();
+    let body = await request.json();
+
+    // Filter restricted fields based on plan
+    body = await filterRestrictedGameFields(session.user.id, body);
 
     // ✅ CHECK STORAGE LIMIT: Check if organization has space for new data
     const storageCheckResult = await checkStorageBeforeWrite({
