@@ -45,7 +45,7 @@ export const useGamesWorkbookStore = create<GamesWorkbookState>()(
           workbooks: state.workbooks.filter((wb) => wb.id !== id),
           selectedWorkbookId: state.selectedWorkbookId === id ? null : state.selectedWorkbookId,
         })),
-      setSelectedWorkbookId: (id) => set({ selectedWorkbookId: id, showWorkbookSelector: false }),
+      setSelectedWorkbookId: (id) => set({ selectedWorkbookId: id }),
       setShowWorkbookSelector: (show) => set({ showWorkbookSelector: show }),
       getSelectedWorkbook: () => {
         const state = get();
