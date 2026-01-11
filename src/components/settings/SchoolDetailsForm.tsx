@@ -12,6 +12,7 @@ type Props = {
     schoolName?: string | null;
     teamName?: string | null;
     schoolAddress?: string | null;
+    schoolEmail?: string | null;
   };
 };
 
@@ -22,6 +23,7 @@ export default function SchoolDetailsForm({ user }: Props) {
     schoolName: user.schoolName ?? "",
     teamName: user.teamName ?? "",
     schoolAddress: user.schoolAddress ?? "",
+    schoolEmail: user.schoolEmail ?? "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -32,12 +34,13 @@ export default function SchoolDetailsForm({ user }: Props) {
       schoolName: user.schoolName ?? "",
       teamName: user.teamName ?? "",
       schoolAddress: user.schoolAddress ?? "",
+      schoolEmail: user.schoolEmail ?? "",
     }),
     [user]
   );
 
   const isDirty = useMemo(() => {
-    return form.schoolName.trim() !== initialData.schoolName.trim() || form.teamName.trim() !== initialData.teamName.trim() || form.schoolAddress.trim() !== initialData.schoolAddress.trim();
+    return form.schoolName.trim() !== initialData.schoolName.trim() || form.teamName.trim() !== initialData.teamName.trim() || form.schoolAddress.trim() !== initialData.schoolAddress.trim() || form.schoolEmail.trim() !== initialData.schoolEmail.trim();
   }, [form, initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +56,9 @@ export default function SchoolDetailsForm({ user }: Props) {
     }
     if (!form.schoolAddress || form.schoolAddress.trim().length < 5) {
       return "School address must be at least 5 characters";
+    }
+    if (form.schoolEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.schoolEmail.trim())) {
+      return "Please enter a valid email address";
     }
     return null;
   };
@@ -74,6 +80,7 @@ export default function SchoolDetailsForm({ user }: Props) {
       schoolName: form.schoolName.trim(),
       teamName: form.teamName.trim(),
       schoolAddress: form.schoolAddress.trim(),
+      schoolEmail: form.schoolEmail.trim(),
     };
 
     try {
@@ -105,6 +112,7 @@ export default function SchoolDetailsForm({ user }: Props) {
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
             <TextField size="small" label="School Name" name="schoolName" value={form.schoolName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln High School" />
             <TextField size="small" label="Mascot" name="teamName" value={form.teamName} onChange={handleChange} required fullWidth placeholder="e.g., Lincoln Lions" />
+            <TextField size="small" label="School Email Address" name="schoolEmail" type="email" value={form.schoolEmail} onChange={handleChange} fullWidth placeholder="optional@school.edu" helperText="Optional: Used as reply-to address when sending game schedules" />
             <SchoolAddressAutocomplete
               value={form.schoolAddress}
               onChange={(value) => setForm((s) => ({ ...s, schoolAddress: value }))}
