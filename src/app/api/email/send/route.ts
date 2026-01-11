@@ -218,17 +218,16 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Subject is required");
     }
 
-    // Fetch user's email signature and school email
-    const user = (await prisma.user.findUnique({
+    // Fetch user's email signature
+    const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         signaturePhone: true,
         signatureWebsite: true,
         signatureLogoUrl: true,
         signatureText: true,
-        schoolEmail: true,
-      } as any,
-    })) as any;
+      },
+    });
 
     const signatureHTML = user
       ? buildEmailSignatureHTML({
@@ -238,8 +237,16 @@ export async function POST(request: NextRequest) {
           signatureText: user.signatureText,
         })
       : "";
-    
-    const replyTo = user?.schoolEmail || undefined;
+
+    let replyTo: string | undefined;
+    try {
+      const rows = await prisma.$queryRaw<Array<{ schoolEmail: string | null }>>`
+        SELECT "schoolEmail" FROM "User" WHERE id = ${session.user.id} LIMIT 1
+      `;
+      replyTo = rows[0]?.schoolEmail ?? undefined;
+    } catch {
+      replyTo = undefined;
+    }
 
     let toEmails: string[] = [];
     let emailBody: string;
