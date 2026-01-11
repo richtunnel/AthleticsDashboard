@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
 import { hasScopes } from "./incremental-auth.service";
+import { calendarSyncTrackerService } from "./calendar-sync-tracker.service";
 
 const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
 
@@ -425,6 +426,9 @@ export class CalendarService {
       throw new Error("User not found");
     }
 
+    // Check if this is the user's first synced game (for tracker)
+    const isNewSyncUser = await calendarSyncTrackerService.isNewSyncUser(userId);
+
     // Check if calendar is connected before proceeding
     const isConnected = await this.isCalendarConnected(userId);
     if (!isConnected) {
@@ -603,6 +607,11 @@ export class CalendarService {
             },
           });
 
+          // Update tracker if this was the user's first synced game
+          if (isNewSyncUser) {
+            await calendarSyncTrackerService.incrementSyncedUserCount();
+          }
+
           return response.data;
         }
 
@@ -615,6 +624,11 @@ export class CalendarService {
             googleCalendarHtmlLink: response.data.htmlLink || null,
           },
         });
+
+        // Update tracker if this was the user's first synced game
+        if (isNewSyncUser) {
+          await calendarSyncTrackerService.incrementSyncedUserCount();
+        }
 
         return response.data;
       }
@@ -635,6 +649,11 @@ export class CalendarService {
           lastSyncedAt: new Date(),
         },
       });
+
+      // Update tracker if this was the user's first synced game
+      if (isNewSyncUser) {
+        await calendarSyncTrackerService.incrementSyncedUserCount();
+      }
 
       return response.data;
     } catch (error: any) {
@@ -773,6 +792,12 @@ export class CalendarService {
           calendarSynced: false,
         },
       });
+
+      // Check if user has no more synced games and decrement tracker
+      const hasNoMoreSyncedGames = await calendarSyncTrackerService.hasNoMoreSyncedGames(userId);
+      if (hasNoMoreSyncedGames) {
+        await calendarSyncTrackerService.decrementSyncedUserCount();
+      }
 
       return { success: true };
     } catch (error) {
