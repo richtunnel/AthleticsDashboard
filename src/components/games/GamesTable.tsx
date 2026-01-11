@@ -876,6 +876,7 @@ export function GamesTable() {
         workbookId: data.data.id,
         workbookName: data.data.name,
       });
+      setShowWorkbookSelector(false);
     },
     onError: (error: any) => {
       addNotification(error.message || "Failed to create workbook", "error");
@@ -7023,62 +7024,60 @@ export function GamesTable() {
             </Stack>
           )}
         </Box>
-        {!showWorkbookSelector && (
-          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
-            {selectedGames.size > 0 && games.length > 0 && (
-              <>
-                {/* Delete Button */}
-                <LoadingButton
-                  variant="outlined"
-                  startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
-                  onClick={handleBulkDelete}
-                  loading={bulkDeleteMutation.isPending}
-                  size="small"
-                  sx={{
-                    border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
-                    borderRadius: "10px",
-                    padding: "3px 9px",
-                    textTransform: "none",
-                    background: "transparent",
-                    boxShadow: 0,
-                    "&:hover": { boxShadow: 0 },
-                  }}
-                >
-                  {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
-                </LoadingButton>
-              </>
-            )}
-            {/* Import Button */}
-            <Tooltip title="Import games from CSV">
-              <Button
+        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
+          {selectedGames.size > 0 && games.length > 0 && (
+            <>
+              {/* Delete Button */}
+              <LoadingButton
                 variant="outlined"
-                startIcon={<Upload />}
-                onClick={handleImportClick}
-                size="small"
-                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-              >
-                Import
-              </Button>
-            </Tooltip>
-            <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
-              <Button
-                variant="outlined"
-                startIcon={<Download />}
-                onClick={handleExport}
-                disabled={games.length === 0}
+                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
+                onClick={handleBulkDelete}
+                loading={bulkDeleteMutation.isPending}
                 size="small"
                 sx={{
-                  borderColor: theme.palette.themeButtonText.subtle,
-                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
+                  borderRadius: "10px",
+                  padding: "3px 9px",
                   textTransform: "none",
-                  display: { xs: "none", sm: "inline-flex" },
+                  background: "transparent",
+                  boxShadow: 0,
+                  "&:hover": { boxShadow: 0 },
                 }}
               >
-                Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
-              </Button>
-            </Tooltip>
-          </Stack>
-        )}
+                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
+              </LoadingButton>
+            </>
+          )}
+          {/* Import Button */}
+          <Tooltip title="Import games from CSV">
+            <Button
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={handleImportClick}
+              size="small"
+              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+            >
+              Import
+            </Button>
+          </Tooltip>
+          <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
+            <Button
+              variant="outlined"
+              startIcon={<Download />}
+              onClick={handleExport}
+              disabled={games.length === 0}
+              size="small"
+              sx={{
+                borderColor: theme.palette.themeButtonText.subtle,
+                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                textTransform: "none",
+                display: { xs: "none", sm: "inline-flex" },
+              }}
+            >
+              Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
+            </Button>
+          </Tooltip>
+        </Stack>
       </Box>
 
       {/* Edit Workbook Name Dialog */}
@@ -7133,126 +7132,8 @@ export function GamesTable() {
         </DialogActions>
       </Dialog>
 
-      {/* Workbook Selector View - shows when user clicks "Create Table" */}
-      {showWorkbookSelector ? (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-            Select or Create a Table
-          </Typography>
-
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(auto-fill, minmax(280px, 1fr))",
-                sm: "repeat(auto-fill, minmax(320px, 1fr))",
-                md: "repeat(auto-fill, minmax(360px, 1fr))",
-              },
-              gap: 3,
-            }}
-          >
-            {/* Render existing workbooks */}
-            {workbooks.map((workbook) => (
-              <Card
-                key={workbook.id}
-                sx={{
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  border: selectedWorkbookId === workbook.id ? "2px solid" : "1px solid",
-                  borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "divider",
-                  bgcolor: "background.paper",
-                  "&:hover": {
-                    boxShadow: 3,
-                    transform: "translateY(-2px)",
-                  },
-                }}
-                onClick={() => setSelectedWorkbookId(workbook.id)}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem" }}>
-                      {workbook.name}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 0.5 }}>
-                      <Tooltip title="Rename table">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingWorkbookDialog({
-                              open: true,
-                              workbookId: workbook.id,
-                              currentName: workbook.name,
-                            });
-                          }}
-                          sx={{ p: 0.5 }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {workbooks.length > 1 && workbook._count?.games === 0 && (
-                        <Tooltip title="Delete table">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteWorkbook(workbook.id);
-                            }}
-                            sx={{ p: 0.5, color: "error.main" }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {workbook._count?.games || 0} game{workbook._count?.games !== 1 ? "s" : ""}
-                  </Typography>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Add new workbook card */}
-            <Card
-              sx={{
-                cursor: "pointer",
-                border: "2px dashed",
-                borderColor: "divider",
-                bgcolor: "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 140,
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  borderColor: "primary.main",
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
-                },
-              }}
-              onClick={() => {
-                const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
-                createWorkbookMutation.mutate(newWorkbookName);
-              }}
-            >
-              <CardContent sx={{ textAlign: "center", p: 3 }}>
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                  <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Create Table
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Start a new games table
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
-      ) : (
-        <>
-          {/* Save Status Banner */}
-          <SaveStatusBanner status={saveStatus} />
+      {/* Save Status Banner */}
+      <SaveStatusBanner status={saveStatus} />
 
 
       {/* Sample Game Banner */}
@@ -7442,10 +7323,130 @@ export function GamesTable() {
               </Typography>
             </Box>
           )}
-        </Box>
-      )}
+          </Box>
+          )}
 
-      {/* Pagination */}
+          {/* Workbook Selector Dialog */}
+          <Dialog open={showWorkbookSelector} onClose={() => setShowWorkbookSelector(false)} maxWidth="md" fullWidth>
+          <DialogTitle>Select or Create a Table</DialogTitle>
+          <DialogContent>
+          <Box
+           sx={{
+             display: "grid",
+             gridTemplateColumns: {
+               xs: "repeat(auto-fill, minmax(280px, 1fr))",
+               sm: "repeat(auto-fill, minmax(320px, 1fr))",
+               md: "repeat(auto-fill, minmax(360px, 1fr))",
+             },
+             gap: 3,
+             mt: 2,
+           }}
+          >
+           {/* Render existing workbooks */}
+           {workbooks.map((workbook) => (
+             <Card
+               key={workbook.id}
+               sx={{
+                 cursor: "pointer",
+                 transition: "all 0.2s ease",
+                 border: selectedWorkbookId === workbook.id ? "2px solid" : "1px solid",
+                 borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "divider",
+                 bgcolor: "background.paper",
+                 "&:hover": {
+                   boxShadow: 3,
+                   transform: "translateY(-2px)",
+                 },
+               }}
+               onClick={() => setSelectedWorkbookId(workbook.id)}
+             >
+               <CardContent sx={{ p: 3 }}>
+                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                   <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem" }}>
+                     {workbook.name}
+                   </Typography>
+                   <Box sx={{ display: "flex", gap: 0.5 }}>
+                     <Tooltip title="Rename table">
+                       <IconButton
+                         size="small"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setEditingWorkbookDialog({
+                             open: true,
+                             workbookId: workbook.id,
+                             currentName: workbook.name,
+                           });
+                         }}
+                         sx={{ p: 0.5 }}
+                       >
+                         <EditIcon fontSize="small" />
+                       </IconButton>
+                     </Tooltip>
+                     {workbooks.length > 1 && workbook._count?.games === 0 && (
+                       <Tooltip title="Delete table">
+                         <IconButton
+                           size="small"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             deleteWorkbook(workbook.id);
+                           }}
+                           sx={{ p: 0.5, color: "error.main" }}
+                         >
+                           <DeleteIcon fontSize="small" />
+                         </IconButton>
+                       </Tooltip>
+                     )}
+                   </Box>
+                 </Box>
+                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                   {workbook._count?.games || 0} game{workbook._count?.games !== 1 ? "s" : ""}
+                 </Typography>
+               </CardContent>
+             </Card>
+           ))}
+
+           {/* Add new workbook card */}
+           <Card
+             sx={{
+               cursor: "pointer",
+               border: "2px dashed",
+               borderColor: "divider",
+               bgcolor: "transparent",
+               display: "flex",
+               alignItems: "center",
+               justifyContent: "center",
+               minHeight: 140,
+               transition: "all 0.2s ease",
+               "&:hover": {
+                 borderColor: "primary.main",
+                 bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+               },
+             }}
+             onClick={() => {
+               const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
+               createWorkbookMutation.mutate(newWorkbookName);
+               setShowWorkbookSelector(false);
+             }}
+           >
+             <CardContent sx={{ textAlign: "center", p: 3 }}>
+               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                 <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
+                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                   Create Table
+                 </Typography>
+                 <Typography variant="body2" color="text.secondary">
+                   Start a new games table
+                 </Typography>
+               </Box>
+             </CardContent>
+           </Card>
+          </Box>
+          </DialogContent>
+          <DialogActions>
+          <Button onClick={() => setShowWorkbookSelector(false)}>Cancel</Button>
+          </DialogActions>
+          </Dialog>
+
+          {/* Pagination */}
       <Box
         sx={{
           display: "flex",
@@ -7739,8 +7740,6 @@ export function GamesTable() {
           </Button>
         </DialogActions>
       </Dialog>
-        </>
-      )}
     </Box>
   );
 }
