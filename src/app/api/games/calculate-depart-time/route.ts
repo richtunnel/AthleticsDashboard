@@ -2,12 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/utils/authOptions";
 import { dismissDepartService } from "@/lib/services/dismiss-depart.service";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Travel Recommendations are not available on your current plan." },
+        { status: 403 }
+      );
     }
 
     const organizationId = (session.user as any).organizationId;

@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.BUDGET_CALCULATOR);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Budget Calculator is not available on your current plan. Please upgrade to Team Plus to use this feature." },
+        { status: 403 }
+      );
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -31,6 +41,16 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.BUDGET_CALCULATOR);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Budget Calculator is not available on your current plan. Please upgrade to Team Plus to use this feature." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     const { enabled, monthlyBudget } = body;

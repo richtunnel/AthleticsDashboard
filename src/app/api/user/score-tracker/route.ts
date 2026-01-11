@@ -2,12 +2,23 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.SCORE_TRACKER);
+    if (!hasAccess) {
+      return NextResponse.json({ 
+        scoreTrackerEnabled: false, 
+        restricted: true,
+        message: "Score Tracker is not available on your current plan. Please upgrade to Team Plus to use this feature."
+      });
     }
 
     const user = await prisma.user.findUnique({
@@ -27,6 +38,15 @@ export async function PATCH(request: Request) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.SCORE_TRACKER);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "Score Tracker is not available on your current plan. Please upgrade to Team Plus to use this feature." },
+        { status: 403 }
+      );
     }
 
     const { enabled } = await request.json();

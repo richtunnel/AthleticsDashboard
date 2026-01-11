@@ -1,4 +1,5 @@
 import { prisma } from "../database/prisma";
+import { getEmailLimit } from "../security/plan-limits";
 
 export const EMAIL_LIMITS = {
   DAILY_PER_USER: 75,
@@ -73,6 +74,12 @@ export class EmailLimitService {
       return userCheck;
     }
 
+    // Check user monthly limit based on plan
+    const userMonthlyCheck = await this.canUserSendMonthlyEmails(userId, emailCount);
+    if (!userMonthlyCheck.allowed) {
+      return userMonthlyCheck;
+    }
+
     // Check system monthly limit
     const systemCheck = await this.canSystemSendEmails(emailCount);
     if (!systemCheck.allowed) {
@@ -83,9 +90,53 @@ export class EmailLimitService {
       allowed: true,
       dailyUsed: userCheck.dailyUsed,
       dailyLimit: userCheck.dailyLimit,
-      monthlyUsed: systemCheck.monthlyUsed,
-      monthlyLimit: systemCheck.monthlyLimit,
+      monthlyUsed: userMonthlyCheck.monthlyUsed,
+      monthlyLimit: userMonthlyCheck.monthlyLimit,
     };
+  }
+
+  /**
+   * Check if a user can send a specified number of emails based on their plan's monthly limit
+   */
+  async canUserSendMonthlyEmails(userId: string, emailCount: number = 1): Promise<EmailLimitCheck> {
+    const monthlyUsed = await this.getUserMonthlyEmailCount(userId);
+    const monthlyLimit = await getEmailLimit(userId);
+    const remaining = monthlyLimit - monthlyUsed;
+
+    if (monthlyUsed + emailCount > monthlyLimit) {
+      return {
+        allowed: false,
+        reason: `Monthly email limit for your plan exceeded. You have sent ${monthlyUsed.toLocaleString()} of ${monthlyLimit.toLocaleString()} emails this month. ${remaining > 0 ? `You can send ${remaining.toLocaleString()} more emails.` : 'Please upgrade your plan to increase your limit.'}`,
+        monthlyUsed,
+        monthlyLimit,
+      };
+    }
+
+    return {
+      allowed: true,
+      monthlyUsed,
+      monthlyLimit,
+    };
+  }
+
+  /**
+   * Get the count of emails sent by a user in the current month
+   */
+  async getUserMonthlyEmailCount(userId: string): Promise<number> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+
+    const count = await prisma.emailLog.count({
+      where: {
+        sentById: userId,
+        status: "SENT",
+        sentAt: {
+          gte: firstDayOfMonth,
+        },
+      },
+    });
+
+    return count;
   }
 
   /**
@@ -139,9 +190,9 @@ export class EmailLimitService {
     monthlyRemaining: number;
   }> {
     const dailyUsed = await this.getUserDailyEmailCount(userId);
-    const monthlyUsed = await this.getGlobalMonthlyEmailCount();
+    const monthlyUsed = await this.getUserMonthlyEmailCount(userId);
     const dailyLimit = EMAIL_LIMITS.DAILY_PER_USER;
-    const monthlyLimit = EMAIL_LIMITS.MONTHLY_GLOBAL;
+    const monthlyLimit = await getEmailLimit(userId);
 
     return {
       dailyUsed,
