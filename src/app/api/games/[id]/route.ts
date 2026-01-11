@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { calendarService } from "@/lib/services/calendar.service";
 import { travelAIService } from "@/lib/services/travelAI";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -46,7 +47,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ success: false, error: "Game ID required" }, { status: 400 });
     }
 
-    const body = await request.json();
+    let body = await request.json();
+
+    // Filter restricted fields based on plan
+    body = await filterRestrictedGameFields(session.user.id, body);
 
     // Validate that the game belongs to user's organization
     const existingGame = await prisma.game.findUnique({
