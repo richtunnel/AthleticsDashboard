@@ -830,7 +830,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...body,
         createdById: session.user.id,
-        workbookId: workbookId,
+        workbookId: body.workbookId,
       },
       include: {
         homeTeam: {
@@ -859,6 +859,7 @@ export async function POST(request: NextRequest) {
               },
               opponent: true,
               venue: true,
+              workbook: true,
             },
           });
 
