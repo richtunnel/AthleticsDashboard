@@ -266,19 +266,30 @@ export default function SchoolAddressAutocomplete({
             }}
           />
         )}
-        renderOption={(props, option) => (
-          <Box component="li" {...props} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <LocationIcon sx={{ color: "text.secondary", fontSize: 20 }} />
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {option.structuredFormatting.mainText}
-              </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                {option.structuredFormatting.secondaryText}
-              </Typography>
+        renderOption={(props, option) => {
+          const { key, ...optionProps } = props as React.HTMLAttributes<HTMLLIElement> & {
+            key: React.Key;
+          };
+
+          return (
+            <Box
+              component="li"
+              key={key}
+              {...optionProps}
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+            >
+              <LocationIcon sx={{ color: "text.secondary", fontSize: 20 }} />
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {option.structuredFormatting.mainText}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {option.structuredFormatting.secondaryText}
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-        )}
+          );
+        }}
         noOptionsText={
           inputValue.length < 3
             ? "Type at least 3 characters to search or enter manually"
