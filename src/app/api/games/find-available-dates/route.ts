@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { availableDatesService } from "@/lib/services/available-dates.service";
 import { availableDatesAIService } from "@/lib/services/available-dates-ai.service";
 import { prisma } from "@/lib/database/prisma";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +12,15 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.FIND_DATES);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: "This feature is not available on your current plan. Please upgrade to Team or Team Plus to use Find Dates." },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
