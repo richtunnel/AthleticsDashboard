@@ -31,6 +31,7 @@ import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import type { EmailGroup } from "./types";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
+import { AddSchoolEmailDialog } from "@/components/games/AddSchoolEmailDialog";
 
 interface Game {
   id: string;
@@ -237,6 +238,20 @@ export default function ComposeEmailPage() {
       return data.data || null;
     },
   });
+
+  // Fetch user profile to check for school email
+  const { data: userProfile } = useQuery({
+    queryKey: ["user-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/profile");
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data || null;
+    },
+  });
+
+  const [showAddEmailDialog, setShowAddEmailDialog] = useState(false);
+  const [pendingEmailData, setPendingEmailData] = useState<any>(null);
 
   // Fetch custom columns
   const { data: customColumnsResponse } = useQuery({
