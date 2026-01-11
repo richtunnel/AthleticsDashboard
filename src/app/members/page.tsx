@@ -12,6 +12,11 @@ const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
 const ATTEMPTS_KEY = "members_signin_attempts";
 const LOCK_UNTIL_KEY = "members_signin_locked_until";
+const MEMBER_SESSION_ID_KEY = "members_session_id";
+
+function generateSessionId(): string {
+  return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
 
 export default function MembersPage() {
   const router = useRouter();
@@ -22,6 +27,7 @@ export default function MembersPage() {
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [sessionId, setSessionId] = useState("");
 
   useEffect(() => {
     const lockedUntil = Number(localStorage.getItem(LOCK_UNTIL_KEY) ?? "0");
@@ -47,6 +53,14 @@ export default function MembersPage() {
     }
 
     setAttempts(storedAttempts);
+
+    // Get or generate session ID for this browser/device
+    let storedSessionId = localStorage.getItem(MEMBER_SESSION_ID_KEY);
+    if (!storedSessionId) {
+      storedSessionId = generateSessionId();
+      localStorage.setItem(MEMBER_SESSION_ID_KEY, storedSessionId);
+    }
+    setSessionId(storedSessionId);
   }, [router]);
 
   // Remove the redirect for authenticated users to allow access to members page
@@ -77,6 +91,7 @@ export default function MembersPage() {
       const result = await signIn("member-code", {
         redirect: false,
         code: memberNo,
+        sessionId: sessionId,
       });
 
       if (result?.ok) {
