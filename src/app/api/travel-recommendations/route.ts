@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { requireAuth } from "@/lib/utils/auth";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: "Travel Recommendations are not available on your current plan." },
+        { status: 403 }
+      );
+    }
 
     const searchParams = request.nextUrl.searchParams;
     const includeAdded = searchParams.get("includeAdded") === "true";

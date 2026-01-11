@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.SCORE_TRACKER);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: "Score Tracker is not available on your current plan. Please upgrade to Team Plus to use this feature." },
+        { status: 403 }
+      );
+    }
 
     const matchupResults = await prisma.matchupResult.findMany({
       where: {
@@ -36,6 +46,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.SCORE_TRACKER);
+    if (!hasAccess) {
+      return NextResponse.json(
+        { success: false, error: "Score Tracker is not available on your current plan. Please upgrade to Team Plus to use this feature." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     const { opponentId, organizationScore, opponentScore, isWin, sport, gender, level } = body;
