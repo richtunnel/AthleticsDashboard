@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
+import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 const BUFFER_MINUTES = 22; // Fixed 22-minute cushion
 
@@ -21,6 +22,16 @@ function formatTimeWithAMPM(hours: number, minutes: number): string {
 export async function POST(request: Request) {
   try {
     const session = await requireAuth();
+
+    // Feature access check
+    const hasAccess = await hasFeatureAccess(session.user.id, PlanFeature.TRAVEL_RECOMMENDATIONS);
+    if (!hasAccess) {
+      return new Response(
+        JSON.stringify({ error: "Travel Recommendations are not available on your current plan. Please upgrade to Team or Team Plus to use this feature." }),
+        { status: 403 }
+      );
+    }
+
     const { gameId, dismissalTime, opponentAddress } = await request.json();
 
     // Validate inputs
