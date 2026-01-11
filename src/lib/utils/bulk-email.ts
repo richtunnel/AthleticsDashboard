@@ -14,6 +14,7 @@ interface SendBulkEmailParams {
   subject: string;
   html: string;
   sentById: string;
+  replyTo?: string;
   gameIds?: string[];
   groupId?: string;
   campaignId?: string;
@@ -34,7 +35,7 @@ interface SendBulkEmailParams {
  * @returns Result with success/failure counts and email log IDs
  */
 export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
-  const { to, subject, html, sentById, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage } = params;
+  const { to, subject, html, sentById, replyTo, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage } = params;
 
   const resend = getResendClientOptional();
   if (!resend) {
@@ -45,6 +46,18 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
   const limitCheck = await emailLimitService.checkEmailLimits(sentById, to.length);
   if (!limitCheck.allowed) {
     throw new Error(limitCheck.reason || "Email limit exceeded");
+  }
+
+  // Build email options with reply-to if provided
+  const emailOptions: any = {
+    from: "Opletics <noreply@opletics.com>",
+    to: [], // Will be set per email in batch
+    subject,
+    html,
+  };
+  
+  if (replyTo) {
+    emailOptions.replyTo = replyTo;
   }
 
   const result: BulkEmailResult = {
@@ -72,10 +85,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       try {
         // Send email via Resend
         const emailResponse = await resend.emails.send({
-          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+          ...emailOptions,
           to: [email], // Send to individual recipient
-          subject,
-          html,
         });
 
         // Create individual email log
