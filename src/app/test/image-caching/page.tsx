@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Box, Button, Card, CardContent, Typography, Divider, CircularProgress, Alert, Grid, Paper } from "@mui/material";
+import { Box, Button, Card, CardContent, Typography, Divider, CircularProgress, Alert, GridLegacy as Grid, Paper, TextField } from "@mui/material";
 import { getOptimizedImageUrl, getResponsiveImageSources } from "@/lib/utils/image";
 
 export default function ImageCachingTestPage() {
@@ -77,7 +77,7 @@ export default function ImageCachingTestPage() {
       ) : (
         <Grid container spacing={4}>
           {/* Test Results */}
-          <Grid item xs={12} md={6}>
+          <Grid component="div" item xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
@@ -148,7 +148,7 @@ export default function ImageCachingTestPage() {
                   <TextField
                     label="Custom Image URL"
                     value={customImageUrl}
-                    onChange={(e) => setCustomImageUrl(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomImageUrl(e.target.value)}
                     fullWidth
                     size="small"
                     placeholder="/uploads/signatures/your-image.jpg"
