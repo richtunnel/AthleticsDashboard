@@ -6793,295 +6793,348 @@ export function GamesTable() {
             )}
           </Typography>
 
-          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
-            {selectedGames.size > 0 && games.length > 0 && (
-              <Button
-                variant="contained"
-                startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
-                onClick={handleSendEmail}
-                size="small"
-                sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-              >
-                Send Email ({selectedGames.size})
-              </Button>
-            )}
-            {/* Create Game Button - conditional rendering based on selection */}
-            <Tooltip title="Create a new row in the table below">
-              {selectedGames.size > 0 ? (
-                <IconButton
-                  disabled
-                  size="small"
-                  sx={{
-                    opacity: 0.5,
-                    minWidth: 32,
-                    width: 32,
-                    height: 32,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
-                  <Add fontSize="small" />
-                </IconButton>
-              ) : (
+          {!showWorkbookSelector && (
+            <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
+              {selectedGames.size > 0 && games.length > 0 && (
                 <Button
                   variant="contained"
-                  startIcon={<Add />}
-                  onClick={handleNewGame}
-                  disabled={isAddingNew}
+                  startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
+                  onClick={handleSendEmail}
                   size="small"
-                  sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                  sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
                 >
-                  Create Game
+                  Send Email ({selectedGames.size})
                 </Button>
               )}
-            </Tooltip>
+              {/* Create Game Button - conditional rendering based on selection */}
+              <Tooltip title="Create a new row in the table below">
+                {selectedGames.size > 0 ? (
+                  <IconButton
+                    disabled
+                    size="small"
+                    sx={{
+                      opacity: 0.5,
+                      minWidth: 32,
+                      width: 32,
+                      height: 32,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Add fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Button
+                    variant="contained"
+                    startIcon={<Add />}
+                    onClick={handleNewGame}
+                    disabled={isAddingNew}
+                    size="small"
+                    sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                  >
+                    Create Game
+                  </Button>
+                )}
+              </Tooltip>
 
-            {/* Create Table Button - to create separate tables */}
-            <Tooltip title="Add a separate table">
-              {selectedGames.size > 0 ? (
-                <IconButton
-                  disabled
-                  size="small"
-                  sx={{
-                    opacity: 0.5,
-                    minWidth: 32,
-                    width: 32,
-                    height: 32,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
-                  <TableChart fontSize="small" />
-                </IconButton>
-              ) : (
+              {/* Create Table Button - to create separate tables */}
+              <Tooltip title="Add a separate table">
+                {selectedGames.size > 0 ? (
+                  <IconButton
+                    disabled
+                    size="small"
+                    sx={{
+                      opacity: 0.5,
+                      minWidth: 32,
+                      width: 32,
+                      height: 32,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <TableChart fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<TableChart />}
+                    onClick={() => setShowWorkbookSelector(true)}
+                    size="small"
+                    sx={{
+                      borderColor: theme.palette.themeButtonText.subtle,
+                      color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                      textTransform: "none",
+                    }}
+                  >
+                    Create Table
+                  </Button>
+                )}
+              </Tooltip>
+
+              <Tooltip title="Use AI to find available dates in your schedule">
                 <Button
                   variant="outlined"
-                  startIcon={<TableChart />}
-                  onClick={() => setShowWorkbookSelector(true)}
+                  startIcon={<AutoAwesome />}
+                  onClick={handleFindAvailableDates}
                   size="small"
                   sx={{
-                    borderColor: theme.palette.themeButtonText.subtle,
-                    color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
                     textTransform: "none",
-                  }}
-                >
-                  Create Table
-                </Button>
-              )}
-            </Tooltip>
-
-            <Tooltip title="Use AI to find available dates in your schedule">
-              <Button
-                variant="outlined"
-                startIcon={<AutoAwesome />}
-                onClick={handleFindAvailableDates}
-                size="small"
-                sx={{
-                  textTransform: "none",
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                  color: "white",
-                  border: "none",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "white",
                     border: "none",
-                  },
-                }}
-              >
-                Find Dates
-              </Button>
-            </Tooltip>
-
-            {/* Add Columns Button - conditional rendering based on selection */}
-            <Tooltip title="Add a custom column to the table below.">
-              {selectedGames.size > 0 ? (
-                <IconButton
-                  disabled
-                  size="small"
-                  sx={{
-                    opacity: 0.5,
-                    minWidth: 32,
-                    width: 32,
-                    height: 32,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    display: { xs: "none", sm: "inline-flex" },
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                      border: "none",
+                    },
                   }}
                 >
-                  <ViewColumn fontSize="small" />
-                </IconButton>
-              ) : (
-                <Button
-                  variant="outlined"
-                  startIcon={<ViewColumn />}
-                  onClick={handleAddColumnsClick}
-                  size="small"
-                  sx={{
-                    borderColor: theme.palette.themeButtonText.subtle,
-                    color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                    textTransform: "none",
-                    display: { xs: "none", sm: "inline-flex" },
-                  }}
-                >
-                  Add Columns ({customColumns.length})
+                  Find Dates
                 </Button>
-              )}
-            </Tooltip>
+              </Tooltip>
 
-            {/* Columns Button - conditional rendering based on selection */}
-            <Tooltip title="Arrange your columns using drag and drop.">
-              {selectedGames.size > 0 ? (
-                <IconButton
-                  disabled
-                  size="small"
-                  sx={{
-                    opacity: 0.5,
-                    minWidth: 32,
-                    width: 32,
-                    height: 32,
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 1,
-                  }}
-                >
-                  <Tune fontSize="small" />
-                </IconButton>
-              ) : (
+              {/* Add Columns Button - conditional rendering based on selection */}
+              <Tooltip title="Add a custom column to the table below.">
+                {selectedGames.size > 0 ? (
+                  <IconButton
+                    disabled
+                    size="small"
+                    sx={{
+                      opacity: 0.5,
+                      minWidth: 32,
+                      width: 32,
+                      height: 32,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      display: { xs: "none", sm: "inline-flex" },
+                    }}
+                  >
+                    <ViewColumn fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<ViewColumn />}
+                    onClick={handleAddColumnsClick}
+                    size="small"
+                    sx={{
+                      borderColor: theme.palette.themeButtonText.subtle,
+                      color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                      textTransform: "none",
+                      display: { xs: "none", sm: "inline-flex" },
+                    }}
+                  >
+                    Add Columns ({customColumns.length})
+                  </Button>
+                )}
+              </Tooltip>
+
+              {/* Columns Button - conditional rendering based on selection */}
+              <Tooltip title="Arrange your columns using drag and drop.">
+                {selectedGames.size > 0 ? (
+                  <IconButton
+                    disabled
+                    size="small"
+                    sx={{
+                      opacity: 0.5,
+                      minWidth: 32,
+                      width: 32,
+                      height: 32,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Tune fontSize="small" />
+                  </IconButton>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Tune />}
+                    onClick={() => {
+                      trackEvent("Columns Button Clicked", {
+                        source: "games_table",
+                        action: "customize_columns",
+                        visible_columns_count: visibleColumnIds.length,
+                      });
+                      setIsColumnPreferencesOpen(true);
+                    }}
+                    size="small"
+                    sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                  >
+                    Columns ({visibleColumnIds.length})
+                  </Button>
+                )}
+              </Tooltip>
+
+              {selectedGames.size > 0 && games.length > 0 && (
+                <>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<ContentCopy />}
+                    onClick={handleCopySelectedRows}
+                    size="small"
+                    sx={{
+                      color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                      borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                      textTransform: "none",
+                      display: { xs: "none", sm: "inline-flex" },
+                    }}
+                  >
+                    Copy ({selectedGames.size})
+                  </Button>
+                  <Tooltip title="Sync calendars">
+                    <IconButton
+                      onClick={handleBulkSync}
+                      disabled={bulkSyncGamesMutation.isPending}
+                      size="small"
+                      sx={{
+                        color: "primary.main",
+                        display: { xs: "none", sm: "inline-flex" },
+                      }}
+                    >
+                      {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+              {hiddenColumnCount > 0 && (
                 <Button
-                  variant="outlined"
-                  startIcon={<Tune />}
+                  size="small"
+                  variant="text"
                   onClick={() => {
-                    trackEvent("Columns Button Clicked", {
+                    trackEvent("Columns Hidden Indicator Clicked", {
                       source: "games_table",
                       action: "customize_columns",
+                      hidden_columns_count: hiddenColumnCount,
                       visible_columns_count: visibleColumnIds.length,
                     });
                     setIsColumnPreferencesOpen(true);
                   }}
-                  size="small"
-                  sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                  startIcon={<VisibilityOff />}
+                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
                 >
-                  Columns ({visibleColumnIds.length})
+                  {hiddenColumnCount} hidden
                 </Button>
               )}
-            </Tooltip>
-
+            </Stack>
+          )}
+        </Box>
+        {!showWorkbookSelector && (
+          <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
             {selectedGames.size > 0 && games.length > 0 && (
               <>
-                <Button
+                {/* Delete Button */}
+                <LoadingButton
                   variant="outlined"
-                  color="primary"
-                  startIcon={<ContentCopy />}
-                  onClick={handleCopySelectedRows}
+                  startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
+                  onClick={handleBulkDelete}
+                  loading={bulkDeleteMutation.isPending}
                   size="small"
                   sx={{
-                    color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                    borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                    border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
+                    borderRadius: "10px",
+                    padding: "3px 9px",
                     textTransform: "none",
-                    display: { xs: "none", sm: "inline-flex" },
+                    background: "transparent",
+                    boxShadow: 0,
+                    "&:hover": { boxShadow: 0 },
                   }}
                 >
-                  Copy ({selectedGames.size})
-                </Button>
-                <Tooltip title="Sync calendars">
-                  <IconButton
-                    onClick={handleBulkSync}
-                    disabled={bulkSyncGamesMutation.isPending}
-                    size="small"
-                    sx={{
-                      color: "primary.main",
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
-                  </IconButton>
-                </Tooltip>
+                  {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
+                </LoadingButton>
               </>
             )}
-            {hiddenColumnCount > 0 && (
+            {/* Import Button */}
+            <Tooltip title="Import games from CSV">
               <Button
-                size="small"
-                variant="text"
-                onClick={() => {
-                  trackEvent("Columns Hidden Indicator Clicked", {
-                    source: "games_table",
-                    action: "customize_columns",
-                    hidden_columns_count: hiddenColumnCount,
-                    visible_columns_count: visibleColumnIds.length,
-                  });
-                  setIsColumnPreferencesOpen(true);
-                }}
-                startIcon={<VisibilityOff />}
-                sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
-              >
-                {hiddenColumnCount} hidden
-              </Button>
-            )}
-          </Stack>
-        </Box>
-        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
-          {selectedGames.size > 0 && games.length > 0 && (
-            <>
-              {/* Delete Button */}
-              <LoadingButton
                 variant="outlined"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
-                onClick={handleBulkDelete}
-                loading={bulkDeleteMutation.isPending}
+                startIcon={<Upload />}
+                onClick={handleImportClick}
+                size="small"
+                sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+              >
+                Import
+              </Button>
+            </Tooltip>
+            <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleExport}
+                disabled={games.length === 0}
                 size="small"
                 sx={{
-                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
-                  borderRadius: "10px",
-                  padding: "3px 9px",
+                  borderColor: theme.palette.themeButtonText.subtle,
+                  color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
                   textTransform: "none",
-                  background: "transparent",
-                  boxShadow: 0,
-                  "&:hover": { boxShadow: 0 },
+                  display: { xs: "none", sm: "inline-flex" },
                 }}
               >
-                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
-              </LoadingButton>
-            </>
-          )}
-          {/* Import Button */}
-          <Tooltip title="Import games from CSV">
-            <Button
-              variant="outlined"
-              startIcon={<Upload />}
-              onClick={handleImportClick}
-              size="small"
-              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-            >
-              Import
-            </Button>
-          </Tooltip>
-          <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleExport}
-              disabled={games.length === 0}
-              size="small"
-              sx={{
-                borderColor: theme.palette.themeButtonText.subtle,
-                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                textTransform: "none",
-                display: { xs: "none", sm: "inline-flex" },
-              }}
-            >
-              Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
-            </Button>
-          </Tooltip>
-        </Stack>
+                Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
+              </Button>
+            </Tooltip>
+          </Stack>
+        )}
       </Box>
 
-      {/* Save Status Banner */}
-      <SaveStatusBanner status={saveStatus} />
+      {/* Edit Workbook Name Dialog */}
+      <Dialog open={editingWorkbookDialog?.open ?? false} onClose={() => setEditingWorkbookDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Rename Table</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Table Name"
+            defaultValue={editingWorkbookDialog?.currentName}
+            variant="outlined"
+            sx={{ mt: 2 }}
+             onKeyDown={(e) => {
+               if (e.key === "Enter") {
+                 e.preventDefault();
+                 if (editingWorkbookDialog?.currentName.trim()) {
+                   updateWorkbookMutation.mutate({
+                     id: editingWorkbookDialog.workbookId,
+                     name: editingWorkbookDialog.currentName.trim(),
+                   });
+                 }
+               }
+             }}
+             onChange={(e) => {
+               if (editingWorkbookDialog) {
+                 setEditingWorkbookDialog({
+                   ...editingWorkbookDialog,
+                   currentName: e.target.value,
+                 });
+               }
+             }}
+             />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingWorkbookDialog(null)}>Cancel</Button>
+          <LoadingButton
+            onClick={() => {
+              if (editingWorkbookDialog?.currentName.trim()) {
+                updateWorkbookMutation.mutate({
+                  id: editingWorkbookDialog.workbookId,
+                  name: editingWorkbookDialog.currentName.trim(),
+                });
+              }
+            }}
+            loading={updateWorkbookMutation.isPending}
+            variant="contained"
+            disabled={!editingWorkbookDialog?.currentName.trim()}
+          >
+            Rename
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
 
       {/* Workbook Selector View - shows when user clicks "Create Table" */}
-      {showWorkbookSelector && (
+      {showWorkbookSelector ? (
         <Box sx={{ mt: 3 }}>
           <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
             Select or Create a Table
@@ -7196,59 +7249,10 @@ export function GamesTable() {
             </Card>
           </Box>
         </Box>
-      )}
-
-      {/* Edit Workbook Name Dialog */}
-      <Dialog open={editingWorkbookDialog?.open ?? false} onClose={() => setEditingWorkbookDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Rename Table</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Table Name"
-            defaultValue={editingWorkbookDialog?.currentName}
-            variant="outlined"
-            sx={{ mt: 2 }}
-             onKeyDown={(e) => {
-               if (e.key === "Enter") {
-                 e.preventDefault();
-                 if (editingWorkbookDialog?.currentName.trim()) {
-                   updateWorkbookMutation.mutate({
-                     id: editingWorkbookDialog.workbookId,
-                     name: editingWorkbookDialog.currentName.trim(),
-                   });
-                 }
-               }
-             }}
-             onChange={(e) => {
-               if (editingWorkbookDialog) {
-                 setEditingWorkbookDialog({
-                   ...editingWorkbookDialog,
-                   currentName: e.target.value,
-                 });
-               }
-             }}
-             />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingWorkbookDialog(null)}>Cancel</Button>
-          <LoadingButton
-            onClick={() => {
-              if (editingWorkbookDialog?.currentName.trim()) {
-                updateWorkbookMutation.mutate({
-                  id: editingWorkbookDialog.workbookId,
-                  name: editingWorkbookDialog.currentName.trim(),
-                });
-              }
-            }}
-            loading={updateWorkbookMutation.isPending}
-            variant="contained"
-            disabled={!editingWorkbookDialog?.currentName.trim()}
-          >
-            Rename
-          </LoadingButton>
-        </DialogActions>
-      </Dialog>
+      ) : (
+        <>
+          {/* Save Status Banner */}
+          <SaveStatusBanner status={saveStatus} />
 
 
       {/* Sample Game Banner */}
@@ -7735,6 +7739,8 @@ export function GamesTable() {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/utils/authOptions";
+import { prisma } from "@/lib/database/prisma";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 // GET all workbooks for current user
