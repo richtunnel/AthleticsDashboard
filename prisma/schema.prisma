@@ -719,6 +719,14 @@ enum PartnerStatus {
   REJECTED
 }
 
+// Google Calendar Sync Tracker - Tracks how many users have actively synced calendars
+model GoogleCalendarSyncTracker {
+  id            String   @id @default(cuid())
+  count         Int      @default(0)
+  lastUpdated   DateTime @updatedAt
+  lastCountedAt DateTime @default(now())
+}
+
 enum WaitlistStatus {
   PENDING
   NOTIFIED
