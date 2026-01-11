@@ -3,26 +3,69 @@ interface SlackWebhookParams {
   endpoint: string;
   customer: string;
   body: string;
-  type: 'feedback' | 'ticket';
+  type: 'feedback' | 'ticket' | 'signup' | 'email_subscription';
 }
 
 export class SlackService {
-  private webhookUrl: string | undefined;
+  private signupsWebhookUrl: string | undefined;
+  private feedbackWebhookUrl: string | undefined;
+  private supportWebhookUrl: string | undefined;
+  private emailSubscriptionsWebhookUrl: string | undefined;
 
   constructor() {
-    this.webhookUrl = process.env.SLACK_FEEDBACK_WEBHOOK_URL;
+    this.signupsWebhookUrl = process.env.SLACK_SIGNUPS_WEBHOOK_URL;
+    this.feedbackWebhookUrl = process.env.SLACK_FEEDBACK_WEBHOOK_URL;
+    this.supportWebhookUrl = process.env.SLACK_SUPPORT_WEBHOOK_URL;
+    this.emailSubscriptionsWebhookUrl = process.env.SLACK_EMAIL_SUBSCRIPTIONS_WEBHOOK_URL;
   }
 
-  async sendFeedbackNotification(params: SlackWebhookParams): Promise<void> {
-    if (!this.webhookUrl) {
-      console.warn('SLACK_FEEDBACK_WEBHOOK_URL not configured. Skipping Slack notification.');
+  private getWebhookUrl(type: SlackWebhookParams['type']): string | undefined {
+    switch (type) {
+      case 'signup':
+        return this.signupsWebhookUrl;
+      case 'feedback':
+        return this.feedbackWebhookUrl;
+      case 'ticket':
+        return this.supportWebhookUrl;
+      case 'email_subscription':
+        return this.emailSubscriptionsWebhookUrl;
+      default:
+        return undefined;
+    }
+  }
+
+  private truncateText(text: string, maxLength: number = 150): string {
+    if (text.length <= maxLength) {
+      return text;
+    }
+    return text.substring(0, maxLength - 3) + '...';
+  }
+
+  private getEmojiAndTitle(type: SlackWebhookParams['type']): { emoji: string; title: string } {
+    switch (type) {
+      case 'signup':
+        return { emoji: ':tada:', title: 'New User Signup' };
+      case 'feedback':
+        return { emoji: ':speech_balloon:', title: 'New Feedback Submission' };
+      case 'ticket':
+        return { emoji: ':ticket:', title: 'New Support Ticket' };
+      case 'email_subscription':
+        return { emoji: ':mailbox:', title: 'New Email Subscription' };
+    }
+  }
+
+  async sendSlackNotification(params: SlackWebhookParams): Promise<void> {
+    const webhookUrl = this.getWebhookUrl(params.type);
+
+    if (!webhookUrl) {
+      console.warn(`SLACK webhook for ${params.type} not configured. Skipping Slack notification.`);
       return;
     }
 
     try {
-      const emoji = params.type === 'feedback' ? ':speech_balloon:' : ':ticket:';
-      const title = params.type === 'feedback' ? 'New Feedback Submission' : 'New Support Ticket';
-      
+      const { emoji, title } = this.getEmojiAndTitle(params.type);
+      const truncatedBody = this.truncateText(params.body);
+
       const message = {
         text: `${emoji} ${title}`,
         blocks: [
@@ -55,13 +98,13 @@ export class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*Message:*\n${params.body}`,
+              text: `*Message:*\n${truncatedBody}`,
             },
           },
         ],
       };
 
-      const response = await fetch(this.webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,11 +116,28 @@ export class SlackService {
         throw new Error(`Slack webhook failed with status ${response.status}`);
       }
 
-      console.log('Slack notification sent successfully');
+      console.log(`Slack notification sent successfully for ${params.type}`);
     } catch (error) {
       console.error('Failed to send Slack notification:', error);
       // Don't throw - this is a non-critical feature
     }
+  }
+
+  // Convenience methods for backward compatibility and ease of use
+  async sendFeedbackNotification(params: Omit<SlackWebhookParams, 'type'>): Promise<void> {
+    return this.sendSlackNotification({ ...params, type: 'feedback' });
+  }
+
+  async sendSupportTicketNotification(params: Omit<SlackWebhookParams, 'type'>): Promise<void> {
+    return this.sendSlackNotification({ ...params, type: 'ticket' });
+  }
+
+  async sendSignupNotification(params: Omit<SlackWebhookParams, 'type'>): Promise<void> {
+    return this.sendSlackNotification({ ...params, type: 'signup' });
+  }
+
+  async sendEmailSubscriptionNotification(params: Omit<SlackWebhookParams, 'type'>): Promise<void> {
+    return this.sendSlackNotification({ ...params, type: 'email_subscription' });
   }
 }
 

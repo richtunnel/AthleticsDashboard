@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
       endpoint: '/api/feedback',
       customer: `${submitterName} (${submitterEmail})`,
       body: `Subject: ${subject}\n\n${message}`,
-      type: 'feedback',
     }).catch(err => console.error('Failed to send Slack notification:', err));
 
     return NextResponse.json(
