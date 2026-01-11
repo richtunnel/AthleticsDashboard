@@ -14,6 +14,7 @@ export default function DetailsPage() {
   const [schoolName, setSchoolName] = useState("");
   const [teamName, setTeamName] = useState("");
   const [schoolAddress, setSchoolAddress] = useState("");
+  const [schoolEmail, setSchoolEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +55,7 @@ export default function DetailsPage() {
       const res = await fetch("/api/user/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schoolName, teamName, schoolAddress }),
+        body: JSON.stringify({ schoolName, teamName, schoolAddress, schoolEmail }),
       });
 
       if (!res.ok) {
@@ -106,6 +107,18 @@ export default function DetailsPage() {
               onChange={(e) => setTeamName(e.target.value)} 
               sx={{ mb: 2 }} 
               required 
+              disabled={submitting}
+            />
+            <TextField 
+              size="small" 
+              fullWidth 
+              label="School Email Address" 
+              type="email"
+              value={schoolEmail} 
+              onChange={(e) => setSchoolEmail(e.target.value)} 
+              sx={{ mb: 2 }} 
+              placeholder="optional@school.edu"
+              helperText="Optional: Used as reply-to address when sending game schedules"
               disabled={submitting}
             />
             <Box sx={{ mb: 2 }}>
