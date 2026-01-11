@@ -200,7 +200,7 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
   const schoolName = sanitizeString(payload.schoolName);
   const teamName = sanitizeString(payload.teamName);
   const schoolAddress = sanitizeString(payload.schoolAddress);
-  const schoolEmail = sanitizeString(payload.schoolEmail);
+  const schoolEmail = payload.schoolEmail === undefined ? undefined : sanitizeString(payload.schoolEmail);
 
   if (!schoolName || schoolName.length < 2) {
     return { success: false, error: "School name must be at least 2 characters." };
@@ -224,15 +224,25 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
       teamName,
       schoolAddress,
     };
-    
+
+    const ops: any[] = [
+      prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      }),
+    ];
+
     if (schoolEmail !== undefined) {
-      updateData.schoolEmail = schoolEmail;
+      ops.push(
+        prisma.$executeRaw`
+          UPDATE "User"
+          SET "schoolEmail" = ${schoolEmail}
+          WHERE id = ${userId}
+        `
+      );
     }
-    
-    await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
+
+    await prisma.$transaction(ops);
 
     return { success: true };
   } catch (err: any) {
