@@ -210,11 +210,17 @@ export default function AccountDetailsForm({ user }: Props) {
                   }}
                 />
               )}
-              renderOption={(props, option) => (
-                <li {...props} key={(option as OrgOption).id}>
-                  {(option as OrgOption).name}
-                </li>
-              )}
+              renderOption={(props, option) => {
+                const { key, ...optionProps } = props as React.HTMLAttributes<HTMLLIElement> & {
+                  key: React.Key;
+                };
+
+                return (
+                  <li key={key} {...optionProps}>
+                    {(option as OrgOption).name}
+                  </li>
+                );
+              }}
             />
             {alert && <Alert severity={alert.severity}>{alert.message}</Alert>}
             <Button
