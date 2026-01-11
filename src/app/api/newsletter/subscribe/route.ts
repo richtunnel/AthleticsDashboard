@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
+import { slackService } from "@/lib/services/slack.service";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body;
+    const { email, name } = body;
 
     // Validate email format
     if (!email || typeof email !== "string") {
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Normalize email to lowercase
     const normalizedEmail = email.toLowerCase().trim();
+    const sanitizedName = name ? name.trim() : "";
 
     // Check if email already exists
     const existingSubscriber = await prisma.newsletterSubscriber.findUnique({
@@ -37,6 +39,14 @@ export async function POST(request: NextRequest) {
         email: normalizedEmail,
       },
     });
+
+    // Send Slack notification (non-blocking)
+    slackService.sendEmailSubscriptionNotification({
+      time: new Date().toISOString(),
+      endpoint: '/api/newsletter/subscribe',
+      customer: sanitizedName ? `${sanitizedName} (${normalizedEmail})` : normalizedEmail,
+      body: `New newsletter subscription from ${normalizedEmail}`,
+    }).catch(err => console.error('Failed to send Slack notification:', err));
 
     return NextResponse.json(
       { message: "Successfully subscribed to our newsletter!" },
