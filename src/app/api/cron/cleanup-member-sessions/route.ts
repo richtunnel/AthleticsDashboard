@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cleanupExpiredMemberSessions } from "@/lib/services/member-session-cleanup.service";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     // Verify this is an authenticated request from the server itself
     // In production, this should be protected by a secret token
