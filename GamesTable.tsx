@@ -1,1 +1,3 @@
-export { GamesTable } from "@/components/games/GamesTable";
+"use client";
+
+export { GamesTable, GamesTable as default } from "@/components/games/GamesTable";
