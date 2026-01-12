@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { cleanupExpiredMemberSessions } from "@/lib/services/member-session-cleanup.service";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // Verify this is an authenticated request from the server itself
     // In production, this should be protected by a secret token
     const secretToken = process.env.CRON_SECRET_TOKEN;
-    const requestToken = new URL(request?.url || "http://localhost").searchParams.get("token");
+    const requestToken = new URL(request.url).searchParams.get("token");
 
     if (secretToken && requestToken !== secretToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
