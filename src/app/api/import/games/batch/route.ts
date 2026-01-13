@@ -130,7 +130,7 @@ async function isDuplicateRow(
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const { games, customColumns, columnMapping } = await request.json();
+    const { games, customColumns, columnMapping, workbookId } = await request.json();
 
     if (!games || !Array.isArray(games)) {
       return NextResponse.json({ success: false, error: "Invalid games data" }, { status: 400 });
@@ -292,6 +292,7 @@ export async function POST(request: NextRequest) {
           createdById: session.user.id,
           time: timeValue,
           sortOrder: 0,
+          workbookId: workbookId || null,
         };
 
         let createdGame;

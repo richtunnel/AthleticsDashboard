@@ -25,7 +25,7 @@ import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
 import { Assistant, AutoAwesome, AttachMoney } from "@mui/icons-material";
 
 interface SettingsPageProps {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
