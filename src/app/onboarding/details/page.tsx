@@ -26,7 +26,7 @@ export default function DetailsPage() {
         router.push("/onboarding/plans");
         return;
       }
-      
+
       // Check if user already has school details
       try {
         const res = await fetch("/api/user/profile");
@@ -41,7 +41,7 @@ export default function DetailsPage() {
       } catch (error) {
         console.error("Failed to check user profile:", error);
       }
-      
+
       setLoading(false);
     })();
   }, [router]);
@@ -89,36 +89,17 @@ export default function DetailsPage() {
             </Alert>
           )}
           <form onSubmit={handleSubmit}>
-            <TextField 
-              size="small" 
-              fullWidth 
-              label="School Name" 
-              value={schoolName} 
-              onChange={(e) => setSchoolName(e.target.value)} 
-              sx={{ mb: 2 }} 
-              required 
-              disabled={submitting}
-            />
-            <TextField 
-              size="small" 
-              fullWidth 
-              label="Team Name" 
-              value={teamName} 
-              onChange={(e) => setTeamName(e.target.value)} 
-              sx={{ mb: 2 }} 
-              required 
-              disabled={submitting}
-            />
-            <TextField 
-              size="small" 
-              fullWidth 
-              label="School Email Address" 
+            <TextField size="small" fullWidth label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
+            <TextField size="small" fullWidth label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
+            <TextField
+              size="small"
+              fullWidth
+              label="School Email Address"
               type="email"
-              value={schoolEmail} 
-              onChange={(e) => setSchoolEmail(e.target.value)} 
-              sx={{ mb: 2 }} 
+              value={schoolEmail}
+              onChange={(e) => setSchoolEmail(e.target.value)}
+              sx={{ mb: 2 }}
               placeholder="optional@school.edu"
-              helperText="Optional: Used as reply-to address when sending game schedules"
               disabled={submitting}
             />
             <Box sx={{ mb: 2 }}>
@@ -137,12 +118,7 @@ export default function DetailsPage() {
               variant="contained"
               type="submit"
               loading={submitting}
-              disabled={
-                submitting ||
-                schoolName.trim().length < 2 ||
-                teamName.trim().length < 2 ||
-                schoolAddress.trim().length < 5
-              }
+              disabled={submitting || schoolName.trim().length < 2 || teamName.trim().length < 2 || schoolAddress.trim().length < 5}
             >
               Complete Setup
             </AuthActionButton>
