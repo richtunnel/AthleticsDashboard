@@ -187,7 +187,7 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
   // Add footer with contact information
   html += '<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">';
   html += '<p style="color: #6b7280; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>';
-  html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>';
+  html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from the Opletics.</p>';
   html += "</div>";
 
   // Add email signature if present

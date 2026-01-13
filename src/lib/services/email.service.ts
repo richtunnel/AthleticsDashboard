@@ -675,7 +675,7 @@ export class EmailService {
           ${body}
           <hr style="margin-top: 30px; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 12px;">
-            This email was sent from your Athletic Director Dashboard.
+            This email was sent from your Opletics.
           </p>
         </body>
       </html>
