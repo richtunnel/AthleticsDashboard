@@ -617,7 +617,7 @@ export default function ComposeEmailPage() {
     // Add footer with contact information
     html += `<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid ${borderColor};">`;
     html += `<p style="color: ${theme.palette.text.secondary}; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>`;
-    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 12px; margin: 8px 0;">This is an automated message from the Athletic Director Dashboard.</p>`;
+    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 12px; margin: 8px 0;">This is an automated message from the Opletics.</p>`;
     html += "</div>";
 
     // Add email signature if present
