@@ -1,7 +1,7 @@
-export const MEMBER_ACCESS_ORG_ID_PREFIX = "members-org-opletics25-";
+export const MEMBER_ACCESS_ORG_ID_PREFIX = "members-org-vip.opletics.com-";
 export const MEMBER_ACCESS_EMAIL_PREFIX = "member-";
 export const MEMBER_ACCESS_EMAIL_DOMAIN = "@opletics.com";
-export const MEMBER_ACCESS_CODE = "opletics25";
+export const MEMBER_ACCESS_CODE = "vip.opletics.com";
 
 export const MEMBER_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -44,10 +44,7 @@ const parseCodes = (raw: string | undefined): string[] => {
 
 const DEFAULT_DISABLED_CODES: string[] = [];
 
-export const DISABLED_MEMBER_ACCESS_CODES = new Set<string>([
-  ...DEFAULT_DISABLED_CODES,
-  ...parseCodes(process.env.DISABLED_MEMBER_ACCESS_CODES),
-]);
+export const DISABLED_MEMBER_ACCESS_CODES = new Set<string>([...DEFAULT_DISABLED_CODES, ...parseCodes(process.env.DISABLED_MEMBER_ACCESS_CODES)]);
 
 export const normalizeMemberAccessCode = (code: string | undefined | null): string | null => {
   const normalized = code?.trim().toLowerCase();
