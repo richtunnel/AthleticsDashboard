@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Athletic Director Dashboard - Deployment Setup"
+echo "🚀 Opletics - Deployment Setup"
 echo "=================================================="
 echo ""
 
