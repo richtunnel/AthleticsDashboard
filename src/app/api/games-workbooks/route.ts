@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
         sortOrder: newSortOrder,
         userId: session.user.id,
       },
+      include: {
+        _count: {
+          select: {
+            games: true,
+          },
+        },
+      },
     });
 
     trackEvent("Games Workbook Created", {

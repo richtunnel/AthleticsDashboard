@@ -1,10 +1,11 @@
+import { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireAuth();
-    const columnId = params.id;
+    const { id: columnId } = await params;
 
     if (!columnId) {
       return new Response(JSON.stringify({ error: "Column ID is required" }), { status: 400 });

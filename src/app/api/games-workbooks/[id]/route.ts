@@ -5,14 +5,14 @@ import { prisma } from "@/lib/database/prisma";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
 // PATCH - update workbook (rename)
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const workbookId = params.id;
+    const { id: workbookId } = await params;
     const body = await request.json();
     const { name } = body;
 
@@ -56,14 +56,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // DELETE - delete a workbook
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const workbookId = params.id;
+    const { id: workbookId } = await params;
 
     // Verify ownership
     const workbook = await prisma.gamesWorkbook.findFirst({

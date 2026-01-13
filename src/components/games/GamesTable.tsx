@@ -554,6 +554,7 @@ export function GamesTable() {
 
   // Workbook management state
   const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
+  const hasAutoCreatedDefaultWorkbookRef = useRef(false);
 
   // Workbook edit dialog state
   const [editingWorkbookDialog, setEditingWorkbookDialog] = useState<{
@@ -832,13 +833,18 @@ export function GamesTable() {
     },
   });
 
-  // Update workbooks store when data changes
+  // Update workbooks store when data changes and create default workbook if none exist
   useEffect(() => {
     if (workbooksResponse?.data) {
       setWorkbooks(workbooksResponse.data);
 
+      // If no workbooks exist at all and we haven't already auto-created one, create a default one
+      if (workbooksResponse.data.length === 0 && !hasAutoCreatedDefaultWorkbookRef.current) {
+        hasAutoCreatedDefaultWorkbookRef.current = true;
+        createWorkbookMutation.mutate("Spreadsheet 1");
+      }
       // If no workbook is selected and there are workbooks, select the first one
-      if (!selectedWorkbookId && workbooksResponse.data.length > 0) {
+      else if (!selectedWorkbookId && workbooksResponse.data.length > 0) {
         setSelectedWorkbookId(workbooksResponse.data[0].id);
       } else if (selectedWorkbookId && workbooksResponse.data.length === 0) {
         setSelectedWorkbookId(null);
@@ -859,6 +865,8 @@ export function GamesTable() {
     },
     onSuccess: (data) => {
       addWorkbook(data.data);
+      // Invalidate workbooks query to refresh the list with game counts
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
       addNotification("Workbook created successfully", "success");
       trackEvent("Games Table Create Table Clicked", {
         source: "games_table",
@@ -3064,6 +3072,7 @@ export function GamesTable() {
         location: newGameData.location || null,
         customData: newGameData.customData || {},
         customFields: newGameData.customFields || {}, // This contains all the imported data
+        workbookId: selectedWorkbookId,
       };
       console.log("🚀 Creating imported game with data:", gameData);
       createGameMutation.mutate({ gameData });
@@ -3181,6 +3190,7 @@ export function GamesTable() {
       location: newGameData.location || null,
       customData: newGameData.customData || {},
       customFields: newGameData.customFields || {}, // This contains all the imported data
+      workbookId: selectedWorkbookId,
     };
     console.log("🚀 Creating game with data:", gameData);
     createGameMutation.mutate({ gameData });
@@ -3403,6 +3413,7 @@ export function GamesTable() {
         notes: game.notes || null,
         location: game.location || null,
         customData: game.customData || {},
+        workbookId: selectedWorkbookId,
       };
 
       createGameMutation.mutate(
@@ -6735,6 +6746,165 @@ export function GamesTable() {
 
   return (
     <Box>
+      {/* Workbook Tabs */}
+      <Box
+        sx={{
+          mb: 2,
+          borderBottom: 1,
+          borderColor: "divider",
+          display: "flex",
+          alignItems: "center",
+          gap: 0.5,
+          overflowX: "auto",
+          "&::-webkit-scrollbar": { height: 6 },
+          "&::-webkit-scrollbar-thumb": {
+            bgcolor: "divider",
+            borderRadius: 1,
+          },
+        }}
+      >
+        {/* Workbook Tabs */}
+        {workbooks.map((workbook) => (
+          <Box
+            key={workbook.id}
+            sx={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.5,
+            }}
+          >
+            <Button
+              size="small"
+              onClick={() => {
+                setSelectedWorkbookId(workbook.id);
+                trackEvent("Workbook Tab Clicked", {
+                  source: "games_table",
+                  action: "switch_workbook",
+                  workbookId: workbook.id,
+                });
+              }}
+              sx={{
+                minWidth: "auto",
+                px: 2,
+                py: 0.75,
+                textTransform: "none",
+                borderRadius: 0,
+                borderBottom: selectedWorkbookId === workbook.id ? 2 : 0,
+                borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "transparent",
+                color: selectedWorkbookId === workbook.id ? "primary.main" : "text.secondary",
+                fontWeight: selectedWorkbookId === workbook.id ? 600 : 400,
+                bgcolor: selectedWorkbookId === workbook.id ? (theme) => alpha(theme.palette.primary.main, 0.08) : "transparent",
+                "&:hover": {
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, selectedWorkbookId === workbook.id ? 0.12 : 0.04),
+                  borderBottom: 2,
+                  borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "text.disabled",
+                },
+              }}
+            >
+              {workbook.name}
+              {workbook._count?.games !== undefined && (
+                <Chip
+                  label={workbook._count.games}
+                  size="small"
+                  sx={{
+                    ml: 0.5,
+                    height: 18,
+                    fontSize: "0.7rem",
+                    bgcolor: selectedWorkbookId === workbook.id ? "primary.main" : "action.selected",
+                    color: selectedWorkbookId === workbook.id ? "primary.contrastText" : "text.secondary",
+                  }}
+                />
+              )}
+            </Button>
+            {selectedWorkbookId === workbook.id && (
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 0.25,
+                  mr: 1,
+                }}
+              >
+                <Tooltip title="Rename">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingWorkbookDialog({
+                        open: true,
+                        workbookId: workbook.id,
+                        currentName: workbook.name,
+                      });
+                    }}
+                    sx={{ p: 0.25 }}
+                  >
+                    <Edit sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Tooltip>
+                {workbooks.length > 1 && workbook._count?.games === 0 && (
+                  <Tooltip title="Delete">
+                    <IconButton
+                      size="small"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete spreadsheet "${workbook.name}"?`)) {
+                          try {
+                            const res = await fetch(`/api/games-workbooks/${workbook.id}`, {
+                              method: "DELETE",
+                            });
+                            if (res.ok) {
+                              deleteWorkbook(workbook.id);
+                              addNotification("Spreadsheet deleted successfully", "success");
+                              queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+                            } else {
+                              const error = await res.json();
+                              addNotification(error.error || "Failed to delete spreadsheet", "error");
+                            }
+                          } catch (error: any) {
+                            addNotification(error.message || "Failed to delete spreadsheet", "error");
+                          }
+                        }
+                      }}
+                      sx={{ p: 0.25, color: "error.main" }}
+                    >
+                      <DeleteOutline sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            )}
+          </Box>
+        ))}
+
+        {/* Add New Workbook Tab */}
+        <Tooltip title="Create new spreadsheet">
+          <Button
+            size="small"
+            onClick={() => {
+              const newWorkbookName = `Spreadsheet ${workbooks.length + 1}`;
+              createWorkbookMutation.mutate(newWorkbookName);
+            }}
+            startIcon={<Add sx={{ fontSize: 16 }} />}
+            disabled={createWorkbookMutation.isPending}
+            sx={{
+              minWidth: "auto",
+              px: 1.5,
+              py: 0.75,
+              textTransform: "none",
+              borderRadius: 0,
+              color: "text.secondary",
+              fontWeight: 400,
+              "&:hover": {
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+                color: "primary.main",
+              },
+            }}
+          >
+            {createWorkbookMutation.isPending ? <CircularProgress size={16} /> : "New"}
+          </Button>
+        </Tooltip>
+      </Box>
+
       {/* Header */}
       <Box
         sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
@@ -7537,7 +7707,11 @@ export function GamesTable() {
             setShowImportDialog(false);
           }}
         >
-          <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />
+          <CSVImport
+            onImportComplete={handleImportComplete}
+            onClose={() => setShowImportDialog(false)}
+            workbookId={selectedWorkbookId}
+          />
         </ErrorBoundary>
       )}
 
