@@ -45,9 +45,9 @@ export async function getUserPlanInfo(userId: string) {
 
   if (!user) return null;
 
-  // Check if it's opletics25 member access (though here we have userId, not the token)
+  // Check if it's vip.opletics.com member access (though here we have userId, not the token)
   // Actually, member access users have a specific email or organizationId
-  const isOpletics25 = user.email === "members+opletics25@opletics.com" || user.organizationId === "members-org-opletics25";
+  const isvip.opletics.com = user.email === "members+vip.opletics.com@opletics.com" || user.organizationId === "members-org-vip.opletics.com";
 
   const config = getStripeConfig();
   const standardPriceIds = [config.standardPriceIdMo, config.standardPriceIdYr].filter(Boolean);
@@ -58,7 +58,7 @@ export async function getUserPlanInfo(userId: string) {
   
   let planType: 'STANDARD' | 'TEAM' | 'PLUS' | 'FREE_TRIAL' = 'FREE_TRIAL';
   
-  if (isOpletics25) {
+  if (isvip.opletics.com) {
     planType = 'PLUS'; // Give full access
   } else if (currentPriceId && (plusPriceIds.includes(currentPriceId) || currentPriceId.toLowerCase().includes('plus'))) {
     planType = 'PLUS';
@@ -75,7 +75,7 @@ export async function getUserPlanInfo(userId: string) {
   return {
     planType,
     isTrialActive,
-    isOpletics25,
+    isvip.opletics.com,
   };
 }
 
@@ -83,7 +83,7 @@ export async function hasFeatureAccess(userId: string, feature: PlanFeature): Pr
   const planInfo = await getUserPlanInfo(userId);
   if (!planInfo) return false;
 
-  if (planInfo.isOpletics25) return true;
+  if (planInfo.isvip.opletics.com) return true;
   if (planInfo.isTrialActive) return true;
   
   // After trial, Standard plan has restricted features
@@ -108,7 +108,7 @@ const RESTRICTED_GAME_FIELDS = [
 
 export async function filterRestrictedGameFields(userId: string, data: any) {
   const planInfo = await getUserPlanInfo(userId);
-  if (!planInfo || planInfo.isOpletics25 || planInfo.isTrialActive) {
+  if (!planInfo || planInfo.isvip.opletics.com || planInfo.isTrialActive) {
     return data;
   }
 
@@ -127,7 +127,7 @@ export async function getEmailLimit(userId: string): Promise<number> {
   const planInfo = await getUserPlanInfo(userId);
   if (!planInfo) return 200; // Default to lowest
 
-  if (planInfo.isOpletics25) return 1000000; // Effectively unlimited
+  if (planInfo.isvip.opletics.com) return 1000000; // Effectively unlimited
   if (planInfo.isTrialActive) return 1000000; // Full access during trial
 
   if (planInfo.planType === 'PLUS') return PLAN_LIMITS.PLUS.monthlyEmailLimit;

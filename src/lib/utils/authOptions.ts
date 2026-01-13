@@ -25,7 +25,7 @@ import {
   normalizeMemberAccessCode,
 } from "@/lib/utils/memberAccess";
 
-const MEMBER_ACCESS_CODE = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "opletics25";
+const MEMBER_ACCESS_CODE = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -314,17 +314,14 @@ export const authOptions: NextAuthOptions = {
         });
 
         // Create sample game for new member (non-blocking)
-        void runNonCritical(
-          async () => {
-            await createSampleGame({
-              userId: user.id,
-              organizationId: user.organizationId,
-            });
+        void runNonCritical(async () => {
+          await createSampleGame({
+            userId: user.id,
+            organizationId: user.organizationId,
+          });
 
-            await createInitialColumnPreferences(user.id);
-          },
-          `member access bootstrap for user ${user.id}`
-        );
+          await createInitialColumnPreferences(user.id);
+        }, `member access bootstrap for user ${user.id}`);
 
         const issuedAt = Date.now();
 
