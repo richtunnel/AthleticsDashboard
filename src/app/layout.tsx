@@ -40,14 +40,7 @@ export const metadata: Metadata = {
   },
   description: "Opletics is an athletic department management platform to schedule games, manage teams, and sync with Google Calendar.",
   applicationName: "Opletics",
-  keywords: [
-    "athletic department management",
-    "athletics scheduling software",
-    "sports scheduling",
-    "athletic director software",
-    "game schedule management",
-    "google calendar sync",
-  ],
+  keywords: ["athletic department management", "athletics scheduling software", "sports scheduling", "athletic director software", "game schedule management", "google calendar sync"],
   alternates: {
     canonical: "/",
   },
@@ -98,7 +91,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F8FB" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#212121" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="rgb(17 17 17)" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script id="ld-website" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
         {/* Google Analytics Script */}
