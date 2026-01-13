@@ -109,7 +109,7 @@ export default withAuth(
         }
 
         if (isMemberAccessToken(token)) {
-          const fallbackCode = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "opletics25";
+          const fallbackCode = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
           const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
 
           if (isMemberAccessCodeDisabled(memberCode)) {
