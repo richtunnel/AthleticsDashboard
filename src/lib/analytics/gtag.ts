@@ -15,3 +15,11 @@ export const event = ({ action, category, label, value }: any) => {
     value: value,
   });
 };
+
+export const initializeAnalytics = () => {
+  if (typeof window !== "undefined") {
+    window.gtag("config", GA_MEASUREMENT_ID, {
+      page_path: window.location.pathname,
+    });
+  }
+};
