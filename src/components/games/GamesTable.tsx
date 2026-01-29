@@ -1187,6 +1187,13 @@ export function GamesTable() {
       // Handle imported columns
       if (columnId.startsWith("imported:")) {
         const columnName = columnId.split(":")[1];
+        const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
+
+        // If this imported column is mapped to "date", return "Date"
+        if (columnMapping?.[columnName] === "date") {
+          return "Date";
+        }
+
         return columnName; // Use the CSV column name as-is
       }
 
@@ -1223,7 +1230,7 @@ export function GamesTable() {
         }
       }
     },
-    [customColumnsMap, customColumnTitles]
+    [customColumnsMap, customColumnTitles, columnPreferencesData]
   );
 
   const hiddenColumnCount = useMemo(() => columnState.filter((column) => !column.visible).length, [columnState]);
@@ -4231,10 +4238,11 @@ export function GamesTable() {
         if (column.id.startsWith("imported:")) {
           // Handle imported CSV columns
           const columnName = column.id.split(":")[1];
+          const columnLabel = getColumnLabel(column.id);
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
-                {renderEditableColumnTitle(column.id, columnName, true, column.id)}
+                {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
                   columnName={getColumnLabel(column.id)}
