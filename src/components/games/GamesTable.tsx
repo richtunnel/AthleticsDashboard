@@ -822,6 +822,20 @@ export function GamesTable() {
   const costBudgetEnabled = costBudgetResponse?.costBudgetEnabled ?? false;
   const monthlyBudget = costBudgetResponse?.monthlyBudget ?? null;
 
+  // Fetch calendar connection status
+  const { data: calendarStatusResponse } = useQuery({
+    queryKey: ["calendarConnectionStatus"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/calendar-status");
+      if (!res.ok) throw new Error("Failed to fetch calendar status");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const isCalendarConnected = calendarStatusResponse?.isConnected ?? false;
+
+
   // Fetch workbooks
   const { data: workbooksResponse, isLoading: isLoadingWorkbooks } = useQuery({
     queryKey: ["gamesWorkbooks"],
@@ -1870,6 +1884,13 @@ export function GamesTable() {
   const handleSyncCalendar = (gameId: string) => {
     console.log("🔄 Sync button clicked for game:", gameId);
     console.log("🔄 Mutation pending:", syncGameMutation.isPending);
+    
+    // Check if calendar is connected
+    if (!isCalendarConnected) {
+      router.push("/dashboard/gsync");
+      return;
+    }
+    
     trackEvent("Calendar Sync Individual Game", {
       source: "games_table",
       action: "sync_to_calendar",
@@ -3725,12 +3746,18 @@ export function GamesTable() {
       return;
     }
 
+    // Check if calendar is connected
+    if (!isCalendarConnected) {
+      router.push("/dashboard/gsync");
+      return;
+    }
+
     // Get array of selected game IDs
     const gameIdsToSync = Array.from(selectedGames);
 
     // Trigger bulk sync mutation
     bulkSyncGamesMutation.mutate(gameIdsToSync);
-  }, [selectedGames, bulkSyncGamesMutation, addNotification]);
+  }, [selectedGames, bulkSyncGamesMutation, addNotification, isCalendarConnected]);
 
   const handleAddColumnsClick = () => {
     trackEvent("Add Columns Clicked", {
