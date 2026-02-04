@@ -92,6 +92,10 @@ export async function POST(request: NextRequest) {
     let optimizedUrl = "";
     let message = "Logo uploaded successfully";
     
+    // Get base URL for absolute links in emails
+    const baseUrl = process.env.NEXTAUTH_URL || "https://opletics.com";
+    const absoluteBaseUrl = baseUrl.replace(/\/$/, "");
+    
     if (sharp) {
       const webpFilename = `signature-${session.user.id}-${timestamp}.webp`;
       const webpFilepath = path.join(uploadDir, webpFilename);
@@ -104,21 +108,22 @@ export async function POST(request: NextRequest) {
         
         // Generate versioned URL with content hash for cache busting
         const fileHash = createHash("md5").update(buffer).digest("hex").substring(0, 8);
-        optimizedUrl = `/uploads/signatures/${webpFilename}?v=${fileHash}`;
+        optimizedUrl = `${absoluteBaseUrl}/uploads/signatures/${webpFilename}?v=${fileHash}`;
         message = "Logo uploaded and optimized successfully";
       } catch (error) {
         console.error("Failed to optimize image:", error);
         // Fallback to original file
-        const fallbackUrl = `/uploads/signatures/${filename}`;
+        const fallbackUrl = `${absoluteBaseUrl}/uploads/signatures/${filename}`;
         optimizedUrl = fallbackUrl;
         message = "Logo uploaded successfully (without optimization)";
       }
     } else {
       // Sharp not available, use original file
-      const fallbackUrl = `/uploads/signatures/${filename}`;
+      const fallbackUrl = `${absoluteBaseUrl}/uploads/signatures/${filename}`;
       optimizedUrl = fallbackUrl;
       message = "Logo uploaded successfully (optimization not available)";
     }
+
 
     return ApiResponse.success({
       message: message,
