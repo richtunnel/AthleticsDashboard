@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { GameStatus } from "@prisma/client";
+import { sanitizeCustomFields, sanitizeObject } from "@/lib/utils/sanitizer";
 
 interface RestoreGameData {
   date: string;
@@ -59,8 +60,18 @@ export async function POST(request: NextRequest) {
 
     // Restore games by creating them
     const restoredGames = await Promise.all(
-      games.map((gameData) =>
-        prisma.game.create({
+      games.map((gameData) => {
+        // Sanitize custom fields and data to prevent injection attacks
+        const sanitizedCustomFields = sanitizeCustomFields(gameData.customFields || {});
+        const sanitizedCustomData = sanitizeObject(gameData.customData || {}, 0, {
+          maxDepth: 5,
+          maxStringLength: 2500,
+          maxKeys: 50,
+          removeDangerousKeys: true,
+          escapeHtml: true,
+        });
+
+        return prisma.game.create({
           data: {
             date: new Date(gameData.date),
             time: gameData.time,
@@ -74,13 +85,13 @@ export async function POST(request: NextRequest) {
             status: gameData.status,
             notes: gameData.notes,
             location: gameData.location,
-            customData: gameData.customData || {},
-            customFields: gameData.customFields || {},
+            customData: sanitizedCustomData,
+            customFields: sanitizedCustomFields,
             sortOrder: gameData.sortOrder ?? 0,
             createdById: session.user.id,
           },
-        })
-      )
+        });
+      })
     );
 
     console.info(

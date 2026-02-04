@@ -5,6 +5,7 @@ import { GameStatus } from "../../../../../../types/main.types";
 import { deleteSampleGames } from "@/lib/services/sample-game.service";
 import { detectAndCreateOpponents } from "@/lib/services/opponent-detection.service";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
+import { sanitizeCustomFields, sanitizeColumnName } from "@/lib/utils/sanitizer";
 
 interface ImportGameData {
   date: string;
@@ -268,10 +269,13 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // === SANITIZE CUSTOM FIELDS TO PREVENT INJECTION ATTACKS ===
+        const sanitizedCustomFields = sanitizeCustomFields(gameData.customFields || {});
+
         // === CHECK FOR DUPLICATE ROW ===
         const isDuplicate = await isDuplicateRow(
           parsedDate,
-          gameData.customFields || {},
+          sanitizedCustomFields,
           session.user.organizationId,
           batchGameSignatures
         );
@@ -288,7 +292,7 @@ export async function POST(request: NextRequest) {
           homeTeamId: defaultTeam.id,
           isHome: true, // Default value
           status: "SCHEDULED" as GameStatus,
-          customFields: gameData.customFields || {},
+          customFields: sanitizedCustomFields,
           createdById: session.user.id,
           time: timeValue,
           sortOrder: 0,
@@ -339,7 +343,7 @@ export async function POST(request: NextRequest) {
         successCount++;
 
         // Add to batch signatures to prevent duplicate detection within batch
-        const gameSignature = createGameSignature(parsedDate, gameData.customFields || {});
+        const gameSignature = createGameSignature(parsedDate, sanitizedCustomFields);
         batchGameSignatures.add(gameSignature);
       } catch (error) {
         console.error(`Row ${rowNum} import error:`, error);
@@ -362,6 +366,14 @@ export async function POST(request: NextRequest) {
     // Save custom column configuration as user preferences if provided
     if (customColumns && columnMapping) {
       try {
+        // Sanitize column names to prevent injection
+        const sanitizedCustomColumns = customColumns.map((col: string) => sanitizeColumnName(col));
+        const sanitizedColumnMapping: Record<string, string> = {};
+        for (const [key, value] of Object.entries(columnMapping)) {
+          const sanitizedKey = sanitizeColumnName(key);
+          sanitizedColumnMapping[sanitizedKey] = typeof value === "string" ? sanitizeColumnName(value) : value;
+        }
+
         // Check if user already has imported columns
         const existingPreference = await prisma.tablePreference.findUnique({
           where: {
@@ -372,8 +384,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        let finalCustomColumns = customColumns;
-        let finalColumnMapping = columnMapping;
+        let finalCustomColumns = sanitizedCustomColumns;
+        let finalColumnMapping = sanitizedColumnMapping;
 
         // If user already has imported columns, merge them instead of replacing
         if (existingPreference?.preferences) {

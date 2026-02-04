@@ -5,6 +5,7 @@ import { calendarService } from "@/lib/services/calendar.service";
 import { travelAIService } from "@/lib/services/travelAI";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
+import { sanitizeCustomFields, sanitizeObject } from "@/lib/utils/sanitizer";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -83,6 +84,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (body.customFields) {
+      // Sanitize customFields to prevent injection attacks
+      body.customFields = sanitizeCustomFields(body.customFields);
+
       // Get user's column mapping to find which custom field maps to date
       const userPrefs = await prisma.tablePreference.findUnique({
         where: {
@@ -119,6 +123,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           }
         }
       }
+    }
+
+    // Sanitize customData if present
+    if (body.customData) {
+      body.customData = sanitizeObject(body.customData, 0, {
+        maxDepth: 5,
+        maxStringLength: 2500,
+        maxKeys: 50,
+        removeDangerousKeys: true,
+        escapeHtml: true,
+      });
     }
 
     // Update the game with the provided data
