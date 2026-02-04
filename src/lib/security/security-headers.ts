@@ -25,7 +25,7 @@ export const defaultSecurityHeaders = {
   // Content Security Policy (basic)
   // This should be enhanced in next.config.ts for production
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:;",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com; script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com; img-src 'self' data: blob: https:; font-src 'self' data: https://*.gstatic.com; connect-src 'self' https: *.google.com *.gstatic.com *.googletagmanager.com; frame-src 'self' https://*.google.com;",
 
   // Strict Transport Security (HSTS)
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
