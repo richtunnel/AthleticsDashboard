@@ -89,47 +89,51 @@ export async function POST(request: Request) {
 
     // Send via Resend using bulk email utility
     const resend = getResendClientOptional();
-    if (resend) {
-      try {
-        const result = await sendBulkEmail({
-          to: toEmails,
-          subject,
-          html: body,
-          sentById: session.user.id,
-          campaignId: campaign.id,
-          groupId,
-          recipientCategory: "emailGroup",
-        });
+    if (!resend) {
+      console.warn("Resend API key missing — skipping email sending.");
+      return NextResponse.json({ 
+        error: "Email service not configured. Please set RESEND_API_KEY in environment variables.",
+        campaign,
+      }, { status: 503 });
+    }
 
-        if (result.failed > 0 && result.success === 0) {
-          return NextResponse.json({ 
-            error: `Campaign created but failed to send: ${result.errors.map(e => e.error).join("; ")}`,
-            campaign,
-          }, { status: 500 });
-        }
+    try {
+      const result = await sendBulkEmail({
+        to: toEmails,
+        subject,
+        html: body,
+        sentById: session.user.id,
+        campaignId: campaign.id,
+        groupId,
+        recipientCategory: "emailGroup",
+      });
 
-        if (result.failed > 0) {
-          return NextResponse.json({ 
-            message: `Campaign partially sent: ${result.success} succeeded, ${result.failed} failed`,
-            campaign,
-            result: {
-              success: result.success,
-              failed: result.failed,
-              errors: result.errors,
-            }
-          });
-        }
-      } catch (error) {
-        console.error("Failed to send campaign email:", error);
+      if (result.failed > 0 && result.success === 0) {
         return NextResponse.json({ 
-          error: "Campaign created but failed to send email",
+          error: `Campaign created but failed to send: ${result.errors.map(e => e.error).join("; ")}`,
           campaign,
         }, { status: 500 });
       }
+
+      if (result.failed > 0) {
+        return NextResponse.json({ 
+          message: `Campaign partially sent: ${result.success} succeeded, ${result.failed} failed`,
+          campaign,
+          result: {
+            success: result.success,
+            failed: result.failed,
+            errors: result.errors,
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Failed to send campaign email:", error);
+      return NextResponse.json({ 
+        error: "Campaign created but failed to send email",
+        campaign,
+      }, { status: 500 });
     }
   }
 
   return NextResponse.json(campaign);
 }
-
-// Add PUT for update and DELETE as needed, similar to above.
