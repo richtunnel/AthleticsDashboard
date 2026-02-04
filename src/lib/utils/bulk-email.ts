@@ -104,20 +104,24 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       // Process results and create email logs
       const logData = batch.map((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-        
+
         // Handle different error response formats from Resend
         let hasError = false;
         let errorMessage: string | null = null;
-        
+
         if (!response) {
           hasError = true;
           errorMessage = "No response from email service";
         } else if (response.error) {
           hasError = true;
           // Resend errors can have different structures
-          errorMessage = typeof response.error === 'string' 
-            ? response.error 
+          errorMessage = typeof response.error === 'string'
+            ? response.error
             : (response.error.message || response.error.description || JSON.stringify(response.error));
+        } else if (!response.data || !response.data.id) {
+          // Check if we have a valid email ID in the response
+          hasError = true;
+          errorMessage = "Invalid response format from email service (missing email ID)";
         }
 
         return {
@@ -146,7 +150,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       // Update results
       batch.forEach((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-        
+
         if (!response) {
           result.failed++;
           result.errors.push({ email, error: "No response from email service" });
@@ -157,6 +161,9 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
             ? response.error
             : (response.error.message || response.error.description || JSON.stringify(response.error));
           result.errors.push({ email, error: errorMsg });
+        } else if (!response.data || !response.data.id) {
+          result.failed++;
+          result.errors.push({ email, error: "Invalid response format from email service (missing email ID)" });
         } else {
           result.success++;
         }
