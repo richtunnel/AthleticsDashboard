@@ -361,10 +361,7 @@ export async function POST(request: NextRequest) {
     const resend = getResendClientOptional();
     if (!resend) {
       console.warn("Resend API key missing — skipping email sending.");
-      return NextResponse.json({
-        success: true,
-        message: "Email service not configured. (Skipped during build)",
-      });
+      return ApiResponse.error("Email service not configured. Please set RESEND_API_KEY in environment variables.", 503);
     }
 
     const result = await sendBulkEmail({
