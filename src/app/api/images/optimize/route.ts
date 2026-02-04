@@ -28,8 +28,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Remove query string from URL (e.g., cache busting ?v=123)
+    const cleanImageUrl = imageUrl.split("?")[0];
+
     // Construct file path
-    const imagePath = path.join(process.cwd(), "public", imageUrl);
+    const imagePath = path.join(process.cwd(), "public", cleanImageUrl);
     
     // Check if file exists
     if (!existsSync(imagePath)) {
