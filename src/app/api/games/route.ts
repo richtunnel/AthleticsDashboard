@@ -8,6 +8,7 @@ import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-limiter";
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
+import { sanitizeCustomFields, sanitizeObject } from "@/lib/utils/sanitizer";
 
 export async function GET(request: NextRequest) {
   // Apply rate limiting for games API
@@ -824,6 +825,20 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: `Imported field "${key}" exceeds maximum length of ${MAX_CHAR_LIMIT} characters` }, { status: 400 });
         }
       }
+    }
+
+    // SANITIZE: customFields and customData to prevent injection attacks
+    if (body.customFields) {
+      body.customFields = sanitizeCustomFields(body.customFields);
+    }
+    if (body.customData) {
+      body.customData = sanitizeObject(body.customData, 0, {
+        maxDepth: 5,
+        maxStringLength: MAX_CHAR_LIMIT,
+        maxKeys: 50,
+        removeDangerousKeys: true,
+        escapeHtml: true,
+      });
     }
 
     let game = await prisma.game.create({
