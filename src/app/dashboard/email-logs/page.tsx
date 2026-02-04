@@ -314,18 +314,55 @@ export default function EmailLogsPage() {
                       <TableRow key={log.id} hover>
                         <TableCell>{formatDate(log.sentAt || log.createdAt)}</TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 500,
+                              cursor: log.gameIds && log.gameIds.length > 0 ? "pointer" : "default",
+                              "&:hover": log.gameIds && log.gameIds.length > 0 ? { 
+                                textDecoration: "underline",
+                                color: "primary.main" 
+                              } : {}
+                            }}
+                            onClick={() => log.gameIds && log.gameIds.length > 0 && handleReopenEdit(log.id)}
+                            title={log.gameIds && log.gameIds.length > 0 ? "Click to re-open & edit" : "No games associated"}
+                          >
                             {log.subject}
                           </Typography>
                         </TableCell>
                         <TableCell>
                           <Tooltip title={log.to.join(", ")}>
-                            <Chip label={`${log.to.length} recipient${log.to.length !== 1 ? "s" : ""}`} size="small" />
+                            <Chip 
+                              label={`${log.to.length} recipient${log.to.length !== 1 ? "s" : ""}`} 
+                              size="small"
+                              sx={{ 
+                                cursor: log.gameIds && log.gameIds.length > 0 ? "pointer" : "default",
+                                "&:hover": log.gameIds && log.gameIds.length > 0 ? {
+                                  bgcolor: "primary.light",
+                                  color: "primary.contrastText"
+                                } : {}
+                              }}
+                              onClick={() => log.gameIds && log.gameIds.length > 0 && handleReopenEdit(log.id)}
+                            />
                           </Tooltip>
                         </TableCell>
                         <TableCell>{getStatusChip(log.status)}</TableCell>
                         <TableCell>
-                          {log.gameIds && log.gameIds.length > 0 ? <Chip label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} size="small" variant="outlined" /> : "—"}
+                          {log.gameIds && log.gameIds.length > 0 ? (
+                            <Chip 
+                              label={`${log.gameIds.length} game${log.gameIds.length !== 1 ? "s" : ""}`} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{
+                                cursor: "pointer",
+                                "&:hover": {
+                                  bgcolor: "primary.light",
+                                  color: "primary.contrastText"
+                                }
+                              }}
+                              onClick={() => handleReopenEdit(log.id)}
+                            />
+                          ) : "—"}
                         </TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={1}>
