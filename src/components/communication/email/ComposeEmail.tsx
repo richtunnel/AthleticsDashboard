@@ -252,6 +252,31 @@ export default function ComposeEmailPage() {
 
   const [showAddEmailDialog, setShowAddEmailDialog] = useState(false);
   const [pendingEmailData, setPendingEmailData] = useState<any>(null);
+  const [hasFailedDraft, setHasFailedDraft] = useState(false);
+
+  // Check for failed email draft on mount
+  useEffect(() => {
+    if (mounted) {
+      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
+      if (failedEmailDraft) {
+        try {
+          const draft = JSON.parse(failedEmailDraft);
+          // Only show if the draft is recent (within 24 hours)
+          const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
+          
+          if (isRecent) {
+            setHasFailedDraft(true);
+            addNotification("You have a saved draft from a failed email send. Click 'Restore Draft' to continue where you left off.", "warning");
+          } else {
+            // Remove old failed drafts
+            sessionStorage.removeItem("failedEmailDraft");
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+    }
+  }, [mounted, addNotification]);
 
   // Fetch custom columns
   const { data: customColumnsResponse } = useQuery({
@@ -346,6 +371,7 @@ export default function ComposeEmailPage() {
     const storedGames = sessionStorage.getItem("selectedGames");
     const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
     const storedEmailDraft = sessionStorage.getItem("emailDraft");
+    const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
 
     if (storedGames) {
       const games = JSON.parse(storedGames);
@@ -408,6 +434,32 @@ export default function ComposeEmailPage() {
         } catch (e) {
           // Ignore parse errors
         }
+      } else if (failedEmailDraft) {
+        // Check if there's a failed email draft to restore
+        try {
+          const draft = JSON.parse(failedEmailDraft);
+          // Only restore if the draft is recent (within 24 hours)
+          const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
+          
+          if (isRecent) {
+            if (draft.subject) setSubject(draft.subject);
+            if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
+            if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+            if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+            if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
+            
+            // Show notification about restored draft
+            addNotification("Restored your previous email draft from a failed send attempt.", "info");
+            
+            // Clear the failed draft after restoration
+            sessionStorage.removeItem("failedEmailDraft");
+          } else {
+            // Remove old failed drafts
+            sessionStorage.removeItem("failedEmailDraft");
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
       } else {
         // Generate default subject based on games only if no draft
         if (games.length === 1) {
@@ -417,7 +469,7 @@ export default function ComposeEmailPage() {
         }
       }
     }
-  }, [mounted, visibleColumnIds, columnMapping, customColumns]);
+  }, [mounted, visibleColumnIds, columnMapping, customColumns, addNotification]);
 
   const sendEmailMutation = useMutation({
     mutationFn: async (emailData: any) => {
@@ -429,23 +481,62 @@ export default function ComposeEmailPage() {
 
       if (!res.ok) {
         const error = await res.json();
+        
+        // Store the email draft data when sending fails
+        const emailDraft = {
+          subject,
+          additionalMessage,
+          recipientCategory,
+          selectedGames,
+          selectedSchoolNames,
+          customRecipients,
+          timestamp: Date.now()
+        };
+        
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("failedEmailDraft", JSON.stringify(emailDraft));
+        }
+        
         throw new Error(error.error || "Failed to send email");
       }
 
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       addNotification("Email sent successfully!", "success");
       if (typeof window !== "undefined") {
         sessionStorage.removeItem("selectedGames");
         sessionStorage.removeItem("gamesOpponentFilter");
+        sessionStorage.removeItem("failedEmailDraft"); // Clear any failed draft on success
       }
       router.push("/dashboard/email-logs");
     },
     onError: (error: Error) => {
-      addNotification(`Failed to send email: ${error.message}`, "error");
+      // Only show notification if it's not already handled above
+      if (!error.message.includes("Failed to send email")) {
+        addNotification(`Failed to send email: ${error.message}`, "error");
+      }
     },
   });
+
+  const handleRestoreFailedDraft = () => {
+    const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
+    if (failedEmailDraft) {
+      try {
+        const draft = JSON.parse(failedEmailDraft);
+        if (draft.subject) setSubject(draft.subject);
+        if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
+        if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+        if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+        if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
+        setHasFailedDraft(false);
+        sessionStorage.removeItem("failedEmailDraft");
+        addNotification("Draft restored successfully!", "success");
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  };
 
   const formatGameDate = (dateString: string) => {
     if (!mounted) return dateString;
@@ -665,7 +756,7 @@ export default function ComposeEmailPage() {
         <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => router.back()} sx={{ textTransform: "none" }}>
           Back
         </Button>
-        <Box>
+        <Box sx={{ flex: 1 }}>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>
             Compose Email
           </Typography>
@@ -673,6 +764,16 @@ export default function ComposeEmailPage() {
             Send game schedule to selected recipients
           </Typography>
         </Box>
+        {hasFailedDraft && (
+          <Button 
+            variant="outlined" 
+            color="warning"
+            onClick={handleRestoreFailedDraft}
+            sx={{ textTransform: "none" }}
+          >
+            Restore Draft
+          </Button>
+        )}
       </Box>
 
       <Stack spacing={3}>
@@ -927,7 +1028,32 @@ export default function ComposeEmailPage() {
         </Paper>
 
         {/* Error Display */}
-        {sendEmailMutation.isError && <Alert severity="error">{sendEmailMutation.error?.message || "Failed to send email. Please try again."}</Alert>}
+        {sendEmailMutation.isError && (
+          <Alert 
+            severity="error" 
+            action={
+              <Button 
+                color="inherit" 
+                size="small"
+                onClick={() => {
+                  const failedDraft = sessionStorage.getItem("failedEmailDraft");
+                  if (failedDraft) {
+                    try {
+                      const draft = JSON.parse(failedDraft);
+                      addNotification("Draft data has been saved. You can try sending again.", "info");
+                    } catch (e) {
+                      // Ignore parse errors
+                    }
+                  }
+                }}
+              >
+                Check Draft
+              </Button>
+            }
+          >
+            {sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved and will be restored when you return to this page."}
+          </Alert>
+        )}
 
         {/* Action Buttons */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
