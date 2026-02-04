@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       prisma.user.update({
         where: { email: session.user.email },
         data: updateData,
-      })
+      }),
     );
   }
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
         UPDATE "User"
         SET "schoolEmail" = ${schoolEmailValue}
         WHERE email = ${session.user.email}
-      `
+      `,
     );
   }
 
