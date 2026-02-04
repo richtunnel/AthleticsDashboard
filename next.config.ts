@@ -82,15 +82,19 @@ const nextConfig: NextConfig = {
         key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com",
-          "script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com",
-          "style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-ancestors 'none'",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
+          "script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
+          "style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://fonts.googleapis.com",
           "img-src 'self' data: blob: https: *.googleusercontent.com",
-          "font-src 'self' data: https://*.gstatic.com",
+          "font-src 'self' data: https://*.gstatic.com https://fonts.gstatic.com",
           "connect-src 'self' https: wss: *.google.com *.gstatic.com *.stripe.com *.googletagmanager.com",
           "frame-src 'self' https://*.google.com https://*.stripe.com",
           "worker-src 'self' blob:",
-        "manifest-src 'self'",
+          "manifest-src 'self'",
+          "upgrade-insecure-requests",
         ].join('; ')
       }
     ];
