@@ -91,14 +91,34 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       const { data: batchResponses, error: batchError } = await resend.batch.send(resendBatch);
 
       if (batchError) {
+        console.error("Resend batch API error:", batchError);
         throw batchError;
+      }
+
+      // Log full response for debugging
+      if (!batchResponses || batchResponses.length === 0) {
+        console.error("Resend batch API returned empty response");
+        throw new Error("Empty response from email service");
       }
 
       // Process results and create email logs
       const logData = batch.map((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-        const hasError = !response || !!response.error;
-        const errorMessage = response?.error?.message || "Unknown error during batch send";
+        
+        // Handle different error response formats from Resend
+        let hasError = false;
+        let errorMessage: string | null = null;
+        
+        if (!response) {
+          hasError = true;
+          errorMessage = "No response from email service";
+        } else if (response.error) {
+          hasError = true;
+          // Resend errors can have different structures
+          errorMessage = typeof response.error === 'string' 
+            ? response.error 
+            : (response.error.message || response.error.description || JSON.stringify(response.error));
+        }
 
         return {
           to: [email],
@@ -106,7 +126,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           subject,
           body: html,
           status: (hasError ? "FAILED" : "SENT") as any,
-          error: hasError ? errorMessage : null,
+          error: errorMessage,
           sentAt: hasError ? null : new Date(),
           sentById,
           gameIds,
@@ -126,9 +146,17 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       // Update results
       batch.forEach((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-        if (!response || response.error) {
+        
+        if (!response) {
           result.failed++;
-          result.errors.push({ email, error: response?.error?.message || "Unknown error" });
+          result.errors.push({ email, error: "No response from email service" });
+        } else if (response.error) {
+          result.failed++;
+          // Extract error message with better handling
+          const errorMsg = typeof response.error === 'string'
+            ? response.error
+            : (response.error.message || response.error.description || JSON.stringify(response.error));
+          result.errors.push({ email, error: errorMsg });
         } else {
           result.success++;
         }
@@ -137,7 +165,19 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
 
     } catch (error) {
       // Handle whole batch failure
-      const errorMessage = error instanceof Error ? error.message : "Unknown batch error";
+      let errorMessage: string;
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Handle Resend API error objects
+        const errObj = error as any;
+        errorMessage = errObj.message || errObj.description || JSON.stringify(error);
+      } else {
+        errorMessage = "Unknown batch error";
+      }
+      
+      console.error(`Batch email send failed for ${batch.length} emails:`, error);
       
       const logData = batch.map((email) => ({
         to: [email],
