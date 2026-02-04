@@ -1062,6 +1062,7 @@ export default function ComposeEmailPage() {
           </Button>
           <Button
             variant="contained"
+            type="button"
             startIcon={sendEmailMutation.isPending ? <CircularProgress size={20} /> : <Send />}
             onClick={() => {
               const gameIds = selectedGames.map((g) => g.id);
