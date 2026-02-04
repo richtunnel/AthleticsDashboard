@@ -141,11 +141,28 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
         };
       });
 
-      // Use createManyAndReturn to get IDs of created logs
-      // Note: We cast to any because of potential Prisma version differences in types
-      const createdLogs = await (prisma.emailLog as any).createManyAndReturn({
-        data: logData,
-      });
+      // Try to use createManyAndReturn to get IDs of created logs
+      // Fallback to individual creates if batch operation fails
+      let createdLogs: any[] = [];
+      try {
+        createdLogs = await (prisma.emailLog as any).createManyAndReturn({
+          data: logData,
+        });
+      } catch (batchError) {
+        console.warn("createManyAndReturn failed, falling back to individual creates:", batchError);
+        // Fallback: create logs individually
+        for (const log of logData) {
+          try {
+            const createdLog = await prisma.emailLog.create({
+              data: log,
+            });
+            createdLogs.push(createdLog);
+          } catch (createError) {
+            console.error("Failed to create individual email log:", createError);
+            // Continue with other logs even if one fails
+          }
+        }
+      }
 
       // Update results
       batch.forEach((email, index) => {
@@ -168,12 +185,16 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           result.success++;
         }
       });
-      result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
+
+      // Only add IDs if we successfully created logs
+      if (createdLogs && createdLogs.length > 0) {
+        result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
+      }
 
     } catch (error) {
       // Handle whole batch failure
       let errorMessage: string;
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (typeof error === 'object' && error !== null) {
@@ -183,9 +204,9 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       } else {
         errorMessage = "Unknown batch error";
       }
-      
+
       console.error(`Batch email send failed for ${batch.length} emails:`, error);
-      
+
       const logData = batch.map((email) => ({
         to: [email],
         cc: [],
@@ -203,10 +224,32 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       }));
 
       try {
-        const createdLogs = await (prisma.emailLog as any).createManyAndReturn({
-          data: logData,
-        });
-        result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
+        // Try batch insert first, fall back to individual creates
+        let createdLogs: any[] = [];
+        try {
+          createdLogs = await (prisma.emailLog as any).createManyAndReturn({
+            data: logData,
+          });
+        } catch (batchError) {
+          console.warn("createManyAndReturn failed for error logs, falling back to individual creates:", batchError);
+          // Fallback: create logs individually
+          for (const log of logData) {
+            try {
+              const createdLog = await prisma.emailLog.create({
+                data: log,
+              });
+              createdLogs.push(createdLog);
+            } catch (createError) {
+              console.error("Failed to create individual error email log:", createError);
+              // Continue with other logs even if one fails
+            }
+          }
+        }
+
+        // Only add IDs if we successfully created logs
+        if (createdLogs && createdLogs.length > 0) {
+          result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
+        }
       } catch (logError) {
         console.error("Failed to create failed email logs:", logError);
       }
