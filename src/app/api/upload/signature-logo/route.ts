@@ -9,7 +9,18 @@ import sharp from "sharp";
 import { createHash } from "crypto";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
+
+// Allowed file extensions for browsers that don't report MIME type correctly (e.g., iOS Safari)
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"];
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,17 +30,32 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
 
     if (!file) {
-      return ApiResponse.error("No file provided");
+      return ApiResponse.error("No file selected. Please choose an image file to upload.");
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return ApiResponse.error("File size exceeds 2MB limit");
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      return ApiResponse.error(
+        `File too large (${sizeMB}MB). The maximum allowed size is 2MB. ` +
+        "Please compress your image or use a smaller file."
+      );
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return ApiResponse.error("Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed");
+    // Validate file type by MIME type and extension (for cross-browser compatibility)
+    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+    const isValidMimeType = ALLOWED_TYPES.includes(file.type);
+    const isValidExtension = ALLOWED_EXTENSIONS.includes(fileExtension);
+
+    // Some browsers (especially Safari on iOS) may not report HEIC MIME type correctly,
+    // so we also check the file extension as a fallback
+    if (!isValidMimeType && !isValidExtension) {
+      const detectedType = file.type || fileExtension || "unknown";
+      return ApiResponse.error(
+        `Invalid file type "${detectedType}". ` +
+        "Only JPG, JPEG, PNG, GIF, WebP, and iPhone/Android (HEIC) images are accepted. " +
+        "If you're uploading from an iPhone, try converting the image to JPEG first."
+      );
     }
 
     // Create unique filename
