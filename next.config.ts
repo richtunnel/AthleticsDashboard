@@ -84,7 +84,7 @@ const nextConfig: NextConfig = {
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com",
           "style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com",
-          "img-src 'self' data: blob: https: *.googleusercontent.com",
+          "img-src 'self' data: blob: https: *.googleusercontent.com /uploads/*",
           "font-src 'self' data: https://*.gstatic.com",
           "connect-src 'self' https: wss: *.google.com *.gstatic.com *.stripe.com",
           "frame-src 'self' https://*.google.com https://*.stripe.com",
