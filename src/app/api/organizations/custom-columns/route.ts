@@ -77,8 +77,8 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const session = await requireAuth();
-    const url = new URL(`${process.env.NEXTAUTH_URL}`);
-    const columnId = url.searchParams.get("id");
+    const { searchParams } = new URL(request.url);
+    const columnId = searchParams.get("id");
 
     if (!columnId) {
       return new Response(JSON.stringify({ error: "Column ID is required" }), { status: 400 });
