@@ -50,7 +50,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
 
   // Build email options with reply-to if provided
   const emailOptions: any = {
-    from: "Opletics <noreply@opletics.com>",
+    from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
     to: [], // Will be set per email in batch
     subject,
     html,
