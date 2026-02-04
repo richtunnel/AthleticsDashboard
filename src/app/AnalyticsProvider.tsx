@@ -8,10 +8,11 @@ export function AnalyticsProvider() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  gtag.initializeAnalytics();
-
   useEffect(() => {
-    const url = pathname + searchParams.toString();
+    if (!window.gtag) return;
+
+    const url = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
     gtag.pageview(url);
   }, [pathname, searchParams]);
 
