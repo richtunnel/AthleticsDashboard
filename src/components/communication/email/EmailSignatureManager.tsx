@@ -152,10 +152,7 @@ export function EmailSignatureManager() {
     const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      showMessage(
-        `File too large (${sizeMB}MB). Maximum allowed size is 2MB. Please compress your image or use a smaller file.`,
-        "error"
-      );
+      showMessage(`File too large (${sizeMB}MB). Maximum allowed size is 2MB. Please compress your image or use a smaller file.`, "error");
       // Reset the input so the same file can be selected again if needed
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -164,29 +161,17 @@ export function EmailSignatureManager() {
     }
 
     // Validate file type by extension and MIME type for maximum browser compatibility
-    const allowedMimeTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "image/heic",
-      "image/heif",
-    ];
-    const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"];
+    const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
     const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-    
+
     const isValidMimeType = allowedMimeTypes.includes(file.type);
     const isValidExtension = allowedExtensions.includes(fileExtension);
-    
+
     // Some browsers (especially Safari on iOS) may not report HEIC MIME type correctly,
     // so we also check the file extension as a fallback
     if (!isValidMimeType && !isValidExtension) {
-      showMessage(
-        `Invalid file type "${fileExtension || file.type || "unknown"}". ` +
-        "Only JPG, JPEG, PNG, GIF, WebP, and iPhone/Android (HEIC) images are accepted.",
-        "error"
-      );
+      showMessage(`Invalid file type "${fileExtension || file.type || "unknown"}". ` + "Only JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images are accepted.", "error");
       // Reset the input so the same file can be selected again if needed
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -269,7 +254,7 @@ export function EmailSignatureManager() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/heic,image/heif,.heic,.heif"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
                     multiple={false}
                     style={{ display: "none" }}
                     onChange={handleFileChange}
@@ -305,7 +290,7 @@ export function EmailSignatureManager() {
                   )}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  Recommended max size: 120px. Max file size: 2MB. Supported: JPG, JPEG, PNG, GIF, WebP, and iPhone/Android (HEIC) images
+                  Recommended max size: 120px. Max file size: 2MB. Supported: JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images
                 </Typography>
               </Box>
 
