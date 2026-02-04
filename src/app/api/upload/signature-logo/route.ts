@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
-import { writeFile, mkdir, readFile } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
-import { createHash } from "crypto";
 
 // Try to import sharp, but make it optional
 let sharp: any = null;
@@ -16,6 +12,7 @@ try {
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_BASE64_SIZE = 500 * 1024; // 500KB max for base64 string (roughly 375KB image)
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -28,6 +25,17 @@ const ALLOWED_TYPES = [
 
 // Allowed file extensions for browsers that don't report MIME type correctly (e.g., iOS Safari)
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"];
+
+// MIME type mapping for file extensions
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,69 +73,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create unique filename
-    const timestamp = Date.now();
-    const extension = path.extname(file.name);
-    const filename = `signature-${session.user.id}-${timestamp}${extension}`;
-
-    // Ensure upload directory exists
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Save original file
+    // Read file bytes
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const originalFilepath = path.join(uploadDir, filename);
-    
-    try {
-      await writeFile(originalFilepath, buffer);
-    } catch (error) {
-      console.error("Failed to save original file:", error);
-      return ApiResponse.error("Failed to save uploaded file. Please try again.");
-    }
+    let buffer = Buffer.from(bytes);
+    let mimeType = file.type || EXTENSION_TO_MIME[fileExtension] || "image/png";
 
-    // Optimize image with Sharp and create WebP version (if Sharp is available)
-    let optimizedUrl = "";
-    let message = "Logo uploaded successfully";
-    
-    // Get base URL for absolute links in emails
-    const baseUrl = process.env.NEXTAUTH_URL || "https://opletics.com";
-    const absoluteBaseUrl = baseUrl.replace(/\/$/, "");
+    // Optimize image with Sharp if available
+    let wasOptimized = false;
     
     if (sharp) {
-      const webpFilename = `signature-${session.user.id}-${timestamp}.webp`;
-      const webpFilepath = path.join(uploadDir, webpFilename);
-      
       try {
-        // Convert to WebP with optimization
-        await sharp(buffer)
-          .webp({ quality: 80 })
-          .toFile(webpFilepath);
+        // Resize and optimize the image for email signatures
+        // Max dimensions: 240x240 (double for retina, displayed at 120x120)
+        const optimizedBuffer = await sharp(buffer)
+          .resize(240, 240, { 
+            fit: "inside", 
+            withoutEnlargement: true 
+          })
+          .webp({ 
+            quality: 80,
+            effort: 4 // balance between speed and compression
+          })
+          .toBuffer();
         
-        // Generate versioned URL with content hash for cache busting
-        const fileHash = createHash("md5").update(buffer).digest("hex").substring(0, 8);
-        optimizedUrl = `${absoluteBaseUrl}/uploads/signatures/${webpFilename}?v=${fileHash}`;
-        message = "Logo uploaded and optimized successfully";
+        // Only use optimized if it's actually smaller
+        if (optimizedBuffer.length < buffer.length) {
+          buffer = optimizedBuffer;
+          mimeType = "image/webp";
+          wasOptimized = true;
+        }
       } catch (error) {
-        console.error("Failed to optimize image:", error);
-        // Fallback to original file
-        const fallbackUrl = `${absoluteBaseUrl}/uploads/signatures/${filename}`;
-        optimizedUrl = fallbackUrl;
-        message = "Logo uploaded successfully (without optimization)";
+        console.warn("Image optimization failed, using original:", error);
+        // Continue with original buffer
       }
-    } else {
-      // Sharp not available, use original file
-      const fallbackUrl = `${absoluteBaseUrl}/uploads/signatures/${filename}`;
-      optimizedUrl = fallbackUrl;
-      message = "Logo uploaded successfully (optimization not available)";
     }
 
+    // Check if the final image is too large for base64 storage
+    // Base64 adds ~33% overhead, so we check the buffer size
+    const estimatedBase64Size = Math.ceil(buffer.length * 1.34);
+    if (estimatedBase64Size > MAX_BASE64_SIZE) {
+      return ApiResponse.error(
+        `Image too large after optimization (${Math.round(estimatedBase64Size / 1024)}KB). ` +
+        "Please upload a smaller image (recommended: under 300KB)."
+      );
+    }
+
+    // Convert to base64 data URI for embedded use in emails
+    const base64String = buffer.toString("base64");
+    const dataUri = `data:${mimeType};base64,${base64String}`;
 
     return ApiResponse.success({
-      message: message,
-      url: optimizedUrl,
+      message: wasOptimized 
+        ? "Logo uploaded and optimized successfully" 
+        : "Logo uploaded successfully",
+      url: dataUri,
     });
   } catch (error) {
     return handleApiError(error);

@@ -13,6 +13,12 @@ export function getOptimizedImageUrl(
     format?: "webp" | "avif" | "jpeg" | "png";
   } = {}
 ): string {
+  // Data URIs (base64 embedded images) should be returned as-is
+  // since they are already self-contained and optimized
+  if (imageUrl.startsWith("data:")) {
+    return imageUrl;
+  }
+  
   const { width, height, quality = 80, format = "webp" } = options;
   
   const params = new URLSearchParams();
