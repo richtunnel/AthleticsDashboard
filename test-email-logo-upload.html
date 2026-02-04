@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Logo Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .preview {
+            margin: 20px 0;
+            border: 1px solid #eee;
+            padding: 10px;
+            min-height: 100px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .image-preview {
+            max-width: 120px;
+            max-height: 120px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Email Logo Upload Test</h1>
+    
+    <div class="upload-section">
+        <h2>Upload Logo</h2>
+        <input type="file" id="fileInput" accept="image/*" />
+        <p>Max file size: 2MB. Supported: JPG, JPEG, PNG, WebP, HEIC</p>
+        <div id="uploadStatus"></div>
+    </div>
+
+    <div class="preview">
+        <h3>Logo Preview</h3>
+        <div id="logoPreview">
+            <p>No logo uploaded yet</p>
+        </div>
+    </div>
+
+    <div class="preview">
+        <h3>Optimized Image Test</h3>
+        <div id="optimizedPreview">
+            <p>Upload a logo to test optimization</p>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const logoPreview = document.getElementById('logoPreview');
+        const optimizedPreview = document.getElementById('optimizedPreview');
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file size (2MB)
+            const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+            if (file.size > MAX_FILE_SIZE) {
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                uploadStatus.innerHTML = `<p class="error">File too large (${sizeMB}MB). Maximum allowed size is 2MB.</p>`;
+                return;
+            }
+
+            // Show uploading status
+            uploadStatus.innerHTML = '<p>Uploading...</p>';
+
+            try {
+                // Create FormData
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Upload file
+                const response = await fetch('/api/upload/signature-logo', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Upload failed');
+                }
+
+                // Show success message
+                uploadStatus.innerHTML = `<p class="success">${result.message || 'Upload successful!'}</p>`;
+                console.log('Upload result:', result);
+
+                // Show logo preview
+                if (result.data && result.data.url) {
+                    logoPreview.innerHTML = `
+                        <img src="${result.data.url}" alt="Logo" class="image-preview" />
+                        <p>URL: ${result.data.url}</p>
+                    `;
+
+                    // Test optimized URL
+                    const optimizedUrl = `/api/images/optimize?url=${encodeURIComponent(result.data.url)}&w=120&h=120&format=webp`;
+                    optimizedPreview.innerHTML = `
+                        <p>Optimized URL: ${optimizedUrl}</p>
+                        <img src="${optimizedUrl}" alt="Optimized Logo" class="image-preview" />
+                    `;
+                }
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                uploadStatus.innerHTML = `<p class="error">Upload failed: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
