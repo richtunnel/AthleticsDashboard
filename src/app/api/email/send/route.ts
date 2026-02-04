@@ -395,10 +395,15 @@ export async function POST(request: NextRequest) {
 
     // Update campaign sentAt if campaignId was provided
     if (campaignId && result.success > 0) {
-      await prisma.emailCampaign.update({
-        where: { id: campaignId },
-        data: { sentAt: new Date() },
-      });
+      try {
+        await prisma.emailCampaign.update({
+          where: { id: campaignId },
+          data: { sentAt: new Date() },
+        });
+      } catch (campaignUpdateError) {
+        console.error("Failed to update campaign sentAt:", campaignUpdateError);
+        // Don't fail the request if campaign update fails
+      }
     }
 
     if (result.failed > 0 && result.success === 0) {
