@@ -68,8 +68,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
   };
 
   // Batch size to prevent rate limit issues
-  const BATCH_SIZE = 50;
-  const DELAY_BETWEEN_BATCHES = 1000; // 1 second delay between batches
+  const BATCH_SIZE = 100; // Resend batch API limit is 100
+  const DELAY_BETWEEN_BATCHES = 200; // 200ms delay between batches (Resend allows 10 requests/sec)
 
   // Process emails in batches
   for (let i = 0; i < to.length; i += BATCH_SIZE) {
@@ -80,74 +80,96 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
     }
 
-    // Send each email individually using Resend batch API
-    const batchPromises = batch.map(async (email) => {
-      try {
-        // Send email via Resend
-        const emailResponse = await resend.emails.send({
-          ...emailOptions,
-          to: [email], // Send to individual recipient
-        });
+    // Prepare batch for Resend
+    const resendBatch = batch.map((email) => ({
+      ...emailOptions,
+      to: [email],
+    }));
 
-        // Create individual email log
-        const emailLog = await prisma.emailLog.create({
-          data: {
-            to: [email],
-            cc: [],
-            subject,
-            body: html,
-            status: emailResponse.error ? "FAILED" : "SENT",
-            error: emailResponse.error?.message || null,
-            sentAt: emailResponse.error ? null : new Date(),
-            sentById,
-            gameIds,
-            groupId: groupId || null,
-            campaignId: campaignId || null,
-            recipientCategory: recipientCategory || null,
-            additionalMessage: additionalMessage || null,
-          },
-        });
+    try {
+      // Send batch via Resend
+      const { data: batchResponses, error: batchError } = await resend.batch.send(resendBatch);
 
-        if (emailResponse.error) {
+      if (batchError) {
+        throw batchError;
+      }
+
+      // Process results and create email logs
+      const logData = batch.map((email, index) => {
+        const response = batchResponses ? batchResponses[index] : null;
+        const hasError = !response || !!response.error;
+        const errorMessage = response?.error?.message || "Unknown error during batch send";
+
+        return {
+          to: [email],
+          cc: [],
+          subject,
+          body: html,
+          status: (hasError ? "FAILED" : "SENT") as any,
+          error: hasError ? errorMessage : null,
+          sentAt: hasError ? null : new Date(),
+          sentById,
+          gameIds,
+          groupId: groupId || null,
+          campaignId: campaignId || null,
+          recipientCategory: recipientCategory || null,
+          additionalMessage: additionalMessage || null,
+        };
+      });
+
+      // Use createManyAndReturn to get IDs of created logs
+      // Note: We cast to any because of potential Prisma version differences in types
+      const createdLogs = await (prisma.emailLog as any).createManyAndReturn({
+        data: logData,
+      });
+
+      // Update results
+      batch.forEach((email, index) => {
+        const response = batchResponses ? batchResponses[index] : null;
+        if (!response || response.error) {
           result.failed++;
-          result.errors.push({ email, error: emailResponse.error.message });
+          result.errors.push({ email, error: response?.error?.message || "Unknown error" });
         } else {
           result.success++;
-          result.emailLogIds.push(emailLog.id);
         }
-      } catch (error) {
-        result.failed++;
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        result.errors.push({ email, error: errorMessage });
+      });
+      result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
 
-        // Still create a failed email log
-        try {
-          const emailLog = await prisma.emailLog.create({
-            data: {
-              to: [email],
-              cc: [],
-              subject,
-              body: html,
-              status: "FAILED",
-              error: errorMessage,
-              sentAt: null,
-              sentById,
-              gameIds,
-              groupId: groupId || null,
-              campaignId: campaignId || null,
-              recipientCategory: recipientCategory || null,
-              additionalMessage: additionalMessage || null,
-            },
-          });
-          result.emailLogIds.push(emailLog.id);
-        } catch (logError) {
-          console.error("Failed to create email log:", logError);
-        }
+    } catch (error) {
+      // Handle whole batch failure
+      const errorMessage = error instanceof Error ? error.message : "Unknown batch error";
+      
+      const logData = batch.map((email) => ({
+        to: [email],
+        cc: [],
+        subject,
+        body: html,
+        status: "FAILED" as any,
+        error: errorMessage,
+        sentAt: null,
+        sentById,
+        gameIds,
+        groupId: groupId || null,
+        campaignId: campaignId || null,
+        recipientCategory: recipientCategory || null,
+        additionalMessage: additionalMessage || null,
+      }));
+
+      try {
+        const createdLogs = await (prisma.emailLog as any).createManyAndReturn({
+          data: logData,
+        });
+        result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
+      } catch (logError) {
+        console.error("Failed to create failed email logs:", logError);
       }
-    });
 
-    // Wait for batch to complete
-    await Promise.all(batchPromises);
+      batch.forEach((email) => {
+        result.failed++;
+        result.errors.push({ email, error: errorMessage });
+      });
+    }
+
   }
 
   return result;
