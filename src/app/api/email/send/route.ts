@@ -41,7 +41,7 @@ function getColumnLabel(columnId: string): string {
   // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
-    return columnName; // Use the CSV column name as-is
+    return columnName || columnId; // Use the CSV column name as-is, fallback to full ID if empty
   }
 
   // Return default labels
@@ -73,8 +73,21 @@ function getCellValue(game: Game, columnId: string): string {
   // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
-    const customFields = game.customFields || {};
-    return customFields[columnName] || "—";
+
+    // If column name is empty/malformed, return placeholder
+    if (!columnName) {
+      return "—";
+    }
+
+    const customFields = game.customFields;
+
+    // Ensure customFields is a valid object (not null, array, or primitive)
+    if (typeof customFields !== "object" || customFields === null || Array.isArray(customFields)) {
+      return "—";
+    }
+
+    const value = customFields[columnName];
+    return value !== undefined && value !== null ? String(value) : "—";
   }
 
   // Handle default columns
@@ -102,7 +115,10 @@ function getCellValue(game: Game, columnId: string): string {
 }
 
 // Helper to escape HTML
-function escapeHtml(text: string): string {
+function escapeHtml(text: string | null | undefined): string {
+  if (text === null || text === undefined) {
+    return "";
+  }
   const map: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
