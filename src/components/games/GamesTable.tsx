@@ -655,7 +655,7 @@ export function GamesTable() {
         setInlineEditError(`Maximum ${MAX_CHAR_LIMIT} characters allowed`);
       }
     },
-    [MAX_CHAR_LIMIT, inlineEditError]
+    [MAX_CHAR_LIMIT, inlineEditError],
   );
 
   // useEffect(() => {
@@ -834,7 +834,6 @@ export function GamesTable() {
   });
 
   const isCalendarConnected = calendarStatusResponse?.isConnected ?? false;
-
 
   // Fetch workbooks
   const { data: workbooksResponse, isLoading: isLoadingWorkbooks } = useQuery({
@@ -1105,7 +1104,7 @@ export function GamesTable() {
       }
       return PRESET_LEVELS;
     },
-    [levelsBySport, uniqueLevels]
+    [levelsBySport, uniqueLevels],
   );
 
   const uniqueValues = useMemo(() => {
@@ -1244,7 +1243,7 @@ export function GamesTable() {
         }
       }
     },
-    [customColumnsMap, customColumnTitles, columnPreferencesData]
+    [customColumnsMap, customColumnTitles, columnPreferencesData],
   );
 
   const hiddenColumnCount = useMemo(() => columnState.filter((column) => !column.visible).length, [columnState]);
@@ -1275,7 +1274,7 @@ export function GamesTable() {
         visible: column.visible,
         disableDelete: column.id === "date" || column.id === "actions",
       })),
-    [columnState, getColumnLabel]
+    [columnState, getColumnLabel],
   );
 
   const visibleCustomColumns = useMemo(() => {
@@ -1636,7 +1635,7 @@ export function GamesTable() {
         },
       });
     },
-    [savePreferencesMutation, addNotification, customColumnTitles, columnWidths, columnPreferencesData]
+    [savePreferencesMutation, addNotification, customColumnTitles, columnWidths, columnPreferencesData],
   );
 
   const handleToggleColumnVisibility = useCallback(
@@ -1656,7 +1655,7 @@ export function GamesTable() {
         return nextState;
       });
     },
-    [persistColumnPreferences, addNotification]
+    [persistColumnPreferences, addNotification],
   );
 
   const handleReorderColumns = useCallback(
@@ -1685,7 +1684,7 @@ export function GamesTable() {
       // Note: isUserReordering flag is cleared in savePreferencesMutation.onSuccess
       // This ensures the flag stays true until the cache is fully updated
     },
-    [persistColumnPreferences]
+    [persistColumnPreferences],
   );
 
   const handleShowAllColumns = useCallback(() => {
@@ -1704,7 +1703,7 @@ export function GamesTable() {
       setEditingColumnId(columnId);
       setEditingColumnTitle(currentTitle);
     },
-    [getColumnLabel]
+    [getColumnLabel],
   );
 
   const handleSaveColumnTitle = useCallback(() => {
@@ -1737,7 +1736,7 @@ export function GamesTable() {
       persistColumnPreferences(columnState, columnState, updatedTitles);
       addNotification("Column title reset to default", "success");
     },
-    [customColumnTitles, columnState, persistColumnPreferences, addNotification]
+    [customColumnTitles, columnState, persistColumnPreferences, addNotification],
   );
 
   // Column deletion mutation
@@ -1815,7 +1814,7 @@ export function GamesTable() {
         setColumnWidths(updatedWidths);
       }
     },
-    [customColumnTitles, columnWidths, columnState, persistColumnPreferences, addNotification, deleteCustomColumnMutation]
+    [customColumnTitles, columnWidths, columnState, persistColumnPreferences, addNotification, deleteCustomColumnMutation],
   );
 
   // Column resizing handlers
@@ -1827,7 +1826,7 @@ export function GamesTable() {
       const currentWidth = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
       resizeStartWidth.current = currentWidth;
     },
-    [columnWidths, DEFAULT_COLUMN_WIDTH]
+    [columnWidths, DEFAULT_COLUMN_WIDTH],
   );
 
   const handleResizeMove = useCallback(
@@ -1842,7 +1841,7 @@ export function GamesTable() {
         [resizingColumn]: newWidth,
       }));
     },
-    [resizingColumn, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]
+    [resizingColumn, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH],
   );
 
   const handleResizeEnd = useCallback(() => {
@@ -1884,13 +1883,13 @@ export function GamesTable() {
   const handleSyncCalendar = (gameId: string) => {
     console.log("🔄 Sync button clicked for game:", gameId);
     console.log("🔄 Mutation pending:", syncGameMutation.isPending);
-    
+
     // Check if calendar is connected
     if (!isCalendarConnected) {
       router.push("/dashboard/gsync");
       return;
     }
-    
+
     trackEvent("Calendar Sync Individual Game", {
       source: "games_table",
       action: "sync_to_calendar",
@@ -2353,7 +2352,7 @@ export function GamesTable() {
       setInlineEditError(null);
       setSaveStatus("idle");
     },
-    [editingGameId]
+    [editingGameId],
   );
 
   // Batched autosave function - handles multiple field changes efficiently
@@ -2640,7 +2639,7 @@ export function GamesTable() {
         setIsInlineSaving(false);
       }
     },
-    [queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT]
+    [queryClient, syncGameMutation, addNotification, MAX_CHAR_LIMIT],
   );
 
   // Schedule autosave with debouncing and batching
@@ -2669,7 +2668,7 @@ export function GamesTable() {
 
       saveTimeoutRef.current.set(gameId, timeoutId);
     },
-    [executeBatchedSave]
+    [executeBatchedSave],
   );
 
   const handleInlineKeyDown = useCallback(
@@ -2704,7 +2703,7 @@ export function GamesTable() {
         latestDatePickerValueRef.current = null;
       }
     },
-    [inlineEditState, inlineEditValue, scheduleAutosave]
+    [inlineEditState, inlineEditValue, scheduleAutosave],
   );
 
   const handleInlineBlur = useCallback(
@@ -2728,7 +2727,7 @@ export function GamesTable() {
       // Clear the date picker ref after handling blur
       latestDatePickerValueRef.current = null;
     },
-    [inlineEditState, inlineEditValue, scheduleAutosave]
+    [inlineEditState, inlineEditValue, scheduleAutosave],
   );
 
   // Trigger autosave as user types (debounced)
@@ -2743,7 +2742,7 @@ export function GamesTable() {
       // Schedule batched save with debounce
       scheduleAutosave(game.id, inlineEditState.field, value, game, false);
     },
-    [inlineEditState, handleInlineValueChange, scheduleAutosave]
+    [inlineEditState, handleInlineValueChange, scheduleAutosave],
   );
 
   // Cleanup timeouts and abort controllers on unmount
@@ -3002,7 +3001,7 @@ export function GamesTable() {
       queryClient.refetchQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
       queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] }); // ADD THIS LINE
     },
-    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY]
+    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY],
   );
 
   const handleSaveNewGame = async () => {
@@ -3221,7 +3220,7 @@ export function GamesTable() {
       const limitedValue = value.slice(0, MAX_CHAR_LIMIT);
       updateEditingCustomData(columnId, limitedValue);
     },
-    [MAX_CHAR_LIMIT, updateEditingCustomData]
+    [MAX_CHAR_LIMIT, updateEditingCustomData],
   );
 
   const handleCancelNewGame = () => {
@@ -3442,7 +3441,7 @@ export function GamesTable() {
           onError: (error: any) => {
             addNotification(error?.message || "Failed to duplicate game", "error");
           },
-        }
+        },
       );
     } catch (error: any) {
       addNotification(error?.message || "Failed to duplicate game", "error");
@@ -3655,7 +3654,7 @@ export function GamesTable() {
       updateFilter(columnId, filter);
       setPage(0);
     },
-    [updateFilter]
+    [updateFilter],
   );
 
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -3850,7 +3849,7 @@ export function GamesTable() {
       },
       () => {
         addNotification("Failed to copy to clipboard", "error");
-      }
+      },
     );
   }, [selectedGames, games, resolvedColumns, getColumnLabel, formatGameDate, addNotification]);
 
@@ -3871,7 +3870,7 @@ export function GamesTable() {
         },
       });
     },
-    [editingGameId, formatGameDate]
+    [editingGameId, formatGameDate],
   );
 
   const handleTimeModalSave = useCallback(
@@ -3894,7 +3893,7 @@ export function GamesTable() {
       scheduleAutosave(gameId, "time", time, game, true);
       setTimeEditModal(null);
     },
-    [timeEditModal, games, scheduleAutosave, updateNewGameData]
+    [timeEditModal, games, scheduleAutosave, updateNewGameData],
   );
 
   const handleTimeModalClose = useCallback(() => {
@@ -3911,7 +3910,7 @@ export function GamesTable() {
       updateNewGameData({ time });
       setConflictModal(null);
     },
-    [updateNewGameData]
+    [updateNewGameData],
   );
 
   const handleConflictProceedAnyway = useCallback(() => {
@@ -3998,7 +3997,7 @@ export function GamesTable() {
     (columnId: ColumnId) => {
       return columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
     },
-    [columnWidths, DEFAULT_COLUMN_WIDTH]
+    [columnWidths, DEFAULT_COLUMN_WIDTH],
   );
 
   const renderResizeHandle = useCallback(
@@ -4025,7 +4024,7 @@ export function GamesTable() {
         />
       );
     },
-    [handleResizeStart]
+    [handleResizeStart],
   );
 
   const renderHeaderCell = (column: ResolvedColumn) => {
@@ -5117,7 +5116,7 @@ export function GamesTable() {
                           ...prev,
                           actualDepartureTime: combineDateAndTime(prev.date, e.target.value),
                         }
-                      : prev
+                      : prev,
                   )
                 }
                 InputLabelProps={{ shrink: true }}
@@ -5149,7 +5148,7 @@ export function GamesTable() {
                           ...prev,
                           actualArrivalTime: combineDateAndTime(prev.date, e.target.value),
                         }
-                      : prev
+                      : prev,
                   )
                 }
                 InputLabelProps={{ shrink: true }}
@@ -5326,7 +5325,7 @@ export function GamesTable() {
         ...additionalSx,
       };
     },
-    [getColumnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH]
+    [getColumnWidth, MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH],
   );
 
   const renderViewRowCell = (column: ResolvedColumn, game: Game) => {
@@ -7183,7 +7182,7 @@ export function GamesTable() {
           ) : games.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
               <Typography color="text.secondary" variant="body2">
-                No games found. Click "Create Game" to add one.
+                No games found. Import your spreadsheet or click "Create Game" to add one.
               </Typography>
             </Paper>
           ) : (
@@ -7308,7 +7307,7 @@ export function GamesTable() {
                         </Box>
                       ) : (
                         <Typography color="text.secondary" variant="body2">
-                          No games found. Click "Create Game" to add one.
+                          No games found. Import your spreadsheet or click "Create Game" to add one.
                         </Typography>
                       )}
                     </TableCell>
