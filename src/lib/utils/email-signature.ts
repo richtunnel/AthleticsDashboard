@@ -42,7 +42,10 @@ export function buildEmailSignatureHTML(signatureData: SignatureData): string {
   return html;
 }
 
-function escapeHtml(text: string): string {
+function escapeHtml(text: string | null | undefined): string {
+  if (text === null || text === undefined) {
+    return "";
+  }
   const map: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
