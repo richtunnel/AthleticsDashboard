@@ -1,4 +1,4 @@
-export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXX";
+export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-M0V1C7PQ3L";
 
 export const pageview = (url: string) => {
   window.gtag?.("event", "page_view", {
