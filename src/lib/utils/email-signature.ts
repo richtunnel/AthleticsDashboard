@@ -1,3 +1,5 @@
+import { getSiteUrl } from "./siteUrl";
+
 interface SignatureData {
   signaturePhone?: string | null;
   signatureWebsite?: string | null;
@@ -17,7 +19,13 @@ export function buildEmailSignatureHTML(signatureData: SignatureData): string {
 
   // Add logo if present
   if (signatureLogoUrl) {
-    html += `<img src="${signatureLogoUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
+    // Convert relative URLs to absolute URLs for email clients
+    let logoUrl = signatureLogoUrl;
+    if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
+      const baseUrl = getSiteUrl();
+      logoUrl = `${baseUrl}${logoUrl}`;
+    }
+    html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
   }
 
   html += '<div style="font-size: 14px; color: #374151; line-height: 1.6;">';
