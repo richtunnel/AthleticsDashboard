@@ -1,5 +1,13 @@
 export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_ID || "G-M0V1C7PQ3L";
 
+export const initializeAnalytics = () => {
+  if (typeof window !== "undefined") {
+    window.gtag?.("config", GA_MEASUREMENT_ID, {
+      page_path: window.location.pathname,
+    });
+  }
+};
+
 export const pageview = (url: string) => {
   window.gtag?.("event", "page_view", {
     page_path: url,
