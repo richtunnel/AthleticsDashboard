@@ -314,6 +314,8 @@ model EmailLog {
   campaignId         String?
   recipientCategory  String?
   additionalMessage  String?     @db.Text
+  customRecipients   String[]    @default([])
+  selectedSchoolNames String[]   @default([])
   // Relations
   gameId             String?
   game               Game?       @relation(fields: [gameId], references: [id])

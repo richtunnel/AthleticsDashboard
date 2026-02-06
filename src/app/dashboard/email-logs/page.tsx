@@ -58,6 +58,8 @@ interface EmailLog {
   campaignId: string | null;
   recipientCategory: string | null;
   additionalMessage: string | null;
+  customRecipients: string[];
+  selectedSchoolNames: string[];
   sentBy: {
     name: string | null;
     email: string;
@@ -167,12 +169,20 @@ export default function EmailLogsPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
+        const draftCustomRecipients = log.customRecipients?.length
+          ? log.customRecipients
+          : log.recipientCategory === "custom"
+            ? log.to
+            : [];
+
         sessionStorage.setItem(
           "emailDraft",
           JSON.stringify({
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
             recipientCategory: log.recipientCategory || "parents",
+            customRecipients: draftCustomRecipients.join(", "),
+            selectedSchoolNames: log.selectedSchoolNames || [],
           })
         );
         router.push("/dashboard/compose-email");

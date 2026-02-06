@@ -385,37 +385,7 @@ export default function ComposeEmailPage() {
           // If filter type is "values", pre-fill the school filter
           if (opponentFilter?.type === "values" && opponentFilter?.values?.length > 0) {
             setSelectedSchoolNames(opponentFilter.values);
-            // Filter games to these opponents
-            const filteredGames = games.filter((game: Game) => {
-              // Check if any opponent-related column contains the selected school names
-              return opponentFilter.values.some((schoolName: string) => {
-                // Check standard opponent field
-                if (game.opponent?.name === schoolName) return true;
-
-                // Check other opponent-related columns
-                return visibleColumnIds.some((columnId) => {
-                  const label = getColumnLabel(columnId, customColumns).toLowerCase();
-                  const isOpponentColumn =
-                    label.includes("opponent") ||
-                    label.includes("away") ||
-                    label.includes("enemy") ||
-                    label.includes("visiting") ||
-                    label.includes("visitor") ||
-                    label.includes("against") ||
-                    label.includes("vs") ||
-                    label.includes("versus") ||
-                    label.includes("school") ||
-                    label.includes("team");
-
-                  if (isOpponentColumn) {
-                    const cellValue = getCellValue(game, columnId, columnMapping);
-                    return cellValue === schoolName;
-                  }
-                  return false;
-                });
-              });
-            });
-            setSelectedGames(filteredGames);
+            setSelectedGames(filterGamesBySchoolNames(games, opponentFilter.values));
           }
         } catch (e) {
           // Ignore parse errors
@@ -427,8 +397,16 @@ export default function ComposeEmailPage() {
         try {
           const draft = JSON.parse(storedEmailDraft);
           if (draft.subject) setSubject(draft.subject);
-          if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
+          if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
           if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+          if (draft.customRecipients) {
+            const customRecipientValue = Array.isArray(draft.customRecipients) ? draft.customRecipients.join(", ") : draft.customRecipients;
+            setCustomRecipients(customRecipientValue);
+          }
+          if (Array.isArray(draft.selectedSchoolNames) && draft.selectedSchoolNames.length > 0) {
+            setSelectedSchoolNames(draft.selectedSchoolNames);
+            setSelectedGames(filterGamesBySchoolNames(games, draft.selectedSchoolNames));
+          }
           // Clear the draft after loading
           sessionStorage.removeItem("emailDraft");
         } catch (e) {
@@ -445,7 +423,10 @@ export default function ComposeEmailPage() {
             if (draft.subject) setSubject(draft.subject);
             if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
             if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-            if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+            if (Array.isArray(draft.selectedSchoolNames)) {
+              setSelectedSchoolNames(draft.selectedSchoolNames);
+              setSelectedGames(filterGamesBySchoolNames(games, draft.selectedSchoolNames));
+            }
             if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
 
             // Show notification about restored draft
@@ -527,7 +508,10 @@ export default function ComposeEmailPage() {
         if (draft.subject) setSubject(draft.subject);
         if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
         if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-        if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+        if (Array.isArray(draft.selectedSchoolNames)) {
+          setSelectedSchoolNames(draft.selectedSchoolNames);
+          setSelectedGames(filterGamesBySchoolNames(allGames, draft.selectedSchoolNames));
+        }
         if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
         setHasFailedDraft(false);
         sessionStorage.removeItem("failedEmailDraft");
@@ -564,21 +548,15 @@ export default function ComposeEmailPage() {
     }
   };
 
-  const handleSchoolFilterChange = (selectedSchools: string[]) => {
-    setSelectedSchoolNames(selectedSchools);
-
+  const filterGamesBySchoolNames = (games: Game[], selectedSchools: string[]) => {
     if (selectedSchools.length === 0) {
-      setSelectedGames(allGames);
-      return;
+      return games;
     }
 
-    // Filter games that contain any of the selected school names in opponent-related columns
-    const filteredGames = allGames.filter((game) => {
+    return games.filter((game) => {
       return selectedSchools.some((schoolName) => {
-        // Check standard opponent field
         if (game.opponent?.name === schoolName) return true;
 
-        // Check other opponent-related columns
         return visibleColumnIds.some((columnId) => {
           const label = getColumnLabel(columnId, customColumns).toLowerCase();
           const isOpponentColumn =
@@ -601,8 +579,11 @@ export default function ComposeEmailPage() {
         });
       });
     });
+  };
 
-    setSelectedGames(filteredGames);
+  const handleSchoolFilterChange = (selectedSchools: string[]) => {
+    setSelectedSchoolNames(selectedSchools);
+    setSelectedGames(filterGamesBySchoolNames(allGames, selectedSchools));
   };
 
   const escapeHtml = (text: string) => {
@@ -1061,6 +1042,14 @@ export default function ComposeEmailPage() {
               const groupId = isEmailGroup ? recipientCategory.split(":")[1] : undefined;
               const actualCategory = isEmailGroup ? "emailGroup" : recipientCategory;
 
+              const customRecipientList =
+                recipientCategory === "custom"
+                  ? customRecipients
+                      .split(",")
+                      .map((e) => e.trim())
+                      .filter(Boolean)
+                  : [];
+
               sendEmailMutation.mutate({
                 gameIds,
                 subject,
@@ -1068,13 +1057,9 @@ export default function ComposeEmailPage() {
                 recipientCategory: actualCategory,
                 groupId,
                 visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
-                to:
-                  recipientCategory === "custom"
-                    ? customRecipients
-                        .split(",")
-                        .map((e) => e.trim())
-                        .filter(Boolean)
-                    : undefined,
+                selectedSchoolNames,
+                customRecipients: customRecipientList,
+                to: recipientCategory === "custom" ? customRecipientList : undefined,
               });
             }}
             disabled={sendEmailMutation.isPending || !recipientCategory || !subject || (recipientCategory === "custom" && !customRecipients.trim())}

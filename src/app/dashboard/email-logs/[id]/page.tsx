@@ -47,6 +47,8 @@ interface EmailLog {
   campaignId: string | null;
   recipientCategory: string | null;
   additionalMessage: string | null;
+  customRecipients: string[];
+  selectedSchoolNames: string[];
   sentBy: {
     name: string | null;
     email: string;
@@ -137,12 +139,20 @@ export default function EmailLogDetailPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
+        const draftCustomRecipients = log.customRecipients?.length
+          ? log.customRecipients
+          : log.recipientCategory === "custom"
+            ? log.to
+            : [];
+
         sessionStorage.setItem(
           "emailDraft",
           JSON.stringify({
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
             recipientCategory: log.recipientCategory || "parents",
+            customRecipients: draftCustomRecipients.join(", "),
+            selectedSchoolNames: log.selectedSchoolNames || [],
           })
         );
         router.push("/dashboard/compose-email");
@@ -327,6 +337,38 @@ export default function EmailLogDetailPage() {
                   <Typography variant="body1" sx={{ textTransform: "capitalize" }}>
                     {log.recipientCategory.replace("_", " ")}
                   </Typography>
+                </Box>
+              </>
+            )}
+
+            {log.customRecipients && log.customRecipients.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Custom Recipients ({log.customRecipients.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {log.customRecipients.map((email, index) => (
+                      <Chip key={`${email}-${index}`} label={email} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {log.selectedSchoolNames && log.selectedSchoolNames.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Filtered Schools/Opponents ({log.selectedSchoolNames.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {log.selectedSchoolNames.map((schoolName, index) => (
+                      <Chip key={`${schoolName}-${index}`} label={schoolName} size="small" variant="outlined" />
+                    ))}
+                  </Box>
                 </Box>
               </>
             )}
