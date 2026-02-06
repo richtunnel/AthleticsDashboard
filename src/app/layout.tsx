@@ -94,7 +94,7 @@ export default function RootLayout({
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="rgb(17 17 17)" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script id="ld-website" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
-        {/* Google Analytics Script */}
+        {/* Google Analytics */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
