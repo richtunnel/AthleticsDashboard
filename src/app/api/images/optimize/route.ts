@@ -92,6 +92,39 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Image optimization error:", error);
+    
+    // Fallback: serve original image if optimization fails
+    try {
+      const { searchParams } = new URL(request.url);
+      const imageUrl = searchParams.get("url");
+      if (imageUrl) {
+        const cleanImageUrl = imageUrl.split("?")[0];
+        const imagePath = path.join(process.cwd(), "public", cleanImageUrl);
+        if (existsSync(imagePath)) {
+          const originalBuffer = await readFile(imagePath);
+          // Determine content type from file extension
+          const ext = path.extname(cleanImageUrl).toLowerCase();
+          const contentTypeMap: Record<string, string> = {
+            ".webp": "image/webp",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".gif": "image/gif",
+          };
+          const contentType = contentTypeMap[ext] || "application/octet-stream";
+          return new NextResponse(originalBuffer, {
+            headers: {
+              "Content-Type": contentType,
+              "Content-Length": originalBuffer.length.toString(),
+              "Cache-Control": "public, max-age=86400", // 1 day cache for fallback
+            },
+          });
+        }
+      }
+    } catch (fallbackError) {
+      console.error("Fallback image serving also failed:", fallbackError);
+    }
+    
     return NextResponse.json(
       { error: "Failed to optimize image" },
       { status: 500 }
