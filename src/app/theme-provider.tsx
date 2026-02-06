@@ -21,7 +21,16 @@ export function MUIThemeProvider({ children, mode = "light" }: MUIThemeProviderP
   // Apply data-theme attribute to document element for CSS variables
   useEffect(() => {
     if (typeof document !== "undefined") {
+      const previousMode = document.documentElement.getAttribute("data-theme");
       document.documentElement.setAttribute("data-theme", mode);
+
+      return () => {
+        if (previousMode) {
+          document.documentElement.setAttribute("data-theme", previousMode);
+        } else {
+          document.documentElement.removeAttribute("data-theme");
+        }
+      };
     }
   }, [mode]);
 

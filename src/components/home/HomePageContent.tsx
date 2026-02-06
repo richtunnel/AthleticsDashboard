@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import styles from "../../styles/logo.module.css";
@@ -35,6 +36,16 @@ export default function HomePageContent() {
   const { data: session, status } = useSession();
   const signInAuth = useAuthButton();
   const getStartedAuth = useAuthButton();
+
+  // Ensure homepage is always in light mode, even if coming from a dark-mode dashboard
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.documentElement;
+      if (root.getAttribute("data-theme") !== "light") {
+        root.setAttribute("data-theme", "light");
+      }
+    }
+  }, []);
 
   const handleSignIn = async () => {
     try {
