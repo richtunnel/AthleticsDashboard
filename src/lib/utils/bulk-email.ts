@@ -20,6 +20,8 @@ interface SendBulkEmailParams {
   campaignId?: string;
   recipientCategory?: string;
   additionalMessage?: string;
+  visibleColumnIds?: string[];
+  selectedSchoolNames?: string[];
 }
 
 /**
@@ -35,7 +37,7 @@ interface SendBulkEmailParams {
  * @returns Result with success/failure counts and email log IDs
  */
 export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
-  const { to, subject, html, sentById, replyTo, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage } = params;
+  const { to, subject, html, sentById, replyTo, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage, visibleColumnIds = [], selectedSchoolNames = [] } = params;
 
   const resend = getResendClientOptional();
   if (!resend) {
@@ -138,6 +140,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           campaignId: campaignId || null,
           recipientCategory: recipientCategory || null,
           additionalMessage: additionalMessage || null,
+          visibleColumnIds,
+          selectedSchoolNames,
         };
       });
 
@@ -221,6 +225,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
         campaignId: campaignId || null,
         recipientCategory: recipientCategory || null,
         additionalMessage: additionalMessage || null,
+        visibleColumnIds,
+        selectedSchoolNames,
       }));
 
       try {

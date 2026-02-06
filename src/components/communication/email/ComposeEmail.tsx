@@ -429,6 +429,14 @@ export default function ComposeEmailPage() {
           if (draft.subject) setSubject(draft.subject);
           if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
           if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+          if (draft.visibleColumnIds && Array.isArray(draft.visibleColumnIds)) {
+            // Visible column IDs are already set via useMemo from table preferences
+            // We'll keep the preferences-based columns instead of using the draft's columns
+            console.log("Email draft contains visibleColumnIds:", draft.visibleColumnIds);
+          }
+          if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+            setSelectedSchoolNames(draft.selectedSchoolNames);
+          }
           // Clear the draft after loading
           sessionStorage.removeItem("emailDraft");
         } catch (e) {
@@ -445,7 +453,9 @@ export default function ComposeEmailPage() {
             if (draft.subject) setSubject(draft.subject);
             if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
             if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-            if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+            if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+              setSelectedSchoolNames(draft.selectedSchoolNames);
+            }
             if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
 
             // Show notification about restored draft
@@ -1068,6 +1078,7 @@ export default function ComposeEmailPage() {
                 recipientCategory: actualCategory,
                 groupId,
                 visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
+                selectedSchoolNames,
                 to:
                   recipientCategory === "custom"
                     ? customRecipients
