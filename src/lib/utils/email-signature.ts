@@ -21,6 +21,21 @@ export function buildEmailSignatureHTML(signatureData: SignatureData): string {
   if (signatureLogoUrl) {
     // Convert relative URLs to absolute URLs for email clients
     let logoUrl = signatureLogoUrl;
+    
+    // Handle optimized image URLs - extract the actual image URL from query params
+    if (logoUrl.startsWith("/api/images/optimize")) {
+      try {
+        const urlObj = new URL(logoUrl, "http://localhost");
+        const actualUrl = urlObj.searchParams.get("url");
+        if (actualUrl) {
+          logoUrl = actualUrl;
+        }
+      } catch (e) {
+        // If parsing fails, continue with original URL
+      }
+    }
+    
+    // Convert relative URLs to absolute URLs
     if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
       const baseUrl = getSiteUrl();
       logoUrl = `${baseUrl}${logoUrl}`;
