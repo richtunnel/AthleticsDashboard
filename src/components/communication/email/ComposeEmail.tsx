@@ -712,6 +712,7 @@ export default function ComposeEmailPage() {
         signaturePhone: emailSignature.signaturePhone,
         signatureWebsite: emailSignature.signatureWebsite,
         signatureLogoUrl: emailSignature.signatureLogoUrl,
+        signatureText: emailSignature.signatureText,
       });
       if (signatureHTML) {
         html += signatureHTML;
