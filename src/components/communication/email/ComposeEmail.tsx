@@ -263,7 +263,7 @@ export default function ComposeEmailPage() {
           const draft = JSON.parse(failedEmailDraft);
           // Only show if the draft is recent (within 24 hours)
           const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
-          
+
           if (isRecent) {
             setHasFailedDraft(true);
             addNotification("You have a saved draft from a failed email send. Click 'Restore Draft' to continue where you left off.", "warning");
@@ -440,17 +440,17 @@ export default function ComposeEmailPage() {
           const draft = JSON.parse(failedEmailDraft);
           // Only restore if the draft is recent (within 24 hours)
           const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
-          
+
           if (isRecent) {
             if (draft.subject) setSubject(draft.subject);
             if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
             if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
             if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
             if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
-            
+
             // Show notification about restored draft
             addNotification("Restored your previous email draft from a failed send attempt.", "info");
-            
+
             // Clear the failed draft after restoration
             sessionStorage.removeItem("failedEmailDraft");
           } else {
@@ -481,7 +481,7 @@ export default function ComposeEmailPage() {
 
       if (!res.ok) {
         const error = await res.json();
-        
+
         // Store the email draft data when sending fails
         const emailDraft = {
           subject,
@@ -490,13 +490,13 @@ export default function ComposeEmailPage() {
           selectedGames,
           selectedSchoolNames,
           customRecipients,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
-        
+
         if (typeof window !== "undefined") {
           sessionStorage.setItem("failedEmailDraft", JSON.stringify(emailDraft));
         }
-        
+
         throw new Error(error.error || "Failed to send email");
       }
 
@@ -545,7 +545,7 @@ export default function ComposeEmailPage() {
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      return `${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}-${year}`;
+      return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
     } catch (error) {
       return dateString;
     }
@@ -558,7 +558,7 @@ export default function ComposeEmailPage() {
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      return `${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}-${year}`;
+      return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
     } catch (error) {
       return dateString;
     }
@@ -761,12 +761,7 @@ export default function ComposeEmailPage() {
           </Typography>
         </Box>
         {hasFailedDraft && (
-          <Button 
-            variant="outlined" 
-            color="warning"
-            onClick={handleRestoreFailedDraft}
-            sx={{ textTransform: "none" }}
-          >
+          <Button variant="outlined" color="warning" onClick={handleRestoreFailedDraft} sx={{ textTransform: "none" }}>
             Restore Draft
           </Button>
         )}
@@ -1025,11 +1020,11 @@ export default function ComposeEmailPage() {
 
         {/* Error Display */}
         {sendEmailMutation.isError && (
-          <Alert 
-            severity="error" 
+          <Alert
+            severity="error"
             action={
-              <Button 
-                color="inherit" 
+              <Button
+                color="inherit"
                 size="small"
                 onClick={() => {
                   const failedDraft = sessionStorage.getItem("failedEmailDraft");
