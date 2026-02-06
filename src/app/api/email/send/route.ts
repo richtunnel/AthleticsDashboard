@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId, visibleColumnIds } = body;
+    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId, visibleColumnIds, customRecipients, selectedSchoolNames } = body;
 
     // Validate inputs
     if (!to && !groupId) {
@@ -391,6 +391,8 @@ export async function POST(request: NextRequest) {
       campaignId: campaignId || null,
       recipientCategory: recipientCategory || null,
       additionalMessage: additionalMessage || null,
+      customRecipients: Array.isArray(customRecipients) ? customRecipients : [],
+      selectedSchoolNames: Array.isArray(selectedSchoolNames) ? selectedSchoolNames : [],
     });
 
     // Update campaign sentAt if campaignId was provided
