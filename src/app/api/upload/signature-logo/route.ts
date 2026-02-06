@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
+import { writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 // Try to import sharp, but make it optional
 let sharp: any = null;
@@ -12,7 +15,6 @@ try {
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-const MAX_BASE64_SIZE = 500 * 1024; // 500KB max for base64 string (roughly 375KB image)
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -36,6 +38,9 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".heic": "image/heic",
   ".heif": "image/heif",
 };
+
+// Output extension mapping (we convert all to webp for consistency)
+const OUTPUT_EXTENSION = ".webp";
 
 export async function POST(request: NextRequest) {
   try {
@@ -108,25 +113,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if the final image is too large for base64 storage
-    // Base64 adds ~33% overhead, so we check the buffer size
-    const estimatedBase64Size = Math.ceil(buffer.length * 1.34);
-    if (estimatedBase64Size > MAX_BASE64_SIZE) {
-      return ApiResponse.error(
-        `Image too large after optimization (${Math.round(estimatedBase64Size / 1024)}KB). ` +
-        "Please upload a smaller image (recommended: under 300KB)."
-      );
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), "public", "uploads", "signatures");
+    if (!existsSync(uploadsDir)) {
+      await mkdir(uploadsDir, { recursive: true });
     }
 
-    // Convert to base64 data URI for embedded use in emails
-    const base64String = buffer.toString("base64");
-    const dataUri = `data:${mimeType};base64,${base64String}`;
+    // Generate unique filename using user ID and timestamp
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const filename = `${session.user.id}_${timestamp}_${randomSuffix}${OUTPUT_EXTENSION}`;
+    const filePath = path.join(uploadsDir, filename);
+
+    // Write file to disk
+    await writeFile(filePath, buffer);
+
+    // Return the URL path (relative to public directory)
+    const urlPath = `/uploads/signatures/${filename}`;
 
     return ApiResponse.success({
       message: wasOptimized 
         ? "Logo uploaded and optimized successfully" 
         : "Logo uploaded successfully",
-      url: dataUri,
+      url: urlPath,
     });
   } catch (error) {
     return handleApiError(error);
