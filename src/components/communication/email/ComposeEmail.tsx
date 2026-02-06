@@ -545,8 +545,7 @@ export default function ComposeEmailPage() {
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      return `${monthNames[month]} ${day}, ${year}`;
+      return `${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}-${year}`;
     } catch (error) {
       return dateString;
     }
@@ -559,11 +558,7 @@ export default function ComposeEmailPage() {
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
       const day = date.getUTCDate();
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      const utcDate = new Date(Date.UTC(year, month, day));
-      const dayOfWeek = dayNames[utcDate.getUTCDay()];
-      return `${dayOfWeek}, ${monthNames[month]} ${day}, ${year}`;
+      return `${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}-${year}`;
     } catch (error) {
       return dateString;
     }
