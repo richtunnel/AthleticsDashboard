@@ -1,3 +1,3 @@
 # This file ensures the signatures directory is tracked by git
-# Signature logos are stored here temporarily during upload
-# For production serverless deployments, consider using external storage like S3
+# Signature logos are stored here when users upload them
+# Files are served from /uploads/signatures/ via the image optimization API
