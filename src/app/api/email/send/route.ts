@@ -93,7 +93,7 @@ function getCellValue(game: Game, columnId: string): string {
   // Handle default columns
   switch (columnId) {
     case "date":
-      return format(new Date(game.date), "MM-dd-yyyy");
+      return format(new Date(game.date), "MM/dd/yyyy");
     case "sport":
       return game.homeTeam.sport.name;
     case "level":
