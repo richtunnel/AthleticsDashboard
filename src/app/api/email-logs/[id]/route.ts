@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-<<<<<<< HEAD
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/utils/authOptions";
-=======
 import { requireAuth } from "@/lib/utils/auth";
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 import { prisma } from "@/lib/database/prisma";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
@@ -14,14 +9,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-<<<<<<< HEAD
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return ApiResponse.unauthorized();
-    }
-=======
     const session = await requireAuth();
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
     const { id } = await context.params;
 
@@ -106,14 +94,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-<<<<<<< HEAD
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return ApiResponse.unauthorized();
-    }
-=======
     const session = await requireAuth();
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
     const { id } = await context.params;
 
