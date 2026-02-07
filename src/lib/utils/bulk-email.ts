@@ -20,11 +20,8 @@ interface SendBulkEmailParams {
   campaignId?: string;
   recipientCategory?: string;
   additionalMessage?: string;
-<<<<<<< HEAD
-=======
   visibleColumnIds?: string[];
   selectedSchoolNames?: string[];
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 }
 
 /**
@@ -40,11 +37,7 @@ interface SendBulkEmailParams {
  * @returns Result with success/failure counts and email log IDs
  */
 export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
-<<<<<<< HEAD
-  const { to, subject, html, sentById, replyTo, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage } = params;
-=======
   const { to, subject, html, sentById, replyTo, gameIds = [], groupId, campaignId, recipientCategory, additionalMessage, visibleColumnIds = [], selectedSchoolNames = [] } = params;
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
   const resend = getResendClientOptional();
   if (!resend) {
@@ -113,10 +106,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       // Process results and create email logs
       const logData = batch.map((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-<<<<<<< HEAD
-=======
         const responseId = response ? (response.id || response.data?.id) : null;
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
         // Handle different error response formats from Resend
         let hasError = false;
@@ -131,11 +121,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           errorMessage = typeof response.error === 'string'
             ? response.error
             : (response.error.message || response.error.description || JSON.stringify(response.error));
-<<<<<<< HEAD
-        } else if (!response.data || !response.data.id) {
-=======
         } else if (!responseId) {
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           // Check if we have a valid email ID in the response
           hasError = true;
           errorMessage = "Invalid response format from email service (missing email ID)";
@@ -155,11 +141,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           campaignId: campaignId || null,
           recipientCategory: recipientCategory || null,
           additionalMessage: additionalMessage || null,
-<<<<<<< HEAD
-=======
           visibleColumnIds,
           selectedSchoolNames,
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
         };
       });
 
@@ -189,10 +172,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
       // Update results
       batch.forEach((email, index) => {
         const response = batchResponses ? batchResponses[index] : null;
-<<<<<<< HEAD
-=======
         const responseId = response ? (response.id || response.data?.id) : null;
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
         if (!response) {
           result.failed++;
@@ -204,11 +184,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
             ? response.error
             : (response.error.message || response.error.description || JSON.stringify(response.error));
           result.errors.push({ email, error: errorMsg });
-<<<<<<< HEAD
-        } else if (!response.data || !response.data.id) {
-=======
         } else if (!responseId) {
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           result.failed++;
           result.errors.push({ email, error: "Invalid response format from email service (missing email ID)" });
         } else {
@@ -251,11 +227,8 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
         campaignId: campaignId || null,
         recipientCategory: recipientCategory || null,
         additionalMessage: additionalMessage || null,
-<<<<<<< HEAD
-=======
         visibleColumnIds,
         selectedSchoolNames,
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
       }));
 
       try {
