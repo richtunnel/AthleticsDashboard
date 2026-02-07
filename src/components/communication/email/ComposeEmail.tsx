@@ -718,12 +718,16 @@ export default function ComposeEmailPage() {
 
     // Add email signature if present
     if (emailSignature) {
-      const signatureHTML = buildEmailSignatureHTML({
-        signaturePhone: emailSignature.signaturePhone,
-        signatureWebsite: emailSignature.signatureWebsite,
-        signatureLogoUrl: emailSignature.signatureLogoUrl,
-        signatureText: emailSignature.signatureText,
-      });
+      const signatureHTML = buildEmailSignatureHTML(
+        {
+          signaturePhone: emailSignature.signaturePhone,
+          signatureWebsite: emailSignature.signatureWebsite,
+          signatureLogoUrl: emailSignature.signatureLogoUrl,
+          signatureText: emailSignature.signatureText,
+        },
+        // Use window.location.origin for client-side preview to ensure logo loads correctly
+        { baseUrl: typeof window !== "undefined" ? window.location.origin : undefined }
+      );
       if (signatureHTML) {
         html += signatureHTML;
       }
