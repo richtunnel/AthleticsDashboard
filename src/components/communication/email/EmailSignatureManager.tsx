@@ -11,6 +11,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { getOptimizedImageUrl } from "@/lib/utils/image";
+import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 
 type SnackbarState = {
   open: boolean;
@@ -226,39 +227,21 @@ export function EmailSignatureManager() {
   const generatePreviewHTML = () => {
     // Use theme colors for proper dark mode support
     const textSecondary = theme.palette.text.secondary;
-    const textPrimary = theme.palette.text.primary;
-    const dividerColor = theme.palette.divider;
-    const linkColor = theme.palette.primary.main;
 
     if (!phone && !website && !logoUrl && !signatureText) {
       return `<p style="color: ${textSecondary}; font-style: italic;">No signature configured</p>`;
     }
 
-    let html = `<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif;">`;
-
-    if (logoUrl) {
-      // Use optimized image URL for better performance, with original URL as fallback via onerror
-      const optimizedUrl = getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "webp" });
-      html += `<img src="${optimizedUrl}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" loading="lazy" onerror="this.src='${logoUrl}'; this.onerror=null;" />`;
-    }
-
-    html += `<div style="font-size: 14px; color: ${textPrimary};">`;
-
-    if (signatureText) {
-      html += `<div style="margin-bottom: 8px; white-space: pre-wrap;">${signatureText}</div>`;
-    }
-
-    if (phone) {
-      html += `<div style="margin-bottom: 4px;">${phone}</div>`;
-    }
-
-    if (website) {
-      html += `<div style="margin-bottom: 4px;"><a href="${website}" style="color: ${linkColor}; text-decoration: none;">${website}</a></div>`;
-    }
-
-    html += "</div></div>";
-
-    return html;
+    // Use buildEmailSignatureHTML with window.location.origin for proper client-side preview
+    return buildEmailSignatureHTML(
+      {
+        signaturePhone: phone,
+        signatureWebsite: website,
+        signatureLogoUrl: logoUrl,
+        signatureText: signatureText,
+      },
+      { baseUrl: typeof window !== "undefined" ? window.location.origin : undefined }
+    );
   };
 
   return (
