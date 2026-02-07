@@ -314,6 +314,12 @@ model EmailLog {
   campaignId         String?
   recipientCategory  String?
   additionalMessage  String?     @db.Text
+<<<<<<< HEAD
+=======
+  // User selections for re-opening/editing emails
+  visibleColumnIds   String[]    @default([])
+  selectedSchoolNames String[]    @default([])
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
   // Relations
   gameId             String?
   game               Game?       @relation(fields: [gameId], references: [id])

@@ -47,6 +47,11 @@ interface EmailLog {
   campaignId: string | null;
   recipientCategory: string | null;
   additionalMessage: string | null;
+<<<<<<< HEAD
+=======
+  visibleColumnIds: string[];
+  selectedSchoolNames: string[];
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
   sentBy: {
     name: string | null;
     email: string;
@@ -143,6 +148,11 @@ export default function EmailLogDetailPage() {
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
             recipientCategory: log.recipientCategory || "parents",
+<<<<<<< HEAD
+=======
+            visibleColumnIds: log.visibleColumnIds || [],
+            selectedSchoolNames: log.selectedSchoolNames || [],
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           })
         );
         router.push("/dashboard/compose-email");
@@ -346,6 +356,41 @@ export default function EmailLogDetailPage() {
                 </Box>
               </>
             )}
+<<<<<<< HEAD
+=======
+
+            {log.visibleColumnIds && log.visibleColumnIds.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Visible Columns ({log.visibleColumnIds.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {log.visibleColumnIds.map((columnId) => (
+                      <Chip key={columnId} label={columnId} size="small" variant="outlined" />
+                    ))}
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {log.selectedSchoolNames && log.selectedSchoolNames.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    School Filters ({log.selectedSchoolNames.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {log.selectedSchoolNames.map((schoolName) => (
+                      <Chip key={schoolName} label={schoolName} size="small" variant="outlined" color="primary" />
+                    ))}
+                  </Box>
+                </Box>
+              </>
+            )}
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           </Stack>
         </Paper>
 
