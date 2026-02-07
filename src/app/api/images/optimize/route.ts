@@ -92,9 +92,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Image optimization error:", error);
-<<<<<<< HEAD
-=======
-    
     // Fallback: serve original image if optimization fails
     try {
       const { searchParams } = new URL(request.url);
@@ -126,8 +123,6 @@ export async function GET(request: NextRequest) {
     } catch (fallbackError) {
       console.error("Fallback image serving also failed:", fallbackError);
     }
-    
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
     return NextResponse.json(
       { error: "Failed to optimize image" },
       { status: 500 }

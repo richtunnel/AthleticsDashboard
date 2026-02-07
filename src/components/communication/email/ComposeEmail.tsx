@@ -429,8 +429,6 @@ export default function ComposeEmailPage() {
           if (draft.subject) setSubject(draft.subject);
           if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
           if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-<<<<<<< HEAD
-=======
           if (draft.visibleColumnIds && Array.isArray(draft.visibleColumnIds)) {
             // Visible column IDs are already set via useMemo from table preferences
             // We'll keep the preferences-based columns instead of using the draft's columns
@@ -439,7 +437,6 @@ export default function ComposeEmailPage() {
           if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
             setSelectedSchoolNames(draft.selectedSchoolNames);
           }
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           // Clear the draft after loading
           sessionStorage.removeItem("emailDraft");
         } catch (e) {
@@ -456,13 +453,9 @@ export default function ComposeEmailPage() {
             if (draft.subject) setSubject(draft.subject);
             if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
             if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-<<<<<<< HEAD
-            if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
-=======
             if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
               setSelectedSchoolNames(draft.selectedSchoolNames);
             }
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
             if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
 
             // Show notification about restored draft
@@ -725,14 +718,6 @@ export default function ComposeEmailPage() {
 
     // Add email signature if present
     if (emailSignature) {
-<<<<<<< HEAD
-      const signatureHTML = buildEmailSignatureHTML({
-        signaturePhone: emailSignature.signaturePhone,
-        signatureWebsite: emailSignature.signatureWebsite,
-        signatureLogoUrl: emailSignature.signatureLogoUrl,
-        signatureText: emailSignature.signatureText,
-      });
-=======
       const signatureHTML = buildEmailSignatureHTML(
         {
           signaturePhone: emailSignature.signaturePhone,
@@ -743,7 +728,6 @@ export default function ComposeEmailPage() {
         // Use window.location.origin for client-side preview to ensure logo loads correctly
         { baseUrl: typeof window !== "undefined" ? window.location.origin : undefined }
       );
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
       if (signatureHTML) {
         html += signatureHTML;
       }
@@ -1098,10 +1082,7 @@ export default function ComposeEmailPage() {
                 recipientCategory: actualCategory,
                 groupId,
                 visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
-<<<<<<< HEAD
-=======
                 selectedSchoolNames,
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
                 to:
                   recipientCategory === "custom"
                     ? customRecipients
