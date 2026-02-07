@@ -24,73 +24,59 @@ interface Game {
       name: string;
     };
   };
-  opponent: {
+  opponent?: {
     name: string;
-    [key: string]: any;
-  } | null;
-  venue: {
+  };
+  venue?: {
     name: string;
-    [key: string]: any;
-  } | null;
-  notes: string | null;
-  customFields?: Record<string, any>; // For imported CSV columns
+  };
+  notes?: string | null;
+  customFields?: Record<string, any>;
 }
 
-// Helper to get column label
+// Simple HTML escaping
+function escapeHtml(text: string | null | undefined): string {
+  if (!text) return "";
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+// Get column label
 function getColumnLabel(columnId: string): string {
-  // Handle imported columns
   if (columnId.startsWith("imported:")) {
-    const columnName = columnId.split(":")[1];
-    return columnName || columnId; // Use the CSV column name as-is, fallback to full ID if empty
+    return columnId.split(":")[1] || columnId;
   }
 
-  // Return default labels
-  switch (columnId) {
-    case "date":
-      return "Date";
-    case "sport":
-      return "Sport";
-    case "level":
-      return "Level";
-    case "opponent":
-      return "Opponent";
-    case "isHome":
-    case "location":
-      return "Location";
-    case "time":
-      return "Time";
-    case "status":
-      return "Confirmed";
-    case "notes":
-      return "Notes";
-    default:
-      return columnId;
-  }
+  const labels: Record<string, string> = {
+    date: "Date",
+    sport: "Sport",
+    level: "Level",
+    opponent: "Opponent",
+    isHome: "Location",
+    location: "Location",
+    time: "Time",
+    status: "Confirmed",
+    notes: "Notes",
+  };
+
+  return labels[columnId] || columnId;
 }
 
-// Helper to get cell value for a column
+// Get cell value for a column
 function getCellValue(game: Game, columnId: string): string {
-  // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
-
-    // If column name is empty/malformed, return placeholder
-    if (!columnName) {
-      return "—";
-    }
-
-    const customFields = game.customFields;
-
-    // Ensure customFields is a valid object (not null, array, or primitive)
-    if (typeof customFields !== "object" || customFields === null || Array.isArray(customFields)) {
-      return "—";
-    }
-
-    const value = customFields[columnName];
+    if (!columnName || typeof game.customFields !== "object" || !game.customFields) return "—";
+    const value = game.customFields[columnName];
     return value !== undefined && value !== null ? String(value) : "—";
   }
 
-  // Handle default columns
   switch (columnId) {
     case "date":
       return format(new Date(game.date), "MM/dd/yyyy");
@@ -102,7 +88,7 @@ function getCellValue(game: Game, columnId: string): string {
       return game.opponent?.name || "TBD";
     case "isHome":
     case "location":
-      return game.isHome ? "Home" : game.venue?.name || "TBD";
+      return game.isHome ? "Home" : (game.venue?.name || "TBD");
     case "time":
       return game.time || "TBD";
     case "status":
@@ -114,28 +100,11 @@ function getCellValue(game: Game, columnId: string): string {
   }
 }
 
-// Helper to escape HTML
-function escapeHtml(text: string | null | undefined): string {
-  if (text === null || text === undefined) {
-    return "";
-  }
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
-}
-
-function buildScheduleEmailHTML(games: Game[], additionalMessage: string, category: string, signatureHTML: string, visibleColumnIds?: string[]): string {
-  // Default to standard columns if not provided
-  const columnsToShow = visibleColumnIds && visibleColumnIds.length > 0 ? visibleColumnIds.filter((id) => id !== "actions") : ["date", "time", "sport", "level", "opponent", "location", "status"];
+// Build game schedule email HTML
+function buildScheduleEmailHTML(games: Game[], additionalMessage: string, signatureHTML: string, visibleColumnIds: string[]): string {
+  const columnsToShow = visibleColumnIds.length > 0 ? visibleColumnIds.filter((id) => id !== "actions") : ["date", "time", "sport", "level", "opponent", "location", "status"];
 
   let html = '<div style="font-family: Arial, sans-serif; max-width: 1600px; margin: 0 auto;">';
-
-  // Add greeting based on category
   html += '<h2 style="color: #23252a;">Game Schedule Confirmation</h2>';
 
   if (additionalMessage) {
@@ -144,42 +113,29 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
     html += "</div>";
   }
 
-  // Add games table
   html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">';
+  html += "<thead><tr style='background-color: #23252a; color: white;'>";
 
-  // Table header - dynamically generate based on visible columns
-  html += "<thead>";
-  html += '<tr style="background-color: #23252a; color: white;">';
   columnsToShow.forEach((columnId) => {
-    const label = getColumnLabel(columnId);
-    html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">${escapeHtml(label)}</th>`;
+    html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">${escapeHtml(getColumnLabel(columnId))}</th>`;
   });
-  html += "</tr>";
-  html += "</thead>";
 
-  // Table body
-  html += "<tbody>";
+  html += "</tr></thead><tbody>";
+
   games.forEach((game, index) => {
     const bgColor = index % 2 === 0 ? "#ffffff" : "#f9fafb";
     html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid #e5e7eb;">`;
 
-    // Generate cells dynamically based on visible columns
     columnsToShow.forEach((columnId) => {
       let cellContent = "";
 
-      // Special handling for status column
       if (columnId === "status") {
         const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
         cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
-      }
-      // Special handling for location/isHome column
-      else if (columnId === "isHome" || columnId === "location") {
+      } else if (columnId === "isHome" || columnId === "location") {
         cellContent = game.isHome ? "<strong>Home</strong>" : escapeHtml(game.venue?.name || "TBD");
-      }
-      // Default handling for other columns
-      else {
-        const rawValue = getCellValue(game, columnId);
-        cellContent = escapeHtml(rawValue);
+      } else {
+        cellContent = escapeHtml(getCellValue(game, columnId));
       }
 
       html += `<td style="padding: 12px; border: 1px solid #e5e7eb;">${cellContent}</td>`;
@@ -187,33 +143,149 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, catego
 
     html += "</tr>";
 
-    // Add notes row if notes column is visible and game has notes
     if (columnsToShow.includes("notes") && game.notes) {
-      const colspan = columnsToShow.length;
       html += `<tr style="background-color: ${bgColor};">`;
-      html += `<td colspan="${colspan}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
-      html += `<strong>Note:</strong> ${escapeHtml(game.notes)}`;
-      html += "</td>";
-      html += "</tr>";
+      html += `<td colspan="${columnsToShow.length}" style="padding: 8px 12px; font-size: 13px; color: #6b7280; font-style: italic; border: 1px solid #e5e7eb;">`;
+      html += `<strong>Note:</strong> ${escapeHtml(game.notes)}</td></tr>`;
     }
   });
-  html += "</tbody>";
-  html += "</table>";
 
-  // Add footer with contact information
+  html += "</tbody></table>";
   html += '<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">';
   html += '<p style="color: #6b7280; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>';
-  html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from </p>';
-  html += "</div>";
+  html += '<p style="color: #6b7280; font-size: 12px; margin: 8px 0;">This is an automated message from Opletics</p></div>';
 
-  // Add email signature if present
   if (signatureHTML) {
     html += signatureHTML;
   }
 
   html += "</div>";
-
   return html;
+}
+
+// Fetch games with validation
+async function fetchGames(gameIds: string[], organizationId: string): Promise<Game[]> {
+  const games = await prisma.game.findMany({
+    where: {
+      id: { in: gameIds },
+      homeTeam: { organizationId },
+    },
+    select: {
+      id: true,
+      date: true,
+      time: true,
+      status: true,
+      isHome: true,
+      notes: true,
+      customFields: true,
+      homeTeam: {
+        select: {
+          name: true,
+          level: true,
+          sport: { select: { name: true } },
+        },
+      },
+      opponent: { select: { name: true } },
+      venue: { select: { name: true } },
+    },
+  });
+
+  if (games.length !== gameIds.length) {
+    throw new Error("Some games were not found or you don't have access");
+  }
+
+  return games as Game[];
+}
+
+// Get recipient emails
+async function getRecipientEmails(groupId: string | undefined, to: string[] | undefined, organizationId: string): Promise<string[]> {
+  if (groupId) {
+    const group = await prisma.emailGroup.findFirst({
+      where: { id: groupId, organizationId },
+      include: { emails: true },
+    });
+    if (!group) throw new Error("Group not found");
+    return group.emails.map((e) => e.email);
+  }
+
+  if (!to || to.length === 0) {
+    throw new Error("Valid recipients are required");
+  }
+
+  return to;
+}
+
+// Get user signature
+async function getUserSignature(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      signaturePhone: true,
+      signatureWebsite: true,
+      signatureLogoUrl: true,
+      signatureText: true,
+      schoolEmail: true,
+    },
+  });
+
+  return {
+    signatureHTML: user
+      ? buildEmailSignatureHTML({
+          signaturePhone: user.signaturePhone,
+          signatureWebsite: user.signatureWebsite,
+          signatureLogoUrl: user.signatureLogoUrl,
+          signatureText: user.signatureText,
+        })
+      : "",
+    replyTo: user?.schoolEmail ?? undefined,
+  };
+}
+
+// Handle game schedule email
+async function handleGameScheduleEmail(
+  gameIds: string[],
+  organizationId: string,
+  userId: string,
+  groupId: string | undefined,
+  to: string[] | undefined,
+  subject: string,
+  additionalMessage: string,
+  visibleColumnIds: string[]
+) {
+  const games = await fetchGames(gameIds, organizationId);
+  const toEmails = await getRecipientEmails(groupId, to, organizationId);
+  const { signatureHTML, replyTo } = await getUserSignature(userId);
+
+  const emailBody = buildScheduleEmailHTML(games, additionalMessage || "", signatureHTML, visibleColumnIds);
+
+  return { toEmails, emailBody, replyTo, gameIds, groupId };
+}
+
+// Handle campaign email
+async function handleCampaignEmail(campaignId: string, userId: string, subject: string) {
+  const campaign = await prisma.emailCampaign.findFirst({
+    where: { id: campaignId, userId },
+    include: { group: { include: { emails: true } } },
+  });
+
+  if (!campaign || !campaign.group) {
+    throw new Error("Campaign or group not found");
+  }
+
+  const { signatureHTML, replyTo } = await getUserSignature(userId);
+  const toEmails = campaign.group.emails.map((e) => e.email);
+
+  if (toEmails.length === 0) {
+    throw new Error("No emails in group");
+  }
+
+  if (!subject) {
+    throw new Error("Subject is required for campaign");
+  }
+
+  const emailBody = campaign.body + (signatureHTML || "");
+
+  return { toEmails, emailBody, replyTo, campaignId, campaign };
 }
 
 export async function POST(request: NextRequest) {
@@ -224,145 +296,56 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { to, subject, gameIds, additionalMessage, recipientCategory, groupId, campaignId, visibleColumnIds, selectedSchoolNames } = body;
+    const { to, subject, gameIds, additionalMessage, groupId, campaignId, visibleColumnIds } = body;
 
-    // Validate inputs
-    if (!to && !groupId) {
-      return ApiResponse.error("Either 'to' or 'groupId' is required");
+    if (!to && !groupId && !campaignId) {
+      return ApiResponse.error("Either 'to', 'groupId', or 'campaignId' is required");
     }
+
     if (!subject) {
       return ApiResponse.error("Subject is required");
     }
 
-    // Fetch user's email signature
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        signaturePhone: true,
-        signatureWebsite: true,
-        signatureLogoUrl: true,
-        signatureText: true,
-      },
-    });
-
-    const signatureHTML = user
-      ? buildEmailSignatureHTML({
-          signaturePhone: user.signaturePhone,
-          signatureWebsite: user.signatureWebsite,
-          signatureLogoUrl: user.signatureLogoUrl,
-          signatureText: user.signatureText,
-        })
-      : "";
-
-    let replyTo: string | undefined;
-    try {
-      const rows = await prisma.$queryRaw<Array<{ schoolEmail: string | null }>>`
-        SELECT "schoolEmail" FROM "User" WHERE id = ${session.user.id} LIMIT 1
-      `;
-      replyTo = rows[0]?.schoolEmail ?? undefined;
-    } catch {
-      replyTo = undefined;
+    const resend = getResendClientOptional();
+    if (!resend) {
+      return ApiResponse.error("Email service not configured. Please set RESEND_API_KEY.", 503);
     }
 
-    let toEmails: string[] = [];
+    let toEmails: string[];
     let emailBody: string;
-    let campaign;
+    let replyTo: string | undefined;
+    let campaign: any = null;
+    let emailParams: any = {};
 
-    // Case 1: Game schedule email with custom recipients or group
     if (gameIds && Array.isArray(gameIds) && gameIds.length > 0) {
-      // Validate games belong to user's organization
-      const games = await prisma.game.findMany({
-        where: {
-          id: { in: gameIds },
-          homeTeam: {
-            organizationId: session.user.organizationId,
-          },
-        },
-        select: {
-          id: true,
-          date: true,
-          time: true,
-          status: true,
-          isHome: true,
-          notes: true,
-          customFields: true,
-          homeTeam: {
-            select: {
-              name: true,
-              level: true,
-              sport: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-          opponent: {
-            select: {
-              name: true,
-            },
-          },
-          venue: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
-      if (games.length !== gameIds.length) {
-        return ApiResponse.error("Some games were not found or you don't have access", 403);
-      }
-
-      // Build game schedule email body with signature and user's column selection
-      emailBody = buildScheduleEmailHTML(games as Game[], additionalMessage || "", recipientCategory || "", signatureHTML, visibleColumnIds);
-
-      // Determine recipients
-      if (groupId) {
-        const group = await prisma.emailGroup.findFirst({
-          where: {
-            id: groupId,
-            organizationId: session.user.organizationId,
-          },
-          include: { emails: true },
-        });
-        if (!group) {
-          return ApiResponse.error("Group not found", 404);
-        }
-        toEmails = group.emails.map((e) => e.email);
-      } else {
-        if (!Array.isArray(to) || to.length === 0) {
-          return ApiResponse.error("Valid recipients are required");
-        }
-        toEmails = to;
-      }
-    }
-    // Case 2: Email campaign
-    else if (campaignId) {
-      campaign = await prisma.emailCampaign.findFirst({
-        where: {
-          id: campaignId,
-          userId: session.user.id,
-        },
-        include: { group: { include: { emails: true } } },
-      });
-      if (!campaign || !campaign.group) {
-        return ApiResponse.error("Campaign or group not found", 404);
-      }
-      toEmails = campaign.group.emails.map((e) => e.email);
-      // Append signature to campaign body
-      emailBody = campaign.body + (signatureHTML || "");
-      if (!subject) {
-        return ApiResponse.error("Subject is required for campaign");
-      }
-      if (toEmails.length === 0) {
-        return ApiResponse.error("No emails in group", 400);
-      }
+      const result = await handleGameScheduleEmail(
+        gameIds,
+        session.user.organizationId,
+        session.user.id,
+        groupId,
+        to,
+        subject,
+        additionalMessage,
+        visibleColumnIds || []
+      );
+      toEmails = result.toEmails;
+      emailBody = result.emailBody;
+      replyTo = result.replyTo;
+      emailParams = {
+        gameIds: result.gameIds,
+        groupId: result.groupId,
+      };
+    } else if (campaignId) {
+      const result = await handleCampaignEmail(campaignId, session.user.id, subject);
+      toEmails = result.toEmails;
+      emailBody = result.emailBody;
+      replyTo = result.replyTo;
+      campaign = result.campaign;
+      emailParams = { campaignId };
     } else {
       return ApiResponse.error("Either gameIds or campaignId is required");
     }
 
-    // Validate emails
     const { valid: validEmails, invalid: invalidEmails } = validateBulkEmails(toEmails);
 
     if (invalidEmails.length > 0) {
@@ -373,38 +356,23 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("No valid email addresses provided", 400);
     }
 
-    // Send emails using bulk email utility
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.warn("Resend API key missing — skipping email sending.");
-      return ApiResponse.error("Email service not configured. Please set RESEND_API_KEY in environment variables.", 503);
-    }
-
     const result = await sendBulkEmail({
       to: validEmails,
       subject,
       html: emailBody,
       sentById: session.user.id,
-      replyTo: replyTo,
-      gameIds: gameIds || [],
-      groupId: groupId || null,
-      campaignId: campaignId || null,
-      recipientCategory: recipientCategory || null,
-      additionalMessage: additionalMessage || null,
-      visibleColumnIds: visibleColumnIds || [],
-      selectedSchoolNames: selectedSchoolNames || [],
+      replyTo,
+      ...emailParams,
     });
 
-    // Update campaign sentAt if campaignId was provided
     if (campaignId && result.success > 0) {
       try {
         await prisma.emailCampaign.update({
           where: { id: campaignId },
           data: { sentAt: new Date() },
         });
-      } catch (campaignUpdateError) {
-        console.error("Failed to update campaign sentAt:", campaignUpdateError);
-        // Don't fail the request if campaign update fails
+      } catch (err) {
+        console.error("Failed to update campaign sentAt:", err);
       }
     }
 
