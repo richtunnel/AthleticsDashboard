@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { X, Send } from "lucide-react";
+import { Box, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Typography, CircularProgress, Alert } from "@mui/material";
+import { Close as CloseIcon, Send as SendIcon } from "@mui/icons-material";
 
 interface EmailComposerProps {
   gameId?: string;
@@ -49,84 +50,61 @@ export function EmailComposer({ gameId, onClose }: EmailComposerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+    <Dialog open fullWidth maxWidth="md" onClose={onClose} PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          Send Email
+        </Typography>
+        <Button onClick={onClose} sx={{ minWidth: "auto", p: 1 }}>
+          <CloseIcon />
+        </Button>
+      </DialogTitle>
 
-        <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-2xl font-bold">Send Email</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
-              <X size={20} />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">To (comma separated)</label>
-              <input
-                type="text"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="email@example.com, another@example.com"
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required
-              />
-            </div>
+      <form onSubmit={handleSubmit}>
+        <DialogContent sx={{ pt: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <TextField
+              label="To (comma separated)"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="email@example.com, another@example.com"
+              fullWidth
+              required
+            />
 
             {!gameId && (
               <>
-                <div>
-                  <label className="block text-sm font-medium mb-2">CC (optional)</label>
-                  <input
-                    type="text"
-                    value={cc}
-                    onChange={(e) => setCc(e.target.value)}
-                    placeholder="email@example.com"
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
+                <TextField label="CC (optional)" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="email@example.com" fullWidth />
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Subject</label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
+                <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required />
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Message</label>
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    rows={8}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
-                </div>
+                <TextField label="Message" value={body} onChange={(e) => setBody(e.target.value)} fullWidth multiline rows={8} required />
               </>
             )}
 
-            {gameId && <p className="text-sm text-gray-600">Game details will be automatically included in the email.</p>}
+            {gameId && (
+              <Typography variant="body2" color="text.secondary">
+                Game details will be automatically included in the email.
+              </Typography>
+            )}
 
-            {mutation.isError && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">Failed to send email. Please try again.</div>}
+            {mutation.isError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                Failed to send email. Please try again.
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <button type="button" onClick={onClose} className="px-6 py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-                Cancel
-              </button>
-              <button type="submit" disabled={mutation.isPending} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-gray-700 disabled:opacity-50">
-                <Send size={18} />
-                {mutation.isPending ? "Sending..." : "Send Email"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+        <DialogActions sx={{ px: 3, pb: 3, pt: 2 }}>
+          <Button onClick={onClose} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="contained" startIcon={mutation.isPending ? <CircularProgress size={20} /> : <SendIcon />} disabled={mutation.isPending}>
+            {mutation.isPending ? "Sending..." : "Send Email"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }
