@@ -7,10 +7,6 @@ interface SignatureData {
   signatureText?: string | null;
 }
 
-<<<<<<< HEAD
-export function buildEmailSignatureHTML(signatureData: SignatureData): string {
-  const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = signatureData;
-=======
 interface BuildEmailSignatureOptions {
   /** Optional base URL for resolving relative image paths. If not provided, will use server-side getSiteUrl() */
   baseUrl?: string;
@@ -22,7 +18,6 @@ export function buildEmailSignatureHTML(
 ): string {
   const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = signatureData;
   const { baseUrl: providedBaseUrl } = options;
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
 
   // Return empty string if no signature data
   if (!signaturePhone && !signatureWebsite && !signatureLogoUrl && !signatureText) {
@@ -35,11 +30,6 @@ export function buildEmailSignatureHTML(
   if (signatureLogoUrl) {
     // Convert relative URLs to absolute URLs for email clients
     let logoUrl = signatureLogoUrl;
-<<<<<<< HEAD
-    if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
-      const baseUrl = getSiteUrl();
-      logoUrl = `${baseUrl}${logoUrl}`;
-=======
 
     // Handle optimized image URLs - extract the actual image URL from query params
     if (logoUrl.startsWith("/api/images/optimize")) {
@@ -59,7 +49,6 @@ export function buildEmailSignatureHTML(
       // Use provided baseUrl (for client-side) or fall back to server-side getSiteUrl()
       const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
       logoUrl = `${resolvedBaseUrl}${logoUrl}`;
->>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
     }
     html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
   }
