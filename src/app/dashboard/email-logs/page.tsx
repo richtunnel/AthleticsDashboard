@@ -58,6 +58,11 @@ interface EmailLog {
   campaignId: string | null;
   recipientCategory: string | null;
   additionalMessage: string | null;
+<<<<<<< HEAD
+=======
+  visibleColumnIds: string[];
+  selectedSchoolNames: string[];
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
   sentBy: {
     name: string | null;
     email: string;
@@ -173,6 +178,11 @@ export default function EmailLogsPage() {
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
             recipientCategory: log.recipientCategory || "parents",
+<<<<<<< HEAD
+=======
+            visibleColumnIds: log.visibleColumnIds || [],
+            selectedSchoolNames: log.selectedSchoolNames || [],
+>>>>>>> 7cd5cc8e8ad40b63bd99766b6a77eed1f44f2ac6
           })
         );
         router.push("/dashboard/compose-email");
