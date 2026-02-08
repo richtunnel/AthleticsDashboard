@@ -144,6 +144,7 @@ export function EmailGroupCard({
     try {
       const result = await onAddEmails(normalized);
       setEmailInput("");
+      onToggleAddEmails();
 
       // Handle response with duplicate detection
       const addedCount = result.addedCount;
