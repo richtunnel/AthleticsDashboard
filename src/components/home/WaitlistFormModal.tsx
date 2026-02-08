@@ -122,6 +122,14 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-4">
             <TextField
               label="Full Name"
+              variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               {...register("fullName", {
                 required: "Full name is required",
                 minLength: {
@@ -137,37 +145,48 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Person color="action" fontSize="small" />
+                    <Person sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
-                sx: {
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "& fieldset": {
+                    borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputBase-input": {
-                    color: "rgb(197, 197, 210)",
-                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "&:hover fieldset": {
+                    borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root": {
-                    color: "rgb(197, 197, 210)",
+                  "&.Mui-focused fieldset": {
+                    borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root.Mui-focused": {
-                    color: "rgb(197, 197, 210)",
-                  },
+                },
+                "& .MuiInputBase-input": {
+                  color: "rgb(197, 197, 210)",
+                },
+                "& .MuiInputLabel-root": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiFormHelperText-root": {
+                  color: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                 },
               }}
             />
 
             <TextField
               label="Email Address"
+              variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               type="email"
               {...register("email", {
                 required: "Email is required",
@@ -184,37 +203,48 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email color="action" fontSize="small" />
+                    <Email sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
-                sx: {
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "& fieldset": {
+                    borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputBase-input": {
-                    color: "rgb(197, 197, 210)",
-                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "&:hover fieldset": {
+                    borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root": {
-                    color: "rgb(197, 197, 210)",
+                  "&.Mui-focused fieldset": {
+                    borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root.Mui-focused": {
-                    color: "rgb(197, 197, 210)",
-                  },
+                },
+                "& .MuiInputBase-input": {
+                  color: "rgb(197, 197, 210)",
+                },
+                "& .MuiInputLabel-root": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiFormHelperText-root": {
+                  color: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                 },
               }}
             />
 
             <TextField
               label="School or College"
+              variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               {...register("schoolOrCollege", {
                 required: "School or college name is required",
                 minLength: {
@@ -230,31 +260,34 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <School color="action" fontSize="small" />
+                    <School sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
-                sx: {
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": {
-                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
-                    },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "& fieldset": {
+                    borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputBase-input": {
-                    color: "rgb(197, 197, 210)",
-                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  "&:hover fieldset": {
+                    borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root": {
-                    color: "rgb(197, 197, 210)",
+                  "&.Mui-focused fieldset": {
+                    borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                   },
-                  "& .MuiInputLabel-root.Mui-focused": {
-                    color: "rgb(197, 197, 210)",
-                  },
+                },
+                "& .MuiInputBase-input": {
+                  color: "rgb(197, 197, 210)",
+                },
+                "& .MuiInputLabel-root": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiInputLabel-root.Mui-focused": {
+                  color: "rgb(209, 209, 221)",
+                },
+                "& .MuiFormHelperText-root": {
+                  color: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
                 },
               }}
             />
