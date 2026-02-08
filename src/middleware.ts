@@ -103,7 +103,17 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => {
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname;
+
+        // Public API routes that don't require authentication
+        if (
+          pathname.startsWith("/api/images/optimize") ||
+          pathname.startsWith("/api/stripe/webhook")
+        ) {
+          return true;
+        }
+
         if (!token) {
           return false;
         }

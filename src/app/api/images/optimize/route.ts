@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const width = searchParams.get("w") ? parseInt(searchParams.get("w")!) : undefined;
     const height = searchParams.get("h") ? parseInt(searchParams.get("h")!) : undefined;
     const quality = searchParams.get("q") ? parseInt(searchParams.get("q")!) : 80;
-    const format = searchParams.get("format") || "webp";
+    const format = searchParams.get("format") || "png";
 
     if (!imageUrl) {
       return NextResponse.json(

@@ -39,8 +39,8 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".heif": "image/heif",
 };
 
-// Output extension mapping (we convert all to webp for consistency)
-const OUTPUT_EXTENSION = ".webp";
+// Output extension mapping (we convert all to png for maximum email client compatibility)
+const OUTPUT_EXTENSION = ".png";
 
 export async function POST(request: NextRequest) {
   try {
@@ -95,18 +95,17 @@ export async function POST(request: NextRequest) {
             fit: "inside", 
             withoutEnlargement: true 
           })
-          .webp({ 
+          .png({ 
+            palette: true,
             quality: 80,
-            effort: 4 // balance between speed and compression
+            compressionLevel: 9
           })
           .toBuffer();
         
-        // Only use optimized if it's actually smaller
-        if (optimizedBuffer.length < buffer.length) {
-          buffer = optimizedBuffer;
-          mimeType = "image/webp";
-          wasOptimized = true;
-        }
+        // Use optimized buffer (converted to PNG)
+        buffer = optimizedBuffer;
+        mimeType = "image/png";
+        wasOptimized = true;
       } catch (error) {
         console.warn("Image optimization failed, using original:", error);
         // Continue with original buffer
