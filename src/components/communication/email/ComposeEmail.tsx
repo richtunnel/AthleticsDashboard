@@ -338,6 +338,7 @@ export function EmailSignatureManager() {
               {/* Custom Text */}
               <TextField
                 label="Signature Text"
+                variant="outlined"
                 value={signatureText}
                 onChange={(e) => setSignatureText(e.target.value)}
                 placeholder="e.g., Best regards,&#10;John Smith&#10;Athletic Director"
@@ -348,11 +349,12 @@ export function EmailSignatureManager() {
               />
 
               {/* Phone Number */}
-              <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., (555) 123-4567" fullWidth helperText="Your contact phone number" />
+              <TextField label="Phone Number" variant="outlined" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., (555) 123-4567" fullWidth helperText="Your contact phone number" />
 
               {/* Website */}
               <TextField
                 label="Website / Link"
+                variant="outlined"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="e.g., https://yourschool.com or yourschool.com"

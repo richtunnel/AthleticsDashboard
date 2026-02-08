@@ -125,6 +125,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
             <TextField
               label="Full Name"
               variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               {...register("fullName", {
                 required: "Full name is required",
                 minLength: {
@@ -175,6 +182,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
             <TextField
               label="Email Address"
               variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               type="email"
               {...register("email", {
                 required: "Email is required",
@@ -226,6 +240,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
             <TextField
               label="School or College"
               variant="outlined"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               {...register("schoolOrCollege", {
                 required: "School or college name is required",
                 minLength: {

@@ -972,6 +972,7 @@ export default function ComposeEmailPage() {
                 <TextField
                   select
                   label="Recipient Category"
+                  variant="outlined"
                   value={recipientCategory}
                   onChange={(e) => setRecipientCategory(e.target.value)}
                   fullWidth
@@ -990,6 +991,7 @@ export default function ComposeEmailPage() {
                 {recipientCategory === "custom" && (
                   <TextField
                     label="Email Addresses"
+                    variant="outlined"
                     value={customRecipients}
                     onChange={(e) => setCustomRecipients(e.target.value)}
                     fullWidth
@@ -1018,6 +1020,7 @@ export default function ComposeEmailPage() {
                     <TextField
                       select
                       label="Select Schools/Opponents"
+                      variant="outlined"
                       value={selectedSchoolNames}
                       onChange={(e) => {
                         const value = e.target.value;
@@ -1084,11 +1087,12 @@ export default function ComposeEmailPage() {
                 )}
 
                 {/* Subject */}
-                <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
+                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
 
                 {/* Additional Message */}
                 <TextField
                   label="Additional Message (Optional)"
+                  variant="outlined"
                   value={additionalMessage}
                   onChange={(e) => setAdditionalMessage(e.target.value)}
                   fullWidth
