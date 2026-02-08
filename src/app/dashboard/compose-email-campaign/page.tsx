@@ -1,40 +1,6 @@
 "use client";
 
-import { useNotifications } from "@/contexts/NotificationContext";
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
-import {
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  MenuItem,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Alert,
-  CircularProgress,
-  Chip,
-  useMediaQuery,
-  Checkbox,
-  useTheme,
-} from "@mui/material";
-import type { AlertColor } from "@mui/material";
-import LaunchIcon from "@mui/icons-material/Launch";
-import { LoadingButton } from "@/components/utils/LoadingButton";
-import { BulkEmailDropdown } from "@/components/communication/email/BulkEmailDropdown";
-import type { EmailGroup } from "@/components/communication/email/types";
-import { fetchEmailGroups } from "@/lib/api/emailGroups";
-import { ArrowBack, Send } from "@mui/icons-material";
-import { formatLevelDisplay } from "@/lib/utils/formatters";
-import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
+import ComposeEmailPage from "@/components/communication/email/ComposeEmail";
 
 export interface Game {
   id: string;
