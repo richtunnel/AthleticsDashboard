@@ -124,6 +124,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-4">
             <TextField
               label="Full Name"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               {...register("fullName", {
                 required: "Full name is required",
                 minLength: {
@@ -139,11 +146,18 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Person color="action" fontSize="small" />
+                    <Person sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
                 sx: {
                   border: `1px solid rgb(197, 197, 210)`,
+                  backgroundColor: "transparent!important",
+                  color: "rgb(197, 197, 210)",
+                  "& .MuiFilledInput-root": {
+                    backgroundColor: "transparent",
+                    // Optional: ensure the input text color is visible
+                    color: "inherit",
+                  },
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
@@ -171,6 +185,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
 
             <TextField
               label="Email Address"
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               type="email"
               {...register("email", {
                 required: "Email is required",
@@ -187,10 +208,12 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <Email color="action" fontSize="small" />
+                    <Email sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
                 sx: {
+                  backgroundColor: "transparent!important",
+                  color: "rgb(197, 197, 210)",
                   border: `1px solid rgb(197, 197, 210)`,
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
@@ -226,6 +249,13 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
                   message: "School name must be at least 2 characters",
                 },
               })}
+              slotProps={{
+                inputLabel: {
+                  sx: {
+                    color: "rgb(209, 209, 221)",
+                  },
+                },
+              }}
               fullWidth
               error={!!errors.schoolOrCollege}
               helperText={errors.schoolOrCollege?.message}
@@ -234,11 +264,14 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <School color="action" fontSize="small" />
+                    <School sx={{ color: "#fff" }} fontSize="small" />
                   </InputAdornment>
                 ),
+
                 sx: {
                   border: `1px solid rgb(197, 197, 210)`,
+                  color: "rgb(197, 197, 210)",
+                  backgroundColor: "transparent!important",
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
