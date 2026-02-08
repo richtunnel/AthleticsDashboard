@@ -134,6 +134,7 @@ function LoginForm() {
               <TextField
                 margin="normal"
                 size="small"
+                variant="outlined"
                 required
                 fullWidth
                 id="email"
@@ -148,6 +149,7 @@ function LoginForm() {
               <TextField
                 margin="normal"
                 size="small"
+                variant="outlined"
                 required
                 fullWidth
                 name="password"

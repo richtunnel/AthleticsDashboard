@@ -129,6 +129,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
               {/* Name Field */}
               <TextField
                 label="Name"
+                variant="outlined"
                 {...register("name", {
                   ...(isPublic && {
                     required: "Name is required",
@@ -151,6 +152,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
               {isPublic && (
                 <TextField
                   label="Email"
+                  variant="outlined"
                   {...register("email", {
                     required: "Email is required",
                     pattern: {
@@ -168,6 +170,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
               {/* Subject Field */}
               <TextField
                 label="Subject"
+                variant="outlined"
                 {...register("subject", {
                   required: "Subject is required",
                   minLength: {
@@ -183,6 +186,7 @@ export function SupportFeedbackForm({ mode, userName, userEmail, ticketNumber, i
               {/* Description Field */}
               <TextField
                 label={mode === "support" ? "Description" : "Message"}
+                variant="outlined"
                 {...register("description", {
                   required: `${mode === "support" ? "Description" : "Message"} is required`,
                   minLength: {

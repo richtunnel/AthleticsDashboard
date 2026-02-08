@@ -236,6 +236,7 @@ function ResetPasswordForm() {
               <TextField
                 margin="normal"
                 size="small"
+                variant="outlined"
                 required
                 fullWidth
                 name="newPassword"
@@ -290,6 +291,7 @@ function ResetPasswordForm() {
               <TextField
                 margin="normal"
                 size="small"
+                variant="outlined"
                 required
                 fullWidth
                 name="confirmPassword"

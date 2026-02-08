@@ -154,6 +154,7 @@ function SignupForm() {
               <TextField
                 size="small"
                 margin="normal"
+                variant="outlined"
                 required
                 fullWidth
                 id="name"
@@ -168,6 +169,7 @@ function SignupForm() {
               <TextField
                 size="small"
                 margin="normal"
+                variant="outlined"
                 required
                 fullWidth
                 id="email"
@@ -182,6 +184,7 @@ function SignupForm() {
               <TextField
                 size="small"
                 margin="normal"
+                variant="outlined"
                 required
                 fullWidth
                 name="password"
@@ -197,6 +200,7 @@ function SignupForm() {
               <TextField
                 size="small"
                 margin="normal"
+                variant="outlined"
                 required
                 fullWidth
                 name="confirmPassword"
