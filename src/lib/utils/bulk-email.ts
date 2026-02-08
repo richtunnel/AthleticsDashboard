@@ -48,6 +48,12 @@ interface BatchEmailResponse {
   error: string | null;
 }
 
+interface ResendBatchResponse {
+  id?: string;
+  data?: { id?: string };
+  error?: string | { message?: string; description?: string };
+}
+
 // Constants
 const CONFIG = {
   BATCH_SIZE: 100,
@@ -172,7 +178,27 @@ async function createEmailLogs(logs: EmailLogData[]): Promise<string[]> {
 }
 
 /**
- * Process a single batch of emails via Resend API
+ * Safely extract email ID from response (handles various Resend API response formats)
+ */
+function extractEmailId(response: unknown): string | null {
+  if (!response || typeof response !== "object") return null;
+
+  const r = response as Record<string, unknown>;
+  return (r.id as string) || ((r.data as any)?.id as string) || null;
+}
+
+/**
+ * Check if response indicates an error
+ */
+function hasResponseError(response: unknown): boolean {
+  if (!response || typeof response !== "object") return true;
+
+  const r = response as Record<string, unknown>;
+  return !!(r.error || (!r.id && !(r.data as any)?.id));
+}
+
+/**
+ * Process a single batch of emails via Resend API with robust error handling
  */
 async function processBatch(batch: string[], params: SendBulkEmailParams, batchNumber: number, totalBatches: number): Promise<BatchEmailResponse[]> {
   const resend = getResendClientOptional();
@@ -195,23 +221,40 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
 
   console.log(`[EMAIL] Calling Resend API for batch ${batchNumber}/${totalBatches} (${batch.length} emails)`);
 
-  const { data: batchResponses, error: batchError } = await resend.batch.send(resendBatch);
+  let batchResponses: unknown;
+  let batchError: unknown;
+
+  try {
+    const result = await resend.batch.send(resendBatch);
+    batchResponses = result.data;
+    batchError = result.error;
+  } catch (e) {
+    console.error(`[EMAIL] Resend API threw exception for batch ${batchNumber}:`, e);
+    throw e;
+  }
 
   if (batchError) {
     console.error(`[EMAIL] Resend batch API error (batch ${batchNumber}):`, batchError);
     throw batchError;
   }
 
-  const normalizedResponses = Array.isArray(batchResponses)
-    ? batchResponses
-    : Array.isArray((batchResponses as any)?.data)
-      ? (batchResponses as any).data
-      : Array.isArray((batchResponses as any)?.data?.data)
-        ? (batchResponses as any).data.data
-        : null;
+  // Normalize response format (Resend API can return different structures)
+  let normalizedResponses: unknown[] | null = null;
+
+  if (Array.isArray(batchResponses)) {
+    normalizedResponses = batchResponses;
+  } else if (batchResponses && typeof batchResponses === "object") {
+    const br = batchResponses as Record<string, unknown>;
+    if (Array.isArray(br.data)) {
+      normalizedResponses = br.data;
+    } else if (Array.isArray((br.data as any)?.data)) {
+      normalizedResponses = (br.data as any).data;
+    }
+  }
 
   if (!normalizedResponses || normalizedResponses.length === 0) {
-    console.warn(`[EMAIL] Resend returned no batch data for batch ${batchNumber}. Marking emails as sent.`);
+    console.warn(`[EMAIL] Resend returned empty response for batch ${batchNumber}. Treating as sent.`);
+    // If Resend doesn't give us a response, assume success (they likely sent it)
     return batch.map((email) => ({
       email,
       success: true,
@@ -221,10 +264,11 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
 
   // Process individual responses
   return batch.map((email, index) => {
-    const response = normalizedResponses[index];
+    const response = normalizedResponses![index];
 
+    // If no response at this index, assume sent
     if (!response) {
-      console.warn(`[EMAIL] Missing response for ${email} in batch ${batchNumber}. Marking as sent.`);
+      console.warn(`[EMAIL] No response for email index ${index} (${email}) in batch ${batchNumber}. Assuming sent.`);
       return {
         email,
         success: true,
@@ -232,9 +276,10 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
       };
     }
 
-    if ((response as any).error) {
-      const errorMsg =
-        typeof (response as any).error === "string" ? (response as any).error : (response as any).error.message || (response as any).error.description || JSON.stringify((response as any).error);
+    // Check for error in response
+    if (hasResponseError(response)) {
+      const errObj = response as any;
+      const errorMsg = typeof errObj.error === "string" ? errObj.error : errObj.error?.message || errObj.error?.description || "Email service error";
 
       return {
         email,
@@ -243,9 +288,10 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
       };
     }
 
-    const emailId = (response as any).id || (response as any).data?.id;
+    // Check for valid email ID
+    const emailId = extractEmailId(response);
     if (!emailId) {
-      console.warn(`[EMAIL] Missing email ID for ${email} in batch ${batchNumber}. Marking as sent.`);
+      console.warn(`[EMAIL] No email ID for ${email} in batch ${batchNumber}. Assuming sent.`);
       return {
         email,
         success: true,
@@ -269,6 +315,7 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
  * - Batch processing with exponential backoff retries
  * - Individual email tracking via database logs
  * - Detailed error reporting
+ * - Robust error handling for various API response formats
  *
  * @param params - Bulk email parameters
  * @returns Result with success/failure counts and email log IDs
@@ -276,6 +323,19 @@ async function processBatch(batch: string[], params: SendBulkEmailParams, batchN
  */
 export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
   const { to, subject, sentById } = params;
+
+  // Validate input
+  if (!Array.isArray(to) || to.length === 0) {
+    throw new Error("No recipients specified");
+  }
+
+  if (!subject?.trim()) {
+    throw new Error("Subject is required");
+  }
+
+  if (!params.html?.trim()) {
+    throw new Error("Email HTML content is required");
+  }
 
   console.log(`[EMAIL] Starting bulk email send: ${to.length} recipients, subject: "${subject}"`);
 

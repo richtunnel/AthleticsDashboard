@@ -1,6 +1,6 @@
 "use client";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -19,19 +19,16 @@ import {
   TableRow,
   Alert,
   CircularProgress,
-  Divider,
   Chip,
   useMediaQuery,
   Checkbox,
   useTheme,
 } from "@mui/material";
 import { ArrowBack, Send } from "@mui/icons-material";
-import { format } from "date-fns";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import type { EmailGroup } from "./types";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
-import { AddSchoolEmailDialog } from "@/components/games/AddSchoolEmailDialog";
 
 interface Game {
   id: string;
@@ -55,8 +52,8 @@ interface Game {
     name: string;
   };
   notes?: string;
-  customFields?: Record<string, any>; // For imported CSV columns
-  customData?: Record<string, any>; // For custom columns created via CustomColumnManager
+  customFields?: Record<string, unknown>;
+  customData?: Record<string, unknown>;
 }
 
 interface CustomColumn {
@@ -68,122 +65,106 @@ interface CustomColumn {
 interface TablePreferencesData {
   customColumns?: string[];
   columnMapping?: Record<string, string>;
+  hidden?: string[];
   [key: string]: unknown;
 }
 
-const STATIC_RECIPIENT_CATEGORIES = [{ value: "custom", label: "Custom Recipients" }];
+interface EmailGroupCategory {
+  value: string;
+  label: string;
+  groupId?: string;
+  isEmailGroup?: boolean;
+}
 
-<style jsx>{`
-  .recipientCategory > label {
-    top: -5px;
-  }
-`}</style>;
+const STATIC_RECIPIENT_CATEGORIES: EmailGroupCategory[] = [{ value: "custom", label: "Custom Recipients" }];
 
-// Helper to determine which columns to display based on user's import preferences and custom columns
-// CRITICAL FIX: Respect hidden columns from table preferences
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Get display columns based on user preferences and custom columns
+ */
 const getDisplayColumns = (preferences: TablePreferencesData | null, customColumns: CustomColumn[]): string[] => {
-  // Get hidden columns from preferences
   const hiddenColumns = new Set<string>(Array.isArray(preferences?.hidden) ? (preferences.hidden as string[]) : []);
 
-  // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
   const columnMapping = preferences?.columnMapping as Record<string, string> | undefined;
 
   let allColumns: string[];
 
   if (importedColumns && columnMapping && importedColumns.length > 0) {
-    // User imported CSV with custom columns - show imported columns + custom columns
     const importedIds = importedColumns
       .filter((colName) => {
         const mapping = columnMapping[colName];
-        return mapping && mapping !== "skip"; // Only include non-skipped columns
+        return mapping && mapping !== "skip";
       })
       .map((colName) => `imported:${colName}`);
 
-    // Add custom columns
     const customIds = customColumns.map((col) => `custom:${col.id}`);
-
     allColumns = [...importedIds, ...customIds];
   } else {
-    // No imported columns - use default columns + custom columns
     const defaultColumns = ["date", "sport", "level", "opponent", "location", "status", "time", "notes"];
     const customIds = customColumns.map((col) => `custom:${col.id}`);
-
     allColumns = [...defaultColumns, ...customIds];
   }
 
-  // CRITICAL: Filter out hidden columns before returning
   return allColumns.filter((columnId) => !hiddenColumns.has(columnId));
 };
 
-// Helper to get column label
+/**
+ * Get column label
+ */
 const getColumnLabel = (columnId: string, customColumns: CustomColumn[]): string => {
-  // Handle imported columns
   if (columnId.startsWith("imported:")) {
-    const columnName = columnId.split(":")[1];
-    return columnName; // Use the CSV column name as-is
+    return columnId.split(":")[1];
   }
 
-  // Handle custom columns
   if (columnId.startsWith("custom:")) {
     const customId = columnId.split(":")[1];
     const customColumn = customColumns.find((col) => col.id === customId);
     return customColumn?.name || "Custom Field";
   }
 
-  // Return default labels
-  switch (columnId) {
-    case "date":
-      return "Date";
-    case "sport":
-      return "Sport";
-    case "level":
-      return "Level";
-    case "opponent":
-      return "Opponent";
-    case "isHome":
-    case "location":
-      return "Location";
-    case "time":
-      return "Time";
-    case "status":
-      return "Confirmed";
-    case "notes":
-      return "Notes";
-    default:
-      return columnId;
-  }
+  const labelMap: Record<string, string> = {
+    date: "Date",
+    sport: "Sport",
+    level: "Level",
+    opponent: "Opponent",
+    isHome: "Location",
+    location: "Location",
+    time: "Time",
+    status: "Confirmed",
+    notes: "Notes",
+  };
+
+  return labelMap[columnId] || columnId;
 };
 
-// Helper to get cell value for a column
+/**
+ * Get cell value for a column
+ */
 const getCellValue = (game: Game, columnId: string, columnMapping?: Record<string, string>): string => {
-  // Handle imported columns
   if (columnId.startsWith("imported:")) {
     const columnName = columnId.split(":")[1];
-
-    // CRITICAL FIX: Check if this imported column is mapped to a standard field like "date"
     const mapping = columnMapping?.[columnName];
+
     if (mapping === "date") {
-      // This imported column is mapped to date - return game.date
       return game.date;
     } else if (mapping === "time") {
-      // This imported column is mapped to time - return game.time
       return game.time || "TBD";
     }
 
-    // Otherwise, look in customFields for preserved columns
     const customFields = game.customFields || {};
-    return customFields[columnName] || "—";
+    return String(customFields[columnName] || "—");
   }
 
-  // Handle custom columns
   if (columnId.startsWith("custom:")) {
     const customId = columnId.split(":")[1];
-    const customData = (game.customData as any) || {};
-    return customData[customId] || "—";
+    const customData = (game.customData as Record<string, unknown>) || {};
+    return String(customData[customId] || "—");
   }
 
-  // Handle default columns
   switch (columnId) {
     case "date":
       return game.date;
@@ -207,21 +188,134 @@ const getCellValue = (game: Game, columnId: string, columnMapping?: Record<strin
   }
 };
 
+/**
+ * Check if column is opponent-related
+ */
+const isOpponentColumn = (columnLabel: string): boolean => {
+  const lower = columnLabel.toLowerCase();
+  return ["opponent", "away", "enemy", "visiting", "visitor", "against", "vs", "versus", "school", "team"].some((keyword) => lower.includes(keyword));
+};
+
+/**
+ * Extract all school names from games
+ */
+const getAllSchoolNamesFromGames = (games: Game[], visibleColumnIds: string[], columnMapping: Record<string, string> | undefined, customColumns: CustomColumn[]): string[] => {
+  const schoolNamesSet = new Set<string>();
+
+  const opponentColumns = visibleColumnIds.filter((columnId) => {
+    const label = getColumnLabel(columnId, customColumns);
+    return isOpponentColumn(label);
+  });
+
+  games.forEach((game) => {
+    opponentColumns.forEach((columnId) => {
+      const value = getCellValue(game, columnId, columnMapping);
+      if (value && value !== "—" && value !== "TBD" && value !== "Home" && value.trim()) {
+        schoolNamesSet.add(value.trim());
+      }
+    });
+
+    if (game.opponent?.name && game.opponent.name !== "TBD") {
+      schoolNamesSet.add(game.opponent.name);
+    }
+  });
+
+  return Array.from(schoolNamesSet).sort();
+};
+
+/**
+ * Get game count for a school
+ */
+const getGameCountForSchool = (schoolName: string, games: Game[], visibleColumnIds: string[], columnMapping: Record<string, string> | undefined, customColumns: CustomColumn[]): number => {
+  return games.filter((game) => {
+    if (game.opponent?.name === schoolName) return true;
+
+    return visibleColumnIds.some((columnId) => {
+      const label = getColumnLabel(columnId, customColumns);
+      if (!isOpponentColumn(label)) return false;
+
+      const cellValue = getCellValue(game, columnId, columnMapping);
+      return cellValue === schoolName;
+    });
+  }).length;
+};
+
+/**
+ * Filter games by school names
+ */
+const filterGamesBySchools = (games: Game[], selectedSchools: string[], visibleColumnIds: string[], columnMapping: Record<string, string> | undefined, customColumns: CustomColumn[]): Game[] => {
+  if (selectedSchools.length === 0) return games;
+
+  return games.filter((game) => {
+    return selectedSchools.some((schoolName) => {
+      if (game.opponent?.name === schoolName) return true;
+
+      return visibleColumnIds.some((columnId) => {
+        const label = getColumnLabel(columnId, customColumns);
+        if (!isOpponentColumn(label)) return false;
+
+        const cellValue = getCellValue(game, columnId, columnMapping);
+        return cellValue === schoolName;
+      });
+    });
+  });
+};
+
+/**
+ * Safe HTML escape
+ */
+const escapeHtml = (text: string | null | undefined): string => {
+  if (!text) return "";
+
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+
+  return text.replace(/[&<>"']/g, (char) => map[char]);
+};
+
+/**
+ * Format date string
+ */
+const formatGameDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
+  } catch {
+    return dateString;
+  }
+};
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export default function ComposeEmailPage() {
   const router = useRouter();
   const { addNotification } = useNotifications();
   const theme = useTheme();
   const isWideScreen = useMediaQuery("(min-width:1260px)");
+
+  // State
   const [mounted, setMounted] = useState(false);
   const [selectedGames, setSelectedGames] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [recipientCategory, setRecipientCategory] = useState("");
   const [customRecipients, setCustomRecipients] = useState("");
-  const [selectedGroupId, setSelectedGroupId] = useState("");
   const [subject, setSubject] = useState("");
   const [additionalMessage, setAdditionalMessage] = useState("");
   const [selectedSchoolNames, setSelectedSchoolNames] = useState<string[]>([]);
+  const [showAddEmailDialog, setShowAddEmailDialog] = useState(false);
+  const [hasFailedDraft, setHasFailedDraft] = useState(false);
 
+  // Queries
   const { data: emailGroups = [], isLoading: emailGroupsLoading } = useQuery<EmailGroup[], Error>({
     queryKey: ["email-groups"],
     queryFn: fetchEmailGroups,
@@ -239,46 +333,6 @@ export default function ComposeEmailPage() {
     },
   });
 
-  // Fetch user profile to check for school email
-  const { data: userProfile } = useQuery({
-    queryKey: ["user-profile"],
-    queryFn: async () => {
-      const res = await fetch("/api/user/profile");
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data || null;
-    },
-  });
-
-  const [showAddEmailDialog, setShowAddEmailDialog] = useState(false);
-  const [pendingEmailData, setPendingEmailData] = useState<any>(null);
-  const [hasFailedDraft, setHasFailedDraft] = useState(false);
-
-  // Check for failed email draft on mount
-  useEffect(() => {
-    if (mounted) {
-      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
-      if (failedEmailDraft) {
-        try {
-          const draft = JSON.parse(failedEmailDraft);
-          // Only show if the draft is recent (within 24 hours)
-          const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
-
-          if (isRecent) {
-            setHasFailedDraft(true);
-            addNotification("You have a saved draft from a failed email send. Click 'Restore Draft' to continue where you left off.", "warning");
-          } else {
-            // Remove old failed drafts
-            sessionStorage.removeItem("failedEmailDraft");
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-    }
-  }, [mounted, addNotification]);
-
-  // Fetch custom columns
   const { data: customColumnsResponse } = useQuery({
     queryKey: ["customColumns"],
     queryFn: async () => {
@@ -288,9 +342,6 @@ export default function ComposeEmailPage() {
     },
   });
 
-  const customColumns = useMemo<CustomColumn[]>(() => (customColumnsResponse?.data || []) as CustomColumn[], [customColumnsResponse?.data]);
-
-  // Fetch table preferences to determine which columns to display
   const { data: tablePreferencesResponse } = useQuery({
     queryKey: ["tablePreferences", "games"],
     queryFn: async () => {
@@ -300,15 +351,16 @@ export default function ComposeEmailPage() {
     },
   });
 
+  // Memoized values
+  const customColumns = useMemo<CustomColumn[]>(() => (customColumnsResponse?.data || []) as CustomColumn[], [customColumnsResponse?.data]);
+
   const tablePreferences = useMemo<TablePreferencesData | null>(() => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null, [tablePreferencesResponse?.data]);
 
-  // Determine visible columns based on user's import preferences and custom columns
   const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences, customColumns), [tablePreferences, customColumns]);
 
-  // Extract columnMapping for checking imported column mappings
   const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
 
-  const recipientCategories = useMemo(() => {
+  const recipientCategories = useMemo<EmailGroupCategory[]>(() => {
     const emailGroupCategories = emailGroups.map((group) => ({
       value: `emailGroup:${group.id}`,
       label: `${group.name} (${group._count.emails} emails)`,
@@ -319,170 +371,11 @@ export default function ComposeEmailPage() {
     return [...STATIC_RECIPIENT_CATEGORIES, ...emailGroupCategories];
   }, [emailGroups]);
 
-  // Get all unique school/opponent names from opponent-related columns
-  const getAllSchoolNames = useMemo(() => {
-    if (!allGames.length) return [];
+  const getAllSchoolNames = useMemo(() => getAllSchoolNamesFromGames(allGames, visibleColumnIds, columnMapping, customColumns), [allGames, visibleColumnIds, columnMapping, customColumns]);
 
-    const schoolNamesSet = new Set<string>();
-
-    // Find columns that might contain opponent/school information
-    const opponentColumns = visibleColumnIds.filter((columnId) => {
-      const label = getColumnLabel(columnId, customColumns).toLowerCase();
-      return (
-        label.includes("opponent") ||
-        label.includes("away") ||
-        label.includes("enemy") ||
-        label.includes("visiting") ||
-        label.includes("visitor") ||
-        label.includes("against") ||
-        label.includes("vs") ||
-        label.includes("versus") ||
-        label.includes("school") ||
-        label.includes("team")
-      );
-    });
-
-    // Extract all school names from these columns
-    allGames.forEach((game) => {
-      opponentColumns.forEach((columnId) => {
-        const value = getCellValue(game, columnId, columnMapping);
-        if (value && value !== "—" && value !== "TBD" && value !== "Home" && value.trim()) {
-          schoolNamesSet.add(value.trim());
-        }
-      });
-
-      // Also include standard opponent field
-      if (game.opponent?.name && game.opponent.name !== "TBD") {
-        schoolNamesSet.add(game.opponent.name);
-      }
-    });
-
-    return Array.from(schoolNamesSet).sort();
-  }, [allGames, visibleColumnIds, columnMapping, customColumns]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    // Load selected games from sessionStorage
-    const storedGames = sessionStorage.getItem("selectedGames");
-    const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
-    const storedEmailDraft = sessionStorage.getItem("emailDraft");
-    const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
-
-    if (storedGames) {
-      const games = JSON.parse(storedGames);
-      setAllGames(games);
-      setSelectedGames(games);
-
-      // Check if there was an opponent filter applied in the games table
-      if (storedOpponentFilter && storedOpponentFilter !== "null") {
-        try {
-          const opponentFilter = JSON.parse(storedOpponentFilter);
-          // If filter type is "values", pre-fill the school filter
-          if (opponentFilter?.type === "values" && opponentFilter?.values?.length > 0) {
-            setSelectedSchoolNames(opponentFilter.values);
-            // Filter games to these opponents
-            const filteredGames = games.filter((game: Game) => {
-              // Check if any opponent-related column contains the selected school names
-              return opponentFilter.values.some((schoolName: string) => {
-                // Check standard opponent field
-                if (game.opponent?.name === schoolName) return true;
-
-                // Check other opponent-related columns
-                return visibleColumnIds.some((columnId) => {
-                  const label = getColumnLabel(columnId, customColumns).toLowerCase();
-                  const isOpponentColumn =
-                    label.includes("opponent") ||
-                    label.includes("away") ||
-                    label.includes("enemy") ||
-                    label.includes("visiting") ||
-                    label.includes("visitor") ||
-                    label.includes("against") ||
-                    label.includes("vs") ||
-                    label.includes("versus") ||
-                    label.includes("school") ||
-                    label.includes("team");
-
-                  if (isOpponentColumn) {
-                    const cellValue = getCellValue(game, columnId, columnMapping);
-                    return cellValue === schoolName;
-                  }
-                  return false;
-                });
-              });
-            });
-            setSelectedGames(filteredGames);
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-
-      // Check if there's a draft from email logs (re-open & edit)
-      if (storedEmailDraft) {
-        try {
-          const draft = JSON.parse(storedEmailDraft);
-          if (draft.subject) setSubject(draft.subject);
-          if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
-          if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-          if (draft.visibleColumnIds && Array.isArray(draft.visibleColumnIds)) {
-            // Visible column IDs are already set via useMemo from table preferences
-            // We'll keep the preferences-based columns instead of using the draft's columns
-            console.log("Email draft contains visibleColumnIds:", draft.visibleColumnIds);
-          }
-          if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
-            setSelectedSchoolNames(draft.selectedSchoolNames);
-          }
-          // Clear the draft after loading
-          sessionStorage.removeItem("emailDraft");
-        } catch (e) {
-          // Ignore parse errors
-        }
-      } else if (failedEmailDraft) {
-        // Check if there's a failed email draft to restore
-        try {
-          const draft = JSON.parse(failedEmailDraft);
-          // Only restore if the draft is recent (within 24 hours)
-          const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
-
-          if (isRecent) {
-            if (draft.subject) setSubject(draft.subject);
-            if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
-            if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
-            if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
-              setSelectedSchoolNames(draft.selectedSchoolNames);
-            }
-            if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
-
-            // Show notification about restored draft
-            addNotification("Restored your previous email draft from a failed send attempt.", "info");
-
-            // Clear the failed draft after restoration
-            sessionStorage.removeItem("failedEmailDraft");
-          } else {
-            // Remove old failed drafts
-            sessionStorage.removeItem("failedEmailDraft");
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      } else {
-        // Generate default subject based on games only if no draft
-        if (games.length === 1) {
-          setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
-        } else {
-          setSubject(`Game Schedule Confirmation - ${games.length} Games`);
-        }
-      }
-    }
-  }, [mounted, visibleColumnIds, columnMapping, customColumns, addNotification]);
-
+  // Mutation
   const sendEmailMutation = useMutation({
-    mutationFn: async (emailData: any) => {
+    mutationFn: async (emailData: Record<string, unknown>) => {
       const res = await fetch("/api/email/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -492,7 +385,7 @@ export default function ComposeEmailPage() {
       if (!res.ok) {
         const error = await res.json();
 
-        // Store the email draft data when sending fails
+        // Save draft on failure
         const emailDraft = {
           subject,
           additionalMessage,
@@ -504,7 +397,11 @@ export default function ComposeEmailPage() {
         };
 
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("failedEmailDraft", JSON.stringify(emailDraft));
+          try {
+            sessionStorage.setItem("failedEmailDraft", JSON.stringify(emailDraft));
+          } catch (e) {
+            console.warn("Failed to save draft to sessionStorage:", e);
+          }
         }
 
         throw new Error(error.error || "Failed to send email");
@@ -512,17 +409,20 @@ export default function ComposeEmailPage() {
 
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       addNotification("Email sent successfully!", "success");
       if (typeof window !== "undefined") {
-        sessionStorage.removeItem("selectedGames");
-        sessionStorage.removeItem("gamesOpponentFilter");
-        sessionStorage.removeItem("failedEmailDraft"); // Clear any failed draft on success
+        try {
+          sessionStorage.removeItem("selectedGames");
+          sessionStorage.removeItem("gamesOpponentFilter");
+          sessionStorage.removeItem("failedEmailDraft");
+        } catch (e) {
+          console.warn("Failed to clear sessionStorage:", e);
+        }
       }
       router.push("/dashboard/email-logs");
     },
     onError: (error: Error) => {
-      // Only show notification if it's not already handled above
       if (!error.message.includes("Failed to send email")) {
         addNotification(`Failed to send email: ${error.message}`, "error");
       }
@@ -530,10 +430,93 @@ export default function ComposeEmailPage() {
     },
   });
 
-  const handleRestoreFailedDraft = () => {
-    const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
-    if (failedEmailDraft) {
-      try {
+  // Effects
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    try {
+      const storedGames = sessionStorage.getItem("selectedGames");
+      const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
+      const storedEmailDraft = sessionStorage.getItem("emailDraft");
+      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
+
+      if (storedGames) {
+        const games: Game[] = JSON.parse(storedGames);
+        setAllGames(games);
+        setSelectedGames(games);
+
+        // Handle opponent filter
+        if (storedOpponentFilter && storedOpponentFilter !== "null") {
+          try {
+            const opponentFilter = JSON.parse(storedOpponentFilter);
+            if (opponentFilter?.type === "values" && opponentFilter?.values?.length > 0) {
+              setSelectedSchoolNames(opponentFilter.values);
+              const filteredGames = filterGamesBySchools(games, opponentFilter.values, visibleColumnIds, columnMapping, customColumns);
+              setSelectedGames(filteredGames);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        // Handle email draft
+        if (storedEmailDraft) {
+          try {
+            const draft = JSON.parse(storedEmailDraft);
+            if (draft.subject) setSubject(draft.subject);
+            if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
+            if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+            if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+              setSelectedSchoolNames(draft.selectedSchoolNames);
+            }
+            sessionStorage.removeItem("emailDraft");
+          } catch {
+            // Ignore parse errors
+          }
+        } else if (failedEmailDraft) {
+          // Handle failed draft
+          try {
+            const draft = JSON.parse(failedEmailDraft);
+            const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
+
+            if (isRecent) {
+              if (draft.subject) setSubject(draft.subject);
+              if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
+              if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+              if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+                setSelectedSchoolNames(draft.selectedSchoolNames);
+              }
+              if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
+              setHasFailedDraft(true);
+            } else {
+              sessionStorage.removeItem("failedEmailDraft");
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        } else if (games.length > 0 && !subject) {
+          // Generate default subject only if no draft
+          if (games.length === 1) {
+            setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
+          } else {
+            setSubject(`Game Schedule Confirmation - ${games.length} Games`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error loading stored data:", e);
+    }
+  }, [mounted, visibleColumnIds, columnMapping, customColumns]);
+
+  // Callbacks
+  const handleRestoreFailedDraft = useCallback(() => {
+    try {
+      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
+      if (failedEmailDraft) {
         const draft = JSON.parse(failedEmailDraft);
         if (draft.subject) setSubject(draft.subject);
         if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
@@ -543,89 +526,24 @@ export default function ComposeEmailPage() {
         setHasFailedDraft(false);
         sessionStorage.removeItem("failedEmailDraft");
         addNotification("Draft restored successfully!", "success");
-      } catch (e) {
-        // Ignore parse errors
       }
+    } catch {
+      // Ignore parse errors
     }
-  };
+  }, [addNotification]);
 
-  const formatGameDate = (dateString: string) => {
-    if (!mounted) return dateString;
-    try {
-      const date = new Date(dateString);
-      const year = date.getUTCFullYear();
-      const month = date.getUTCMonth();
-      const day = date.getUTCDate();
-      return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
-    } catch (error) {
-      return dateString;
-    }
-  };
+  const handleSchoolFilterChange = useCallback(
+    (selectedSchools: string[]) => {
+      setSelectedSchoolNames(selectedSchools);
+      const filteredGames = filterGamesBySchools(allGames, selectedSchools, visibleColumnIds, columnMapping, customColumns);
+      setSelectedGames(filteredGames);
+    },
+    [allGames, visibleColumnIds, columnMapping, customColumns],
+  );
 
-  const formatFullDate = (dateString: string) => {
-    if (!mounted) return dateString;
-    try {
-      const date = new Date(dateString);
-      const year = date.getUTCFullYear();
-      const month = date.getUTCMonth();
-      const day = date.getUTCDate();
-      return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
-    } catch (error) {
-      return dateString;
-    }
-  };
-
-  const handleSchoolFilterChange = (selectedSchools: string[]) => {
-    setSelectedSchoolNames(selectedSchools);
-
-    if (selectedSchools.length === 0) {
-      setSelectedGames(allGames);
-      return;
-    }
-
-    // Filter games that contain any of the selected school names in opponent-related columns
-    const filteredGames = allGames.filter((game) => {
-      return selectedSchools.some((schoolName) => {
-        // Check standard opponent field
-        if (game.opponent?.name === schoolName) return true;
-
-        // Check other opponent-related columns
-        return visibleColumnIds.some((columnId) => {
-          const label = getColumnLabel(columnId, customColumns).toLowerCase();
-          const isOpponentColumn =
-            label.includes("opponent") ||
-            label.includes("away") ||
-            label.includes("enemy") ||
-            label.includes("visiting") ||
-            label.includes("visitor") ||
-            label.includes("against") ||
-            label.includes("vs") ||
-            label.includes("versus") ||
-            label.includes("school") ||
-            label.includes("team");
-
-          if (isOpponentColumn) {
-            const cellValue = getCellValue(game, columnId, columnMapping);
-            return cellValue === schoolName;
-          }
-          return false;
-        });
-      });
-    });
-
-    setSelectedGames(filteredGames);
-  };
-
-  const escapeHtml = (text: string) => {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
-  };
-
-  const generateEmailPreview = () => {
+  const generateEmailPreview = useCallback(() => {
     if (!mounted) return "<p>Loading preview...</p>";
 
-    // Theme-aware colors for dark mode support
     const isDarkMode = theme.palette.mode === "dark";
     const headingColor = isDarkMode ? theme.palette.text.primary : "#23252a";
     const messageBoxBg = isDarkMode ? theme.palette.background.paper : "#f3f4f6";
@@ -638,24 +556,19 @@ export default function ComposeEmailPage() {
 
     let html = '<div style="font-family: Arial, sans-serif; max-width: 1180px; margin: 0 auto;">';
 
-    // Add heading
     html += `<h2 style="color: ${headingColor}; margin-bottom: 16px;">Game Schedule Confirmation</h2>`;
 
-    // Add additional message if present
     if (additionalMessage) {
       html += `<div style="margin-bottom: 24px; padding: 16px; background-color: ${messageBoxBg}; border-left: 4px solid ${messageBoxBorder}; border-radius: 4px;">`;
       html += `<p style="margin: 0; white-space: pre-wrap; color: ${theme.palette.text.primary};">${escapeHtml(additionalMessage)}</p>`;
       html += "</div>";
     }
 
-    // Add games table
     html += '<table style="width: 100%; border-collapse: collapse; margin-top: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem;">';
 
-    // Table header - dynamically generate based on visible columns
     html += "<thead>";
     html += `<tr style="background-color: ${tableHeaderBg}; color: ${tableHeaderText};">`;
     visibleColumnIds.forEach((columnId) => {
-      // Skip actions column in email
       if (columnId === "actions") return;
       const label = getColumnLabel(columnId, customColumns);
       html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid ${borderColor}; font-size: 0.85rem;">${escapeHtml(label)}</th>`;
@@ -663,26 +576,21 @@ export default function ComposeEmailPage() {
     html += "</tr>";
     html += "</thead>";
 
-    // Table body
     html += "<tbody>";
     selectedGames.forEach((game, index) => {
       const bgColor = index % 2 === 0 ? evenRowBg : oddRowBg;
       html += `<tr style="background-color: ${bgColor}; border-bottom: 1px solid ${borderColor};">`;
 
-      // Generate cells dynamically based on visible columns
       visibleColumnIds.forEach((columnId) => {
-        // Skip actions column in email
         if (columnId === "actions") return;
 
         let cellContent = "";
 
-        // Check if this is an imported column mapped to date
         const isImportedDateColumn = columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date";
 
-        // Special handling for certain columns
         if (columnId === "date" || isImportedDateColumn) {
           const rawValue = getCellValue(game, columnId, columnMapping);
-          cellContent = escapeHtml(formatFullDate(rawValue));
+          cellContent = escapeHtml(formatGameDate(rawValue));
         } else if (columnId === "status") {
           const statusColor = game.status === "CONFIRMED" ? "#22c55e" : "#BEDBFE";
           cellContent = `<span style="background-color: ${statusColor}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">${escapeHtml(game.status)}</span>`;
@@ -698,7 +606,6 @@ export default function ComposeEmailPage() {
 
       html += "</tr>";
 
-      // Add notes row if notes column is visible and game has notes
       if (visibleColumnIds.includes("notes") && game.notes) {
         const colspan = visibleColumnIds.filter((id) => id !== "actions").length;
         html += `<tr style="background-color: ${bgColor};">`;
@@ -711,13 +618,11 @@ export default function ComposeEmailPage() {
     html += "</tbody>";
     html += "</table>";
 
-    // Add footer with contact information
     html += `<div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid ${borderColor};">`;
     html += `<p style="color: ${theme.palette.text.secondary}; font-size: 14px; margin: 8px 0;">If you have any questions, please contact the athletic department.</p>`;
-    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 12px; margin: 8px 0;">This is an automated message from the Opletics.</p>`;
+    html += `<p style="color: ${theme.palette.text.secondary}; font-size: 12px; margin: 8px 0;">This is an automated message from Opletics.</p>`;
     html += "</div>";
 
-    // Add email signature if present
     if (emailSignature) {
       const signatureHTML = buildEmailSignatureHTML(
         {
@@ -726,8 +631,9 @@ export default function ComposeEmailPage() {
           signatureLogoUrl: emailSignature.signatureLogoUrl,
           signatureText: emailSignature.signatureText,
         },
-        // Use window.location.origin for client-side preview to ensure logo loads correctly
-        { baseUrl: typeof window !== "undefined" ? window.location.origin : undefined }
+        {
+          baseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
+        },
       );
       if (signatureHTML) {
         html += signatureHTML;
@@ -737,16 +643,25 @@ export default function ComposeEmailPage() {
     html += "</div>";
 
     return html;
-  };
+  }, [mounted, theme, additionalMessage, visibleColumnIds, columnMapping, customColumns, selectedGames, emailSignature]);
 
+  // Loading state
   if (!mounted) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "400px",
+        }}
+      >
         <CircularProgress />
       </Box>
     );
   }
 
+  // No games state
   if (allGames.length === 0) {
     return (
       <Box sx={{ p: 4, textAlign: "center" }}>
@@ -783,7 +698,7 @@ export default function ComposeEmailPage() {
       </Box>
 
       <Stack spacing={3}>
-        {/* Two-column layout for wide screens, stacked for smaller screens */}
+        {/* Two-column layout */}
         <Box
           sx={{
             display: "flex",
@@ -792,7 +707,7 @@ export default function ComposeEmailPage() {
             width: "100%",
           }}
         >
-          {/* Selected Games Summary - Left Column */}
+          {/* Selected Games */}
           <Box sx={{ flex: isWideScreen ? 1.5 : "none", width: "100%" }}>
             <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -802,11 +717,10 @@ export default function ComposeEmailPage() {
                 )}
               </Typography>
               <TableContainer sx={{ overflowX: "auto" }}>
-                <Table size="small" sx={{ fontSize: "0.85rem", whiteSpace: "nowrap" }}>
+                <Table size="small" sx={{ fontSize: "0.85rem" }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "action.selected" }}>
                       {visibleColumnIds.map((columnId) => {
-                        // Skip actions column in email preview
                         if (columnId === "actions") return null;
                         return (
                           <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
@@ -820,12 +734,10 @@ export default function ComposeEmailPage() {
                     {selectedGames.map((game) => (
                       <TableRow key={game.id}>
                         {visibleColumnIds.map((columnId) => {
-                          // Skip actions column in email preview
                           if (columnId === "actions") return null;
 
                           const cellValue = getCellValue(game, columnId, columnMapping);
 
-                          // Special rendering for status column with chip
                           if (columnId === "status") {
                             return (
                               <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
@@ -834,7 +746,6 @@ export default function ComposeEmailPage() {
                             );
                           }
 
-                          // Special formatting for date column OR imported date column
                           if (columnId === "date" || (columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date")) {
                             return (
                               <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
@@ -843,7 +754,6 @@ export default function ComposeEmailPage() {
                             );
                           }
 
-                          // Default rendering for all other columns
                           return (
                             <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
                               {cellValue}
@@ -858,7 +768,7 @@ export default function ComposeEmailPage() {
             </Paper>
           </Box>
 
-          {/* Email Composition - Right Column */}
+          {/* Email Composition */}
           <Box sx={{ flex: isWideScreen ? 1 : "none", width: "100%" }}>
             <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
@@ -870,15 +780,9 @@ export default function ComposeEmailPage() {
                 <TextField
                   select
                   label="Recipient Category"
-                  sx={{
-                    "& .MuiInputLabel-root": {
-                      top: "-5px",
-                    },
-                  }}
                   value={recipientCategory}
                   onChange={(e) => setRecipientCategory(e.target.value)}
                   fullWidth
-                  className="recipientCategory"
                   required
                   error={!recipientCategory}
                   helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
@@ -904,9 +808,17 @@ export default function ComposeEmailPage() {
                   />
                 )}
 
-                {/* School/Opponent Filter */}
+                {/* School Filter */}
                 {getAllSchoolNames.length > 0 && (
-                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, bgcolor: "grey.50" }}>
+                  <Box
+                    sx={{
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      p: 2,
+                      bgcolor: "grey.50",
+                    }}
+                  >
                     <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
                       Filter by School/Opponent
                     </Typography>
@@ -930,34 +842,10 @@ export default function ComposeEmailPage() {
                           return `${selectedArray.length} schools selected`;
                         },
                       }}
-                      helperText={`Select which schools/opponents to include in the email (${getAllSchoolNames.length} available)`}
+                      helperText={`Select which schools/opponents to include (${getAllSchoolNames.length} available)`}
                     >
                       {getAllSchoolNames.map((schoolName) => {
-                        const gameCount = allGames.filter((game) => {
-                          // Check if this school appears in any opponent-related column
-                          if (game.opponent?.name === schoolName) return true;
-
-                          return visibleColumnIds.some((columnId) => {
-                            const label = getColumnLabel(columnId, customColumns).toLowerCase();
-                            const isOpponentColumn =
-                              label.includes("opponent") ||
-                              label.includes("away") ||
-                              label.includes("enemy") ||
-                              label.includes("visiting") ||
-                              label.includes("visitor") ||
-                              label.includes("against") ||
-                              label.includes("vs") ||
-                              label.includes("versus") ||
-                              label.includes("school") ||
-                              label.includes("team");
-
-                            if (isOpponentColumn) {
-                              const cellValue = getCellValue(game, columnId, columnMapping);
-                              return cellValue === schoolName;
-                            }
-                            return false;
-                          });
-                        }).length;
+                        const gameCount = getGameCountForSchool(schoolName, allGames, visibleColumnIds, columnMapping, customColumns);
 
                         return (
                           <MenuItem key={schoolName} value={schoolName}>
@@ -970,7 +858,15 @@ export default function ComposeEmailPage() {
 
                     {/* Filter Summary */}
                     {selectedSchoolNames.length > 0 && (
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mt: 2 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          gap: 1,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          mt: 2,
+                        }}
+                      >
                         <Typography variant="caption" color="text.secondary">
                           Filtered by:
                         </Typography>
@@ -1014,7 +910,7 @@ export default function ComposeEmailPage() {
           </Box>
         </Box>
 
-        {/* Email Preview - Full Width Below */}
+        {/* Email Preview */}
         <Paper sx={{ p: 3, bgcolor: "background.paper" }}>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
             Email Preview
@@ -1034,32 +930,7 @@ export default function ComposeEmailPage() {
         </Paper>
 
         {/* Error Display */}
-        {sendEmailMutation.isError && (
-          <Alert
-            severity="error"
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={() => {
-                  const failedDraft = sessionStorage.getItem("failedEmailDraft");
-                  if (failedDraft) {
-                    try {
-                      const draft = JSON.parse(failedDraft);
-                      addNotification("Draft data has been saved. You can try sending again.", "info");
-                    } catch (e) {
-                      // Ignore parse errors
-                    }
-                  }
-                }}
-              >
-                Check Draft
-              </Button>
-            }
-          >
-            {sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved and will be restored when you return to this page."}
-          </Alert>
-        )}
+        {sendEmailMutation.isError && <Alert severity="error">{sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved."}</Alert>}
 
         {/* Action Buttons */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
