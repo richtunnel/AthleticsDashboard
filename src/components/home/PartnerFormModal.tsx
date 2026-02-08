@@ -150,7 +150,6 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
                   </InputAdornment>
                 ),
                 sx: {
-                  border: `1px solid rgb(197, 197, 210)`,
                   backgroundColor: "transparent!important",
                   color: "rgb(197, 197, 210)",
                   "& .MuiFilledInput-root": {
@@ -214,7 +213,6 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
                 sx: {
                   backgroundColor: "transparent!important",
                   color: "rgb(197, 197, 210)",
-                  border: `1px solid rgb(197, 197, 210)`,
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
@@ -269,7 +267,6 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
                 ),
 
                 sx: {
-                  border: `1px solid rgb(197, 197, 210)`,
                   color: "rgb(197, 197, 210)",
                   backgroundColor: "transparent!important",
                   "& .MuiOutlinedInput-root": {
