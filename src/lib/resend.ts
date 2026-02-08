@@ -1,68 +1,108 @@
 import { Resend } from "resend";
 
+const RESEND_API_KEY_PREFIX = "re_";
+
+class ResendClientManager {
+  private instance: Resend | null = null;
+  private initialized = false;
+
+  private validateApiKey(apiKey: string): void {
+    if (!apiKey?.trim()) {
+      throw new Error("RESEND_API_KEY environment variable is not set or empty");
+    }
+
+    if (!apiKey.startsWith(RESEND_API_KEY_PREFIX)) {
+      throw new Error(`Invalid RESEND_API_KEY format. Expected to start with '${RESEND_API_KEY_PREFIX}'`);
+    }
+  }
+
+  /**
+   * Get or create a Resend client instance with lazy initialization.
+   * Throws if API key is not configured.
+   */
+  public getClient(): Resend {
+    if (!this.instance) {
+      const apiKey = process.env.RESEND_API_KEY;
+      this.validateApiKey(apiKey!);
+      this.instance = new Resend(apiKey);
+      this.initialized = true;
+    }
+    return this.instance;
+  }
+
+  /**
+   * Get Resend client or null if not configured.
+   * Useful for optional email functionality.
+   */
+  public getClientOptional(): Resend | null {
+    const apiKey = process.env.RESEND_API_KEY;
+
+    if (!apiKey?.trim()) {
+      return null;
+    }
+
+    // Validate format but don't throw
+    if (!apiKey.startsWith(RESEND_API_KEY_PREFIX)) {
+      console.warn("[RESEND] Invalid RESEND_API_KEY format. Expected to start with 're_'");
+      return null;
+    }
+
+    if (!this.instance) {
+      this.instance = new Resend(apiKey);
+      this.initialized = true;
+    }
+    return this.instance;
+  }
+
+  /**
+   * Reset the cached instance (useful for testing)
+   */
+  public reset(): void {
+    this.instance = null;
+    this.initialized = false;
+  }
+
+  /**
+   * Check if client is initialized
+   */
+  public isInitialized(): boolean {
+    return this.initialized;
+  }
+}
+
+// Singleton instance
+const resendManager = new ResendClientManager();
+
 /**
  * Get a Resend client instance with lazy initialization.
- * This prevents the client from being created at build time.
- *
  * @returns Resend client instance
- * @throws Error if RESEND_API_KEY is not configured
+ * @throws Error if RESEND_API_KEY is not configured or invalid
  */
 export function getResendClient(): Resend {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey || apiKey.trim() === "") {
-    console.error("[RESEND] RESEND_API_KEY environment variable is not set or empty");
-    throw new Error("Email service is not configured. Please set RESEND_API_KEY.");
-  }
-
-  // Validate API key format (Resend keys start with "re_")
-  if (!apiKey.startsWith("re_")) {
-    console.warn("[RESEND] RESEND_API_KEY does not appear to be valid (should start with 're_')");
-  }
-
-  console.log("[RESEND] Creating Resend client instance");
-  return new Resend(apiKey);
+  return resendManager.getClient();
 }
 
 /**
  * Get a Resend client instance or null if not configured.
- * Useful for optional email functionality.
- *
  * @returns Resend client instance or null
  */
 export function getResendClientOptional(): Resend | null {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey || apiKey.trim() === "") {
-    console.warn("[RESEND] RESEND_API_KEY not configured, returning null");
-    return null;
-  }
-
-  // Validate API key format (Resend keys start with "re_")
-  if (!apiKey.startsWith("re_")) {
-    console.warn("[RESEND] RESEND_API_KEY does not appear to be valid (should start with 're_')");
-  }
-
-  console.log("[RESEND] Creating optional Resend client instance");
-  return new Resend(apiKey);
+  return resendManager.getClientOptional();
 }
 
 /**
- * Cached Resend client singleton for reuse within a request context.
- * Note: In serverless environments, this cache is per-container instance.
+ * Check if Resend is configured
  */
-let resendInstance: Resend | null = null;
+export function isResendConfigured(): boolean {
+  return resendManager.isInitialized() || !!process.env.RESEND_API_KEY;
+}
 
 /**
- * Get a cached Resend client instance (singleton pattern).
- * This reuses the same client instance within the same container/process.
- *
- * @returns Resend client instance
- * @throws Error if NEXT_PUBLIC_RESEND_API_KEY is not configured
+ * Reset Resend client (for testing)
  */
-export function getResendClientCached(): Resend {
-  if (!resendInstance) {
-    resendInstance = getResendClient();
-  }
-  return resendInstance;
+export function resetResendClient(): void {
+  resendManager.reset();
 }
+
+// Export manager for advanced usage
+export { resendManager };
