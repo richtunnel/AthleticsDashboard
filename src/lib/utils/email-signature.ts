@@ -83,14 +83,36 @@ function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean 
     }
   }
 
+  // Detect if this is a local image (uploaded to /uploads/)
+  let isLocalImage = false;
+  let localPath = "";
+
+  if (processed.startsWith("/uploads/")) {
+    // Relative local path
+    isLocalImage = true;
+    localPath = processed;
+  } else {
+    // Check if it's an absolute URL pointing to this site's /uploads/
+    try {
+      const urlObj = new URL(processed);
+      const baseUrlObj = new URL(baseUrl);
+      if (urlObj.origin === baseUrlObj.origin && urlObj.pathname.startsWith("/uploads/")) {
+        isLocalImage = true;
+        localPath = urlObj.pathname;
+      }
+    } catch {
+      // Not a valid URL, treat as-is
+    }
+  }
+
   // Convert relative URLs to absolute
   if (!isAbsoluteUrl(processed)) {
     processed = resolveUrl(processed, baseUrl);
   }
 
-  // Return optimized URL for previews, or original for emails
-  if (useOptimized) {
-    return getOptimizedImageUrl(processed);
+  // Return optimized URL for previews (only for local images), or absolute URL for emails
+  if (useOptimized && isLocalImage && localPath) {
+    return getOptimizedImageUrl(localPath);
   }
 
   return processed;
