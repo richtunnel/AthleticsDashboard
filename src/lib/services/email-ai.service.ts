@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { prisma } from "../database/prisma";
+import { format } from "date-fns";
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({
@@ -176,7 +177,7 @@ Return a JSON object with:
       .map(
         (game) => `
 Game: ${game.homeTeam.sport.name} - ${game.homeTeam.level}
-Date: ${game.date.toLocaleDateString()}
+Date: ${format(new Date(game.date), "dd/MM/yyyy")}
 Time: ${game.time || "TBD"}
 Opponent: ${game.opponent?.name || "TBD"}
 Location: ${game.isHome ? "Home" : game.venue ? `${game.venue.name}, ${game.venue.city}` : "TBD"}
@@ -295,8 +296,8 @@ Make the email professional, clear, and easy to read. Use HTML formatting for be
         body = this.buildFallbackTravelInfo(game);
         break;
       case "cancellation":
-        subject = `Game Cancellation: ${game.homeTeam.sport.name} on ${game.date.toLocaleDateString()}`;
-        body = `<p>We regret to inform you that the ${game.homeTeam.sport.name} game scheduled for ${game.date.toLocaleDateString()} has been cancelled.</p><p>We will notify you of any rescheduling plans.</p>`;
+        subject = `Game Cancellation: ${game.homeTeam.sport.name} on ${format(new Date(game.date), "dd/MM/yyyy")}`;
+        body = `<p>We regret to inform you that the ${game.homeTeam.sport.name} game scheduled for ${format(new Date(game.date), "dd/MM/yyyy")} has been cancelled.</p><p>We will notify you of any rescheduling plans.</p>`;
         break;
       default:
         subject = `Game Information: ${game.homeTeam.sport.name}`;
@@ -318,7 +319,7 @@ Make the email professional, clear, and easy to read. Use HTML formatting for be
   private buildFallbackGameNotification(game: any): string {
     return `
       <h2>Game Information</h2>
-      <p><strong>Date:</strong> ${game.date.toLocaleDateString()}</p>
+      <p><strong>Date:</strong> ${format(new Date(game.date), "dd/MM/yyyy")}</p>
       <p><strong>Time:</strong> ${game.time || "TBD"}</p>
       <p><strong>Sport:</strong> ${game.homeTeam.sport.name}</p>
       <p><strong>Level:</strong> ${game.homeTeam.level}</p>
@@ -340,7 +341,7 @@ Make the email professional, clear, and easy to read. Use HTML formatting for be
   private buildFallbackTravelInfo(game: any): string {
     return `
       <h2>Travel Information</h2>
-      <p><strong>Game Date:</strong> ${game.date.toLocaleDateString()}</p>
+      <p><strong>Game Date:</strong> ${format(new Date(game.date), "dd/MM/yyyy")}</p>
       <p><strong>Game Time:</strong> ${game.time || "TBD"}</p>
       <p><strong>Destination:</strong> ${game.venue ? `${game.venue.name}, ${game.venue.city}, ${game.venue.state}` : "TBD"}</p>
       <p><strong>Departure Time:</strong> ${game.departureTime ? new Date(game.departureTime).toLocaleTimeString() : "TBD"}</p>

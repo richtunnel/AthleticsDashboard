@@ -75,12 +75,26 @@ function getCellValue(game: Game, columnId: string): string {
     const columnName = columnId.split(":")[1];
     if (!columnName || typeof game.customFields !== "object" || !game.customFields) return "—";
     const value = game.customFields[columnName];
-    return value !== undefined && value !== null ? String(value) : "—";
+    if (value === undefined || value === null) return "—";
+    
+    const strValue = String(value);
+    
+    // Check if it's an ISO date string and format it
+    // Many imported dates come in as 2025-12-03T12:00:00.000Z
+    if (typeof strValue === "string" && strValue.includes("T") && !isNaN(Date.parse(strValue))) {
+      try {
+        return format(new Date(strValue), "dd/MM/yyyy");
+      } catch (e) {
+        return strValue;
+      }
+    }
+    
+    return strValue;
   }
 
   switch (columnId) {
     case "date":
-      return format(new Date(game.date), "MM/dd/yyyy");
+      return format(new Date(game.date), "dd/MM/yyyy");
     case "sport":
       return game.homeTeam.sport.name;
     case "level":
