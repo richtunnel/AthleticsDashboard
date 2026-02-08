@@ -1,313 +1,451 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, Card, CardContent, Divider, Snackbar, Stack, TextField, Typography, IconButton, Paper, useTheme } from "@mui/material";
-import type { AlertColor } from "@mui/material";
-import SaveIcon from "@mui/icons-material/Save";
-import DeleteIcon from "@mui/icons-material/Delete";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
+  CircularProgress,
+  Chip,
+  useMediaQuery,
+  Checkbox,
+  useTheme,
+} from "@mui/material";
+import { ArrowBack, Send } from "@mui/icons-material";
 import { LoadingButton } from "@/components/utils/LoadingButton";
-import { trackEvent } from "@/lib/analytics/mixpanel.services";
-import { buildEmailSignatureHTML, getSignatureLogoPreviewUrl } from "@/lib/utils/email-signature";
+import { fetchEmailGroups } from "@/lib/api/emailGroups";
+import type { EmailGroup } from "./types";
+import {
+  Game,
+  CustomColumn,
+  TablePreferencesData,
+  EmailGroupCategory,
+  STATIC_RECIPIENT_CATEGORIES,
+  getDisplayColumns,
+  getColumnLabel,
+  getCellValue,
+  filterGamesBySchools,
+  getAllSchoolNamesFromGames,
+  getGameCountForSchool,
+  formatGameDate,
+  EmailPreviewBox,
+  buildEmailPreviewHtml,
+} from "./EmailPreview";
 
-type SnackbarState = {
-  open: boolean;
-  message: string;
-  severity: AlertColor;
-};
-
-const DEFAULT_SNACKBAR: SnackbarState = {
-  open: false,
-  message: "",
-  severity: "success",
-};
-
-/**
- * Component to display signature logo with fallback to original URL if optimization fails
- * Uses consistent image loading across manager, preview, and sent emails
- */
-function SignatureLogoImage({ logoUrl, baseUrl }: { logoUrl: string; baseUrl?: string }) {
-  const [imgSrc, setImgSrc] = useState<string>(() => {
-    try {
-      return getSignatureLogoPreviewUrl(logoUrl, baseUrl);
-    } catch {
-      return logoUrl;
-    }
-  });
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    // Reset to optimized URL when logoUrl changes
-    try {
-      setImgSrc(getSignatureLogoPreviewUrl(logoUrl, baseUrl));
-      setHasError(false);
-    } catch {
-      setImgSrc(logoUrl);
-    }
-  }, [logoUrl, baseUrl]);
-
-  const handleError = () => {
-    if (!hasError) {
-      // Fallback to original URL if optimized version fails
-      setImgSrc(logoUrl);
-      setHasError(true);
-    }
-  };
-
-  return (
-    <Box
-      component="img"
-      src={imgSrc}
-      alt="Logo preview"
-      onError={handleError}
-      sx={{
-        maxWidth: 120,
-        maxHeight: 120,
-        border: (theme) => `1px solid ${theme.palette.divider}`,
-        borderRadius: 1,
-        p: 1,
-        backgroundColor: "background.paper",
-        objectFit: "contain",
-      }}
-      loading="lazy"
-    />
-  );
-}
-
-interface EmailSignature {
-  signaturePhone: string;
-  signatureWebsite: string;
-  signatureLogoUrl: string;
-  signatureText: string;
-}
-
-async function fetchEmailSignature(): Promise<EmailSignature> {
-  const res = await fetch("/api/user/email-signature");
-  if (!res.ok) {
-    throw new Error("Failed to fetch email signature");
-  }
-  const data = await res.json();
-  return (
-    data.data || {
-      signaturePhone: "",
-      signatureWebsite: "",
-      signatureLogoUrl: "",
-      signatureText: "",
-    }
-  );
-}
-
-async function updateEmailSignature(signature: EmailSignature): Promise<EmailSignature> {
-  const res = await fetch("/api/user/email-signature", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(signature),
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to update email signature");
-  }
-  const data = await res.json();
-  return data.data.signature;
-}
-
-async function uploadLogo(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch("/api/upload/signature-logo", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to upload logo");
-  }
-
-  const data = await res.json();
-  return data.data.url;
-}
-
-export function EmailSignatureManager() {
+export default function ComposeEmailPage() {
+  const router = useRouter();
+  const { addNotification } = useNotifications();
   const theme = useTheme();
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
-  const [phone, setPhone] = useState("");
-  const [website, setWebsite] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [signatureText, setSignatureText] = useState("");
+  const isWideScreen = useMediaQuery("(min-width:1260px)");
+
+  // State
   const [mounted, setMounted] = useState(false);
+  const [selectedGames, setSelectedGames] = useState<Game[]>([]);
+  const [allGames, setAllGames] = useState<Game[]>([]);
+  const [recipientCategory, setRecipientCategory] = useState("");
+  const [customRecipients, setCustomRecipients] = useState("");
+  const [subject, setSubject] = useState("");
+  const [additionalMessage, setAdditionalMessage] = useState("");
+  const [selectedSchoolNames, setSelectedSchoolNames] = useState<string[]>([]);
+  const [hasFailedDraft, setHasFailedDraft] = useState(false);
 
-  const showMessage = (message: string, severity: AlertColor = "success") => {
-    setSnackbar({ open: true, message, severity });
-  };
-
-  const hideMessage = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
-  const { data: signature, isLoading } = useQuery<EmailSignature, Error>({
-    queryKey: ["email-signature"],
-    queryFn: fetchEmailSignature,
+  // Queries
+  const { data: emailGroups = [] } = useQuery<EmailGroup[], Error>({
+    queryKey: ["email-groups"],
+    queryFn: fetchEmailGroups,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
+  const { data: emailSignature } = useQuery({
+    queryKey: ["email-signature"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/email-signature");
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.data || null;
+    },
+  });
+
+  const { data: customColumnsResponse } = useQuery({
+    queryKey: ["customColumns"],
+    queryFn: async () => {
+      const res = await fetch("/api/organizations/custom-columns");
+      if (!res.ok) throw new Error("Failed to fetch custom columns");
+      return res.json();
+    },
+  });
+
+  const { data: tablePreferencesResponse } = useQuery({
+    queryKey: ["tablePreferences", "games"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/table-preferences?table=games");
+      if (!res.ok) throw new Error("Failed to fetch table preferences");
+      return res.json();
+    },
+  });
+
+  // Memoized values
+  const customColumns = useMemo<CustomColumn[]>(() => (customColumnsResponse?.data || []) as CustomColumn[], [customColumnsResponse?.data]);
+  const tablePreferences = useMemo<TablePreferencesData | null>(() => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null, [tablePreferencesResponse?.data]);
+  const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences, customColumns), [tablePreferences, customColumns]);
+  const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
+
+  const recipientCategories = useMemo<EmailGroupCategory[]>(() => {
+    const emailGroupCategories = emailGroups.map((group) => ({
+      value: `emailGroup:${group.id}`,
+      label: `${group.name} (${group._count.emails} emails)`,
+      groupId: group.id,
+      isEmailGroup: true,
+    }));
+
+    return [...STATIC_RECIPIENT_CATEGORIES, ...emailGroupCategories];
+  }, [emailGroups]);
+
+  const getAllSchoolNames = useMemo(() => getAllSchoolNamesFromGames(allGames, visibleColumnIds, columnMapping, customColumns), [allGames, visibleColumnIds, columnMapping, customColumns]);
+
+  // Use buildEmailPreviewHtml to generate HTML string
+  const emailPreviewHtml = useMemo(() => {
+    if (!mounted) return "<p>Loading preview...</p>";
+    
+    return buildEmailPreviewHtml({
+      mounted,
+      theme,
+      additionalMessage,
+      visibleColumnIds,
+      columnMapping,
+      customColumns,
+      selectedGames,
+      emailSignature,
+    });
+  }, [mounted, theme, additionalMessage, visibleColumnIds, columnMapping, customColumns, selectedGames, emailSignature]);
+
+  // Mutation
+  const sendEmailMutation = useMutation({
+    mutationFn: async (emailData: Record<string, unknown>) => {
+      const res = await fetch("/api/email/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+
+        // Save draft on failure
+        const emailDraft = {
+          subject,
+          additionalMessage,
+          recipientCategory,
+          selectedGames,
+          selectedSchoolNames,
+          customRecipients,
+          timestamp: Date.now(),
+        };
+
+        if (typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem("failedEmailDraft", JSON.stringify(emailDraft));
+          } catch (e) {
+            console.warn("Failed to save draft to sessionStorage:", e);
+          }
+        }
+
+        throw new Error(error.error || "Failed to send email");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      addNotification("Email sent successfully!", "success");
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.removeItem("selectedGames");
+          sessionStorage.removeItem("gamesOpponentFilter");
+          sessionStorage.removeItem("failedEmailDraft");
+        } catch (e) {
+          console.warn("Failed to clear sessionStorage:", e);
+        }
+      }
+      router.push("/dashboard/email-logs");
+    },
+    onError: (error: Error) => {
+      if (!error.message.includes("Failed to send email")) {
+        addNotification(`Failed to send email: ${error.message}`, "error");
+      }
+      router.push("/dashboard/email-logs");
+    },
+  });
+
+  // Effects
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (signature) {
-      setPhone(signature.signaturePhone || "");
-      setWebsite(signature.signatureWebsite || "");
-      setLogoUrl(signature.signatureLogoUrl || "");
-      setSignatureText(signature.signatureText || "");
-    }
-  }, [signature]);
+    if (!mounted) return;
 
-  const updateMutation = useMutation({
-    mutationFn: updateEmailSignature,
-    onSuccess: (data) => {
-      queryClient.setQueryData(["email-signature"], data);
-      showMessage("Email signature saved successfully!");
-    },
-    onError: (error: Error) => {
-      showMessage(error.message, "error");
-    },
-  });
+    try {
+      const storedGames = sessionStorage.getItem("selectedGames");
+      const storedOpponentFilter = sessionStorage.getItem("gamesOpponentFilter");
+      const storedEmailDraft = sessionStorage.getItem("emailDraft");
+      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
 
-  const uploadMutation = useMutation({
-    mutationFn: uploadLogo,
-    onSuccess: (url) => {
-      setLogoUrl(url);
-      showMessage("Logo uploaded successfully!");
-    },
-    onError: (error: Error) => {
-      showMessage(error.message, "error");
-    },
-  });
+      if (storedGames) {
+        const games: Game[] = JSON.parse(storedGames);
+        setAllGames(games);
+        setSelectedGames(games);
 
-  const handleSave = () => {
-    trackEvent("Email Signature Saved", {
-      source: "email_manager",
-      action: "save_signature",
-      has_phone: Boolean(phone?.trim()),
-      has_website: Boolean(website?.trim()),
-      has_logo: Boolean(logoUrl?.trim()),
-      has_text: Boolean(signatureText?.trim()),
-    });
+        // Handle opponent filter
+        if (storedOpponentFilter && storedOpponentFilter !== "null") {
+          try {
+            const opponentFilter = JSON.parse(storedOpponentFilter);
+            if (opponentFilter?.type === "values" && opponentFilter?.values?.length > 0) {
+              setSelectedSchoolNames(opponentFilter.values);
+              const filteredGames = filterGamesBySchools(games, opponentFilter.values, visibleColumnIds, columnMapping, customColumns);
+              setSelectedGames(filteredGames);
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
 
-    updateMutation.mutate({
-      signaturePhone: phone,
-      signatureWebsite: website,
-      signatureLogoUrl: logoUrl,
-      signatureText: signatureText,
-    });
-  };
+        // Handle email draft
+        if (storedEmailDraft) {
+          try {
+            const draft = JSON.parse(storedEmailDraft);
+            if (draft.subject) setSubject(draft.subject);
+            if (draft.additionalMessage) setAdditionalMessage(draft.additionalMessage);
+            if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+            if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+              setSelectedSchoolNames(draft.selectedSchoolNames);
+            }
+            sessionStorage.removeItem("emailDraft");
+          } catch {
+            // Ignore parse errors
+          }
+        } else if (failedEmailDraft) {
+          // Handle failed draft
+          try {
+            const draft = JSON.parse(failedEmailDraft);
+            const isRecent = Date.now() - (draft.timestamp || 0) < 24 * 60 * 60 * 1000;
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file size (2MB)
-    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-    if (file.size > MAX_FILE_SIZE) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      showMessage(`File too large (${sizeMB}MB). Maximum allowed size is 2MB. Please compress your image or use a smaller file.`, "error");
-      // Reset the input so the same file can be selected again if needed
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+            if (isRecent) {
+              if (draft.subject) setSubject(draft.subject);
+              if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
+              if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+              if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
+                setSelectedSchoolNames(draft.selectedSchoolNames);
+              }
+              if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
+              setHasFailedDraft(true);
+            } else {
+              sessionStorage.removeItem("failedEmailDraft");
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        } else if (games.length > 0 && !subject) {
+          // Generate default subject only if no draft
+          if (games.length === 1) {
+            setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
+          } else {
+            setSubject(`Game Schedule Confirmation - ${games.length} Games`);
+          }
+        }
       }
-      return;
+    } catch (e) {
+      console.error("Error loading stored data:", e);
     }
+  }, [mounted, visibleColumnIds, columnMapping, customColumns, subject]);
 
-    // Validate file type by extension and MIME type for maximum browser compatibility
-    const allowedMimeTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/heic", "image/heif"];
-    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
-    const fileExtension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
-
-    const isValidMimeType = allowedMimeTypes.includes(file.type);
-    const isValidExtension = allowedExtensions.includes(fileExtension);
-
-    // Some browsers (especially Safari on iOS) may not report HEIC MIME type correctly,
-    // so we also check the file extension as a fallback
-    if (!isValidMimeType && !isValidExtension) {
-      showMessage(`Invalid file type "${fileExtension || file.type || "unknown"}". ` + "Only JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images are accepted.", "error");
-      // Reset the input so the same file can be selected again if needed
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+  // Callbacks
+  const handleRestoreFailedDraft = useCallback(() => {
+    try {
+      const failedEmailDraft = sessionStorage.getItem("failedEmailDraft");
+      if (failedEmailDraft) {
+        const draft = JSON.parse(failedEmailDraft);
+        if (draft.subject) setSubject(draft.subject);
+        if (draft.additionalMessage !== undefined) setAdditionalMessage(draft.additionalMessage);
+        if (draft.recipientCategory) setRecipientCategory(draft.recipientCategory);
+        if (draft.selectedSchoolNames) setSelectedSchoolNames(draft.selectedSchoolNames);
+        if (draft.customRecipients) setCustomRecipients(draft.customRecipients);
+        setHasFailedDraft(false);
+        sessionStorage.removeItem("failedEmailDraft");
+        addNotification("Draft restored successfully!", "success");
       }
-      return;
+    } catch {
+      // Ignore parse errors
     }
+  }, [addNotification]);
 
-    uploadMutation.mutate(file);
-  };
+  const handleSchoolFilterChange = useCallback(
+    (selectedSchools: string[]) => {
+      setSelectedSchoolNames(selectedSchools);
+      const filteredGames = filterGamesBySchools(allGames, selectedSchools, visibleColumnIds, columnMapping, customColumns);
+      setSelectedGames(filteredGames);
+    },
+    [allGames, visibleColumnIds, columnMapping, customColumns],
+  );
 
-  const handleRemoveLogo = () => {
-    setLogoUrl("");
-  };
-
-  const generatePreviewHTML = () => {
-    // Generate preview with optimized images enabled for faster loading
-    if (!mounted) return "<p style='font-style: italic; color: #666;'>Loading preview...</p>";
-
-    if (!phone && !website && !logoUrl && !signatureText) {
-      return `<p style="color: ${theme.palette.text.secondary}; font-style: italic;">No signature configured</p>`;
-    }
-
-    // Use buildEmailSignatureHTML with optimized images for preview
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : undefined;
-    return buildEmailSignatureHTML(
-      {
-        signaturePhone: phone,
-        signatureWebsite: website,
-        signatureLogoUrl: logoUrl,
-        signatureText: signatureText,
-      },
-      {
-        baseUrl,
-        useOptimizedImages: true, // Enable optimization for preview
-      },
+  // Loading state
+  if (!mounted) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+        <CircularProgress />
+      </Box>
     );
-  };
+  }
+
+  // No games state
+  if (allGames.length === 0) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center" }}>
+        <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+          No games selected
+        </Typography>
+        <Button variant="contained" startIcon={<ArrowBack />} onClick={() => router.push("/dashboard/games")}>
+          Back to Games
+        </Button>
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Card>
-        <CardContent>
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Email Signature
+    <Box>
+      {/* Header */}
+      <Box sx={{ mb: 4, display: "flex", alignItems: "center", gap: 2 }}>
+        <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => router.back()} sx={{ textTransform: "none" }}>
+          Back
+        </Button>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            Compose Email
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Send game schedule to selected recipients
+          </Typography>
+        </Box>
+        {hasFailedDraft && (
+          <Button variant="outlined" color="warning" onClick={handleRestoreFailedDraft} sx={{ textTransform: "none" }}>
+            Restore Draft
+          </Button>
+        )}
+      </Box>
+
+      <Stack spacing={3}>
+        {/* Two-column layout */}
+        <Box sx={{ display: "flex", flexDirection: isWideScreen ? "row" : "column", gap: 3, width: "100%" }}>
+          {/* Selected Games */}
+          <Box sx={{ flex: isWideScreen ? 1.5 : "none", width: "100%" }}>
+            <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Selected Games ({selectedGames.length}/{allGames.length})
+                {selectedSchoolNames.length > 0 && (
+                  <Chip label={`Filtered: ${selectedSchoolNames.length} school${selectedSchoolNames.length === 1 ? "" : "s"}`} size="small" color="primary" sx={{ ml: 1 }} />
+                )}
               </Typography>
-              <Typography color="text.secondary" variant="body2">
-                Add a custom signature that will automatically appear at the bottom of all your emails
+              <TableContainer sx={{ overflowX: "auto" }}>
+                <Table size="small" sx={{ fontSize: "0.85rem" }}>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "action.selected" }}>
+                      {visibleColumnIds.map((columnId) => {
+                        if (columnId === "actions") return null;
+                        return (
+                          <TableCell key={columnId} sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                            {getColumnLabel(columnId, customColumns)}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {selectedGames.map((game) => (
+                      <TableRow key={game.id}>
+                        {visibleColumnIds.map((columnId) => {
+                          if (columnId === "actions") return null;
+
+                          const cellValue = getCellValue(game, columnId, columnMapping);
+
+                          if (columnId === "status") {
+                            return (
+                              <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
+                                <Chip label={game.status} size="small" color={game.status === "CONFIRMED" ? "success" : "warning"} />
+                              </TableCell>
+                            );
+                          }
+
+                          if (columnId === "date" || (columnId.startsWith("imported:") && columnMapping?.[columnId.split(":")[1]] === "date")) {
+                            return (
+                              <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
+                                {formatGameDate(cellValue)}
+                              </TableCell>
+                            );
+                          }
+
+                          return (
+                            <TableCell key={columnId} sx={{ fontSize: "0.85rem" }}>
+                              {cellValue}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+
+          {/* Email Composition */}
+          <Box sx={{ flex: isWideScreen ? 1 : "none", width: "100%" }}>
+            <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
+                Email Details
               </Typography>
-            </Box>
 
-            <Alert severity="info" icon={<InfoOutlinedIcon />}>
-              Your signature will include your logo (max 120px), custom text, phone number, and website link.
-            </Alert>
+              <Stack spacing={3}>
+                <TextField
+                  select
+                  label="Recipient Category"
+                  value={recipientCategory}
+                  onChange={(e) => setRecipientCategory(e.target.value)}
+                  fullWidth
+                  required
+                  error={!recipientCategory}
+                  helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
+                >
+                  {recipientCategories.map((category) => (
+                    <MenuItem key={category.value} value={category.value}>
+                      {category.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
 
-            <Divider />
-
-            <Stack spacing={2.5}>
-              {/* Logo Upload */}
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Company Logo
-                </Typography>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-                    multiple={false}
-                    style={{ display: "none" }}
-                    onChange={handleFileChange}
+                {recipientCategory === "custom" && (
+                  <TextField
+                    label="Email Addresses"
+                    value={customRecipients}
+                    onChange={(e) => setCustomRecipients(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="email1@example.com, email2@example.com"
+                    helperText="Enter email addresses separated by commas"
                   />
                   <Button
                     variant="outlined"
