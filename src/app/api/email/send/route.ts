@@ -10,6 +10,7 @@ import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
 import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 
 interface Game {
   id: string;
@@ -230,12 +231,19 @@ async function getUserSignature(userId: string) {
 
   return {
     signatureHTML: user
-      ? buildEmailSignatureHTML({
-          signaturePhone: user.signaturePhone,
-          signatureWebsite: user.signatureWebsite,
-          signatureLogoUrl: user.signatureLogoUrl,
-          signatureText: user.signatureText,
-        })
+      ? buildEmailSignatureHTML(
+          {
+            signaturePhone: user.signaturePhone,
+            signatureWebsite: user.signatureWebsite,
+            signatureLogoUrl: user.signatureLogoUrl,
+            signatureText: user.signatureText,
+          },
+          {
+            // Explicitly pass baseUrl to ensure relative URLs are converted to absolute URLs for email sending
+            // useOptimizedImages defaults to false for production emails (optimization URLs don't work in external email clients)
+            baseUrl: getSiteUrl(),
+          }
+        )
       : "",
     replyTo: user?.schoolEmail ?? undefined,
   };
