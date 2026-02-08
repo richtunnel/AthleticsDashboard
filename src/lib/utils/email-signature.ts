@@ -28,29 +28,48 @@ export function buildEmailSignatureHTML(
 
   // Add logo if present
   if (signatureLogoUrl) {
-    // Convert relative URLs to absolute URLs for email clients
-    let logoUrl = signatureLogoUrl;
+    try {
+      // Convert relative URLs to absolute URLs for email clients
+      let logoUrl = signatureLogoUrl.trim();
 
-    // Handle optimized image URLs - extract the actual image URL from query params
-    if (logoUrl.startsWith("/api/images/optimize")) {
-      try {
-        const urlObj = new URL(logoUrl, "http://localhost");
-        const actualUrl = urlObj.searchParams.get("url");
-        if (actualUrl) {
-          logoUrl = actualUrl;
+      // Handle optimized image URLs - extract the actual image URL from query params
+      if (logoUrl.startsWith("/api/images/optimize")) {
+        try {
+          const urlObj = new URL(logoUrl, "http://localhost");
+          const actualUrl = urlObj.searchParams.get("url");
+          if (actualUrl) {
+            logoUrl = actualUrl;
+          }
+        } catch (e) {
+          console.warn("[EMAIL-SIG] Failed to parse optimized image URL:", e);
+          // If parsing fails, continue with original URL
         }
-      } catch (e) {
-        // If parsing fails, continue with original URL
       }
-    }
 
-    // Convert relative URLs to absolute URLs
-    if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
-      // Use provided baseUrl (for client-side) or fall back to server-side getSiteUrl()
-      const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
-      logoUrl = `${resolvedBaseUrl}${logoUrl}`;
+      // Convert relative URLs to absolute URLs
+      if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
+        // Use provided baseUrl (for client-side) or fall back to server-side getSiteUrl()
+        const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
+        // Ensure no double slashes
+        const cleanBaseUrl = resolvedBaseUrl.replace(/\/+$/, '');
+        const cleanLogoPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+        logoUrl = `${cleanBaseUrl}${cleanLogoPath}`;
+      }
+
+      // Validate that we have a proper URL (http or https)
+      if (!logoUrl.startsWith('http://') && !logoUrl.startsWith('https://')) {
+        console.warn("[EMAIL-SIG] Logo URL does not start with http(s):", logoUrl);
+        // Try to prepend the base URL one more time
+        const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
+        logoUrl = `${resolvedBaseUrl}/${logoUrl.replace(/^\/+/, '')}`;
+      }
+
+      console.log("[EMAIL-SIG] Final logo URL:", logoUrl);
+      html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
+    } catch (error) {
+      console.error("[EMAIL-SIG] Error processing signature logo:", error);
+      // Skip logo if there's an error
     }
-    html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
   }
 
   html += '<div style="font-size: 14px; color: #374151; line-height: 1.6;">';

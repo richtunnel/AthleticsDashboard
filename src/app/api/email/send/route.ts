@@ -289,25 +289,36 @@ async function handleCampaignEmail(campaignId: string, userId: string, subject: 
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[EMAIL-API] ${requestId} - Request received`);
+  
   try {
     const session = await requireAuth();
+    console.log(`[EMAIL-API] ${requestId} - User authenticated: ${session.user.id}`);
+    
     if (!hasPermission(session.user.role, WRITE_ROLES)) {
+      console.warn(`[EMAIL-API] ${requestId} - Permission denied for user: ${session.user.id}`);
       return ApiResponse.forbidden();
     }
 
     const body = await request.json();
-    const { to, subject, gameIds, additionalMessage, groupId, campaignId, visibleColumnIds } = body;
+    const { to, subject, gameIds, additionalMessage, groupId, campaignId, visibleColumnIds, selectedSchoolNames } = body;
+    
+    console.log(`[EMAIL-API] ${requestId} - Request params: gameIds=${gameIds?.length || 0}, groupId=${groupId}, campaignId=${campaignId}, directRecipients=${to?.length || 0}`);
 
     if (!to && !groupId && !campaignId) {
+      console.error(`[EMAIL-API] ${requestId} - No recipients specified`);
       return ApiResponse.error("Either 'to', 'groupId', or 'campaignId' is required");
     }
 
-    if (!subject) {
+    if (!subject || subject.trim() === "") {
+      console.error(`[EMAIL-API] ${requestId} - Subject missing or empty`);
       return ApiResponse.error("Subject is required");
     }
 
     const resend = getResendClientOptional();
     if (!resend) {
+      console.error(`[EMAIL-API] ${requestId} - Resend not configured`);
       return ApiResponse.error("Email service not configured. Please set RESEND_API_KEY.", 503);
     }
 
@@ -318,6 +329,7 @@ export async function POST(request: NextRequest) {
     let emailParams: any = {};
 
     if (gameIds && Array.isArray(gameIds) && gameIds.length > 0) {
+      console.log(`[EMAIL-API] ${requestId} - Processing game schedule email`);
       const result = await handleGameScheduleEmail(
         gameIds,
         session.user.organizationId,
@@ -334,27 +346,42 @@ export async function POST(request: NextRequest) {
       emailParams = {
         gameIds: result.gameIds,
         groupId: result.groupId,
+        visibleColumnIds: visibleColumnIds || [],
+        selectedSchoolNames: selectedSchoolNames || [],
       };
+      console.log(`[EMAIL-API] ${requestId} - Game schedule email prepared for ${toEmails.length} recipients`);
     } else if (campaignId) {
+      console.log(`[EMAIL-API] ${requestId} - Processing campaign email`);
       const result = await handleCampaignEmail(campaignId, session.user.id, subject);
       toEmails = result.toEmails;
       emailBody = result.emailBody;
       replyTo = result.replyTo;
       campaign = result.campaign;
-      emailParams = { campaignId };
+      emailParams = { 
+        campaignId,
+        visibleColumnIds: visibleColumnIds || [],
+        selectedSchoolNames: selectedSchoolNames || [],
+      };
+      console.log(`[EMAIL-API] ${requestId} - Campaign email prepared for ${toEmails.length} recipients`);
     } else {
+      console.error(`[EMAIL-API] ${requestId} - Neither gameIds nor campaignId provided`);
       return ApiResponse.error("Either gameIds or campaignId is required");
     }
 
     const { valid: validEmails, invalid: invalidEmails } = validateBulkEmails(toEmails);
 
     if (invalidEmails.length > 0) {
+      console.error(`[EMAIL-API] ${requestId} - Invalid emails detected:`, invalidEmails);
       return ApiResponse.error(`Invalid email addresses: ${invalidEmails.join(", ")}`, 400);
     }
 
     if (validEmails.length === 0) {
+      console.error(`[EMAIL-API] ${requestId} - No valid email addresses`);
       return ApiResponse.error("No valid email addresses provided", 400);
     }
+
+    console.log(`[EMAIL-API] ${requestId} - Validated ${validEmails.length} email addresses`);
+    console.log(`[EMAIL-API] ${requestId} - Calling sendBulkEmail...`);
 
     const result = await sendBulkEmail({
       to: validEmails,
@@ -365,22 +392,31 @@ export async function POST(request: NextRequest) {
       ...emailParams,
     });
 
+    console.log(`[EMAIL-API] ${requestId} - Email send result: ${result.success} success, ${result.failed} failed`);
+
     if (campaignId && result.success > 0) {
       try {
+        console.log(`[EMAIL-API] ${requestId} - Updating campaign sentAt timestamp`);
         await prisma.emailCampaign.update({
           where: { id: campaignId },
           data: { sentAt: new Date() },
         });
+        console.log(`[EMAIL-API] ${requestId} - Campaign updated successfully`);
       } catch (err) {
-        console.error("Failed to update campaign sentAt:", err);
+        console.error(`[EMAIL-API] ${requestId} - Failed to update campaign sentAt:`, err);
       }
     }
 
     if (result.failed > 0 && result.success === 0) {
+      console.error(`[EMAIL-API] ${requestId} - All emails failed to send`);
       return ApiResponse.error(`Failed to send all emails. Errors: ${result.errors.map((e) => `${e.email}: ${e.error}`).join("; ")}`, 500);
     }
 
-    const message = result.failed > 0 ? `Partially sent: ${result.success} succeeded, ${result.failed} failed` : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
+    const message = result.failed > 0 
+      ? `Partially sent: ${result.success} succeeded, ${result.failed} failed` 
+      : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
+
+    console.log(`[EMAIL-API] ${requestId} - ${message}`);
 
     return ApiResponse.success({
       message,
@@ -392,6 +428,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    console.error(`[EMAIL-API] Request failed:`, error);
     return handleApiError(error);
   }
 }
