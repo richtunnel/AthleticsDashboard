@@ -24,39 +24,249 @@ interface SendBulkEmailParams {
   selectedSchoolNames?: string[];
 }
 
+interface EmailLogData {
+  to: string[];
+  cc: string[];
+  subject: string;
+  body: string;
+  status: "SENT" | "FAILED";
+  error: string | null;
+  sentAt: Date | null;
+  sentById: string;
+  gameIds: string[];
+  groupId: string | null;
+  campaignId: string | null;
+  recipientCategory: string | null;
+  additionalMessage: string | null;
+  visibleColumnIds: string[];
+  selectedSchoolNames: string[];
+}
+
+interface BatchEmailResponse {
+  email: string;
+  success: boolean;
+  error: string | null;
+}
+
+// Constants
+const CONFIG = {
+  BATCH_SIZE: 100,
+  DELAY_BETWEEN_BATCHES_MS: 200,
+  MAX_RETRIES: 2,
+  RETRY_BACKOFF_BASE: 2000, // 2 seconds base for exponential backoff
+  EMAIL_FROM: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+} as const;
+
+// Email validation regex - RFC 5322 simplified version
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+const MAX_EMAIL_LENGTH = 254;
+
 /**
- * Send bulk emails using Resend batch API with proper error handling and individual tracking.
- * This prevents email addresses from being exposed to each other and provides detailed tracking.
+ * Validates email addresses in bulk
+ */
+export function validateBulkEmails(emails: string[]): {
+  valid: string[];
+  invalid: string[];
+} {
+  const valid: string[] = [];
+  const invalid: string[] = [];
+
+  for (const email of emails) {
+    const trimmed = email.trim().toLowerCase();
+
+    if (trimmed.length === 0) continue;
+
+    if (EMAIL_REGEX.test(trimmed) && trimmed.length <= MAX_EMAIL_LENGTH) {
+      valid.push(trimmed);
+    } else {
+      invalid.push(email); // Return original for user feedback
+    }
+  }
+
+  return { valid, invalid };
+}
+
+/**
+ * Extract error message from various error formats
+ */
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+
+  if (typeof error === "object" && error !== null) {
+    const errObj = error as Record<string, unknown>;
+    return (errObj.message || errObj.description || JSON.stringify(error)) as string;
+  }
+
+  return "Unknown error";
+}
+
+/**
+ * Delay execution for specified milliseconds
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay
+ */
+function getBackoffDelay(retryCount: number): number {
+  return CONFIG.RETRY_BACKOFF_BASE * Math.pow(CONFIG.RETRY_BACKOFF_BASE / 1000, retryCount);
+}
+
+/**
+ * Build email log data from batch results
+ */
+function buildEmailLogData(email: string, params: SendBulkEmailParams, status: "SENT" | "FAILED", error: string | null): EmailLogData {
+  return {
+    to: [email],
+    cc: [],
+    subject: params.subject,
+    body: params.html,
+    status,
+    error,
+    sentAt: status === "SENT" ? new Date() : null,
+    sentById: params.sentById,
+    gameIds: params.gameIds || [],
+    groupId: params.groupId || null,
+    campaignId: params.campaignId || null,
+    recipientCategory: params.recipientCategory || null,
+    additionalMessage: params.additionalMessage || null,
+    visibleColumnIds: params.visibleColumnIds || [],
+    selectedSchoolNames: params.selectedSchoolNames || [],
+  };
+}
+
+/**
+ * Create email logs in database with fallback to individual creates
+ */
+async function createEmailLogs(logs: EmailLogData[]): Promise<string[]> {
+  const ids: string[] = [];
+
+  try {
+    // Try batch insert first
+    const createdLogs = await (prisma.emailLog as any).createManyAndReturn({
+      data: logs,
+    });
+
+    console.log(`[EMAIL] Created ${createdLogs.length} email logs using batch operation`);
+    return createdLogs.map((log: any) => log.id);
+  } catch (batchError) {
+    console.warn("[EMAIL] Batch createManyAndReturn failed, falling back to individual creates:", batchError);
+
+    // Fallback: create logs individually
+    for (const log of logs) {
+      try {
+        const createdLog = await prisma.emailLog.create({ data: log });
+        ids.push(createdLog.id);
+      } catch (createError) {
+        console.error("[EMAIL] Failed to create individual email log:", createError);
+        // Continue with other logs
+      }
+    }
+
+    console.log(`[EMAIL] Created ${ids.length} email logs using individual operations`);
+    return ids;
+  }
+}
+
+/**
+ * Process a single batch of emails via Resend API
+ */
+async function processBatch(batch: string[], params: SendBulkEmailParams, batchNumber: number, totalBatches: number): Promise<BatchEmailResponse[]> {
+  const resend = getResendClientOptional();
+  if (!resend) {
+    throw new Error("Email service not configured. Please set RESEND_API_KEY.");
+  }
+
+  const emailOptions = {
+    from: CONFIG.EMAIL_FROM,
+    subject: params.subject,
+    html: params.html,
+    ...(params.replyTo && { replyTo: params.replyTo }),
+  };
+
+  // Prepare batch for Resend API
+  const resendBatch = batch.map((email) => ({
+    ...emailOptions,
+    to: [email],
+  }));
+
+  console.log(`[EMAIL] Calling Resend API for batch ${batchNumber}/${totalBatches} (${batch.length} emails)`);
+
+  const { data: batchResponses, error: batchError } = await resend.batch.send(resendBatch);
+
+  if (batchError) {
+    console.error(`[EMAIL] Resend batch API error (batch ${batchNumber}):`, batchError);
+    throw batchError;
+  }
+
+  // Validate response
+  if (!Array.isArray(batchResponses) || batchResponses.length === 0) {
+    throw new Error(`Invalid Resend API response for batch ${batchNumber}`);
+  }
+
+  // Process individual responses
+  return batch.map((email, index) => {
+    const response = batchResponses[index];
+
+    if (!response) {
+      return {
+        email,
+        success: false,
+        error: "No response from email service",
+      };
+    }
+
+    if (response.error) {
+      const errorMsg = typeof response.error === "string" ? response.error : response.error.message || response.error.description || JSON.stringify(response.error);
+
+      return {
+        email,
+        success: false,
+        error: errorMsg,
+      };
+    }
+
+    const emailId = response.id || response.data?.id;
+    if (!emailId) {
+      return {
+        email,
+        success: false,
+        error: "Invalid response format (missing email ID)",
+      };
+    }
+
+    return {
+      email,
+      success: true,
+      error: null,
+    };
+  });
+}
+
+/**
+ * Send bulk emails using Resend batch API with proper error handling and tracking.
  *
- * Resend batch API sends individual emails to each recipient.
- * Rate limits:
- * - Per user: 75 emails/day
- * - System-wide: 100,000 emails/month
+ * Features:
+ * - Rate limit compliance (respects Resend's 75 emails/day per user)
+ * - Batch processing with exponential backoff retries
+ * - Individual email tracking via database logs
+ * - Detailed error reporting
  *
  * @param params - Bulk email parameters
  * @returns Result with success/failure counts and email log IDs
+ * @throws Error if email service is not configured or limits exceeded
  */
 export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEmailResult> {
-  const { 
-    to, 
-    subject, 
-    html, 
-    sentById, 
-    replyTo, 
-    gameIds = [], 
-    groupId, 
-    campaignId, 
-    recipientCategory, 
-    additionalMessage, 
-    visibleColumnIds = [], 
-    selectedSchoolNames = [] 
-  } = params;
+  const { to, subject, sentById } = params;
 
   console.log(`[EMAIL] Starting bulk email send: ${to.length} recipients, subject: "${subject}"`);
 
+  // Validate email service is configured
   const resend = getResendClientOptional();
   if (!resend) {
-    console.error("[EMAIL] Resend client not configured");
     throw new Error("Email service not configured. Please set RESEND_API_KEY.");
   }
 
@@ -64,27 +274,12 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
   console.log(`[EMAIL] Checking email limits for user ${sentById}`);
   const limitCheck = await emailLimitService.checkEmailLimits(sentById, to.length);
   if (!limitCheck.allowed) {
-    console.error(`[EMAIL] Email limit exceeded: ${limitCheck.reason}`);
-    throw new Error(limitCheck.reason || "Email limit exceeded");
+    const error = limitCheck.reason || "Email limit exceeded";
+    console.error(`[EMAIL] ${error}`);
+    throw new Error(error);
   }
-  console.log(`[EMAIL] Limits OK - Daily: ${limitCheck.dailyUsed}/${limitCheck.dailyLimit}, Monthly: ${limitCheck.monthlyUsed}/${limitCheck.monthlyLimit}`);
 
-  // Get email from environment variable with validation
-  const emailFrom = process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>";
-  console.log(`[EMAIL] Using FROM address: ${emailFrom}`);
-
-  // Build email options with reply-to if provided
-  const emailOptions: any = {
-    from: emailFrom,
-    to: [], // Will be set per email in batch
-    subject,
-    html,
-  };
-  
-  if (replyTo) {
-    emailOptions.replyTo = replyTo;
-    console.log(`[EMAIL] Reply-to address: ${replyTo}`);
-  }
+  console.log(`[EMAIL] Limits OK - Daily: ${limitCheck.dailyUsed}/${limitCheck.dailyLimit}, ` + `Monthly: ${limitCheck.monthlyUsed}/${limitCheck.monthlyLimit}`);
 
   const result: BulkEmailResult = {
     success: 0,
@@ -93,233 +288,72 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
     emailLogIds: [],
   };
 
-  // Batch size to prevent rate limit issues
-  const BATCH_SIZE = 100; // Resend batch API limit is 100
-  const DELAY_BETWEEN_BATCHES = 200; // 200ms delay between batches (Resend allows 10 requests/sec)
-  const MAX_RETRIES = 2; // Retry failed batches up to 2 times
-
-  console.log(`[EMAIL] Processing ${to.length} emails in batches of ${BATCH_SIZE}`);
+  const totalBatches = Math.ceil(to.length / CONFIG.BATCH_SIZE);
 
   // Process emails in batches
-  for (let i = 0; i < to.length; i += BATCH_SIZE) {
-    const batch = to.slice(i, i + BATCH_SIZE);
-    const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(to.length / BATCH_SIZE);
+  for (let i = 0; i < to.length; i += CONFIG.BATCH_SIZE) {
+    const batch = to.slice(i, i + CONFIG.BATCH_SIZE);
+    const batchNumber = Math.floor(i / CONFIG.BATCH_SIZE) + 1;
 
-    console.log(`[EMAIL] Processing batch ${batchNumber}/${totalBatches} (${batch.length} emails)`);
-
-    // Add delay between batches (except for first batch)
+    // Add delay between batches (except first)
     if (i > 0) {
-      await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+      await delay(CONFIG.DELAY_BETWEEN_BATCHES_MS);
     }
-
-    // Prepare batch for Resend
-    const resendBatch = batch.map((email) => ({
-      ...emailOptions,
-      to: [email],
-    }));
 
     let batchSuccess = false;
     let retryCount = 0;
 
-    // Retry logic for transient failures
-    while (!batchSuccess && retryCount <= MAX_RETRIES) {
+    // Retry logic with exponential backoff
+    while (!batchSuccess && retryCount <= CONFIG.MAX_RETRIES) {
       try {
         if (retryCount > 0) {
-          console.log(`[EMAIL] Retry ${retryCount}/${MAX_RETRIES} for batch ${batchNumber}`);
-          // Exponential backoff: 1s, 2s, 4s
-          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          const backoffMs = getBackoffDelay(retryCount);
+          console.log(`[EMAIL] Retry ${retryCount}/${CONFIG.MAX_RETRIES} for batch ${batchNumber} (backoff: ${backoffMs}ms)`);
+          await delay(backoffMs);
         }
 
-        // Send batch via Resend
-        console.log(`[EMAIL] Calling Resend API for batch ${batchNumber}`);
-        const { data: batchResponses, error: batchError } = await resend.batch.send(resendBatch);
+        // Process batch and get results
+        const batchResults = await processBatch(batch, params, batchNumber, totalBatches);
 
-        if (batchError) {
-          console.error(`[EMAIL] Resend batch API error (batch ${batchNumber}):`, batchError);
-          throw batchError;
-        }
+        // Create email logs
+        const emailLogs = batchResults.map((result) => buildEmailLogData(result.email, params, result.success ? "SENT" : "FAILED", result.error));
 
-        // Validate response
-        if (!batchResponses || !Array.isArray(batchResponses) || batchResponses.length === 0) {
-          console.error(`[EMAIL] Invalid Resend API response for batch ${batchNumber}:`, batchResponses);
-          throw new Error("Empty or invalid response from email service");
-        }
+        const logIds = await createEmailLogs(emailLogs);
+        result.emailLogIds.push(...logIds);
 
-        console.log(`[EMAIL] Received ${batchResponses.length} responses for batch ${batchNumber}`);
-
-        // Process results and create email logs
-        const processedResults = batch.map((email, index) => {
-          const response = batchResponses[index];
-          const responseId = response ? (response.id || response.data?.id) : null;
-
-          // Handle different error response formats from Resend
-          let hasError = false;
-          let errorMessage: string | null = null;
-
-          if (!response) {
-            hasError = true;
-            errorMessage = "No response from email service";
-            console.warn(`[EMAIL] No response for ${email}`);
-          } else if (response.error) {
-            hasError = true;
-            // Resend errors can have different structures
-            errorMessage = typeof response.error === 'string'
-              ? response.error
-              : (response.error.message || response.error.description || JSON.stringify(response.error));
-            console.warn(`[EMAIL] Error sending to ${email}: ${errorMessage}`);
-          } else if (!responseId) {
-            // Check if we have a valid email ID in the response
-            hasError = true;
-            errorMessage = "Invalid response format from email service (missing email ID)";
-            console.warn(`[EMAIL] Missing email ID for ${email}`);
-          } else {
-            console.log(`[EMAIL] Successfully sent to ${email}, ID: ${responseId}`);
-          }
-
-          return {
-            email,
-            hasError,
-            errorMessage,
-            logData: {
-              to: [email],
-              cc: [],
-              subject,
-              body: html,
-              status: (hasError ? "FAILED" : "SENT") as any,
-              error: errorMessage,
-              sentAt: hasError ? null : new Date(),
-              sentById,
-              gameIds,
-              groupId: groupId || null,
-              campaignId: campaignId || null,
-              recipientCategory: recipientCategory || null,
-              additionalMessage: additionalMessage || null,
-              visibleColumnIds,
-              selectedSchoolNames,
-            }
-          };
-        });
-
-        const logData = processedResults.map(r => r.logData);
-
-        // Try to use createManyAndReturn to get IDs of created logs
-        // Fallback to individual creates if batch operation fails
-        console.log(`[EMAIL] Creating ${logData.length} email logs in database`);
-        let createdLogs: any[] = [];
-        try {
-          createdLogs = await (prisma.emailLog as any).createManyAndReturn({
-            data: logData,
-          });
-          console.log(`[EMAIL] Successfully created ${createdLogs.length} email logs using batch operation`);
-        } catch (batchError) {
-          console.warn("[EMAIL] Batch createManyAndReturn failed, falling back to individual creates:", batchError);
-          // Fallback: create logs individually
-          for (const log of logData) {
-            try {
-              const createdLog = await prisma.emailLog.create({
-                data: log,
-              });
-              createdLogs.push(createdLog);
-            } catch (createError) {
-              console.error("[EMAIL] Failed to create individual email log:", createError);
-              // Continue with other logs even if one fails
-            }
-          }
-          console.log(`[EMAIL] Created ${createdLogs.length} email logs using individual operations`);
-        }
-
-        // Update results from already processed data
-        processedResults.forEach((processed) => {
-          if (processed.hasError) {
-            result.failed++;
-            result.errors.push({ 
-              email: processed.email, 
-              error: processed.errorMessage || "Unknown error" 
-            });
-          } else {
+        // Update result counts
+        for (const batchResult of batchResults) {
+          if (batchResult.success) {
             result.success++;
+            console.log(`[EMAIL] Successfully sent to ${batchResult.email}`);
+          } else {
+            result.failed++;
+            result.errors.push({
+              email: batchResult.email,
+              error: batchResult.error || "Unknown error",
+            });
+            console.warn(`[EMAIL] Failed to send to ${batchResult.email}: ${batchResult.error}`);
           }
-        });
-
-        // Only add IDs if we successfully created logs
-        if (createdLogs && createdLogs.length > 0) {
-          result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
         }
 
         batchSuccess = true;
-        console.log(`[EMAIL] Batch ${batchNumber} completed: ${result.success} success, ${result.failed} failed`);
-
+        console.log(
+          `[EMAIL] Batch ${batchNumber}/${totalBatches} completed: ` + `${batchResults.filter((r) => r.success).length} success, ` + `${batchResults.filter((r) => !r.success).length} failed`,
+        );
       } catch (error) {
         retryCount++;
-        
-        // Extract error message
-        let errorMessage: string;
-        if (error instanceof Error) {
-          errorMessage = error.message;
-        } else if (typeof error === 'object' && error !== null) {
-          // Handle Resend API error objects
-          const errObj = error as any;
-          errorMessage = errObj.message || errObj.description || JSON.stringify(error);
-        } else {
-          errorMessage = "Unknown batch error";
-        }
+        const errorMessage = extractErrorMessage(error);
 
-        console.error(`[EMAIL] Batch ${batchNumber} attempt ${retryCount} failed:`, errorMessage);
+        console.error(`[EMAIL] Batch ${batchNumber} attempt ${retryCount} failed: ${errorMessage}`);
 
-        // If we've exhausted retries, handle the failure
-        if (retryCount > MAX_RETRIES) {
-          console.error(`[EMAIL] Batch ${batchNumber} failed after ${MAX_RETRIES} retries`);
+        // If retries exhausted, mark batch as failed and create error logs
+        if (retryCount > CONFIG.MAX_RETRIES) {
+          console.error(`[EMAIL] Batch ${batchNumber} failed after ${CONFIG.MAX_RETRIES} retries. ` + `Marking all ${batch.length} emails as failed.`);
 
-          // Create failed email logs
-          const logData = batch.map((email) => ({
-            to: [email],
-            cc: [],
-            subject,
-            body: html,
-            status: "FAILED" as any,
-            error: errorMessage,
-            sentAt: null,
-            sentById,
-            gameIds,
-            groupId: groupId || null,
-            campaignId: campaignId || null,
-            recipientCategory: recipientCategory || null,
-            additionalMessage: additionalMessage || null,
-            visibleColumnIds,
-            selectedSchoolNames,
-          }));
+          const failedLogs = batch.map((email) => buildEmailLogData(email, params, "FAILED", errorMessage));
 
-          try {
-            // Try batch insert first, fall back to individual creates
-            let createdLogs: any[] = [];
-            try {
-              createdLogs = await (prisma.emailLog as any).createManyAndReturn({
-                data: logData,
-              });
-            } catch (batchError) {
-              console.warn("[EMAIL] Batch createManyAndReturn failed for error logs, falling back to individual creates:", batchError);
-              // Fallback: create logs individually
-              for (const log of logData) {
-                try {
-                  const createdLog = await prisma.emailLog.create({
-                    data: log,
-                  });
-                  createdLogs.push(createdLog);
-                } catch (createError) {
-                  console.error("[EMAIL] Failed to create individual error email log:", createError);
-                  // Continue with other logs even if one fails
-                }
-              }
-            }
-
-            // Only add IDs if we successfully created logs
-            if (createdLogs && createdLogs.length > 0) {
-              result.emailLogIds.push(...createdLogs.map((log: any) => log.id));
-            }
-          } catch (logError) {
-            console.error("[EMAIL] Failed to create failed email logs:", logError);
-          }
+          const logIds = await createEmailLogs(failedLogs);
+          result.emailLogIds.push(...logIds);
 
           batch.forEach((email) => {
             result.failed++;
@@ -332,36 +366,12 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
     }
   }
 
-  console.log(`[EMAIL] Bulk email send complete - Total: ${to.length}, Success: ${result.success}, Failed: ${result.failed}`);
+  // Log final summary
+  console.log(`[EMAIL] Bulk email send complete - Total: ${to.length}, ` + `Success: ${result.success}, Failed: ${result.failed}`);
+
   if (result.errors.length > 0) {
-    console.error(`[EMAIL] Errors encountered:`, result.errors.slice(0, 5)); // Log first 5 errors
+    console.error(`[EMAIL] First 5 errors:`, result.errors.slice(0, 5));
   }
 
   return result;
-}
-
-/**
- * Validates email addresses in bulk
- * @param emails - Array of email addresses to validate
- * @returns Object with valid and invalid emails
- */
-export function validateBulkEmails(emails: string[]): {
-  valid: string[];
-  invalid: string[];
-} {
-  // More comprehensive email regex that handles edge cases
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-  const valid: string[] = [];
-  const invalid: string[] = [];
-
-  emails.forEach((email) => {
-    const trimmed = email.trim().toLowerCase();
-    if (emailRegex.test(trimmed) && trimmed.length <= 254) {
-      valid.push(trimmed);
-    } else if (trimmed) {
-      invalid.push(trimmed);
-    }
-  });
-
-  return { valid, invalid };
 }
