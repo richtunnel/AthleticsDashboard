@@ -240,7 +240,10 @@ export function EmailSignatureManager() {
         signatureLogoUrl: logoUrl,
         signatureText: signatureText,
       },
-      { baseUrl: typeof window !== "undefined" ? window.location.origin : undefined },
+      {
+        baseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
+        useOptimizedImages: true, // Use optimized images for faster preview loading
+      },
     );
   };
 
