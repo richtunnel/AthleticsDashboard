@@ -149,7 +149,7 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
         console.log(`[EMAIL] Received ${batchResponses.length} responses for batch ${batchNumber}`);
 
         // Process results and create email logs
-        const logData = batch.map((email, index) => {
+        const processedResults = batch.map((email, index) => {
           const response = batchResponses[index];
           const responseId = response ? (response.id || response.data?.id) : null;
 
@@ -178,23 +178,30 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           }
 
           return {
-            to: [email],
-            cc: [],
-            subject,
-            body: html,
-            status: (hasError ? "FAILED" : "SENT") as any,
-            error: errorMessage,
-            sentAt: hasError ? null : new Date(),
-            sentById,
-            gameIds,
-            groupId: groupId || null,
-            campaignId: campaignId || null,
-            recipientCategory: recipientCategory || null,
-            additionalMessage: additionalMessage || null,
-            visibleColumnIds,
-            selectedSchoolNames,
+            email,
+            hasError,
+            errorMessage,
+            logData: {
+              to: [email],
+              cc: [],
+              subject,
+              body: html,
+              status: (hasError ? "FAILED" : "SENT") as any,
+              error: errorMessage,
+              sentAt: hasError ? null : new Date(),
+              sentById,
+              gameIds,
+              groupId: groupId || null,
+              campaignId: campaignId || null,
+              recipientCategory: recipientCategory || null,
+              additionalMessage: additionalMessage || null,
+              visibleColumnIds,
+              selectedSchoolNames,
+            }
           };
         });
+
+        const logData = processedResults.map(r => r.logData);
 
         // Try to use createManyAndReturn to get IDs of created logs
         // Fallback to individual creates if batch operation fails
@@ -222,24 +229,14 @@ export async function sendBulkEmail(params: SendBulkEmailParams): Promise<BulkEm
           console.log(`[EMAIL] Created ${createdLogs.length} email logs using individual operations`);
         }
 
-        // Update results
-        batch.forEach((email, index) => {
-          const response = batchResponses[index];
-          const responseId = response ? (response.id || response.data?.id) : null;
-
-          if (!response) {
+        // Update results from already processed data
+        processedResults.forEach((processed) => {
+          if (processed.hasError) {
             result.failed++;
-            result.errors.push({ email, error: "No response from email service" });
-          } else if (response.error) {
-            result.failed++;
-            // Extract error message with better handling
-            const errorMsg = typeof response.error === 'string'
-              ? response.error
-              : (response.error.message || response.error.description || JSON.stringify(response.error));
-            result.errors.push({ email, error: errorMsg });
-          } else if (!responseId) {
-            result.failed++;
-            result.errors.push({ email, error: "Invalid response format from email service (missing email ID)" });
+            result.errors.push({ 
+              email: processed.email, 
+              error: processed.errorMessage || "Unknown error" 
+            });
           } else {
             result.success++;
           }
