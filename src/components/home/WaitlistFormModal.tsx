@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, IconButton, Alert, CircularProgress, InputAdornment } from "@mui/material";
+import { Button, TextField, Box, Typography, Alert, CircularProgress, InputAdornment } from "@mui/material";
 import { Close, School, Person, Email } from "@mui/icons-material";
+import Link from "next/link";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+import TopFooter from "@/components/footer/topFooter";
 
 interface WaitlistFormData {
   fullName: string;
@@ -76,41 +79,47 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          height: { xs: "100%", sm: "auto" },
-          maxHeight: { xs: "100%", sm: "none" },
-          width: { xs: "100%", sm: "90%" },
-          margin: { xs: 0, sm: "auto" },
-        },
+    <div
+      data-theme="dark"
+      className="min-h-screen flex flex-col"
+      style={{
+        backgroundColor: "#131316",
+        color: "rgb(197, 197, 210)",
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1000,
+        display: open ? "flex" : "none",
       }}
     >
-      <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            {/* <School color="primary" /> */}
-            <Typography variant="h6">Parent Portal Waitlist</Typography>
-          </Box>
-          <IconButton onClick={handleClose} size="small" disabled={mutation.isPending}>
-            <Close />
-          </IconButton>
-        </Box>
-      </DialogTitle>
+      <header className="flex items-center justify-between px-5 pt-5">
+        <Link href="/">
+          <CircularProjectIcon color="#fff" size={40} />
+        </Link>
+        <button 
+          onClick={handleClose} 
+          className="text-sm font-medium" 
+          style={{ color: "rgb(197, 197, 210)", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}
+          disabled={mutation.isPending}
+        >
+          <Close sx={{ color: "rgb(197, 197, 210)" }} />
+        </button>
+      </header>
 
-      <form style={{ padding: "0px 24px 20px 24px" }} onSubmit={handleSubmit(onSubmit)}>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Be the first to access your child&apos;s complete athletic schedule—anytime, anywhere, on any device.
-          </Typography>
+      <div className="flex-1 flex items-center justify-center px-5 py-14">
+        <div className="w-full max-w-xl">
+          <div className="text-center mb-8">
+            <Typography variant="h3" className="text-5xl font-semibold tracking-tight mb-4">
+              Parent Portal Waitlist
+            </Typography>
+            <Typography variant="body1" sx={{ color: "rgb(197, 197, 210)", fontSize: "1.1rem" }}>
+              Be the first to access your child&apos;s complete athletic schedule—anytime, anywhere, on any device.
+            </Typography>
+          </div>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-            {/* Full Name Field */}
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-4">
             <TextField
               label="Full Name"
               {...register("fullName", {
@@ -124,16 +133,40 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               error={!!errors.fullName}
               helperText={errors.fullName?.message}
               disabled={mutation.isPending}
+              className="w-full rounded-xl text-base outline-none"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <Person color="action" fontSize="small" />
                   </InputAdornment>
                 ),
+                sx: {
+                  border: `1px solid rgb(197, 197, 210)`,
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                  },
+                  "& .MuiInputBase-input": {
+                    color: "rgb(197, 197, 210)",
+                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                },
               }}
             />
 
-            {/* Email Field */}
             <TextField
               label="Email Address"
               type="email"
@@ -148,16 +181,40 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               error={!!errors.email}
               helperText={errors.email?.message}
               disabled={mutation.isPending}
+              className="w-full rounded-xl text-base outline-none"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <Email color="action" fontSize="small" />
                   </InputAdornment>
                 ),
+                sx: {
+                  border: `1px solid rgb(197, 197, 210)`,
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                  },
+                  "& .MuiInputBase-input": {
+                    color: "rgb(197, 197, 210)",
+                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                },
               }}
             />
 
-            {/* School or College Field */}
             <TextField
               label="School or College"
               {...register("schoolOrCollege", {
@@ -171,36 +228,123 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               error={!!errors.schoolOrCollege}
               helperText={errors.schoolOrCollege?.message}
               disabled={mutation.isPending}
+              className="w-full rounded-xl text-base outline-none"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <School color="action" fontSize="small" />
                   </InputAdornment>
                 ),
+                sx: {
+                  border: `1px solid rgb(197, 197, 210)`,
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": {
+                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
+                    },
+                  },
+                  "& .MuiInputBase-input": {
+                    color: "rgb(197, 197, 210)",
+                    backgroundColor: "rgba(197, 197, 210, 0.04)",
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                  "& .MuiInputLabel-root.Mui-focused": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                },
               }}
             />
 
             {/* Success Message */}
             {successMessage && (
-              <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+              <Alert 
+                severity="success" 
+                onClose={() => setSuccessMessage(null)}
+                sx={{
+                  width: "100%",
+                  border: "1px solid rgb(197, 197, 210)",
+                  backgroundColor: "rgba(197, 197, 210, 0.06)",
+                  color: "rgb(197, 197, 210)",
+                  "& .MuiAlert-icon": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                }}
+              >
                 {successMessage}
               </Alert>
             )}
 
             {/* Error Message */}
-            {mutation.isError && <Alert severity="error">{mutation.error?.message || "Failed to join waitlist. Please try again."}</Alert>}
-          </Box>
-        </DialogContent>
+            {mutation.isError && (
+              <Alert 
+                severity="error"
+                sx={{
+                  width: "100%",
+                  border: "1px solid rgb(197, 197, 210)",
+                  backgroundColor: "rgba(197, 197, 210, 0.06)",
+                  color: "rgb(197, 197, 210)",
+                  "& .MuiAlert-icon": {
+                    color: "rgb(197, 197, 210)",
+                  },
+                }}
+              >
+                {mutation.error?.message || "Failed to join waitlist. Please try again."}
+              </Alert>
+            )}
 
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleClose} color="inherit" disabled={mutation.isPending}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="contained" disabled={mutation.isPending} startIcon={mutation.isPending ? <CircularProgress size={20} color="inherit" /> : null}>
-            {mutation.isPending ? "Submitting..." : "Join Waitlist"}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+            <div className="w-full flex gap-4">
+              <Button 
+                onClick={handleClose} 
+                color="inherit" 
+                disabled={mutation.isPending}
+                className="flex-1 rounded-xl font-semibold transition-opacity"
+                sx={{
+                  border: `1px solid rgb(197, 197, 210)`,
+                  padding: "14px 22px",
+                  opacity: mutation.isPending ? 0.55 : 1,
+                  color: "rgb(197, 197, 210)",
+                  backgroundColor: "transparent",
+                  "&:hover": {
+                    backgroundColor: "rgba(197, 197, 210, 0.1)",
+                  },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={mutation.isPending}
+                startIcon={mutation.isPending ? <CircularProgress size={20} color="inherit" /> : null}
+                className="flex-1 rounded-xl font-semibold transition-opacity"
+                sx={{
+                  border: `1px solid rgb(197, 197, 210)`,
+                  padding: "14px 22px",
+                  opacity: mutation.isPending ? 0.55 : 1,
+                  backgroundColor: "rgb(197, 197, 210)",
+                  color: "#131316",
+                  "&:hover": {
+                    backgroundColor: "rgba(197, 197, 210, 0.9)",
+                  },
+                }}
+              >
+                {mutation.isPending ? "Submitting..." : "Join Waitlist"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div style={{ borderTop: "1px solid rgb(197, 197, 210)" }}>
+        <TopFooter />
+      </div>
+    </div>
   );
 }
