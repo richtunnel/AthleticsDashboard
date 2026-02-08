@@ -141,7 +141,6 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
                   </InputAdornment>
                 ),
                 sx: {
-                  border: `1px solid rgb(197, 197, 210)`,
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.fullName ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
@@ -189,7 +188,6 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
                   </InputAdornment>
                 ),
                 sx: {
-                  border: `1px solid rgb(197, 197, 210)`,
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.email ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
@@ -236,7 +234,6 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
                   </InputAdornment>
                 ),
                 sx: {
-                  border: `1px solid rgb(197, 197, 210)`,
                   "& .MuiOutlinedInput-root": {
                     "& fieldset": {
                       borderColor: errors.schoolOrCollege ? "rgb(244, 67, 54)" : "rgb(197, 197, 210)",
