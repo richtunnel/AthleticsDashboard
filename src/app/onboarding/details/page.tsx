@@ -89,11 +89,12 @@ export default function DetailsPage() {
             </Alert>
           )}
           <form onSubmit={handleSubmit}>
-            <TextField size="small" fullWidth label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
-            <TextField size="small" fullWidth label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
+            <TextField size="small" fullWidth variant="outlined" label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
+            <TextField size="small" fullWidth variant="outlined" label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
             <TextField
               size="small"
               fullWidth
+              variant="outlined"
               label="School Email Address"
               type="email"
               value={schoolEmail}

@@ -95,6 +95,7 @@ export default function ForgotPasswordPage() {
               <TextField
                 margin="normal"
                 size="small"
+                variant="outlined"
                 required
                 fullWidth
                 id="email"
