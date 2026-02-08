@@ -306,7 +306,7 @@ export const formatGameDate = (dateString: string): string => {
   }
 };
 
-export const EmailPreviewContent = memo(function EmailPreviewContent({
+export function buildEmailPreviewHtml({
   mounted,
   theme,
   additionalMessage,
@@ -418,7 +418,10 @@ export const EmailPreviewContent = memo(function EmailPreviewContent({
   html += "</div>";
 
   return html;
-});
+}
+
+export const EmailPreviewContent = memo(buildEmailPreviewHtml);
+
 
 /**
  * Memoized preview box to prevent re-renders during typing
