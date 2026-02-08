@@ -98,9 +98,9 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
         <Link href="/">
           <CircularProjectIcon color="#fff" size={40} />
         </Link>
-        <button 
-          onClick={handleClose} 
-          className="text-sm font-medium" 
+        <button
+          onClick={handleClose}
+          className="text-sm font-medium"
           style={{ color: "rgb(197, 197, 210)", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}
           disabled={mutation.isPending}
         >
@@ -112,7 +112,6 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
         <div className="w-full max-w-xl">
           <div className="text-center mb-8">
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 3 }}>
-              <School color="primary" />
               <Typography variant="h3" className="text-5xl font-semibold tracking-tight">
                 Partner with Opletics
               </Typography>
@@ -267,8 +266,8 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
 
             {/* Success Message */}
             {successMessage && (
-              <Alert 
-                severity="success" 
+              <Alert
+                severity="success"
                 onClose={() => setSuccessMessage(null)}
                 sx={{
                   width: "100%",
@@ -286,7 +285,7 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
 
             {/* Error Message */}
             {mutation.isError && (
-              <Alert 
+              <Alert
                 severity="error"
                 sx={{
                   width: "100%",
@@ -303,9 +302,9 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
             )}
 
             <div className="w-full flex gap-4">
-              <Button 
-                onClick={handleClose} 
-                color="inherit" 
+              <Button
+                onClick={handleClose}
+                color="inherit"
                 disabled={mutation.isPending}
                 className="flex-1 rounded-xl font-semibold transition-opacity"
                 sx={{
