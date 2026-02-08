@@ -10,11 +10,17 @@ import { Resend } from "resend";
 export function getResendClient(): Resend {
   const apiKey = process.env.RESEND_API_KEY;
 
-  if (!apiKey) {
-    console.error("RESEND_API_KEY environment variable is not set");
+  if (!apiKey || apiKey.trim() === "") {
+    console.error("[RESEND] RESEND_API_KEY environment variable is not set or empty");
     throw new Error("Email service is not configured. Please set RESEND_API_KEY.");
   }
 
+  // Validate API key format (Resend keys start with "re_")
+  if (!apiKey.startsWith("re_")) {
+    console.warn("[RESEND] RESEND_API_KEY does not appear to be valid (should start with 're_')");
+  }
+
+  console.log("[RESEND] Creating Resend client instance");
   return new Resend(apiKey);
 }
 
@@ -28,9 +34,16 @@ export function getResendClientOptional(): Resend | null {
   const apiKey = process.env.RESEND_API_KEY;
 
   if (!apiKey || apiKey.trim() === "") {
+    console.warn("[RESEND] RESEND_API_KEY not configured, returning null");
     return null;
   }
 
+  // Validate API key format (Resend keys start with "re_")
+  if (!apiKey.startsWith("re_")) {
+    console.warn("[RESEND] RESEND_API_KEY does not appear to be valid (should start with 're_')");
+  }
+
+  console.log("[RESEND] Creating optional Resend client instance");
   return new Resend(apiKey);
 }
 
