@@ -447,122 +447,92 @@ export default function ComposeEmailPage() {
                     placeholder="email1@example.com, email2@example.com"
                     helperText="Enter email addresses separated by commas"
                   />
-                )}
+                  <Button
+                    variant="outlined"
+                    startIcon={<PhotoCamera />}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadMutation.isPending}
+                    sx={{
+                      color: `${theme.palette.text.primary}`,
+                      borderColor: theme.palette.divider,
+                    }}
+                  >
+                    {logoUrl ? "Change Logo" : "Upload Logo"}
+                  </Button>
+                  {logoUrl && (
+                    <>
+                      <IconButton color="error" onClick={handleRemoveLogo} size="small" disabled={uploadMutation.isPending}>
+                        <DeleteIcon />
+                      </IconButton>
+                      {mounted && <SignatureLogoImage logoUrl={logoUrl} baseUrl={typeof window !== "undefined" ? window.location.origin : undefined} />}
+                    </>
+                  )}
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  Recommended max size: 120px. Max file size: 2MB. Supported: JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images
+                </Typography>
+              </Box>
 
-                {getAllSchoolNames.length > 0 && (
-                  <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, bgcolor: "action.hover" }}>
-                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                      Filter by School/Opponent
-                    </Typography>
+              {/* Custom Text */}
+              <TextField
+                label="Signature Text"
+                variant="outlined"
+                value={signatureText}
+                onChange={(e) => setSignatureText(e.target.value)}
+                placeholder="e.g., Best regards,&#10;John Smith&#10;Athletic Director"
+                fullWidth
+                multiline
+                rows={3}
+                helperText="Add custom text to your signature (e.g., name, title, greeting)"
+              />
 
-                    <TextField
-                      select
-                      label="Select Schools/Opponents"
-                      value={selectedSchoolNames}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleSchoolFilterChange(typeof value === "string" ? [value] : value);
-                      }}
-                      fullWidth
-                      size="small"
-                      SelectProps={{
-                        multiple: true,
-                        renderValue: (selected) => {
-                          const selectedArray = selected as string[];
-                          if (selectedArray.length === 0) return "All schools/opponents";
-                          if (selectedArray.length === 1) return selectedArray[0];
-                          return `${selectedArray.length} schools selected`;
-                        },
-                      }}
-                      helperText={`Select which schools/opponents to include (${getAllSchoolNames.length} available)`}
-                    >
-                      {getAllSchoolNames.map((schoolName) => {
-                        const gameCount = getGameCountForSchool(schoolName, allGames, visibleColumnIds, columnMapping, customColumns);
+              {/* Phone Number */}
+              <TextField label="Phone Number" variant="outlined" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., (555) 123-4567" fullWidth helperText="Your contact phone number" />
 
-                        return (
-                          <MenuItem key={schoolName} value={schoolName}>
-                            <Checkbox checked={selectedSchoolNames.includes(schoolName)} />
-                            {schoolName} ({gameCount} {gameCount === 1 ? "game" : "games"})
-                          </MenuItem>
-                        );
-                      })}
-                    </TextField>
+              {/* Website */}
+              <TextField
+                label="Website / Link"
+                variant="outlined"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                placeholder="e.g., https://yourschool.com or yourschool.com"
+                fullWidth
+                helperText="Your school or organization website (https:// is optional)"
+              />
+            </Stack>
 
-                    {selectedSchoolNames.length > 0 && (
-                      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center", mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary">Filtered by:</Typography>
-                        {selectedSchoolNames.map((schoolName) => (
-                          <Chip
-                            key={schoolName}
-                            label={schoolName}
-                            size="small"
-                            onDelete={() => {
-                              const newSchools = selectedSchoolNames.filter((name) => name !== schoolName);
-                              handleSchoolFilterChange(newSchools);
-                            }}
-                            color="primary"
-                            variant="outlined"
-                          />
-                        ))}
-                        <Button size="small" onClick={() => handleSchoolFilterChange([])} sx={{ ml: 1 }}>Clear All</Button>
-                      </Box>
-                    )}
-                  </Box>
-                )}
+            <Divider />
 
-                <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
+            {/* Preview */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+                Preview (as it will appear in emails)
+              </Typography>
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper", minHeight: 100 }} dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }} />
+            </Box>
 
-                <TextField
-                  label="Additional Message (Optional)"
-                  value={additionalMessage}
-                  onChange={(e) => setAdditionalMessage(e.target.value)}
-                  fullWidth
-                  multiline
-                  rows={4}
-                  placeholder="Add any additional information or instructions..."
-                  helperText="This message will appear at the top of the email"
-                />
-              </Stack>
-            </Paper>
-          </Box>
-        </Box>
+            {/* Save Button */}
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <LoadingButton
+                sx={{ color: theme.palette.getContrastText(theme.palette.primary.main) }}
+                startIcon={<SaveIcon />}
+                loading={updateMutation.isPending}
+                onClick={handleSave}
+                loadingText="Saving"
+                variant="contained"
+              >
+                Save Signature
+              </LoadingButton>
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
 
-        <Paper sx={{ p: 3, bgcolor: "background.paper" }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Email Preview</Typography>
-          <EmailPreviewBox html={emailPreviewHtml} />
-        </Paper>
-
-        {sendEmailMutation.isError && <Alert severity="error">{sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved."}</Alert>}
-
-        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
-          <Button variant="outlined" onClick={() => router.back()} disabled={sendEmailMutation.isPending}>Cancel</Button>
-          <LoadingButton
-            variant="contained"
-            startIcon={<Send />}
-            loading={sendEmailMutation.isPending}
-            onClick={() => {
-              const gameIds = selectedGames.map((g) => g.id);
-              const isEmailGroup = recipientCategory.startsWith("emailGroup:");
-              const groupId = isEmailGroup ? recipientCategory.split(":")[1] : undefined;
-              const actualCategory = isEmailGroup ? "emailGroup" : recipientCategory;
-
-              sendEmailMutation.mutate({
-                gameIds,
-                subject,
-                additionalMessage,
-                recipientCategory: actualCategory,
-                groupId,
-                visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
-                selectedSchoolNames,
-                to: recipientCategory === "custom" ? customRecipients.split(",").map((e) => e.trim()).filter(Boolean) : undefined,
-              });
-            }}
-            disabled={!recipientCategory || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
-          >
-            Send Email
-          </LoadingButton>
-        </Box>
-      </Stack>
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={hideMessage} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert onClose={hideMessage} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
