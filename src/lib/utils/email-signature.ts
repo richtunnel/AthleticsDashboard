@@ -28,9 +28,12 @@ export function buildEmailSignatureHTML(
 
   // Add logo if present
   if (signatureLogoUrl) {
+    let logoUrl: string | null = null;
+    let logoError: string | null = null;
+
+    // Process the logo URL with fallback to original
     try {
-      // Convert relative URLs to absolute URLs for email clients
-      let logoUrl = signatureLogoUrl.trim();
+      logoUrl = signatureLogoUrl.trim();
 
       // Handle optimized image URLs - extract the actual image URL from query params
       if (logoUrl.startsWith("/api/images/optimize")) {
@@ -41,34 +44,62 @@ export function buildEmailSignatureHTML(
             logoUrl = actualUrl;
           }
         } catch (e) {
-          console.warn("[EMAIL-SIG] Failed to parse optimized image URL:", e);
+          console.warn("[EMAIL-SIG] Failed to parse optimized image URL, using original:", e);
           // If parsing fails, continue with original URL
         }
       }
 
       // Convert relative URLs to absolute URLs
       if (logoUrl.startsWith("/uploads/") || logoUrl.startsWith("/")) {
-        // Use provided baseUrl (for client-side) or fall back to server-side getSiteUrl()
-        const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
-        // Ensure no double slashes
-        const cleanBaseUrl = resolvedBaseUrl.replace(/\/+$/, '');
-        const cleanLogoPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
-        logoUrl = `${cleanBaseUrl}${cleanLogoPath}`;
+        try {
+          // Use provided baseUrl (for client-side) or fall back to server-side getSiteUrl()
+          const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
+          // Ensure no double slashes
+          const cleanBaseUrl = resolvedBaseUrl.replace(/\/+$/, '');
+          const cleanLogoPath = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+          logoUrl = `${cleanBaseUrl}${cleanLogoPath}`;
+        } catch (e) {
+          logoError = `Failed to resolve base URL: ${e instanceof Error ? e.message : String(e)}`;
+          console.warn("[EMAIL-SIG]", logoError);
+          // Fall back to original URL
+          logoUrl = signatureLogoUrl.trim();
+        }
       }
 
       // Validate that we have a proper URL (http or https)
       if (!logoUrl.startsWith('http://') && !logoUrl.startsWith('https://')) {
         console.warn("[EMAIL-SIG] Logo URL does not start with http(s):", logoUrl);
         // Try to prepend the base URL one more time
-        const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
-        logoUrl = `${resolvedBaseUrl}/${logoUrl.replace(/^\/+/, '')}`;
+        try {
+          const resolvedBaseUrl = providedBaseUrl || getSiteUrl();
+          logoUrl = `${resolvedBaseUrl}/${logoUrl.replace(/^\/+/, '')}`;
+        } catch (e) {
+          logoError = `Failed to prepend base URL: ${e instanceof Error ? e.message : String(e)}`;
+          console.warn("[EMAIL-SIG]", logoError);
+          // Use the URL as-is if we can't prepend
+        }
       }
 
-      console.log("[EMAIL-SIG] Final logo URL:", logoUrl);
-      html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
+      // Final validation: ensure we have a non-empty URL
+      if (!logoUrl || logoUrl.trim() === '') {
+        logoError = 'Logo URL is empty after processing';
+        console.warn("[EMAIL-SIG]", logoError);
+      }
+
     } catch (error) {
+      logoError = error instanceof Error ? error.message : String(error);
       console.error("[EMAIL-SIG] Error processing signature logo:", error);
-      // Skip logo if there's an error
+      // Fall back to original URL
+      logoUrl = signatureLogoUrl.trim();
+    }
+
+    // Only include the logo image if we have a valid URL
+    // This ensures the logo is always attempted, even if processing partially fails
+    if (logoUrl && logoUrl.trim() !== '') {
+      console.log("[EMAIL-SIG] Final logo URL:", logoUrl, logoError ? `(with error: ${logoError})` : '');
+      html += `<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`;
+    } else {
+      console.warn("[EMAIL-SIG] Logo omitted - no valid URL available");
     }
   }
 
