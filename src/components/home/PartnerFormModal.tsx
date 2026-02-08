@@ -124,6 +124,7 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-4">
             <TextField
               label="Full Name"
+              variant="outlined"
               slotProps={{
                 inputLabel: {
                   sx: {
@@ -184,6 +185,7 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
 
             <TextField
               label="Email Address"
+              variant="outlined"
               slotProps={{
                 inputLabel: {
                   sx: {
@@ -240,6 +242,7 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
 
             <TextField
               label="School or College"
+              variant="outlined"
               {...register("schoolOrCollege", {
                 required: "School or college name is required",
                 minLength: {
