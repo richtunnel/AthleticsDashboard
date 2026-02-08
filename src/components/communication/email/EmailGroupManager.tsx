@@ -104,6 +104,7 @@ export function EmailGroupManager() {
     onSuccess: (group) => {
       updateCacheWithGroup(group);
       queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
+      setAddingGroupId(null);
     },
     onError: () => {
       // Card handles error display, so no message here to avoid duplicates
