@@ -526,6 +526,7 @@ export default function ComposeEmailPage() {
       if (!error.message.includes("Failed to send email")) {
         addNotification(`Failed to send email: ${error.message}`, "error");
       }
+      router.push("/dashboard/email-logs");
     },
   });
 
