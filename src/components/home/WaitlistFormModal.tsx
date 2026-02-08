@@ -122,6 +122,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col items-center gap-4">
             <TextField
               label="Full Name"
+              variant="outlined"
               {...register("fullName", {
                 required: "Full name is required",
                 minLength: {
@@ -168,6 +169,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
 
             <TextField
               label="Email Address"
+              variant="outlined"
               type="email"
               {...register("email", {
                 required: "Email is required",
@@ -215,6 +217,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
 
             <TextField
               label="School or College"
+              variant="outlined"
               {...register("schoolOrCollege", {
                 required: "School or college name is required",
                 minLength: {
