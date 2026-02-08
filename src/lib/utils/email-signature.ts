@@ -10,6 +10,8 @@ interface SignatureData {
 interface BuildEmailSignatureOptions {
   /** Optional base URL for resolving relative image paths. If not provided, will use server-side getSiteUrl() */
   baseUrl?: string;
+  /** Whether to use optimized image URLs (for email preview). Defaults to false for actual emails */
+  useOptimizedImages?: boolean;
 }
 
 /** Escape HTML special characters to prevent XSS */
@@ -41,11 +43,34 @@ function resolveUrl(url: string, baseUrl: string): string {
   return `${cleanBase}${cleanPath}`;
 }
 
-/** Process and normalize logo URL */
-function processLogoUrl(logoUrl: string, baseUrl: string): string {
+/**
+ * Get optimized image URL for previews
+ * Used for faster loading in browser previews
+ */
+function getOptimizedImageUrl(imageUrl: string): string {
+  try {
+    const params = new URLSearchParams({
+      url: imageUrl,
+      width: "120",
+      height: "120",
+      format: "webp",
+    });
+    return `/api/images/optimize?${params.toString()}`;
+  } catch {
+    return imageUrl;
+  }
+}
+
+/**
+ * Process and normalize logo URL for emails
+ * Ensures consistent URL resolution across all contexts
+ */
+function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean = false): string {
+  if (!logoUrl?.trim()) return "";
+
   let processed = logoUrl.trim();
 
-  // Extract actual URL from optimized image API endpoint
+  // If already an optimized URL, extract the actual image URL for processing
   if (processed.startsWith("/api/images/optimize")) {
     try {
       const urlObj = new URL(processed, "http://localhost");
@@ -54,7 +79,7 @@ function processLogoUrl(logoUrl: string, baseUrl: string): string {
         processed = actualUrl;
       }
     } catch {
-      console.warn("[EMAIL-SIG] Failed to parse optimized image URL");
+      console.warn("[EMAIL-SIG] Failed to parse optimized image URL, using original");
     }
   }
 
@@ -63,9 +88,24 @@ function processLogoUrl(logoUrl: string, baseUrl: string): string {
     processed = resolveUrl(processed, baseUrl);
   }
 
+  // Return optimized URL for previews, or original for emails
+  if (useOptimized) {
+    return getOptimizedImageUrl(processed);
+  }
+
   return processed;
 }
 
+/**
+ * Build email signature HTML with consistent image handling
+ *
+ * @param signatureData The signature data object
+ * @param options Configuration options:
+ *   - baseUrl: Base URL for resolving relative paths (defaults to getSiteUrl())
+ *   - useOptimizedImages: Whether to use optimized image URLs (for previews). Defaults to false for production emails.
+ *
+ * @returns HTML string for email signature or preview
+ */
 export function buildEmailSignatureHTML(signatureData: SignatureData, options: BuildEmailSignatureOptions = {}): string {
   const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = signatureData;
 
@@ -75,14 +115,18 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   }
 
   const baseUrl = options.baseUrl || getSiteUrl();
+  const useOptimized = options.useOptimizedImages ?? false;
 
   const sections: string[] = [];
 
-  // Process logo
+  // Process logo with consistent URL resolution
   if (signatureLogoUrl?.trim()) {
     try {
-      const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl);
-      sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px;" />`);
+      const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl, useOptimized);
+
+      if (logoUrl) {
+        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px; border-radius: 4px;" />`);
+      }
     } catch (error) {
       console.error("[EMAIL-SIG] Error processing signature logo:", error);
     }
@@ -92,21 +136,52 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   const textContent: string[] = [];
 
   if (signatureText?.trim()) {
-    textContent.push(`<div style="margin-bottom: 8px; white-space: pre-wrap;">${escapeHtml(signatureText)}</div>`);
+    textContent.push(`<div style="margin-bottom: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.5;">${escapeHtml(signatureText)}</div>`);
   }
 
   if (signaturePhone?.trim()) {
-    textContent.push(`<div style="margin-bottom: 6px;">${escapeHtml(signaturePhone)}</div>`);
+    textContent.push(`<div style="margin-bottom: 6px; font-size: 14px; color: #374151;">${escapeHtml(signaturePhone)}</div>`);
   }
 
   if (signatureWebsite?.trim()) {
     const website = signatureWebsite.trim();
-    textContent.push(`<div style="margin-bottom: 6px;"><a href="${escapeHtml(website)}" style="color: #2563eb; text-decoration: none;">${escapeHtml(website)}</a></div>`);
+    // Ensure website has protocol for href
+    const websiteHref = website.startsWith("http") ? website : `https://${website}`;
+    textContent.push(
+      `<div style="margin-bottom: 6px; font-size: 14px;"><a href="${escapeHtml(websiteHref)}" style="color: #2563eb; text-decoration: none; font-weight: 500;">${escapeHtml(website)}</a></div>`,
+    );
   }
 
   if (textContent.length > 0) {
     sections.push(`<div style="font-size: 14px; color: #374151; line-height: 1.6;">${textContent.join("")}</div>`);
   }
 
-  return `<div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb; font-family: Arial, sans-serif;">${sections.join("")}</div>`;
+  return `<div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb; font-family: Arial, sans-serif; color: #1f2937;">${sections.join("")}</div>`;
+}
+
+/**
+ * Validate if a URL appears to be accessible
+ * Used for client-side preview validation
+ */
+export function isValidImageUrl(url: string): boolean {
+  if (!url?.trim()) return false;
+
+  try {
+    // Check if it's a valid URL format
+    new URL(url.startsWith("http") ? url : `https://${url}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get optimized image URL for display
+ * Exported for use in components that show image previews
+ */
+export function getSignatureLogoPreviewUrl(imageUrl: string, baseUrl?: string): string {
+  if (!imageUrl?.trim()) return "";
+
+  const resolvedBase = baseUrl || getSiteUrl();
+  return processLogoUrl(imageUrl, resolvedBase, true);
 }
