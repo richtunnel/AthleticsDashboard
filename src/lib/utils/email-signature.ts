@@ -47,15 +47,19 @@ function resolveUrl(url: string, baseUrl: string): string {
  * Get optimized image URL for previews
  * Used for faster loading in browser previews
  */
-function getOptimizedImageUrl(imageUrl: string): string {
+function getOptimizedImageUrl(imageUrl: string, baseUrl?: string): string {
   try {
     const params = new URLSearchParams({
       url: imageUrl,
-      width: "120",
-      height: "120",
-      format: "webp",
+      w: "120",
+      h: "120",
+      format: "png",
     });
-    return `/api/images/optimize?${params.toString()}`;
+    const relativeUrl = `/api/images/optimize?${params.toString()}`;
+    if (baseUrl) {
+      return resolveUrl(relativeUrl, baseUrl);
+    }
+    return relativeUrl;
   } catch {
     return imageUrl;
   }
@@ -71,9 +75,13 @@ function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean 
   let processed = logoUrl.trim();
 
   // If already an optimized URL, extract the actual image URL for processing
-  if (processed.startsWith("/api/images/optimize")) {
+  if (processed.includes("/api/images/optimize")) {
     try {
-      const urlObj = new URL(processed, "http://localhost");
+      // Handle both absolute and relative optimization URLs
+      const urlObj = processed.startsWith("http") 
+        ? new URL(processed) 
+        : new URL(processed, "http://localhost");
+      
       const actualUrl = urlObj.searchParams.get("url");
       if (actualUrl) {
         processed = actualUrl;
@@ -94,25 +102,27 @@ function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean 
   } else {
     // Check if it's an absolute URL pointing to this site's /uploads/
     try {
-      const urlObj = new URL(processed);
-      const baseUrlObj = new URL(baseUrl);
-      if (urlObj.origin === baseUrlObj.origin && urlObj.pathname.startsWith("/uploads/")) {
-        isLocalImage = true;
-        localPath = urlObj.pathname;
+      if (isAbsoluteUrl(processed)) {
+        const urlObj = new URL(processed);
+        const baseUrlObj = new URL(baseUrl);
+        if (urlObj.origin === baseUrlObj.origin && urlObj.pathname.startsWith("/uploads/")) {
+          isLocalImage = true;
+          localPath = urlObj.pathname;
+        }
       }
     } catch {
       // Not a valid URL, treat as-is
     }
   }
 
+  // Return optimized URL for previews (only for local images), or absolute URL for emails
+  if (useOptimized && isLocalImage && localPath) {
+    return getOptimizedImageUrl(localPath, baseUrl);
+  }
+
   // Convert relative URLs to absolute
   if (!isAbsoluteUrl(processed)) {
     processed = resolveUrl(processed, baseUrl);
-  }
-
-  // Return optimized URL for previews (only for local images), or absolute URL for emails
-  if (useOptimized && isLocalImage && localPath) {
-    return getOptimizedImageUrl(localPath);
   }
 
   return processed;
@@ -147,7 +157,7 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
       const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl, useOptimized);
 
       if (logoUrl) {
-        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" style="max-width: 120px; max-height: 120px; display: block; margin-bottom: 12px; border-radius: 4px;" />`);
+        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="120" height="120" style="max-width: 120px; max-height: 120px; width: 120px; height: auto; display: block; margin-bottom: 12px; border-radius: 4px;" />`);
       }
     } catch (error) {
       console.error("[EMAIL-SIG] Error processing signature logo:", error);

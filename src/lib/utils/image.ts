@@ -19,7 +19,7 @@ export function getOptimizedImageUrl(
     return imageUrl;
   }
   
-  const { width, height, quality = 80, format = "webp" } = options;
+  const { width, height, quality = 80, format = "png" } = options;
   
   const params = new URLSearchParams();
   
