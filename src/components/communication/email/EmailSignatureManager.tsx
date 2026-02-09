@@ -27,12 +27,12 @@ const DEFAULT_SNACKBAR: SnackbarState = {
 
 // Component to display signature logo with fallback to original URL if optimization fails
 function SignatureLogoImage({ logoUrl }: { logoUrl: string }) {
-  const [imgSrc, setImgSrc] = useState(() => getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "webp" }));
+  const [imgSrc, setImgSrc] = useState(() => getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "png" }));
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     // Reset to optimized URL when logoUrl changes
-    setImgSrc(getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "webp" }));
+    setImgSrc(getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "png" }));
     setHasError(false);
   }, [logoUrl]);
 
