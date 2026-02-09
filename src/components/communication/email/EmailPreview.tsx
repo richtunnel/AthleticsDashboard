@@ -408,6 +408,12 @@ export function buildEmailPreviewHtml({
       {
         baseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
         useOptimizedImages: true,
+        colors: {
+          primary: theme.palette.text.primary,
+          secondary: theme.palette.text.secondary,
+          link: theme.palette.primary.main,
+          divider: theme.palette.divider,
+        },
       },
     );
     if (signatureHTML) {
