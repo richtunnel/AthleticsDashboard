@@ -33,6 +33,7 @@ interface Game {
   };
   notes?: string | null;
   customFields?: Record<string, any>;
+  customData?: Record<string, any>;
 }
 
 // Simple HTML escaping
@@ -49,9 +50,15 @@ function escapeHtml(text: string | null | undefined): string {
 }
 
 // Get column label
-function getColumnLabel(columnId: string): string {
+function getColumnLabel(columnId: string, customColumns: Array<{ id: string; name: string }> = []): string {
   if (columnId.startsWith("imported:")) {
     return columnId.split(":")[1] || columnId;
+  }
+
+  if (columnId.startsWith("custom:")) {
+    const customId = columnId.split(":")[1];
+    const customColumn = customColumns.find((col) => col.id === customId);
+    return customColumn?.name || columnId;
   }
 
   const labels: Record<string, string> = {
@@ -76,9 +83,9 @@ function getCellValue(game: Game, columnId: string): string {
     if (!columnName || typeof game.customFields !== "object" || !game.customFields) return "—";
     const value = game.customFields[columnName];
     if (value === undefined || value === null) return "—";
-    
+
     const strValue = String(value);
-    
+
     // Check if it's an ISO date string and format it
     // Many imported dates come in as 2025-12-03T12:00:00.000Z
     if (typeof strValue === "string" && strValue.includes("T") && !isNaN(Date.parse(strValue))) {
@@ -88,8 +95,15 @@ function getCellValue(game: Game, columnId: string): string {
         return strValue;
       }
     }
-    
+
     return strValue;
+  }
+
+  if (columnId.startsWith("custom:")) {
+    const customId = columnId.split(":")[1];
+    const customData = (game.customData as Record<string, unknown>) || {};
+    const value = customData[customId];
+    return value !== undefined && value !== null ? String(value) : "—";
   }
 
   switch (columnId) {
@@ -116,7 +130,13 @@ function getCellValue(game: Game, columnId: string): string {
 }
 
 // Build game schedule email HTML
-function buildScheduleEmailHTML(games: Game[], additionalMessage: string, signatureHTML: string, visibleColumnIds: string[]): string {
+function buildScheduleEmailHTML(
+  games: Game[],
+  additionalMessage: string,
+  signatureHTML: string,
+  visibleColumnIds: string[],
+  customColumns: Array<{ id: string; name: string }> = []
+): string {
   const columnsToShow = visibleColumnIds.length > 0 ? visibleColumnIds.filter((id) => id !== "actions") : ["date", "time", "sport", "level", "opponent", "location", "status"];
 
   let html = '<div style="font-family: Arial, sans-serif; max-width: 1600px; margin: 0 auto;">';
@@ -132,7 +152,7 @@ function buildScheduleEmailHTML(games: Game[], additionalMessage: string, signat
   html += "<thead><tr style='background-color: #23252a; color: white;'>";
 
   columnsToShow.forEach((columnId) => {
-    html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">${escapeHtml(getColumnLabel(columnId))}</th>`;
+    html += `<th style="padding: 12px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">${escapeHtml(getColumnLabel(columnId, customColumns))}</th>`;
   });
 
   html += "</tr></thead><tbody>";
@@ -193,6 +213,7 @@ async function fetchGames(gameIds: string[], organizationId: string): Promise<Ga
       isHome: true,
       notes: true,
       customFields: true,
+      customData: true,
       homeTeam: {
         select: {
           name: true,
@@ -278,7 +299,22 @@ async function handleGameScheduleEmail(
   const toEmails = await getRecipientEmails(groupId, to, organizationId);
   const { signatureHTML, replyTo } = await getUserSignature(userId);
 
-  const emailBody = buildScheduleEmailHTML(games, additionalMessage || "", signatureHTML, visibleColumnIds);
+  // Fetch custom columns for the organization
+  const organization = await prisma.organization.findFirst({
+    where: { users: { some: { id: userId } } },
+    select: { id: true },
+  });
+
+  let customColumns: Array<{ id: string; name: string }> = [];
+  if (organization) {
+    const cols = await prisma.customColumn.findMany({
+      where: { organizationId: organization.id },
+      select: { id: true, name: true },
+    });
+    customColumns = cols;
+  }
+
+  const emailBody = buildScheduleEmailHTML(games, additionalMessage || "", signatureHTML, visibleColumnIds, customColumns);
 
   return { toEmails, emailBody, replyTo, gameIds, groupId };
 }
