@@ -12,6 +12,13 @@ interface BuildEmailSignatureOptions {
   baseUrl?: string;
   /** Whether to use optimized image URLs (for email preview). Defaults to false for actual emails */
   useOptimizedImages?: boolean;
+  /** Optional custom colors for dark mode support in previews */
+  colors?: {
+    primary?: string;
+    secondary?: string;
+    link?: string;
+    divider?: string;
+  };
 }
 
 /** Escape HTML special characters to prevent XSS */
@@ -149,6 +156,13 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   const baseUrl = options.baseUrl || getSiteUrl();
   const useOptimized = options.useOptimizedImages ?? false;
 
+  // Use custom colors if provided (for dark mode previews), otherwise use default email-safe colors
+  const colors = options.colors || {};
+  const primaryColor = colors.primary || "#1f2937";
+  const secondaryColor = colors.secondary || "#374151";
+  const linkColor = colors.link || "#2563eb";
+  const dividerColor = colors.divider || "#e5e7eb";
+
   const sections: string[] = [];
 
   // Process logo with consistent URL resolution
@@ -172,7 +186,7 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   }
 
   if (signaturePhone?.trim()) {
-    textContent.push(`<div style="margin-bottom: 6px; font-size: 14px; color: #374151;">${escapeHtml(signaturePhone)}</div>`);
+    textContent.push(`<div style="margin-bottom: 6px; font-size: 14px; color: ${secondaryColor};">${escapeHtml(signaturePhone)}</div>`);
   }
 
   if (signatureWebsite?.trim()) {
@@ -180,15 +194,15 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
     // Ensure website has protocol for href
     const websiteHref = website.startsWith("http") ? website : `https://${website}`;
     textContent.push(
-      `<div style="margin-bottom: 6px; font-size: 14px;"><a href="${escapeHtml(websiteHref)}" style="color: #2563eb; text-decoration: none; font-weight: 500;">${escapeHtml(website)}</a></div>`,
+      `<div style="margin-bottom: 6px; font-size: 14px;"><a href="${escapeHtml(websiteHref)}" style="color: ${linkColor}; text-decoration: none; font-weight: 500;">${escapeHtml(website)}</a></div>`,
     );
   }
 
   if (textContent.length > 0) {
-    sections.push(`<div style="font-size: 14px; color: #374151; line-height: 1.6;">${textContent.join("")}</div>`);
+    sections.push(`<div style="font-size: 14px; color: ${secondaryColor}; line-height: 1.6;">${textContent.join("")}</div>`);
   }
 
-  return `<div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb; font-family: Arial, sans-serif; color: #1f2937;">${sections.join("")}</div>`;
+  return `<div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid ${dividerColor}; font-family: Arial, sans-serif; color: ${primaryColor};">${sections.join("")}</div>`;
 }
 
 /**
