@@ -49,6 +49,7 @@ interface EmailLog {
   additionalMessage: string | null;
   visibleColumnIds: string[];
   selectedSchoolNames: string[];
+  customRecipients: string[];
   sentBy: {
     name: string | null;
     email: string;
@@ -139,14 +140,22 @@ export default function EmailLogDetailPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
+        
+        // Determine recipient category - restore email group format if it was an email group
+        let restoredCategory = log.recipientCategory || "parents";
+        if (log.groupId && restoredCategory === "emailGroup") {
+          restoredCategory = `emailGroup:${log.groupId}`;
+        }
+        
         sessionStorage.setItem(
           "emailDraft",
           JSON.stringify({
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
-            recipientCategory: log.recipientCategory || "parents",
+            recipientCategory: restoredCategory,
             visibleColumnIds: log.visibleColumnIds || [],
             selectedSchoolNames: log.selectedSchoolNames || [],
+            customRecipients: log.customRecipients?.join(", ") || "",
           })
         );
         router.push("/dashboard/compose-email");
@@ -329,8 +338,31 @@ export default function EmailLogDetailPage() {
                     Recipient Category
                   </Typography>
                   <Typography variant="body1" sx={{ textTransform: "capitalize" }}>
-                    {log.recipientCategory.replace("_", " ")}
+                    {log.recipientCategory === "emailGroup" && log.groupId
+                      ? "Email Group"
+                      : log.recipientCategory.replace("_", " ")}
                   </Typography>
+                  {log.groupId && (
+                    <Typography variant="caption" color="text.secondary">
+                      Group ID: {log.groupId}
+                    </Typography>
+                  )}
+                </Box>
+              </>
+            )}
+
+            {log.customRecipients && log.customRecipients.length > 0 && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                    Custom Recipients ({log.customRecipients.length})
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {log.customRecipients.map((email, index) => (
+                      <Chip key={index} label={email} size="small" variant="outlined" />
+                    ))}
+                  </Box>
                 </Box>
               </>
             )}
