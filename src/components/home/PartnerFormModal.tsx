@@ -8,6 +8,7 @@ import { Close, School, Person, Email } from "@mui/icons-material";
 import Link from "next/link";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 import TopFooter from "@/components/footer/topFooter";
+import { FaSchool } from "react-icons/fa";
 
 interface PartnerFormData {
   fullName: string;
@@ -262,7 +263,7 @@ export default function PartnerFormModal({ open, onClose }: PartnerFormModalProp
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <School sx={{ color: "#fff" }} fontSize="small" />
+                    <FaSchool style={{ color: "#fff" }} fontSize="large" />
                   </InputAdornment>
                 ),
               }}

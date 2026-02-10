@@ -8,6 +8,7 @@ import { Close, School, Person, Email } from "@mui/icons-material";
 import Link from "next/link";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 import TopFooter from "@/components/footer/topFooter";
+import { FaSchool } from "react-icons/fa";
 
 interface WaitlistFormData {
   fullName: string;
@@ -98,9 +99,9 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
         <Link href="/">
           <CircularProjectIcon color="#fff" size={40} />
         </Link>
-        <button 
-          onClick={handleClose} 
-          className="text-sm font-medium" 
+        <button
+          onClick={handleClose}
+          className="text-sm font-medium"
           style={{ color: "rgb(197, 197, 210)", textDecoration: "none", background: "none", border: "none", cursor: "pointer" }}
           disabled={mutation.isPending}
         >
@@ -260,7 +261,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <School sx={{ color: "#fff" }} fontSize="small" />
+                    <FaSchool style={{ color: "#fff" }} fontSize="large" />
                   </InputAdornment>
                 ),
               }}
@@ -294,8 +295,8 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
 
             {/* Success Message */}
             {successMessage && (
-              <Alert 
-                severity="success" 
+              <Alert
+                severity="success"
                 onClose={() => setSuccessMessage(null)}
                 sx={{
                   width: "100%",
@@ -313,7 +314,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
 
             {/* Error Message */}
             {mutation.isError && (
-              <Alert 
+              <Alert
                 severity="error"
                 sx={{
                   width: "100%",
@@ -330,9 +331,9 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
             )}
 
             <div className="w-full flex gap-4">
-              <Button 
-                onClick={handleClose} 
-                color="inherit" 
+              <Button
+                onClick={handleClose}
+                color="inherit"
                 disabled={mutation.isPending}
                 className="flex-1 rounded-xl font-semibold transition-opacity"
                 sx={{

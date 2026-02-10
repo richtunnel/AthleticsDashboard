@@ -37,6 +37,8 @@ import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { GameStatus } from "@prisma/client";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import EditCalendarIcon from "@mui/icons-material/EditCalendar";
+import NextLink from "next/link";
 
 import {
   Box,
@@ -7101,6 +7103,21 @@ export function GamesTable() {
               Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
             </Button>
           </Tooltip>
+          {/* <Tooltip title={"Go to Calendar"}>
+            <Button
+              component={NextLink}
+              href="/gsync"
+              size="small"
+              sx={{
+                borderColor: theme.palette.themeButtonText.subtle,
+                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                textTransform: "none",
+                display: { xs: "none", sm: "inline-flex" },
+              }}
+            >
+              <EditCalendarIcon />
+            </Button>
+          </Tooltip> */}
         </Stack>
       </Box>
 
