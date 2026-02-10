@@ -70,7 +70,7 @@ export default function ComposeEmailPage() {
     refetchOnWindowFocus: true,
   });
 
-  const { data: emailSignature } = useQuery({
+  const { data: emailSignatureData } = useQuery({
     queryKey: ["email-signature"],
     queryFn: async () => {
       const res = await fetch("/api/user/email-signature");
@@ -79,6 +79,16 @@ export default function ComposeEmailPage() {
       return data.data || null;
     },
   });
+
+  // Normalize signature data to ensure it has the correct structure
+  const emailSignature = emailSignatureData
+    ? {
+        signaturePhone: emailSignatureData.signaturePhone || "",
+        signatureWebsite: emailSignatureData.signatureWebsite || "",
+        signatureLogoUrl: emailSignatureData.signatureLogoUrl || "",
+        signatureText: emailSignatureData.signatureText || "",
+      }
+    : null;
 
   const { data: customColumnsResponse } = useQuery({
     queryKey: ["customColumns"],
