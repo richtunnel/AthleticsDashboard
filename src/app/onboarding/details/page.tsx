@@ -79,8 +79,11 @@ export default function DetailsPage() {
     <>
       <BaseHeader pt={"20px"} pl={"20px"} />
       <div className={`${styles.detailsContainer}`}>
-        <Box sx={{ maxWidth: 400, mx: "auto" }}>
-          <Typography variant="h4" sx={{ fontWeight: "600" }} gutterBottom>
+        <Box sx={{ maxWidth: 600, mx: "auto" }}>
+          <Typography variant="h2" sx={{ fontWeight: "600", mb: 4, textAlign: "center" }} gutterBottom>
+            Almost Done!
+          </Typography>
+          <Typography variant="h5" sx={{ fontWeight: "600" }} gutterBottom>
             Enter School Details
           </Typography>
           {error && (
@@ -88,7 +91,7 @@ export default function DetailsPage() {
               {error}
             </Alert>
           )}
-          <form onSubmit={handleSubmit}>
+          <form style={{ maxWidth: 400 }} onSubmit={handleSubmit}>
             <TextField size="small" fullWidth label="School Name" value={schoolName} onChange={(e) => setSchoolName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
             <TextField size="small" fullWidth label="Team Name" value={teamName} onChange={(e) => setTeamName(e.target.value)} sx={{ mb: 2 }} required disabled={submitting} />
             <TextField
