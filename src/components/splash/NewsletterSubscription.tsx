@@ -53,6 +53,8 @@ export const NewsletterSubscription = () => {
         onSubmit={handleSubscribe}
         sx={{
           display: "flex",
+          alignContent: "center",
+          alignItems: "center",
           gap: 1,
           flexDirection: { xs: "column", sm: "row" },
         }}
@@ -95,10 +97,13 @@ export const NewsletterSubscription = () => {
           disabled={loading}
           sx={{
             minWidth: 120,
-            height: 56,
-            bgcolor: "primary.main",
+            height: 52,
+            alignContent: "center",
+            color: "#000",
+            bgcolor: "#ceff77",
             "&:hover": {
               bgcolor: "primary.dark",
+              color: "#fff",
             },
           }}
         >

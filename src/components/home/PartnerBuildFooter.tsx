@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Container, Typography, Grid, Card, CardContent, Button, useTheme } from "@mui/material";
+import { Box, Container, Typography, Grid, Card, CardContent, Button, useTheme, Stack } from "@mui/material";
 import { ArrowForward } from "@mui/icons-material";
 import styles from "../../styles/footer.module.css";
 import PartnerFormModal from "./PartnerFormModal";
 import WaitlistFormModal from "./WaitlistFormModal";
+import { NewsletterSubscription } from "../splash/NewsletterSubscription";
+import LayoutFooter from "../layout/Footer";
+import CopyRight from "../copyright";
 
 const PartnerBuildSectionFooter = () => {
   const theme = useTheme();
@@ -194,6 +197,22 @@ const PartnerBuildSectionFooter = () => {
               </Card>
             </Grid>
           </Grid>
+          <Box
+            sx={{
+              paddingTop: "30px",
+              paddingBottom: "0px",
+              backgroundColor: "transparent",
+            }}
+          >
+            <NewsletterSubscription />
+          </Box>
+
+          <Box>
+            <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
+              <LayoutFooter />
+            </Stack>
+            <CopyRight />
+          </Box>
         </Container>
       </Box>
 

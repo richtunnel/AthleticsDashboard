@@ -1,4 +1,4 @@
-import { Box, Container, Stack, Typography, Link, BoxProps } from "@mui/material";
+import { Box, Container, Stack, Typography, Link, BoxProps, Grid } from "@mui/material";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 import CopyRight from "../copyright";
@@ -27,43 +27,48 @@ export const Footer: React.FC<FooterProps> = (props) => {
         color: "#a3abb5",
         minHeight: "250px",
         display: "flex",
-        justifyContent: "center",
+        justifyContent: "left",
         alignItems: "end",
         paddingBottom: "20px",
+        position: "relative", // REQUIRED for absolute positioning
+        overflow: "hidden", // REQUIRED to hide the "submerged" part of the logo
       }}
       {...rest}
     >
-      <Container maxWidth="xl" sx={{ px: 0, py: 4, color: "#a3abb5" }}>
+      <Container sx={{ maxWidth: { lg: "1585px" }, paddingLeft: { md: "20px!important" }, paddingRight: { md: "20px!important" }, py: 4, color: "#a3abb5" }}>
         <Box
           className={styles.SpashFooterBoxContainer}
           sx={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${columns}, 1fr)`,
-            gap: 4,
             alignItems: "end",
           }}
         >
-          <PartnerBuildSectionFooter />
-          <Stack spacing={4} className={styles.bottomFooterContent}>
-            <Stack className={styles.SplashFooterOptInStack} alignItems="flex-start">
-              <NewsletterSubscription />
-              <Stack sx={{ mt: 4 }}>
-                <Box sx={{ display: "flex", mb: "12px" }}>
-                  <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
-                </Box>
-                <Typography color="#a3abb5" sx={{ mb: 0.25, fontSize: "0.875rem" }}>
-                  {siteConfig.seo.description}
-                </Typography>
-                <Copyright>{siteConfig.footer.copyright}</Copyright>
+          <Grid container spacing={2}>
+            <Grid size={12}>
+              <PartnerBuildSectionFooter />
+            </Grid>
+            <Grid sx={{ display: { md: "none" } }} size={4}>
+              <Stack spacing={4} className={styles.bottomFooterContent}>
+                <Stack className={styles.SplashFooterOptInStack} alignItems="flex-start">
+                  {/* <NewsletterSubscription /> */}
+                  <Stack sx={{ mt: 4 }}>
+                    <Box sx={{ display: "flex", mb: "12px", position: "relative" }}>
+                      <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
+                    </Box>
+                    <Typography color="#a3abb5" sx={{ mb: 0.25, fontSize: "0.875rem" }}>
+                      {siteConfig.seo.description}
+                    </Typography>
+                    <Copyright>{siteConfig.footer.copyright}</Copyright>
+                  </Stack>
+                </Stack>
               </Stack>
-            </Stack>
-            {/* Social Icons and Footer Links */}
-            <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
-              <LayoutFooter />
-            </Stack>
-            <CopyRight />
-          </Stack>
-          {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
+              {/* Social Icons and Footer Links */}
+              <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
+                <LayoutFooter />
+              </Stack>
+              <CopyRight />
+            </Grid>
+
+            {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
             {siteConfig.footer?.links?.map(({ href, label }) => (
               <FooterLink key={href} href={href}>
                 {label}
@@ -71,12 +76,46 @@ export const Footer: React.FC<FooterProps> = (props) => {
             ))}
           </Stack> */}
 
-          {/* <Stack>
+            {/* <Stack>
             <CopyRight />
           </Stack> */}
+          </Grid>
         </Box>
         {/* <Box sx={{ mt: 0 }}></Box> */}
       </Container>
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: "-58px", // Adjust this value to hide more/less of the logo
+          right: { xs: "50%", sm: "40px" }, // Center on mobile, right-aligned on desktop
+          transform: { xs: "translateX(50%)", sm: "none" },
+          opacity: 0.1,
+          zIndex: 0,
+        }}
+      >
+        <Box
+          component={siteConfig.logo}
+          useGradient={true}
+          sx={{
+            height: "170px",
+            width: "auto",
+            "& span": {
+              fontSize: "10.75rem",
+              lineHeight: 1,
+              backgroundImage: "linear-gradient(to right top, #1b2044, #00558a, #008ea3, #00c37a, #a8eb12)",
+              WebkitBackgroundClip: "text", // Clips background to the text
+              WebkitTextFillColor: "transparent", // Makes original text color invisible
+              backgroundClip: "text",
+              color: "transparent",
+            },
+            "& svg": {
+              height: "160px",
+              width: "auto",
+              marginRight: "10px",
+            },
+          }}
+        />
+      </Box>
     </Box>
   );
 };

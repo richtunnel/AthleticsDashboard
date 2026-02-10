@@ -11,11 +11,13 @@ interface BaseHeaderWhiteProps {
   pl?: string;
   sx?: SxProps<Theme>;
   href?: string;
+  iconSize?: number;
   color?: string;
+  fontSize?: string;
   [key: string]: any; // Allow any other props
 }
 
-export default function BaseHeaderWhite({ pt, pl, sx, ...props }: BaseHeaderWhiteProps) {
+export default function BaseHeaderWhite({ pt, pl, sx, fontSize, iconSize = 20, useGradient, ...props }: BaseHeaderWhiteProps) {
   return (
     <>
       <Box
@@ -31,7 +33,7 @@ export default function BaseHeaderWhite({ pt, pl, sx, ...props }: BaseHeaderWhit
         {...props} // Spread remaining props
       >
         <Link style={{ color: "#fff" }} className={`${styles["ad-hub-logo"]}`} href="/">
-          <CircularProjectIcon color="#fff" />
+          <CircularProjectIcon size={iconSize} useGradient={useGradient} color="#fff" />
           <span style={{ marginLeft: "2.5px", color: "#fff" }}>opletics</span>
         </Link>
       </Box>
