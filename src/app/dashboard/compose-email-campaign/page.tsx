@@ -29,7 +29,7 @@ import { ArrowBack, Send } from "@mui/icons-material";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import { useNotifications } from "@/contexts/NotificationContext";
 import type { EmailGroup } from "@/components/communication/email/types";
-import { buildEmailSignatureHTML } from "@/components/communication/email/EmailPreview";
+import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 export interface Game {
@@ -1083,7 +1083,16 @@ export default function ComposeEmailPage() {
                 )}
 
                 {/* Subject */}
-                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
+                <TextField
+                  label="Subject"
+                  variant="outlined"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  fullWidth
+                  required
+                  error={!subject}
+                  helperText={!subject ? "Subject is required" : ""}
+                />
 
                 {/* Additional Message */}
                 <TextField
