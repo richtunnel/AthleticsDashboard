@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -308,7 +308,7 @@ export const formatGameDate = (dateString: string): string => {
   }
 };
 
-export const EmailPreviewContent = memo(function EmailPreviewContent({
+export function EmailPreviewContent({
   mounted,
   theme,
   additionalMessage,
@@ -429,7 +429,7 @@ export interface EmailPreviewBoxProps {
   html: string;
 }
 
-export const EmailPreviewBox = memo(function EmailPreviewBox({ html }: EmailPreviewBoxProps) {
+export function EmailPreviewBox({ html }: EmailPreviewBoxProps) {
   return (
     <Box
       sx={{
