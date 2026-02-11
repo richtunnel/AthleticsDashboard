@@ -1,6 +1,36 @@
 "use client";
 
-import ComposeEmailPage from "@/components/communication/email/ComposeEmail";
+import { memo, useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
+  AlertColor,
+  CircularProgress,
+  Chip,
+  useMediaQuery,
+  Checkbox,
+  useTheme,
+} from "@mui/material";
+import { ArrowBack, Send } from "@mui/icons-material";
+import { fetchEmailGroups } from "@/lib/api/emailGroups";
+import { useNotifications } from "@/contexts/NotificationContext";
+import type { EmailGroup } from "@/components/communication/email/types";
+import { buildEmailSignatureHTML } from "@/components/communication/email/EmailPreview";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 export interface Game {
   id: string;
