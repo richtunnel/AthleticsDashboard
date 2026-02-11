@@ -22,6 +22,7 @@ interface SendBulkEmailParams {
   additionalMessage?: string;
   visibleColumnIds?: string[];
   selectedSchoolNames?: string[];
+  customRecipients?: string[];
 }
 
 interface EmailLogData {
@@ -40,6 +41,7 @@ interface EmailLogData {
   additionalMessage: string | null;
   visibleColumnIds: string[];
   selectedSchoolNames: string[];
+  customRecipients: string[];
 }
 
 interface BatchEmailResponse {
@@ -141,6 +143,7 @@ function buildEmailLogData(email: string, params: SendBulkEmailParams, status: "
     additionalMessage: params.additionalMessage || null,
     visibleColumnIds: params.visibleColumnIds || [],
     selectedSchoolNames: params.selectedSchoolNames || [],
+    customRecipients: params.customRecipients || [],
   };
 }
 

@@ -317,6 +317,7 @@ model EmailLog {
   // User selections for re-opening/editing emails
   visibleColumnIds   String[]    @default([])
   selectedSchoolNames String[]    @default([])
+  customRecipients   String[]    @default([])
   // Relations
   gameId             String?
   game               Game?       @relation(fields: [gameId], references: [id])
