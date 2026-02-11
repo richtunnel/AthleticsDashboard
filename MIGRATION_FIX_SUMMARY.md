@@ -1,40 +1,25 @@
 # Migration Fix: 20250210180000_add_email_persistence_fields
 
 ## Problem
-The migration `20250210180000_add_email_persistence_fields` failed to apply to the shadow database with error:
-```
-Error code: P1014
-Error: The underlying table for model `EmailLog` does not exist.
-```
+The migration `20250210180000_add_email_persistence_fields` failed to apply because it ran before the `EmailLog` table was created, leaving a failed migration record and blocking new migrations.
 
 ## Root Cause
-The migration timestamp `20250210180000` (February 10, 2025) was **chronologically BEFORE** the init migration `20251101200428_init` (November 1, 2025) that creates the `EmailLog` table.
-
-When Prisma applies migrations in chronological order based on their timestamps, it attempted to alter the `EmailLog` table before it was created, causing the error.
+The migration timestamp (February 10, 2025) is earlier than the init migration (`20251101200428_init`) that creates `EmailLog`, so Prisma attempted to alter a table that didn’t exist.
 
 ## Solution
-Renamed the migration directory to have a timestamp **after** all existing migrations:
-- **Old:** `20250210180000_add_email_persistence_fields`
-- **New:** `20260211000000_add_email_persistence_fields` (February 11, 2026)
+Reintroduced the original migration name with safe, guarded SQL so it can run even before the table exists, and kept the later migrations that add the same fields when the table is available.
 
-This ensures the migration runs after the `EmailLog` table is created and after other EmailLog-related migrations.
-
-## Migration Content
-The migration adds two fields to the EmailLog table:
+### Guarded migration SQL
+The restored migration now uses `ALTER TABLE IF EXISTS` with `ADD COLUMN IF NOT EXISTS` so it is a no-op when `EmailLog` is absent and doesn’t fail when the columns already exist:
 ```sql
-ALTER TABLE "EmailLog" ADD COLUMN "customRecipients" TEXT[] DEFAULT ARRAY[]::TEXT[],
-ADD COLUMN "recipientCategory" TEXT;
+ALTER TABLE IF EXISTS "EmailLog"
+ADD COLUMN IF NOT EXISTS "selectedSchoolNames" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN IF NOT EXISTS "visibleColumnIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN IF NOT EXISTS "customRecipients" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN IF NOT EXISTS "recipientCategory" TEXT;
 ```
 
-## Verification
-- ✅ Migration timestamp is now the latest in the migrations folder
-- ✅ Schema.prisma already contains both fields (`recipientCategory` and `customRecipients`)
-- ✅ Migration SQL is intact and unchanged
-- ✅ Chronological order: The new timestamp (20260211000000) comes after the last migration (20260207204540_add_persistence_email_logs)
-
-## Migration Order
-The corrected migration order now ensures proper table dependencies:
-1. `20251101200428_init` - Creates EmailLog table
-2. ... (other migrations)
-3. `20260207204540_add_persistence_email_logs` - Adds other EmailLog fields
-4. `20260211000000_add_email_persistence_fields` - **Adds recipientCategory and customRecipients**
+## Result
+- ✅ The historical migration name is restored to satisfy existing databases.
+- ✅ The migration no longer fails when `EmailLog` hasn’t been created yet.
+- ✅ Later migrations still apply the same fields in the correct order on fresh databases.
