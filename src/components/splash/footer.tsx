@@ -6,6 +6,7 @@ import PartnerBuildSectionFooter from "../home/PartnerBuildFooter";
 import { NewsletterSubscription } from "./NewsletterSubscription";
 import LayoutFooter from "../layout/Footer";
 import styles from "@/styles/footer.module.css";
+import Disclaimer from "./disclaimer";
 
 import siteConfig from "./config";
 
@@ -43,29 +44,18 @@ export const Footer: React.FC<FooterProps> = (props) => {
           }}
         >
           <Grid container spacing={2}>
-            <Grid size={12}>
+            <Grid size={8}>
               <PartnerBuildSectionFooter />
             </Grid>
-            <Grid sx={{ display: { md: "none" } }} size={4}>
+            <Grid sx={{ display: "flex", justifyContent: "center", alignItems: "center" }} size={4}>
               <Stack spacing={4} className={styles.bottomFooterContent}>
-                <Stack className={styles.SplashFooterOptInStack} alignItems="flex-start">
-                  {/* <NewsletterSubscription /> */}
-                  <Stack sx={{ mt: 4 }}>
-                    <Box sx={{ display: "flex", mb: "12px", position: "relative" }}>
-                      <Box component={siteConfig.logo} sx={{ flex: 1, height: "32px", justifyContent: { xs: "center", sm: "left", md: "left" } }} />
-                    </Box>
-                    <Typography color="#a3abb5" sx={{ mb: 0.25, fontSize: "0.875rem" }}>
-                      {siteConfig.seo.description}
-                    </Typography>
-                    <Copyright>{siteConfig.footer.copyright}</Copyright>
-                  </Stack>
-                </Stack>
+                <Disclaimer />
               </Stack>
               {/* Social Icons and Footer Links */}
-              <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
+              {/* <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
                 <LayoutFooter />
               </Stack>
-              <CopyRight />
+              <CopyRight /> */}
             </Grid>
 
             {/* <Stack direction="row" justifyContent="flex-end" spacing={2} sx={{ alignItems: "center", paddingLeft: "0!important" }}>
