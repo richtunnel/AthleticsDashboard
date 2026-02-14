@@ -39,3 +39,25 @@ The corrected migration order now ensures proper table dependencies:
 3. `20260207204540_add_persistence_email_logs` - Adds other EmailLog fields
 4. `20260211005620_add_persistent_email_fields_01` - Adds `customRecipients`
 5. `20260215000000_ensure_email_log_persistence_fields` - **Ensures recipientCategory/customRecipients exist**
+
+## Production Deployment Fix
+To handle the failed migration `20250210180000_add_email_persistence_fields` that exists in the production database but not in the codebase, the startup process has been updated:
+
+### Changes Made
+1. **Updated `start.sh`**: Now runs `node ./scripts/clean-failed-migrations.js` before `prisma migrate deploy`
+2. **Updated `package.json` start script**: Includes the cleanup step in the start command
+
+### How It Works
+The `clean-failed-migrations.js` script removes any migration records from the `_prisma_migrations` table where:
+- `finished_at IS NULL` (migration started but never completed)
+- `rolled_back_at IS NOT NULL` (migration was rolled back)
+
+This allows Prisma to proceed with applying valid migrations without being blocked by stale failed migration records.
+
+### Manual Resolution (if needed)
+If the automated cleanup doesn't resolve the issue, you can manually mark the failed migration as rolled back:
+
+```bash
+export DATABASE_URL="postgresql://..."
+npx prisma migrate resolve --rolled-back "20250210180000_add_email_persistence_fields"
+```

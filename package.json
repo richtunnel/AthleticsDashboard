@@ -6,7 +6,7 @@
     "predev": "prisma generate",
     "dev": "next dev --turbo",
     "build": "prisma generate && next build",
-    "start": "prisma migrate deploy && next start -p 3000 -H 0.0.0.0",
+    "start": "node ./scripts/clean-failed-migrations.js && prisma migrate deploy && next start -p 3000 -H 0.0.0.0",
     "tsc": "node ./scripts/run-tsc.mjs",
     "lint": "next lint",
     "postinstall": "yarn prisma generate",
