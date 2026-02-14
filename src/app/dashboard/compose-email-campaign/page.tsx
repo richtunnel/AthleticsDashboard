@@ -1,6 +1,36 @@
 "use client";
 
-import ComposeEmailPage from "@/components/communication/email/ComposeEmail";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Box,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  MenuItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
+  AlertColor,
+  CircularProgress,
+  Chip,
+  useMediaQuery,
+  Checkbox,
+  useTheme,
+} from "@mui/material";
+import { ArrowBack, Send } from "@mui/icons-material";
+import { fetchEmailGroups } from "@/lib/api/emailGroups";
+import { useNotifications } from "@/contexts/NotificationContext";
+import type { EmailGroup } from "@/components/communication/email/types";
+import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
+import { formatLevelDisplay } from "@/lib/utils/formatters";
 
 export interface Game {
   id: string;
@@ -1053,7 +1083,16 @@ export default function ComposeEmailPage() {
                 )}
 
                 {/* Subject */}
-                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
+                <TextField
+                  label="Subject"
+                  variant="outlined"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  fullWidth
+                  required
+                  error={!subject}
+                  helperText={!subject ? "Subject is required" : ""}
+                />
 
                 {/* Additional Message */}
                 <TextField

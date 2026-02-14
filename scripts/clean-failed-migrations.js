@@ -34,4 +34,8 @@ async function cleanFailedMigrations() {
   }
 }
 
-cleanFailedMigrations();
+cleanFailedMigrations().then(() => {
+  process.exit(0);
+}).catch(() => {
+  process.exit(0);
+});

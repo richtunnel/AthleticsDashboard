@@ -233,6 +233,9 @@ export default function ComposeEmailPage() {
             if (draft.selectedSchoolNames && Array.isArray(draft.selectedSchoolNames)) {
               setSelectedSchoolNames(draft.selectedSchoolNames);
             }
+            if (draft.customRecipients) {
+              setCustomRecipients(draft.customRecipients);
+            }
             sessionStorage.removeItem("emailDraft");
           } catch {
             // Ignore parse errors
@@ -593,6 +596,13 @@ export default function ComposeEmailPage() {
                 groupId,
                 visibleColumnIds: visibleColumnIds.filter((id) => id !== "actions"),
                 selectedSchoolNames,
+                customRecipients:
+                  recipientCategory === "custom"
+                    ? customRecipients
+                        .split(",")
+                        .map((e) => e.trim())
+                        .filter(Boolean)
+                    : [],
                 to:
                   recipientCategory === "custom"
                     ? customRecipients

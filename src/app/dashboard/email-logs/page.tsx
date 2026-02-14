@@ -60,6 +60,7 @@ interface EmailLog {
   additionalMessage: string | null;
   visibleColumnIds: string[];
   selectedSchoolNames: string[];
+  customRecipients: string[];
   sentBy: {
     name: string | null;
     email: string;
@@ -169,14 +170,22 @@ export default function EmailLogsPage() {
       // Store data in sessionStorage and navigate to compose page
       if (games && games.length > 0) {
         sessionStorage.setItem("selectedGames", JSON.stringify(games));
+        
+        // Determine recipient category - restore email group format if it was an email group
+        let restoredCategory = log.recipientCategory || "parents";
+        if (log.groupId && restoredCategory === "emailGroup") {
+          restoredCategory = `emailGroup:${log.groupId}`;
+        }
+        
         sessionStorage.setItem(
           "emailDraft",
           JSON.stringify({
             subject: log.subject,
             additionalMessage: log.additionalMessage || "",
-            recipientCategory: log.recipientCategory || "parents",
+            recipientCategory: restoredCategory,
             visibleColumnIds: log.visibleColumnIds || [],
             selectedSchoolNames: log.selectedSchoolNames || [],
+            customRecipients: log.customRecipients?.join(", ") || "",
           })
         );
         router.push("/dashboard/compose-email");

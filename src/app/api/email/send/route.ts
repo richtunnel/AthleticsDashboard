@@ -360,7 +360,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { to, subject, gameIds, additionalMessage, groupId, campaignId, visibleColumnIds, selectedSchoolNames } = body;
+    const { to, subject, gameIds, additionalMessage, groupId, campaignId, visibleColumnIds, selectedSchoolNames, recipientCategory: requestRecipientCategory, customRecipients } = body;
     
     console.log(`[EMAIL-API] ${requestId} - Request params: gameIds=${gameIds?.length || 0}, groupId=${groupId}, campaignId=${campaignId}, directRecipients=${to?.length || 0}`);
 
@@ -406,6 +406,8 @@ export async function POST(request: NextRequest) {
         groupId: result.groupId,
         visibleColumnIds: visibleColumnIds || [],
         selectedSchoolNames: selectedSchoolNames || [],
+        recipientCategory: requestRecipientCategory || (groupId ? "emailGroup" : to ? "custom" : null),
+        customRecipients: customRecipients || to || [],
       };
       console.log(`[EMAIL-API] ${requestId} - Game schedule email prepared for ${toEmails.length} recipients`);
     } else if (campaignId) {
@@ -419,6 +421,8 @@ export async function POST(request: NextRequest) {
         campaignId,
         visibleColumnIds: visibleColumnIds || [],
         selectedSchoolNames: selectedSchoolNames || [],
+        recipientCategory: "emailGroup",
+        customRecipients: [],
       };
       console.log(`[EMAIL-API] ${requestId} - Campaign email prepared for ${toEmails.length} recipients`);
     } else {

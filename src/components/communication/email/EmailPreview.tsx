@@ -306,16 +306,7 @@ export const formatGameDate = (dateString: string): string => {
   }
 };
 
-export function buildEmailPreviewHtml({
-  mounted,
-  theme,
-  additionalMessage,
-  visibleColumnIds,
-  columnMapping,
-  customColumns,
-  selectedGames,
-  emailSignature,
-}: EmailPreviewProps) {
+export function buildEmailPreviewHtml({ mounted, theme, additionalMessage, visibleColumnIds, columnMapping, customColumns, selectedGames, emailSignature }: EmailPreviewProps) {
   if (!mounted) return "<p>Loading preview...</p>";
 
   const isDarkMode = theme.palette.mode === "dark";
@@ -427,7 +418,6 @@ export function buildEmailPreviewHtml({
 }
 
 export const EmailPreviewContent = memo(buildEmailPreviewHtml);
-
 
 /**
  * Memoized preview box to prevent re-renders during typing
