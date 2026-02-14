@@ -255,14 +255,20 @@ async function getRecipientEmails(groupId: string | undefined, to: string[] | un
 async function getUserSignature(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      signaturePhone: true,
-      signatureWebsite: true,
-      signatureLogoUrl: true,
-      signatureText: true,
-      schoolEmail: true,
+    include: {
+      accounts: {
+        where: { provider: "google" },
+        select: { provider: true },
+        take: 1,
+      },
     },
   });
+
+  // Determine replyTo: use Google email if signed up with Google, otherwise use regular email
+  const hasGoogleAccount = user?.accounts && user.accounts.length > 0;
+  const replyTo = hasGoogleAccount
+    ? (user?.googleCalendarEmail ?? user?.email)
+    : user?.email;
 
   return {
     signatureHTML: user
@@ -280,7 +286,7 @@ async function getUserSignature(userId: string) {
           }
         )
       : "",
-    replyTo: user?.schoolEmail ?? undefined,
+    replyTo,
   };
 }
 
