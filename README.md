@@ -389,6 +389,12 @@ When Prisma reports an error such as `P3009` referencing the `20251024000526_new
 
 These commands wrap the helper scripts in `scripts/prisma-migration-troubleshoot.sh` and `scripts/prisma-predeploy-check.sh` for convenience.
 
+> **Note:** If you see `P3009` for `20250210180000_add_email_persistence_fields`, mark it as rolled back and then re-run the deploy command so the newer guard migration can apply:
+> ```bash
+> yarn migrate:resolve:rollback 20250210180000_add_email_persistence_fields
+> yarn migrate:deploy
+> ```
+
 ### 1. Check the database state
 
 1. Export the database connection string (example for DigitalOcean – replace placeholders with your credentials):
