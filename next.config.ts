@@ -21,6 +21,20 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.googleusercontent.com",
       },
+      // Digital Ocean Spaces CDN
+      {
+        protocol: "https",
+        hostname: "*.digitaloceanspaces.com",
+      },
+      // Allow custom CDN endpoint if configured
+      ...(process.env.SPACES_CDN_ENDPOINT
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: new URL(process.env.SPACES_CDN_ENDPOINT).hostname,
+            },
+          ]
+        : []),
     ],
   },
 
@@ -88,7 +102,7 @@ const nextConfig: NextConfig = {
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
           "script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
           "style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://fonts.googleapis.com",
-          "img-src 'self' data: blob: https: *.googleusercontent.com",
+          "img-src 'self' data: blob: https: *.googleusercontent.com *.digitaloceanspaces.com",
           "font-src 'self' data: https://*.gstatic.com https://fonts.gstatic.com",
           "connect-src 'self' https: wss: *.google.com *.gstatic.com *.stripe.com *.googletagmanager.com",
           "frame-src 'self' https://*.google.com https://*.stripe.com",
