@@ -17,7 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN yarn prisma generate
 RUN yarn build
@@ -47,6 +47,4 @@ USER nextjs
 
 EXPOSE 3000
 
-RUN yarn prisma generate
-
-CMD ["sh", "-c", "yarn migrate:deploy && yarn start"]
+CMD ["sh", "-c", "yarn prisma generate && yarn start"]

@@ -12,29 +12,20 @@ services:
         limits:
           memory: 8G
         reservations:
-          memory: 800M
+          memory: 1G
     environment:
-      # Database - Use your managed DigitalOcean PostgreSQL
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_USER: ${DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       DATABASE_NAME: ${DATABASE_NAME}
-
-      # NextAuth
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-
-      # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET}
-
-      # DigitalOcean Spaces
       SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
       SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
       SPACES_BUCKET: ${SPACES_BUCKET}
       SPACES_REGION: ${SPACES_REGION}
-
-      # Node environment
       NODE_ENV: production
     ports:
       - "3000:3000"
@@ -49,7 +40,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # Optional: Adminer for quick database access
   adminer:
     image: adminer:latest
     container_name: athletics-adminer
