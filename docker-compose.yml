@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   app:
     build:
@@ -8,6 +6,9 @@ services:
     container_name: athletics-app
     image: rickstokes/athletics-app:latest
     restart: unless-stopped
+    env_file:
+      - ~/.athletics.env
+
     deploy:
       resources:
         limits:
