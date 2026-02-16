@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: athletics-app
-    image: rickstokes//athletics-app:latest
+    image: rickstokes/athletics-app:latest
     restart: unless-stopped
     deploy:
       resources:
