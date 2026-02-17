@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -16,12 +16,23 @@ import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import TopFooter from "@/components/footer/topFooter";
 import styles from "@/styles/onboarding.module.css";
 
-const STANDARD_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? "";
-const STANDARD_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? "";
-const TEAM_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO ?? "";
-const TEAM_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR ?? "";
-const PLUS_MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "";
-const PLUS_ANNUAL_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? "";
+type StripePriceIds = {
+  standardMonthly: string;
+  standardAnnual: string;
+  teamMonthly: string;
+  teamAnnual: string;
+  plusMonthly: string;
+  plusAnnual: string;
+};
+
+const getStripePriceIds = (): StripePriceIds => ({
+  standardMonthly: process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? "",
+  standardAnnual: process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? "",
+  teamMonthly: process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO ?? "",
+  teamAnnual: process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR ?? "",
+  plusMonthly: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "",
+  plusAnnual: process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? "",
+});
 
 function isValidPriceId(priceId: string): boolean {
   if (!priceId) return false;
@@ -31,8 +42,8 @@ function isValidPriceId(priceId: string): boolean {
   return priceId.length > 10;
 }
 
-function isPriceConfigured(): boolean {
-  return isValidPriceId(STANDARD_MONTHLY_PRICE_ID) || isValidPriceId(TEAM_MONTHLY_PRICE_ID) || isValidPriceId(PLUS_MONTHLY_PRICE_ID);
+function isPriceConfigured(priceIds: StripePriceIds): boolean {
+  return isValidPriceId(priceIds.standardMonthly) || isValidPriceId(priceIds.teamMonthly) || isValidPriceId(priceIds.plusMonthly);
 }
 
 type BillingInterval = "monthly" | "annual";
@@ -48,7 +59,7 @@ type Plan = {
   isFree?: boolean;
 };
 
-const plans: Plan[] = [
+const buildPlans = (priceIds: StripePriceIds): Plan[] => [
   {
     name: "Free Trial (Standard)",
     monthlyPrice: 19,
@@ -61,8 +72,8 @@ const plans: Plan[] = [
       "Basic chat and email support",
       "2 weeks Free Trial",
     ],
-    monthlyPriceId: STANDARD_MONTHLY_PRICE_ID,
-    annualPriceId: STANDARD_ANNUAL_PRICE_ID,
+    monthlyPriceId: priceIds.standardMonthly,
+    annualPriceId: priceIds.standardAnnual,
   },
   {
     name: "Team",
@@ -79,8 +90,8 @@ const plans: Plan[] = [
       "Everything in Standard plan.",
       "2 weeks Free Trial",
     ],
-    monthlyPriceId: TEAM_MONTHLY_PRICE_ID,
-    annualPriceId: TEAM_ANNUAL_PRICE_ID,
+    monthlyPriceId: priceIds.teamMonthly,
+    annualPriceId: priceIds.teamAnnual,
   },
   {
     name: "Team+ (Plus)",
@@ -98,8 +109,8 @@ const plans: Plan[] = [
       "Priority chat and email support (Now)",
       "2 weeks Free Trial",
     ],
-    monthlyPriceId: PLUS_MONTHLY_PRICE_ID,
-    annualPriceId: PLUS_ANNUAL_PRICE_ID,
+    monthlyPriceId: priceIds.plusMonthly,
+    annualPriceId: priceIds.plusAnnual,
   },
 ];
 
@@ -124,6 +135,8 @@ function PricingPlansContent() {
   const [error, setError] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [hasDismissedCheckoutAlert, setHasDismissedCheckoutAlert] = useState(false);
+  const [priceIds, setPriceIds] = useState<StripePriceIds>(() => getStripePriceIds());
+  const [hasCheckedPriceConfig, setHasCheckedPriceConfig] = useState(false);
   const router = useRouter();
   const theme = useTheme();
   const searchParams = useSearchParams();
@@ -134,8 +147,14 @@ function PricingPlansContent() {
   const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
   const hasActiveSubscription = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
   const hasIncompleteSubscription = subscriptionStatus === "INCOMPLETE" || subscriptionStatus === "INCOMPLETE_EXPIRED";
-  const priceConfigured = isPriceConfigured();
+  const priceConfigured = hasCheckedPriceConfig ? isPriceConfigured(priceIds) : true;
   const isDevelopment = process.env.NODE_ENV !== "production";
+  const plans = useMemo(() => buildPlans(priceIds), [priceIds]);
+
+  useEffect(() => {
+    setPriceIds(getStripePriceIds());
+    setHasCheckedPriceConfig(true);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -210,6 +229,7 @@ function PricingPlansContent() {
     }
 
     if (sessionStatus === "loading") {
+      console.log("Session status is loading, waiting...");
       setError("Please wait while we confirm your account. Try again in a moment.");
       return;
     }
@@ -222,12 +242,15 @@ function PricingPlansContent() {
 
     const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
 
+    // Log missing price ID but allow user to proceed
     if (!priceId || !isValidPriceId(priceId)) {
-      if (isDevelopment) {
-        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${plan.name.toUpperCase()}_PRICE_ID_${billing === "monthly" ? "MO" : "YR"} in your .env.local file.`);
-      } else {
-        setError("This plan is not currently available. Please contact support.");
-      }
+      console.warn(`Stripe price ID not configured for ${plan.name} (${billing}). Allowing user to proceed to signup.`, {
+        planName: plan.name,
+        billing,
+        priceId,
+        isDevelopment,
+      });
+      router.push("/onboarding/signup");
       return;
     }
 
@@ -235,7 +258,8 @@ function PricingPlansContent() {
 
     const timeoutId = window.setTimeout(() => {
       setLoadingKey(null);
-      setError((current) => current ?? "Plan selection is taking longer than expected. Please try again.");
+      console.warn("Plan selection timeout reached, redirecting to signup");
+      router.push("/onboarding/signup");
     }, 10000);
 
     try {
@@ -248,11 +272,17 @@ function PricingPlansContent() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.error ?? "Failed to create checkout session");
+        // Log error but allow user to proceed
+        console.warn("Stripe checkout session creation failed, redirecting to signup:", data?.error);
+        router.push("/onboarding/signup");
+        return;
       }
 
       if (data?.error) {
-        throw new Error(data.error);
+        // Log error but allow user to proceed
+        console.warn("Stripe checkout session returned error, redirecting to signup:", data.error);
+        router.push("/onboarding/signup");
+        return;
       }
 
       if (data?.url) {
@@ -260,10 +290,12 @@ function PricingPlansContent() {
         return;
       }
 
-      throw new Error("No checkout URL returned");
+      // No checkout URL returned, redirect to signup
+      console.warn("No checkout URL returned from Stripe, redirecting to signup");
+      router.push("/onboarding/signup");
     } catch (err: unknown) {
-      console.error("Checkout error:", err);
-      setError(err instanceof Error ? err.message : "Failed to start checkout. Please try again.");
+      console.error("Checkout error, redirecting to signup:", err);
+      router.push("/onboarding/signup");
     } finally {
       clearTimeout(timeoutId);
       setLoadingKey(null);
@@ -374,9 +406,7 @@ function PricingPlansContent() {
           {plans.map((plan) => {
             const planKey = plan.isFree ? `${plan.name}-free` : `${plan.name}-${billing}`;
             const selectedPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
-            const requiresPriceId = !plan.isFree;
-            const disableForMissingPrice = requiresPriceId && !selectedPriceId && !(hasActiveSubscription && !plan.isFree);
-            const buttonDisabled = Boolean(loadingKey) || disableForMissingPrice;
+            const buttonDisabled = Boolean(loadingKey);
             const isLoading = loadingKey === planKey;
             const buttonLabel = hasActiveSubscription && !plan.isFree ? "Manage Subscription" : "Get started";
 
@@ -432,24 +462,6 @@ function PricingPlansContent() {
                     >
                       {buttonLabel}
                     </AuthActionButton>
-
-                    {!plan.isFree && !selectedPriceId && !hasActiveSubscription && (
-                      <Typography variant="caption" color="error" display="block" sx={{ mb: 2 }}>
-                        {isDevelopment ? (
-                          <>
-                            Price ID not configured.
-                            <br />
-                            See banner above for setup instructions.
-                          </>
-                        ) : (
-                          <>
-                            This plan is currently unavailable.
-                            <br />
-                            Please contact support.
-                          </>
-                        )}
-                      </Typography>
-                    )}
 
                     <Divider sx={{ mb: 3 }} />
 

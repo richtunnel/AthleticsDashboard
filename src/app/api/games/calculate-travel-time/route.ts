@@ -32,19 +32,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const { gameId, dismissalTime, opponentAddress } = await request.json();
+    const { gameId, dismissalTime, arrivalTime, opponentAddress } = await request.json();
+    const timeInput = dismissalTime ?? arrivalTime;
 
     // Validate inputs
-    if (!gameId || !dismissalTime || !opponentAddress) {
+    if (!gameId || !timeInput || !opponentAddress) {
       return new Response(
-        JSON.stringify({ error: "Game ID, dismissal time, and opponent address are required" }),
+        JSON.stringify({ error: "Game ID, arrival time, and opponent address are required" }),
         { status: 400 }
       );
     }
 
     // Validate time format (HH:MM)
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(dismissalTime)) {
+    if (!timeRegex.test(timeInput)) {
       return new Response(
         JSON.stringify({ error: "Invalid time format. Expected HH:MM" }),
         { status: 400 }
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     const travelResult = await calculateTravelTime(origin, opponentAddress);
 
     // Calculate recommended departure time
-    const [hours, minutes] = dismissalTime.split(":").map(Number);
+    const [hours, minutes] = timeInput.split(":").map(Number);
     const dismissalDateTime = new Date();
     dismissalDateTime.setHours(hours, minutes, 0, 0);
 

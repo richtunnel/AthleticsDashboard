@@ -59,4 +59,10 @@ dockerenv
 appspec.sh
 appspec
 /docs
+.athletics.env
+start.sh
+docker-scripts.sh
+.csv
+
+
 

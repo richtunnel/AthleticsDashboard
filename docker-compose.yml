@@ -1,125 +1,61 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: athletics-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DATABASE_USER}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - athletics-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 100s
-      timeout: 5s
-      retries: 5
-
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: athletics-app
+    image: rickstokes/athletics-app:latest
     restart: unless-stopped
+    env_file:
+      - ~/.athletics.env
+
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 8G
         reservations:
-          memory: 512M
+          memory: 1G
     environment:
-      # Database
-      DATABASE_URL: postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}?schema=public
-      # NextAuth (update these)
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      ADMINER_DEFAULT_SERVER: postgres
-
-      # Google OAuth (if using)
       GOOGLE_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET}
-
-      # Email (if using Resend)
-      # NEXT_PUBLIC_RESEND_API_KEY: ${NEXT_PUBLIC_RESEND_API_KEY}
-
-      # Stripe (if using)
-      # STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      # STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      # NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-
-      # # OpenAI (if using)
-      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-
-      # Node environment
-      NODE_ENV: ${NODE_ENV}
+      SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
+      SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
+      SPACES_BUCKET: ${SPACES_BUCKET}
+      SPACES_REGION: ${SPACES_REGION}
+      NODE_ENV: production
     ports:
       - "3000:3000"
-      - "5555:5555"
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - athletics-network
     volumes:
       - public-uploads:/app/public/uploads
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
-
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-      # volumes:
-      #   # Mount source code for hot-reload (uncomment for development)
-      # - ./src:/app/src
-      # - ./app:/app/app
-      # - ./public:/app/public
-      # - ./prisma:/app/prisma
-      # - ./package.json:/app/package.json
-      # - ./tsconfig.json:/app/tsconfig.json
-    #   - ./next.config.js:/app/next.config.js
-    # - ./tailwind.config.js:/app/tailwind.config.js
 
-  # Optional: Adminer for database management
   adminer:
-    image: adminer
+    image: adminer:latest
     container_name: athletics-adminer
     restart: unless-stopped
     ports:
       - "8080:8080"
     networks:
       - athletics-network
-    depends_on:
-      - postgres
-
-## Add prisma studio
-
-# prisma-studio:
-#   image: node:lts-alpine3.17
-#   working_dir: /usr/src/app
-#   volumes:
-#     - .:/usr/src/app
-#   command: npx prisma studio --port 5555 --browser none
-#   ports:
-#     - "5555:5555"
-#   env_file:
-#     - .env.prod
-#   networks:
-#     - prisma-network
-#   depends_on:
-#     postgres_db:
-#       condition: service_healthy
-#     server:
-#       condition: service_started
+    environment:
+      ADMINER_DEFAULT_SERVER: ${DATABASE_HOST}
 
 networks:
   athletics-network:
     driver: bridge
 
 volumes:
-  postgres-data:
   public-uploads:

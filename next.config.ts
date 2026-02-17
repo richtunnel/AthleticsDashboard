@@ -51,35 +51,35 @@ const nextConfig: NextConfig = {
   async headers() {
     const securityHeaders = [
       {
-        key: 'X-DNS-Prefetch-Control',
-        value: 'on'
+        key: "X-DNS-Prefetch-Control",
+        value: "on",
       },
       {
-        key: 'Strict-Transport-Security',
-        value: 'max-age=63072000; includeSubDomains; preload'
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
       },
       {
-        key: 'X-Frame-Options',
-        value: 'DENY'
+        key: "X-Frame-Options",
+        value: "DENY",
       },
       {
-        key: 'X-Content-Type-Options',
-        value: 'nosniff'
+        key: "X-Content-Type-Options",
+        value: "nosniff",
       },
       {
-        key: 'X-XSS-Protection',
-        value: '1; mode=block'
+        key: "X-XSS-Protection",
+        value: "1; mode=block",
       },
       {
-        key: 'Referrer-Policy',
-        value: 'strict-origin-when-cross-origin'
+        key: "Referrer-Policy",
+        value: "strict-origin-when-cross-origin",
       },
       {
-        key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=()'
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
       },
       {
-        key: 'Content-Security-Policy',
+        key: "Content-Security-Policy",
         value: [
           "default-src 'self'",
           "base-uri 'self'",
@@ -95,42 +95,81 @@ const nextConfig: NextConfig = {
           "worker-src 'self' blob:",
           "manifest-src 'self'",
           "upgrade-insecure-requests",
-        ].join('; ')
-      }
+        ].join("; "),
+      },
     ];
 
     return [
       {
-        // Apply to all routes
-        source: '/:path*',
+        // 1. GLOBAL SECURITY HEADERS
+        source: "/:path*",
         headers: securityHeaders,
       },
       {
-        // Apply additional headers to API routes
-        source: '/api/:path*',
+        // 2. STATIC ASSETS (Images, Fonts in /public)
+        // Next.js handles /_next/static automatically, but /public needs this.
+        source: "/static/:path*",
         headers: [
-          ...securityHeaders,
           {
-            key: 'X-Api-Version',
-            value: '1.0'
-          }
-        ]
-      }
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // DASHBOARD PAGES: Revalidate every time
+        source: "/dashboard/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, must-revalidate",
+          },
+        ],
+      },
+      {
+        // API DATA: Strictly no caching
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
+          },
+          {
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
+          },
+        ],
+      },
+      {
+        // 4. PREFETCHED JSON (Next.js Data)
+        // When users hover over links, Next.js fetches JSON. Cache it briefly.
+        source: "/_next/data/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+          },
+        ],
+      },
     ];
   },
 
   async redirects() {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         has: [
           {
-            type: 'host',
-            value: 'www.(?<domain>.*)',
+            type: "host",
+            value: "www.(?<domain>.*)",
           },
         ],
         permanent: true,
-        destination: 'https://:domain/:path*',
+        destination: "https://:domain/:path*",
       },
     ];
   },

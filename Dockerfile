@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat openssl
 COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-RUN yarn install --frozen-lockfile || yarn install
+RUN yarn install --frozen-lockfile
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -17,9 +17,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# This matches your package.json build script
 RUN yarn prisma generate
 RUN yarn build
 
@@ -33,12 +32,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Create user first
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy only what's needed for production
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+COPY --from=builder --chown=nextjs:nodejs /app/yarn.lock ./
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
@@ -49,5 +47,4 @@ USER nextjs
 
 EXPOSE 3000
 
-# Matches your start:prod script
-CMD ["sh", "-c", "yarn migrate:deploy && yarn start"]
+CMD ["yarn", "start"]

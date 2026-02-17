@@ -66,7 +66,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gameId,
-          arrivalTime,
+          dismissalTime: arrivalTime,
           opponentAddress,
         }),
       });
