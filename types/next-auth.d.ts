@@ -20,6 +20,10 @@ declare module "next-auth" {
       googleCalendarEmail?: string;
       calendarTokenExpiry?: Date;
       googleCalendarEmail?: string;
+      microsoftCalendarRefreshToken?: string;
+      microsoftCalendarAccessToken?: string;
+      microsoftCalendarTokenExpiry?: Date;
+      microsoftCalendarEmail?: string;
       city?: string | null;
       lastLoginAt?: Date | null;
       lastLoginDate?: Date | null;
@@ -41,6 +45,10 @@ declare module "next-auth" {
     googleCalendarEmail?: string;
     calendarTokenExpiry?: Date;
     googleCalendarEmail?: string;
+    microsoftCalendarRefreshToken?: string;
+    microsoftCalendarAccessToken?: string;
+    microsoftCalendarTokenExpiry?: Date;
+    microsoftCalendarEmail?: string;
     city?: string | null;
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
@@ -65,6 +73,10 @@ declare module "next-auth/jwt" {
     googleCalendarAccessToken?: string;
     calendarTokenExpiry?: Date;
     googleCalendarEmail?: string;
+    microsoftCalendarRefreshToken?: string;
+    microsoftCalendarAccessToken?: string;
+    microsoftCalendarTokenExpiry?: Date;
+    microsoftCalendarEmail?: string;
     city?: string | null;
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;

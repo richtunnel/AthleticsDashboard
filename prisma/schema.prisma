@@ -41,6 +41,11 @@ model User {
   calendarTokenExpiry        DateTime?
   googleCalendarId           String? // Optionally store the primary calendar ID
   googleCalendarEmail        String?
+  microsoftCalendarRefreshToken String? @db.Text // Store Microsoft refresh token
+  microsoftCalendarAccessToken  String? @db.Text // Store Microsoft access token
+  microsoftCalendarTokenExpiry DateTime? // Microsoft token expiry
+  microsoftCalendarId        String? // Microsoft calendar ID
+  microsoftCalendarEmail     String? // Microsoft calendar email
   autoCalendarSyncEnabled    Boolean   @default(false) // Enable/disable automatic calendar sync on game creation/update
   aiSchedulerEnabled         Boolean   @default(false) // Enable/disable AI-powered scheduling suggestions
   aiTravelTimesEnabled       Boolean   @default(false) // Enable/disable AI-powered travel time calculations with traffic and weather
@@ -246,6 +251,8 @@ model Game {
   lastSyncedAt             DateTime?
   googleCalendarEventId    String? // The ID of the event in the user's calendar
   googleCalendarHtmlLink   String? // Optional: Link to the event
+  microsoftCalendarEventId String? // The ID of the event in Microsoft calendar
+  microsoftCalendarWebLink  String? // Optional: Link to the Microsoft calendar event
   // Custom fields (JSON for flexibility)
   customFields             Json?
   customData               Json?
@@ -685,6 +692,8 @@ model CalendarGroupMapping {
   columnValue       String // The value to match (e.g., "Junior Varsity Basketball", "JV Football")
   googleCalendarId  String // The Google Calendar ID to sync to
   googleCalendarName String // The display name of the calendar
+  microsoftCalendarId String? // The Microsoft Calendar ID to sync to
+  microsoftCalendarName String? // The display name of the Microsoft calendar
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

@@ -12,6 +12,19 @@ import { useSession } from "next-auth/react";
 import Footer from "@/components/layout/Footer";
 import TopFooter from "@/components/footer/topFooter";
 
+// Microsoft icon component
+function MicrosoftIcon() {
+  return (
+    <svg viewBox="0 0 23 23" width="20" height="20">
+      <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+      <path fill="#f35325" d="M1 1h10v10H1z"/>
+      <path fill="#81bc06" d="M12 1h10v10H12z"/>
+      <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+      <path fill="#ffba08" d="M12 12h10v10H12z"/>
+    </svg>
+  );
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +50,11 @@ function LoginForm() {
     onError: (err) => setError(err),
   });
 
+  const microsoftAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
   const credentialsAuth = useAuthButton({
     callbackUrl,
     onError: (err) => {
@@ -52,7 +70,7 @@ function LoginForm() {
     },
   });
 
-  const isLoading = googleAuth.loading || credentialsAuth.loading;
+  const isLoading = googleAuth.loading || microsoftAuth.loading || credentialsAuth.loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +101,19 @@ function LoginForm() {
       // Existing users don't need to see calendar permissions explanation again
       await googleAuth.executeAction({
         type: "google",
+      });
+    } catch (error) {
+      // Error already handled by onError callback
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    setError("");
+    try {
+      // For sign-in, directly trigger Microsoft OAuth without consent page
+      // Existing users don't need to see calendar permissions explanation again
+      await microsoftAuth.executeAction({
+        type: "azure-ad",
       });
     } catch (error) {
       // Error already handled by onError callback
@@ -124,8 +155,11 @@ function LoginForm() {
               </Alert>
             )}
 
-            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+            <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleLogin} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
               Sign in with Google
+            </AuthActionButton>
+            <AuthActionButton fullWidth variant="contained" startIcon={<MicrosoftIcon />} onClick={handleMicrosoftLogin} loading={microsoftAuth.loading} disabled={isLoading} sx={{ mb: 2 }}>
+              Sign in with Microsoft
             </AuthActionButton>
 
             <Divider sx={{ my: 2 }}>OR</Divider>

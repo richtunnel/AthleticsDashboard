@@ -1,5 +1,6 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import AzureADProvider from "next-auth/providers/azure-ad";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
@@ -174,6 +175,17 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
+    AzureADProvider({
+      clientId: process.env.MICROSOFT_CALENDAR_CLIENT_ID ?? "",
+      clientSecret: process.env.MICROSOFT_CALENDAR_CLIENT_SECRET ?? "",
+      tenantId: process.env.MICROSOFT_CALENDAR_TENANT_ID || "common",
+      authorization: {
+        params: {
+          scope: ["openid", "profile", "email", "User.Read"].join(" "),
+        },
+      },
+    }),
+
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -233,6 +245,10 @@ export const authOptions: NextAuthOptions = {
           googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
           googleCalendarEmail: (user as any).googleCalendarEmail ?? undefined,
+          microsoftCalendarRefreshToken: user.microsoftCalendarRefreshToken ?? undefined,
+          microsoftCalendarAccessToken: user.microsoftCalendarAccessToken ?? undefined,
+          microsoftCalendarTokenExpiry: user.microsoftCalendarTokenExpiry ?? undefined,
+          microsoftCalendarEmail: (user as any).microsoftCalendarEmail ?? undefined,
         };
       },
     }),
@@ -337,6 +353,10 @@ export const authOptions: NextAuthOptions = {
           googleCalendarAccessToken: user.googleCalendarAccessToken ?? undefined,
           calendarTokenExpiry: user.calendarTokenExpiry ?? undefined,
           googleCalendarEmail: user.googleCalendarEmail ?? undefined,
+          microsoftCalendarRefreshToken: user.microsoftCalendarRefreshToken ?? undefined,
+          microsoftCalendarAccessToken: user.microsoftCalendarAccessToken ?? undefined,
+          microsoftCalendarTokenExpiry: user.microsoftCalendarTokenExpiry ?? undefined,
+          microsoftCalendarEmail: user.microsoftCalendarEmail ?? undefined,
           memberAccessCode: code,
           memberAccessSessionId: sessionId,
           memberAccessIssuedAt: issuedAt,
@@ -401,6 +421,58 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
+        if (account?.provider === "azure-ad") {
+          const email = profile?.email ?? user?.email ?? undefined;
+
+          if (email) {
+            try {
+              const existingUser = await prisma.user.findUnique({
+                where: { email },
+                select: {
+                  id: true,
+                  microsoftCalendarEmail: true,
+                },
+              });
+
+              // Allow account creation during signup flow
+              // The customAdapter.createUser will handle signup validation (90-day block check)
+              if (existingUser) {
+                // User exists - update their Microsoft Calendar tokens
+                const updateData: Record<string, any> = {};
+
+                if (account.refresh_token) {
+                  updateData.microsoftCalendarRefreshToken = account.refresh_token;
+                }
+
+                if (account.access_token) {
+                  updateData.microsoftCalendarAccessToken = account.access_token;
+                }
+
+                if (typeof account.expires_at === "number") {
+                  updateData.microsoftCalendarTokenExpiry = new Date(account.expires_at * 1000);
+                }
+
+                updateData.microsoftCalendarEmail = profile?.email ?? existingUser.microsoftCalendarEmail ?? email;
+
+                if (Object.keys(updateData).length > 0) {
+                  await prisma.user.update({
+                    where: { id: existingUser.id },
+                    data: updateData,
+                  });
+                }
+              }
+              // If user doesn't exist, allow NextAuth + PrismaAdapter to create them
+              // The customAdapter.createUser method will check for 90-day signup blocks
+            } catch (microsoftUpdateError) {
+              console.error("Failed to check/update Microsoft account during sign-in", {
+                email,
+                error: microsoftUpdateError,
+              });
+              // Don't block - let it proceed
+            }
+          }
+        }
+
         const provider = account?.provider;
 
         if (user && typeof user.id === "string" && provider && provider !== "credentials") {
@@ -434,6 +506,10 @@ export const authOptions: NextAuthOptions = {
         session.user.googleCalendarAccessToken = token.googleCalendarAccessToken;
         session.user.calendarTokenExpiry = token.calendarTokenExpiry;
         session.user.googleCalendarEmail = token.googleCalendarEmail;
+        session.user.microsoftCalendarRefreshToken = token.microsoftCalendarRefreshToken;
+        session.user.microsoftCalendarAccessToken = token.microsoftCalendarAccessToken;
+        session.user.microsoftCalendarTokenExpiry = token.microsoftCalendarTokenExpiry;
+        session.user.microsoftCalendarEmail = token.microsoftCalendarEmail;
       }
 
       if (isMemberAccessToken(token)) {
@@ -464,6 +540,23 @@ export const authOptions: NextAuthOptions = {
         token.calendarTokenExpiry = account.expires_at ? new Date(account.expires_at * 1000) : undefined;
       }
 
+      // Save Microsoft tokens when account is first linked
+      if (account?.provider === "azure-ad" && account.refresh_token && token.email) {
+        await prisma.user.update({
+          where: { email: token.email },
+          data: {
+            microsoftCalendarRefreshToken: account.refresh_token,
+            microsoftCalendarAccessToken: account.access_token,
+            microsoftCalendarTokenExpiry: account.expires_at ? new Date(account.expires_at * 1000) : null,
+          },
+        });
+
+        // Set them in the token immediately
+        token.microsoftCalendarRefreshToken = account.refresh_token;
+        token.microsoftCalendarAccessToken = account.access_token;
+        token.microsoftCalendarTokenExpiry = account.expires_at ? new Date(account.expires_at * 1000) : undefined;
+      }
+
       if (user) {
         token.role = user.role;
         token.organizationId = user.organizationId;
@@ -472,6 +565,10 @@ export const authOptions: NextAuthOptions = {
         token.googleCalendarAccessToken = user.googleCalendarAccessToken ?? undefined;
         token.calendarTokenExpiry = user.calendarTokenExpiry ?? undefined;
         token.googleCalendarEmail = user.googleCalendarEmail ?? undefined;
+        token.microsoftCalendarRefreshToken = user.microsoftCalendarRefreshToken ?? undefined;
+        token.microsoftCalendarAccessToken = user.microsoftCalendarAccessToken ?? undefined;
+        token.microsoftCalendarTokenExpiry = user.microsoftCalendarTokenExpiry ?? undefined;
+        token.microsoftCalendarEmail = user.microsoftCalendarEmail ?? undefined;
       }
 
       if (account?.provider === "google" && token.email) {
@@ -506,7 +603,39 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      if ((trigger === "update" || !token.organization || !token.googleCalendarEmail) && token.email) {
+      if (account?.provider === "azure-ad" && token.email) {
+        const dbUser = (await prisma.user.findUnique({
+          where: { email: token.email },
+          select: {
+            id: true,
+            role: true,
+            organizationId: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                timezone: true,
+              },
+            },
+            microsoftCalendarRefreshToken: true,
+            microsoftCalendarAccessToken: true,
+            microsoftCalendarTokenExpiry: true,
+            microsoftCalendarEmail: true,
+          },
+        } as any)) as any;
+
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.organizationId = dbUser.organizationId;
+          token.organization = dbUser.organization || undefined;
+          token.microsoftCalendarRefreshToken = dbUser.microsoftCalendarRefreshToken ?? undefined;
+          token.microsoftCalendarAccessToken = dbUser.microsoftCalendarAccessToken ?? undefined;
+          token.microsoftCalendarTokenExpiry = dbUser.microsoftCalendarTokenExpiry ?? undefined;
+          token.microsoftCalendarEmail = dbUser.microsoftCalendarEmail ?? undefined;
+        }
+      }
+
+      if ((trigger === "update" || !token.organization || !token.googleCalendarEmail || !token.microsoftCalendarEmail) && token.email) {
         const dbUser = (await prisma.user.findUnique({
           where: { email: token.email },
           select: {
@@ -523,6 +652,10 @@ export const authOptions: NextAuthOptions = {
             googleCalendarAccessToken: true,
             calendarTokenExpiry: true,
             googleCalendarEmail: true,
+            microsoftCalendarRefreshToken: true,
+            microsoftCalendarAccessToken: true,
+            microsoftCalendarTokenExpiry: true,
+            microsoftCalendarEmail: true,
           },
         } as any)) as any;
 
@@ -534,6 +667,10 @@ export const authOptions: NextAuthOptions = {
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
           token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
+          token.microsoftCalendarRefreshToken = dbUser.microsoftCalendarRefreshToken ?? undefined;
+          token.microsoftCalendarAccessToken = dbUser.microsoftCalendarAccessToken ?? undefined;
+          token.microsoftCalendarTokenExpiry = dbUser.microsoftCalendarTokenExpiry ?? undefined;
+          token.microsoftCalendarEmail = dbUser.microsoftCalendarEmail ?? undefined;
         }
       }
 
