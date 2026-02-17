@@ -101,18 +101,45 @@ const nextConfig: NextConfig = {
 
     return [
       {
-        // Apply to all routes
+        // 1. GLOBAL SECURITY HEADERS
         source: "/:path*",
         headers: securityHeaders,
       },
       {
-        // Apply additional headers to API routes
+        // 2. STATIC ASSETS (Images, Fonts in /public)
+        // Next.js handles /_next/static automatically, but /public needs this.
+        source: "/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // 3. API ROUTES (SaaS Data)
+        // Usually, you want NO browser caching for APIs to avoid stale dashboard data.
         source: "/api/:path*",
         headers: [
           ...securityHeaders,
           {
+            key: "Cache-Control",
+            value: "no-store, max-age=0, must-revalidate",
+          },
+          {
             key: "X-Api-Version",
             value: "1.0",
+          },
+        ],
+      },
+      {
+        // 4. PREFETCHED JSON (Next.js Data)
+        // When users hover over links, Next.js fetches JSON. Cache it briefly.
+        source: "/_next/data/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
           },
         ],
       },
