@@ -179,8 +179,22 @@ export async function POST(req: NextRequest) {
       if (priceError.type === "StripeInvalidRequestError" && priceError.code === "resource_missing") {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
-        console.error(`Stripe price validation failed: ${priceId}`, priceError);
+        console.error(`Stripe price validation failed: ${priceId}`, {
+          priceId,
+          planType,
+          isTestMode: config.isTestMode,
+          error: priceError,
+          environment: {
+            STRIPE_STANDARD_PRICE_ID_MO: process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO,
+            STRIPE_TEAM_PRICE_ID_MO: process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO,
+            STRIPE_PLUS_PRICE_ID_MO: process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO,
+            STRIPE_STANDARD_PRICE_ID_YR: process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR,
+            STRIPE_TEAM_PRICE_ID_YR: process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR,
+            STRIPE_PLUS_PRICE_ID_YR: process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR,
+          },
+        });
 
+        // Return error but frontend will handle by redirecting to signup
         return NextResponse.json(
           {
             error: isDevelopment
@@ -292,8 +306,23 @@ export async function POST(req: NextRequest) {
       if (stripeError.type === "StripeInvalidRequestError" && stripeError.code === "resource_missing") {
         const isDevelopment = process.env.NODE_ENV !== "production";
         const config = getStripeConfig();
-        console.error(`Stripe price not found: ${priceId}`, stripeError);
+        console.error(`Stripe price not found: ${priceId}`, {
+          priceId,
+          userId: user.id,
+          customerId,
+          config,
+          error: stripeError,
+          environment: {
+            STRIPE_STANDARD_PRICE_ID_MO: process.env.STRIPE_STANDARD_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO,
+            STRIPE_TEAM_PRICE_ID_MO: process.env.STRIPE_TEAM_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO,
+            STRIPE_PLUS_PRICE_ID_MO: process.env.STRIPE_PLUS_PRICE_ID_MO || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO,
+            STRIPE_STANDARD_PRICE_ID_YR: process.env.STRIPE_STANDARD_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR,
+            STRIPE_TEAM_PRICE_ID_YR: process.env.STRIPE_TEAM_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR,
+            STRIPE_PLUS_PRICE_ID_YR: process.env.STRIPE_PLUS_PRICE_ID_YR || process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR,
+          },
+        });
 
+        // Return error but frontend will handle by redirecting to signup
         return NextResponse.json(
           {
             error: isDevelopment
@@ -316,6 +345,7 @@ export async function POST(req: NextRequest) {
           customerId,
           priceId,
           error: stripeError.message,
+          stripeError,
         });
 
         return NextResponse.json(
