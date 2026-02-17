@@ -117,18 +117,30 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // 3. API ROUTES (SaaS Data)
-        // Usually, you want NO browser caching for APIs to avoid stale dashboard data.
-        source: "/api/:path*",
+        // DASHBOARD PAGES: Revalidate every time
+        source: "/dashboard/:path*",
         headers: [
-          ...securityHeaders,
           {
             key: "Cache-Control",
-            value: "no-store, max-age=0, must-revalidate",
+            value: "public, max-age=0, must-revalidate",
+          },
+        ],
+      },
+      {
+        // API DATA: Strictly no caching
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
           },
           {
-            key: "X-Api-Version",
-            value: "1.0",
+            key: "Pragma",
+            value: "no-cache",
+          },
+          {
+            key: "Expires",
+            value: "0",
           },
         ],
       },
