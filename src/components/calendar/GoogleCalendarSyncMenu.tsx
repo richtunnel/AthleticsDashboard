@@ -147,10 +147,10 @@ function GoogleCalendarSyncMenuContent() {
       ) : (
         <Stack spacing={1}>
           <Typography variant="body2" color="text.secondary">
-            Connect your account to enable game synchronization.
+            Connect your gmail account to enable game synchronization and add games to your personal calendar with a single click.
           </Typography>
           <Button variant="contained" color="primary" startIcon={<FaGoogle />} onClick={handleConnect} sx={{ mt: 2, textTransform: "none", width: "fit-content" }}>
-            Connect Gmail Account
+            Connect Google Calendar
           </Button>
         </Stack>
       )}
