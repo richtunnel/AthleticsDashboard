@@ -593,6 +593,71 @@ export class EmailService {
     }
   }
 
+  async sendCollaborationInviteEmail(params: { to: string; inviterName: string; role: "VIEWER" | "MEMBER"; acceptUrl: string; expiresAt: Date }): Promise<void> {
+    const resend = getResendClientOptional();
+    if (!resend) {
+      console.warn("Email service not configured. Collaboration invitation email not sent.");
+      return;
+    }
+
+    const { to, inviterName, role, acceptUrl, expiresAt } = params;
+    
+    const roleDescription = role === "VIEWER" ? "Viewer (Read-Only)" : "Member (Full Access)";
+    const expiresAtFormatted = expiresAt.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    const body = `
+      <h2>You've been invited to collaborate!</h2>
+      <p>Hi,</p>
+      <p><strong>${inviterName}</strong> has invited you to collaborate on their Opletics dashboard.</p>
+      
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 5px 0;"><strong>Role:</strong> ${roleDescription}</p>
+        <p style="margin: 5px 0;"><strong>Access Level:</strong> ${role === "VIEWER" ? "View dashboard and reports (read-only)" : "Edit games, teams, and data (full access)"}</p>
+        <p style="margin: 5px 0;"><strong>Invitation Expires:</strong> ${expiresAtFormatted}</p>
+      </div>
+
+      <h3>What does this mean?</h3>
+      <ul>
+        <li>${role === "VIEWER" ? "• View all dashboard pages and game schedules" : "• View and edit all dashboard features including games, teams, and schedules"}</li>
+        <li>${role === "VIEWER" ? "• Cannot make changes to settings or invite other collaborators" : "• Can help manage games, teams, and scheduling"}</li>
+        <li>• Access is granted only to the specific dashboard that invited you</li>
+        <li>• You keep your own separate account - this doesn't merge accounts</li>
+      </ul>
+
+      <p style="margin-top: 24px;">
+        <a
+          href="${acceptUrl}"
+          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+        >
+          Accept Invitation
+        </a>
+      </p>
+
+      <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
+        This invitation expires in 24 hours. After that, you'll need to request a new invitation from the account owner.
+      </p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+        to: [to],
+        subject: `Invitation to collaborate on Opletics dashboard`,
+        html: this.buildHtmlEmail(body),
+      });
+      console.log(`Collaboration invitation email sent to ${to}`);
+    } catch (error) {
+      console.error("Failed to send collaboration invitation email:", error);
+      // Don't throw - this is a non-critical feature
+    }
+  }
+
   async sendTicketClosedNotification(params: { ticketNumber: string; subject: string; closedBy: { name: string; email: string } }): Promise<void> {
     const resend = getResendClientOptional();
     if (!resend) {

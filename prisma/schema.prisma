@@ -81,6 +81,7 @@ model User {
   tablePreferences         TablePreference[]
   calendarGroupMappings    CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
   gamesWorkbooks           GamesWorkbook[]
+  collaborativeMembers     CollaborativeMember[]     @relation("CollaborativeMemberOwner")
 
   @@index([organizationId])
   @@map("User")
@@ -756,4 +757,63 @@ enum WaitlistStatus {
   NOTIFIED
   CONVERTED
   REMOVED
+}
+
+// Collaborative Members System
+model CollaborativeMember {
+  id           String                @id @default(cuid())
+  userId       String                // Account owner who invited
+  email        String                // Invited collaborator email
+  role         CollaborativeRole     @default(VIEWER)
+  status       CollaborativeStatus   @default(PENDING)
+  invitedAt    DateTime              @default(now())
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+  revokeReason String?
+  token        String?               @unique // JWT token for invitation acceptance
+  
+  // Relations
+  owner        User                  @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, email])
+  @@index([userId, status])
+  @@index([email])
+  @@map("CollaborativeMember")
+}
+
+enum CollaborativeRole {
+  VIEWER
+  MEMBER
+}
+
+enum CollaborativeStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+// Audit logging for collaboration events
+model CollaborationAuditLog {
+  id          String                    @id @default(cuid())
+  action      CollaborationAction
+  ownerId     String                    // User who performed the action
+  targetEmail String?                   // Target email (for invite/revoke)
+  collaboratorId String?               // CollaborativeMember ID
+  role        CollaborativeRole?
+  details     String?                   @db.Text // Additional details
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime                  @default(now())
+  
+  @@index([ownerId, createdAt])
+  @@index([action, createdAt])
+  @@map("CollaborationAuditLog")
+}
+
+enum CollaborationAction {
+  INVITE_CREATED
+  INVITE_ACCEPTED
+  INVITE_EXPIRED
+  MEMBER_REVOKED
 }
