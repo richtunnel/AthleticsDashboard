@@ -229,6 +229,7 @@ function PricingPlansContent() {
     }
 
     if (sessionStatus === "loading") {
+      console.log("Session status is loading, waiting...");
       setError("Please wait while we confirm your account. Try again in a moment.");
       return;
     }
@@ -241,12 +242,15 @@ function PricingPlansContent() {
 
     const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
 
+    // Log missing price ID but allow user to proceed
     if (!priceId || !isValidPriceId(priceId)) {
-      if (isDevelopment) {
-        setError(`Stripe price ID not configured. Please set NEXT_PUBLIC_STRIPE_${plan.name.toUpperCase()}_PRICE_ID_${billing === "monthly" ? "MO" : "YR"} in your .env.local file.`);
-      } else {
-        setError("This plan is not currently available. Please contact support.");
-      }
+      console.warn(`Stripe price ID not configured for ${plan.name} (${billing}). Allowing user to proceed to signup.`, {
+        planName: plan.name,
+        billing,
+        priceId,
+        isDevelopment,
+      });
+      router.push("/onboarding/signup");
       return;
     }
 
@@ -254,7 +258,8 @@ function PricingPlansContent() {
 
     const timeoutId = window.setTimeout(() => {
       setLoadingKey(null);
-      setError((current) => current ?? "Plan selection is taking longer than expected. Please try again.");
+      console.warn("Plan selection timeout reached, redirecting to signup");
+      router.push("/onboarding/signup");
     }, 10000);
 
     try {
@@ -267,11 +272,17 @@ function PricingPlansContent() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(data?.error ?? "Failed to create checkout session");
+        // Log error but allow user to proceed
+        console.warn("Stripe checkout session creation failed, redirecting to signup:", data?.error);
+        router.push("/onboarding/signup");
+        return;
       }
 
       if (data?.error) {
-        throw new Error(data.error);
+        // Log error but allow user to proceed
+        console.warn("Stripe checkout session returned error, redirecting to signup:", data.error);
+        router.push("/onboarding/signup");
+        return;
       }
 
       if (data?.url) {
@@ -279,10 +290,12 @@ function PricingPlansContent() {
         return;
       }
 
-      throw new Error("No checkout URL returned");
+      // No checkout URL returned, redirect to signup
+      console.warn("No checkout URL returned from Stripe, redirecting to signup");
+      router.push("/onboarding/signup");
     } catch (err: unknown) {
-      console.error("Checkout error:", err);
-      setError(err instanceof Error ? err.message : "Failed to start checkout. Please try again.");
+      console.error("Checkout error, redirecting to signup:", err);
+      router.push("/onboarding/signup");
     } finally {
       clearTimeout(timeoutId);
       setLoadingKey(null);
@@ -393,9 +406,7 @@ function PricingPlansContent() {
           {plans.map((plan) => {
             const planKey = plan.isFree ? `${plan.name}-free` : `${plan.name}-${billing}`;
             const selectedPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
-            const requiresPriceId = !plan.isFree;
-            const disableForMissingPrice = requiresPriceId && !selectedPriceId && !(hasActiveSubscription && !plan.isFree);
-            const buttonDisabled = Boolean(loadingKey) || disableForMissingPrice;
+            const buttonDisabled = Boolean(loadingKey);
             const isLoading = loadingKey === planKey;
             const buttonLabel = hasActiveSubscription && !plan.isFree ? "Manage Subscription" : "Get started";
 
@@ -451,24 +462,6 @@ function PricingPlansContent() {
                     >
                       {buttonLabel}
                     </AuthActionButton>
-
-                    {!plan.isFree && !selectedPriceId && !hasActiveSubscription && (
-                      <Typography variant="caption" color="error" display="block" sx={{ mb: 2 }}>
-                        {isDevelopment ? (
-                          <>
-                            Price ID not configured.
-                            <br />
-                            See banner above for setup instructions.
-                          </>
-                        ) : (
-                          <>
-                            This plan is currently unavailable.
-                            <br />
-                            Please contact support.
-                          </>
-                        )}
-                      </Typography>
-                    )}
 
                     <Divider sx={{ mb: 3 }} />
 
