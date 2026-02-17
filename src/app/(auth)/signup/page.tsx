@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress } from "@mui/material";
+import { Box, TextField, Typography, Paper, Container, Alert, Divider, Link as MuiLink, CircularProgress, Button } from "@mui/material";
 import { Google } from "@mui/icons-material";
 import Link from "next/link";
 import { useAuthButton } from "@/lib/hooks/useAuthButton";
@@ -11,6 +11,19 @@ import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import Footer from "@/components/layout/Footer";
 import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
+
+// Microsoft icon component
+function MicrosoftIcon() {
+  return (
+    <svg viewBox="0 0 23 23" width="20" height="20">
+      <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+      <path fill="#f35325" d="M1 1h10v10H1z"/>
+      <path fill="#81bc06" d="M12 1h10v10H12z"/>
+      <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+      <path fill="#ffba08" d="M12 12h10v10H12z"/>
+    </svg>
+  );
+}
 
 function SignupForm() {
   const router = useRouter();
@@ -38,12 +51,17 @@ function SignupForm() {
     onError: (err) => setError(err),
   });
 
+  const microsoftAuth = useAuthButton({
+    callbackUrl,
+    onError: (err) => setError(err),
+  });
+
   const credentialsAuth = useAuthButton({
     callbackUrl,
     onError: (err) => setError(err),
   });
 
-  const isLoading = googleAuth.loading || credentialsAuth.loading;
+  const isLoading = googleAuth.loading || microsoftAuth.loading || credentialsAuth.loading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +133,18 @@ function SignupForm() {
     }
   };
 
+  const handleMicrosoftSignup = async () => {
+    setError("");
+    try {
+      await microsoftAuth.executeAction({
+        type: "azure-ad",
+        authorizationParams: { prompt: "select_account consent" },
+      });
+    } catch (error) {
+      // Error handled by onError callback
+    }
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px" />
@@ -143,6 +173,9 @@ function SignupForm() {
 
             <AuthActionButton fullWidth variant="contained" startIcon={<Google />} onClick={handleGoogleSignup} loading={googleAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
               Sign up with Google
+            </AuthActionButton>
+            <AuthActionButton fullWidth variant="contained" startIcon={<MicrosoftIcon />} onClick={handleMicrosoftSignup} loading={microsoftAuth.loading} disabled={isLoading} sx={{ mb: 1 }}>
+              Sign up with Microsoft
             </AuthActionButton>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
               If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in”.
