@@ -1,0 +1,291 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/utils/authOptions";
+import { prisma } from "@/lib/database/prisma";
+import { verifyInvitationToken, isInvitationExpired } from "@/lib/utils/collaboration";
+import { CollaborativeRole, CollaborationAction } from "@prisma/client";
+import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
+import { signIn } from "next-auth/react";
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const token = searchParams.get("token");
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Invalid invitation token" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the token
+    const decodedToken = verifyInvitationToken(token);
+    if (!decodedToken) {
+      return NextResponse.json(
+        { success: false, message: "Invalid or expired invitation token" },
+        { status: 400 }
+      );
+    }
+
+    const { email, ownerId, role, invitedAt, expiresAt } = decodedToken;
+
+    // Check if invitation has expired
+    if (isInvitationExpired(invitedAt, expiresAt)) {
+      // Mark as expired in the database
+      await prisma.collaborativeMember.updateMany({
+        where: {
+          token: token,
+          status: "PENDING",
+        },
+        data: {
+          status: "EXPIRED",
+        },
+      });
+
+      // Log expiration
+      await prisma.collaborationAuditLog.create({
+        data: {
+          action: "INVITE_EXPIRED",
+          ownerId: ownerId,
+          targetEmail: email,
+          details: "Invitation expired before being accepted",
+        },
+      });
+
+      return NextResponse.json(
+        { success: false, message: "This invitation has expired. Please request a new invitation." },
+        { status: 400 }
+      );
+    }
+
+    // Find the invitation in the database
+    const invitation = await prisma.collaborativeMember.findFirst({
+      where: {
+        token: token,
+        email: email,
+        status: "PENDING",
+        revokedAt: null,
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            organization: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, message: "Invitation not found or already accepted" },
+        { status: 404 }
+      );
+    }
+
+    // Check if invitation was revoked
+    if (invitation.revokedAt) {
+      return NextResponse.json(
+        { success: false, message: "This invitation has been revoked" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user is already signed in
+    const session = await getServerSession(authOptions);
+    const isSignedIn = !!session?.user;
+
+    // If signed in, check if the email matches
+    if (isSignedIn && session.user.email.toLowerCase() !== email.toLowerCase()) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "This invitation was sent to a different email address. Please sign out and sign in with the correct account." 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get the owner details
+    const ownerName = invitation.owner.name || "Account Owner";
+    const organizationName = invitation.owner.organization?.name || "the organization";
+    const ownerEmail = invitation.owner.email;
+
+    // If signed in, auto-accept the invitation
+    if (isSignedIn) {
+      // Update the invitation status
+      await prisma.collaborativeMember.update({
+        where: { id: invitation.id },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+        },
+      });
+
+      // Log the acceptance
+      const metadata = extractRequestMetadataFromHeaders(request.headers);
+      await prisma.collaborationAuditLog.create({
+        data: {
+          action: "INVITE_ACCEPTED",
+          ownerId: ownerId,
+          targetEmail: email,
+          collaboratorId: invitation.id,
+          role: role as CollaborativeRole,
+          details: `Invitation accepted by ${email}`,
+          ipAddress: metadata.ip,
+          userAgent: metadata.userAgent,
+        },
+      });
+
+      // Redirect to the dashboard
+      return NextResponse.redirect(
+        new URL(`/dashboard?collaboration=accepted&role=${role}`, request.url)
+      );
+    }
+
+    // If not signed in, redirect to signup/login page with the invitation token
+    // The signup flow will handle accepting the invitation after account creation
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
+    const signupUrl = new URL("/", baseUrl);
+    signupUrl.searchParams.set("invitation_token", token);
+    signupUrl.searchParams.set("invitation_email", email);
+    signupUrl.searchParams.set("invitation_role", role);
+    signupUrl.searchParams.set("invitation_owner", ownerId);
+    signupUrl.searchParams.set("accept_invitation", "true");
+
+    // Return the invitation details along with the redirect URL
+    return NextResponse.json({
+      success: true,
+      invitation: {
+        email,
+        role,
+        ownerName,
+        organizationName,
+        ownerEmail,
+        expiresAt,
+      },
+      redirectUrl: signupUrl.toString(),
+      requiresAuth: true,
+    });
+
+  } catch (error) {
+    console.error("Error accepting invitation:", error);
+    return NextResponse.json(
+      { success: false, message: "An error occurred while processing the invitation" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { token } = body;
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Invalid invitation token" },
+        { status: 400 }
+      );
+    }
+
+    // Verify the token
+    const decodedToken = verifyInvitationToken(token);
+    if (!decodedToken) {
+      return NextResponse.json(
+        { success: false, message: "Invalid or expired invitation token" },
+        { status: 400 }
+      );
+    }
+
+    const { email, ownerId, role } = decodedToken;
+
+    // Check if invitation has expired
+    if (isInvitationExpired(decodedToken.invitedAt, decodedToken.expiresAt)) {
+      return NextResponse.json(
+        { success: false, message: "This invitation has expired. Please request a new invitation." },
+        { status: 400 }
+      );
+    }
+
+    // Find the invitation
+    const invitation = await prisma.collaborativeMember.findFirst({
+      where: {
+        token: token,
+        status: "PENDING",
+        revokedAt: null,
+      },
+    });
+
+    if (!invitation) {
+      return NextResponse.json(
+        { success: false, message: "Invitation not found or already accepted" },
+        { status: 404 }
+      );
+    }
+
+    // Check if the user is authenticated
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, message: "Please sign in to accept this invitation" },
+        { status: 401 }
+      );
+    }
+
+    // Verify the email matches
+    if (session.user.email.toLowerCase() !== email.toLowerCase()) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "This invitation was sent to a different email address" 
+        },
+        { status: 400 }
+      );
+    }
+
+    // Update the invitation status
+    await prisma.collaborativeMember.update({
+      where: { id: invitation.id },
+      data: {
+        status: "ACCEPTED",
+        acceptedAt: new Date(),
+      },
+    });
+
+    // Log the acceptance
+    const metadata = extractRequestMetadataFromHeaders(request.headers);
+    await prisma.collaborationAuditLog.create({
+      data: {
+        action: "INVITE_ACCEPTED",
+        ownerId: ownerId,
+        targetEmail: email,
+        collaboratorId: invitation.id,
+        role: role as CollaborativeRole,
+        details: `Invitation accepted by ${email}`,
+        ipAddress: metadata.ip,
+        userAgent: metadata.userAgent,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Invitation accepted successfully",
+      redirectUrl: `/dashboard?collaboration=accepted&role=${role}`,
+    });
+
+  } catch (error) {
+    console.error("Error accepting invitation:", error);
+    return NextResponse.json(
+      { success: false, message: "An error occurred while accepting the invitation" },
+      { status: 500 }
+    );
+  }
+}

@@ -4,6 +4,9 @@ import { DefaultJWT } from "next-auth/jwt";
 // Define UserRole locally to avoid Prisma dependency
 export type UserRole = "SUPER_ADMIN" | "ATHLETIC_DIRECTOR" | "ASSISTANT_AD" | "COACH" | "STAFF" | "VENDOR_READ_ONLY";
 
+// Define CollaborativeRole locally to avoid Prisma dependency
+export type CollaborativeRole = "VIEWER" | "MEMBER";
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -24,6 +27,10 @@ declare module "next-auth" {
       lastLoginAt?: Date | null;
       lastLoginDate?: Date | null;
       dailyLoginCount?: number;
+      // Collaboration fields
+      isCollaborator?: boolean;
+      collaboratorRole?: CollaborativeRole;
+      ownerUserId?: string;
     } & DefaultSession["user"];
   }
 
@@ -48,6 +55,10 @@ declare module "next-auth" {
     memberAccessCode?: string;
     memberAccessIssuedAt?: number;
     memberAccessExpiresAt?: number;
+    // Collaboration fields
+    isCollaborator?: boolean;
+    collaboratorRole?: CollaborativeRole;
+    ownerUserId?: string;
   }
 }
 
@@ -72,5 +83,9 @@ declare module "next-auth/jwt" {
     memberAccessCode?: string;
     memberAccessIssuedAt?: number;
     memberAccessExpiresAt?: number;
+    // Collaboration fields
+    isCollaborator?: boolean;
+    collaboratorRole?: CollaborativeRole;
+    ownerUserId?: string;
   }
 }

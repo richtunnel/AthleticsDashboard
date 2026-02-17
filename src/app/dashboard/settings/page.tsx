@@ -22,6 +22,8 @@ import { SupportCard } from "@/components/settings/SupportCard";
 import { CostBudgetToggle } from "@/components/settings/CostBudgetToggle";
 import { CostBudgetTab } from "@/components/settings/CostBudgetTab";
 import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
+import { CollaboratorsSection } from "@/components/settings/CollaboratorsSection";
+import { canAccessSettings } from "@/lib/utils/rbac";
 import { Assistant, AutoAwesome, AttachMoney } from "@mui/icons-material";
 
 interface SettingsPageProps {
@@ -79,6 +81,21 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   // Fetch subscription and login data
   const userWithSubscription = await getUserWithSubscription(session.user.id);
+
+  // Check if user can access settings (only account owners can access settings)
+  const settingsAccess = await canAccessSettings();
+  if (!settingsAccess.canAccess) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Access Denied
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          {settingsAccess.reason}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -169,6 +186,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
         <EmailLimitsCard />
         {/* Support Card */}
+      </Box>
+
+      {/* Collaborators Section */}
+      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+        <CollaboratorsSection />
       </Box>
 
       {/* Billing & Subscription Card */}
