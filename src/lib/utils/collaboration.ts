@@ -53,42 +53,6 @@ export function hasCollaborativeAccess(
 }
 
 /**
- * Generate a JWT token for invitation acceptance
- */
-export function generateInvitationToken(payload: {
-  email: string;
-  ownerId: string;
-  role: CollaborativeRole;
-  invitedAt: Date;
-  expiresAt: Date;
-}): string {
-  const jwt = require("jsonwebtoken");
-  return jwt.sign(payload, process.env.JWT_SECRET || "default-secret", {
-    expiresIn: "24h",
-  });
-}
-
-/**
- * Verify and decode an invitation token
- */
-export function verifyInvitationToken(token: string): {
-  email: string;
-  ownerId: string;
-  role: CollaborativeRole;
-  invitedAt: Date;
-  expiresAt: Date;
-} | null {
-  try {
-    const jwt = require("jsonwebtoken");
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "default-secret");
-    return decoded;
-  } catch (error) {
-    console.error("Invalid invitation token:", error);
-    return null;
-  }
-}
-
-/**
  * Check if an invitation has expired (24 hours)
  */
 export function isInvitationExpired(invitedAt: Date, expiresAt?: Date): boolean {
