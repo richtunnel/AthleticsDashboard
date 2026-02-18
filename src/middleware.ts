@@ -1,70 +1,156 @@
-import { withAuth } from "next-auth/middleware";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getMemberAccessExpiresAtMs, isMemberAccessCodeDisabled, isMemberAccessToken, normalizeMemberAccessCode } from "@/lib/utils/memberAccess";
 import { etagMiddleware } from "./middleware/etag-middleware";
+import { prisma } from "@/lib/database/prisma";
 
 // Force Node.js runtime for middleware (Prisma doesn't work in Edge Runtime)
 export const runtime = "nodejs";
 
-export default withAuth(
-  async function middleware(req: any) {
-    // Check if this is an image request and handle ETag
-    const etagResponse = etagMiddleware(req);
-    if (etagResponse) {
-      return etagResponse;
+export async function middleware(req: NextRequest) {
+  // Check if this is an image request and handle ETag
+  const etagResponse = etagMiddleware(req);
+  if (etagResponse) {
+    return etagResponse;
+  }
+
+  // Apply security headers to all responses
+  const response = NextResponse.next();
+
+  // Security headers
+  response.headers.set("X-DNS-Prefetch-Control", "on");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+
+  // HSTS header (only in production)
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
+
+  // Redirect www to non-www
+  const host = req.headers.get("host");
+  if (host && host.startsWith("www.")) {
+    const nonWwwHost = host.replace("www.", "");
+    const newUrl = new URL(req.url);
+    newUrl.host = nonWwwHost;
+    return NextResponse.redirect(newUrl, 301);
+  }
+
+  // CORS handling for API routes
+  const origin = req.headers.get("origin");
+  const allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"];
+
+  if (origin && allowedOrigins.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Credentials", "true");
+    response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Idempotency-Key, X-CSRF-Token");
+    response.headers.set("Access-Control-Max-Age", "86400");
+  }
+
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: response.headers,
+    });
+  }
+
+  const pathname = req.nextUrl.pathname;
+
+  // Handle onboarding/details route with custom authentication logic
+  if (pathname === "/onboarding/details") {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token?.sub) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/onboarding/plans";
+      return NextResponse.redirect(url);
     }
 
-    // Apply security headers to all responses
-    const response = NextResponse.next();
-
-    // Security headers
-    response.headers.set("X-DNS-Prefetch-Control", "on");
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-
-    // HSTS header (only in production)
-    if (process.env.NODE_ENV === "production") {
-      response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    // Allow member access users
+    if (isMemberAccessToken(token)) {
+      return response;
     }
 
-    // Redirect www to non-www
-    const host = req.headers.get("host");
-    if (host && host.startsWith("www.")) {
-      const nonWwwHost = host.replace("www.", "");
-      const newUrl = new URL(req.url);
-      newUrl.host = nonWwwHost;
-      return NextResponse.redirect(newUrl, 301);
-    }
-
-    // CORS handling for API routes
-    const origin = req.headers.get("origin");
-    const allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"];
-
-    if (origin && allowedOrigins.includes(origin)) {
-      response.headers.set("Access-Control-Allow-Origin", origin);
-      response.headers.set("Access-Control-Allow-Credentials", "true");
-      response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Idempotency-Key, X-CSRF-Token");
-      response.headers.set("Access-Control-Max-Age", "86400");
-    }
-
-    // Handle CORS preflight
-    if (req.method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: response.headers,
+    // Check if user is in onboarding flow (hasn't completed school details)
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: token.sub as string },
+        select: {
+          schoolName: true,
+          teamName: true,
+          schoolAddress: true,
+        },
       });
+
+      // If user doesn't exist or already has school details, redirect to dashboard
+      if (!user || (user.schoolName && user.teamName && user.schoolAddress)) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+
+      // User is in onboarding flow, allow access
+      return response;
+    } catch (error) {
+      console.error("[Middleware] Error checking user onboarding status:", error);
+      // On error, redirect to plans to be safe
+      const url = req.nextUrl.clone();
+      url.pathname = "/onboarding/plans";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // For dashboard and API routes, use standard authentication
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  // Public API routes that don't require authentication
+  if (
+    pathname.startsWith("/api/images/optimize") ||
+    pathname.startsWith("/api/stripe/webhook")
+  ) {
+    return response;
+  }
+
+  if (!token) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // Validate token expiration
+  const { exp } = token as { exp?: number | string };
+  if (typeof exp === "number" && Date.now() >= exp * 1000) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  if (typeof exp === "string") {
+    const expNumber = Number(exp);
+    if (!Number.isNaN(expNumber) && Date.now() >= expNumber * 1000) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
+
+  // Validate member access tokens
+  if (isMemberAccessToken(token)) {
+    const fallbackCode = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
+    const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
+
+    if (isMemberAccessCodeDisabled(memberCode)) {
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
-    const token = req.nextauth?.token;
+    const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
+    if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
 
-    // Check payment status for dashboard routes (except settings and account-disabled)
-    const pathname = req.nextUrl.pathname;
-
+  // Check payment status for dashboard routes (except settings and account-disabled)
+  if (pathname.startsWith("/dashboard")) {
     // Allow settings page and account-disabled page regardless of payment status
     if (pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/account-disabled")) {
       return response;
@@ -75,7 +161,7 @@ export default withAuth(
       try {
         // Dynamically import to avoid issues with edge runtime
         const { checkPaymentStatus } = await import("@/lib/services/payment-status.service");
-        const paymentStatus = await checkPaymentStatus(token.sub);
+        const paymentStatus = await checkPaymentStatus(token.sub as string);
 
         // If account is disabled, redirect to account-disabled page
         if (paymentStatus.isDisabled) {
@@ -98,63 +184,11 @@ export default withAuth(
         // On error, allow access to prevent false lockouts
       }
     }
-
-    return response;
-  },
-  {
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname;
-
-        // Public API routes that don't require authentication
-        if (
-          pathname.startsWith("/api/images/optimize") ||
-          pathname.startsWith("/api/stripe/webhook")
-        ) {
-          return true;
-        }
-
-        if (!token) {
-          return false;
-        }
-
-        if (isMemberAccessToken(token)) {
-          const fallbackCode = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
-          const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
-
-          if (isMemberAccessCodeDisabled(memberCode)) {
-            return false;
-          }
-
-          const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
-          if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
-            return false;
-          }
-        }
-
-        const { exp } = token as { exp?: number | string };
-
-        if (typeof exp === "number" && Date.now() >= exp * 1000) {
-          return false;
-        }
-
-        if (typeof exp === "string") {
-          const expNumber = Number(exp);
-
-          if (!Number.isNaN(expNumber) && Date.now() >= expNumber * 1000) {
-            return false;
-          }
-        }
-
-        return true;
-      },
-    },
-    pages: {
-      signIn: "/",
-    },
   }
-);
+
+  return response;
+}
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*", "/onboarding/details"],
 };
