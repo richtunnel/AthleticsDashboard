@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
@@ -14,7 +14,12 @@ type UpdateUserBody = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function POST(req: Request) {
+export async function GET() {
+  // Return 405 Method Not Allowed for GET requests
+  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
+}
+
+export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
