@@ -18,6 +18,16 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Verify user exists in database
+  const existingUser = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+
+  if (!existingUser) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
   const body = (await req.json()) as UpdateUserBody;
   const { schoolName, teamName, schoolAddress, schoolEmail } = body;
 
