@@ -156,7 +156,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send invitation email
+    // Send invitation email and track status
+    let emailSent = false;
+    let emailErrorMessage: string | undefined;
+
     try {
       await emailService.sendCollaborationInviteEmail({
         to: email,
@@ -165,15 +168,38 @@ export async function POST(request: NextRequest) {
         acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com"}/api/collaboration/accept-invitation?token=${token}`,
         expiresAt,
       });
+      emailSent = true;
+
+      // Update collaborator record to mark email as sent
+      await prisma.collaborativeMember.update({
+        where: { id: collaborator.id },
+        data: {
+          emailSent: true,
+          emailSentAt: new Date(),
+        },
+      });
     } catch (emailError) {
+      const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
+      emailErrorMessage = errorMessage;
       console.error("Failed to send invitation email:", emailError);
-      // Don't fail the request if email fails, but log it
+
+      // Update collaborator record with email error
+      await prisma.collaborativeMember.update({
+        where: { id: collaborator.id },
+        data: {
+          emailError: errorMessage,
+        },
+      });
     }
 
     return NextResponse.json({
       success: true,
-      message: "Invitation sent successfully",
+      message: emailSent
+        ? "Invitation sent successfully"
+        : "Invitation created but email failed to send. Please check your email configuration.",
       collaboratorId: collaborator.id,
+      emailSent,
+      emailError: emailErrorMessage,
     });
   } catch (error) {
     console.error("Error inviting collaborator:", error);

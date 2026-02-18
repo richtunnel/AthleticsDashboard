@@ -49,6 +49,9 @@ export async function GET(request: NextRequest) {
         acceptedAt: true,
         revokedAt: true,
         revokeReason: true,
+        emailSent: true,
+        emailSentAt: true,
+        emailError: true,
       },
       orderBy: [
         { status: "asc" }, // PENDING first
@@ -70,6 +73,9 @@ export async function GET(request: NextRequest) {
       acceptedAt: collab.acceptedAt,
       revokedAt: collab.revokedAt,
       revokeReason: collab.revokeReason,
+      emailSent: collab.emailSent,
+      emailSentAt: collab.emailSentAt,
+      emailError: collab.emailError,
     }));
 
     return NextResponse.json({

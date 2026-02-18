@@ -772,6 +772,11 @@ model CollaborativeMember {
   revokeReason String?
   token        String?               @unique // JWT token for invitation acceptance
   
+  // Email tracking
+  emailSent    Boolean               @default(false) // Whether invitation email was sent
+  emailSentAt  DateTime?             // When the invitation email was sent
+  emailError   String?               @db.Text // Error message if email failed to send
+  
   // Relations
   owner        User                  @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
   
@@ -816,4 +821,5 @@ enum CollaborationAction {
   INVITE_ACCEPTED
   INVITE_EXPIRED
   MEMBER_REVOKED
+  EMAIL_RESENT
 }

@@ -596,12 +596,11 @@ export class EmailService {
   async sendCollaborationInviteEmail(params: { to: string; inviterName: string; role: "VIEWER" | "MEMBER"; acceptUrl: string; expiresAt: Date }): Promise<void> {
     const resend = getResendClientOptional();
     if (!resend) {
-      console.warn("Email service not configured. Collaboration invitation email not sent.");
-      return;
+      throw new Error("Email service not configured. Please set RESEND_API_KEY environment variable to send collaboration invitation emails.");
     }
 
     const { to, inviterName, role, acceptUrl, expiresAt } = params;
-    
+
     const roleDescription = role === "VIEWER" ? "Viewer (Read-Only)" : "Member (Full Access)";
     const expiresAtFormatted = expiresAt.toLocaleDateString(undefined, {
       month: "long",
@@ -615,7 +614,7 @@ export class EmailService {
       <h2>You've been invited to collaborate!</h2>
       <p>Hi,</p>
       <p><strong>${inviterName}</strong> has invited you to collaborate on their Opletics dashboard.</p>
-      
+
       <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
         <p style="margin: 5px 0;"><strong>Role:</strong> ${roleDescription}</p>
         <p style="margin: 5px 0;"><strong>Access Level:</strong> ${role === "VIEWER" ? "View dashboard and reports (read-only)" : "Edit games, teams, and data (full access)"}</p>
@@ -654,7 +653,7 @@ export class EmailService {
       console.log(`Collaboration invitation email sent to ${to}`);
     } catch (error) {
       console.error("Failed to send collaboration invitation email:", error);
-      // Don't throw - this is a non-critical feature
+      throw error;
     }
   }
 
