@@ -4,26 +4,14 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  Box,
-  Button,
-  TextField,
-  MenuItem,
-  Typography,
-  Alert,
-  CircularProgress,
-  LinearProgress,
-  FormControl,
-  InputLabel,
-  Select,
-} from "@mui/material";
+import { Box, Button, TextField, MenuItem, Typography, Alert, CircularProgress, LinearProgress, FormControl, InputLabel, Select } from "@mui/material";
 import { PersonAdd, PersonRemove } from "@mui/icons-material";
 import { formatCollaboratorCount } from "@/lib/utils/collaboration";
 
 const inviteSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   role: z.enum(["VIEWER", "MEMBER"], {
-    required_error: "Please select a role",
+    message: "Please select a role",
   }),
 });
 
@@ -36,12 +24,7 @@ interface InviteCollaboratorFormProps {
   onSuccess?: () => void;
 }
 
-export function InviteCollaboratorForm({
-  usedSlots,
-  availableSlots,
-  collaboratorLimit,
-  onSuccess,
-}: InviteCollaboratorFormProps) {
+export function InviteCollaboratorForm({ usedSlots, availableSlots, collaboratorLimit, onSuccess }: InviteCollaboratorFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -98,7 +81,7 @@ export function InviteCollaboratorForm({
         <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
         Invite Collaborators
       </Typography>
-      
+
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         Invite team members to collaborate on your dashboard. They&apos;ll get their own access without sharing your login.
       </Typography>
@@ -109,20 +92,11 @@ export function InviteCollaboratorForm({
           <Typography variant="body2" color="text.secondary">
             Collaborator Slots
           </Typography>
-          <Typography 
-            variant="body2" 
-            fontWeight="medium"
-            color={countInfo.isAtLimit ? "error.main" : countInfo.isNearLimit ? "warning.main" : "text.secondary"}
-          >
+          <Typography variant="body2" fontWeight="medium" color={countInfo.isAtLimit ? "error.main" : countInfo.isNearLimit ? "warning.main" : "text.secondary"}>
             {countInfo.text}
           </Typography>
         </Box>
-        <LinearProgress 
-          variant="determinate" 
-          value={countInfo.percentage} 
-          color={countInfo.isAtLimit ? "error" : countInfo.isNearLimit ? "warning" : "primary"}
-          sx={{ height: 8, borderRadius: 4 }}
-        />
+        <LinearProgress variant="determinate" value={countInfo.percentage} color={countInfo.isAtLimit ? "error" : countInfo.isNearLimit ? "warning" : "primary"} sx={{ height: 8, borderRadius: 4 }} />
       </Box>
 
       {error && (
@@ -138,10 +112,7 @@ export function InviteCollaboratorForm({
       )}
 
       {isAtLimit ? (
-        <Alert severity="info">
-          You&apos;ve reached your collaborator limit ({collaboratorLimit}). 
-          Upgrade your plan to invite more team members.
-        </Alert>
+        <Alert severity="info">You&apos;ve reached your collaborator limit ({collaboratorLimit}). Upgrade your plan to invite more team members.</Alert>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -158,13 +129,7 @@ export function InviteCollaboratorForm({
 
             <FormControl fullWidth error={!!errors.role}>
               <InputLabel id="role-select-label">Role</InputLabel>
-              <Select
-                {...register("role")}
-                labelId="role-select-label"
-                label="Role"
-                defaultValue="VIEWER"
-                disabled={isLoading}
-              >
+              <Select {...register("role")} labelId="role-select-label" label="Role" defaultValue="VIEWER" disabled={isLoading}>
                 <MenuItem value="VIEWER">
                   <Box>
                     <Typography variant="body1">Viewer (Read-Only)</Typography>
@@ -189,9 +154,9 @@ export function InviteCollaboratorForm({
               variant="contained"
               disabled={isLoading || isAtLimit}
               startIcon={isLoading ? <CircularProgress size={20} /> : <PersonAdd />}
-              fullWidth
+              sx={{ width: { sm: "100%", lg: "50%" }, maxWidth: "600px" }}
             >
-              {isLoading ? "Sending..." : "Send Invitation"}
+              {isLoading ? "Sending..." : "Send Invite"}
             </Button>
           </Box>
         </form>

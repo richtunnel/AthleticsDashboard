@@ -5,7 +5,7 @@ BEGIN
         CREATE TYPE "CollaborativeRole" AS ENUM ('VIEWER', 'MEMBER');
     END IF;
 END $$;
-
+ 
 -- Create CollaborativeStatus enum if it doesn't exist
 DO $$
 BEGIN
@@ -13,7 +13,7 @@ BEGIN
         CREATE TYPE "CollaborativeStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED');
     END IF;
 END $$;
-
+ 
 -- Create CollaborationAction enum if it doesn't exist
 DO $$
 BEGIN
@@ -24,7 +24,7 @@ BEGIN
         ALTER TYPE "CollaborationAction" ADD VALUE IF NOT EXISTS 'EMAIL_RESENT';
     END IF;
 END $$;
-
+ 
 -- Create CollaborativeMember table if it doesn't exist
 CREATE TABLE IF NOT EXISTS "CollaborativeMember" (
     "id" TEXT NOT NULL,
@@ -40,10 +40,10 @@ CREATE TABLE IF NOT EXISTS "CollaborativeMember" (
     "emailSent" BOOLEAN NOT NULL DEFAULT false,
     "emailSentAt" TIMESTAMP(3),
     "emailError" TEXT,
-
+ 
     CONSTRAINT "CollaborativeMember_pkey" PRIMARY KEY ("id")
 );
-
+ 
 -- Add unique constraint on token if not exists
 DO $$
 BEGIN
@@ -54,7 +54,7 @@ BEGIN
         CREATE UNIQUE INDEX "CollaborativeMember_token_key" ON "CollaborativeMember"("token");
     END IF;
 END $$;
-
+ 
 -- Add unique constraint on userId + email if not exists
 DO $$
 BEGIN
@@ -65,7 +65,7 @@ BEGIN
         CREATE UNIQUE INDEX "CollaborativeMember_userId_email_key" ON "CollaborativeMember"("userId", "email");
     END IF;
 END $$;
-
+ 
 -- Add indexes if not exists
 DO $$
 BEGIN
@@ -76,7 +76,7 @@ BEGIN
         CREATE INDEX "CollaborativeMember_userId_status_idx" ON "CollaborativeMember"("userId", "status");
     END IF;
 END $$;
-
+ 
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -86,7 +86,7 @@ BEGIN
         CREATE INDEX "CollaborativeMember_email_idx" ON "CollaborativeMember"("email");
     END IF;
 END $$;
-
+ 
 -- Add foreign key constraint if not exists
 DO $$
 BEGIN
@@ -99,7 +99,7 @@ BEGIN
         FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
 END $$;
-
+ 
 -- Create CollaborationAuditLog table if it doesn't exist
 CREATE TABLE IF NOT EXISTS "CollaborationAuditLog" (
     "id" TEXT NOT NULL,
@@ -112,10 +112,10 @@ CREATE TABLE IF NOT EXISTS "CollaborationAuditLog" (
     "ipAddress" TEXT,
     "userAgent" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
+ 
     CONSTRAINT "CollaborationAuditLog_pkey" PRIMARY KEY ("id")
 );
-
+ 
 -- Add indexes for CollaborationAuditLog if not exists
 DO $$
 BEGIN
@@ -126,7 +126,7 @@ BEGIN
         CREATE INDEX "CollaborationAuditLog_ownerId_createdAt_idx" ON "CollaborationAuditLog"("ownerId", "createdAt");
     END IF;
 END $$;
-
+ 
 DO $$
 BEGIN
     IF NOT EXISTS (
