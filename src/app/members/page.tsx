@@ -23,6 +23,7 @@ export default function MembersPage() {
   const { status } = useSession();
 
   const [memberNo, setMemberNo] = useState("");
+  const isPageLoading = status === "loading";
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +83,7 @@ export default function MembersPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (submitting || locked) return;
+    if (submitting || locked || isPageLoading) return;
 
     setSubmitting(true);
     setError(null);
@@ -156,7 +157,7 @@ export default function MembersPage() {
               placeholder="Enter member no."
               autoComplete="off"
               spellCheck={false}
-              disabled={locked || submitting}
+              disabled={locked || submitting || isPageLoading}
               className="w-full rounded-xl text-base outline-none"
               style={{
                 border: `1px solid rgb(197, 197, 210)`,
@@ -167,16 +168,22 @@ export default function MembersPage() {
 
             <button
               type="submit"
-              disabled={locked || submitting || memberNo.trim().length === 0}
+              disabled={locked || submitting || isPageLoading || memberNo.trim().length === 0}
               className="w-full rounded-xl font-semibold transition-opacity"
               style={{
                 border: `1px solid rgb(197, 197, 210)`,
                 padding: "14px 22px",
-                opacity: locked || submitting || memberNo.trim().length === 0 ? 0.55 : 1,
+                opacity: locked || submitting || isPageLoading || memberNo.trim().length === 0 ? 0.55 : 1,
               }}
             >
-              {submitting ? "Checking..." : "Continue"}
+              {submitting ? "Checking..." : isPageLoading ? "Loading..." : "Continue"}
             </button>
+
+            {isPageLoading ? (
+              <div className="text-sm" style={{ color: "rgb(197, 197, 210)" }}>
+                Loading member access...
+              </div>
+            ) : null}
 
             <div className="text-sm" style={{ color: "rgb(197, 197, 210)" }}>
               Attempts: {attempts}/{MAX_ATTEMPTS} ({attemptsRemaining} remaining)
