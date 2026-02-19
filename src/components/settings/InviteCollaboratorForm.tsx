@@ -23,7 +23,7 @@ import { formatCollaboratorCount } from "@/lib/utils/collaboration";
 const inviteSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   role: z.enum(["VIEWER", "MEMBER"], {
-    required_error: "Please select a role",
+    message: "Please select a role",
   }),
 });
 
