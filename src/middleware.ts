@@ -112,7 +112,8 @@ export async function middleware(req: NextRequest) {
   // Public API routes that don't require authentication
   if (
     pathname.startsWith("/api/images/optimize") ||
-    pathname.startsWith("/api/stripe/webhook")
+    pathname.startsWith("/api/stripe/webhook") ||
+    pathname.startsWith("/api/auth/") // NextAuth routes must be public
   ) {
     return response;
   }
