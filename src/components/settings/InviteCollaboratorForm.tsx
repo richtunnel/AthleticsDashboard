@@ -79,7 +79,7 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
     <Box>
       <Typography variant="h6" gutterBottom>
         <PersonAdd sx={{ mr: 1, verticalAlign: "middle" }} />
-        Invite Collaborators
+        Invite Team Members
       </Typography>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
@@ -154,7 +154,7 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
               variant="contained"
               disabled={isLoading || isAtLimit}
               startIcon={isLoading ? <CircularProgress size={20} /> : <PersonAdd />}
-              sx={{ width: { sm: "100%", lg: "50%" }, maxWidth: "600px" }}
+              sx={{ width: { sm: "100%", lg: "50%" }, maxWidth: "200px" }}
             >
               {isLoading ? "Sending..." : "Send Invite"}
             </Button>
