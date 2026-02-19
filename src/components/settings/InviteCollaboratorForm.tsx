@@ -154,7 +154,7 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
               variant="contained"
               disabled={isLoading || isAtLimit}
               startIcon={isLoading ? <CircularProgress size={20} /> : <PersonAdd />}
-              sx={{ width: { sm: "100%", lg: "50%" }, maxWidth: "600px" }}
+              sx={{ width: { sm: "100%", lg: "50%" }, maxWidth: "250px" }}
             >
               {isLoading ? "Sending..." : "Send Invite"}
             </Button>
