@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { ALLOWED_SETTINGS_ROLES, AllowedSettingsRole } from "@/lib/constants/role";
+import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import bcrypt from "bcryptjs";
 
 type UpdateUserPayload = {
@@ -146,6 +147,11 @@ export async function changePassword(payload: ChangePasswordPayload) {
   if (!session?.user?.id) return { success: false, error: "Unauthorized" };
 
   const userId = session.user.id;
+
+  // Prevent member access users from changing passwords
+  if (isMemberAccessToken(session.user)) {
+    return { success: false, error: "Member accounts cannot change passwords." };
+  }
 
   if (!payload.newPassword || payload.newPassword.length < 8) {
     return { success: false, error: "New password must be at least 8 characters." };
