@@ -24,6 +24,7 @@ import { CostBudgetTab } from "@/components/settings/CostBudgetTab";
 import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
 import { CollaboratorsSection } from "@/components/settings/CollaboratorsSection";
 import { canAccessSettings } from "@/lib/utils/rbac";
+import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import { Assistant, AutoAwesome, AttachMoney } from "@mui/icons-material";
 
 interface SettingsPageProps {
@@ -78,6 +79,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   const hasPassword = !!user.hashedPassword;
   const hasGoogleAccount = user.accounts.some((account) => account.provider === "google");
+
+  // Check if user is a member access user (vip.opletics.com members)
+  const isMemberAccess = isMemberAccessToken({ email: user.email, organizationId: user.organization?.id });
 
   // Fetch subscription and login data
   const userWithSubscription = await getUserWithSubscription(session.user.id);
@@ -215,9 +219,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <SchoolDetailsForm user={user} />
       </Box>
 
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
-      </Box>
+      {!isMemberAccess && (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+        </Box>
+      )}
       <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
         <SupportCard />
       </Box>
