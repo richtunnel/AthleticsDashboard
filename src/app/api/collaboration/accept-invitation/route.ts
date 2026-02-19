@@ -4,9 +4,9 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { isInvitationExpired } from "@/lib/utils/collaboration";
 import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
-import { CollaborativeRole, CollaborationAction } from "@prisma/client";
+import { CollaborativeRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
-import { signIn } from "next-auth/react";
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
         status: "PENDING",
         revokedAt: null,
       },
-      include: {
+      select: {
+        id: true,
+        revokedAt: true,
         owner: {
           select: {
             id: true,
@@ -222,6 +224,9 @@ export async function POST(request: NextRequest) {
         token: token,
         status: "PENDING",
         revokedAt: null,
+      },
+      select: {
+        id: true,
       },
     });
 

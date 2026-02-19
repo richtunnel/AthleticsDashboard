@@ -61,6 +61,9 @@ export async function checkCollaborativeAccess(
       status: "ACCEPTED",
       revokedAt: null,
     },
+    select: {
+      role: true,
+    },
   });
 
   // If not a collaborator, they're the owner (or neither)
@@ -143,6 +146,9 @@ export async function isAccountOwner(): Promise<boolean> {
       status: "ACCEPTED",
       revokedAt: null,
     },
+    select: {
+      id: true,
+    },
   });
 
   // If there's no collaboration record, they're likely the owner
@@ -196,6 +202,10 @@ export async function getCollaborationRole(): Promise<{
       email: userEmail,
       status: "ACCEPTED",
       revokedAt: null,
+    },
+    select: {
+      role: true,
+      userId: true,
     },
   });
 
