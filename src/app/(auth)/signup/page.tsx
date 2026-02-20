@@ -131,9 +131,9 @@ function SignupForm() {
             <Typography component="h1" variant="h5" align="center" gutterBottom>
               Create Account
             </Typography>
-            <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
-              Sign up for Opletics
-            </Typography>
+            {/* <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 3 }}>
+             
+            </Typography> */}
 
             {error && (
               <Alert severity="error" sx={{ mb: 2 }}>
