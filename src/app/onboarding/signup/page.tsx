@@ -137,7 +137,8 @@ function SignupForm() {
           Sign up with Google
         </AuthActionButton>
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", textAlign: "center", mb: 2 }}>
-          If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in”.
+          Sign Up with Google or Microsoft for a better experience.
+          {/* If you&apos;ve used Google with Opletics before, Google may describe this as “signing back in”. */}
         </Typography>
         <AuthActionButton fullWidth variant="outlined" onClick={handleMicrosoftLogin} loading={azureAuth.loading} disabled sx={{ mb: 2 }}>
           Sign up with Microsoft
