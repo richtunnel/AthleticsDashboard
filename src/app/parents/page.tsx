@@ -5,31 +5,35 @@ import { Box, Container, Typography, GridLegacy as Grid, Card, CardContent, Butt
 import { ArrowForward, CheckCircle, Schedule, Notifications, Sync, CalendarMonth, People } from "@mui/icons-material";
 import BaseHeaderWhite from "@/components/headers/_baseWhite";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import MarkEmailUnreadIcon from "@mui/icons-material/MarkEmailUnread";
+import EventBusyIcon from "@mui/icons-material/EventBusy";
+import RadarIcon from "@mui/icons-material/Radar";
+import AlarmIcon from "@mui/icons-material/Alarm";
 
 const ParentPortalPage = () => {
   const theme = useTheme();
 
   const problems = [
     {
-      icon: "📧",
+      icon: <MarkEmailUnreadIcon />,
       title: "Lost in the Inbox",
       description:
         "That email with the game schedule? It's buried under 47 other messages. Or worse—it was sent to the inbox you never check. By the time you find it, you've already missed the first game.",
     },
     {
-      icon: "📅",
+      icon: <EventBusyIcon />,
       title: "Outdated Information",
       description:
         "The schedule changed last Tuesday, but nobody told you. You show up at the old time, only to find an empty field and a very confused kid. The updated schedule? Still sitting in someone's draft folder.",
     },
     {
-      icon: "🤔",
+      icon: <RadarIcon />,
       title: "Playing Detective",
       description:
         "Is it 3 PM or 3:30 PM? Home or away? Which field? You're texting other parents, checking old emails, and scrolling through group chats trying to piece together the truth like you're solving a mystery.",
     },
     {
-      icon: "⏰",
+      icon: <AlarmIcon />,
       title: "Last-Minute Surprises",
       description:
         "It's Friday at 5 PM and you just learned about tomorrow's 8 AM game. Cancel your plans, scramble to rearrange schedules, and hope you packed the uniform last night. This is not how weekends should start.",
@@ -116,7 +120,8 @@ const ParentPortalPage = () => {
         {/* Hero Section */}
         <Box
           sx={{
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            backgroundColor: "#003153",
+            backgroundImage: "linear-gradient(315deg, #003153 0%, #1B1B1B 74%)",
             color: "white",
             py: { xs: 8, md: 12 },
             position: "relative",
@@ -125,7 +130,7 @@ const ParentPortalPage = () => {
         >
           <Container maxWidth="lg">
             <Box sx={{ position: "relative", zIndex: 1 }}>
-              <Chip
+              {/* <Chip
                 label="Introducing Parent Portal"
                 sx={{
                   mb: 3,
@@ -135,7 +140,7 @@ const ParentPortalPage = () => {
                   fontSize: "0.875rem",
                   border: "1px solid rgba(206, 255, 119, 0.3)",
                 }}
-              />
+              /> */}
               <Typography
                 variant="h1"
                 sx={{
@@ -159,7 +164,8 @@ const ParentPortalPage = () => {
                   fontSize: { xs: "1.125rem", md: "1.375rem" },
                 }}
               >
-                Finally, a single source of truth for your child's athletic schedule. No more chasing emails, checking multiple calendars, or wondering if you have the latest updates.
+                Sync your child’s game schedule directly to your personal calendar. Discover how Channl helps you support your child’s fundraising efforts while staying connected to their school
+                journey.{" "}
               </Typography>
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button
@@ -206,15 +212,15 @@ const ParentPortalPage = () => {
               {/* Stats */}
               <Grid container spacing={4} sx={{ mt: 6 }}>
                 {[
-                  { value: "500+", label: "Parents on Waitlist" },
-                  { value: "99.9%", label: "Schedule Accuracy" },
-                  { value: "Real-Time", label: "Instant Updates" },
+                  { value: "500+", label: "Parents enrolled" },
+                  { value: "99.9%", label: "Calendar Accuracy" },
+                  { value: "Real-Time", label: "Instant Game Updates" },
                 ].map((stat, index) => (
                   <Grid item xs={12} sm={4} key={index}>
                     <Box
                       sx={{
                         p: 3,
-                        backgroundColor: "rgb(25 28 60 / 66%);",
+                        backgroundColor: "transparent;",
                         backdropFilter: "blur(10px)",
                         borderRadius: 3,
                         border: "1px solid rgba(255, 255, 255, 0.2)",

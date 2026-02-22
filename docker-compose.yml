@@ -7,7 +7,7 @@ services:
     image: rickstokes/athletics-app:latest
     restart: unless-stopped
     env_file:
-      - ~/.athletics.env
+      - ./.athletics.env
 
     deploy:
       resources:
