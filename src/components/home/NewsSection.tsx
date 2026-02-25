@@ -10,17 +10,17 @@ const NewsSection = () => {
   const newsItems = [
     {
       category: "COMPANY NEWS",
-      title: "Opletics Receives Strategic Data from Sports Technology Partners",
+      title: "Opletics joins forces with Channl to empower the next generation and spark growth early in life ",
       variant: "standard" as const,
     },
     {
       category: "MEDIA",
-      title: '"Opletics saved our Athletics Department members valuable time using their automated workflow dashboard. "',
+      title: " Opletics is introducing a parent portal that keeps families engaged and involved every step of their child’s athletic journey",
       variant: "standard" as const,
     },
     {
       category: "PLATFORM",
-      title: "Opletics is partnering with Channl to integrate a new feature that highlights athletes productivity.",
+      title: "Opletics plans to rollout OPversion2 mid year which will add partner integrations and improve artificial experience.",
       variant: "standard" as const,
     },
   ];
