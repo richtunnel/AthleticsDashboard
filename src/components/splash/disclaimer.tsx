@@ -2,7 +2,7 @@ import React from "react";
 
 const Disclaimer = () => {
   return (
-    <div>
+    <div id="FooterDisclaimerText">
       <p style={{ fontSize: "0.65rem", color: "darkgray" }}>
         Opletics is an independent software platform designed solely to assist athletic directors, schools, clubs, and sports organizations in automating and organizing athletic schedules and related
         administrative workflows, and by accessing or using the platform at www.opletics.com , you acknowledge and agree that Opletics is not affiliated with, endorsed by, sponsored by, or officially
