@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Box, Container, Typography, GridLegacy as Grid, Card, CardContent, Button, Chip, useTheme } from "@mui/material";
 import { ArrowForward, CheckCircle, Schedule, Notifications, Sync, CalendarMonth, People } from "@mui/icons-material";
 import BaseHeaderWhite from "@/components/headers/_baseWhite";
@@ -9,9 +9,12 @@ import MarkEmailUnreadIcon from "@mui/icons-material/MarkEmailUnread";
 import EventBusyIcon from "@mui/icons-material/EventBusy";
 import RadarIcon from "@mui/icons-material/Radar";
 import AlarmIcon from "@mui/icons-material/Alarm";
+import WaitlistFormModal from "@/components/home/WaitlistFormModal";
 
 const ParentPortalPage = () => {
   const theme = useTheme();
+  const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
+  const handleWaitlistModal = () => setWaitlistModalOpen((prev) => !prev);
 
   const problems = [
     {
@@ -613,6 +616,7 @@ const ParentPortalPage = () => {
               </Box>
 
               <Button
+                onClick={handleWaitlistModal}
                 variant="contained"
                 size="large"
                 sx={{
@@ -636,6 +640,9 @@ const ParentPortalPage = () => {
           </Container>
         </Box>
       </Box>
+
+      {/* Waitlist Form Modal */}
+      <WaitlistFormModal open={waitlistModalOpen} onClose={handleWaitlistModal} />
     </>
   );
 };
