@@ -561,6 +561,7 @@ enum UserRole {
   COACH
   STAFF
   VENDOR_READ_ONLY
+  PARENT
 }
 
 enum TeamLevel {
