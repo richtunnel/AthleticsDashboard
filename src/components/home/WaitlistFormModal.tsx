@@ -116,7 +116,7 @@ export default function WaitlistFormModal({ open, onClose }: WaitlistFormModalPr
               Parent Portal Waitlist
             </Typography>
             <Typography variant="body1" sx={{ color: "rgb(197, 197, 210)", fontSize: "1.1rem" }}>
-              Be the first to access your child&apos;s complete athletic schedule—anytime, anywhere, on any device.
+              Stay connected to your child&apos;s complete athletic schedule—anytime, anywhere, on any device.
             </Typography>
           </div>
 
