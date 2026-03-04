@@ -52,6 +52,7 @@ import {
   Analytics,
   ChevronLeft,
   ChevronRight,
+  Person,
   HelpOutline,
   SupportAgent,
 } from "@mui/icons-material";
@@ -73,6 +74,7 @@ import { useTheme as customTheme } from "@mui/material/styles";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesMenu";
 
 const DRAWER_WIDTH = 240;
 
@@ -83,6 +85,7 @@ const baseNavigation = [
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
+  { name: "Connect", href: "/dashboard/parents", icon: Person },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
   // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
