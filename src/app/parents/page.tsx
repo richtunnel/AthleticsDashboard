@@ -172,6 +172,7 @@ const ParentPortalPage = () => {
               </Typography>
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button
+                  onClick={handleWaitlistModal}
                   variant="contained"
                   size="large"
                   sx={{
@@ -424,6 +425,7 @@ const ParentPortalPage = () => {
                 </Box>
 
                 <Button
+                  onClick={handleWaitlistModal}
                   variant="contained"
                   size="large"
                   sx={{
