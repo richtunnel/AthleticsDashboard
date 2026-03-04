@@ -82,7 +82,7 @@ model User {
   calendarGroupMappings    CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
   gamesWorkbooks           GamesWorkbook[]
   collaborativeMembers     CollaborativeMember[]     @relation("CollaborativeMemberOwner")
-  parentLinks              ParentAthleteLink[]       @relation("ParentLinks")
+  parentAthleteLinks       ParentAthleteLink[]       @relation("ParentLinks")
   parentSubscriptions      ParentSubscription[]      @relation("ParentSubscriptions")
 
   @@index([organizationId])
@@ -185,10 +185,12 @@ model Organization {
   travelSettings          TravelSettings?
 
   // Relations
-  users     User[]
-  teams     Team[]
-  venues    Venue[]
-  opponents Opponent[]
+  users               User[]
+  teams               Team[]
+  venues              Venue[]
+  opponents           Opponent[]
+  parentAthleteLinks  ParentAthleteLink[]
+  connectedParents    ConnectedParent[]
 }
 
 // Sports & Teams
@@ -827,91 +829,61 @@ enum CollaborationAction {
   EMAIL_RESENT
 }
 
-// Parent-Child Relationship - links parents to schools and their children
+// Parent Portal Models
 model ParentAthleteLink {
-  id                  String              @id @default(cuid())
-  parentUserId        String
-  childName           String
-  childGrade          String?
-  sportName           String
-  sportLevel          String              // e.g., "Junior Varsity", "Varsity", "Freshman"
-  schoolId            String              // Organization ID (the school)
-  schoolName          String
-  athleticDirectorId  String              // The AD user ID who manages this school
-  athleticDirectorName String             // Cached AD name for display
-  confirmed           Boolean             @default(false) // Parent confirms AD after selection
-  active              Boolean             @default(true)  // Can be deactivated
-  syncedAt            DateTime?           // Last time games were synced for this link
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id          String       @id @default(cuid())
+  parentUserId String
+  parent      User         @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
+  schoolId    String
+  school      Organization @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  athleteName String
+  athleteEmail String?     @unique
+  teamName    String?
+  sport       String?
+  gradeLevel  String?
+  status      String       @default("PENDING")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   // Relations
-  parent              User                @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
-  school              Organization        @relation(fields: [schoolId], references: [id])
+  subscriptions ParentSubscription[]
 
-  @@unique([parentUserId, schoolId, sportName, sportLevel])
   @@index([parentUserId])
   @@index([schoolId])
-  @@index([athleticDirectorId])
+  @@index([athleteEmail])
   @@map("ParentAthleteLink")
 }
 
-// Parent Subscription - separate from AD subscription, linked to ParentAthleteLink
 model ParentSubscription {
-  id                    String              @id @default(cuid())
-  parentUserId          String
-  parentAthleteLinkId   String              // Links subscription to specific sport/school
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?             @unique
-  status                ParentSubStatus     @default(ACTIVE)
-  plan                  String              @default("parent_power") // "parent_power" 
-  priceId               String?
-  trialEnd              DateTime?           // 1 month free trial
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  canceledAt            DateTime?
-  cancelAtPeriodEnd     Boolean             @default(false)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  // Relations
-  parent                User                @relation("ParentSubscriptions", fields: [parentUserId], references: [id], onDelete: Cascade)
-  athleteLink           ParentAthleteLink   @relation(fields: [parentAthleteLinkId], references: [id], onDelete: Cascade)
+  id                  String           @id @default(cuid())
+  parentUserId        String
+  parent              User             @relation("ParentSubscriptions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  parentAthleteLinkId String
+  athleteLink         ParentAthleteLink @relation(fields: [parentAthleteLinkId], references: [id], onDelete: Cascade)
+  subscriptionType    String
+  status              String           @default("ACTIVE")
+  subscribedAt        DateTime         @default(now())
+  expiresAt           DateTime?
+  notificationsEnabled Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@unique([parentUserId, parentAthleteLinkId])
   @@index([parentUserId])
-  @@index([stripeCustomerId])
+  @@index([parentAthleteLinkId])
   @@map("ParentSubscription")
 }
 
-enum ParentSubStatus {
-  ACTIVE
-  TRIALING
-  PAST_DUE
-  CANCELED
-  UNPAID
-}
-
-// Connect Menu - for AD dashboard to see parents who have synced calendars
 model ConnectedParent {
-  id                    String              @id @default(cuid())
-  parentUserId          String
-  parentUserName        String?
-  parentEmail           String
-  schoolId              String              // The school they are connected to
-  sportName             String
-  sportLevel            String
-  calendarSynced        Boolean             @default(false)
-  lastSyncedAt          DateTime?
-  membershipStatus      ParentSubStatus     @default(ACTIVE)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  fullName  String
+  schoolId  String
+  school    Organization @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
-  school                Organization        @relation(fields: [schoolId], references: [id])
-
-  @@unique([parentUserId, schoolId, sportName, sportLevel])
   @@index([schoolId])
-  @@index([parentUserId])
   @@map("ConnectedParent")
 }
