@@ -18,25 +18,25 @@ const ParentPortalPage = () => {
 
   const problems = [
     {
-      icon: <MarkEmailUnreadIcon />,
+      icon: <MarkEmailUnreadIcon style={{ color: "#fff" }} />,
       title: "Lost in the Inbox",
       description:
         "That email with the game schedule? It's buried under 47 other messages. Or worse—it was sent to the inbox you never check. By the time you find it, you've already missed the first game.",
     },
     {
-      icon: <EventBusyIcon />,
+      icon: <EventBusyIcon style={{ color: "#fff" }} />,
       title: "Outdated Information",
       description:
         "The schedule changed last Tuesday, but nobody told you. You show up at the old time, only to find an empty field and a very confused kid. The updated schedule? Still sitting in someone's draft folder.",
     },
     {
-      icon: <RadarIcon />,
+      icon: <RadarIcon style={{ color: "#fff" }} />,
       title: "Playing Detective",
       description:
         "Is it 3 PM or 3:30 PM? Home or away? Which field? You're texting other parents, checking old emails, and scrolling through group chats trying to piece together the truth like you're solving a mystery.",
     },
     {
-      icon: <AlarmIcon />,
+      icon: <AlarmIcon style={{ color: "#fff" }} />,
       title: "Last-Minute Surprises",
       description:
         "It's Friday at 5 PM and you just learned about tomorrow's 8 AM game. Cancel your plans, scramble to rearrange schedules, and hope you packed the uniform last night. This is not how weekends should start.",
@@ -318,10 +318,10 @@ const ParentPortalPage = () => {
                   >
                     <Box
                       sx={{
-                        width: 64,
-                        height: 64,
+                        width: 50,
+                        height: 50,
                         borderRadius: 3,
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, #313f72)`,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
