@@ -82,6 +82,8 @@ model User {
   calendarGroupMappings    CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
   gamesWorkbooks           GamesWorkbook[]
   collaborativeMembers     CollaborativeMember[]     @relation("CollaborativeMemberOwner")
+  parentAthleteLinks       ParentAthleteLink[]       @relation("ParentLinks")
+  parentSubscriptions      ParentSubscription[]      @relation("ParentSubscriptions")
 
   @@index([organizationId])
   @@map("User")
@@ -183,10 +185,12 @@ model Organization {
   travelSettings          TravelSettings?
 
   // Relations
-  users     User[]
-  teams     Team[]
-  venues    Venue[]
-  opponents Opponent[]
+  users               User[]
+  teams               Team[]
+  venues              Venue[]
+  opponents           Opponent[]
+  parentAthleteLinks  ParentAthleteLink[]
+  connectedParents    ConnectedParent[]
 }
 
 // Sports & Teams
@@ -822,4 +826,63 @@ enum CollaborationAction {
   INVITE_EXPIRED
   MEMBER_REVOKED
   EMAIL_RESENT
+}
+
+// Parent Portal Models
+model ParentAthleteLink {
+  id          String       @id @default(cuid())
+  parentUserId String
+  parent      User         @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
+  schoolId    String
+  school      Organization @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  athleteName String
+  athleteEmail String?     @unique
+  teamName    String?
+  sport       String?
+  gradeLevel  String?
+  status      String       @default("PENDING")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  subscriptions ParentSubscription[]
+
+  @@index([parentUserId])
+  @@index([schoolId])
+  @@index([athleteEmail])
+  @@map("ParentAthleteLink")
+}
+
+model ParentSubscription {
+  id                  String           @id @default(cuid())
+  parentUserId        String
+  parent              User             @relation("ParentSubscriptions", fields: [parentUserId], references: [id], onDelete: Cascade)
+  parentAthleteLinkId String
+  athleteLink         ParentAthleteLink @relation(fields: [parentAthleteLinkId], references: [id], onDelete: Cascade)
+  subscriptionType    String
+  status              String           @default("ACTIVE")
+  subscribedAt        DateTime         @default(now())
+  expiresAt           DateTime?
+  notificationsEnabled Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@unique([parentUserId, parentAthleteLinkId])
+  @@index([parentUserId])
+  @@index([parentAthleteLinkId])
+  @@map("ParentSubscription")
+}
+
+model ConnectedParent {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  fullName  String
+  schoolId  String
+  school    Organization @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId])
+  @@map("ConnectedParent")
 }
