@@ -10,11 +10,18 @@ import EventBusyIcon from "@mui/icons-material/EventBusy";
 import RadarIcon from "@mui/icons-material/Radar";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import WaitlistFormModal from "@/components/home/WaitlistFormModal";
+import { useRouter } from "next/navigation";
 
 const ParentPortalPage = () => {
   const theme = useTheme();
+  const router = useRouter();
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
   const handleWaitlistModal = () => setWaitlistModalOpen((prev) => !prev);
+
+  const handleGetStarted = () => {
+    // Redirect to parent onboarding signup flow
+    router.push("/onboarding/signup?plan=parent_plan");
+  };
 
   const problems = [
     {
@@ -172,7 +179,7 @@ const ParentPortalPage = () => {
               </Typography>
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button
-                  onClick={handleWaitlistModal}
+                  onClick={handleGetStarted}
                   variant="contained"
                   size="large"
                   sx={{
@@ -190,7 +197,7 @@ const ParentPortalPage = () => {
                     transition: "all 0.3s ease",
                   }}
                 >
-                  Join the waitlist&nbsp; <NavigateNextIcon />
+                  Get Started&nbsp; <NavigateNextIcon />
                 </Button>
                 {/* <Button
                   variant="outlined"
@@ -425,7 +432,7 @@ const ParentPortalPage = () => {
                 </Box>
 
                 <Button
-                  onClick={handleWaitlistModal}
+                  onClick={handleGetStarted}
                   variant="contained"
                   size="large"
                   sx={{
@@ -440,7 +447,7 @@ const ParentPortalPage = () => {
                     },
                   }}
                 >
-                  See How It Works
+                  Get Started Now
                 </Button>
               </Grid>
 
@@ -618,7 +625,7 @@ const ParentPortalPage = () => {
               </Box>
 
               <Button
-                onClick={handleWaitlistModal}
+                onClick={handleGetStarted}
                 variant="contained"
                 size="large"
                 sx={{
@@ -636,7 +643,7 @@ const ParentPortalPage = () => {
                   transition: "all 0.3s ease",
                 }}
               >
-                Start Your Free Trial
+                Get Started Free
               </Button>
             </Card>
           </Container>

@@ -10,6 +10,17 @@ type UpdateUserBody = {
   teamName?: string;
   schoolAddress?: string;
   schoolEmail?: string | null;
+  role?: string;
+  plan?: string;
+  donationAmount?: number;
+  parentInfo?: {
+    schoolId?: string;
+    schoolName?: string;
+    sportId?: string;
+    sportName?: string;
+    level?: string;
+    selectedCoachIds?: string[];
+  };
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as UpdateUserBody;
-  const { schoolName, teamName, schoolAddress, schoolEmail } = body;
+  const { schoolName, teamName, schoolAddress, schoolEmail, role, plan, donationAmount, parentInfo } = body;
 
   const updateData: Prisma.UserUpdateInput = {};
   let schoolEmailValue: string | null | undefined = undefined;
@@ -42,6 +53,13 @@ export async function POST(req: NextRequest) {
   if (schoolName !== undefined) updateData.schoolName = schoolName.trim() || null;
   if (teamName !== undefined) updateData.teamName = teamName.trim() || null;
   if (schoolAddress !== undefined) updateData.schoolAddress = schoolAddress.trim() || null;
+  if (role !== undefined) updateData.role = role as any;
+  if (plan !== undefined) updateData.plan = plan;
+
+  // Store parent info in custom fields if provided
+  if (parentInfo !== undefined) {
+    updateData.customFields = parentInfo as any;
+  }
 
   if (schoolEmail !== undefined) {
     const trimmed = typeof schoolEmail === "string" ? schoolEmail.trim() : "";
