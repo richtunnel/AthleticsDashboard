@@ -4,12 +4,13 @@ import { prisma } from "@/lib/database/prisma";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth();
+
     const searchParams = request.nextUrl.searchParams;
     const name = searchParams.get("name");
 
-    // If name is provided, find specific sport (requires auth for specific lookups)
+    // If name is provided, find specific sport
     if (name) {
-      await requireAuth();
       const sport = await prisma.sport.findFirst({
         where: {
           name: {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Otherwise return all sports (public access for onboarding)
+    // Otherwise return all sports
     const sports = await prisma.sport.findMany({
       orderBy: { name: "asc" },
     });
