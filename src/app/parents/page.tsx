@@ -25,7 +25,7 @@ const ParentPortalPage = () => {
 
   const problems = [
     {
-      icon: <MarkEmailUnreadIcon style={{ color: "#fff" }} />,
+      icon: <MarkEmailUnreadIcon sx={{ color: "#fff" }} />,
       title: "Lost in the Inbox",
       description:
         "That email with the game schedule? It's buried under 47 other messages. Or worse—it was sent to the inbox you never check. By the time you find it, you've already missed the first game.",
