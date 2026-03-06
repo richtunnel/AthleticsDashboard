@@ -126,6 +126,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if this is a parent plan
+    const isParentPlan = plan === "parent_plan" || plan === "parent_free" || plan === "parent_donation";
+
     // Create user with organization and plan
     const user = await prisma.user.create({
       data: {
@@ -133,13 +136,13 @@ export async function POST(request: NextRequest) {
         name: sanitizedName,
         phone: sanitizedPhone,
         hashedPassword,
-        role: "ATHLETIC_DIRECTOR",
+        role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR",
         plan: plan || "free_trial_plan",
         stripeCustomerId,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null, // 14 days from now
         organization: {
           create: {
-            name: `${sanitizedName}'s Organization`,
+            name: isParentPlan ? `${sanitizedName}'s Family` : `${sanitizedName}'s Organization`,
             timezone: "America/New_York",
           },
         },

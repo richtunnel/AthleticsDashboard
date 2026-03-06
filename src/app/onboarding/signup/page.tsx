@@ -23,8 +23,12 @@ function SignupForm() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
 
+  // Check if this is a parent plan signup
+  const isParentPlan = plan === "parent_plan" || plan === "parent_free" || plan === "parent_donation";
+
+  // Use parent onboarding callback for parent plans
   const googleAuth = useAuthButton({
-    callbackUrl: "/onboarding/details",
+    callbackUrl: isParentPlan ? "/onboarding/parent" : "/onboarding/details",
     onError: (err) => setError(err),
   });
 
@@ -34,7 +38,7 @@ function SignupForm() {
   });
 
   const credentialsAuth = useAuthButton({
-    callbackUrl: `/onboarding/details`,
+    callbackUrl: isParentPlan ? "/onboarding/parent" : "/onboarding/details",
     onError: (err) => setError(err),
   });
 

@@ -106,14 +106,30 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Handle parent onboarding routes - require authentication
+  if (pathname.startsWith("/onboarding/parent")) {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token?.sub) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/onboarding/signup";
+      url.searchParams.set("plan", "parent_plan");
+      return NextResponse.redirect(url);
+    }
+
+    return response;
+  }
+
   // For dashboard and API routes, use standard authentication
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  // Public API routes that don't require authentication
+  // Public API routes that don't require authentication (allow schools and coaches API for onboarding)
   if (
     pathname.startsWith("/api/images/optimize") ||
     pathname.startsWith("/api/stripe/webhook") ||
-    pathname.startsWith("/api/auth/") // NextAuth routes must be public
+    pathname.startsWith("/api/auth/") || // NextAuth routes must be public
+    pathname === "/api/schools" ||
+    pathname === "/api/coaches"
   ) {
     return response;
   }
@@ -191,5 +207,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*", "/onboarding/details"],
+  matcher: ["/dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
 };

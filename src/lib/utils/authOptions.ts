@@ -64,6 +64,9 @@ const customAdapter = {
         // Continue with user creation even if Stripe fails - we can retry later
       }
     }
+    // Check if this is a parent signup (indicated by plan containing "parent")
+    const isParentPlan = plan && plan.includes("parent");
+
     // Create user with their own organization
     const newUser = await prisma.user.create({
       data: {
@@ -71,13 +74,15 @@ const customAdapter = {
         email: user.email,
         image: user.image,
         emailVerified: user.emailVerified,
-        role: "ATHLETIC_DIRECTOR", // Set default role
+        role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
         plan: plan,
         stripeCustomerId,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
         organization: {
           create: {
-            name: user.name ? `${user.name}'s Organization` : "My Organization",
+            name: user.name 
+              ? (isParentPlan ? `${user.name}'s Family` : `${user.name}'s Organization`)
+              : (isParentPlan ? "My Family" : "My Organization"),
             timezone: "America/New_York", // Set default timezone
             // Add any other required organization fields from your schema
           },
@@ -579,13 +584,25 @@ export const authOptions: NextAuthOptions = {
         // Check if this is a new user signup (indicated by newUser query param)
         const isNewUser = resolvedUrl.searchParams.has("newUser");
 
+        // Check if this is a parent signup (indicated by callbackUrl containing "parent")
+        const isParentSignup = resolvedUrl.pathname.includes("/onboarding/parent") || 
+                               url.includes("plan=parent") ||
+                               resolvedUrl.searchParams.get("plan")?.includes("parent");
+
+        // For parent signups, redirect to parent onboarding
+        if (isParentSignup && isNewUser) {
+          return `${baseUrl}/onboarding/parent`;
+        }
+
         // For new users via Google OAuth, redirect to onboarding/details
         if (isNewUser && resolvedUrl.pathname === "/dashboard") {
           return `${baseUrl}/onboarding/details`;
         }
 
         if (resolvedUrl.pathname.startsWith("/onboarding")) {
-          if (resolvedUrl.pathname === "/onboarding/plans" || resolvedUrl.pathname === "/onboarding/details") {
+          if (resolvedUrl.pathname === "/onboarding/plans" || 
+              resolvedUrl.pathname === "/onboarding/details" ||
+              resolvedUrl.pathname.startsWith("/onboarding/parent")) {
             return resolvedUrl.toString();
           }
           return `${baseUrl}/dashboard`;
