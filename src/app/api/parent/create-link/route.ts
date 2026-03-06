@@ -7,14 +7,16 @@ import { z } from "zod";
 // Validation schema
 const createLinkSchema = z.object({
   schoolId: z.string().min(1, "School ID is required"),
-  schoolName: z.string().min(1, "School name is required"),
+  school: z.string().min(1, "School name is required"),
   athleticDirectorId: z.string().min(1, "Athletic Director ID is required"),
   athleticDirectorName: z.string().min(1, "Athletic Director name is required"),
   sportName: z.string().min(1, "Sport name is required"),
   sportLevel: z.string().min(1, "Sport level is required"),
-  childName: z.string().min(1, "Child name is required"),
+  athleteName: z.string().min(1, "Child name is required"),
   childGrade: z.string().optional(),
   errors: z.any().optional(),
+  parentUserId: z.string().min(1),
+  fullName: z.string().min(2),
 });
 
 /**
@@ -22,13 +24,13 @@ const createLinkSchema = z.object({
  * Creates a ParentAthleteLink for the authenticated parent user
  */
 export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-
     // Get or create parent user
     let user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -69,12 +71,12 @@ export async function POST(request: NextRequest) {
     const link = await prisma.parentAthleteLink.create({
       data: {
         parentUserId: user.id,
-        childName: validatedData.childName,
-        childGrade: validatedData.childGrade,
+        athleteName: validatedData.athleteName,
+        gradeLevel: validatedData.childGrade,
         sportName: validatedData.sportName,
         sportLevel: validatedData.sportLevel,
         schoolId: validatedData.schoolId,
-        schoolName: validatedData.schoolName,
+        schoolName: validatedData.school,
         athleticDirectorId: validatedData.athleticDirectorId,
         athleticDirectorName: validatedData.athleticDirectorName,
         confirmed: true, // They confirmed during onboarding
@@ -85,11 +87,10 @@ export async function POST(request: NextRequest) {
     await prisma.connectedParent.create({
       data: {
         parentUserId: user.id,
-        parentUserName: user.name,
-        parentEmail: user.email,
+        email: user.email,
+        fullName: validatedData.fullName,
         schoolId: validatedData.schoolId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
+        // sportLevel: validatedData.sportLevel,
         calendarSynced: false,
         membershipStatus: "TRIALING",
       },
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
         parentUserId: user.id,
         parentAthleteLinkId: link.id,
         status: "TRIALING",
-        plan: "parent_power",
+        subscriptionType: "parent_power",
         trialEnd,
       },
     });
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: error }, { status: 400 });
     }
 
     console.error("[API] Error creating parent link:", error);

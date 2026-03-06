@@ -876,11 +876,14 @@ model ParentSubscription {
 
 model ConnectedParent {
   id        String   @id @default(cuid())
+  parentUserId String @unique
   email     String   @unique
   fullName  String
   schoolId  String
+  calendarSynced Boolean
   school    Organization @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   phone     String?
+  membershipStatus SubscriptionStatus?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
