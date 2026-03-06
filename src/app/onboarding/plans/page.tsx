@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress } from "@mui/material";
+import { Box, Card, CardContent, Typography, ToggleButton, ToggleButtonGroup, Grid, Stack, Divider, useTheme, Alert, CircularProgress, Chip } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SettingsIcon from "@mui/icons-material/Settings";
+import FamilyRestroomIcon from "@mui/icons-material/FamilyRestroom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
@@ -302,6 +303,13 @@ function PricingPlansContent() {
     }
   };
 
+  const handleParentPlanClick = () => {
+    trackEvent("Parent Plan Clicked", {
+      source: "onboarding_plans",
+    });
+    router.push("/onboarding/signup?plan=parent_plan");
+  };
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px">
@@ -383,7 +391,7 @@ function PricingPlansContent() {
 
         {hasIncompleteSubscription && (
           <Alert severity="info" sx={{ mt: 3, mb: 3, maxWidth: 600, mx: "auto" }}>
-            You have an incomplete subscription. You can select a plan below to complete your subscription. If you're experiencing issues, please contact support.
+            You have an incomplete subscription. You can select a plan below to complete your subscription. If you&apos;re experiencing issues, please contact support.
           </Alert>
         )}
 
@@ -479,6 +487,48 @@ function PricingPlansContent() {
             );
           })}
         </Grid>
+
+        {/* Parent Plan Section */}
+        <Box sx={{ mt: 6, maxWidth: 600, mx: "auto" }}>
+          <Card
+            elevation={2}
+            sx={{
+              borderRadius: 3,
+              border: `2px solid ${theme.palette.secondary.main}`,
+              background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.secondary.light}20 100%)`,
+            }}
+          >
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 2 }}>
+                <FamilyRestroomIcon color="secondary" sx={{ fontSize: 32 }} />
+                <Typography variant="h5" fontWeight={600}>
+                  Are you a Parent?
+                </Typography>
+              </Box>
+
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                Stay connected with your child&apos;s athletic schedule. Get calendar sync, mobile notifications, and real-time schedule updates.
+              </Typography>
+
+              <Box sx={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", mb: 3 }}>
+                <Chip label="Free Option Available" color="success" size="small" />
+                <Chip label="$2.50/mo Donation Tier" color="primary" size="small" variant="outlined" />
+              </Box>
+
+              <AuthActionButton
+                fullWidth
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={handleParentPlanClick}
+                disabled={isBusy}
+                sx={{ borderRadius: 2 }}
+              >
+                Sign Up as Parent
+              </AuthActionButton>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
       <TopFooter />
     </Box>

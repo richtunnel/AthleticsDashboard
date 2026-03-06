@@ -30,19 +30,15 @@ import BaseHeader from "@/components/headers/_base";
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
 const freeTierFeatures = [
-  "Calendar sync with your personal calendar",
-  "Mobile notifications for schedule changes",
-  "Real-time schedule updates",
-  "Access to game details and locations",
+  "Calendar sync",
+  "Mobile notifications",
+  "Schedule updates",
 ];
 
 const donationTierFeatures = [
-  "Calendar sync with your personal calendar",
-  "Mobile notifications for schedule changes",
-  "Real-time schedule updates",
-  "Access to game details and locations",
-  "Priority support",
-  "Support your school's athletic program",
+  "Calendar sync",
+  "Mobile notifications",
+  "Schedule updates",
 ];
 
 export default function ParentPlansPage() {
@@ -176,14 +172,14 @@ export default function ParentPlansPage() {
                       $0
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Consider a donation to support your school
+                      Skip donation
                     </Typography>
                   </Box>
 
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Includes:
+                    Features:
                   </Typography>
 
                   <List dense>
@@ -266,11 +262,11 @@ export default function ParentPlansPage() {
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Everything in Free, plus:
+                    Features:
                   </Typography>
 
                   <List dense>
-                    {donationTierFeatures.slice(4).map((feature) => (
+                    {donationTierFeatures.map((feature) => (
                       <ListItem key={feature} disablePadding sx={{ mb: 1 }}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="primary" fontSize="small" />
@@ -284,7 +280,7 @@ export default function ParentPlansPage() {
                   </List>
 
                   <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Chip icon={<CalendarMonth />} label="Full Access" size="small" color="primary" variant="outlined" />
+                    <Chip icon={<CalendarMonth />} label="Calendar Sync" size="small" color="primary" variant="outlined" />
                     <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
                   </Box>
 
