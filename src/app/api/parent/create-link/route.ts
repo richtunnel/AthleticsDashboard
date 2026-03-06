@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/auth";
+import { authOptions } from "@/lib/utils/authOptions";
 import { z } from "zod";
 
 // Validation schema
@@ -14,6 +14,7 @@ const createLinkSchema = z.object({
   sportLevel: z.string().min(1, "Sport level is required"),
   childName: z.string().min(1, "Child name is required"),
   childGrade: z.string().optional(),
+  errors: z.any().optional(),
 });
 
 /**
@@ -23,12 +24,9 @@ const createLinkSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     // Get or create parent user
@@ -38,10 +36,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // If user doesn't exist, they need to sign up first
-      return NextResponse.json(
-        { error: "Please sign up first to create a parent link" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Please sign up first to create a parent link" }, { status: 400 });
     }
 
     // Update user role to PARENT if not already
@@ -67,10 +62,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingLink) {
-      return NextResponse.json(
-        { error: "This parent link already exists" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "This parent link already exists" }, { status: 400 });
     }
 
     // Create the parent athlete link
@@ -117,23 +109,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       linkId: link.id,
-      message: "Parent link created successfully" 
+      message: "Parent link created successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
     }
-    
+
     console.error("[API] Error creating parent link:", error);
-    return NextResponse.json(
-      { error: "Failed to create parent link" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create parent link" }, { status: 500 });
   }
 }
