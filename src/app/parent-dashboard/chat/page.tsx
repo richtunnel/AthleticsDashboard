@@ -2,20 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid2 as Grid,
-  TextField,
-  Button,
-  Paper,
-  Avatar,
-  CircularProgress,
-  Alert,
-  Chip,
-} from "@mui/material";
+import { Box, Typography, Card, CardContent, Grid, TextField, Button, Paper, Avatar, CircularProgress, Alert, Chip } from "@mui/material";
 import { Send, Person, Email } from "@mui/icons-material";
 
 interface LinkedSchool {
@@ -148,7 +135,7 @@ export default function ParentChatPage() {
               <Typography variant="h6" gutterBottom>
                 Send Message
               </Typography>
-              
+
               {selectedSchool ? (
                 <>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
@@ -165,22 +152,9 @@ export default function ParentChatPage() {
                     </Box>
                   </Box>
 
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={6}
-                    placeholder="Type your message here..."
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    sx={{ mb: 2 }}
-                  />
+                  <TextField fullWidth multiline rows={6} placeholder="Type your message here..." value={message} onChange={(e) => setMessage(e.target.value)} sx={{ mb: 2 }} />
 
-                  <Button
-                    variant="contained"
-                    endIcon={sending ? <CircularProgress size={20} color="inherit" /> : <Send />}
-                    onClick={handleSendMessage}
-                    disabled={!message.trim() || sending}
-                  >
+                  <Button variant="contained" endIcon={sending ? <CircularProgress size={20} color="inherit" /> : <Send />} onClick={handleSendMessage} disabled={!message.trim() || sending}>
                     {sending ? "Sending..." : "Send Message"}
                   </Button>
                 </>

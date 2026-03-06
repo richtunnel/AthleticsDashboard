@@ -2,24 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Grid2 as Grid,
-  Chip,
-  CircularProgress,
-  Button,
-  Alert
-} from "@mui/material";
-import { 
-  CalendarMonth, 
-  Sync, 
-  CheckCircle, 
-  Warning,
-  Schedule
-} from "@mui/icons-material";
+import { Box, Typography, Card, CardContent, Grid, Chip, CircularProgress, Button, Alert } from "@mui/material";
+import { CalendarMonth, Sync, CheckCircle, Warning, Schedule } from "@mui/icons-material";
 import Link from "next/link";
 
 interface ParentLink {
@@ -69,18 +53,12 @@ export default function ParentDashboardPage() {
   }
 
   if (error) {
-    return (
-      <Alert severity="error">
-        Failed to load dashboard. Please try again.
-      </Alert>
-    );
+    return <Alert severity="error">Failed to load dashboard. Please try again.</Alert>;
   }
 
   const subscriptionStatus = data?.subscription?.status || "TRIALING";
   const isOnTrial = subscriptionStatus === "TRIALING";
-  const trialEnd = data?.subscription?.trialEnd 
-    ? new Date(data.subscription.trialEnd).toLocaleDateString() 
-    : null;
+  const trialEnd = data?.subscription?.trialEnd ? new Date(data.subscription.trialEnd).toLocaleDateString() : null;
 
   return (
     <Box>
@@ -169,12 +147,7 @@ export default function ParentDashboardPage() {
                   <Typography variant="h6" fontWeight={600}>
                     {link.sportName}
                   </Typography>
-                  <Chip 
-                    label={link.sportLevel} 
-                    size="small" 
-                    color="primary" 
-                    variant="outlined"
-                  />
+                  <Chip label={link.sportLevel} size="small" color="primary" variant="outlined" />
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   {link.schoolName}
@@ -185,21 +158,9 @@ export default function ParentDashboardPage() {
                 </Typography>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
                   {link.syncedAt ? (
-                    <Chip 
-                      icon={<CheckCircle />} 
-                      label="Synced" 
-                      size="small" 
-                      color="success" 
-                      variant="outlined"
-                    />
+                    <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />
                   ) : (
-                    <Chip 
-                      icon={<Warning />} 
-                      label="Needs Sync" 
-                      size="small" 
-                      color="warning" 
-                      variant="outlined"
-                    />
+                    <Chip icon={<Warning />} label="Needs Sync" size="small" color="warning" variant="outlined" />
                   )}
                 </Box>
               </CardContent>
@@ -213,18 +174,10 @@ export default function ParentDashboardPage() {
         Quick Actions
       </Typography>
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        <Button 
-          variant="contained" 
-          component={Link} 
-          href="/parent-dashboard/calendars"
-        >
+        <Button variant="contained" component={Link} href="/parent-dashboard/calendars">
           Connect Google Calendar
         </Button>
-        <Button 
-          variant="outlined" 
-          component={Link} 
-          href="/parent-dashboard/chat"
-        >
+        <Button variant="outlined" component={Link} href="/parent-dashboard/chat">
           Contact Athletic Director
         </Button>
       </Box>
