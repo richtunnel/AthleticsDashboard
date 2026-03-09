@@ -34,7 +34,7 @@ function ParentCallbackContent() {
 
       // Get stored onboarding data
       const storedData = sessionStorage.getItem("parentOnboardingData");
-      let onboardingData = null;
+      let onboardingData: Record<string, string> = {};
       
       if (storedData) {
         try {
@@ -45,12 +45,38 @@ function ParentCallbackContent() {
         }
       }
 
+      // Also get referral data from share code if available
+      const referralData = sessionStorage.getItem("parentReferralData");
+      if (referralData) {
+        try {
+          const parsed = JSON.parse(referralData);
+          sessionStorage.removeItem("parentReferralData");
+          
+          // Merge referral data with onboarding data
+          // Use referral data as defaults but allow onboarding data to override
+          if (!onboardingData.schoolId && parsed.schoolId) {
+            onboardingData.schoolId = parsed.schoolId;
+          }
+          if (!onboardingData.school && parsed.schoolName) {
+            onboardingData.school = parsed.schoolName;
+          }
+          if (!onboardingData.athleticDirectorId && parsed.athleticDirectorId) {
+            onboardingData.athleticDirectorId = parsed.athleticDirectorId;
+          }
+          if (!onboardingData.athleticDirectorName && parsed.athleticDirectorName) {
+            onboardingData.athleticDirectorName = parsed.athleticDirectorName;
+          }
+        } catch (e) {
+          console.error("Failed to parse referral data:", e);
+        }
+      }
+
       try {
         // Create the parent link
         const res = await fetch("/api/parent/create-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(onboardingData || {}),
+          body: JSON.stringify(onboardingData),
         });
 
         if (res.ok) {

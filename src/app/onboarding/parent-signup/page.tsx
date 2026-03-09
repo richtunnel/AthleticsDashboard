@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { 
@@ -12,24 +12,63 @@ import {
   Button, 
   TextField,
   Alert,
-  CircularProgress 
+  CircularProgress,
+  Chip
 } from "@mui/material";
-import { Google } from "@mui/icons-material";
+import { Google, School, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
+
+interface AthleticDirectorInfo {
+  athleticDirectorId: string;
+  athleticDirectorName: string;
+  schoolId: string;
+  schoolName: string;
+  organizationName: string;
+}
 
 function ParentSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adInfo, setAdInfo] = useState<AthleticDirectorInfo | null>(null);
+  const [loadingAdInfo, setLoadingAdInfo] = useState(false);
 
+  // Get the share code from URL
+  const shareCode = searchParams.get("code") || "";
+  
   // Get the pre-filled data from URL
   const schoolId = searchParams.get("schoolId") || "";
   const sport = searchParams.get("sport") || "";
   const level = searchParams.get("level") || "";
   const childName = searchParams.get("childName") || "";
   const childGrade = searchParams.get("childGrade") || "";
+
+  // Fetch AD info if share code is present
+  useEffect(() => {
+    if (shareCode) {
+      setLoadingAdInfo(true);
+      fetch(`/api/parent/share-code/lookup?code=${shareCode}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.athleticDirectorId) {
+            setAdInfo(data);
+            // Store in session storage for the callback
+            sessionStorage.setItem("parentReferralData", JSON.stringify({
+              shareCode,
+              athleticDirectorId: data.athleticDirectorId,
+              athleticDirectorName: data.athleticDirectorName,
+              schoolId: data.schoolId,
+              schoolName: data.schoolName,
+              organizationName: data.organizationName,
+            }));
+          }
+        })
+        .catch(err => console.error("Failed to fetch AD info:", err))
+        .finally(() => setLoadingAdInfo(false));
+    }
+  }, [shareCode]);
 
   const handleGoogleSignUp = async () => {
     setLoading(true);
@@ -38,11 +77,14 @@ function ParentSignupContent() {
     try {
       // Store the parent selection data in sessionStorage for after sign up
       sessionStorage.setItem("parentOnboardingData", JSON.stringify({
-        schoolId,
+        schoolId: schoolId || adInfo?.schoolId || "",
         sport,
         level,
         childName,
         childGrade,
+        // Include AD info if available
+        athleticDirectorId: adInfo?.athleticDirectorId || "",
+        athleticDirectorName: adInfo?.athleticDirectorName || "",
       }));
       
       // Redirect to Google signup with callback to handle the link creation
@@ -54,6 +96,20 @@ function ParentSignupContent() {
       setLoading(false);
     }
   };
+
+  if (loadingAdInfo) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+        <BaseHeader pt="20px" pl="20px" />
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
+  // Determine the school to show
+  const displaySchool = adInfo?.schoolName || "";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -67,7 +123,37 @@ function ParentSignupContent() {
             Sign up to access your child's game schedule
           </Typography>
 
-          {schoolId && (
+          {/* Show pre-filled school info if coming from AD's share link */}
+          {adInfo && (
+            <Card sx={{ mb: 3, bgcolor: "primary.50", border: "1px solid", borderColor: "primary.main" }}>
+              <CardContent>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <School color="primary" />
+                  <Typography variant="subtitle2" color="primary">
+                    Connected School
+                  </Typography>
+                </Box>
+                <Typography variant="body1" fontWeight={600}>
+                  {adInfo.schoolName}
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                  <Person fontSize="small" color="action" />
+                  <Typography variant="body2" color="text.secondary">
+                    Athletic Director: {adInfo.athleticDirectorName}
+                  </Typography>
+                </Box>
+                <Chip 
+                  label="Pre-selected for you" 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined" 
+                  sx={{ mt: 1 }}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {schoolId && !adInfo && (
             <Card sx={{ mb: 3, bgcolor: "grey.50" }}>
               <CardContent>
                 <Typography variant="subtitle2" color="text.secondary">
