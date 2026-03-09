@@ -71,6 +71,14 @@ function ParentCallbackContent() {
         }
       }
 
+      // Check if this is a new signup (no onboarding data means they just signed up)
+      // In that case, redirect to the child info collection page
+      if (!storedData && !referralData) {
+        // New signup without any data - redirect to child info page
+        router.push("/onboarding/parent");
+        return;
+      }
+
       try {
         // Create the parent link
         const res = await fetch("/api/parent/create-link", {
