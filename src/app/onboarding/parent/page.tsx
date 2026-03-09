@@ -81,7 +81,7 @@ export default function ParentOnboardingPage() {
 
       if (sportsRes.ok) {
         const sportsData = await sportsRes.json();
-        setSports(sportsData);
+        setSports(sportsData.data || []);
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
