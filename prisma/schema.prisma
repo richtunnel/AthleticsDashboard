@@ -57,6 +57,7 @@ model User {
   lastLoginDate              DateTime?
   dailyLoginCount            Int       @default(0)
   schoolEmail                String?   @unique
+  shareCode                  String?   @unique // Unique code for sharing parent portal link
   organizationId             String
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
