@@ -56,6 +56,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       schoolName: true,
       teamName: true,
       schoolAddress: true,
+      schoolEmail: true,
       organization: {
         select: {
           id: true,
