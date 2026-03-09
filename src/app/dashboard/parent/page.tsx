@@ -244,18 +244,18 @@ export default function ParentDashboardPage() {
                     variant="contained"
                     startIcon={<CalendarMonth />}
                     fullWidth
-                    disabled
+                    onClick={() => router.push("/parent-dashboard/calendars")}
                   >
-                    View Schedule (Coming Soon)
+                    Subscribe to Calendars
                   </Button>
 
                   <Button
                     variant="outlined"
                     startIcon={<Sync />}
                     fullWidth
-                    disabled
+                    onClick={() => router.push("/parent-dashboard/calendars")}
                   >
-                    Sync Calendar (Coming Soon)
+                    Get Calendar Links
                   </Button>
 
                   <Button
@@ -269,7 +269,7 @@ export default function ParentDashboardPage() {
                 </Box>
 
                 <Alert severity="info" sx={{ mt: 3 }}>
-                  Full parent portal features coming soon! You&apos;ll be notified when schedules are available.
+                  Subscribe to your child&apos;s game schedules using iCal links. No login required!
                 </Alert>
               </CardContent>
             </Card>

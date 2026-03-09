@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -12,179 +10,108 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   IconButton,
+  Tooltip,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
 } from "@mui/material";
-import { Add, Delete, Link as LinkIcon, LinkOff } from "@mui/icons-material";
+import {
+  ExpandMore,
+  ContentCopy,
+  OpenInNew,
+  Apple,
+  Google,
+  CheckCircle,
+  CalendarMonth,
+  School,
+  Sports,
+  Info,
+} from "@mui/icons-material";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 
-interface CalendarGroupMapping {
+interface CalendarFeed {
   id: string;
-  columnName: string;
-  columnValue: string;
-  googleCalendarId: string;
-  googleCalendarName: string;
+  schoolId: string;
+  schoolName: string;
+  sportName: string;
+  level: string;
+  teamName: string;
+  feedUrl: string;
+  description: string;
 }
 
-interface GoogleCalendar {
-  id: string;
-  name: string;
-  description?: string;
-  primary: boolean;
-}
-
-// Fetch calendar connection status
-const fetchCalendarStatus = async () => {
-  const res = await fetch("/api/user/calendar-status");
-  if (!res.ok) throw new Error("Failed to fetch calendar status");
-  return res.json();
-};
-
-// Fetch Google Calendars
-const fetchGoogleCalendars = async () => {
-  const res = await fetch("/api/calendar/list-calendars");
+// Fetch calendar feeds for the parent
+const fetchCalendarFeeds = async (): Promise<{ calendars: CalendarFeed[] }> => {
+  const res = await fetch("/api/parent/calendar-feeds");
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to fetch calendars");
+    throw new Error(errorData.error || "Failed to fetch calendar feeds");
   }
   return res.json();
 };
 
-// Fetch calendar group mappings
-const fetchCalendarGroupMappings = async () => {
-  const res = await fetch("/api/parent/calendar-mappings");
-  if (!res.ok) throw new Error("Failed to fetch mappings");
-  return res.json();
-};
-
-function CalendarConnectionHandler({ refetch }: { refetch: () => void }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (searchParams.get("calendar_connected") === "true" || searchParams.get("calendar") === "connected") {
-      setConnectionMessage("Google Calendar connected successfully!");
-      refetch();
-      router.replace("/parent-dashboard/calendars");
-    }
-  }, [searchParams, router, refetch]);
-
-  if (!connectionMessage) return null;
-
-  return (
-    <Alert severity="success" sx={{ mb: 2 }}>
-      {connectionMessage}
-    </Alert>
-  );
-}
-
 function CalendarsPageContent() {
   const queryClient = useQueryClient();
-  const router = useRouter();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedPanel, setExpandedPanel] = useState<string | false>(false);
   
-  const { data: statusData, isLoading: statusLoading, refetch: refetchStatus } = useQuery({
-    queryKey: ["calendarConnectionStatus"],
-    queryFn: fetchCalendarStatus,
+  const { data: feedsData, isLoading, error } = useQuery({
+    queryKey: ["parentCalendarFeeds"],
+    queryFn: fetchCalendarFeeds,
   });
 
-  const { data: calendarsData, isLoading: calendarsLoading, error: calendarsError } = useQuery({
-    queryKey: ["googleCalendars"],
-    queryFn: fetchGoogleCalendars,
-    enabled: !!statusData?.isConnected,
-  });
+  const calendars = feedsData?.calendars || [];
 
-  const { data: mappingsData, isLoading: mappingsLoading } = useQuery({
-    queryKey: ["parentCalendarMappings"],
-    queryFn: fetchCalendarGroupMappings,
-  });
+  const handleCopyLink = async (feed: CalendarFeed) => {
+    try {
+      await navigator.clipboard.writeText(feed.feedUrl);
+      setCopiedId(feed.id);
+      trackEvent("Calendar Feed Link Copied", {
+        sport: feed.sportName,
+        level: feed.level,
+        schoolId: feed.schoolId,
+      });
+      
+      // Reset after 2 seconds
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  };
 
-  const isConnected = statusData?.isConnected;
-  const calendars = calendarsData?.calendars || [];
-  const mappings = mappingsData?.mappings || [];
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newMapping, setNewMapping] = useState({
-    columnName: "",
-    columnValue: "",
-    googleCalendarId: "",
-    googleCalendarName: "",
-  });
-
-  const handleConnect = () => {
-    trackEvent("Calendar Connect Clicked", {
-      source: "parent_dashboard_calendars",
+  const handleOpenFeed = (feed: CalendarFeed) => {
+    trackEvent("Calendar Feed Opened", {
+      sport: feed.sportName,
+      level: feed.level,
+      schoolId: feed.schoolId,
     });
-    router.push("/api/auth/calendar-connect?returnTo=/parent-dashboard/calendars");
+    window.open(feed.feedUrl, '_blank');
   };
 
-  const handleDisconnect = async () => {
-    if (window.confirm("Are you sure you want to disconnect your Google Calendar?")) {
-      try {
-        await fetch("/api/auth/google-calendar/disconnect", { method: "POST" });
-        refetchStatus();
-      } catch (error) {
-        console.error("Failed to disconnect:", error);
-      }
-    }
+  const handleAccordionChange = (panel: string) => (event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpandedPanel(isExpanded ? panel : false);
   };
 
-  const handleCreateMapping = async () => {
-    if (!newMapping.columnName || !newMapping.googleCalendarId) return;
-
-    try {
-      const res = await fetch("/api/parent/calendar-mappings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMapping),
-      });
-
-      if (res.ok) {
-        setDialogOpen(false);
-        setNewMapping({ columnName: "", columnValue: "", googleCalendarId: "", googleCalendarName: "" });
-        queryClient.invalidateQueries({ queryKey: ["parentCalendarMappings"] });
-      }
-    } catch (error) {
-      console.error("Failed to create mapping:", error);
-    }
-  };
-
-  const handleDeleteMapping = async (mappingId: string) => {
-    if (!window.confirm("Are you sure you want to delete this mapping?")) return;
-
-    try {
-      const res = await fetch(`/api/parent/calendar-mappings?id=${mappingId}`, {
-        method: "DELETE",
-      });
-
-      if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ["parentCalendarMappings"] });
-      }
-    } catch (error) {
-      console.error("Failed to delete mapping:", error);
-    }
-  };
-
-  if (statusLoading) {
+  if (isLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Alert severity="error">
+          Failed to load calendar feeds. Please try again later.
+        </Alert>
       </Box>
     );
   }
@@ -193,175 +120,187 @@ function CalendarsPageContent() {
     <Box>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={700} gutterBottom>
-          Calendars
+          Subscribe to Calendars
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Connect your Google Calendar to sync game schedules
+          Subscribe to your child&apos;s game schedules using your preferred calendar app
         </Typography>
       </Box>
 
-      <CalendarConnectionHandler refetch={refetchStatus} />
+      {calendars.length === 0 ? (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          No calendars available yet. Connect with a school to see available calendars for subscription.
+        </Alert>
+      ) : (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          You have {calendars.length} calendar{calendars.length !== 1 ? 's' : ''} available for subscription.
+        </Alert>
+      )}
 
-      {/* Connection Card */}
-      <Card sx={{ mb: 4 }}>
+      {/* iPhone Instructions */}
+      <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Google Calendar Connection
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Apple color="primary" />
+            <Typography variant="h6">
+              Add to iPhone Calendar (Automatic)
+            </Typography>
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The easiest way to subscribe - tap the Subscribe button on each calendar below.
           </Typography>
           
-          {isConnected ? (
-            <Box>
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Your Google Calendar is connected
-              </Alert>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<LinkOff />}
-                onClick={handleDisconnect}
-              >
-                Disconnect Calendar
-              </Button>
-            </Box>
-          ) : (
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Connect your Google Calendar to automatically sync game schedules and get updates.
-              </Typography>
-              <Button
-                variant="contained"
-                startIcon={<LinkIcon />}
-                onClick={handleConnect}
-              >
-                Connect Google Calendar
-              </Button>
-            </Box>
-          )}
+          <Divider sx={{ my: 2 }} />
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+            Add to iPhone Calendar (Manual)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            If automatic subscription doesn&apos;t work, follow these steps:
+          </Typography>
+          
+          <List dense disablePadding>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">1.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Copy the calendar link using the button below" />
+            </ListItem>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">2.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Open Settings on your iPhone" />
+            </ListItem>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">3.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Tap Accounts & Passwords" />
+            </ListItem>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">4.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Tap Other > Add Subscribed Calendar" />
+            </ListItem>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">5.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Paste the calendar link and tap Next" />
+            </ListItem>
+            <ListItem sx={{ py: 0.5 }}>
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Typography variant="body2" color="text.secondary">6.</Typography>
+              </ListItemIcon>
+              <ListItemText primary="Tap Save to complete the subscription" />
+            </ListItem>
+          </List>
         </CardContent>
       </Card>
 
-      {/* Calendar Group Mappings */}
-      {isConnected && (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6">
-                Calendar Mappings
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<Add />}
-                onClick={() => setDialogOpen(true)}
-              >
-                Add Mapping
-              </Button>
-            </Box>
-
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Map sport levels to specific Google Calendars for better organization
+      {/* Google Calendar Instructions */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Google color="primary" />
+            <Typography variant="h6">
+              Add to Google Calendar
             </Typography>
-
-            {mappingsLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-                <CircularProgress size={24} />
-              </Box>
-            ) : mappings.length > 0 ? (
-              <TableContainer component={Paper} variant="outlined">
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Sport</TableCell>
-                      <TableCell>Level</TableCell>
-                      <TableCell>Google Calendar</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {mappings.map((mapping: CalendarGroupMapping) => (
-                      <TableRow key={mapping.id}>
-                        <TableCell>{mapping.columnName}</TableCell>
-                        <TableCell>
-                          <Chip label={mapping.columnValue} size="small" variant="outlined" />
-                        </TableCell>
-                        <TableCell>{mapping.googleCalendarName}</TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            color="error"
-                            size="small"
-                            onClick={() => handleDeleteMapping(mapping.id)}
-                          >
-                            <Delete />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Alert severity="info">
-                No calendar mappings yet. Add a mapping to organize your calendars by sport level.
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Add Mapping Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Calendar Mapping</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-            <FormControl fullWidth>
-              <InputLabel>Google Calendar</InputLabel>
-              <Select
-                value={newMapping.googleCalendarId}
-                label="Google Calendar"
-                onChange={(e) => {
-                  const cal = calendars.find((c: GoogleCalendar) => c.id === e.target.value);
-                  setNewMapping({
-                    ...newMapping,
-                    googleCalendarId: e.target.value,
-                    googleCalendarName: cal?.name || "",
-                  });
-                }}
-              >
-                {calendars.map((cal: GoogleCalendar) => (
-                  <MenuItem key={cal.id} value={cal.id}>
-                    {cal.name} {cal.primary ? "(Primary)" : ""}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <TextField
-              fullWidth
-              label="Sport"
-              value={newMapping.columnName}
-              onChange={(e) => setNewMapping({ ...newMapping, columnName: e.target.value })}
-              placeholder="e.g., Soccer"
-            />
-            
-            <TextField
-              fullWidth
-              label="Level"
-              value={newMapping.columnValue}
-              onChange={(e) => setNewMapping({ ...newMapping, columnValue: e.target.value })}
-              placeholder="e.g., Junior Varsity"
-            />
           </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button 
-            variant="contained" 
-            onClick={handleCreateMapping}
-            disabled={!newMapping.googleCalendarId || !newMapping.columnName}
-          >
-            Add Mapping
-          </Button>
-        </DialogActions>
-      </Dialog>
+          
+          <Typography variant="body2" color="text.secondary">
+            1. Copy the calendar link using the button below<br />
+            2. Go to <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" style={{ color: '#1976d2' }}>Google Calendar</a><br />
+            3. Click the + icon next to &quot;Add calendars&quot; on the left sidebar<br />
+            4. Select &quot;From URL&quot;<br />
+            5. Paste the calendar link and click &quot;Add calendar&quot;
+          </Typography>
+        </CardContent>
+      </Card>
+
+      {/* Available Calendars */}
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Available Calendars
+      </Typography>
+
+      {calendars.map((calendar) => (
+        <Accordion 
+          key={calendar.id}
+          expanded={expandedPanel === calendar.id}
+          onChange={handleAccordionChange(calendar.id)}
+          sx={{ mb: 1 }}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, pr: 2 }}>
+              <CalendarMonth color="primary" />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  {calendar.sportName} - {calendar.level}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {calendar.schoolName}
+                </Typography>
+              </Box>
+              <Chip 
+                label="Subscribe" 
+                color="primary" 
+                size="small" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenFeed(calendar);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+              />
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                {calendar.description}
+              </Typography>
+              
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Calendar Link:
+                </Typography>
+                <Tooltip title={copiedId === calendar.id ? "Copied!" : "Copy link"}>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleCopyLink(calendar)}
+                    color={copiedId === calendar.id ? "success" : "default"}
+                  >
+                    {copiedId === calendar.id ? <CheckCircle fontSize="small" /> : <ContentCopy fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Open calendar feed">
+                  <IconButton 
+                    size="small" 
+                    onClick={() => handleOpenFeed(calendar)}
+                  >
+                    <OpenInNew fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              
+              <Box sx={{ 
+                p: 1.5, 
+                bgcolor: 'grey.100', 
+                borderRadius: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+              }}>
+                {calendar.feedUrl}
+              </Box>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      ))}
     </Box>
   );
 }
@@ -369,7 +308,7 @@ function CalendarsPageContent() {
 export default function ParentCalendarsPage() {
   return (
     <Suspense fallback={
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
         <CircularProgress />
       </Box>
     }>

@@ -96,12 +96,12 @@ export default function ParentDashboardPage() {
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: "center" }}>
-              <Sync sx={{ fontSize: 40, color: data?.calendarConnected ? "success.main" : "warning.main", mb: 1 }} />
+              <Sync sx={{ fontSize: 40, color: data?.calendarConnected ? "success.main" : "primary.main", mb: 1 }} />
               <Typography variant="h4" fontWeight={700}>
-                {data?.calendarConnected ? "Connected" : "Not Connected"}
+                {data?.calendarConnected ? "Active" : "iCal"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Google Calendar
+                Calendar Subscription
               </Typography>
             </CardContent>
           </Card>
@@ -175,7 +175,7 @@ export default function ParentDashboardPage() {
       </Typography>
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
         <Button variant="contained" component={Link} href="/parent-dashboard/calendars">
-          Connect Google Calendar
+          Subscribe to Calendars
         </Button>
         <Button variant="outlined" component={Link} href="/parent-dashboard/chat">
           Contact Athletic Director
