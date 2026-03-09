@@ -116,22 +116,7 @@ export default function TopFooter() {
         >
           Privacy
         </Link>
-        <Link
-          href="/incident-response"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: "var(--text-secondary)",
-            fontSize: "0.875rem",
-            fontWeight: 400,
-            textDecoration: "none",
-            transition: "color 0.2s ease",
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
-          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
-        >
-          Incident Response
-        </Link>
+
         <Link
           href="/disclaimer"
           target="_blank"
@@ -149,6 +134,22 @@ export default function TopFooter() {
           Disclaimer
         </Link>
         <Link
+          href="/incident-response"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          Reports
+        </Link>
+        <Link
           href="/support"
           style={{
             color: "var(--text-secondary)",
@@ -163,7 +164,7 @@ export default function TopFooter() {
           onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
-          Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
+          Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
         </Link>
       </div>
       <div>
