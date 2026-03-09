@@ -65,7 +65,7 @@ const customAdapter = {
       }
     }
     // Check if this is a parent signup (indicated by plan containing "parent")
-    const isParentPlan = plan && plan.includes("parent");
+    const isParentPlan = typeof plan === "string" && plan.includes("parent");
 
     // Create user with their own organization
     const newUser = await prisma.user.create({
