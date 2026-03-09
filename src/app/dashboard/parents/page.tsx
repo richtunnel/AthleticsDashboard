@@ -4,8 +4,8 @@ import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesM
 
 export default function ParentsAndAthletesPage() {
   return (
-    <Box>
+    <div>
       <ParentsAndAthletesMenu defaultOpen={true} />
-    </Box>
+    </div>
   );
 }
