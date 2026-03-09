@@ -10,7 +10,7 @@ export function handleApiError(error: unknown) {
       {
         success: false,
         error: "Validation error",
-        details: error,
+        details: error.errors,
       },
       { status: 400 }
     );
