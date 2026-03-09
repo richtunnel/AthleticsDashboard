@@ -48,19 +48,19 @@ export async function GET(request: NextRequest) {
     }
 
     let shareCode = user.shareCode;
-
+    console.log("Share Code: " + shareCode);
     // Generate a new share code if user doesn't have one
     if (!shareCode) {
       // Keep generating until we get a unique code
       let isUnique = false;
       let attempts = 0;
-      
+
       while (!isUnique && attempts < 10) {
         const newCode = generateShareCode();
         const existing = await prisma.user.findUnique({
           where: { shareCode: newCode },
         });
-        
+
         if (!existing) {
           shareCode = newCode;
           isUnique = true;
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build the shareable URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://athleticsdirectorshub.com";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
     const shareUrl = `${baseUrl}/onboarding/parent-signup?code=${shareCode}`;
 
     return NextResponse.json({
@@ -121,13 +121,13 @@ export async function POST(request: NextRequest) {
     let shareCode = "";
     let isUnique = false;
     let attempts = 0;
-    
+
     while (!isUnique && attempts < 10) {
       const newCode = generateShareCode();
       const existing = await prisma.user.findUnique({
         where: { shareCode: newCode },
       });
-      
+
       if (!existing) {
         shareCode = newCode;
         isUnique = true;
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Build the new shareable URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://athleticsdirectorshub.com";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
     const shareUrl = `${baseUrl}/onboarding/parent-signup?code=${shareCode}`;
 
     return NextResponse.json({
