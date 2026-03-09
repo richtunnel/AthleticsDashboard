@@ -57,7 +57,7 @@ export default function ParentPlansPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/onboarding/signup?plan=parent_plan");
+      router.push("/onboarding/parent-signup");
       return;
     }
 

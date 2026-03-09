@@ -75,17 +75,20 @@ function ParentSignupContent() {
     setError(null);
     
     try {
-      // Store the parent selection data in sessionStorage for after sign up
-      sessionStorage.setItem("parentOnboardingData", JSON.stringify({
-        schoolId: schoolId || adInfo?.schoolId || "",
-        sport,
-        level,
-        childName,
-        childGrade,
-        // Include AD info if available
-        athleticDirectorId: adInfo?.athleticDirectorId || "",
-        athleticDirectorName: adInfo?.athleticDirectorName || "",
-      }));
+      // Store any pre-filled data from AD share links in sessionStorage for after sign up
+      // This allows skipping straight to coach selection if data is complete
+      if (adInfo || schoolId) {
+        sessionStorage.setItem("parentOnboardingData", JSON.stringify({
+          schoolId: schoolId || adInfo?.schoolId || "",
+          sport,
+          level,
+          childName,
+          childGrade,
+          // Include AD info if available
+          athleticDirectorId: adInfo?.athleticDirectorId || "",
+          athleticDirectorName: adInfo?.athleticDirectorName || "",
+        }));
+      }
       
       // Redirect to Google signup with callback to handle the link creation
       await signIn("google", { 

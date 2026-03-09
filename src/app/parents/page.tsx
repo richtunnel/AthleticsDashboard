@@ -19,8 +19,8 @@ const ParentPortalPage = () => {
   const handleWaitlistModal = () => setWaitlistModalOpen((prev) => !prev);
 
   const handleGetStarted = () => {
-    // Redirect to parent onboarding signup flow
-    router.push("/onboarding/signup?plan=parent_plan");
+    // Redirect to parent onboarding signup flow (Google-only signup)
+    router.push("/onboarding/parent-signup");
   };
 
   const problems = [
