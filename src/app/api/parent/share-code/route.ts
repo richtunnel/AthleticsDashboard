@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
     // Build the new shareable URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
     const shareUrl = `${baseUrl}/onboarding/parent-signup?code=${shareCode}`;
+    console.log("New shareable url " + shareUrl, "baseUrl ", baseUrl);
 
     return NextResponse.json({
       shareCode,
