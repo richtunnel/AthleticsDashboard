@@ -22,7 +22,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { School, Sports, EmojiEvents } from "@mui/icons-material";
+import { School, Sports, EmojiEvents, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 
 interface School {
@@ -47,6 +47,7 @@ export default function ParentOnboardingPage() {
   const [error, setError] = useState("");
 
   // Form state
+  const [childName, setChildName] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [selectedLevel, setSelectedLevel] = useState("");
@@ -58,7 +59,7 @@ export default function ParentOnboardingPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/onboarding/signup?plan=parent_plan");
+      router.push("/onboarding/parent-signup");
       return;
     }
 
@@ -81,9 +82,7 @@ export default function ParentOnboardingPage() {
 
       if (sportsRes.ok) {
         const sportsData = await sportsRes.json();
-        // Handle both formats: direct array or { success: true, data: [...] }
-        const sportsArray = Array.isArray(sportsData) ? sportsData : sportsData.data || [];
-        setSports(sportsArray);
+        setSports(sportsData.data || []);
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -94,7 +93,7 @@ export default function ParentOnboardingPage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedSchool || !selectedSport || !selectedLevel) {
+    if (!childName || !selectedSchool || !selectedSport || !selectedLevel) {
       setError("Please fill in all fields");
       return;
     }
@@ -105,6 +104,7 @@ export default function ParentOnboardingPage() {
     try {
       // Store parent preferences in session/local storage for next step
       const parentPreferences = {
+        childName,
         schoolId: selectedSchool.id,
         schoolName: selectedSchool.name,
         sportId: selectedSport.id,
@@ -169,6 +169,23 @@ export default function ParentOnboardingPage() {
             </Typography>
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* Child's Name */}
+              <Box>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <Person color="primary" />
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Child&apos;s Name
+                  </Typography>
+                </Box>
+                <TextField
+                  placeholder="Enter your child's full name..."
+                  fullWidth
+                  size="small"
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                />
+              </Box>
+
               {/* School Selection */}
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -249,7 +266,7 @@ export default function ParentOnboardingPage() {
                 variant="contained"
                 size="large"
                 onClick={handleSubmit}
-                disabled={submitting || !selectedSchool || !selectedSport || !selectedLevel}
+                disabled={submitting || !childName || !selectedSchool || !selectedSport || !selectedLevel}
                 sx={{ minWidth: 150 }}
               >
                 {submitting ? <CircularProgress size={24} /> : "Next"}

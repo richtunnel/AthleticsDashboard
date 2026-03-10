@@ -30,15 +30,19 @@ import BaseHeader from "@/components/headers/_base";
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
 const freeTierFeatures = [
-  "Calendar sync",
-  "Mobile notifications",
-  "Schedule updates",
+  "Calendar sync with your personal calendar",
+  "Mobile notifications for schedule changes",
+  "Real-time schedule updates",
+  "Access to game details and locations",
 ];
 
 const donationTierFeatures = [
-  "Calendar sync",
-  "Mobile notifications",
-  "Schedule updates",
+  "Calendar sync with your personal calendar",
+  "Mobile notifications for schedule changes",
+  "Real-time schedule updates",
+  "Access to game details and locations",
+  "Priority support",
+  "Support your school's athletic program",
 ];
 
 export default function ParentPlansPage() {
@@ -53,7 +57,7 @@ export default function ParentPlansPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/onboarding/signup?plan=parent_plan");
+      router.push("/onboarding/parent-signup");
       return;
     }
 
@@ -172,14 +176,14 @@ export default function ParentPlansPage() {
                       $0
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Skip donation
+                      Consider a donation to support your school
                     </Typography>
                   </Box>
 
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Features:
+                    Includes:
                   </Typography>
 
                   <List dense>
@@ -264,11 +268,11 @@ export default function ParentPlansPage() {
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Features:
+                    Everything in Free, plus:
                   </Typography>
 
                   <List dense>
-                    {donationTierFeatures.map((feature) => (
+                    {donationTierFeatures.slice(4).map((feature) => (
                       <ListItem key={feature} disablePadding sx={{ mb: 1 }}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="primary" fontSize="small" />

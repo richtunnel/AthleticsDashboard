@@ -4,7 +4,7 @@
  * NO imports from next/headers, next-auth, or authOptions
  */
 
-// Define UserRole enum with original 6 roles
+// Define UserRole enum with all roles
 export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   ATHLETIC_DIRECTOR = "ATHLETIC_DIRECTOR",
@@ -12,6 +12,7 @@ export enum UserRole {
   COACH = "COACH",
   STAFF = "STAFF",
   VENDOR_READ_ONLY = "VENDOR_READ_ONLY",
+  PARENT = "PARENT",
 }
 
 export const WRITE_ROLES: UserRole[] = [
