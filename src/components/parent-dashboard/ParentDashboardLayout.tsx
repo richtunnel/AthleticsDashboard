@@ -65,8 +65,8 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
 
   const menuItems = [
     { text: "Overview", icon: <Dashboard />, path: "/parent-dashboard" },
-    { text: "Calendars", icon: <CalendarMonth />, path: "/parent-dashboard/calendars" },
     { text: "Chat", icon: <Chat />, path: "/parent-dashboard/chat" },
+    { text: "Settings", icon: <Settings />, path: "/parent-dashboard/settings" },
   ];
 
   const handleDrawerToggle = () => {

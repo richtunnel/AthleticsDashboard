@@ -97,7 +97,7 @@ export default function ParentPlansPage() {
       localStorage.removeItem("parentOnboardingPrefs");
 
       // Redirect to parent dashboard
-      router.push("/dashboard/parent");
+      router.push("/parent-dashboard");
     } catch (err) {
       console.error("Failed to save plan:", err);
       setError("An error occurred. Please try again.");

@@ -1,9 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Box, Typography, Card, CardContent, Grid, Chip, CircularProgress, Button, Alert } from "@mui/material";
-import { CalendarMonth, Sync, CheckCircle, Warning, Schedule } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  CircularProgress,
+  Button,
+  Alert,
+  Divider,
+} from "@mui/material";
+import {
+  CalendarMonth,
+  Sync,
+  CheckCircle,
+  Warning,
+  Schedule,
+  LocationOn,
+  SportsScore,
+  ArrowForward,
+} from "@mui/icons-material";
 import Link from "next/link";
 
 interface ParentLink {
@@ -25,10 +44,33 @@ interface ParentSubscription {
   plan: string;
 }
 
+interface GameData {
+  id: string;
+  date: string;
+  time: string | null;
+  isHome: boolean;
+  location: string | null;
+  status: string;
+  homeTeam: {
+    id: string;
+    name: string;
+    sport: { name: string } | null;
+    level: string | null;
+  };
+  awayTeam: {
+    id: string;
+    name: string;
+  } | null;
+  venue: {
+    name: string;
+    address: string | null;
+  } | null;
+}
+
 interface ParentOverviewData {
   links: ParentLink[];
   subscription: ParentSubscription | null;
-  upcomingGames: any[];
+  upcomingGames: GameData[];
   calendarConnected: boolean;
 }
 
@@ -36,6 +78,24 @@ async function fetchParentOverview(): Promise<ParentOverviewData> {
   const res = await fetch("/api/parent/overview");
   if (!res.ok) throw new Error("Failed to fetch overview");
   return res.json();
+}
+
+function formatGameDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatGameTime(dateStr: string, time: string | null): string {
+  if (time) return time;
+  const date = new Date(dateStr);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export default function ParentDashboardPage() {
@@ -59,6 +119,7 @@ export default function ParentDashboardPage() {
   const subscriptionStatus = data?.subscription?.status || "TRIALING";
   const isOnTrial = subscriptionStatus === "TRIALING";
   const trialEnd = data?.subscription?.trialEnd ? new Date(data.subscription.trialEnd).toLocaleDateString() : null;
+  const upcomingGames = data?.upcomingGames || [];
 
   return (
     <Box>
@@ -67,7 +128,7 @@ export default function ParentDashboardPage() {
           Welcome to Parent Portal
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Stay up-to-date with your child's game schedule
+          Stay up-to-date with your child&apos;s game schedule
         </Typography>
       </Box>
 
@@ -76,6 +137,76 @@ export default function ParentDashboardPage() {
         <Alert severity="info" sx={{ mb: 3 }}>
           Your free trial ends on {trialEnd}. Continue with Parent Power for $2.25/month to keep calendar sync.
         </Alert>
+      )}
+
+      {/* Upcoming Schedule - Primary Section */}
+      <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
+        <Schedule sx={{ verticalAlign: "middle", mr: 1 }} />
+        Upcoming Schedule
+      </Typography>
+      {upcomingGames.length > 0 ? (
+        <Box sx={{ mb: 4 }}>
+          {upcomingGames.map((game) => (
+            <Card key={game.id} variant="outlined" sx={{ mb: 1.5 }}>
+              <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
+                    <Box sx={{ textAlign: "center", minWidth: 60 }}>
+                      <Typography variant="body2" fontWeight={700} color="primary.main">
+                        {formatGameDate(game.date)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {formatGameTime(game.date, game.time)}
+                      </Typography>
+                    </Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box sx={{ minWidth: 0 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                        <Typography variant="subtitle2" fontWeight={600} noWrap>
+                          {game.homeTeam?.sport?.name || "Game"}
+                        </Typography>
+                        {game.homeTeam?.level && (
+                          <Chip label={game.homeTeam.level} size="small" variant="outlined" />
+                        )}
+                        <Chip
+                          label={game.isHome ? "Home" : "Away"}
+                          size="small"
+                          color={game.isHome ? "success" : "warning"}
+                          variant="outlined"
+                        />
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {game.isHome
+                          ? `vs ${game.awayTeam?.name || "TBD"}`
+                          : `at ${game.awayTeam?.name || "TBD"}`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  {(game.venue?.name || game.location) && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <LocationOn fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary" noWrap>
+                        {game.venue?.name || game.location}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      ) : (
+        <Card variant="outlined" sx={{ mb: 4 }}>
+          <CardContent sx={{ textAlign: "center", py: 4 }}>
+            <SportsScore sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+            <Typography variant="body1" color="text.secondary">
+              No upcoming games scheduled
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Games will appear here once your child&apos;s coach adds them to the schedule
+            </Typography>
+          </CardContent>
+        </Card>
       )}
 
       {/* Quick Stats */}
@@ -111,7 +242,7 @@ export default function ParentDashboardPage() {
             <CardContent sx={{ textAlign: "center" }}>
               <Schedule sx={{ fontSize: 40, color: "primary.main", mb: 1 }} />
               <Typography variant="h4" fontWeight={700}>
-                {data?.upcomingGames?.length || 0}
+                {upcomingGames.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Upcoming Games
@@ -174,8 +305,8 @@ export default function ParentDashboardPage() {
         Quick Actions
       </Typography>
       <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        <Button variant="contained" component={Link} href="/parent-dashboard/calendars">
-          Subscribe to Calendars
+        <Button variant="contained" component={Link} href="/parent-dashboard/settings">
+          Manage Settings
         </Button>
         <Button variant="outlined" component={Link} href="/parent-dashboard/chat">
           Contact Athletic Director
