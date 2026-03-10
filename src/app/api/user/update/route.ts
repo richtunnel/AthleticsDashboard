@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
   if (role !== undefined) updateData.role = role as any;
   if (plan !== undefined) updateData.plan = plan;
 
+  // Store parent info in custom fields if provided
+  if (parentInfo !== undefined) {
+    updateData.customFields = parentInfo as any;
+  }
+
   if (schoolEmail !== undefined) {
     const trimmed = typeof schoolEmail === "string" ? schoolEmail.trim() : "";
 
