@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/auth";
+import { authOptions } from "@/lib/utils/authOptions";
 
 /**
  * GET /api/parent/overview
