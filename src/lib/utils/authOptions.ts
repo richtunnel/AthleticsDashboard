@@ -13,6 +13,7 @@ import { trackServerEvent, identifyServerUser } from "@/lib/analytics/mixpanel.s
 import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
+import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 import {
   generateMemberSessionId,
   generateMemberEmail,
@@ -65,7 +66,10 @@ const customAdapter = {
       }
     }
     // Check if this is a parent signup (indicated by plan containing "parent")
-    const isParentPlan = plan && plan.includes("parent");
+    const isParentPlan = typeof plan === "string" && plan.includes("parent");
+
+    // Generate a unique share code for the new user
+    const shareCode = await generateUniqueShareCode();
 
     // Create user with their own organization
     const newUser = await prisma.user.create({
@@ -77,6 +81,7 @@ const customAdapter = {
         role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
         plan: plan,
         stripeCustomerId,
+        shareCode,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
         organization: {
           create: {
