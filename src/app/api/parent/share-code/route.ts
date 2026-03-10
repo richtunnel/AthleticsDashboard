@@ -2,18 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
-
-/**
- * Generate a unique share code
- */
-function generateShareCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Excluding confusing chars like 0/O, 1/I
-  let code = "";
-  for (let i = 0; i < 8; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
+import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 
 /**
  * GET /api/parent/share-code
@@ -48,25 +37,10 @@ export async function GET(request: NextRequest) {
     }
 
     let shareCode = user.shareCode;
-    console.log("Share Code: " + shareCode);
+
     // Generate a new share code if user doesn't have one
     if (!shareCode) {
-      // Keep generating until we get a unique code
-      let isUnique = false;
-      let attempts = 0;
-
-      while (!isUnique && attempts < 10) {
-        const newCode = generateShareCode();
-        const existing = await prisma.user.findUnique({
-          where: { shareCode: newCode },
-        });
-
-        if (!existing) {
-          shareCode = newCode;
-          isUnique = true;
-        }
-        attempts++;
-      }
+      shareCode = await generateUniqueShareCode();
 
       if (!shareCode) {
         return NextResponse.json({ error: "Failed to generate unique share code" }, { status: 500 });
@@ -118,22 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate a new unique share code
-    let shareCode = "";
-    let isUnique = false;
-    let attempts = 0;
-
-    while (!isUnique && attempts < 10) {
-      const newCode = generateShareCode();
-      const existing = await prisma.user.findUnique({
-        where: { shareCode: newCode },
-      });
-
-      if (!existing) {
-        shareCode = newCode;
-        isUnique = true;
-      }
-      attempts++;
-    }
+    const shareCode = await generateUniqueShareCode();
 
     if (!shareCode) {
       return NextResponse.json({ error: "Failed to generate unique share code" }, { status: 500 });
