@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import { getCollaboratorLimit, isInvitationExpired } from "@/lib/utils/collaboration";
+import { getCollaboratorLimit } from "@/lib/utils/collaboration";
 import { generateInvitationToken } from "@/lib/utils/collaborationTokens";
-import { CollaborativeRole, CollaborationAction } from "@prisma/client";
+import { CollaborativeRole } from "@prisma/client";
 import { emailService } from "@/lib/services/email.service";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 
@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
         revokedAt: null,
         status: "PENDING",
       },
+      select: {
+        id: true,
+      },
     });
 
     if (existingInvitation) {
@@ -108,6 +111,9 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         status: "ACCEPTED",
         revokedAt: null,
+      },
+      select: {
+        id: true,
       },
     });
 
@@ -169,27 +175,10 @@ export async function POST(request: NextRequest) {
         expiresAt,
       });
       emailSent = true;
-
-      // Update collaborator record to mark email as sent
-      await prisma.collaborativeMember.update({
-        where: { id: collaborator.id },
-        data: {
-          emailSent: true,
-          emailSentAt: new Date(),
-        },
-      });
     } catch (emailError) {
       const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       emailErrorMessage = errorMessage;
       console.error("Failed to send invitation email:", emailError);
-
-      // Update collaborator record with email error
-      await prisma.collaborativeMember.update({
-        where: { id: collaborator.id },
-        data: {
-          emailError: errorMessage,
-        },
-      });
     }
 
     return NextResponse.json({

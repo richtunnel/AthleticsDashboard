@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
         status: "ACCEPTED",
         revokedAt: null,
       },
-      include: {
+      select: {
+        role: true,
         owner: {
           select: {
             id: true,

@@ -36,6 +36,14 @@ export async function POST(request: NextRequest) {
         id: collaboratorId,
         userId: userId, // Ensure the user owns this invitation
       },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        invitedAt: true,
+        status: true,
+        token: true,
+      },
     });
 
     if (!collaborator) {
@@ -95,6 +103,9 @@ export async function POST(request: NextRequest) {
         status: "ACCEPTED",
         revokedAt: null,
       },
+      select: {
+        id: true,
+      },
     });
 
     if (existingMember) {
@@ -112,16 +123,6 @@ export async function POST(request: NextRequest) {
         role: collaborator.role as CollaborativeRole,
         acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com"}/api/collaboration/accept-invitation?token=${collaborator.token}`,
         expiresAt,
-      });
-
-      // Update collaborator record to mark email as sent
-      await prisma.collaborativeMember.update({
-        where: { id: collaborator.id },
-        data: {
-          emailSent: true,
-          emailSentAt: new Date(),
-          emailError: null, // Clear any previous error
-        },
       });
 
       // Log the resend
@@ -148,14 +149,6 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       console.error("Failed to resend invitation email:", emailError);
-
-      // Update collaborator record with email error
-      await prisma.collaborativeMember.update({
-        where: { id: collaborator.id },
-        data: {
-          emailError: errorMessage,
-        },
-      });
 
       return NextResponse.json({
         success: false,
