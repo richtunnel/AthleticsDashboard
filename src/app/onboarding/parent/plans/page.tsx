@@ -26,15 +26,11 @@ import {
 } from "@mui/material";
 import { Check, CalendarMonth, Notifications, Sync, VolunteerActivism } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
+import TopFooter from "@/components/footer/topFooter";
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
-const freeTierFeatures = [
-  "Calendar sync with your personal calendar",
-  "Mobile notifications for schedule changes",
-  "Real-time schedule updates",
-  "Access to game details and locations",
-];
+const freeTierFeatures = ["Calendar sync with your personal calendar", "Mobile notifications for schedule changes", "Real-time schedule updates", "Access to game details and locations"];
 
 const donationTierFeatures = [
   "Calendar sync with your personal calendar",
@@ -172,7 +168,7 @@ export default function ParentPlansPage() {
                 <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip label="Free" color="success" size="small" sx={{ mb: 1 }} />
-                    <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
+                    <Typography variant="h3" sx={{ fontWeight: 800, color: "#000" }}>
                       $0
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -192,10 +188,7 @@ export default function ParentPlansPage() {
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="success" fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText
-                          primary={feature}
-                          primaryTypographyProps={{ variant: "body2" }}
-                        />
+                        <ListItemText primary={feature} primaryTypographyProps={{ variant: "body2" }} />
                       </ListItem>
                     ))}
                   </List>
@@ -206,14 +199,7 @@ export default function ParentPlansPage() {
                       <Chip icon={<Notifications />} label="Notifications" size="small" variant="outlined" />
                     </Box>
 
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      size="large"
-                      onClick={() => handleSelectPlan("free")}
-                      disabled={submitting}
-                      sx={{ mt: 3, py: 1.5 }}
-                    >
+                    <Button fullWidth variant="outlined" size="large" onClick={() => handleSelectPlan("free")} disabled={submitting} sx={{ mt: 3, py: 1.5 }}>
                       {submitting && selectedPlan === "free" ? <CircularProgress size={24} /> : "Get Started Free"}
                     </Button>
                   </Box>
@@ -277,10 +263,7 @@ export default function ParentPlansPage() {
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="primary" fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText
-                          primary={feature}
-                          primaryTypographyProps={{ variant: "body2" }}
-                        />
+                        <ListItemText primary={feature} primaryTypographyProps={{ variant: "body2" }} />
                       </ListItem>
                     ))}
                   </List>
@@ -291,19 +274,8 @@ export default function ParentPlansPage() {
                       <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
                     </Box>
 
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      size="large"
-                      onClick={() => handleSelectPlan("donation")}
-                      disabled={submitting}
-                      sx={{ mt: 3, py: 1.5 }}
-                    >
-                      {submitting && selectedPlan === "donation" ? (
-                        <CircularProgress size={24} />
-                      ) : (
-                        "Choose Donation Plan"
-                      )}
+                    <Button fullWidth variant="contained" size="large" onClick={() => handleSelectPlan("donation")} disabled={submitting} sx={{ mt: 3, py: 1.5 }}>
+                      {submitting && selectedPlan === "donation" ? <CircularProgress size={24} /> : "Choose Donation Plan"}
                     </Button>
                   </Box>
                 </CardContent>
@@ -326,6 +298,9 @@ export default function ParentPlansPage() {
           </Box>
         </Box>
       </Container>
+      <div style={{ borderTop: "1px solid rgb(197, 197, 210)", paddingTop: "10px" }}>
+        <TopFooter />
+      </div>
     </>
   );
 }
