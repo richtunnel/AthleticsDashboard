@@ -169,7 +169,7 @@ export default function ParentPlansPage() {
                   },
                 }}
               >
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip label="Free" color="success" size="small" sx={{ mb: 1 }} />
                     <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
@@ -200,21 +200,23 @@ export default function ParentPlansPage() {
                     ))}
                   </List>
 
-                  <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Chip icon={<Sync />} label="Calendar Sync" size="small" variant="outlined" />
-                    <Chip icon={<Notifications />} label="Notifications" size="small" variant="outlined" />
-                  </Box>
+                  <Box sx={{ mt: "auto" }}>
+                    <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Chip icon={<Sync />} label="Calendar Sync" size="small" variant="outlined" />
+                      <Chip icon={<Notifications />} label="Notifications" size="small" variant="outlined" />
+                    </Box>
 
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="large"
-                    onClick={() => handleSelectPlan("free")}
-                    disabled={submitting}
-                    sx={{ mt: 3, py: 1.5 }}
-                  >
-                    {submitting && selectedPlan === "free" ? <CircularProgress size={24} /> : "Get Started Free"}
-                  </Button>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      size="large"
+                      onClick={() => handleSelectPlan("free")}
+                      disabled={submitting}
+                      sx={{ mt: 3, py: 1.5 }}
+                    >
+                      {submitting && selectedPlan === "free" ? <CircularProgress size={24} /> : "Get Started Free"}
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -252,7 +254,7 @@ export default function ParentPlansPage() {
                   Supports Your School
                 </Box>
 
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip icon={<VolunteerActivism />} label="Donation" color="primary" size="small" sx={{ mb: 1 }} />
                     <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.primary.main }}>
@@ -283,25 +285,27 @@ export default function ParentPlansPage() {
                     ))}
                   </List>
 
-                  <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Chip icon={<CalendarMonth />} label="Full Access" size="small" color="primary" variant="outlined" />
-                    <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
-                  </Box>
+                  <Box sx={{ mt: "auto" }}>
+                    <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Chip icon={<CalendarMonth />} label="Calendar Sync" size="small" color="primary" variant="outlined" />
+                      <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
+                    </Box>
 
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    onClick={() => handleSelectPlan("donation")}
-                    disabled={submitting}
-                    sx={{ mt: 3, py: 1.5 }}
-                  >
-                    {submitting && selectedPlan === "donation" ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      "Choose Donation Plan"
-                    )}
-                  </Button>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="large"
+                      onClick={() => handleSelectPlan("donation")}
+                      disabled={submitting}
+                      sx={{ mt: 3, py: 1.5 }}
+                    >
+                      {submitting && selectedPlan === "donation" ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        "Choose Donation Plan"
+                      )}
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
