@@ -83,7 +83,7 @@ export async function trackReferral(referrerEmail: string, newUserId: string, ne
 
   // Send notification emails (async, don't block)
   sendReferralSuccessEmail(referrer.email, referrer.name || "there", newUser?.name || "A new user", REFERRAL_SIGNUP_POINTS).catch((err) =>
-    console.error("[Referral] Failed to send success email:", err)
+    console.error("[Referral] Failed to send success email:", err),
   );
 
   sendWelcomeReferralEmail(newUserEmail, newUser?.name || "there", referrer.name || "a colleague").catch((err) => console.error("[Referral] Failed to send welcome email:", err));
@@ -215,7 +215,7 @@ export async function sendReferralSuccessEmail(referrerEmail: string, referrerNa
 
   try {
     await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@athleticsdirectorshub.com>",
+      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@opletics.com>",
       to: referrerEmail,
       subject: "🎉 Great news! Your referral just signed up",
       html: `
@@ -255,7 +255,7 @@ export async function sendWelcomeReferralEmail(newUserEmail: string, newUserName
 
   try {
     await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@athleticsdirectorshub.com>",
+      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@opletics.com>",
       to: newUserEmail,
       subject: "Welcome to Athletics Director Hub! 👋",
       html: `

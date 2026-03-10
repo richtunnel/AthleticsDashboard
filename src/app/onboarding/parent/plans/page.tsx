@@ -26,19 +26,19 @@ import {
 } from "@mui/material";
 import { Check, CalendarMonth, Notifications, Sync, VolunteerActivism } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
+import TopFooter from "@/components/footer/topFooter";
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
-const freeTierFeatures = [
-  "Calendar sync",
-  "Mobile notifications",
-  "Schedule updates",
-];
+const freeTierFeatures = ["Calendar sync with your personal calendar", "Mobile notifications for schedule changes", "Real-time schedule updates", "Access to game details and locations"];
 
 const donationTierFeatures = [
-  "Calendar sync",
-  "Mobile notifications",
-  "Schedule updates",
+  "Calendar sync with your personal calendar",
+  "Mobile notifications for schedule changes",
+  "Real-time schedule updates",
+  "Access to game details and locations",
+  "Priority support",
+  "Support your school's athletic program",
 ];
 
 export default function ParentPlansPage() {
@@ -53,7 +53,7 @@ export default function ParentPlansPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/onboarding/signup?plan=parent_plan");
+      router.push("/onboarding/parent-signup");
       return;
     }
 
@@ -165,21 +165,21 @@ export default function ParentPlansPage() {
                   },
                 }}
               >
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip label="Free" color="success" size="small" sx={{ mb: 1 }} />
-                    <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.success.main }}>
+                    <Typography variant="h3" sx={{ fontWeight: 800, color: "#000" }}>
                       $0
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Skip donation
+                      Consider a donation to support your school
                     </Typography>
                   </Box>
 
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Features:
+                    Includes:
                   </Typography>
 
                   <List dense>
@@ -188,29 +188,21 @@ export default function ParentPlansPage() {
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="success" fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText
-                          primary={feature}
-                          primaryTypographyProps={{ variant: "body2" }}
-                        />
+                        <ListItemText primary={feature} primaryTypographyProps={{ variant: "body2" }} />
                       </ListItem>
                     ))}
                   </List>
 
-                  <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Chip icon={<Sync />} label="Calendar Sync" size="small" variant="outlined" />
-                    <Chip icon={<Notifications />} label="Notifications" size="small" variant="outlined" />
-                  </Box>
+                  <Box sx={{ mt: "auto" }}>
+                    <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Chip icon={<Sync />} label="Calendar Sync" size="small" variant="outlined" />
+                      <Chip icon={<Notifications />} label="Notifications" size="small" variant="outlined" />
+                    </Box>
 
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="large"
-                    onClick={() => handleSelectPlan("free")}
-                    disabled={submitting}
-                    sx={{ mt: 3, py: 1.5 }}
-                  >
-                    {submitting && selectedPlan === "free" ? <CircularProgress size={24} /> : "Get Started Free"}
-                  </Button>
+                    <Button fullWidth variant="outlined" size="large" onClick={() => handleSelectPlan("free")} disabled={submitting} sx={{ mt: 3, py: 1.5 }}>
+                      {submitting && selectedPlan === "free" ? <CircularProgress size={24} /> : "Get Started Free"}
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -248,7 +240,7 @@ export default function ParentPlansPage() {
                   Supports Your School
                 </Box>
 
-                <CardContent sx={{ p: 4 }}>
+                <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip icon={<VolunteerActivism />} label="Donation" color="primary" size="small" sx={{ mb: 1 }} />
                     <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.primary.main }}>
@@ -262,42 +254,30 @@ export default function ParentPlansPage() {
                   <Divider sx={{ my: 2 }} />
 
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
-                    Features:
+                    Everything in Free, plus:
                   </Typography>
 
                   <List dense>
-                    {donationTierFeatures.map((feature) => (
+                    {donationTierFeatures.slice(4).map((feature) => (
                       <ListItem key={feature} disablePadding sx={{ mb: 1 }}>
                         <ListItemIcon sx={{ minWidth: 36 }}>
                           <Check color="primary" fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText
-                          primary={feature}
-                          primaryTypographyProps={{ variant: "body2" }}
-                        />
+                        <ListItemText primary={feature} primaryTypographyProps={{ variant: "body2" }} />
                       </ListItem>
                     ))}
                   </List>
 
-                  <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Chip icon={<CalendarMonth />} label="Calendar Sync" size="small" color="primary" variant="outlined" />
-                    <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
-                  </Box>
+                  <Box sx={{ mt: "auto" }}>
+                    <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Chip icon={<CalendarMonth />} label="Calendar Sync" size="small" color="primary" variant="outlined" />
+                      <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
+                    </Box>
 
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    size="large"
-                    onClick={() => handleSelectPlan("donation")}
-                    disabled={submitting}
-                    sx={{ mt: 3, py: 1.5 }}
-                  >
-                    {submitting && selectedPlan === "donation" ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      "Choose Donation Plan"
-                    )}
-                  </Button>
+                    <Button fullWidth variant="contained" size="large" onClick={() => handleSelectPlan("donation")} disabled={submitting} sx={{ mt: 3, py: 1.5 }}>
+                      {submitting && selectedPlan === "donation" ? <CircularProgress size={24} /> : "Choose Donation Plan"}
+                    </Button>
+                  </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -318,6 +298,9 @@ export default function ParentPlansPage() {
           </Box>
         </Box>
       </Container>
+      <div style={{ borderTop: "1px solid rgb(197, 197, 210)", paddingTop: "10px" }}>
+        <TopFooter />
+      </div>
     </>
   );
 }

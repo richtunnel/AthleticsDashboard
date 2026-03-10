@@ -10,6 +10,7 @@ import { createInitialColumnPreferences } from "@/lib/services/initial-columns.s
 import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-limiter";
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { sanitizeEmail, sanitizeString, validatePassword } from "@/lib/security/sanitizer";
+import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 
 export async function POST(request: NextRequest) {
   // Apply rate limiting - strict limit for signup to prevent abuse
@@ -129,6 +130,9 @@ export async function POST(request: NextRequest) {
     // Check if this is a parent plan
     const isParentPlan = plan === "parent_plan" || plan === "parent_free" || plan === "parent_donation";
 
+    // Generate a unique share code for the new user
+    const shareCode = await generateUniqueShareCode();
+
     // Create user with organization and plan
     const user = await prisma.user.create({
       data: {
@@ -139,6 +143,7 @@ export async function POST(request: NextRequest) {
         role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR",
         plan: plan || "free_trial_plan",
         stripeCustomerId,
+        shareCode,
         trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null, // 14 days from now
         organization: {
           create: {

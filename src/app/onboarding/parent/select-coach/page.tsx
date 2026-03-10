@@ -13,7 +13,7 @@ import {
   Card,
   CardContent,
   Button,
-  Checkbox,
+  Radio,
   FormControlLabel,
   CircularProgress,
   Alert,
@@ -24,8 +24,9 @@ import {
   ListItemText,
   ListItemButton,
   Divider,
+  Chip,
 } from "@mui/material";
-import { School, Person } from "@mui/icons-material";
+import { School, Person, Sports, EmojiEvents } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 
 interface Coach {
@@ -46,13 +47,13 @@ export default function SelectCoachPage() {
   const [error, setError] = useState("");
 
   const [coaches, setCoaches] = useState<Coach[]>([]);
-  const [selectedCoachIds, setSelectedCoachIds] = useState<string[]>([]);
+  const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
   const [parentPrefs, setParentPrefs] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/onboarding/signup?plan=parent_plan");
+      router.push("/onboarding/parent-signup");
       return;
     }
 
@@ -89,15 +90,13 @@ export default function SelectCoachPage() {
     }
   };
 
-  const handleCoachToggle = (coachId: string) => {
-    setSelectedCoachIds((prev) =>
-      prev.includes(coachId) ? prev.filter((id) => id !== coachId) : [...prev, coachId]
-    );
+  const handleCoachSelect = (coachId: string) => {
+    setSelectedCoachId(coachId);
   };
 
   const handleSubmit = async () => {
-    if (selectedCoachIds.length === 0) {
-      setError("Please select at least one coach");
+    if (!selectedCoachId) {
+      setError("Please select a coach to confirm");
       return;
     }
 
@@ -105,7 +104,7 @@ export default function SelectCoachPage() {
     setError("");
 
     try {
-      // Save selected coaches to the user's profile
+      // Save selected coach to the user's profile
       const res = await fetch("/api/user/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +112,7 @@ export default function SelectCoachPage() {
           role: "PARENT",
           parentInfo: {
             ...parentPrefs,
-            selectedCoachIds,
+            selectedCoachId,
           },
         }),
       });
@@ -125,7 +124,7 @@ export default function SelectCoachPage() {
       // Navigate to pricing selection
       router.push("/onboarding/parent/plans");
     } catch (err) {
-      console.error("Failed to save coaches:", err);
+      console.error("Failed to save coach:", err);
       setError("An error occurred. Please try again.");
     } finally {
       setSubmitting(false);
@@ -174,16 +173,36 @@ export default function SelectCoachPage() {
 
         <Card elevation={2}>
           <CardContent sx={{ p: 4 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <School color="primary" />
-              <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                Select Coaches at {parentPrefs?.schoolName}
-              </Typography>
+            {/* School Name Header */}
+            <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Chip 
+                icon={<School />} 
+                label={parentPrefs?.schoolName} 
+                color="primary" 
+                size="medium"
+                sx={{ fontSize: "1rem", fontWeight: 600, px: 2, py: 1 }}
+              />
             </Box>
 
+            {/* Child Info Summary */}
+            <Box sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Your Selection:
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                <Chip icon={<Person />} label={parentPrefs?.childName} size="small" variant="outlined" />
+                <Chip icon={<Sports />} label={parentPrefs?.sportName} size="small" variant="outlined" />
+                <Chip icon={<EmojiEvents />} label={parentPrefs?.level} size="small" variant="outlined" />
+              </Box>
+            </Box>
+
+            <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+              Confirm Your Coach
+            </Typography>
+
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Check the box next to the coach name that matches your child&apos;s school and sport.
-              This helps us connect you to the right schedules.
+              We found the following coaches and athletic directors at {parentPrefs?.schoolName}. 
+              Please select the radio button next to the name that matches your child&apos;s coach to confirm it is the correct school.
             </Typography>
 
             {coaches.length > 0 ? (
@@ -191,12 +210,12 @@ export default function SelectCoachPage() {
                 {coaches.map((coach, index) => (
                   <Box key={coach.id}>
                     <ListItem disablePadding>
-                      <ListItemButton onClick={() => handleCoachToggle(coach.id)} dense>
+                      <ListItemButton onClick={() => handleCoachSelect(coach.id)} dense>
                         <FormControlLabel
                           control={
-                            <Checkbox
-                              checked={selectedCoachIds.includes(coach.id)}
-                              onChange={() => handleCoachToggle(coach.id)}
+                            <Radio
+                              checked={selectedCoachId === coach.id}
+                              onChange={() => handleCoachSelect(coach.id)}
                             />
                           }
                           label=""
@@ -232,7 +251,7 @@ export default function SelectCoachPage() {
                 variant="contained"
                 size="large"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !selectedCoachId}
                 sx={{ minWidth: 150 }}
               >
                 {submitting ? <CircularProgress size={24} /> : "Next"}
