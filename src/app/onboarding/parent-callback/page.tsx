@@ -91,7 +91,8 @@ function ParentCallbackContent() {
           router.push("/parent-dashboard");
         } else {
           const data = await res.json();
-          setError(data.error || "Failed to create parent link");
+          const errMsg = typeof data.error === "string" ? data.error : data.error?.message || "Failed to create parent link";
+          setError(errMsg);
         }
       } catch (err) {
         setError("An error occurred while setting up your account");
