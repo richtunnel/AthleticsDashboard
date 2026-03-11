@@ -10,7 +10,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -32,20 +32,41 @@ export async function GET(request: NextRequest) {
     const links = await prisma.parentAthleteLink.findMany({
       where: {
         parentUserId: user.id,
-        active: true,
       },
-      select: {
-        id: true,
-        schoolId: true,
-        schoolName: true,
-        athleticDirectorId: true,
-        athleticDirectorName: true,
-        sportName: true,
-        sportLevel: true,
+      include: {
+        school: true,
       },
     });
 
-    return NextResponse.json({ schools: links });
+    // Find the AD (owner) for each linked school
+    const schoolIds = [...new Set(links.map(l => l.schoolId))];
+    const ads = await prisma.user.findMany({
+      where: {
+        organizationId: { in: schoolIds },
+        role: "ATHLETIC_DIRECTOR",
+      },
+      select: {
+        id: true,
+        name: true,
+        organizationId: true,
+      },
+    });
+
+    const adBySchool = new Map(ads.map(ad => [ad.organizationId, ad]));
+
+    const schools = links.map(link => {
+      const ad = adBySchool.get(link.schoolId);
+      return {
+        id: link.id,
+        schoolName: link.school?.name || "",
+        athleticDirectorId: ad?.id || "",
+        athleticDirectorName: ad?.name || "",
+        sportName: link.sport || "",
+        sportLevel: link.gradeLevel || "",
+      };
+    });
+
+    return NextResponse.json({ schools });
   } catch (error) {
     console.error("[API] Error fetching linked schools:", error);
     return NextResponse.json(
