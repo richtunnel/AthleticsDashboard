@@ -23,15 +23,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  CalendarMonth,
-  Chat,
-  Settings,
-  Logout,
-  Person,
-} from "@mui/icons-material";
+import { Menu as MenuIcon, Dashboard, CalendarMonth, Chat, Settings, Logout, Person } from "@mui/icons-material";
 import { VscGithubProject } from "react-icons/vsc";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 import styles from "../../styles/logo.module.css";
@@ -91,9 +83,7 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
       <Box sx={{ p: 2, display: "flex", alignItems: "center", gap: 1 }}>
         <Link href="/parent-dashboard" className={`${styles["ad-hub-logo"]} flex d-flex`}>
           <CircularProjectIcon />
-          <span style={{ marginLeft: "2.5px", color: theme.palette.text.primary }}>
-            opletics
-          </span>
+          <span style={{ marginLeft: "2.5px", color: theme.palette.text.primary }}>opletics</span>
         </Link>
       </Box>
       <Divider />
@@ -109,15 +99,12 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: theme.palette.primary.light + "20",
-                  borderRight: `3px solid ${theme.palette.primary.main}`,
                 },
               }}
             >
-              <ListItemIcon sx={{ color: pathname === item.path ? theme.palette.primary.main : "inherit" }}>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text} 
+              <ListItemIcon sx={{ color: pathname === item.path ? theme.palette.primary.main : "inherit" }}>{item.icon}</ListItemIcon>
+              <ListItemText
+                primary={item.text}
                 primaryTypographyProps={{
                   fontWeight: pathname === item.path ? 600 : 400,
                 }}
@@ -153,19 +140,12 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: "none" } }}
-          >
+          <IconButton color="inherit" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { md: "none" } }}>
             <MenuIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1 }} />
           <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-            <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-              {userName.charAt(0).toUpperCase()}
-            </Avatar>
+            <Avatar sx={{ bgcolor: theme.palette.primary.main }}>{userName.charAt(0).toUpperCase()}</Avatar>
           </IconButton>
           <Menu
             id="menu-appbar"
@@ -191,11 +171,8 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
           </Menu>
         </Toolbar>
       </AppBar>
-      
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-      >
+
+      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -219,7 +196,7 @@ export default function ParentDashboardLayoutClient({ children }: ParentDashboar
           {drawer}
         </Drawer>
       </Box>
-      
+
       <Box
         component="main"
         sx={{
