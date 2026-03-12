@@ -1,24 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Button,
-  Chip,
-  CircularProgress,
-  Alert,
-  Divider,
-  Grid,
-} from "@mui/material";
-import {
-  CreditCard,
-  ChildCare,
-  Add,
-  School,
-} from "@mui/icons-material";
+import { Box, Typography, Card, CardContent, Button, Chip, CircularProgress, Alert, Divider, Grid } from "@mui/material";
+import { CreditCard, ChildCare, Add, School } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
@@ -95,20 +79,10 @@ export default function ParentSettingsPage() {
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <Typography variant="body1">Current Plan:</Typography>
-            <Chip
-              label={isDonation ? "Donation Plan ($2.50/mo)" : "Free Plan"}
-              color={isDonation ? "primary" : "success"}
-              size="small"
-            />
-            {subscriptionStatus === "TRIALING" && (
-              <Chip label="Trial" size="small" variant="outlined" color="info" />
-            )}
+            <Chip label={isDonation ? "Donation Plan ($2.50/mo)" : "Free Plan"} color={isDonation ? "primary" : "success"} size="small" />
+            {subscriptionStatus === "TRIALING" && <Chip label="Trial" size="small" variant="outlined" color="info" />}
           </Box>
-          <Button
-            variant="outlined"
-            component={Link}
-            href="/onboarding/parent/plans"
-          >
+          <Button variant="outlined" component={Link} href="/onboarding/parent/plans">
             Change Plan
           </Button>
         </CardContent>
@@ -117,27 +91,31 @@ export default function ParentSettingsPage() {
       {/* My Children & Schools */}
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "left", mb: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ChildCare color="primary" />
               <Typography variant="h6" fontWeight={600}>
                 My Children & Schools
               </Typography>
             </Box>
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<Add />}
-              component={Link}
-              href="/onboarding/parent"
-            >
-              Add Child
-            </Button>
+            {links.length > 0 ? (
+              <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
+                Add Child
+              </Button>
+            ) : (
+              ""
+            )}
           </Box>
           {links.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No children linked yet. Add a child to get started.
-            </Typography>
+            <>
+              <Typography variant="body2" color="text.secondary">
+                No children linked yet. Add a child to get started.
+              </Typography>
+              <br />
+              <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
+                Add Child
+              </Button>
+            </>
           ) : (
             <Grid container spacing={2}>
               {links.map((link) => (
@@ -148,7 +126,8 @@ export default function ParentSettingsPage() {
                         {link.childName}
                         {link.childGrade && (
                           <Typography component="span" variant="body2" color="text.secondary">
-                            {" "}(Grade {link.childGrade})
+                            {" "}
+                            (Grade {link.childGrade})
                           </Typography>
                         )}
                       </Typography>
