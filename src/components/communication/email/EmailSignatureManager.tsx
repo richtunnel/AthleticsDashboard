@@ -10,7 +10,6 @@ import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
-import { getOptimizedImageUrl } from "@/lib/utils/image";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 
 type SnackbarState = {
@@ -25,31 +24,13 @@ const DEFAULT_SNACKBAR: SnackbarState = {
   severity: "success",
 };
 
-// Component to display signature logo with fallback to original URL if optimization fails
+// Component to display signature logo (uses Vercel Blob CDN URLs directly)
 function SignatureLogoImage({ logoUrl }: { logoUrl: string }) {
-  const [imgSrc, setImgSrc] = useState(() => getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "png" }));
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    // Reset to optimized URL when logoUrl changes
-    setImgSrc(getOptimizedImageUrl(logoUrl, { width: 120, height: 120, format: "png" }));
-    setHasError(false);
-  }, [logoUrl]);
-
-  const handleError = () => {
-    if (!hasError) {
-      // Fallback to original URL if optimized version fails
-      setImgSrc(logoUrl);
-      setHasError(true);
-    }
-  };
-
   return (
     <Box
       component="img"
-      src={imgSrc}
+      src={logoUrl}
       alt="Logo preview"
-      onError={handleError}
       sx={{
         maxWidth: 120,
         maxHeight: 120,
@@ -157,6 +138,12 @@ export function EmailSignatureManager() {
     mutationFn: uploadLogo,
     onSuccess: (url) => {
       setLogoUrl(url);
+      // Reset file input so the same file can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      // Invalidate the signature query to reflect the auto-saved logo URL
+      queryClient.invalidateQueries({ queryKey: ["email-signature"] });
       showMessage("Logo uploaded successfully!");
     },
     onError: (error: Error) => {

@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { put, del } from "@vercel/blob";
 import { requireAuth } from "@/lib/utils/auth";
+import { prisma } from "@/lib/database/prisma";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import path from "path";
 
 // Try to import sharp, but make it optional
 let sharp: any = null;
@@ -38,9 +37,6 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".heic": "image/heic",
   ".heif": "image/heif",
 };
-
-// Output extension mapping (we convert all to png for maximum email client compatibility)
-const OUTPUT_EXTENSION = ".png";
 
 export async function POST(request: NextRequest) {
   try {
@@ -81,30 +77,30 @@ export async function POST(request: NextRequest) {
     // Read file bytes
     const bytes = await file.arrayBuffer();
     let buffer = Buffer.from(bytes);
-    let mimeType = file.type || EXTENSION_TO_MIME[fileExtension] || "image/png";
+    let contentType = file.type || EXTENSION_TO_MIME[fileExtension] || "image/png";
 
     // Optimize image with Sharp if available
     let wasOptimized = false;
-    
+
     if (sharp) {
       try {
         // Resize and optimize the image for email signatures
         // Max dimensions: 240x240 (double for retina, displayed at 120x120)
         const optimizedBuffer = await sharp(buffer)
-          .resize(240, 240, { 
-            fit: "inside", 
-            withoutEnlargement: true 
+          .resize(240, 240, {
+            fit: "inside",
+            withoutEnlargement: true,
           })
-          .png({ 
+          .png({
             palette: true,
             quality: 80,
-            compressionLevel: 9
+            compressionLevel: 9,
           })
           .toBuffer();
-        
+
         // Use optimized buffer (converted to PNG)
         buffer = optimizedBuffer;
-        mimeType = "image/png";
+        contentType = "image/png";
         wasOptimized = true;
       } catch (error) {
         console.warn("Image optimization failed, using original:", error);
@@ -112,29 +108,45 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Ensure uploads directory exists
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "signatures");
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
-    // Generate unique filename using user ID and timestamp
+    // Generate unique filename
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const filename = `${session.user.id}_${timestamp}_${randomSuffix}${OUTPUT_EXTENSION}`;
-    const filePath = path.join(uploadsDir, filename);
+    const ext = wasOptimized ? ".png" : fileExtension || ".png";
+    const filename = `signatures/${session.user.id}_${timestamp}_${randomSuffix}${ext}`;
 
-    // Write file to disk
-    await writeFile(filePath, buffer);
+    // Delete old signature logo from blob storage if one exists
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { signatureLogoUrl: true } as any,
+      }) as any;
 
-    // Return the URL path (relative to public directory)
-    const urlPath = `/uploads/signatures/${filename}`;
+      if (user?.signatureLogoUrl && user.signatureLogoUrl.includes("vercel-storage.com")) {
+        await del(user.signatureLogoUrl);
+      }
+    } catch (error) {
+      console.warn("Failed to delete old signature logo:", error);
+      // Continue with upload even if old file deletion fails
+    }
+
+    // Upload to Vercel Blob Storage
+    const blob = await put(filename, buffer, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+    });
+
+    // Auto-save the logo URL to the user's profile
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { signatureLogoUrl: blob.url } as any,
+    });
 
     return ApiResponse.success({
-      message: wasOptimized 
-        ? "Logo uploaded and optimized successfully" 
+      message: wasOptimized
+        ? "Logo uploaded and optimized successfully"
         : "Logo uploaded successfully",
-      url: urlPath,
+      url: blob.url,
     });
   } catch (error) {
     return handleApiError(error);
