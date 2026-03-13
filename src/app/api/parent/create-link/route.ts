@@ -2,26 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
-import { z } from "zod";
-
-// Validation schema
-const createLinkSchema = z.object({
-  schoolId: z.string().min(1, "School ID is required"),
-  school: z.string().min(1, "School name is required"),
-  athleticDirectorId: z.string().min(1, "Athletic Director ID is required"),
-  athleticDirectorName: z.string().min(1, "Athletic Director name is required"),
-  sportName: z.string().min(1, "Sport name is required"),
-  sportLevel: z.string().min(1, "Sport level is required"),
-  athleteName: z.string().min(1, "Child name is required"),
-  childGrade: z.string().optional(),
-  errors: z.any().optional(),
-  parentUserId: z.string().min(1),
-  fullName: z.string().min(2),
-});
 
 /**
  * POST /api/parent/create-link
- * Creates a ParentAthleteLink for the authenticated parent user
+ * Creates a ParentAthleteLink for the authenticated parent user.
+ *
+ * Expected body:
+ *   schoolId       – Organization ID (required)
+ *   athleteName     – Child's name (required)
+ *   sport           – Sport name, e.g. "Basketball" (optional)
+ *   gradeLevel      – e.g. "Varsity", "Junior Varsity" (optional)
+ *   teamName        – Team name (optional)
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -31,13 +22,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get or create parent user
-    let user = await prisma.user.findUnique({
+    // Get existing user
+    const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
 
     if (!user) {
-      // If user doesn't exist, they need to sign up first
       return NextResponse.json({ error: "Please sign up first to create a parent link" }, { status: 400 });
     }
 
@@ -50,65 +40,98 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = createLinkSchema.parse(body);
+    const { schoolId, athleteName, sport, gradeLevel, teamName } = body;
 
-    // Check if link already exists
+    // Validate required fields
+    if (!schoolId || typeof schoolId !== "string") {
+      return NextResponse.json({ error: "School ID is required" }, { status: 400 });
+    }
+
+    if (!athleteName || typeof athleteName !== "string") {
+      return NextResponse.json({ error: "Child's name is required" }, { status: 400 });
+    }
+
+    // Verify the school (Organization) exists
+    const school = await prisma.organization.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true },
+    });
+
+    if (!school) {
+      return NextResponse.json({ error: "School not found" }, { status: 404 });
+    }
+
+    // Check if link already exists for this child at this school
     const existingLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
-        schoolId: validatedData.schoolId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
-        active: true,
+        schoolId,
+        athleteName,
       },
     });
 
     if (existingLink) {
-      return NextResponse.json({ error: "This parent link already exists" }, { status: 400 });
+      // Link already exists, return success with existing link
+      return NextResponse.json({
+        success: true,
+        linkId: existingLink.id,
+        message: "Parent link already exists",
+      });
     }
 
-    // Create the parent athlete link
+    // Create the parent athlete link using actual schema fields
     const link = await prisma.parentAthleteLink.create({
       data: {
         parentUserId: user.id,
-        athleteName: validatedData.athleteName,
-        gradeLevel: validatedData.childGrade,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
-        schoolId: validatedData.schoolId,
-        schoolName: validatedData.school,
-        athleticDirectorId: validatedData.athleticDirectorId,
-        athleticDirectorName: validatedData.athleticDirectorName,
-        confirmed: true, // They confirmed during onboarding
+        schoolId,
+        athleteName,
+        sport: sport || null,
+        gradeLevel: gradeLevel || null,
+        teamName: teamName || null,
+        status: "ACTIVE",
       },
     });
 
     // Create ConnectedParent entry for the AD's dashboard
-    await prisma.connectedParent.create({
-      data: {
-        parentUserId: user.id,
-        email: user.email,
-        fullName: validatedData.fullName,
-        schoolId: validatedData.schoolId,
-        // sportLevel: validatedData.sportLevel,
-        calendarSynced: false,
-        membershipStatus: "TRIALING",
-      },
-    });
+    try {
+      await prisma.connectedParent.upsert({
+        where: { email: user.email! },
+        create: {
+          parentUserId: user.id,
+          email: user.email!,
+          fullName: user.name || athleteName,
+          schoolId,
+          calendarSynced: false,
+          membershipStatus: "TRIALING",
+        },
+        update: {
+          schoolId,
+          fullName: user.name || athleteName,
+        },
+      });
+    } catch (err) {
+      // Non-critical — don't fail the whole request if ConnectedParent fails
+      console.warn("[API] Failed to create ConnectedParent entry:", err);
+    }
 
     // Create a free trial subscription
     const trialEnd = new Date();
     trialEnd.setMonth(trialEnd.getMonth() + 1); // 1 month free trial
 
-    await prisma.parentSubscription.create({
-      data: {
-        parentUserId: user.id,
-        parentAthleteLinkId: link.id,
-        status: "TRIALING",
-        subscriptionType: "parent_power",
-        trialEnd,
-      },
-    });
+    try {
+      await prisma.parentSubscription.create({
+        data: {
+          parentUserId: user.id,
+          parentAthleteLinkId: link.id,
+          status: "TRIALING",
+          subscriptionType: "parent_free",
+          expiresAt: trialEnd,
+        },
+      });
+    } catch (err) {
+      // Non-critical — don't fail if subscription creation fails
+      console.warn("[API] Failed to create ParentSubscription:", err);
+    }
 
     return NextResponse.json({
       success: true,
@@ -116,10 +139,6 @@ export async function POST(request: NextRequest) {
       message: "Parent link created successfully",
     });
   } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error }, { status: 400 });
-    }
-
     console.error("[API] Error creating parent link:", error);
     return NextResponse.json({ error: "Failed to create parent link" }, { status: 500 });
   }

@@ -80,11 +80,19 @@ function ParentCallbackContent() {
       }
 
       try {
+        // Map onboarding field names to the create-link API's expected field names
+        const createLinkPayload: Record<string, string> = {
+          schoolId: onboardingData.schoolId || "",
+          athleteName: onboardingData.childName || onboardingData.athleteName || "",
+          sport: onboardingData.sport || onboardingData.sportName || "",
+          gradeLevel: onboardingData.level || onboardingData.childGrade || onboardingData.gradeLevel || "",
+        };
+
         // Create the parent link
         const res = await fetch("/api/parent/create-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(onboardingData),
+          body: JSON.stringify(createLinkPayload),
         });
 
         if (res.ok) {

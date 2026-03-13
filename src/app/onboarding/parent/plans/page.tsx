@@ -75,8 +75,36 @@ export default function ParentPlansPage() {
     setSelectedPlan(plan);
 
     try {
-      // Update user's plan selection
-      const res = await fetch("/api/user/update", {
+      // Get onboarding preferences stored during previous steps
+      const prefsStr = localStorage.getItem("parentOnboardingPrefs");
+      const prefs = prefsStr ? JSON.parse(prefsStr) : null;
+
+      if (!prefs?.schoolId || !prefs?.childName) {
+        setError("Missing onboarding data. Please start over.");
+        setSubmitting(false);
+        router.push("/onboarding/parent");
+        return;
+      }
+
+      // 1. Create the ParentAthleteLink (the actual DB record)
+      const linkRes = await fetch("/api/parent/create-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: prefs.schoolId,
+          athleteName: prefs.childName,
+          sport: prefs.sportName || "",
+          gradeLevel: prefs.level || "",
+        }),
+      });
+
+      if (!linkRes.ok) {
+        const linkData = await linkRes.json();
+        throw new Error(linkData.error || "Failed to create parent link");
+      }
+
+      // 2. Update user's plan selection
+      const planRes = await fetch("/api/user/update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,18 +113,18 @@ export default function ParentPlansPage() {
         }),
       });
 
-      if (!res.ok) {
+      if (!planRes.ok) {
         throw new Error("Failed to save plan selection");
       }
 
-      // Clear onboarding preferences
+      // Clear onboarding preferences now that data is persisted
       localStorage.removeItem("parentOnboardingPrefs");
 
       // Redirect to parent dashboard
       router.push("/parent-dashboard");
-    } catch (err) {
-      console.error("Failed to save plan:", err);
-      setError("An error occurred. Please try again.");
+    } catch (err: any) {
+      console.error("Failed to complete onboarding:", err);
+      setError(err.message || "An error occurred. Please try again.");
       setSubmitting(false);
     }
   };
