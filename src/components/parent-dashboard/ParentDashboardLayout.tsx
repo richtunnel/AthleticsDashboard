@@ -197,7 +197,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
         }}
       >
         <ListItemButton
-          onClick={() => signOut({ callbackUrl: "/?postLogout=true", redirect: true })}
+          onClick={() => signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true })}
           sx={{ borderRadius: 1.5 }}
         >
           <ListItemIcon sx={{ minWidth: 40 }}>
@@ -380,7 +380,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
               <MenuItem
                 onClick={() => {
                   handleClose();
-                  signOut({ callbackUrl: "/?postLogout=true", redirect: true });
+                  signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true });
                 }}
               >
                 <ListItemIcon>
