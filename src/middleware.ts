@@ -134,20 +134,24 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
+  // Determine redirect target based on route (parent routes → parent login page)
+  const isParentRoute = pathname.startsWith("/parent-dashboard") || pathname.startsWith("/api/parent");
+  const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/";
+
   if (!token) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL(unauthRedirect, req.url));
   }
 
   // Validate token expiration
   const { exp } = token as { exp?: number | string };
   if (typeof exp === "number" && Date.now() >= exp * 1000) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL(unauthRedirect, req.url));
   }
 
   if (typeof exp === "string") {
     const expNumber = Number(exp);
     if (!Number.isNaN(expNumber) && Date.now() >= expNumber * 1000) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL(unauthRedirect, req.url));
     }
   }
 
@@ -207,5 +211,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
+  matcher: ["/dashboard/:path*", "/parent-dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
 };

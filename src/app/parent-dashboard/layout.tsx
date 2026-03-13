@@ -12,7 +12,7 @@ export default async function ParentDashboardLayout({
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
-    redirect("/login");
+    redirect("/onboarding/parent-signup");
   }
 
   // Check if user is a parent
