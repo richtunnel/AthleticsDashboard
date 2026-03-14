@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
       const ad = adBySchool.get(link.schoolId);
       return {
         id: link.id,
+        schoolId: link.schoolId,
         schoolName: link.school?.name || "",
         athleticDirectorId: ad?.id || "",
         athleticDirectorName: ad?.name || "",

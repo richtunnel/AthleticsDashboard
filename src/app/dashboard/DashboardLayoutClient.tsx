@@ -36,6 +36,7 @@ import {
 } from "@mui/material";
 
 import {
+  Chat,
   Dashboard as DashboardIcon,
   CalendarMonth,
   Groups,
@@ -85,6 +86,7 @@ const baseNavigation = [
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
+  { name: "Messages", href: "/dashboard/messages", icon: Chat },
   { name: "Connect", href: "/dashboard/parents", icon: Person },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
