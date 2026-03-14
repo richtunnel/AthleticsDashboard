@@ -31,13 +31,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Please sign up first to create a parent link" }, { status: 400 });
     }
 
-    // Update user role to PARENT if not already
-    if (user.role !== "PARENT") {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role: "PARENT" },
-      });
-    }
+    // Note: Do NOT overwrite the user's role to PARENT here.
+    // Users who sign up through the parent flow already get role=PARENT from createUser.
+    // Existing users (ADs, coaches, etc.) who also want parent access should keep
+    // their primary role — the parent dashboard checks for parentAthleteLink records
+    // as a fallback, so they can access both dashboards.
 
     const body = await request.json();
     const { schoolId, athleteName, sport, gradeLevel, teamName } = body;
