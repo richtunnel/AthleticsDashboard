@@ -103,18 +103,23 @@ export default function ParentPlansPage() {
         throw new Error(linkData.error || "Failed to create parent link");
       }
 
-      // 2. Update user's plan selection
-      const planRes = await fetch("/api/user/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: plan === "free" ? "parent_free" : "parent_donation",
-          donationAmount: plan === "donation" ? 2.5 : 0,
-        }),
-      });
+      // 2. Update user's plan selection — only for users whose primary role is PARENT.
+      // For ADs/coaches who are also parents, their plan (AD subscription) should not
+      // be overwritten. Their parent subscription is tracked via the ParentSubscription model.
+      const userRole = session?.user?.role;
+      if (userRole === "PARENT" || !userRole) {
+        const planRes = await fetch("/api/user/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            plan: plan === "free" ? "parent_free" : "parent_donation",
+            donationAmount: plan === "donation" ? 2.5 : 0,
+          }),
+        });
 
-      if (!planRes.ok) {
-        throw new Error("Failed to save plan selection");
+        if (!planRes.ok) {
+          throw new Error("Failed to save plan selection");
+        }
       }
 
       // Clear onboarding preferences now that data is persisted

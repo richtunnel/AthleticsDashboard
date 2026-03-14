@@ -104,22 +104,15 @@ export default function SelectCoachPage() {
     setError("");
 
     try {
-      // Save selected coach to the user's profile
-      const res = await fetch("/api/user/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: "PARENT",
-          parentInfo: {
-            ...parentPrefs,
-            selectedCoachId,
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to save coach selection");
-      }
+      // Save selected coach to localStorage preferences.
+      // Note: Do NOT set role to "PARENT" here — existing users (ADs, coaches, etc.)
+      // should keep their primary role. Parent dashboard access is granted via
+      // parentAthleteLink records, so no role change is needed.
+      const updatedPrefs = {
+        ...parentPrefs,
+        selectedCoachId,
+      };
+      localStorage.setItem("parentOnboardingPrefs", JSON.stringify(updatedPrefs));
 
       // Navigate to pricing selection
       router.push("/onboarding/parent/plans");
