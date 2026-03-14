@@ -11,9 +11,8 @@ import {
   Grid,
   CircularProgress,
   Avatar,
-  Button,
 } from "@mui/material";
-import { School, ChatBubbleOutline } from "@mui/icons-material";
+import { Person, ChatBubbleOutline } from "@mui/icons-material";
 import ConversationList from "@/components/chat/ConversationList";
 import MessageThread from "@/components/chat/MessageThread";
 import MessageInput from "@/components/chat/MessageInput";
@@ -23,8 +22,12 @@ interface ConversationItem {
   id: string;
   schoolId: string;
   schoolName: string;
-  adName?: string;
-  adImage?: string | null;
+  parentName?: string;
+  parentImage?: string | null;
+  parentId?: string;
+  athleteName?: string | null;
+  sport?: string | null;
+  gradeLevel?: string | null;
   lastMessage: {
     content: string;
     createdAt: string;
@@ -44,31 +47,19 @@ interface ChatMessage {
   createdAt: string;
 }
 
-interface LinkedSchool {
-  id: string;
-  schoolId: string;
-  schoolName: string;
-}
-
 async function fetchConversations(): Promise<{ conversations: ConversationItem[] }> {
-  const res = await fetch("/api/parent/chat/conversations");
+  const res = await fetch("/api/chat/conversations");
   if (!res.ok) throw new Error("Failed to fetch conversations");
   return res.json();
 }
 
 async function fetchMessages(conversationId: string): Promise<{ messages: ChatMessage[] }> {
-  const res = await fetch(`/api/parent/chat/conversations/${conversationId}/messages`);
+  const res = await fetch(`/api/chat/conversations/${conversationId}/messages`);
   if (!res.ok) throw new Error("Failed to fetch messages");
   return res.json();
 }
 
-async function fetchLinkedSchools(): Promise<{ schools: LinkedSchool[] }> {
-  const res = await fetch("/api/parent/linked-schools");
-  if (!res.ok) throw new Error("Failed to fetch linked schools");
-  return res.json();
-}
-
-export default function ParentChatPage() {
+export default function ADMessagesPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<ConversationItem | null>(null);
@@ -79,12 +70,6 @@ export default function ParentChatPage() {
   const { data: convData, isLoading: convLoading } = useQuery({
     queryKey: ["chatConversations"],
     queryFn: fetchConversations,
-  });
-
-  // Fetch linked schools (to show "start conversation" for schools without conversations)
-  const { data: schoolsData } = useQuery({
-    queryKey: ["linkedSchools"],
-    queryFn: fetchLinkedSchools,
   });
 
   // Fetch messages for selected conversation
@@ -101,7 +86,7 @@ export default function ParentChatPage() {
   // Mark messages as read when opening a conversation
   useEffect(() => {
     if (selectedConversation?.id && selectedConversation.unreadCount > 0) {
-      fetch(`/api/parent/chat/conversations/${selectedConversation.id}/read`, {
+      fetch(`/api/chat/conversations/${selectedConversation.id}/read`, {
         method: "POST",
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
@@ -113,7 +98,7 @@ export default function ParentChatPage() {
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
       const res = await fetch(
-        `/api/parent/chat/conversations/${selectedConversation!.id}/messages`,
+        `/api/chat/conversations/${selectedConversation!.id}/messages`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,7 +109,6 @@ export default function ParentChatPage() {
       return res.json();
     },
     onSuccess: (newMessage: ChatMessage) => {
-      // Optimistically add the message to the cache
       queryClient.setQueryData<ChatMessage[]>(
         ["chatMessages", selectedConversation!.id],
         (old) => {
@@ -137,42 +121,11 @@ export default function ParentChatPage() {
     },
   });
 
-  // Create conversation mutation
-  const createConversation = useMutation({
-    mutationFn: async (schoolId: string) => {
-      const res = await fetch("/api/parent/chat/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schoolId }),
-      });
-      if (!res.ok) throw new Error("Failed to create conversation");
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
-      setSelectedConversation({
-        id: data.id,
-        schoolId: data.schoolId,
-        schoolName: data.schoolName,
-        lastMessage: null,
-        unreadCount: 0,
-      });
-    },
-  });
-
   const handleSend = useCallback(
     async (content: string) => {
       await sendMessage.mutateAsync(content);
     },
     [sendMessage]
-  );
-
-  // Find schools that don't have conversations yet
-  const existingSchoolIds = new Set(
-    (convData?.conversations || []).map((c) => c.schoolId)
-  );
-  const schoolsWithoutConversations = (schoolsData?.schools || []).filter(
-    (s) => !existingSchoolIds.has(s.schoolId)
   );
 
   if (convLoading) {
@@ -187,10 +140,10 @@ export default function ParentChatPage() {
     <Box>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" fontWeight={700} gutterBottom>
-          Chat
+          Messages
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Message your school&apos;s athletic director in real time
+          Chat with parents in real time
         </Typography>
       </Box>
 
@@ -200,43 +153,16 @@ export default function ParentChatPage() {
           <Card sx={{ height: "100%", overflow: "auto" }}>
             <CardContent sx={{ p: 2 }}>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, px: 0.5 }}>
-                Conversations
+                Parent Conversations
               </Typography>
 
               <ConversationList
                 conversations={convData?.conversations || []}
                 selectedId={selectedConversation?.id || null}
                 onSelect={(conv) => setSelectedConversation(conv)}
-                variant="parent"
+                variant="ad"
                 isLoading={convLoading}
               />
-
-              {/* Show "Start Conversation" for linked schools without conversations */}
-              {schoolsWithoutConversations.length > 0 && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ display: "block", mb: 1, px: 0.5 }}
-                  >
-                    Start a new conversation
-                  </Typography>
-                  {schoolsWithoutConversations.map((school) => (
-                    <Button
-                      key={school.id}
-                      fullWidth
-                      variant="outlined"
-                      size="small"
-                      startIcon={<School />}
-                      onClick={() => createConversation.mutate(school.schoolId)}
-                      disabled={createConversation.isPending}
-                      sx={{ mb: 0.5, justifyContent: "flex-start", textTransform: "none" }}
-                    >
-                      {school.schoolName}
-                    </Button>
-                  ))}
-                </Box>
-              )}
             </CardContent>
           </Card>
         </Grid>
@@ -267,17 +193,19 @@ export default function ParentChatPage() {
                   }}
                 >
                   <Avatar
-                    src={selectedConversation.adImage || undefined}
+                    src={selectedConversation.parentImage || undefined}
                     sx={{ width: 36, height: 36, bgcolor: "primary.main" }}
                   >
-                    <School fontSize="small" />
+                    <Person fontSize="small" />
                   </Avatar>
                   <Box>
                     <Typography variant="subtitle2" fontWeight={600}>
-                      {selectedConversation.adName || "Athletic Director"}
+                      {selectedConversation.parentName || "Parent"}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {selectedConversation.schoolName}
+                      {[selectedConversation.athleteName, selectedConversation.sport]
+                        .filter(Boolean)
+                        .join(" · ") || selectedConversation.schoolName}
                     </Typography>
                   </Box>
                 </Box>
@@ -316,7 +244,7 @@ export default function ParentChatPage() {
                   Select a conversation
                 </Typography>
                 <Typography variant="body2" color="text.disabled">
-                  Choose a school from the list to start chatting
+                  Choose a parent from the list to view their messages
                 </Typography>
               </Box>
             )}
