@@ -22,6 +22,7 @@ interface MessageThreadProps {
 
 function formatDateDivider(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "Unknown date";
   if (isToday(date)) return "Today";
   if (isYesterday(date)) return "Yesterday";
   return format(date, "MMMM d, yyyy");
@@ -75,7 +76,8 @@ export default function MessageThread({ messages, currentUserId }: MessageThread
     >
       {messages.map((msg) => {
         const msgDate = new Date(msg.createdAt);
-        const showDateDivider = !lastDate || !isSameDay(lastDate, msgDate);
+        const validDate = !isNaN(msgDate.getTime());
+        const showDateDivider = validDate && (!lastDate || !isSameDay(lastDate, msgDate));
         lastDate = msgDate;
 
         return (
