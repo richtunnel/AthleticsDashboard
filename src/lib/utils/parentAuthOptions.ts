@@ -104,8 +104,8 @@ export const parentAuthOptions: NextAuthOptions = {
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? "",
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_PARENT_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_PARENT_API_SECRET ?? "",
       allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
