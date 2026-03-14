@@ -128,6 +128,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/images/optimize") ||
     pathname.startsWith("/api/stripe/webhook") ||
     pathname.startsWith("/api/auth/") || // NextAuth routes must be public
+    pathname.startsWith("/api/collaboration/accept-invitation") || // Invitation acceptance must be public
     pathname === "/api/schools" ||
     pathname === "/api/coaches"
   ) {

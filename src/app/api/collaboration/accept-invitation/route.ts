@@ -6,7 +6,7 @@ import { isInvitationExpired } from "@/lib/utils/collaboration";
 import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
 import { CollaborativeRole, CollaborationAction } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
-import { signIn } from "next-auth/react";
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -151,30 +151,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // If not signed in, redirect to signup/login page with the invitation token
-    // The signup flow will handle accepting the invitation after account creation
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
-    const signupUrl = new URL("/", baseUrl);
-    signupUrl.searchParams.set("invitation_token", token);
-    signupUrl.searchParams.set("invitation_email", email);
-    signupUrl.searchParams.set("invitation_role", role);
-    signupUrl.searchParams.set("invitation_owner", ownerId);
-    signupUrl.searchParams.set("accept_invitation", "true");
-
-    // Return the invitation details along with the redirect URL
-    return NextResponse.json({
-      success: true,
-      invitation: {
-        email,
-        role,
-        ownerName,
-        organizationName,
-        ownerEmail,
-        expiresAt,
-      },
-      redirectUrl: signupUrl.toString(),
-      requiresAuth: true,
-    });
+    // Not signed in — redirect to the accept-invitation page
+    // which will show invitation details and a sign-in button
+    const acceptPageUrl = new URL("/accept-invitation", request.url);
+    acceptPageUrl.searchParams.set("token", token);
+    return NextResponse.redirect(acceptPageUrl);
 
   } catch (error) {
     console.error("Error accepting invitation:", error);
