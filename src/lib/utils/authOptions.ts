@@ -170,8 +170,7 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CALENDAR_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CALENDAR_CLIENT_SECRET ?? "",
-      // ❌ REMOVED allowDangerousEmailAccountLinking - this was auto-creating accounts during sign-in
-      // Sign-in should NEVER create accounts - only signup flow should create accounts
+      allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
           prompt: "select_account",
