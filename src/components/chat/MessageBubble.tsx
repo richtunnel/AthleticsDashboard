@@ -80,7 +80,7 @@ export default function MessageBubble({
             fontSize: "0.7rem",
           }}
         >
-          {format(new Date(createdAt), "h:mm a")}
+          {isNaN(new Date(createdAt).getTime()) ? "" : format(new Date(createdAt), "h:mm a")}
         </Typography>
       </Box>
     </Box>
