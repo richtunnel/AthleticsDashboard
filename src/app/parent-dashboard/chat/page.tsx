@@ -124,13 +124,13 @@ export default function ParentChatPage() {
       return res.json();
     },
     onSuccess: (newMessage: ChatMessage) => {
-      // Optimistically add the message to the cache
-      queryClient.setQueryData<ChatMessage[]>(
+      // Add the message to the cache (must match raw shape before `select`)
+      queryClient.setQueryData<{ messages: ChatMessage[] }>(
         ["chatMessages", selectedConversation!.id],
         (old) => {
-          if (!old) return [newMessage];
-          if (old.some((m) => m.id === newMessage.id)) return old;
-          return [...old, newMessage];
+          const msgs = old?.messages || [];
+          if (msgs.some((m) => m.id === newMessage.id)) return old!;
+          return { ...old, messages: [...msgs, newMessage] };
         }
       );
       queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
