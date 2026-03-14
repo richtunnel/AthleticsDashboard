@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
+            schoolName: true,
           },
           take: 1,
         }
@@ -41,7 +42,8 @@ export async function GET(request: NextRequest) {
       .filter(school => school.users.length > 0)
       .map(school => ({
         id: school.id,
-        name: school.name,
+        // Use AD's schoolName (the actual school name) with fallback to org name
+        name: school.users[0]?.schoolName || school.name,
         state: school.state || "Unknown",
         athleticDirectorId: school.users[0]?.id || "",
         athleticDirectorName: school.users[0]?.name || "Unknown AD",
