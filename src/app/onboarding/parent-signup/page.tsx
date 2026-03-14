@@ -2,7 +2,7 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { 
   Box, 
   Container, 
@@ -30,6 +30,7 @@ interface AthleticDirectorInfo {
 function ParentSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adInfo, setAdInfo] = useState<AthleticDirectorInfo | null>(null);
@@ -37,13 +38,21 @@ function ParentSignupContent() {
 
   // Get the share code from URL
   const shareCode = searchParams.get("code") || "";
-  
+
   // Get the pre-filled data from URL
   const schoolId = searchParams.get("schoolId") || "";
   const sport = searchParams.get("sport") || "";
   const level = searchParams.get("level") || "";
   const childName = searchParams.get("childName") || "";
   const childGrade = searchParams.get("childGrade") || "";
+
+  // If user is already signed in, redirect to parent onboarding directly.
+  // They don't need to sign up again — they just need to create a parent link.
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      router.push("/onboarding/parent");
+    }
+  }, [status, session, router]);
 
   // Fetch AD info if share code is present
   useEffect(() => {

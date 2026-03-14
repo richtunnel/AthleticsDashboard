@@ -34,10 +34,10 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Verify user exists in database
+  // Verify user exists in database and get current role
   const existingUser = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, role: true },
   });
 
   if (!existingUser) {
@@ -53,7 +53,17 @@ export async function POST(req: NextRequest) {
   if (schoolName !== undefined) updateData.schoolName = schoolName.trim() || null;
   if (teamName !== undefined) updateData.teamName = teamName.trim() || null;
   if (schoolAddress !== undefined) updateData.schoolAddress = schoolAddress.trim() || null;
-  if (role !== undefined) updateData.role = role as any;
+
+  // Guard: Do not allow changing role from SUPER_ADMIN or ATHLETIC_DIRECTOR to PARENT.
+  // These users gain parent access via parentAthleteLink records, not role changes.
+  if (role !== undefined) {
+    const isProtectedRole = existingUser.role === "SUPER_ADMIN" || existingUser.role === "ATHLETIC_DIRECTOR";
+    const isDowngradeToParent = role === "PARENT";
+    if (!(isProtectedRole && isDowngradeToParent)) {
+      updateData.role = role as any;
+    }
+  }
+
   if (plan !== undefined) updateData.plan = plan;
 
   if (schoolEmail !== undefined) {
