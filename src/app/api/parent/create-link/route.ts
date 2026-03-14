@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 
 /**
  * POST /api/parent/create-link
@@ -15,7 +14,7 @@ import { authOptions } from "@/lib/utils/authOptions";
  *   teamName        – Team name (optional)
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getParentSession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

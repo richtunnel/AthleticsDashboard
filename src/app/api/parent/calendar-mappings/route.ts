@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { z } from "zod";
 
 // Validation schema
@@ -18,7 +17,7 @@ const mappingSchema = z.object({
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getParentSession();
     
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -66,7 +65,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getParentSession();
     
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -157,7 +156,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getParentSession();
     
     if (!session?.user?.email) {
       return NextResponse.json(

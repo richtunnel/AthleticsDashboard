@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { z } from "zod";
 import { sendEmail } from "@/lib/services/email.service";
 
@@ -20,7 +19,7 @@ const messageSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getParentSession();
     
     if (!session?.user?.email) {
       return NextResponse.json(

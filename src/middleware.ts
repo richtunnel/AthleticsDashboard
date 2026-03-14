@@ -5,6 +5,31 @@ import { getMemberAccessExpiresAtMs, isMemberAccessCodeDisabled, isMemberAccessT
 import { etagMiddleware } from "./middleware/etag-middleware";
 import { prisma } from "@/lib/database/prisma";
 
+/**
+ * Cookie name for the separate parent session.
+ * Must match the cookie name in parentAuthOptions.ts.
+ */
+const PARENT_COOKIE_NAME =
+  process.env.NODE_ENV === "production" ? "__Secure-parent-session-token" : "parent-session-token";
+
+/**
+ * Try to get a token for parent routes.
+ * Checks the parent cookie first, then falls back to the main cookie.
+ */
+async function getParentOrMainToken(req: NextRequest) {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  // Try parent cookie first
+  const parentToken = await getToken({ req, secret, cookieName: PARENT_COOKIE_NAME });
+  if (parentToken?.sub) return parentToken;
+
+  // Fall back to main cookie (for AD-as-parent case)
+  const mainToken = await getToken({ req, secret });
+  if (mainToken?.sub) return mainToken;
+
+  return null;
+}
+
 // Force Node.js runtime for middleware (Prisma doesn't work in Edge Runtime)
 export const runtime = "nodejs";
 
@@ -106,28 +131,24 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Handle parent onboarding routes - require authentication
+  // Handle parent onboarding routes - require authentication (parent or main session)
   if (pathname.startsWith("/onboarding/parent")) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getParentOrMainToken(req);
 
     if (!token?.sub) {
       const url = req.nextUrl.clone();
-      url.pathname = "/onboarding/signup";
-      url.searchParams.set("plan", "parent_plan");
+      url.pathname = "/onboarding/parent-signup";
       return NextResponse.redirect(url);
     }
 
     return response;
   }
 
-  // For dashboard and API routes, use standard authentication
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
   // Public API routes that don't require authentication (allow schools and coaches API for onboarding)
   if (
     pathname.startsWith("/api/images/optimize") ||
     pathname.startsWith("/api/stripe/webhook") ||
-    pathname.startsWith("/api/auth/") || // NextAuth routes must be public
+    pathname.startsWith("/api/auth/") || // NextAuth routes must be public (covers /api/auth/parent/* too)
     pathname.startsWith("/api/collaboration/accept-invitation") || // Invitation acceptance must be public
     pathname === "/api/schools" ||
     pathname === "/api/coaches"
@@ -135,9 +156,15 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // Determine redirect target based on route (parent routes → parent login page)
+  // Determine if this is a parent route
   const isParentRoute = pathname.startsWith("/parent-dashboard") || pathname.startsWith("/api/parent");
   const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/";
+
+  // For parent routes, check parent cookie first then fall back to main cookie
+  // For all other routes, use the standard main cookie
+  const token = isParentRoute
+    ? await getParentOrMainToken(req)
+    : await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
     return NextResponse.redirect(new URL(unauthRedirect, req.url));
