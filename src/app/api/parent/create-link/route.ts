@@ -98,13 +98,19 @@ export async function POST(request: NextRequest) {
           parentUserId: user.id,
           email: user.email!,
           fullName: user.name || athleteName,
+          parentUserName: user.name || null,
           schoolId,
+          sportName: sport || null,
+          sportLevel: gradeLevel || null,
           calendarSynced: false,
           membershipStatus: "TRIALING",
         },
         update: {
           schoolId,
           fullName: user.name || athleteName,
+          parentUserName: user.name || null,
+          sportName: sport || null,
+          sportLevel: gradeLevel || null,
         },
       });
     } catch (err) {
