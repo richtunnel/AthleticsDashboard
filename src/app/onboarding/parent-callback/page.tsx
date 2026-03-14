@@ -71,10 +71,23 @@ function ParentCallbackContent() {
         }
       }
 
-      // Check if this is a new signup (no onboarding data means they just signed up)
-      // In that case, redirect to the child info collection page
+      // No onboarding data — could be a returning parent or a fresh signup.
+      // Check if they already have parent links before forcing onboarding.
       if (!storedData && !referralData) {
-        // New signup without any data - redirect to child info page
+        try {
+          const linkRes = await fetch("/api/parent/linked-schools");
+          if (linkRes.ok) {
+            const linkData = await linkRes.json();
+            if (linkData.schools && linkData.schools.length > 0) {
+              // Returning parent — skip onboarding
+              router.push("/parent-dashboard");
+              return;
+            }
+          }
+        } catch {
+          // If the check fails, fall through to onboarding
+        }
+        // Truly new parent with no links — start onboarding
         router.push("/onboarding/parent");
         return;
       }
