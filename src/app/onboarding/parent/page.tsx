@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -25,11 +25,12 @@ import {
 import { School, Sports, EmojiEvents, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 
-interface School {
+interface SchoolOption {
   id: string;
   name: string;
-  city?: string;
   state?: string;
+  athleticDirectorId?: string;
+  athleticDirectorName?: string;
 }
 
 interface Sport {
@@ -37,7 +38,13 @@ interface Sport {
   name: string;
 }
 
+interface LevelOption {
+  id: string;
+  name: string;
+}
+
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
+const FALLBACK_LEVELS = ["Varsity", "Junior Varsity", "Freshman", "Middle School"];
 
 export default function ParentOnboardingPage() {
   const router = useRouter();
@@ -48,13 +55,16 @@ export default function ParentOnboardingPage() {
 
   // Form state
   const [childName, setChildName] = useState("");
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [selectedLevel, setSelectedLevel] = useState("");
 
   // Data state
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [sports, setSports] = useState<Sport[]>([]);
+  const [levels, setLevels] = useState<LevelOption[]>([]);
+  const [loadingSports, setLoadingSports] = useState(false);
+  const [loadingLevels, setLoadingLevels] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -64,33 +74,121 @@ export default function ParentOnboardingPage() {
     }
 
     if (status === "authenticated") {
-      fetchData();
+      fetchSchools();
     }
   }, [status, router]);
 
-  const fetchData = async () => {
+  const fetchSchools = async () => {
     try {
-      const [schoolsRes, sportsRes] = await Promise.all([
-        fetch("/api/schools"),
-        fetch("/api/sports"),
-      ]);
+      const res = await fetch("/api/parent/schools");
+      if (res.ok) {
+        const data = await res.json();
+        const schoolsList: SchoolOption[] = data.schools || [];
+        setSchools(schoolsList);
 
-      if (schoolsRes.ok) {
-        const schoolsData = await schoolsRes.json();
-        setSchools(schoolsData);
-      }
+        // Restore saved preferences from localStorage
+        const saved = localStorage.getItem("parentOnboardingPrefs");
+        if (saved) {
+          try {
+            const prefs = JSON.parse(saved);
+            if (prefs.childName) setChildName(prefs.childName);
+            if (prefs.selectedLevel || prefs.level) setSelectedLevel(prefs.selectedLevel || prefs.level);
 
-      if (sportsRes.ok) {
-        const sportsData = await sportsRes.json();
-        setSports(sportsData.data || []);
+            // Restore school selection
+            if (prefs.schoolId) {
+              const matchedSchool = schoolsList.find((s) => s.id === prefs.schoolId);
+              if (matchedSchool) {
+                setSelectedSchool(matchedSchool);
+                // Fetch sports for this school, then restore sport selection
+                await fetchSportsForSchool(matchedSchool.id, prefs);
+              }
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch data:", err);
+      console.error("Failed to fetch schools:", err);
       setError("Failed to load required data. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchSportsForSchool = async (schoolId: string, savedPrefs?: any) => {
+    setLoadingSports(true);
+    try {
+      const res = await fetch(`/api/parent/sports?schoolId=${encodeURIComponent(schoolId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const sportsList: Sport[] = data.sports || [];
+        setSports(sportsList);
+
+        // Restore saved sport selection if provided
+        if (savedPrefs?.sportId) {
+          const matchedSport = sportsList.find((s) => s.id === savedPrefs.sportId);
+          if (matchedSport) {
+            setSelectedSport(matchedSport);
+            // Fetch levels for this sport
+            await fetchLevelsForSport(schoolId, matchedSport.name);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch sports:", err);
+    } finally {
+      setLoadingSports(false);
+    }
+  };
+
+  const fetchLevelsForSport = async (schoolId: string, sportName: string) => {
+    setLoadingLevels(true);
+    try {
+      const res = await fetch(
+        `/api/parent/sport-levels?schoolId=${encodeURIComponent(schoolId)}&sport=${encodeURIComponent(sportName)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const levelsList: LevelOption[] = data.levels || [];
+        setLevels(levelsList);
+      }
+    } catch (err) {
+      console.error("Failed to fetch levels:", err);
+    } finally {
+      setLoadingLevels(false);
+    }
+  };
+
+  const handleSchoolChange = useCallback(
+    (_: any, newValue: SchoolOption | null) => {
+      setSelectedSchool(newValue);
+      // Clear dependent selections
+      setSelectedSport(null);
+      setSports([]);
+      setSelectedLevel("");
+      setLevels([]);
+
+      if (newValue) {
+        fetchSportsForSchool(newValue.id);
+      }
+    },
+    []
+  );
+
+  const handleSportChange = useCallback(
+    (_: any, newValue: Sport | null) => {
+      setSelectedSport(newValue);
+      // Clear dependent selection
+      setSelectedLevel("");
+      setLevels([]);
+
+      if (newValue && selectedSchool) {
+        fetchLevelsForSport(selectedSchool.id, newValue.name);
+      }
+    },
+    [selectedSchool]
+  );
 
   const handleSubmit = async () => {
     if (!childName || !selectedSchool || !selectedSport || !selectedLevel) {
@@ -102,19 +200,19 @@ export default function ParentOnboardingPage() {
     setError("");
 
     try {
-      // Store parent preferences in session/local storage for next step
       const parentPreferences = {
         childName,
         schoolId: selectedSchool.id,
         schoolName: selectedSchool.name,
+        athleticDirectorId: selectedSchool.athleticDirectorId || "",
+        athleticDirectorName: selectedSchool.athleticDirectorName || "",
         sportId: selectedSport.id,
         sportName: selectedSport.name,
         level: selectedLevel,
+        selectedLevel,
       };
 
       localStorage.setItem("parentOnboardingPrefs", JSON.stringify(parentPreferences));
-
-      // Navigate to coach selection
       router.push("/onboarding/parent/select-coach");
     } catch (err) {
       console.error("Failed to save preferences:", err);
@@ -135,7 +233,8 @@ export default function ParentOnboardingPage() {
     );
   }
 
-  const levels = ["Varsity", "Junior Varsity", "Freshman", "Middle School"];
+  // Use dynamic levels from API, fall back to hardcoded if none available
+  const levelOptions = levels.length > 0 ? levels : FALLBACK_LEVELS.map((l) => ({ id: l, name: l }));
 
   return (
     <>
@@ -197,10 +296,13 @@ export default function ParentOnboardingPage() {
                 <Autocomplete
                   options={schools}
                   getOptionLabel={(option) =>
-                    option.city ? `${option.name} (${option.city}, ${option.state})` : option.name
+                    option.athleticDirectorName
+                      ? `${option.athleticDirectorName} — ${option.name}`
+                      : option.name
                   }
                   value={selectedSchool}
-                  onChange={(_, newValue) => setSelectedSchool(newValue)}
+                  onChange={handleSchoolChange}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -224,13 +326,25 @@ export default function ParentOnboardingPage() {
                   options={sports}
                   getOptionLabel={(option) => option.name}
                   value={selectedSport}
-                  onChange={(_, newValue) => setSelectedSport(newValue)}
+                  onChange={handleSportChange}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  disabled={!selectedSchool}
+                  loading={loadingSports}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder="Select sport..."
+                      placeholder={selectedSchool ? "Select sport..." : "Select a school first"}
                       fullWidth
                       size="small"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingSports ? <CircularProgress size={16} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
                     />
                   )}
                 />
@@ -244,18 +358,24 @@ export default function ParentOnboardingPage() {
                     Sport Level
                   </Typography>
                 </Box>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Select level</InputLabel>
+                <FormControl fullWidth size="small" disabled={!selectedSport}>
+                  <InputLabel>{selectedSport ? "Select level" : "Select a sport first"}</InputLabel>
                   <Select
                     value={selectedLevel}
                     onChange={(e) => setSelectedLevel(e.target.value)}
-                    label="Select level"
+                    label={selectedSport ? "Select level" : "Select a sport first"}
                   >
-                    {levels.map((level) => (
-                      <MenuItem key={level} value={level}>
-                        {level}
+                    {loadingLevels ? (
+                      <MenuItem disabled>
+                        <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                       </MenuItem>
-                    ))}
+                    ) : (
+                      levelOptions.map((level) => (
+                        <MenuItem key={level.id} value={level.name}>
+                          {level.name}
+                        </MenuItem>
+                      ))
+                    )}
                   </Select>
                 </FormControl>
               </Box>

@@ -728,6 +728,10 @@ model ConnectedParent {
   calendarSynced   Boolean
   membershipStatus SubscriptionStatus?
   parentUserId     String              @unique
+  parentUserName   String?
+  sportName        String?
+  sportLevel       String?
+  lastSyncedAt     DateTime?
   school           Organization        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
