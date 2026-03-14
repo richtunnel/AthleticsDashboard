@@ -46,8 +46,10 @@ function ParentSignupContent() {
   const childName = searchParams.get("childName") || "";
   const childGrade = searchParams.get("childGrade") || "";
 
-  // If user is already signed in, redirect to parent onboarding directly.
-  // They don't need to sign up again — they just need to create a parent link.
+  // If user already has a parent session, redirect to parent onboarding.
+  // Note: With separate parent auth cookies, an AD logged in via the main
+  // cookie will NOT trigger this — only an existing parent session will.
+  // This allows parents to sign up on the same browser as a logged-in AD.
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       router.push("/onboarding/parent");

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 
 /**
  * GET /api/parent/chat/conversations
  * Lists all conversations for the authenticated parent.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getParentSession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -102,7 +101,7 @@ export async function GET() {
  * Body: { schoolId: string }
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getParentSession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

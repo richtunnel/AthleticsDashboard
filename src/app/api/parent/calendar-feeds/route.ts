@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 
 /**
  * POST /api/parent/calendar-feeds
@@ -9,7 +8,7 @@ import { authOptions } from "@/lib/utils/authOptions";
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getParentSession();
     
     if (!session?.user?.email) {
       return NextResponse.json(
