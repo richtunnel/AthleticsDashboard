@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
 import { z } from "zod";
-import { sendEmail } from "@/lib/services/email.service";
+import { emailService } from "@/lib/services/email.service";
 
 // Validation schema
 const messageSchema = z.object({
@@ -59,14 +59,12 @@ export async function POST(request: NextRequest) {
     const parentLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
-        athleticDirectorId: validatedData.athleticDirectorId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
+        schoolId: ad.organizationId,
       },
     });
 
-    const childName = parentLink?.childName || "Your child";
-    const childGrade = parentLink?.childGrade ? ` (Grade ${parentLink.childGrade})` : "";
+    const childName = parentLink?.athleteName || "Your child";
+    const childGrade = parentLink?.gradeLevel ? ` (${parentLink.gradeLevel})` : "";
 
     // Compose email
     const subject = `Parent Message: ${validatedData.sportName} - ${validatedData.sportLevel}`;
@@ -86,10 +84,11 @@ export async function POST(request: NextRequest) {
 
     // Send email using the email service
     try {
-      await sendEmail({
-        to: ad.email,
+      await emailService.sendEmail({
+        to: [ad.email],
         subject,
-        html: emailBody,
+        body: emailBody,
+        sentById: user.id,
       });
     } catch (emailError) {
       console.error("[API] Failed to send email:", emailError);
