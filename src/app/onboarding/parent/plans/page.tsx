@@ -43,7 +43,7 @@ const donationTierFeatures = [
 
 export default function ParentPlansPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(2);
   const [loading, setLoading] = useState(true);
@@ -124,6 +124,11 @@ export default function ParentPlansPage() {
 
       // Clear onboarding preferences now that data is persisted
       localStorage.removeItem("parentOnboardingPrefs");
+
+      // Refresh the session so the JWT reflects the new parent link.
+      // This ensures the user can access both AD and parent dashboards
+      // without needing to re-login.
+      await updateSession();
 
       // Redirect to parent dashboard
       router.push("/parent-dashboard");

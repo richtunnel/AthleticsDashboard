@@ -17,10 +17,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Resolve schoolId: could be a School entity ID or an Organization ID.
+    // Try School entity first, fall back to using it as Organization ID directly.
+    let organizationId = schoolId;
+    const schoolEntity = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { organizationId: true },
+    });
+    if (schoolEntity) {
+      organizationId = schoolEntity.organizationId;
+    }
+
     // Get distinct sport names from teams at this school
     const teams = await prisma.team.findMany({
       where: {
-        organizationId: schoolId,
+        organizationId,
       },
       include: {
         sport: true,

@@ -34,10 +34,10 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Verify user exists in database and get current role
+  // Verify user exists in database and get current role + org
   const existingUser = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, role: true },
+    select: { id: true, role: true, organizationId: true },
   });
 
   if (!existingUser) {
@@ -102,6 +102,48 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.$transaction(ops);
+
+  // If school details were updated, create/update the School entity and auto-name the Organization
+  const trimmedSchoolName = schoolName?.trim();
+  if (trimmedSchoolName && existingUser.organizationId) {
+    try {
+      // Upsert School record for this organization
+      const existingSchool = await prisma.school.findFirst({
+        where: { organizationId: existingUser.organizationId },
+      });
+
+      if (existingSchool) {
+        await prisma.school.update({
+          where: { id: existingSchool.id },
+          data: {
+            name: trimmedSchoolName,
+            address: schoolAddress?.trim() || existingSchool.address,
+            email: schoolEmailValue !== undefined ? schoolEmailValue : existingSchool.email,
+            mascot: teamName?.trim() || existingSchool.mascot,
+          },
+        });
+      } else {
+        await prisma.school.create({
+          data: {
+            name: trimmedSchoolName,
+            address: schoolAddress?.trim() || null,
+            email: schoolEmailValue !== undefined ? schoolEmailValue : null,
+            mascot: teamName?.trim() || null,
+            organizationId: existingUser.organizationId,
+          },
+        });
+      }
+
+      // Auto-name Organization to "{schoolName} Organization"
+      await prisma.organization.update({
+        where: { id: existingUser.organizationId },
+        data: { name: `${trimmedSchoolName} Organization` },
+      });
+    } catch (schoolErr) {
+      // Non-critical — don't fail the whole request if School/Org update fails
+      console.warn("[API] Failed to update School/Organization:", schoolErr);
+    }
+  }
 
   return NextResponse.json({ success: true });
 }

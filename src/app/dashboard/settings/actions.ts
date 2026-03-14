@@ -235,6 +235,12 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
   }
 
   try {
+    // Get user's organizationId for School entity
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+
     const updateData: any = {
       schoolName,
       teamName,
@@ -259,6 +265,41 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
     }
 
     await prisma.$transaction(ops);
+
+    // Create/update School entity and auto-name Organization
+    if (user?.organizationId) {
+      const existingSchool = await prisma.school.findFirst({
+        where: { organizationId: user.organizationId },
+      });
+
+      if (existingSchool) {
+        await prisma.school.update({
+          where: { id: existingSchool.id },
+          data: {
+            name: schoolName,
+            address: schoolAddress,
+            email: schoolEmail !== undefined ? schoolEmail : existingSchool.email,
+            mascot: teamName,
+          },
+        });
+      } else {
+        await prisma.school.create({
+          data: {
+            name: schoolName,
+            address: schoolAddress,
+            email: schoolEmail || null,
+            mascot: teamName,
+            organizationId: user.organizationId,
+          },
+        });
+      }
+
+      // Auto-name Organization to "{schoolName} Organization"
+      await prisma.organization.update({
+        where: { id: user.organizationId },
+        data: { name: `${schoolName} Organization` },
+      });
+    }
 
     return { success: true };
   } catch (err: any) {
