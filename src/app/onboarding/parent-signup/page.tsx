@@ -199,10 +199,10 @@ function ParentSignupContent() {
 
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               Already have an account?{" "}
-              <Button 
-                variant="text" 
-                size="small" 
-                onClick={() => signIn("google", { callbackUrl: "/onboarding/parent-callback" })}
+              <Button
+                variant="text"
+                size="small"
+                onClick={() => signIn("google", { callbackUrl: "/parent-dashboard" })}
               >
                 Sign in instead
               </Button>
