@@ -107,9 +107,13 @@ export default function AccountDetailsForm({ user }: Props) {
     const payload: any = {
       name: form.name.trim(),
       phone: form.phone?.trim() || null,
-      role: form.role?.trim() || null,
       image: form.image?.trim() || null,
     };
+
+    // Only include role in payload if the role field is visible and changed
+    if (!isRoleLocked && form.role) {
+      payload.role = form.role.trim();
+    }
 
     if (orgSelected) payload.organizationId = orgSelected.id;
     else if (orgInputValue && orgInputValue.trim() !== "") payload.organizationName = orgInputValue.trim();
