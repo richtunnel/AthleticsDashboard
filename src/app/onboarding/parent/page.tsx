@@ -295,11 +295,7 @@ export default function ParentOnboardingPage() {
                 </Box>
                 <Autocomplete
                   options={schools}
-                  getOptionLabel={(option) =>
-                    option.athleticDirectorName
-                      ? `${option.athleticDirectorName} — ${option.name}`
-                      : option.name
-                  }
+                  getOptionLabel={(option) => option.name}
                   value={selectedSchool}
                   onChange={handleSchoolChange}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
