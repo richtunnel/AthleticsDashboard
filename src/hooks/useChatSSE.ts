@@ -50,15 +50,13 @@ export function useChatSSE(conversationId: string | null) {
         const message: ChatMessage = JSON.parse(event.data);
 
         // Append the new message to the React Query cache
-        queryClient.setQueryData<ChatMessage[]>(
+        queryClient.setQueryData<{ messages: ChatMessage[] }>(
           ["chatMessages", conversationId],
-          (oldMessages) => {
-            if (!oldMessages) return [message];
+          (old) => {
+            const msgs = old?.messages || [];
             // Prevent duplicates (optimistic update may already have it)
-            if (oldMessages.some((m) => m.id === message.id)) {
-              return oldMessages;
-            }
-            return [...oldMessages, message];
+            if (msgs.some((m) => m.id === message.id)) return old!;
+            return { ...old, messages: [...msgs, message] };
           }
         );
 
