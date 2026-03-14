@@ -51,8 +51,13 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
     return { success: false, error: "User not found." };
   }
 
-  // Restrict role changes for SUPER_ADMIN and ATHLETIC_DIRECTOR
-  if (user.role === "SUPER_ADMIN" || user.role === "ATHLETIC_DIRECTOR") {
+  // Restrict role changes for SUPER_ADMIN and ATHLETIC_DIRECTOR —
+  // only block if the role is actually being changed, not on every save.
+  if (
+    (user.role === "SUPER_ADMIN" || user.role === "ATHLETIC_DIRECTOR") &&
+    role &&
+    role !== user.role
+  ) {
     return {
       success: false,
       error: "Your role cannot be changed from this page. Contact support for assistance.",
@@ -69,12 +74,15 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
 
   // Build the update object, but don't assume organization field type.
   // We'll attempt relation-style update first (connect/connectOrCreate).
+  // Only include role if explicitly provided — omitting it preserves the existing role.
   const baseUpdate: any = {
     name,
     phone,
-    role,
     image,
   };
+  if (role) {
+    baseUpdate.role = role;
+  }
 
   try {
     // Try relation-style update: organization: { connect: { id } } or connectOrCreate by name.
@@ -108,9 +116,11 @@ export async function updateUserDetails(payload: UpdateUserPayload) {
       const scalarUpdate: any = {
         name,
         phone,
-        role,
         image,
       };
+      if (role) {
+        scalarUpdate.role = role;
+      }
 
       // If orgId provided, we assume it's actually an org *name* for scalar column cases.
       // Prefer organizationName if provided; else orgId (fallthrough).
