@@ -8,7 +8,7 @@ import { authOptions } from "@/lib/utils/authOptions";
  * Creates a ParentAthleteLink for the authenticated parent user.
  *
  * Expected body:
- *   schoolId       – Organization ID (required)
+ *   schoolId       – School entity ID or Organization ID (required)
  *   athleteName     – Child's name (required)
  *   sport           – Sport name, e.g. "Basketball" (optional)
  *   gradeLevel      – e.g. "Varsity", "Junior Varsity" (optional)
@@ -49,21 +49,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Child's name is required" }, { status: 400 });
     }
 
-    // Verify the school (Organization) exists
-    const school = await prisma.organization.findUnique({
+    // Resolve schoolId: could be a School entity ID or an Organization ID.
+    // Try School entity first, fall back to Organization lookup.
+    let organizationId = schoolId;
+    let schoolEntityId: string | null = null;
+
+    const schoolEntity = await prisma.school.findUnique({
       where: { id: schoolId },
-      select: { id: true, name: true },
+      select: { id: true, organizationId: true },
     });
 
-    if (!school) {
-      return NextResponse.json({ error: "School not found" }, { status: 404 });
+    if (schoolEntity) {
+      organizationId = schoolEntity.organizationId;
+      schoolEntityId = schoolEntity.id;
+    } else {
+      // Verify the Organization exists
+      const org = await prisma.organization.findUnique({
+        where: { id: schoolId },
+        select: { id: true },
+      });
+      if (!org) {
+        return NextResponse.json({ error: "School not found" }, { status: 404 });
+      }
     }
 
     // Check if link already exists for this child at this school
     const existingLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
-        schoolId,
+        schoolId: organizationId,
         athleteName,
       },
     });
@@ -81,7 +95,8 @@ export async function POST(request: NextRequest) {
     const link = await prisma.parentAthleteLink.create({
       data: {
         parentUserId: user.id,
-        schoolId,
+        schoolId: organizationId,
+        schoolEntityId,
         athleteName,
         sport: sport || null,
         gradeLevel: gradeLevel || null,
@@ -99,14 +114,16 @@ export async function POST(request: NextRequest) {
           email: user.email!,
           fullName: user.name || athleteName,
           parentUserName: user.name || null,
-          schoolId,
+          schoolId: organizationId,
+          schoolEntityId,
           sportName: sport || null,
           sportLevel: gradeLevel || null,
           calendarSynced: false,
           membershipStatus: "TRIALING",
         },
         update: {
-          schoolId,
+          schoolId: organizationId,
+          schoolEntityId,
           fullName: user.name || athleteName,
           parentUserName: user.name || null,
           sportName: sport || null,

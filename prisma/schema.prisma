@@ -183,6 +183,7 @@ model Organization {
   emailGroups            EmailGroup[]        @relation("OrganizationEmailGroups")
   opponents              Opponent[]
   parentAthleteLinks     ParentAthleteLink[]
+  schools                School[]
   teams                  Team[]
   travelSettings         TravelSettings?
   users                  User[]
@@ -675,24 +676,45 @@ model CollaborationAuditLog {
   @@map("CollaborationAuditLog")
 }
 
+model School {
+  id                 String              @id @default(cuid())
+  name               String
+  address            String?
+  email              String?
+  mascot             String?
+  state              String?
+  organizationId     String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentAthleteLinks ParentAthleteLink[]
+  connectedParents   ConnectedParent[]
+
+  @@index([organizationId])
+  @@map("School")
+}
+
 model ParentAthleteLink {
-  id            String               @id @default(cuid())
-  parentUserId  String
-  schoolId      String
-  athleteName   String
-  athleteEmail  String?              @unique
-  teamName      String?
-  sport         String?
-  gradeLevel    String?
-  status        String               @default("PENDING")
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  parent        User                 @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
-  school        Organization         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  subscriptions ParentSubscription[]
+  id              String               @id @default(cuid())
+  parentUserId    String
+  schoolId        String
+  schoolEntityId  String?
+  athleteName     String
+  athleteEmail    String?              @unique
+  teamName        String?
+  sport           String?
+  gradeLevel      String?
+  status          String               @default("PENDING")
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  parent          User                 @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
+  school          Organization         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolEntity    School?              @relation(fields: [schoolEntityId], references: [id])
+  subscriptions   ParentSubscription[]
 
   @@index([parentUserId])
   @@index([schoolId])
+  @@index([schoolEntityId])
   @@index([athleteEmail])
   @@map("ParentAthleteLink")
 }
@@ -722,6 +744,7 @@ model ConnectedParent {
   email            String              @unique
   fullName         String
   schoolId         String
+  schoolEntityId   String?
   phone            String?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -733,8 +756,10 @@ model ConnectedParent {
   sportLevel       String?
   lastSyncedAt     DateTime?
   school           Organization        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolEntity     School?             @relation(fields: [schoolEntityId], references: [id])
 
   @@index([schoolId])
+  @@index([schoolEntityId])
   @@map("ConnectedParent")
 }
 
