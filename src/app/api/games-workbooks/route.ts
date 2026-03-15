@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name } = body;
+    const { name, assignOrphans } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -69,6 +69,20 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
       },
     });
+
+    // If assignOrphans is true, associate any existing games without a workbook
+    // to this newly created workbook (used when auto-creating the default workbook)
+    if (assignOrphans) {
+      await prisma.game.updateMany({
+        where: {
+          createdById: session.user.id,
+          workbookId: null,
+        },
+        data: {
+          workbookId: workbook.id,
+        },
+      });
+    }
 
     trackEvent("Games Workbook Created", {
       userId: session.user.id,

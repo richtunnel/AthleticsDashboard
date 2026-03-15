@@ -866,26 +866,26 @@ export function GamesTable() {
         setSelectedWorkbookId(null);
       }
 
-      // Auto-create a default workbook if none exist
+      // Auto-create a default workbook if none exist, and assign orphan games to it
       if (workbooksResponse.data.length === 0 && !hasAutoCreatedWorkbook.current) {
         hasAutoCreatedWorkbook.current = true;
-        createWorkbookMutation.mutate("Games");
+        createWorkbookMutation.mutate({ name: "Games", assignOrphans: true });
       }
     }
   }, [workbooksResponse, selectedWorkbookId, setWorkbooks, setSelectedWorkbookId]);
 
   // Create workbook mutation
   const createWorkbookMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, assignOrphans }: { name: string; assignOrphans?: boolean }) => {
       const res = await fetch("/api/games-workbooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, assignOrphans }),
       });
       if (!res.ok) throw new Error("Failed to create workbook");
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       addWorkbook(data.data);
       addNotification("Workbook created successfully", "success");
       trackEvent("Games Table Create Table Clicked", {
@@ -895,6 +895,11 @@ export function GamesTable() {
         workbookName: data.data.name,
       });
       setShowWorkbookSelector(false);
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+      // If orphan games were assigned, refresh the games list too
+      if (variables.assignOrphans) {
+        queryClient.invalidateQueries({ queryKey: ["games"] });
+      }
     },
     onError: (error: any) => {
       addNotification(error.message || "Failed to create workbook", "error");
@@ -916,6 +921,7 @@ export function GamesTable() {
       updateWorkbook(variables.id, variables.name);
       addNotification("Workbook renamed successfully", "success");
       setEditingWorkbookDialog(null);
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
     },
     onError: (error: any) => {
       addNotification(error.message || "Failed to update workbook", "error");
@@ -3048,7 +3054,7 @@ export function GamesTable() {
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
-      queryClient.invalidateQueries({ queryKey: ["games-workbooks"] });
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
 
       // ALSO TRY: Force a refetch instead of just invalidate
       queryClient.refetchQueries({ queryKey: GAMES_QUERY_KEY });
@@ -6843,7 +6849,9 @@ export function GamesTable() {
           onRenameWorkbook={(id, name) => updateWorkbookMutation.mutate({ id, name })}
           onDeleteWorkbook={(id) => {
             deleteWorkbook(id);
-            fetch(`/api/games-workbooks/${id}`, { method: "DELETE" });
+            fetch(`/api/games-workbooks/${id}`, { method: "DELETE" }).then(() => {
+              queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+            });
           }}
           isCreating={createWorkbookMutation.isPending}
         />
@@ -7541,7 +7549,7 @@ export function GamesTable() {
               }}
               onClick={() => {
                 const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
-                createWorkbookMutation.mutate(newWorkbookName);
+                createWorkbookMutation.mutate({ name: newWorkbookName });
                 setShowWorkbookSelector(false);
               }}
             >
@@ -7677,7 +7685,7 @@ export function GamesTable() {
               if (viewImportWorkbookId) {
                 deleteWorkbook(viewImportWorkbookId);
                 fetch(`/api/games-workbooks/${viewImportWorkbookId}`, { method: "DELETE" });
-                queryClient.invalidateQueries({ queryKey: ["games-workbooks"] });
+                queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
                 setViewImportWorkbookId(null);
               }
             }}
