@@ -22,12 +22,12 @@ import {
   CircularProgress,
   Tooltip,
 } from "@mui/material";
-import { 
-  ExpandLess, 
-  ExpandMore, 
-  Person, 
-  CalendarMonth, 
-  Group,
+import {
+  ExpandLess,
+  ExpandMore,
+  Person,
+  CalendarMonth,
+  Share,
   ContentCopy,
   Refresh,
   Check,
@@ -184,21 +184,37 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
           </Box>
 
           <Button
-            fullWidth
             variant="contained"
-            startIcon={<Group />}
-            onClick={() => {
-              if (shareData?.shareUrl) {
-                // Open the share URL in a new tab
-                window.open(shareData.shareUrl, "_blank");
+            startIcon={<Share />}
+            onClick={async () => {
+              const url = shareData?.shareUrl || `${window.location.origin}/onboarding/parent-signup`;
+              const shareText = `Join our athletic program! Sign up as a parent here: ${url}`;
+
+              // Use native share on mobile, fallback to mailto on desktop
+              if (navigator.share) {
+                try {
+                  await navigator.share({
+                    title: "Join Our Athletic Program",
+                    text: shareText,
+                    url,
+                  });
+                } catch (err) {
+                  // User cancelled or share failed — ignore AbortError
+                  if ((err as Error).name !== "AbortError") {
+                    console.error("Share failed:", err);
+                  }
+                }
               } else {
-                // Fallback to the generic parent signup
-                window.open("/onboarding/parent-signup", "_blank");
+                // Desktop fallback: open email compose
+                const subject = encodeURIComponent("Join Our Athletic Program");
+                const body = encodeURIComponent(shareText);
+                window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
               }
             }}
             disabled={isLoading}
+            sx={{ maxWidth: 320 }}
           >
-            Open Parent Portal Link
+            Share Parent Link
           </Button>
         </Box>
       </Collapse>
