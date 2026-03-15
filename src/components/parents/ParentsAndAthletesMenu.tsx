@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Badge,
   Box,
   Card,
   CardContent,
@@ -60,12 +59,6 @@ async function regenerateShareCode(): Promise<ShareCodeData> {
   return res.json();
 }
 
-async function fetchPendingCount(): Promise<{ pendingRequests: unknown[] }> {
-  const res = await fetch("/api/parent-schedule-mappings/pending");
-  if (!res.ok) return { pendingRequests: [] };
-  return res.json();
-}
-
 export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthletesMenuProps) {
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
@@ -74,16 +67,8 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
   const { data: shareData, isLoading, error, refetch } = useQuery({
     queryKey: ["shareCode"],
     queryFn: fetchShareCode,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
-
-  const { data: pendingData } = useQuery({
-    queryKey: ["pendingParentRequests"],
-    queryFn: fetchPendingCount,
-    staleTime: 2 * 60 * 1000,
-  });
-  const pendingCount = pendingData?.pendingRequests?.length || 0;
 
   const handleToggle = () => {
     setOpen(!open);
@@ -114,13 +99,11 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
     <Card variant="outlined" sx={{ mb: 2 }}>
       <ListItemButton onClick={handleToggle}>
         <ListItemIcon>
-          <Badge badgeContent={pendingCount} color="warning" max={99}>
-            <Person color="primary" />
-          </Badge>
+          <Person color="primary" />
         </ListItemIcon>
-        <ListItemText
-          primary="Parents & Athletes"
-          secondary={pendingCount > 0 ? `${pendingCount} pending request${pendingCount > 1 ? 's' : ''}` : "Manage parent connections"}
+        <ListItemText 
+          primary="Parents & Athletes" 
+          secondary="Manage parent connections"
         />
         {open ? <ExpandLess /> : <ExpandMore />}
       </ListItemButton>
@@ -148,9 +131,9 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
                 <CircularProgress size={24} />
               </Box>
             ) : error ? (
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Share link unavailable. You can still use the button below to open the parent signup page.
-              </Typography>
+              <Alert severity="error" sx={{ mb: 2 }}>
+                Failed to load share link. Please try again.
+              </Alert>
             ) : shareData ? (
               <>
                 <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
