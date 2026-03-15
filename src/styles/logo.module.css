@@ -63,7 +63,6 @@
 /* Full height mobile hero - 90% of screen like Buyable */
 .fullHeightMobileHero {
   overflow: hidden;
-  border-radius: 0 0 40px 40px;
 }
 
 /* Web-friendly dark gradient overlay - extends down like the original */
@@ -97,16 +96,16 @@
   pointer-events: none;
 }
 
-.fullHeightMobileHero img {
+/* .fullHeightMobileHero img {
   border-radius: 0 0 40px 40px;
-}
+} */
 
 .heroTitle {
   font-size: 2rem;
 }
 
 .mobileHeroContainer {
-  height: 89vh;
+  height: 100vh;
 }
 
 .newSectionTitle {
@@ -117,7 +116,7 @@
 /* iPhone 12 Pro Max, 11 Pro Max, XS Max - Max screens */
 @media all and (min-width: 428px) and (max-width: 768px) {
   .mobileHeroContainer {
-    height: 89vh;
+    height: 100vh;
   }
 
   .heroTitle {
@@ -128,7 +127,7 @@
 /* iPhone 11, 11 Pro, XR - Large screens */
 @media all and (min-width: 414px) and (max-width: 427px) {
   .mobileHeroContainer {
-    height: 89vh;
+    height: 100vh;
   }
 
   .heroTitle {
@@ -139,7 +138,7 @@
 /* iPhone 12 Pro - Regular screens */
 @media all and (min-width: 390px) and (max-width: 413px) {
   .mobileHeroContainer {
-    height: 90vh;
+    height: 100vh;
   }
 
   .heroTitle {
@@ -150,7 +149,7 @@
 /* iPhone X, XS, 11 Pro, SE (2nd/3rd gen) - Medium screens */
 @media all and (min-width: 375px) and (max-width: 389px) {
   .mobileHeroContainer {
-    height: 92vh;
+    height: 100vhh;
   }
 
   .heroTitle {
@@ -168,10 +167,6 @@
 
 /* iPhone 5, 5S, 5C, SE (1st gen) - Small screens */
 @media all and (min-width: 320px) and (max-width: 374px) {
-  .mobileHeroContainer {
-    height: 95vh;
-  }
-
   .heroTitle {
     font-size: 1.65rem;
   }
@@ -214,7 +209,6 @@
     font-size: 3rem !important;
   }
   .fullHeightMobileHero {
-    border-radius: 0 0 32px 32px;
     background: "#000000";
     background-color: -webkit-linear-gradient(to top, #434343, #000000);
     background: linear-gradient(to top, #434343, #000000);
@@ -226,13 +220,6 @@
 }
 
 @media all and (max-width: 480px) {
-  .fullHeightMobileHero {
-    border-radius: 0 0 28px 28px;
-  }
-
-  .fullHeightMobileHero img {
-    border-radius: 0 0 28px 28px;
-  }
 }
 
 @media all and (max-width: 991px) {
@@ -266,9 +253,6 @@
 
   .border-radius {
     border-radius: 0;
-  }
-
-  .mobileHeroContainer {
   }
 
   .ipadImage {
@@ -346,9 +330,9 @@
     font-size: 0.85rem;
   }
 
-  .fullHeightMobileHero {
+  /* .fullHeightMobileHero {
     border-radius: 0 0 15px 15px;
-  }
+  } */
 
   .bookADemoButton svg {
     font-size: 1rem;
