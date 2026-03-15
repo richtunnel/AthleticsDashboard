@@ -171,7 +171,7 @@ export function CalendarGroupMappings() {
       addNotification("Please fill in all fields", "warning");
       return;
     }
-    
+
     trackEvent("Calendar Mapping Created", {
       source: "calendar_sync_page",
       action: "create_calendar_mapping",
@@ -305,7 +305,7 @@ export function CalendarGroupMappings() {
       {!hasInsufficientScopes && !calendarsError && (
         <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>How it works:</strong> When syncing a game to Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
+            <strong>How it works:</strong> When syncing a game to your Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
             Calendar group if a mapping exists. Otherwise, it will sync to your primary calendar.
           </Typography>
         </Alert>
