@@ -50,6 +50,7 @@ import { useTheme as customTheme } from "@mui/material/styles";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { MUIThemeProvider } from "@/app/theme-provider";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { formatDistanceToNow } from "date-fns";
 import styles from "../../styles/logo.module.css";
 
@@ -68,6 +69,9 @@ interface ParentDashboardLayoutClientProps {
 function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientProps) {
   const { data: session } = useSession();
   const pathname = usePathname();
+
+  // Connect to chat notification SSE stream for header bell notifications
+  useChatNotifications("/api/parent/chat/notifications/stream");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
