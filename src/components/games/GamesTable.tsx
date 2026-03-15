@@ -33,6 +33,8 @@ import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay, extractDatePart } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
+import { WorksheetToggle } from "./WorksheetToggle";
+import { WorksheetView } from "./WorksheetView";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { GameStatus } from "@prisma/client";
@@ -443,6 +445,8 @@ export function GamesTable() {
 
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
+  const [viewImportWorkbookId, setViewImportWorkbookId] = useState<string | null>(null);
 
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
   const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
@@ -847,6 +851,9 @@ export function GamesTable() {
     },
   });
 
+  // Track whether we've already auto-created a default workbook
+  const hasAutoCreatedWorkbook = useRef(false);
+
   // Update workbooks store when data changes
   useEffect(() => {
     if (workbooksResponse?.data) {
@@ -857,6 +864,12 @@ export function GamesTable() {
         setSelectedWorkbookId(workbooksResponse.data[0].id);
       } else if (selectedWorkbookId && workbooksResponse.data.length === 0) {
         setSelectedWorkbookId(null);
+      }
+
+      // Auto-create a default workbook if none exist
+      if (workbooksResponse.data.length === 0 && !hasAutoCreatedWorkbook.current) {
+        hasAutoCreatedWorkbook.current = true;
+        createWorkbookMutation.mutate("Games");
       }
     }
   }, [workbooksResponse, selectedWorkbookId, setWorkbooks, setSelectedWorkbookId]);
@@ -2956,6 +2969,32 @@ export function GamesTable() {
     setShowImportDialog(true);
   }, []);
 
+  const handleViewImportNew = useCallback(async () => {
+    try {
+      const tempName = `Spreadsheet${workbooks.length + 1}`;
+      const res = await fetch("/api/games-workbooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: tempName }),
+      });
+      if (!res.ok) throw new Error("Failed to create workbook");
+      const data = await res.json();
+      addWorkbook(data.data);
+      setViewImportWorkbookId(data.data.id);
+      setShowImportDialog(true);
+    } catch (error: any) {
+      addNotification(error.message || "Failed to create workbook", "error");
+    }
+  }, [workbooks.length, addWorkbook, addNotification]);
+
+  const handleViewSelectWorkbook = useCallback(
+    (id: string) => {
+      setSelectedWorkbookId(id);
+      setWorksheetTab("worksheet");
+    },
+    [setSelectedWorkbookId],
+  );
+
   const handleImportComplete = useCallback(
     (result: any) => {
       setShowImportDialog(false);
@@ -2991,19 +3030,32 @@ export function GamesTable() {
         setIsCustomStructureActive(true);
       }
 
+      // If import was for a specific workbook (from View), rename workbook to filename
+      if (viewImportWorkbookId && result.fileName && result.success > 0) {
+        const nameWithoutExt = result.fileName.replace(/\.[^/.]+$/, "").slice(0, 22);
+        updateWorkbookMutation.mutate({
+          id: viewImportWorkbookId,
+          name: nameWithoutExt,
+        });
+        setSelectedWorkbookId(viewImportWorkbookId);
+        setWorksheetTab("worksheet");
+        setViewImportWorkbookId(null);
+      }
+
       // Refresh data
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] }); // ADD THIS LINE
+      queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
+      queryClient.invalidateQueries({ queryKey: ["games-workbooks"] });
 
       // ALSO TRY: Force a refetch instead of just invalidate
       queryClient.refetchQueries({ queryKey: GAMES_QUERY_KEY });
       queryClient.refetchQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
-      queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] }); // ADD THIS LINE
+      queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] });
     },
-    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY],
+    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY, viewImportWorkbookId, updateWorkbookMutation, setSelectedWorkbookId],
   );
 
   const handleSaveNewGame = async () => {
@@ -6769,8 +6821,34 @@ export function GamesTable() {
     );
   }
 
+  const selectedWorkbook = workbooks.find((wb) => wb.id === selectedWorkbookId);
+  const currentWorksheetName = selectedWorkbook?.name || "Spreadsheet";
+
   return (
     <Box>
+      {/* Worksheet Toggle */}
+      <WorksheetToggle
+        activeTab={worksheetTab}
+        worksheetName={currentWorksheetName}
+        onTabChange={setWorksheetTab}
+      />
+
+      {/* Worksheet View - shown when "View" tab is active */}
+      {worksheetTab === "view" ? (
+        <WorksheetView
+          workbooks={workbooks}
+          selectedWorkbookId={selectedWorkbookId}
+          onSelectWorkbook={handleViewSelectWorkbook}
+          onCreateWorkbook={handleViewImportNew}
+          onRenameWorkbook={(id, name) => updateWorkbookMutation.mutate({ id, name })}
+          onDeleteWorkbook={(id) => {
+            deleteWorkbook(id);
+            fetch(`/api/games-workbooks/${id}`, { method: "DELETE" });
+          }}
+          isCreating={createWorkbookMutation.isPending}
+        />
+      ) : (
+      <>
       {/* Header */}
       <Box
         sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
@@ -7569,6 +7647,9 @@ export function GamesTable() {
         </Box>
       </Box>
 
+      </>
+      )}
+
       <ColumnPreferencesMenu
         open={isColumnPreferencesOpen}
         onClose={() => setIsColumnPreferencesOpen(false)}
@@ -7588,7 +7669,20 @@ export function GamesTable() {
             setShowImportDialog(false);
           }}
         >
-          <CSVImport onImportComplete={handleImportComplete} onClose={() => setShowImportDialog(false)} />
+          <CSVImport
+            onImportComplete={handleImportComplete}
+            onClose={() => {
+              setShowImportDialog(false);
+              // If user cancels import from View, delete the empty workbook we pre-created
+              if (viewImportWorkbookId) {
+                deleteWorkbook(viewImportWorkbookId);
+                fetch(`/api/games-workbooks/${viewImportWorkbookId}`, { method: "DELETE" });
+                queryClient.invalidateQueries({ queryKey: ["games-workbooks"] });
+                setViewImportWorkbookId(null);
+              }
+            }}
+            workbookId={viewImportWorkbookId || selectedWorkbookId || undefined}
+          />
         </ErrorBoundary>
       )}
 
