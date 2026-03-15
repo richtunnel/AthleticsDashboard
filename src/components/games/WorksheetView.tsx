@@ -41,87 +41,54 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
   const containerBg = theme.palette.mode === "dark" ? alpha(theme.palette.background.default, 0.4) : alpha(theme.palette.grey[50], 0.6);
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        minHeight: 300,
-        py: 4,
-      }}
-    >
+    <>
+      <Box sx={{ display: "block", width: "100%", textAlign: "center", mt: 2 }}>
+        <Typography
+          variant="h5"
+          sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" }, color: (theme) => (theme.palette.mode === "dark" ? theme.palette.primary.light : theme.palette.text.primary) }}
+        >
+          Worksheets
+        </Typography>
+
+        <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+          {/* Manage your athletic schedules and create your own customized columns. */}
+          Create multiple isolated spreadsheets.
+        </Typography>
+      </Box>
+
       <Box
         sx={{
-          bgcolor: containerBg,
-          borderRadius: 4,
-          p: 3,
-          maxWidth: 732,
-          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          minHeight: 300,
+          py: 4,
         }}
       >
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 2,
+            bgcolor: containerBg,
+            borderRadius: 4,
+            p: 3,
+            maxWidth: 732,
+            width: "100%",
           }}
         >
-          {/* Add new worksheet card */}
           <Box
-            onClick={onCreateWorkbook}
             sx={{
-              bgcolor: "transparent",
-              borderRadius: 3,
-              border: "2px dashed",
-              borderColor: cardBorder,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              aspectRatio: "1 / 1",
-              maxHeight: 160,
-              margin: "0 auto",
-              width: "100%",
-              maxWidth: "320px",
-              transition: "all 0.2s ease",
-              opacity: isCreating ? 0.5 : 1,
-              pointerEvents: isCreating ? "none" : "auto",
-              "&:hover": {
-                borderColor: theme.palette.primary.main,
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
-              },
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 2,
             }}
           >
-            <Add
-              sx={{
-                fontSize: 28,
-                color: "text.secondary",
-                mb: 0.5,
-              }}
-            />
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 500,
-                color: "text.secondary",
-                fontSize: "0.8rem",
-              }}
-            >
-              Import New
-            </Typography>
-          </Box>
-          {/* Existing workbook cards */}
-          {workbooks.map((workbook, index) => (
+            {/* Add new worksheet card */}
             <Box
-              key={workbook.id}
-              onClick={() => onSelectWorkbook(workbook.id)}
+              onClick={onCreateWorkbook}
               sx={{
-                position: "relative",
-                bgcolor: cardBg,
+                bgcolor: "transparent",
                 borderRadius: 3,
-                border: "1px solid",
-                borderColor: selectedWorkbookId === workbook.id ? theme.palette.primary.main : cardBorder,
+                border: "2px dashed",
+                borderColor: cardBorder,
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -133,140 +100,189 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
                 width: "100%",
                 maxWidth: "320px",
                 transition: "all 0.2s ease",
+                opacity: isCreating ? 0.5 : 1,
+                pointerEvents: isCreating ? "none" : "auto",
                 "&:hover": {
                   borderColor: theme.palette.primary.main,
-                  transform: "translateY(-2px)",
-                  boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
-                  "& .card-actions": {
-                    opacity: 1,
-                  },
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
                 },
               }}
             >
-              {/* Edit/Delete actions */}
-              <Box
+              <Add
                 sx={{
-                  position: "absolute",
-                  top: 6,
-                  right: 6,
-                  display: "flex",
-                  gap: 0.25,
-                  opacity: 0,
-                  transition: "opacity 0.2s",
+                  fontSize: 28,
+                  color: "text.secondary",
+                  mb: 0.5,
                 }}
-                className="card-actions"
-              >
-                <Tooltip title="Rename">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditDialog({
-                        open: true,
-                        workbookId: workbook.id,
-                        currentName: workbook.name,
-                      });
-                    }}
-                    sx={{ p: 0.25 }}
-                  >
-                    <EditIcon sx={{ fontSize: 14 }} />
-                  </IconButton>
-                </Tooltip>
-                {workbooks.length > 1 && workbook._count?.games === 0 && (
-                  <Tooltip title="Delete">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteWorkbook(workbook.id);
-                      }}
-                      sx={{ p: 0.25, color: "error.main" }}
-                    >
-                      <DeleteIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </Box>
-
+              />
               <Typography
                 variant="h4"
                 sx={{
                   fontWeight: 500,
                   color: "text.secondary",
-                  fontSize: "0.85rem",
-                  textAlign: "center",
-                  px: 1.5,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  maxWidth: "100%",
+                  fontSize: "0.8rem",
                 }}
               >
-                {workbook.name}
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "text.disabled",
-                  mt: 0.5,
-                  fontSize: "0.7rem",
-                }}
-              >
-                #{index + 1}
+                Import New
               </Typography>
             </Box>
-          ))}
-        </Box>
-      </Box>
+            {/* Existing workbook cards */}
+            {workbooks.map((workbook, index) => (
+              <Box
+                key={workbook.id}
+                onClick={() => onSelectWorkbook(workbook.id)}
+                sx={{
+                  position: "relative",
+                  bgcolor: cardBg,
+                  borderRadius: 3,
+                  border: "1px solid",
+                  borderColor: selectedWorkbookId === workbook.id ? theme.palette.primary.main : cardBorder,
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  aspectRatio: "1 / 1",
+                  maxHeight: 160,
+                  margin: "0 auto",
+                  width: "100%",
+                  maxWidth: "320px",
+                  transition: "all 0.2s ease",
+                  "&:hover": {
+                    borderColor: theme.palette.primary.main,
+                    transform: "translateY(-2px)",
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
+                    "& .card-actions": {
+                      opacity: 1,
+                    },
+                  },
+                }}
+              >
+                {/* Edit/Delete actions */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    display: "flex",
+                    gap: 0.25,
+                    opacity: 0,
+                    transition: "opacity 0.2s",
+                  }}
+                  className="card-actions"
+                >
+                  <Tooltip title="Rename">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditDialog({
+                          open: true,
+                          workbookId: workbook.id,
+                          currentName: workbook.name,
+                        });
+                      }}
+                      sx={{ p: 0.25 }}
+                    >
+                      <EditIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                  {workbooks.length > 1 && workbook._count?.games === 0 && (
+                    <Tooltip title="Delete">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteWorkbook(workbook.id);
+                        }}
+                        sx={{ p: 0.25, color: "error.main" }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
 
-      {/* Rename Dialog */}
-      <Dialog open={editDialog?.open ?? false} onClose={() => setEditDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Rename Worksheet</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Worksheet Name"
-            defaultValue={editDialog?.currentName}
-            variant="outlined"
-            sx={{ mt: 2 }}
-            inputProps={{ maxLength: MAX_TITLE_LENGTH }}
-            helperText={`${editDialog?.currentName?.length ?? 0}/${MAX_TITLE_LENGTH} characters`}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 500,
+                    color: "text.secondary",
+                    fontSize: "0.85rem",
+                    textAlign: "center",
+                    px: 1.5,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    maxWidth: "100%",
+                  }}
+                >
+                  {workbook.name}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.disabled",
+                    mt: 0.5,
+                    fontSize: "0.7rem",
+                  }}
+                >
+                  #{index + 1}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+
+        {/* Rename Dialog */}
+        <Dialog open={editDialog?.open ?? false} onClose={() => setEditDialog(null)} maxWidth="xs" fullWidth>
+          <DialogTitle>Rename Worksheet</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Worksheet Name"
+              defaultValue={editDialog?.currentName}
+              variant="outlined"
+              sx={{ mt: 2 }}
+              inputProps={{ maxLength: MAX_TITLE_LENGTH }}
+              helperText={`${editDialog?.currentName?.length ?? 0}/${MAX_TITLE_LENGTH} characters`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (editDialog?.currentName.trim()) {
+                    onRenameWorkbook(editDialog.workbookId, editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH));
+                    setEditDialog(null);
+                  }
+                }
+              }}
+              onChange={(e) => {
+                if (editDialog) {
+                  setEditDialog({
+                    ...editDialog,
+                    currentName: e.target.value,
+                  });
+                }
+              }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditDialog(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
                 if (editDialog?.currentName.trim()) {
                   onRenameWorkbook(editDialog.workbookId, editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH));
                   setEditDialog(null);
                 }
-              }
-            }}
-            onChange={(e) => {
-              if (editDialog) {
-                setEditDialog({
-                  ...editDialog,
-                  currentName: e.target.value,
-                });
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialog(null)}>Cancel</Button>
-          <Button
-            onClick={() => {
-              if (editDialog?.currentName.trim()) {
-                onRenameWorkbook(editDialog.workbookId, editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH));
-                setEditDialog(null);
-              }
-            }}
-            variant="contained"
-            disabled={!editDialog?.currentName.trim()}
-          >
-            Rename
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+              }}
+              variant="contained"
+              disabled={!editDialog?.currentName.trim()}
+            >
+              Rename
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </>
   );
 }
