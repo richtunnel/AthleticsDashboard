@@ -99,6 +99,8 @@ const parentAdapter = {
   },
 } as any;
 
+const parentCallbackUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/api/auth/parent/callback/google`;
+
 export const parentAuthOptions: NextAuthOptions = {
   adapter: parentAdapter,
 
@@ -114,6 +116,13 @@ export const parentAuthOptions: NextAuthOptions = {
           response_type: "code",
           // Parents only need basic profile scopes — no calendar access
           scope: ["openid", "email", "profile"].join(" "),
+          redirect_uri: parentCallbackUrl,
+        },
+      },
+      token: {
+        async request({ client, params, checks }: any) {
+          const tokens = await client.callback(parentCallbackUrl, params, checks);
+          return { tokens };
         },
       },
     }),
@@ -129,11 +138,18 @@ export const parentAuthOptions: NextAuthOptions = {
             try {
               const existingUser = await prisma.user.findUnique({
                 where: { email },
-                select: { id: true },
+                select: { id: true, role: true },
               });
 
-              // If user exists, allow sign-in (no token update needed for parents)
-              // If user doesn't exist, allow NextAuth + adapter to create them
+              if (existingUser) {
+                // Existing user signing in via parent auth.
+                // Allow sign-in regardless of role — the parent callback page
+                // and getParentSession() handle the AD-as-parent case by
+                // checking/creating parentAthleteLink records.
+                return true;
+              }
+
+              // New user — NextAuth + adapter will create them with PARENT role
             } catch (err) {
               console.error("[ParentAuth] Failed to check user during sign-in", { email, error: err });
             }
@@ -281,6 +297,52 @@ export const parentAuthOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name: process.env.NODE_ENV === "production" ? "__Secure-parent-session-token" : "parent-session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === "production" ? "__Host-parent-next-auth.csrf-token" : "parent-next-auth.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-parent-next-auth.callback-url" : "parent-next-auth.callback-url",
+      options: {
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+    state: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-parent-next-auth.state" : "parent-next-auth.state",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 900, // 15 minutes, same as NextAuth default
+      },
+    },
+    pkceCodeVerifier: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-parent-next-auth.pkce.code_verifier" : "parent-next-auth.pkce.code_verifier",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 900,
+      },
+    },
+    nonce: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-parent-next-auth.nonce" : "parent-next-auth.nonce",
       options: {
         httpOnly: true,
         sameSite: "lax",
