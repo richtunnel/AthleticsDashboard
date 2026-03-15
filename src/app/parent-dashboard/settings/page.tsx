@@ -91,7 +91,7 @@ export default function ParentSettingsPage() {
       {/* My Children & Schools */}
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "left", mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ChildCare color="primary" />
               <Typography variant="h6" fontWeight={600}>
@@ -154,7 +154,7 @@ export default function ParentSettingsPage() {
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-            Need Help? Create a Support Ticket
+            Create a Support Ticket
           </Typography>
           <SupportFormWithDropdown />
         </CardContent>
