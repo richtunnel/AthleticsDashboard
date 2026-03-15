@@ -158,7 +158,7 @@ export async function middleware(req: NextRequest) {
 
   // Determine if this is a parent route
   const isParentRoute = pathname.startsWith("/parent-dashboard") || pathname.startsWith("/api/parent");
-  const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/";
+  const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/login";
 
   // For parent routes, check parent cookie first then fall back to main cookie
   // For all other routes, use the standard main cookie
