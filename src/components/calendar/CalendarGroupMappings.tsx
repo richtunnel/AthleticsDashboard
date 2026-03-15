@@ -305,8 +305,9 @@ export function CalendarGroupMappings() {
       {!hasInsufficientScopes && !calendarsError && (
         <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>How it works:</strong> When syncing a game to your Google Calendar, the system will check the column value (e.g., "Junior Varsity Basketball") and sync to the corresponding Google
-            Calendar group if a mapping exists. Otherwise, it will sync to your primary calendar.
+            <strong>How it works:</strong> When syncing a game to your Google Calendar, the system will check your spreadsheet column values (e.g., "Junior Varsity Basketball") and sync those column
+            values to the corresponding Google Calendar group names (e.g. "Junior Varsity Basketball") if that calendar group exists in your google calendar. Otherwise, all games will sync to your
+            primary calendar.
           </Typography>
         </Alert>
       )}
