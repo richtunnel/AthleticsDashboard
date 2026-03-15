@@ -108,7 +108,7 @@ export async function POST(
     // Verify AD's org matches the conversation's school
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { schoolId: true },
+      select: { schoolId: true, parentUserId: true },
     });
 
     if (!conversation || conversation.schoolId !== user.organizationId) {
@@ -155,6 +155,9 @@ export async function POST(
     };
 
     chatEventBus.emit(`conversation:${conversationId}`, event);
+
+    // Notify the parent user for header notifications
+    chatEventBus.emit(`user:${conversation.parentUserId}`, event);
 
     return NextResponse.json({
       id: message.id,

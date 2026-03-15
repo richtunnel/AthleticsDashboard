@@ -1,0 +1,82 @@
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/database/prisma";
+import { getParentSession } from "@/lib/utils/parentSession";
+import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
+
+/**
+ * GET /api/parent/chat/notifications/stream
+ *
+ * Server-Sent Events endpoint for real-time chat notifications (parent side).
+ * Listens on user-level events so parents get notified of all incoming
+ * AD messages across all their conversations.
+ */
+export async function GET(request: NextRequest) {
+  const session = await getParentSession();
+
+  if (!session?.user?.email) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  });
+
+  if (!user) {
+    return new Response("User not found", { status: 404 });
+  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      // Send initial connection confirmation with userId for client-side filtering
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ type: "connected", userId: user.id })}\n\n`)
+      );
+
+      // Listen for AD messages to this parent
+      const eventName = `user:${user.id}`;
+      const onMessage = (message: ChatMessageEvent) => {
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(message)}\n\n`)
+          );
+        } catch {
+          chatEventBus.off(eventName, onMessage);
+        }
+      };
+
+      chatEventBus.on(eventName, onMessage);
+
+      // Keepalive ping every 30 seconds
+      const keepalive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode(": keepalive\n\n"));
+        } catch {
+          clearInterval(keepalive);
+          chatEventBus.off(eventName, onMessage);
+        }
+      }, 30_000);
+
+      // Clean up when the client disconnects
+      request.signal.addEventListener("abort", () => {
+        clearInterval(keepalive);
+        chatEventBus.off(eventName, onMessage);
+        try {
+          controller.close();
+        } catch {
+          // Already closed
+        }
+      });
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}

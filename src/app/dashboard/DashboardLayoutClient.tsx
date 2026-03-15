@@ -66,6 +66,7 @@ import HistoryIcon from "@mui/icons-material/History";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
 import SupportModal from "@/components/support/SupportModal";
@@ -95,7 +96,10 @@ const baseNavigation = [
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
-  
+
+  // Connect to chat notification SSE stream for header bell notifications
+  useChatNotifications("/api/chat/notifications/stream");
+
   // Fetch score tracker setting
   const { data: scoreTrackerData } = useQuery({
     queryKey: ["scoreTrackerEnabled"],
