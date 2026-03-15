@@ -52,13 +52,14 @@ export async function GET(request: NextRequest) {
 
     // Get upcoming games from all linked schools
     let upcomingGames: any[] = [];
-    
+    const seenGameIds = new Set<string>();
+
     if (links.length > 0) {
       const schoolIds = links.map(l => l.schoolId);
       const sportNames = links.map(l => l.sportName);
       const sportLevels = links.map(l => l.sportLevel);
 
-      // Get teams for these sports/levels at the linked schools
+      // Path 1: Team-based matching (existing logic)
       const teams = await prisma.team.findMany({
         where: {
           organizationId: { in: schoolIds },
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
             name: { in: sportNames },
           },
           level: {
-            in: sportLevels.map(l => l.split(' ')[0]), // Extract level part (e.g., "JV" from "JV Boys")
+            in: sportLevels.map(l => l.split(' ')[0]),
           },
         },
         include: {
@@ -76,10 +77,9 @@ export async function GET(request: NextRequest) {
       });
 
       const teamIds = teams.map(t => t.id);
-      
-      // Get upcoming games
+
       if (teamIds.length > 0) {
-        upcomingGames = await prisma.game.findMany({
+        const teamGames = await prisma.game.findMany({
           where: {
             OR: [
               { homeTeamId: { in: teamIds } },
@@ -96,9 +96,57 @@ export async function GET(request: NextRequest) {
             venue: true,
           },
           orderBy: { date: "asc" },
-          take: 10,
+          take: 20,
         });
+        for (const game of teamGames) {
+          if (!seenGameIds.has(game.id)) {
+            seenGameIds.add(game.id);
+            upcomingGames.push(game);
+          }
+        }
       }
+
+      // Path 2: CustomFields-based matching via approved ParentScheduleMappings
+      const linkIds = links.map(l => l.id);
+      const approvedMappings = await prisma.parentScheduleMapping.findMany({
+        where: {
+          parentAthleteLinkId: { in: linkIds },
+          status: "APPROVED",
+        },
+      });
+
+      for (const mapping of approvedMappings) {
+        try {
+          // Query games where customFields contains the mapped column/value
+          const mappedGames: any[] = await prisma.$queryRaw`
+            SELECT g.id, g.date, g.time, g.status, g.notes, g.location,
+                   g."isHome", g."customFields", g."homeTeamId", g."awayTeamId",
+                   g."venueId", g."departureTime", g."createdAt", g."updatedAt"
+            FROM "Game" g
+            JOIN "Team" t ON g."homeTeamId" = t.id
+            WHERE t."organizationId" = ${mapping.organizationId}
+              AND g."customFields" IS NOT NULL
+              AND g."customFields"->>CAST(${mapping.columnName} AS text) = ${mapping.columnValue}
+              AND g.date >= NOW()
+              AND g.status IN ('SCHEDULED', 'CONFIRMED')
+            ORDER BY g.date ASC
+            LIMIT 20
+          `;
+
+          for (const game of mappedGames) {
+            if (!seenGameIds.has(game.id)) {
+              seenGameIds.add(game.id);
+              upcomingGames.push(game);
+            }
+          }
+        } catch (err) {
+          console.error("[API] Error querying mapped games:", err);
+        }
+      }
+
+      // Sort merged results by date
+      upcomingGames.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      upcomingGames = upcomingGames.slice(0, 20);
     }
 
     return NextResponse.json({
