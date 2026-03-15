@@ -87,8 +87,8 @@ const baseNavigation = [
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
-  { name: "Messages", href: "/dashboard/messages", icon: Chat },
-  { name: "Connect", href: "/dashboard/parents", icon: Person },
+  { name: "Chat", href: "/dashboard/messages", icon: Chat },
+  { name: "Parents", href: "/dashboard/parents", icon: Person },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
   // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
@@ -114,7 +114,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
 
   // Filter navigation based on feature toggles
-  const navigation = baseNavigation.filter(item => {
+  const navigation = baseNavigation.filter((item) => {
     if (item.requiresScoreTracker && !isScoreTrackerEnabled) {
       return false;
     }
@@ -217,12 +217,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     },
                   },
                   // Remove hover halo in dark mode, make text bold instead
-                  "&:hover": mode === "dark" ? {
-                    bgcolor: "transparent",
-                    "& .MuiListItemText-primary": {
-                      fontWeight: 600,
-                    },
-                  } : {},
+                  "&:hover":
+                    mode === "dark"
+                      ? {
+                          bgcolor: "transparent",
+                          "& .MuiListItemText-primary": {
+                            fontWeight: 600,
+                          },
+                        }
+                      : {},
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
