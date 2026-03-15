@@ -153,6 +153,22 @@ export default function Footer() {
         >
           Disclaimer
         </Link>
+        <Link
+          href="/careers"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          Careers
+        </Link>
         {isHomepage && (
           <Link
             href="/members"
