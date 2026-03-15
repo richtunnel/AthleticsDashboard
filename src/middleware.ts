@@ -113,8 +113,15 @@ export async function middleware(req: NextRequest) {
         },
       });
 
-      // If user doesn't exist or already has school details, redirect to dashboard
-      if (!user || (user.schoolName && user.teamName && user.schoolAddress)) {
+      // If user doesn't exist, redirect to login
+      if (!user) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/login";
+        return NextResponse.redirect(url);
+      }
+
+      // If user already has school details, redirect to dashboard
+      if (user.schoolName?.trim() && user.teamName?.trim() && user.schoolAddress?.trim()) {
         const url = req.nextUrl.clone();
         url.pathname = "/dashboard";
         return NextResponse.redirect(url);
