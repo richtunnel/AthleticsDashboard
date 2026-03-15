@@ -44,7 +44,6 @@ import { DateRequiredModal } from "./DateRequiredModal";
 interface CSVImportProps {
   onImportComplete?: (result: ImportResult) => void;
   onClose?: () => void;
-  workbookId?: string;
 }
 
 interface ImportResult {
@@ -55,7 +54,6 @@ interface ImportResult {
   warnings: string[];
   duplicateDetails?: string[];
   createdGameIds?: string[];
-  fileName?: string;
 }
 
 interface ParsedRow {
@@ -72,7 +70,7 @@ const DATABASE_FIELDS = [
   { value: "skip", label: "Skip Column", required: false },
 ];
 
-export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportProps) {
+export function CSVImport({ onImportComplete, onClose }: CSVImportProps) {
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
   const [importMode, setImportMode] = useState<'csv' | 'ocr'>('csv'); // Add OCR mode
   const [file, setFile] = useState<File | null>(null);
@@ -363,9 +361,6 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
               requestBody.customColumns = customColumns;
               requestBody.columnMapping = columnMapping;
             }
-            if (workbookId) {
-              requestBody.workbookId = workbookId;
-            }
 
             const response = await fetch("/api/import/games/batch", {
               method: "POST",
@@ -413,7 +408,6 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
         errors,
         warnings,
         createdGameIds: allCreatedGameIds,
-        fileName: file?.name,
       };
 
       setImportResult(finalResult);

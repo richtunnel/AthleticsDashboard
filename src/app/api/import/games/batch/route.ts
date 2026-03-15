@@ -131,7 +131,7 @@ async function isDuplicateRow(
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const { games, customColumns, columnMapping, workbookId } = await request.json();
+    const { games, customColumns, columnMapping } = await request.json();
 
     if (!games || !Array.isArray(games)) {
       return NextResponse.json({ success: false, error: "Invalid games data" }, { status: 400 });
@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
         }
 
         // === CREATE GAME WITH DATE AND CUSTOM FIELDS ===
-        const gameCreateData: any = {
+        const gameCreateData = {
           date: parsedDate,
           homeTeamId: defaultTeam.id,
           isHome: true, // Default value
@@ -297,11 +297,6 @@ export async function POST(request: NextRequest) {
           time: timeValue,
           sortOrder: 0,
         };
-
-        // Associate game with workbook if provided
-        if (workbookId) {
-          gameCreateData.workbookId = workbookId;
-        }
 
         let createdGame;
         try {
