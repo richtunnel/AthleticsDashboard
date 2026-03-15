@@ -11,6 +11,7 @@ import RadarIcon from "@mui/icons-material/Radar";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import WaitlistFormModal from "@/components/home/WaitlistFormModal";
 import { useRouter } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 
 const ParentPortalPage = () => {
   const theme = useTheme();
@@ -199,7 +200,8 @@ const ParentPortalPage = () => {
                 >
                   Get Started&nbsp; <NavigateNextIcon />
                 </Button>
-                {/* <Button
+                <Button
+                  onClick={() => signIn("google", { callbackUrl: "/parent-dashboard" })}
                   variant="outlined"
                   size="large"
                   sx={{
@@ -216,8 +218,8 @@ const ParentPortalPage = () => {
                     },
                   }}
                 >
-                  Watch Demo
-                </Button> */}
+                  Sign in
+                </Button>
               </Box>
 
               {/* Stats */}
