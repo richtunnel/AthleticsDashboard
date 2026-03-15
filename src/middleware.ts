@@ -189,12 +189,12 @@ export async function middleware(req: NextRequest) {
     const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
 
     if (isMemberAccessCodeDisabled(memberCode)) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/login", req.url));
     }
 
     const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
     if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
