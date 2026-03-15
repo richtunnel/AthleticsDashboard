@@ -53,8 +53,15 @@ export default function ParentPlansPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<"free" | "donation" | "donation_annual" | null>(null);
   const [donationBilling, setDonationBilling] = useState<"monthly" | "annual">("monthly");
+  const [completedSubmission, setCompletedSubmission] = useState(false);
 
   useEffect(() => {
+    // Don't redirect after a successful plan submission — the user is already
+    // being navigated to /parent-dashboard. Without this guard, the session
+    // refresh from updateSession() re-triggers this effect, finds localStorage
+    // cleared, and redirects back to /onboarding/parent (the double-onboarding bug).
+    if (completedSubmission) return;
+
     if (status === "unauthenticated") {
       router.push("/onboarding/parent-signup");
       return;
@@ -70,7 +77,7 @@ export default function ParentPlansPage() {
     if (status === "authenticated") {
       setLoading(false);
     }
-  }, [status, router]);
+  }, [status, router, completedSubmission]);
 
   const handleSelectPlan = async (plan: "free" | "donation" | "donation_annual") => {
     setSubmitting(true);
@@ -125,6 +132,10 @@ export default function ParentPlansPage() {
           throw new Error("Failed to save plan selection");
         }
       }
+
+      // Mark submission as complete BEFORE clearing localStorage to prevent
+      // the useEffect from redirecting back to onboarding when session refreshes.
+      setCompletedSubmission(true);
 
       // Clear onboarding preferences now that data is persisted
       localStorage.removeItem("parentOnboardingPrefs");
