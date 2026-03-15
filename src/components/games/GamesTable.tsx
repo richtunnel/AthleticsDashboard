@@ -854,15 +854,24 @@ export function GamesTable() {
   // Track whether we've already auto-created a default workbook
   const hasAutoCreatedWorkbook = useRef(false);
 
+  // Stable reference to track previous workbooks data to avoid unnecessary store updates
+  const prevWorkbooksRef = useRef<string>("");
+
   // Update workbooks store when data changes
   useEffect(() => {
     if (workbooksResponse?.data) {
-      setWorkbooks(workbooksResponse.data);
+      // Only update store if data actually changed (prevent infinite re-render loop)
+      const dataKey = JSON.stringify(workbooksResponse.data.map((wb: any) => wb.id + wb.name));
+      if (dataKey !== prevWorkbooksRef.current) {
+        prevWorkbooksRef.current = dataKey;
+        setWorkbooks(workbooksResponse.data);
+      }
 
       // If no workbook is selected and there are workbooks, select the first one
-      if (!selectedWorkbookId && workbooksResponse.data.length > 0) {
+      const currentSelectedId = useGamesWorkbookStore.getState().selectedWorkbookId;
+      if (!currentSelectedId && workbooksResponse.data.length > 0) {
         setSelectedWorkbookId(workbooksResponse.data[0].id);
-      } else if (selectedWorkbookId && workbooksResponse.data.length === 0) {
+      } else if (currentSelectedId && workbooksResponse.data.length === 0) {
         setSelectedWorkbookId(null);
       }
 
@@ -872,7 +881,7 @@ export function GamesTable() {
         createWorkbookMutation.mutate({ name: "Games", assignOrphans: true });
       }
     }
-  }, [workbooksResponse, selectedWorkbookId, setWorkbooks, setSelectedWorkbookId]);
+  }, [workbooksResponse]);
 
   // Create workbook mutation
   const createWorkbookMutation = useMutation({
@@ -886,7 +895,10 @@ export function GamesTable() {
       return res.json();
     },
     onSuccess: (data, variables) => {
-      addWorkbook(data.data);
+      // Invalidate query to refetch from server (the useEffect will update the store)
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+      // Optimistically select the new workbook immediately
+      setSelectedWorkbookId(data.data.id);
       addNotification("Workbook created successfully", "success");
       trackEvent("Games Table Create Table Clicked", {
         source: "games_table",
@@ -895,7 +907,6 @@ export function GamesTable() {
         workbookName: data.data.name,
       });
       setShowWorkbookSelector(false);
-      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
       // If orphan games were assigned, refresh the games list too
       if (variables.assignOrphans) {
         queryClient.invalidateQueries({ queryKey: ["games"] });
