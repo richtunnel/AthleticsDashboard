@@ -1,0 +1,6 @@
+@media all and (min-width: 1135px) {
+  .WorkSheetPillBox {
+    top: -16px !important;
+    position: relative;
+  }
+}

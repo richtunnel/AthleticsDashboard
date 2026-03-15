@@ -3,6 +3,7 @@
 import { Box, Typography } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
+import styles from "@/styles/worksheet.module.css";
 
 interface WorksheetToggleProps {
   activeTab: "worksheet" | "view";
@@ -26,10 +27,11 @@ export function WorksheetToggle({ activeTab, worksheetName, onTabChange }: Works
       sx={{
         display: "flex",
         justifyContent: "center",
-        mb: 3,
+        mb: 0,
       }}
     >
       <Box
+        className={styles.WorkSheetPillBox}
         sx={{
           display: "inline-flex",
           bgcolor: pillBg,
