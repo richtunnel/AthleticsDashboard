@@ -661,9 +661,9 @@ export const authOptions: NextAuthOptions = {
   },
 
   pages: {
-    signIn: "/",
-    signOut: "/",
-    error: "/",
+    signIn: "/login",
+    signOut: "/login",
+    error: "/login",
   },
   debug: process.env.NODE_ENV === "development",
 };
