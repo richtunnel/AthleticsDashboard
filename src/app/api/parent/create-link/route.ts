@@ -134,18 +134,14 @@ export async function POST(request: NextRequest) {
       console.warn("[API] Failed to create ConnectedParent entry:", err);
     }
 
-    // Create a free trial subscription
-    const trialEnd = new Date();
-    trialEnd.setMonth(trialEnd.getMonth() + 1); // 1 month free trial
-
+    // Create parent subscription (free — no trial period)
     try {
       await prisma.parentSubscription.create({
         data: {
           parentUserId: user.id,
           parentAthleteLinkId: link.id,
-          status: "TRIALING",
+          status: "ACTIVE",
           subscriptionType: "parent_free",
-          expiresAt: trialEnd,
         },
       });
     } catch (err) {

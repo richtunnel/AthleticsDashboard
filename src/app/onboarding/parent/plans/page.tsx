@@ -25,6 +25,8 @@ import {
   useTheme,
 } from "@mui/material";
 import { Check, CalendarMonth, Notifications, Sync, VolunteerActivism } from "@mui/icons-material";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import ToggleButton from "@mui/material/ToggleButton";
 import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
 
@@ -49,7 +51,8 @@ export default function ParentPlansPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"free" | "donation" | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<"free" | "donation" | "donation_annual" | null>(null);
+  const [donationBilling, setDonationBilling] = useState<"monthly" | "annual">("monthly");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -69,7 +72,7 @@ export default function ParentPlansPage() {
     }
   }, [status, router]);
 
-  const handleSelectPlan = async (plan: "free" | "donation") => {
+  const handleSelectPlan = async (plan: "free" | "donation" | "donation_annual") => {
     setSubmitting(true);
     setError("");
     setSelectedPlan(plan);
@@ -113,7 +116,8 @@ export default function ParentPlansPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             plan: plan === "free" ? "parent_free" : "parent_donation",
-            donationAmount: plan === "donation" ? 2.5 : 0,
+            donationAmount: plan === "donation_annual" ? 9.99 : plan === "donation" ? 2.5 : 0,
+            donationInterval: plan === "donation_annual" ? "year" : plan === "donation" ? "month" : undefined,
           }),
         });
 
@@ -210,7 +214,7 @@ export default function ParentPlansPage() {
                       $0
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Consider a donation to support your school
+                      Free forever &mdash; optional donation to support your school
                     </Typography>
                   </Box>
 
@@ -281,11 +285,27 @@ export default function ParentPlansPage() {
                 <CardContent sx={{ p: 4, display: "flex", flexDirection: "column", height: "100%" }}>
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip icon={<VolunteerActivism />} label="Donation" color="primary" size="small" sx={{ mb: 1 }} />
+
+                    <ToggleButtonGroup
+                      value={donationBilling}
+                      exclusive
+                      onChange={(_, val) => val && setDonationBilling(val)}
+                      size="small"
+                      sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}
+                    >
+                      <ToggleButton value="monthly" sx={{ px: 2, textTransform: "none", fontSize: "0.75rem" }}>
+                        Monthly
+                      </ToggleButton>
+                      <ToggleButton value="annual" sx={{ px: 2, textTransform: "none", fontSize: "0.75rem" }}>
+                        Annual
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+
                     <Typography variant="h3" sx={{ fontWeight: 800, color: theme.palette.primary.main }}>
-                      $2.50
+                      {donationBilling === "annual" ? "$9.99" : "$2.50"}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      per month
+                      {donationBilling === "annual" ? "per year (one-time)" : "per month"}
                     </Typography>
                   </Box>
 
@@ -312,8 +332,21 @@ export default function ParentPlansPage() {
                       <Chip icon={<VolunteerActivism />} label="Supports Athletics" size="small" color="primary" variant="outlined" />
                     </Box>
 
-                    <Button fullWidth variant="contained" size="large" onClick={() => handleSelectPlan("donation")} disabled={submitting} sx={{ mt: 3, py: 1.5 }}>
-                      {submitting && selectedPlan === "donation" ? <CircularProgress size={24} /> : "Choose Donation Plan"}
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      size="large"
+                      onClick={() => handleSelectPlan(donationBilling === "annual" ? "donation_annual" : "donation")}
+                      disabled={submitting}
+                      sx={{ mt: 3, py: 1.5 }}
+                    >
+                      {submitting && (selectedPlan === "donation" || selectedPlan === "donation_annual") ? (
+                        <CircularProgress size={24} />
+                      ) : donationBilling === "annual" ? (
+                        "Donate $9.99/year"
+                      ) : (
+                        "Donate $2.50/month"
+                      )}
                     </Button>
                   </Box>
                 </CardContent>
