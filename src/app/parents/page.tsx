@@ -162,7 +162,7 @@ const ParentPortalPage = () => {
                   letterSpacing: "-0.02em",
                 }}
               >
-                Never Miss a <span style={{ color: "#ceff77" }}>Game Again</span>
+                Parents <span style={{ color: "#ceff77" }}>Sport Connect</span>
               </Typography>
               <Typography
                 variant="h5"
