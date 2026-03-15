@@ -66,6 +66,51 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
             gap: 2,
           }}
         >
+          {/* Add new worksheet card */}
+          <Box
+            onClick={onCreateWorkbook}
+            sx={{
+              bgcolor: "transparent",
+              borderRadius: 3,
+              border: "2px dashed",
+              borderColor: cardBorder,
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              aspectRatio: "1 / 1",
+              maxHeight: 160,
+              margin: "0 auto",
+              width: "100%",
+              maxWidth: "320px",
+              transition: "all 0.2s ease",
+              opacity: isCreating ? 0.5 : 1,
+              pointerEvents: isCreating ? "none" : "auto",
+              "&:hover": {
+                borderColor: theme.palette.primary.main,
+                bgcolor: alpha(theme.palette.primary.main, 0.05),
+              },
+            }}
+          >
+            <Add
+              sx={{
+                fontSize: 28,
+                color: "text.secondary",
+                mb: 0.5,
+              }}
+            />
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 500,
+                color: "text.secondary",
+                fontSize: "0.8rem",
+              }}
+            >
+              Import New
+            </Typography>
+          </Box>
           {/* Existing workbook cards */}
           {workbooks.map((workbook, index) => (
             <Box
@@ -171,52 +216,6 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
               </Typography>
             </Box>
           ))}
-
-          {/* Add new worksheet card */}
-          <Box
-            onClick={onCreateWorkbook}
-            sx={{
-              bgcolor: "transparent",
-              borderRadius: 3,
-              border: "2px dashed",
-              borderColor: cardBorder,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              aspectRatio: "1 / 1",
-              maxHeight: 160,
-              margin: "0 auto",
-              width: "100%",
-              maxWidth: "320px",
-              transition: "all 0.2s ease",
-              opacity: isCreating ? 0.5 : 1,
-              pointerEvents: isCreating ? "none" : "auto",
-              "&:hover": {
-                borderColor: theme.palette.primary.main,
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
-              },
-            }}
-          >
-            <Add
-              sx={{
-                fontSize: 28,
-                color: "text.secondary",
-                mb: 0.5,
-              }}
-            />
-            <Typography
-              variant="h4"
-              sx={{
-                fontWeight: 500,
-                color: "text.secondary",
-                fontSize: "0.8rem",
-              }}
-            >
-              Import New
-            </Typography>
-          </Box>
         </Box>
       </Box>
 
