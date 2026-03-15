@@ -2,6 +2,7 @@
 
 import { Box, Typography } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
+import AddIcon from "@mui/icons-material/Add";
 
 interface WorksheetToggleProps {
   activeTab: "worksheet" | "view";
@@ -9,32 +10,16 @@ interface WorksheetToggleProps {
   onTabChange: (tab: "worksheet" | "view") => void;
 }
 
-export function WorksheetToggle({
-  activeTab,
-  worksheetName,
-  onTabChange,
-}: WorksheetToggleProps) {
+export function WorksheetToggle({ activeTab, worksheetName, onTabChange }: WorksheetToggleProps) {
   const theme = useTheme();
 
-  const pillBg =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.common.white, 0.08)
-      : alpha(theme.palette.common.black, 0.06);
+  const pillBg = theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.08) : alpha(theme.palette.common.black, 0.06);
 
-  const activeBg =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.common.white, 0.15)
-      : theme.palette.common.white;
+  const activeBg = theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.15) : theme.palette.common.white;
 
-  const activeColor =
-    theme.palette.mode === "dark"
-      ? theme.palette.common.white
-      : theme.palette.text.primary;
+  const activeColor = theme.palette.mode === "dark" ? theme.palette.common.white : theme.palette.text.primary;
 
-  const inactiveColor =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.common.white, 0.5)
-      : theme.palette.text.secondary;
+  const inactiveColor = theme.palette.mode === "dark" ? alpha(theme.palette.common.white, 0.5) : theme.palette.text.secondary;
 
   return (
     <Box
@@ -63,17 +48,9 @@ export function WorksheetToggle({
             cursor: "pointer",
             transition: "all 0.2s ease",
             bgcolor: activeTab === "worksheet" ? activeBg : "transparent",
-            boxShadow:
-              activeTab === "worksheet"
-                ? theme.palette.mode === "dark"
-                  ? "none"
-                  : "0 1px 3px rgba(0,0,0,0.1)"
-                : "none",
+            boxShadow: activeTab === "worksheet" ? (theme.palette.mode === "dark" ? "none" : "0 1px 3px rgba(0,0,0,0.1)") : "none",
             "&:hover": {
-              bgcolor:
-                activeTab === "worksheet"
-                  ? activeBg
-                  : alpha(theme.palette.common.white, 0.05),
+              bgcolor: activeTab === "worksheet" ? activeBg : alpha(theme.palette.common.white, 0.05),
             },
           }}
         >
@@ -90,7 +67,7 @@ export function WorksheetToggle({
               whiteSpace: "nowrap",
             }}
           >
-            {worksheetName || "Spreadsheet"}
+            {worksheetName || "View"}
           </Typography>
         </Box>
 
@@ -104,17 +81,9 @@ export function WorksheetToggle({
             cursor: "pointer",
             transition: "all 0.2s ease",
             bgcolor: activeTab === "view" ? activeBg : "transparent",
-            boxShadow:
-              activeTab === "view"
-                ? theme.palette.mode === "dark"
-                  ? "none"
-                  : "0 1px 3px rgba(0,0,0,0.1)"
-                : "none",
+            boxShadow: activeTab === "view" ? (theme.palette.mode === "dark" ? "none" : "0 1px 3px rgba(0,0,0,0.1)") : "none",
             "&:hover": {
-              bgcolor:
-                activeTab === "view"
-                  ? activeBg
-                  : alpha(theme.palette.common.white, 0.05),
+              bgcolor: activeTab === "view" ? activeBg : alpha(theme.palette.common.white, 0.05),
             },
           }}
         >
@@ -125,9 +94,12 @@ export function WorksheetToggle({
               color: activeTab === "view" ? activeColor : inactiveColor,
               fontSize: "0.8rem",
               userSelect: "none",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
             }}
           >
-            View
+            Worksheets
           </Typography>
         </Box>
       </Box>

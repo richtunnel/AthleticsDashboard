@@ -1,18 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Box,
-  Typography,
-  IconButton,
-  Tooltip,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-} from "@mui/material";
+import { Box, Typography, IconButton, Tooltip, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import { Edit as EditIcon, Add, Delete as DeleteIcon } from "@mui/icons-material";
 
@@ -37,15 +26,7 @@ interface WorksheetViewProps {
 
 const MAX_TITLE_LENGTH = 22;
 
-export function WorksheetView({
-  workbooks,
-  selectedWorkbookId,
-  onSelectWorkbook,
-  onCreateWorkbook,
-  onRenameWorkbook,
-  onDeleteWorkbook,
-  isCreating,
-}: WorksheetViewProps) {
+export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook, onCreateWorkbook, onRenameWorkbook, onDeleteWorkbook, isCreating }: WorksheetViewProps) {
   const theme = useTheme();
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -53,20 +34,11 @@ export function WorksheetView({
     currentName: string;
   } | null>(null);
 
-  const cardBg =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.background.paper, 0.6)
-      : alpha(theme.palette.grey[100], 0.8);
+  const cardBg = theme.palette.mode === "dark" ? alpha(theme.palette.background.paper, 0.6) : alpha(theme.palette.grey[100], 0.8);
 
-  const cardBorder =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.divider, 0.3)
-      : alpha(theme.palette.divider, 0.5);
+  const cardBorder = theme.palette.mode === "dark" ? alpha(theme.palette.divider, 0.3) : alpha(theme.palette.divider, 0.5);
 
-  const containerBg =
-    theme.palette.mode === "dark"
-      ? alpha(theme.palette.background.default, 0.4)
-      : alpha(theme.palette.grey[50], 0.6);
+  const containerBg = theme.palette.mode === "dark" ? alpha(theme.palette.background.default, 0.4) : alpha(theme.palette.grey[50], 0.6);
 
   return (
     <Box
@@ -83,7 +55,7 @@ export function WorksheetView({
           bgcolor: containerBg,
           borderRadius: 4,
           p: 3,
-          maxWidth: 420,
+          maxWidth: 991,
           width: "100%",
         }}
       >
@@ -104,10 +76,7 @@ export function WorksheetView({
                 bgcolor: cardBg,
                 borderRadius: 3,
                 border: "1px solid",
-                borderColor:
-                  selectedWorkbookId === workbook.id
-                    ? theme.palette.primary.main
-                    : cardBorder,
+                borderColor: selectedWorkbookId === workbook.id ? theme.palette.primary.main : cardBorder,
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -115,6 +84,8 @@ export function WorksheetView({
                 justifyContent: "center",
                 aspectRatio: "1 / 1",
                 maxHeight: 160,
+                width: "100%",
+                maxWidth: "320px",
                 transition: "all 0.2s ease",
                 "&:hover": {
                   borderColor: theme.palette.primary.main,
@@ -246,12 +217,7 @@ export function WorksheetView({
       </Box>
 
       {/* Rename Dialog */}
-      <Dialog
-        open={editDialog?.open ?? false}
-        onClose={() => setEditDialog(null)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={editDialog?.open ?? false} onClose={() => setEditDialog(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Rename Worksheet</DialogTitle>
         <DialogContent>
           <TextField
@@ -267,10 +233,7 @@ export function WorksheetView({
               if (e.key === "Enter") {
                 e.preventDefault();
                 if (editDialog?.currentName.trim()) {
-                  onRenameWorkbook(
-                    editDialog.workbookId,
-                    editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH)
-                  );
+                  onRenameWorkbook(editDialog.workbookId, editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH));
                   setEditDialog(null);
                 }
               }
@@ -290,10 +253,7 @@ export function WorksheetView({
           <Button
             onClick={() => {
               if (editDialog?.currentName.trim()) {
-                onRenameWorkbook(
-                  editDialog.workbookId,
-                  editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH)
-                );
+                onRenameWorkbook(editDialog.workbookId, editDialog.currentName.trim().slice(0, MAX_TITLE_LENGTH));
                 setEditDialog(null);
               }
             }}
