@@ -558,8 +558,13 @@ export function GamesTable() {
   const [unsyncDialogOpen, setUnsyncDialogOpen] = useState(false);
   const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
-  // Workbook management state
-  const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
+  // Workbook management state — use SELECTIVE subscriptions to avoid re-rendering
+  // the entire 7700-line component on every unrelated store change.
+  // Each selector returns a stable reference so React only re-renders when that
+  // specific slice changes (e.g. workbooks array identity, selectedWorkbookId value).
+  const workbooks = useGamesWorkbookStore((s) => s.workbooks);
+  const selectedWorkbookId = useGamesWorkbookStore((s) => s.selectedWorkbookId);
+  const showWorkbookSelector = useGamesWorkbookStore((s) => s.showWorkbookSelector);
 
   // Workbook edit dialog state
   const [editingWorkbookDialog, setEditingWorkbookDialog] = useState<{
@@ -7031,7 +7036,7 @@ export function GamesTable() {
                   <Button
                     variant="outlined"
                     startIcon={<TableChart />}
-                    onClick={() => setShowWorkbookSelector(true)}
+                    onClick={() => useGamesWorkbookStore.setState({ showWorkbookSelector: true })}
                     size="small"
                     sx={{
                       borderColor: theme.palette.themeButtonText.subtle,
@@ -7511,7 +7516,7 @@ export function GamesTable() {
       )}
 
       {/* Workbook Selector Dialog */}
-      <Dialog open={showWorkbookSelector} onClose={() => setShowWorkbookSelector(false)} maxWidth="md" fullWidth>
+      <Dialog open={showWorkbookSelector} onClose={() => useGamesWorkbookStore.setState({ showWorkbookSelector: false })} maxWidth="md" fullWidth>
         <DialogTitle>Select or Create a Table</DialogTitle>
         <DialogContent>
           <Box
@@ -7541,7 +7546,7 @@ export function GamesTable() {
                     transform: "translateY(-2px)",
                   },
                 }}
-                onClick={() => setSelectedWorkbookId(workbook.id)}
+                onClick={() => useGamesWorkbookStore.setState({ selectedWorkbookId: workbook.id })}
               >
                 <CardContent sx={{ p: 3 }}>
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
@@ -7571,7 +7576,11 @@ export function GamesTable() {
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteWorkbook(workbook.id);
+                              // Delete on server + invalidate query — the useEffect will sync the store
+                              // Do NOT call deleteWorkbook() directly — that causes cascading re-renders
+                              fetch(`/api/games-workbooks/${workbook.id}`, { method: "DELETE" }).then(() => {
+                                queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+                              });
                             }}
                             sx={{ p: 0.5, color: "error.main" }}
                           >
@@ -7608,7 +7617,7 @@ export function GamesTable() {
               onClick={() => {
                 const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
                 createWorkbookMutation.mutate({ name: newWorkbookName });
-                setShowWorkbookSelector(false);
+                useGamesWorkbookStore.setState({ showWorkbookSelector: false });
               }}
             >
               <CardContent sx={{ textAlign: "center", p: 3 }}>
@@ -7626,7 +7635,7 @@ export function GamesTable() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowWorkbookSelector(false)}>Cancel</Button>
+          <Button onClick={() => useGamesWorkbookStore.setState({ showWorkbookSelector: false })}>Cancel</Button>
         </DialogActions>
       </Dialog>
 
