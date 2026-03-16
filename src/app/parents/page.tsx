@@ -175,8 +175,7 @@ const ParentPortalPage = () => {
                   fontSize: { xs: "1.125rem", md: "1.375rem" },
                 }}
               >
-                Sync your child’s game schedule directly to your personal calendar. Discover how Channl helps you support your child’s fundraising efforts while staying connected to their school
-                journey.{" "}
+                Sync your child’s game schedule with your personal or custom calendar. Your dashboard helps you stay up-to-date with fundraising, AD's, coaches, and athletic department news.{" "}
               </Typography>
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button

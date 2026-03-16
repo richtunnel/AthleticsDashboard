@@ -14,15 +14,7 @@ try {
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/heic",
-  "image/heif",
-];
+const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/heic", "image/heif"];
 
 // Allowed file extensions for browsers that don't report MIME type correctly (e.g., iOS Safari)
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"];
@@ -41,7 +33,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 // Digital Ocean Spaces (S3-compatible) configuration
 const SPACES_BUCKET = process.env.DO_SPACES_BUCKET ?? "";
 const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
-const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.digitaloceanspaces.com`;
 const SPACES_CDN_URL = process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
 
 const s3Client = new S3Client({
@@ -68,10 +60,7 @@ export async function POST(request: NextRequest) {
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      return ApiResponse.error(
-        `File too large (${sizeMB}MB). The maximum allowed size is 2MB. ` +
-        "Please compress your image or use a smaller file."
-      );
+      return ApiResponse.error(`File too large (${sizeMB}MB). The maximum allowed size is 2MB. ` + "Please compress your image or use a smaller file.");
     }
 
     // Validate file type by MIME type and extension (for cross-browser compatibility)
@@ -85,8 +74,8 @@ export async function POST(request: NextRequest) {
       const detectedType = file.type || fileExtension || "unknown";
       return ApiResponse.error(
         `Invalid file type "${detectedType}". ` +
-        "Only JPG, JPEG, PNG, GIF, WebP, and iPhone/Android (HEIC) images are accepted. " +
-        "If you're uploading from an iPhone, try converting the image to JPEG first."
+          "Only JPG, JPEG, PNG, GIF, WebP, and iPhone/Android (HEIC) images are accepted. " +
+          "If you're uploading from an iPhone, try converting the image to JPEG first.",
       );
     }
 
@@ -132,20 +121,22 @@ export async function POST(request: NextRequest) {
 
     // Delete old signature logo from Spaces if one exists
     try {
-      const user = await prisma.user.findUnique({
+      const user = (await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { signatureLogoUrl: true } as any,
-      }) as any;
+      })) as any;
 
       if (user?.signatureLogoUrl && (user.signatureLogoUrl.includes("digitaloceanspaces.com") || user.signatureLogoUrl.includes("vercel-storage.com"))) {
         // Extract the key from the URL
         const url = new URL(user.signatureLogoUrl);
         const oldKey = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
         if (oldKey) {
-          await s3Client.send(new DeleteObjectCommand({
-            Bucket: SPACES_BUCKET,
-            Key: oldKey,
-          }));
+          await s3Client.send(
+            new DeleteObjectCommand({
+              Bucket: SPACES_BUCKET,
+              Key: oldKey,
+            }),
+          );
         }
       }
     } catch (error) {
@@ -154,13 +145,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Digital Ocean Spaces
-    await s3Client.send(new PutObjectCommand({
-      Bucket: SPACES_BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-      ACL: "public-read",
-    }));
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: SPACES_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+        ACL: "public-read",
+      }),
+    );
 
     const publicUrl = `${SPACES_CDN_URL}/${key}`;
 
@@ -171,9 +164,7 @@ export async function POST(request: NextRequest) {
     });
 
     return ApiResponse.success({
-      message: wasOptimized
-        ? "Logo uploaded and optimized successfully"
-        : "Logo uploaded successfully",
+      message: wasOptimized ? "Logo uploaded and optimized successfully" : "Logo uploaded successfully",
       url: publicUrl,
     });
   } catch (error) {

@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat openssl
 COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile --network-timeout 600000
 
 # Stage 2: Build
 FROM node:20-alpine AS builder

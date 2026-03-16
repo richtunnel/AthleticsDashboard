@@ -97,6 +97,9 @@ railway.json
 nixpacks.toml
 cloudbuild.yaml
 
+# Claude Code
+.claude
+/.claude
 # Other
 .eslintcache
 .stylelintcache
