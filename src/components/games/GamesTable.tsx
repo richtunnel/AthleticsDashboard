@@ -855,33 +855,63 @@ export function GamesTable() {
   const hasAutoCreatedWorkbook = useRef(false);
 
   // Stable reference to track previous workbooks data to avoid unnecessary store updates
-  const prevWorkbooksRef = useRef<string>("");
+  const prevWorkbooksDataRef = useRef<string>("");
 
-  // Update workbooks store when data changes
+  // Update workbooks store when data changes.
+  // CRITICAL: This is the SINGLE path for syncing server data → Zustand store.
+  // Mutation handlers must NOT also update the store — they only invalidate this query.
+  // Dual-updates cause cascading re-renders that crash the browser.
   useEffect(() => {
-    if (workbooksResponse?.data) {
-      // Only update store if data actually changed (prevent infinite re-render loop)
-      const dataKey = JSON.stringify(workbooksResponse.data.map((wb: any) => wb.id + wb.name));
-      if (dataKey !== prevWorkbooksRef.current) {
-        prevWorkbooksRef.current = dataKey;
-        setWorkbooks(workbooksResponse.data);
-      }
+    if (!workbooksResponse?.data) return;
 
-      // If no workbook is selected and there are workbooks, select the first one
-      const currentSelectedId = useGamesWorkbookStore.getState().selectedWorkbookId;
-      if (!currentSelectedId && workbooksResponse.data.length > 0) {
-        setSelectedWorkbookId(workbooksResponse.data[0].id);
-      } else if (currentSelectedId && workbooksResponse.data.length === 0) {
-        setSelectedWorkbookId(null);
-      }
+    const serverData = workbooksResponse.data;
+    const dataKey = JSON.stringify(serverData);
 
-      // Auto-create a default workbook if none exist, and assign orphan games to it
-      if (workbooksResponse.data.length === 0 && !hasAutoCreatedWorkbook.current) {
-        hasAutoCreatedWorkbook.current = true;
-        createWorkbookMutation.mutate({ name: "Games", assignOrphans: true });
-      }
+    // Skip if data hasn't changed (prevents re-render storms)
+    if (dataKey === prevWorkbooksDataRef.current) return;
+    prevWorkbooksDataRef.current = dataKey;
+
+    // Compute the correct selectedWorkbookId in one pass
+    const currentState = useGamesWorkbookStore.getState();
+    let nextSelectedId = currentState.selectedWorkbookId;
+    const serverIds = new Set(serverData.map((wb: any) => wb.id));
+
+    if (nextSelectedId && !serverIds.has(nextSelectedId)) {
+      // Selected workbook was deleted — fall back to first
+      nextSelectedId = serverData.length > 0 ? serverData[0].id : null;
+    } else if (!nextSelectedId && serverData.length > 0) {
+      // No selection but workbooks exist — select first
+      nextSelectedId = serverData[0].id;
+    } else if (serverData.length === 0) {
+      nextSelectedId = null;
     }
-  }, [workbooksResponse]);
+
+    // Single atomic store update — ONE re-render instead of multiple
+    useGamesWorkbookStore.setState({
+      workbooks: serverData,
+      selectedWorkbookId: nextSelectedId,
+    });
+
+    // Auto-create a default workbook if none exist
+    if (serverData.length === 0 && !hasAutoCreatedWorkbook.current) {
+      hasAutoCreatedWorkbook.current = true;
+      fetch("/api/games-workbooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Games", assignOrphans: true }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.data) {
+            queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+            queryClient.invalidateQueries({ queryKey: ["games"] });
+          }
+        })
+        .catch(() => {
+          hasAutoCreatedWorkbook.current = false;
+        });
+    }
+  }, [workbooksResponse, queryClient]);
 
   // Create workbook mutation
   const createWorkbookMutation = useMutation({
@@ -895,10 +925,10 @@ export function GamesTable() {
       return res.json();
     },
     onSuccess: (data, variables) => {
-      // Invalidate query to refetch from server (the useEffect will update the store)
+      // Pre-select the new workbook so the useEffect picks it up after refetch
+      useGamesWorkbookStore.setState({ selectedWorkbookId: data.data.id, showWorkbookSelector: false });
+      // Invalidate query — the useEffect will sync server data to the store (single update path)
       queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
-      // Optimistically select the new workbook immediately
-      setSelectedWorkbookId(data.data.id);
       addNotification("Workbook created successfully", "success");
       trackEvent("Games Table Create Table Clicked", {
         source: "games_table",
@@ -906,8 +936,6 @@ export function GamesTable() {
         workbookId: data.data.id,
         workbookName: data.data.name,
       });
-      setShowWorkbookSelector(false);
-      // If orphan games were assigned, refresh the games list too
       if (variables.assignOrphans) {
         queryClient.invalidateQueries({ queryKey: ["games"] });
       }
@@ -928,11 +956,12 @@ export function GamesTable() {
       if (!res.ok) throw new Error("Failed to update workbook");
       return res.json();
     },
-    onSuccess: (_, variables) => {
-      updateWorkbook(variables.id, variables.name);
+    onSuccess: () => {
+      // Only invalidate the query — the useEffect will update the store (single update path)
+      // Do NOT also call updateWorkbook() here — that causes a double store update → crash
+      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
       addNotification("Workbook renamed successfully", "success");
       setEditingWorkbookDialog(null);
-      queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
     },
     onError: (error: any) => {
       addNotification(error.message || "Failed to update workbook", "error");
@@ -2988,7 +3017,8 @@ export function GamesTable() {
 
   const handleViewImportNew = useCallback(async () => {
     try {
-      const tempName = `Spreadsheet${workbooks.length + 1}`;
+      const currentLength = useGamesWorkbookStore.getState().workbooks.length;
+      const tempName = `Spreadsheet${currentLength + 1}`;
       const res = await fetch("/api/games-workbooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2996,20 +3026,39 @@ export function GamesTable() {
       });
       if (!res.ok) throw new Error("Failed to create workbook");
       const data = await res.json();
-      addWorkbook(data.data);
+      // Only set the import workbook ID and open dialog — the query invalidation
+      // in handleImportComplete will sync the store via the useEffect
       setViewImportWorkbookId(data.data.id);
       setShowImportDialog(true);
     } catch (error: any) {
       addNotification(error.message || "Failed to create workbook", "error");
     }
-  }, [workbooks.length, addWorkbook, addNotification]);
+  }, [addNotification]);
 
   const handleViewSelectWorkbook = useCallback(
     (id: string) => {
-      setSelectedWorkbookId(id);
+      useGamesWorkbookStore.setState({ selectedWorkbookId: id });
       setWorksheetTab("worksheet");
     },
-    [setSelectedWorkbookId],
+    [],
+  );
+
+  const handleViewRenameWorkbook = useCallback(
+    (id: string, name: string) => {
+      updateWorkbookMutation.mutate({ id, name });
+    },
+    [updateWorkbookMutation],
+  );
+
+  const handleViewDeleteWorkbook = useCallback(
+    (id: string) => {
+      // Only delete on server and invalidate — the useEffect will clean up the store
+      // Do NOT also call deleteWorkbook() — that causes a double store update → crash
+      fetch(`/api/games-workbooks/${id}`, { method: "DELETE" }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+      });
+    },
+    [queryClient],
   );
 
   const handleImportComplete = useCallback(
@@ -3050,11 +3099,14 @@ export function GamesTable() {
       // If import was for a specific workbook (from View), rename workbook to filename
       if (viewImportWorkbookId && result.fileName && result.success > 0) {
         const nameWithoutExt = result.fileName.replace(/\.[^/.]+$/, "").slice(0, 22);
-        updateWorkbookMutation.mutate({
-          id: viewImportWorkbookId,
-          name: nameWithoutExt,
-        });
-        setSelectedWorkbookId(viewImportWorkbookId);
+        // Rename via API (the query invalidation below will sync the store)
+        fetch(`/api/games-workbooks/${viewImportWorkbookId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nameWithoutExt }),
+        }).catch(() => {}); // Non-critical, name will stay as temp name
+        // Select this workbook and switch to table view
+        useGamesWorkbookStore.setState({ selectedWorkbookId: viewImportWorkbookId });
         setWorksheetTab("worksheet");
         setViewImportWorkbookId(null);
       }
@@ -3072,7 +3124,7 @@ export function GamesTable() {
       queryClient.refetchQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
       queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] });
     },
-    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY, viewImportWorkbookId, updateWorkbookMutation, setSelectedWorkbookId],
+    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY, viewImportWorkbookId],
   );
 
   const handleSaveNewGame = async () => {
@@ -6857,13 +6909,8 @@ export function GamesTable() {
           selectedWorkbookId={selectedWorkbookId}
           onSelectWorkbook={handleViewSelectWorkbook}
           onCreateWorkbook={handleViewImportNew}
-          onRenameWorkbook={(id, name) => updateWorkbookMutation.mutate({ id, name })}
-          onDeleteWorkbook={(id) => {
-            deleteWorkbook(id);
-            fetch(`/api/games-workbooks/${id}`, { method: "DELETE" }).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
-            });
-          }}
+          onRenameWorkbook={handleViewRenameWorkbook}
+          onDeleteWorkbook={handleViewDeleteWorkbook}
           isCreating={createWorkbookMutation.isPending}
         />
       ) : (
@@ -7694,9 +7741,10 @@ export function GamesTable() {
               setShowImportDialog(false);
               // If user cancels import from View, delete the empty workbook we pre-created
               if (viewImportWorkbookId) {
-                deleteWorkbook(viewImportWorkbookId);
-                fetch(`/api/games-workbooks/${viewImportWorkbookId}`, { method: "DELETE" });
-                queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+                // Only delete on server and invalidate — no direct store update
+                fetch(`/api/games-workbooks/${viewImportWorkbookId}`, { method: "DELETE" }).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+                });
                 setViewImportWorkbookId(null);
               }
             }}
