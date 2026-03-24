@@ -305,20 +305,11 @@ async function handleGameScheduleEmail(
   const toEmails = await getRecipientEmails(groupId, to, organizationId);
   const { signatureHTML, replyTo } = await getUserSignature(userId);
 
-  // Fetch custom columns for the organization
-  const organization = await prisma.organization.findFirst({
-    where: { users: { some: { id: userId } } },
-    select: { id: true },
+  // Fetch custom columns using the organizationId we already have
+  const customColumns = await prisma.customColumn.findMany({
+    where: { organizationId },
+    select: { id: true, name: true },
   });
-
-  let customColumns: Array<{ id: string; name: string }> = [];
-  if (organization) {
-    const cols = await prisma.customColumn.findMany({
-      where: { organizationId: organization.id },
-      select: { id: true, name: true },
-    });
-    customColumns = cols;
-  }
 
   const emailBody = buildScheduleEmailHTML(games, additionalMessage || "", signatureHTML, visibleColumnIds, customColumns);
 

@@ -28,25 +28,23 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get games by sport with proper counting
-    const gamesWithSport = await prisma.game.findMany({
-      where: {
-        homeTeam: { organizationId },
-      },
-      include: {
-        homeTeam: {
-          include: {
-            sport: true,
-          },
-        },
-      },
+    // Count games by sport using aggregation instead of fetching all game records
+    const gameCountsByTeam = await prisma.game.groupBy({
+      by: ["homeTeamId"],
+      where: { homeTeam: { organizationId } },
+      _count: { id: true },
     });
 
-    // Count games by sport
+    const teamsWithSport = await prisma.team.findMany({
+      where: { id: { in: gameCountsByTeam.map((g) => g.homeTeamId) } },
+      select: { id: true, sport: { select: { name: true } } },
+    });
+
+    const teamSportMap = new Map(teamsWithSport.map((t) => [t.id, t.sport.name]));
     const sportStats: Record<string, number> = {};
-    gamesWithSport.forEach((game: any) => {
-      const sportName = game.homeTeam.sport.name;
-      sportStats[sportName] = (sportStats[sportName] || 0) + 1;
+    gameCountsByTeam.forEach((g) => {
+      const sportName = teamSportMap.get(g.homeTeamId) || "Unknown";
+      sportStats[sportName] = (sportStats[sportName] || 0) + g._count.id;
     });
 
     return NextResponse.json({
