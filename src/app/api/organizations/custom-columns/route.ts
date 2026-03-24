@@ -103,29 +103,15 @@ export async function DELETE(request: Request) {
       where: { id: columnId },
     });
 
-    // Clean up customData in all relevant games
-    const games = await prisma.game.findMany({
-      where: {
-        homeTeam: {
-          organizationId: session.user.organizationId,
-        },
-      },
-      select: {
-        id: true,
-        customData: true,
-      },
-    });
-
-    for (const game of games) {
-      if (game.customData && columnId in (game.customData as any)) {
-        const newCustomData = { ...(game.customData as any) };
-        delete newCustomData[columnId];
-        await prisma.game.update({
-          where: { id: game.id },
-          data: { customData: newCustomData },
-        });
-      }
-    }
+    // Clean up customData in all relevant games with a single query
+    await prisma.$executeRaw`
+      UPDATE "Game"
+      SET "customData" = "customData" - ${columnId}
+      WHERE "homeTeamId" IN (
+        SELECT "id" FROM "Team" WHERE "organizationId" = ${session.user.organizationId}
+      )
+      AND "customData" ? ${columnId}
+    `;
 
     return new Response(JSON.stringify({ success: true }));
   } catch (error) {
