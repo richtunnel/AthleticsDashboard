@@ -44,20 +44,17 @@ export async function GET() {
       orderBy: { lastMessageAt: { sort: "desc", nulls: "last" } },
     });
 
-    // Get unread counts (messages NOT sent by the current AD user)
-    const unreadCounts = await Promise.all(
-      conversations.map(async (conv) => {
-        const count = await prisma.chatMessage.count({
-          where: {
-            conversationId: conv.id,
-            senderUserId: { not: user.id },
-            readAt: null,
-          },
-        });
-        return { conversationId: conv.id, count };
-      })
-    );
-    const unreadMap = new Map(unreadCounts.map((u) => [u.conversationId, u.count]));
+    // Get unread counts in a single aggregated query instead of N individual counts
+    const unreadCounts = await prisma.chatMessage.groupBy({
+      by: ["conversationId"],
+      where: {
+        conversationId: { in: conversations.map((c) => c.id) },
+        senderUserId: { not: user.id },
+        readAt: null,
+      },
+      _count: { id: true },
+    });
+    const unreadMap = new Map(unreadCounts.map((u) => [u.conversationId, u._count.id]));
 
     // Get parent athlete link info for each conversation
     const parentLinks = await prisma.parentAthleteLink.findMany({

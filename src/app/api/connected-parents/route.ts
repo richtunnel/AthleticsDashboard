@@ -29,24 +29,10 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get all organizations the user has access to
-    const organizations = await prisma.organization.findMany({
-      where: {
-        users: {
-          some: {
-            id: user.id,
-          },
-        },
-      },
-      select: { id: true },
-    });
-
-    const orgIds = organizations.map(org => org.id);
-
-    // Get connected parents for these organizations
+    // Get connected parents for the user's organization directly
     const connectedParents = await prisma.connectedParent.findMany({
       where: {
-        schoolId: { in: orgIds },
+        schoolId: user.organizationId,
       },
       include: {
         school: {

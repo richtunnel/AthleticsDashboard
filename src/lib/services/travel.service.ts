@@ -56,7 +56,10 @@ export class TravelService {
       },
       include: {
         homeTeam: {
-          include: { sport: true },
+          include: {
+            sport: true,
+            organization: true,
+          },
         },
         venue: true,
       },
@@ -72,18 +75,13 @@ export class TravelService {
     // Get travel time if not already calculated
     let travelTime = game.estimatedTravelTime;
     if (!travelTime && game.venue) {
-      // Get organization's home address
-      const org = await prisma.organization.findUnique({
-        where: { id: organizationId },
-      });
+      // Use organization from the included relation instead of a separate query
+      const org = game.homeTeam.organization;
+      const origin = `${org.name}, ${org.state}`;
+      const destination = `${game.venue.address}, ${game.venue.city}, ${game.venue.state}`;
 
-      if (org) {
-        const origin = `${org.name}, ${org.state}`;
-        const destination = `${game.venue.address}, ${game.venue.city}, ${game.venue.state}`;
-
-        const result = await this.calculateTravelTime(origin, destination);
-        travelTime = result.travelTimeMinutes;
-      }
+      const result = await this.calculateTravelTime(origin, destination);
+      travelTime = result.travelTimeMinutes;
     }
 
     if (!travelTime) {
