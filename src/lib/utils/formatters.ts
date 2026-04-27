@@ -51,3 +51,32 @@ export const extractDatePart = (dateValue: string): string => {
     return dateValue;
   }
 };
+
+/**
+ * Format time display to 12-hour format (AM/PM)
+ * Expects time in HH:mm format (24-hour)
+ */
+export const formatTimeDisplay = (timeString: string | null): string => {
+  if (!timeString || timeString.toUpperCase() === "TBD") return "TBD";
+  try {
+    // Handle cases where it might already be in a readable format or include seconds
+    const parts = timeString.split(":");
+    if (parts.length < 2) return timeString;
+
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+
+    if (isNaN(hours) || isNaN(minutes)) return timeString;
+
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
+
+    return format(date, "h:mm a");
+  } catch (error) {
+    console.warn("Error formatting time display:", error);
+    return timeString;
+  }
+};

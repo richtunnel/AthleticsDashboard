@@ -31,7 +31,7 @@ import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
-import { formatLevelDisplay, extractDatePart } from "@/lib/utils/formatters";
+import { formatLevelDisplay, extractDatePart, formatTimeDisplay } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
 import { WorksheetToggle } from "./WorksheetToggle";
 import { WorksheetView } from "./WorksheetView";
@@ -165,20 +165,6 @@ const formatBusTimeDisplay = (dateTime: string | null): string => {
   }
 };
 
-const formatTimeDisplay = (timeString: string | null): string => {
-  if (!timeString) return "TBD";
-  try {
-    // Parse HH:MM format and convert to 12-hour display
-    const [hours, minutes] = timeString.split(":");
-    if (!hours || !minutes) return timeString;
-    const date = new Date();
-    date.setHours(parseInt(hours, 10));
-    date.setMinutes(parseInt(minutes, 10));
-    return format(date, "h:mm a");
-  } catch (error) {
-    return timeString;
-  }
-};
 
 type CustomColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
 
@@ -6305,7 +6291,7 @@ export function GamesTable() {
                 )}
               </TableCell>
             );
-          } else {
+          } else if (mapping === "time") { cellValue = formatTimeDisplay(customFields[columnName]); } else {
             // Display value from customFields (editable)
             cellValue = customFields[columnName] || "—";
           }
@@ -6654,7 +6640,7 @@ export function GamesTable() {
     const opponentName = game.opponent?.name || "—";
 
     // Get time
-    const timeDisplay = game.time || "TBD";
+    const timeDisplay = formatTimeDisplay(game.time);
 
     // Get status
     const statusConfig = getConfirmedStatus(game.status);
@@ -6743,7 +6729,7 @@ export function GamesTable() {
                   const label = customColumn?.name || key;
                   return (
                     <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem" }}>
-                      <strong>{label}:</strong> {String(value)}
+                      <strong>{label}:</strong> {customColumn?.type === "TIME" ? formatTimeDisplay(String(value)) : String(value)}
                     </Typography>
                   );
                 })}
@@ -6755,7 +6741,7 @@ export function GamesTable() {
               <Box>
                 {Object.entries(game.customFields).map(([key, value]) => (
                   <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem", mb: 0.5 }}>
-                    <strong>{key}:</strong> {String(value)}
+                    <strong>{key}:</strong> {(columnPreferencesData?.columnMapping as Record<string, string>)?.[key] === "time" ? formatTimeDisplay(String(value)) : String(value)}
                   </Typography>
                 ))}
               </Box>

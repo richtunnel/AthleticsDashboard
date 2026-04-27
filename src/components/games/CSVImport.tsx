@@ -68,6 +68,7 @@ interface FieldMapping {
 
 const DATABASE_FIELDS = [
   { value: "date", label: "Date", required: true },
+  { value: "time", label: "Time", required: false },
   { value: "preserve", label: "Keep as Custom Column", required: false },
   { value: "skip", label: "Skip Column", required: false },
 ];
@@ -200,6 +201,10 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
       if (normalized.includes("date")) {
         mapping[header] = "date";
       }
+      // Time mapping
+      else if (normalized.includes("time") || normalized.includes("start")) {
+        mapping[header] = "time";
+      }
       // All other columns are preserved as custom columns by default
       else {
         mapping[header] = "preserve";
@@ -289,6 +294,16 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
               throw new Error(`Invalid date in column "${csvField}": ${errorMsg}`);
             }
             break;
+          case "time":
+            try {
+              const timeValue = value ? parseAndConvertTime(value as string) : null;
+              transformed.time = timeValue; // For standard game time
+              transformed.customFields[csvField] = timeValue; // For table display
+            } catch (error) {
+              // Time is optional, so we can just log or preserve original if parsing fails
+              transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
+            }
+            break;
           case "preserve":
             // Store all preserved columns as custom fields with their original names
             transformed.customFields[csvField] = value !== null && value !== undefined ? String(value) : null;
@@ -329,6 +344,10 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
         // Date column always comes first
         customColumns.unshift(csvColumn);
         columnMapping[csvColumn] = "date";
+      } else if (dbField === "time") {
+        // Time column
+        customColumns.push(csvColumn);
+        columnMapping[csvColumn] = "time";
       } else if (dbField === "preserve") {
         // Preserved columns maintain their order
         customColumns.push(csvColumn);
