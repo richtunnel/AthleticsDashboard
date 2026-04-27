@@ -90,7 +90,7 @@ function getCellValue(game: Game, columnId: string): string {
     // Many imported dates come in as 2025-12-03T12:00:00.000Z
     if (typeof strValue === "string" && strValue.includes("T") && !isNaN(Date.parse(strValue))) {
       try {
-        return format(new Date(strValue), "dd/MM/yyyy");
+        return format(new Date(strValue), "MM/dd/yyyy");
       } catch (e) {
         return strValue;
       }
@@ -108,7 +108,7 @@ function getCellValue(game: Game, columnId: string): string {
 
   switch (columnId) {
     case "date":
-      return format(new Date(game.date), "dd/MM/yyyy");
+      return format(new Date(game.date), "MM/dd/yyyy");
     case "sport":
       return game.homeTeam.sport.name;
     case "level":

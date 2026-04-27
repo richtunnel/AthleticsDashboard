@@ -300,7 +300,7 @@ export const formatGameDate = (dateString: string): string => {
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
-    return `${String(day).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}/${year}`;
+    return `${String(month + 1).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
   } catch {
     return dateString;
   }
