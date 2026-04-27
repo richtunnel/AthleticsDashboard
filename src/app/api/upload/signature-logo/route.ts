@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
           "If you're uploading from an iPhone, try converting the image to JPEG first.",
       );
     }
+    
 
     // Read file bytes
     const bytes = await file.arrayBuffer();
