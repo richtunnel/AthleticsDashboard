@@ -38,6 +38,7 @@ function ParentSignupContent() {
 
   // Get the share code from URL
   const shareCode = searchParams.get("code") || "";
+  const returnTo = searchParams.get("returnTo") || "";
 
   // Get the pre-filled data from URL
   const schoolId = searchParams.get("schoolId") || "";
@@ -102,8 +103,12 @@ function ParentSignupContent() {
       }
       
       // Redirect to Google signup with callback to handle the link creation
-      await signIn("google", { 
-        callbackUrl: "/onboarding/parent-callback" 
+      const callbackUrl = returnTo
+        ? `/onboarding/parent-callback?returnTo=${encodeURIComponent(returnTo)}`
+        : "/onboarding/parent-callback";
+
+      await signIn("google", {
+        callbackUrl
       });
     } catch (err) {
       setError("Failed to sign up with Google");
@@ -213,7 +218,12 @@ function ParentSignupContent() {
               <Button
                 variant="text"
                 size="small"
-                onClick={() => signIn("google", { callbackUrl: "/parent-dashboard" })}
+                onClick={() => {
+                  const callbackUrl = returnTo 
+                    ? `/onboarding/parent-callback?returnTo=${encodeURIComponent(returnTo)}` 
+                    : "/parent-dashboard";
+                  signIn("google", { callbackUrl });
+                }}
               >
                 Sign in instead
               </Button>

@@ -145,6 +145,7 @@ export async function middleware(req: NextRequest) {
     if (!token?.sub) {
       const url = req.nextUrl.clone();
       url.pathname = "/onboarding/parent-signup";
+      url.searchParams.set("returnTo", pathname + req.nextUrl.search);
       return NextResponse.redirect(url);
     }
 
