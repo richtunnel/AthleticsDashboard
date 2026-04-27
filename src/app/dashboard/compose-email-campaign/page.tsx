@@ -299,6 +299,7 @@ export const escapeHtml = (text: string | null | undefined): string => {
 export const formatGameDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth();
     const day = date.getUTCDate();
