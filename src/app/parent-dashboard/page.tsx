@@ -82,6 +82,7 @@ async function fetchParentOverview(): Promise<ParentOverviewData> {
 
 function formatGameDate(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",

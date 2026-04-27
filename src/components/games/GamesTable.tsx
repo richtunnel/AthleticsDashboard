@@ -3894,7 +3894,7 @@ export function GamesTable() {
     if (!mounted) return dateString;
     try {
       // Parse the date as UTC to avoid timezone shifts
-      const date = new Date(dateString);
+      const date = new Date(dateString); if (isNaN(date.getTime())) return dateString;
       // Extract the UTC date parts to ensure consistent display
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
