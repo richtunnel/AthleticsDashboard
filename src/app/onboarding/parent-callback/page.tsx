@@ -25,10 +25,14 @@ function ParentCallbackContent() {
   useEffect(() => {
     async function handleCallback() {
       const session = await getSession();
+      const returnTo = searchParams.get("returnTo");
       
       if (!session?.user?.email) {
         // Not signed in, redirect to signup
-        router.push("/onboarding/parent-signup");
+        const signupUrl = returnTo
+          ? `/onboarding/parent-signup?returnTo=${encodeURIComponent(returnTo)}`
+          : "/onboarding/parent-signup";
+        router.push(signupUrl);
         return;
       }
 
@@ -80,7 +84,7 @@ function ParentCallbackContent() {
             const linkData = await linkRes.json();
             if (linkData.schools && linkData.schools.length > 0) {
               // Returning parent — skip onboarding
-              router.push("/parent-dashboard");
+              router.push(returnTo || "/parent-dashboard");
               return;
             }
           }
@@ -88,7 +92,7 @@ function ParentCallbackContent() {
           // If the check fails, fall through to onboarding
         }
         // Truly new parent with no links — start onboarding
-        router.push("/onboarding/parent");
+        router.push(returnTo || "/onboarding/parent");
         return;
       }
 
@@ -109,7 +113,7 @@ function ParentCallbackContent() {
         });
 
         if (res.ok) {
-          router.push("/parent-dashboard");
+          router.push(returnTo || "/parent-dashboard");
         } else {
           const data = await res.json();
           const errMsg = typeof data.error === "string" ? data.error : data.error?.message || "Failed to create parent link";
@@ -153,7 +157,7 @@ function ParentCallbackContent() {
             </Alert>
             <Button 
               variant="contained" 
-              onClick={() => router.push("/onboarding/parent")}
+              onClick={() => router.push(returnTo || "/onboarding/parent")}
             >
               Try Again
             </Button>

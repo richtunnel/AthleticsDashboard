@@ -190,7 +190,28 @@ export default function ParentPlansPage() {
 
         {error && (
           <Alert severity="error" sx={{ mb: 3, maxWidth: 600, mx: "auto" }}>
-            {error}
+            {error === "Please sign up first to create a parent link" ? (
+              <>
+                {error}.{" "}
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => router.push("/onboarding/parent-signup?returnTo=/onboarding/parent/plans")}
+                  sx={{
+                    p: 0,
+                    minWidth: 0,
+                    verticalAlign: "baseline",
+                    fontWeight: "bold",
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "transparent", textDecoration: "underline" },
+                  }}
+                >
+                  Sign up here
+                </Button>
+              </>
+            ) : (
+              error
+            )}
           </Alert>
         )}
 
