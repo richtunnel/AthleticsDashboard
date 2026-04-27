@@ -200,7 +200,7 @@ export class EmailService {
 
     const body = `
       <h2>Game Information</h2>
-      <p><strong>Date:</strong> ${format(new Date(game.date), "dd/MM/yyyy")}</p>
+      <p><strong>Date:</strong> ${format(new Date(game.date), "MM/dd/yyyy")}</p>
       <p><strong>Time:</strong> ${game.time || "TBD"}</p>
       <p><strong>Sport:</strong> ${game.homeTeam.sport.name}</p>
       <p><strong>Level:</strong> ${game.homeTeam.level}</p>
@@ -279,7 +279,7 @@ export class EmailService {
     games.forEach((game: any) => {
       body += `
       <li>
-        <strong>${format(new Date(game.date), "dd/MM/yyyy")}</strong> - 
+        <strong>${format(new Date(game.date), "MM/dd/yyyy")}</strong> - 
         ${game.homeTeam.sport.name} (${game.homeTeam.level}) vs 
         ${game.opponent?.name || "TBD"}
         ${game.time ? ` at ${game.time}` : ""}
