@@ -295,16 +295,15 @@ export const escapeHtml = (text: string | null | undefined): string => {
  * Format date string
  */
 export const formatGameDate = (dateString: string): string => {
-  const date = new Date(dateString);
-
-  // Guard against invalid dates
-  if (isNaN(date.getTime())) return dateString;
-
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1; // 0-based → 1-based
-  const day = date.getUTCDate();
-
-  return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
+  try {
+    const date = new Date(dateString);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const day = date.getUTCDate();
+    return `${String(day).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}/${year}`;
+  } catch {
+    return dateString;
+  }
 };
 
 export function buildEmailPreviewHtml({ mounted, theme, additionalMessage, visibleColumnIds, columnMapping, customColumns, selectedGames, emailSignature }: EmailPreviewProps) {
