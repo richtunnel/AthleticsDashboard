@@ -12,8 +12,10 @@ import {
   CircularProgress,
   Avatar,
   Button,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { School, ChatBubbleOutline } from "@mui/icons-material";
+import { School, ChatBubbleOutline, Delete } from "@mui/icons-material";
 import ConversationList from "@/components/chat/ConversationList";
 import MessageThread from "@/components/chat/MessageThread";
 import MessageInput from "@/components/chat/MessageInput";
@@ -134,6 +136,21 @@ export default function ParentChatPage() {
         }
       );
       queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
+    },
+  });
+
+  // Delete conversation mutation
+  const deleteConversation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const res = await fetch(`/api/parent/chat/conversations/${conversationId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete conversation");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
+      setSelectedConversation(null);
     },
   });
 
@@ -279,6 +296,22 @@ export default function ParentChatPage() {
                     <Typography variant="caption" color="text.secondary">
                       {selectedConversation.schoolName}
                     </Typography>
+                  </Box>
+                  <Box sx={{ ml: "auto" }}>
+                    <Tooltip title="Delete Conversation">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          if (confirm("Are you sure you want to delete this conversation? This cannot be undone.")) {
+                            deleteConversation.mutate(selectedConversation.id);
+                          }
+                        }}
+                        disabled={deleteConversation.isPending}
+                      >
+                        <Delete fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 </Box>
 
