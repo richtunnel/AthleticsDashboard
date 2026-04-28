@@ -183,7 +183,7 @@ export function CollaboratorsList({
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  {member.status === "ACCEPTED" && onRevoke && (
+                  {["ACCEPTED", "PENDING", "EXPIRED"].includes(member.status) && onRevoke && (
                     <Button
                       size="small"
                       color="error"
