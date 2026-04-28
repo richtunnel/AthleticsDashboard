@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
+import { decrypt } from "@/lib/utils/encryption";
 
 /**
  * GET /api/chat/conversations
@@ -87,7 +88,7 @@ export async function GET() {
         gradeLevel: link?.gradeLevel || null,
         lastMessage: lastMessage
           ? {
-              content: lastMessage.content,
+              content: decrypt(lastMessage.content),
               createdAt: lastMessage.createdAt.toISOString(),
               isFromMe: lastMessage.senderUserId === user.id,
             }

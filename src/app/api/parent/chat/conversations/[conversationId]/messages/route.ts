@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
+import { encrypt, decrypt } from "@/lib/utils/encryption";
 
 /**
  * GET /api/parent/chat/conversations/[conversationId]/messages
@@ -68,7 +69,7 @@ export async function GET(
         senderUserId: m.senderUserId,
         senderName: m.sender.name || "Unknown",
         senderImage: m.sender.image || null,
-        content: m.content,
+        content: decrypt(m.content),
         readAt: m.readAt?.toISOString() || null,
         createdAt: m.createdAt.toISOString(),
       })),
@@ -127,12 +128,13 @@ export async function POST(
     }
 
     // Create the message and update conversation timestamp in one transaction
+    const encryptedContent = encrypt(content);
     const message = await prisma.$transaction(async (tx) => {
       const msg = await tx.chatMessage.create({
         data: {
           conversationId,
           senderUserId: user.id,
-          content,
+          content: encryptedContent,
         },
       });
 
@@ -150,7 +152,7 @@ export async function POST(
       conversationId,
       senderUserId: user.id,
       senderName: user.name || "Parent",
-      content: message.content,
+      content: content,
       createdAt: message.createdAt.toISOString(),
     };
 
@@ -164,7 +166,7 @@ export async function POST(
       conversationId,
       senderUserId: user.id,
       senderName: user.name || "Parent",
-      content: message.content,
+      content: content,
       readAt: null,
       createdAt: message.createdAt.toISOString(),
     });
