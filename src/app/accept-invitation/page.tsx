@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -34,6 +34,7 @@ function AcceptInvitationContent() {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEmailMismatch, setIsEmailMismatch] = useState(false);
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
 
   const token = searchParams.get("token") || "";
@@ -96,7 +97,12 @@ function AcceptInvitationContent() {
   // If user is signed in, auto-accept
   useEffect(() => {
     if (status === "authenticated" && session?.user && invitation && !accepting && !error) {
-      acceptInvitation();
+      if (session.user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+        setError(`You are signed in as ${session.user.email}, but this invitation was sent to ${invitation.email}.`);
+        setIsEmailMismatch(true);
+      } else {
+        acceptInvitation();
+      }
     }
   }, [status, session, invitation, accepting, error, acceptInvitation]);
 
@@ -139,9 +145,18 @@ function AcceptInvitationContent() {
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
             </Alert>
-            <Button variant="contained" onClick={() => router.push("/login")}>
-              Go to Login
-            </Button>
+            {isEmailMismatch ? (
+              <Button
+                variant="contained"
+                onClick={() => signOut({ callbackUrl: window.location.href })}
+              >
+                Sign Out
+              </Button>
+            ) : (
+              <Button variant="contained" onClick={() => router.push("/login")}>
+                Go to Login
+              </Button>
+            )}
           </Container>
         </Box>
         <TopFooter />

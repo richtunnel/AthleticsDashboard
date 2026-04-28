@@ -105,13 +105,9 @@ export async function GET(request: NextRequest) {
 
     // If signed in, check if the email matches
     if (isSignedIn && session.user.email.toLowerCase() !== email.toLowerCase()) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "This invitation was sent to a different email address. Please sign out and sign in with the correct account." 
-        },
-        { status: 400 }
-      );
+      const acceptPageUrl = new URL("/accept-invitation", request.url);
+      acceptPageUrl.searchParams.set("token", token);
+      return NextResponse.redirect(acceptPageUrl);
     }
 
     // Get the owner details
