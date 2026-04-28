@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { decrypt } from "@/lib/utils/encryption";
 
 /**
  * GET /api/parent/chat/conversations
@@ -75,7 +76,7 @@ export async function GET() {
         adId: ad?.id || null,
         lastMessage: lastMessage
           ? {
-              content: lastMessage.content,
+              content: decrypt(lastMessage.content),
               createdAt: lastMessage.createdAt.toISOString(),
               isFromMe: lastMessage.senderUserId === user.id,
             }
