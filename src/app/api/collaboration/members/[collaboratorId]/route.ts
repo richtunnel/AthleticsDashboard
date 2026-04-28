@@ -49,7 +49,7 @@ export async function DELETE(
     }
 
     // Check if already revoked
-    if (collaborator.status === "REVOKED" || collaborator.status === "EXPIRED") {
+    if (collaborator.status === "REVOKED") {
       return NextResponse.json(
         { success: false, message: "This collaborator access has already been revoked" },
         { status: 400 }
