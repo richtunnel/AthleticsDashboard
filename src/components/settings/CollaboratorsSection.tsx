@@ -111,6 +111,9 @@ export function CollaboratorsSection({ readOnly = false }: CollaboratorsSectionP
     );
   }
 
+  const selectedMember = members.find((m) => m.id === revokeConfirm.memberId);
+  const isPending = selectedMember?.status === "PENDING" || selectedMember?.status === "EXPIRED";
+
   return (
     <Box>
       <Card sx={{ mb: 3 }}>
@@ -145,12 +148,14 @@ export function CollaboratorsSection({ readOnly = false }: CollaboratorsSectionP
         open={revokeConfirm.open}
         onClose={() => setRevokeConfirm({ open: false, memberId: null })}
       >
-        <DialogTitle>Revoke Collaborator Access?</DialogTitle>
+        <DialogTitle>
+          {isPending ? "Cancel Invitation?" : "Revoke Collaborator Access?"}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to revoke this collaborator&apos;s access? 
-            They will immediately lose access to your dashboard. 
-            They can be re-invited at any time.
+            {isPending
+              ? "Are you sure you want to cancel this invitation? The recipient will no longer be able to use the invitation link."
+              : "Are you sure you want to revoke this collaborator's access? They will immediately lose access to your dashboard. They can be re-invited at any time."}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -158,7 +163,7 @@ export function CollaboratorsSection({ readOnly = false }: CollaboratorsSectionP
             Cancel
           </Button>
           <Button onClick={confirmRevoke} color="error" variant="contained">
-            Revoke Access
+            {isPending ? "Cancel Invitation" : "Revoke Access"}
           </Button>
         </DialogActions>
       </Dialog>
