@@ -33,17 +33,26 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 // Digital Ocean Spaces (S3-compatible) configuration
 const SPACES_BUCKET = process.env.DO_SPACES_BUCKET ?? "";
 const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
-const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
+
+// Clean the endpoint: ensure it doesn't include the bucket name to avoid duplication in AWS SDK v3
+// If DO_SPACES_ENDPOINT is https://bucket.nyc3.digitaloceanspaces.com, we want https://nyc3.digitaloceanspaces.com
+let rawEndpoint = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
+if (SPACES_BUCKET && rawEndpoint.includes(`${SPACES_BUCKET}.`)) {
+  rawEndpoint = rawEndpoint.replace(`${SPACES_BUCKET}.`, "");
+}
+const SPACES_ENDPOINT = rawEndpoint.replace(/\/$/, "");
+
 const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`).replace(/\/$/, "");
+const FORCE_PATH_STYLE = process.env.DO_SPACES_FORCE_PATH_STYLE === "true";
 
 const s3Client = new S3Client({
-  endpoint: SPACES_ENDPOINT.replace(/\/$/, ""),
+  endpoint: SPACES_ENDPOINT,
   region: SPACES_REGION,
   credentials: {
     accessKeyId: process.env.DO_SPACES_ACCESS_KEY ?? "",
     secretAccessKey: process.env.DO_SPACES_SECRET_KEY ?? "",
   },
-  forcePathStyle: false,
+  forcePathStyle: FORCE_PATH_STYLE,
 });
 
 export async function POST(request: NextRequest) {
