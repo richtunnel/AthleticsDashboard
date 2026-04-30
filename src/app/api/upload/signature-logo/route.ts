@@ -4,6 +4,8 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
+import path from "path";
+import fs from "fs/promises";
 
 // Try to import sharp, but make it optional
 let sharp: any = null;
@@ -36,6 +38,10 @@ const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
 const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
 const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`).replace(/\/$/, "");
 
+// Local upload configuration (fallback for dev)
+const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "signatures");
+const LOCAL_URL_PREFIX = "/uploads/signatures";
+
 const s3Client = new S3Client({
   endpoint: SPACES_ENDPOINT.replace(/\/$/, ""),
   region: SPACES_REGION,
@@ -43,7 +49,7 @@ const s3Client = new S3Client({
     accessKeyId: process.env.DO_SPACES_ACCESS_KEY ?? "",
     secretAccessKey: process.env.DO_SPACES_SECRET_KEY ?? "",
   },
-  forcePathStyle: false,
+  forcePathStyle: true,
 });
 
 export async function POST(request: NextRequest) {
@@ -117,26 +123,40 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const ext = wasOptimized ? ".png" : fileExtension || ".png";
-    const key = `signatures/${session.user.id}_${timestamp}_${randomSuffix}${ext}`;
+    const filename = `${session.user.id}_${timestamp}_${randomSuffix}${ext}`;
+    const key = `signatures/${filename}`;
 
-    // Delete old signature logo from Spaces if one exists
+    const useLocal = !process.env.DO_SPACES_ACCESS_KEY || !process.env.DO_SPACES_SECRET_KEY || !process.env.DO_SPACES_BUCKET;
+
+    // Delete old signature logo if one exists
     try {
       const user = (await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { signatureLogoUrl: true } as any,
       })) as any;
 
-      if (user?.signatureLogoUrl && (user.signatureLogoUrl.includes("digitaloceanspaces.com") || user.signatureLogoUrl.includes("vercel-storage.com"))) {
-        // Extract the key from the URL
-        const url = new URL(user.signatureLogoUrl);
-        const oldKey = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
-        if (oldKey) {
-          await s3Client.send(
-            new DeleteObjectCommand({
-              Bucket: SPACES_BUCKET,
-              Key: oldKey,
-            }),
-          );
+      if (user?.signatureLogoUrl) {
+        if (user.signatureLogoUrl.startsWith(LOCAL_URL_PREFIX)) {
+          // Delete local file
+          const oldFilename = user.signatureLogoUrl.replace(`${LOCAL_URL_PREFIX}/`, "");
+          const oldPath = path.join(UPLOAD_DIR, oldFilename);
+          try {
+            await fs.unlink(oldPath);
+          } catch (e) {
+            console.warn("Failed to delete local file:", oldPath, e);
+          }
+        } else if (user.signatureLogoUrl.includes("digitaloceanspaces.com") || user.signatureLogoUrl.includes("vercel-storage.com")) {
+          // Extract the key from the URL
+          const url = new URL(user.signatureLogoUrl);
+          const oldKey = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
+          if (oldKey) {
+            await s3Client.send(
+              new DeleteObjectCommand({
+                Bucket: SPACES_BUCKET,
+                Key: oldKey,
+              }),
+            );
+          }
         }
       }
     } catch (error) {
@@ -144,24 +164,32 @@ export async function POST(request: NextRequest) {
       // Continue with upload even if old file deletion fails
     }
 
-    // Upload to Digital Ocean Spaces
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: SPACES_BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        ACL: "public-read",
-      }),
-    );
+    let publicUrl = "";
 
-    const publicUrl = `${SPACES_CDN_URL}/${key}`;
-
-    // Auto-save the logo URL to the user's profile
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { signatureLogoUrl: publicUrl } as any,
-    });
+    if (useLocal) {
+      // Save to local file system
+      try {
+        await fs.mkdir(UPLOAD_DIR, { recursive: true });
+        const filePath = path.join(UPLOAD_DIR, filename);
+        await fs.writeFile(filePath, buffer);
+        publicUrl = `${LOCAL_URL_PREFIX}/${filename}`;
+      } catch (error) {
+        console.error("Local upload failed:", error);
+        return ApiResponse.error("Failed to save file locally. Please try again later.");
+      }
+    } else {
+      // Upload to Digital Ocean Spaces
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: SPACES_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          ACL: "public-read",
+        }),
+      );
+      publicUrl = `${SPACES_CDN_URL}/${key}`;
+    }
 
     return ApiResponse.success({
       message: wasOptimized ? "Logo uploaded and optimized successfully" : "Logo uploaded successfully",

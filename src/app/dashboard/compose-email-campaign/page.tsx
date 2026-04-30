@@ -517,6 +517,8 @@ export default function ComposeEmailPage() {
       const data = await res.json();
       return data.data || null;
     },
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: customColumnsResponse } = useQuery({

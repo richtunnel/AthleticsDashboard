@@ -100,6 +100,7 @@ export function EmailSignatureManager() {
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [signatureText, setSignatureText] = useState("");
+  const isInitialized = useRef(false);
 
   const showMessage = (message: string, severity: AlertColor = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -112,14 +113,17 @@ export function EmailSignatureManager() {
   const { data: signature, isLoading } = useQuery<EmailSignature, Error>({
     queryKey: ["email-signature"],
     queryFn: fetchEmailSignature,
+    staleTime: 300000,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
-    if (signature) {
+    if (signature && !isInitialized.current) {
       setPhone(signature.signaturePhone || "");
       setWebsite(signature.signatureWebsite || "");
       setLogoUrl(signature.signatureLogoUrl || "");
       setSignatureText(signature.signatureText || "");
+      isInitialized.current = true;
     }
   }, [signature]);
 
