@@ -142,8 +142,8 @@ export function EmailSignatureManager() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      // Invalidate the signature query to reflect the auto-saved logo URL
-      queryClient.invalidateQueries({ queryKey: ["email-signature"] });
+      // We don't invalidate here to prevent overwriting local state with old data
+      // from the auto-save. The user will save everything together at the end.
       showMessage("Logo uploaded successfully!");
     },
     onError: (error: Error) => {
@@ -340,6 +340,7 @@ export function EmailSignatureManager() {
                 sx={{ color: theme.palette.themeButtonText.main }}
                 startIcon={<SaveIcon />}
                 loading={updateMutation.isPending}
+                disabled={uploadMutation.isPending}
                 onClick={handleSave}
                 loadingText="Saving"
                 variant="contained"

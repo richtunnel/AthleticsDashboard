@@ -76,12 +76,12 @@ function getOptimizedImageUrl(imageUrl: string, baseUrl?: string): string {
  * Process and normalize logo URL for emails
  * Ensures consistent URL resolution across all contexts
  */
-function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean = false): string {
+export function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean = false): string {
   if (!logoUrl?.trim()) return "";
 
   let processed = logoUrl.trim();
 
-  // If already an optimized URL, extract the actual image URL for processing
+  // 1. Handle already optimized URLs - extract the original source URL
   if (processed.includes("/api/images/optimize")) {
     try {
       // Handle both absolute and relative optimization URLs
@@ -94,11 +94,24 @@ function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean 
         processed = actualUrl;
       }
     } catch {
-      console.warn("[EMAIL-SIG] Failed to parse optimized image URL, using original");
+      // Failed to parse, continue with original
     }
   }
 
-  // Detect if this is a local image (uploaded to /uploads/)
+  // 2. Identify the type of URL
+  const isAbsolute = isAbsoluteUrl(processed);
+  const isDigitalOcean = processed.includes("digitaloceanspaces.com");
+  const isVercelBlob = processed.includes("vercel-storage.com");
+  const isRemoteStorage = isDigitalOcean || isVercelBlob;
+
+  // 3. For remote storage (Digital Ocean), they are already optimized and absolute.
+  // We return them as-is even if useOptimized is true to avoid double-processing
+  // through the local optimization proxy which might not have access to these buckets.
+  if (isRemoteStorage && isAbsolute) {
+    return processed;
+  }
+
+  // 4. Detect if this is a local image (uploaded to /uploads/)
   let isLocalImage = false;
   let localPath = "";
 
@@ -106,29 +119,27 @@ function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: boolean 
     // Relative local path
     isLocalImage = true;
     localPath = processed;
-  } else {
+  } else if (isAbsolute) {
     // Check if it's an absolute URL pointing to this site's /uploads/
     try {
-      if (isAbsoluteUrl(processed)) {
-        const urlObj = new URL(processed);
-        const baseUrlObj = new URL(baseUrl);
-        if (urlObj.origin === baseUrlObj.origin && urlObj.pathname.startsWith("/uploads/")) {
-          isLocalImage = true;
-          localPath = urlObj.pathname;
-        }
+      const urlObj = new URL(processed);
+      const baseUrlObj = new URL(baseUrl);
+      if (urlObj.origin === baseUrlObj.origin && urlObj.pathname.startsWith("/uploads/")) {
+        isLocalImage = true;
+        localPath = urlObj.pathname;
       }
     } catch {
       // Not a valid URL, treat as-is
     }
   }
 
-  // Return optimized URL for previews (only for local images), or absolute URL for emails
+  // 5. Apply optimization for local images in preview mode
   if (useOptimized && isLocalImage && localPath) {
     return getOptimizedImageUrl(localPath, baseUrl);
   }
 
-  // Convert relative URLs to absolute
-  if (!isAbsoluteUrl(processed)) {
+  // 6. Ensure all relative URLs are converted to absolute for email compatibility
+  if (!isAbsolute) {
     processed = resolveUrl(processed, baseUrl);
   }
 

@@ -22,12 +22,17 @@ export async function GET() {
       return ApiResponse.error("User not found", 404);
     }
 
-    return ApiResponse.success({
+    const response = ApiResponse.success({
       signaturePhone: user.signaturePhone || "",
       signatureWebsite: user.signatureWebsite || "",
       signatureLogoUrl: user.signatureLogoUrl || "",
       signatureText: user.signatureText || "",
     });
+
+    // Add cache control headers to prevent stale data
+    response.headers.set("Cache-Control", "no-store, max-age=0, must-revalidate");
+
+    return response;
   } catch (error) {
     return handleApiError(error);
   }
