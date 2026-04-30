@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 
 /**
- * GET /api/calendar/sync-requests
+ * GET /api/admin/calendar-sync-requests
  * Returns all calendar sync requests for the AD's organization
  */
 export async function GET(request: NextRequest) {

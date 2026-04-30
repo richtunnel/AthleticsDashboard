@@ -4,13 +4,13 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { z } from "zod";
 
-const rejectSchema = z.object({
-  reason: z.string().min(1, "Reason is required"),
+const approveSchema = z.object({
+  googleCalendarId: z.string().min(1, "Calendar ID is required"),
 });
 
 /**
- * POST /api/calendar/sync-requests/[id]/reject
- * Rejects a calendar sync request
+ * POST /api/admin/calendar-sync-requests/[id]/approve
+ * Approves a calendar sync request
  */
 export async function POST(
   request: NextRequest,
@@ -33,7 +33,7 @@ export async function POST(
 
     const { id } = params;
     const body = await request.json();
-    const { reason } = rejectSchema.parse(body);
+    const { googleCalendarId } = approveSchema.parse(body);
 
     const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
@@ -50,12 +50,31 @@ export async function POST(
     const updatedRequest = await prisma.calendarSyncRequest.update({
       where: { id },
       data: {
-        status: "REJECTED",
-        rejectionReason: reason,
+        status: "APPROVED",
+        googleCalendarId,
         reviewedAt: new Date(),
         reviewedById: user.id,
       },
     });
+
+    // Also update ConnectedParent if it exists for this parent/school
+    const connectedParent = await prisma.connectedParent.findFirst({
+        where: {
+            parentUserId: syncRequest.parentUserId,
+            schoolId: syncRequest.schoolId,
+        }
+    });
+
+    if (connectedParent) {
+        await prisma.connectedParent.update({
+            where: { id: connectedParent.id },
+            data: {
+                calendarSynced: true,
+                sportName: syncRequest.sportName,
+                sportLevel: syncRequest.sportLevel,
+            }
+        });
+    }
 
     return NextResponse.json({
       request: {
@@ -71,9 +90,9 @@ export async function POST(
       );
     }
     
-    console.error("[API] Error rejecting calendar sync request:", error);
+    console.error("[API] Error approving calendar sync request:", error);
     return NextResponse.json(
-      { error: "Failed to reject request" },
+      { error: "Failed to approve request" },
       { status: 500 }
     );
   }
