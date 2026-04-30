@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { ExpandLess, ExpandMore, Person, CalendarMonth, Share, ContentCopy, Refresh, Check, Link as LinkIcon } from "@mui/icons-material";
 import { ConnectedParentsMenu } from "../parents/ConnectedParentsMenu";
+import { CalendarSyncRequestsMenu } from "./CalendarSyncRequestsMenu";
 
 interface ParentsAndAthletesMenuProps {
   defaultOpen?: boolean;
@@ -107,6 +108,10 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
 
         <Collapse in={open} timeout="auto" unmountOnExit>
           <Box sx={{ p: 2, pt: 0 }}>
+            <CalendarSyncRequestsMenu />
+
+            <Divider sx={{ my: 3 }} />
+
             <ConnectedParentsMenu />
 
             <Divider sx={{ my: 2 }} />

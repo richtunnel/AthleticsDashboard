@@ -415,11 +415,103 @@ export class CalendarService {
     return results;
   }
 
+  async syncGamesForSportLevel(
+    userId: string,
+    organizationId: string,
+    sportName: string,
+    sportLevel: string,
+    targetGoogleCalendarId: string
+  ) {
+    // Check if calendar is connected
+    const isConnected = await this.isCalendarConnected(userId);
+    if (!isConnected) {
+      throw new Error("Google Calendar not connected");
+    }
+
+    // Find games for this sport and level
+    // Handle the case where sportLevel might include gender (e.g. "VARSITY MALE")
+    const levelParts = sportLevel.split(' ');
+    const baseLevel = levelParts[0];
+    const gender = levelParts.length > 1 ? levelParts[1] : null;
+
+    const games = await prisma.game.findMany({
+      where: {
+        homeTeam: {
+          organizationId,
+          sport: {
+            name: {
+              equals: sportName,
+              mode: 'insensitive'
+            }
+          },
+          level: {
+            equals: baseLevel,
+            mode: 'insensitive'
+          },
+          ...(gender ? {
+            gender: {
+              equals: gender as any,
+              mode: 'insensitive'
+            }
+          } : {})
+        }
+      }
+    });
+
+    // Create a temporary mapping for this sync if needed, 
+    // or just pass the target calendar ID directly.
+    // Given the current syncGameToCalendar implementation, 
+    // it uses resolveCalendarIdForGame.
+    // We can temporarily inject a mapping or modify syncGameToCalendar.
+    
+    const results = [];
+    for (const game of games) {
+      try {
+        // We'll use a modified version of syncGameToCalendar or just call it 
+        // after ensuring a mapping exists.
+        
+        // Ensure mapping exists for this parent
+        // We use the full sportName + sportLevel to ensure uniqueness
+        await prisma.calendarGroupMapping.upsert({
+          where: {
+            userId_columnName_columnValue: {
+              userId,
+              columnName: "Sport & Level",
+              columnValue: `${sportName} ${sportLevel}`,
+            }
+          },
+          update: {
+            googleCalendarId: targetGoogleCalendarId,
+            googleCalendarName: "Parent Sync", // Default name
+          },
+          create: {
+            userId,
+            columnName: "Sport & Level",
+            columnValue: `${sportName} ${sportLevel}`,
+            googleCalendarId: targetGoogleCalendarId,
+            googleCalendarName: "Parent Sync",
+          }
+        });
+
+        const result = await this.syncGameToCalendar(game.id, userId);
+        results.push({ id: game.id, ok: true, result });
+      } catch (e) {
+        results.push({
+          id: game.id,
+          ok: false,
+          error: e instanceof Error ? e.message : "Unknown error",
+        });
+      }
+    }
+
+    return results;
+  }
+
   async syncGameToCalendar(gameId: string, userId: string) {
     // Get user's organizationId (only need this field)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { organizationId: true }, // ✅ Only select what we need
+      select: { organizationId: true, role: true },
     });
 
     if (!user) {
@@ -439,12 +531,23 @@ export class CalendarService {
       };
     }
 
-    // ✅ VALIDATE: Game belongs to user's organization
+    // ✅ VALIDATE: Game belongs to user's organization OR user is a parent linked to the organization
     const game = await prisma.game.findFirst({
       where: {
         id: gameId,
         homeTeam: {
-          organizationId: user.organizationId,
+          OR: [
+            { organizationId: user.organizationId },
+            {
+              organization: {
+                parentAthleteLinks: {
+                  some: {
+                    parentUserId: userId,
+                  }
+                }
+              }
+            }
+          ]
         },
       },
       include: {
@@ -975,9 +1078,10 @@ export class CalendarService {
     // Fall back to database fields if custom fields don't exist
     const dbSport = game.homeTeam?.sport?.name?.trim();
     const dbLevel = game.homeTeam?.level?.trim();
+    const dbGender = game.homeTeam?.gender;
 
     if (dbSport && dbLevel) {
-      return `${dbSport} ${dbLevel}`;
+      return dbGender ? `${dbSport} ${dbLevel} ${dbGender}` : `${dbSport} ${dbLevel}`;
     }
 
     if (dbSport) {

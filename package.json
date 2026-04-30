@@ -76,7 +76,6 @@
     "openai": "^6.2.0",
     "papaparse": "^5.5.3",
     "pg": "^8.16.3",
-    "prisma": "6.19.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-draggable": "^4.5.0",
@@ -106,6 +105,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.5.4",
     "postcss": "^8.5.6",
+    "prisma": "^6.19.2",
     "typescript": "5.9.3"
   },
   "engines": {
