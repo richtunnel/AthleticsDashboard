@@ -379,29 +379,67 @@ export class CalendarService {
   }
 
   async syncAllGames(userId: string, organizationId: string) {
-    // Adjust the where clause to match your schema relations
-    // Assumes Game has homeTeam with organizationId
-    const games = await prisma.game.findMany({
-      where: {
-        homeTeam: {
-          organizationId,
-        },
-      },
-      select: { id: true },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
     });
+
+    let games;
+    if (user?.role === "PARENT") {
+      // For parents, only sync games that match approved sync requests
+      const approvedRequests = await prisma.calendarSyncRequest.findMany({
+        where: {
+          parentUserId: userId,
+          schoolId: organizationId,
+          status: "APPROVED",
+        },
+      });
+
+      if (approvedRequests.length === 0) {
+        return [];
+      }
+
+      // Build OR conditions for all approved sport/level combinations
+      const orConditions = approvedRequests.map((req) => {
+        const levelParts = req.sportLevel.split(" ");
+        const baseLevel = levelParts[0];
+        const gender = levelParts.length > 1 ? levelParts[1] : null;
+
+        return {
+          sport: {
+            name: { equals: req.sportName, mode: "insensitive" as const },
+          },
+          level: { equals: baseLevel, mode: "insensitive" as const },
+          ...(gender ? { gender: { equals: gender as any, mode: "insensitive" as const } } : {}),
+        };
+      });
+
+      games = await prisma.game.findMany({
+        where: {
+          homeTeam: {
+            organizationId,
+            OR: orConditions,
+          },
+        },
+        select: { id: true },
+      });
+    } else {
+      // For ADs/Staff, sync all games
+      games = await prisma.game.findMany({
+        where: {
+          homeTeam: {
+            organizationId,
+          },
+        },
+        select: { id: true },
+      });
+    }
 
     const results: Array<{ id: string; ok: boolean; error?: string }> = [];
 
     for (const g of games) {
       try {
-        // Reuse your single-game sync routine if you have one
-        // e.g., await this.syncGameToGoogleCalendar(g.id, userId);
-        // For now, flip a synced flag so this compiles and runs:
-        await prisma.game.update({
-          where: { id: g.id },
-          data: { calendarSynced: true },
-        });
-
+        await this.syncGameToCalendar(g.id, userId);
         results.push({ id: g.id, ok: true });
       } catch (e) {
         results.push({
@@ -467,9 +505,6 @@ export class CalendarService {
     const results = [];
     for (const game of games) {
       try {
-        // We'll use a modified version of syncGameToCalendar or just call it 
-        // after ensuring a mapping exists.
-        
         // Ensure mapping exists for this parent
         // We use the full sportName + sportLevel to ensure uniqueness
         await prisma.calendarGroupMapping.upsert({
@@ -511,45 +546,16 @@ export class CalendarService {
     // Get user's organizationId (only need this field)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { organizationId: true, role: true },
+      select: { id: true, organizationId: true, role: true },
     });
 
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Check if this is the user's first synced game (for tracker)
-    const isNewSyncUser = await calendarSyncTrackerService.isNewSyncUser(userId);
-
-    // Check if calendar is connected before proceeding
-    const isConnected = await this.isCalendarConnected(userId);
-    if (!isConnected) {
-      return {
-        success: false,
-        skipped: true,
-        message: "Google Calendar not connected",
-      };
-    }
-
-    // ✅ VALIDATE: Game belongs to user's organization OR user is a parent linked to the organization
-    const game = await prisma.game.findFirst({
-      where: {
-        id: gameId,
-        homeTeam: {
-          OR: [
-            { organizationId: user.organizationId },
-            {
-              organization: {
-                parentAthleteLinks: {
-                  some: {
-                    parentUserId: userId,
-                  }
-                }
-              }
-            }
-          ]
-        },
-      },
+    // Get the game with its details
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
       include: {
         homeTeam: {
           include: {
@@ -564,7 +570,53 @@ export class CalendarService {
     });
 
     if (!game) {
-      throw new Error("Game not found or unauthorized");
+      throw new Error("Game not found");
+    }
+
+    // ✅ VALIDATE permissions
+    if (user.role === "PARENT") {
+      // Parent must have an approved request for this sport/level
+      const approvedRequests = await prisma.calendarSyncRequest.findMany({
+        where: {
+          parentUserId: userId,
+          schoolId: game.homeTeam.organizationId,
+          status: "APPROVED",
+          sportName: { equals: game.homeTeam.sport.name, mode: "insensitive" },
+        },
+      });
+
+      const hasApprovedRequest = approvedRequests.some((req) => {
+        const levelParts = req.sportLevel.split(" ");
+        const baseLevel = levelParts[0];
+        const gender = levelParts.length > 1 ? levelParts[1] : null;
+
+        const levelMatches = game.homeTeam.level.toLowerCase() === baseLevel.toLowerCase();
+        const genderMatches = !gender || game.homeTeam.gender?.toLowerCase() === gender.toLowerCase();
+
+        return levelMatches && genderMatches;
+      });
+
+      if (!hasApprovedRequest) {
+        throw new Error("Unauthorized: No approved sync request for this sport and level");
+      }
+    } else {
+      // AD/Staff must be in the same organization
+      if (game.homeTeam.organizationId !== user.organizationId) {
+        throw new Error("Unauthorized: Game does not belong to your organization");
+      }
+    }
+
+    // Check if this is the user's first synced game (for tracker)
+    const isNewSyncUser = await calendarSyncTrackerService.isNewSyncUser(userId);
+
+    // Check if calendar is connected before proceeding
+    const isConnected = await this.isCalendarConnected(userId);
+    if (!isConnected) {
+      return {
+        success: false,
+        skipped: true,
+        message: "Google Calendar not connected",
+      };
     }
 
     // Get calendar client (this already handles tokens via Account table)

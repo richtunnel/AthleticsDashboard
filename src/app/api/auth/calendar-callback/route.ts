@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import { getServerSession } from "next-auth";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -20,8 +19,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get the current logged-in user session
-    const session = await getServerSession(authOptions);
+    // Get the current logged-in user session (AD or Parent)
+    const session = await getParentSession();
 
     if (!session?.user) {
       console.error("❌ No active session - user must be logged in");

@@ -63,7 +63,7 @@ export function CalendarSyncRequestsMenu() {
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["adminCalendarSyncRequests"],
     queryFn: async () => {
-      const res = await fetch("/api/calendar/sync-requests");
+      const res = await fetch("/api/admin/calendar-sync-requests");
       if (!res.ok) throw new Error("Failed to fetch requests");
       return res.json() as Promise<{ requests: CalendarSyncRequest[] }>;
     },
@@ -80,7 +80,7 @@ export function CalendarSyncRequestsMenu() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ id, googleCalendarId }: { id: string; googleCalendarId: string }) => {
-      const res = await fetch(`/api/calendar/sync-requests/${id}/approve`, {
+      const res = await fetch(`/api/admin/calendar-sync-requests/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ googleCalendarId }),
@@ -101,7 +101,7 @@ export function CalendarSyncRequestsMenu() {
 
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const res = await fetch(`/api/calendar/sync-requests/${id}/reject`, {
+      const res = await fetch(`/api/admin/calendar-sync-requests/${id}/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
