@@ -33,11 +33,11 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 // Digital Ocean Spaces (S3-compatible) configuration
 const SPACES_BUCKET = process.env.DO_SPACES_BUCKET ?? "";
 const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
-const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.digitaloceanspaces.com`;
-const SPACES_CDN_URL = process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
+const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`).replace(/\/$/, "");
 
 const s3Client = new S3Client({
-  endpoint: SPACES_ENDPOINT,
+  endpoint: SPACES_ENDPOINT.replace(/\/$/, ""),
   region: SPACES_REGION,
   credentials: {
     accessKeyId: process.env.DO_SPACES_ACCESS_KEY ?? "",

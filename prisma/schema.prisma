@@ -84,6 +84,7 @@ model User {
   tablePreferences           TablePreference[]
   organization               Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   loginEvents                UserLoginEvent[]
+  calendarSyncRequests       CalendarSyncRequest[]     @relation("ParentCalendarSyncRequests")
 
   @@index([organizationId])
   @@map("User")
@@ -167,20 +168,20 @@ model GamesWorkbook {
 }
 
 model Organization {
-  id                     String              @id @default(cuid())
+  id                     String                @id @default(cuid())
   name                   String
   district               String?
   state                  String?
-  timezone               String              @default("America/New_York")
-  storageUsageBytes      BigInt              @default(0)
-  storageQuotaBytes      BigInt              @default(1073741824)
+  timezone               String                @default("America/New_York")
+  storageUsageBytes      BigInt                @default(0)
+  storageQuotaBytes      BigInt                @default(1073741824)
   lastStorageCalculation DateTime?
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
   connectedParents       ConnectedParent[]
   conversations          Conversation[]
   customColumns          CustomColumn[]
-  emailGroups            EmailGroup[]        @relation("OrganizationEmailGroups")
+  emailGroups            EmailGroup[]          @relation("OrganizationEmailGroups")
   opponents              Opponent[]
   parentAthleteLinks     ParentAthleteLink[]
   schools                School[]
@@ -188,6 +189,7 @@ model Organization {
   travelSettings         TravelSettings?
   users                  User[]
   venues                 Venue[]
+  calendarSyncRequests   CalendarSyncRequest[] @relation("SchoolCalendarSyncRequests")
 }
 
 model Sport {
@@ -695,22 +697,22 @@ model School {
 }
 
 model ParentAthleteLink {
-  id              String               @id @default(cuid())
-  parentUserId    String
-  schoolId        String
-  schoolEntityId  String?
-  athleteName     String
-  athleteEmail    String?              @unique
-  teamName        String?
-  sport           String?
-  gradeLevel      String?
-  status          String               @default("PENDING")
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  parent          User                 @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
-  school          Organization         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  schoolEntity    School?              @relation(fields: [schoolEntityId], references: [id])
-  subscriptions   ParentSubscription[]
+  id             String               @id @default(cuid())
+  parentUserId   String
+  schoolId       String
+  schoolEntityId String?
+  athleteName    String
+  athleteEmail   String?              @unique
+  teamName       String?
+  sport          String?
+  gradeLevel     String?
+  status         String               @default("PENDING")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  parent         User                 @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
+  school         Organization         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolEntity   School?              @relation(fields: [schoolEntityId], references: [id])
+  subscriptions  ParentSubscription[]
 
   @@index([parentUserId])
   @@index([schoolId])
@@ -778,6 +780,27 @@ model Conversation {
   @@index([parentUserId])
   @@index([schoolId])
   @@index([lastMessageAt])
+}
+
+model CalendarSyncRequest {
+  id               String             @id @default(cuid())
+  parentUserId     String
+  schoolId         String // Organization ID
+  sportName        String // e.g., "Soccer"
+  sportLevel       String // e.g., "VARSITY"
+  status           CalendarSyncStatus @default(PENDING)
+  googleCalendarId String? // Set when approved
+  rejectionReason  String?
+  requestedAt      DateTime           @default(now())
+  reviewedAt       DateTime?
+  reviewedById     String?
+  parent           User               @relation("ParentCalendarSyncRequests", fields: [parentUserId], references: [id], onDelete: Cascade)
+  school           Organization       @relation("SchoolCalendarSyncRequests", fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([parentUserId])
+  @@index([schoolId])
+  @@index([status])
+  @@map("CalendarSyncRequest")
 }
 
 model ChatMessage {
@@ -907,4 +930,10 @@ enum CollaborationAction {
   INVITE_EXPIRED
   MEMBER_REVOKED
   EMAIL_RESENT
+}
+
+enum CalendarSyncStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

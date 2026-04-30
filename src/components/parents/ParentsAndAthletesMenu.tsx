@@ -21,9 +21,12 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
-import { ExpandLess, ExpandMore, Person, CalendarMonth, Share, ContentCopy, Refresh, Check, Link as LinkIcon } from "@mui/icons-material";
+import { ExpandLess, ExpandMore, Person, CalendarMonth, Share, ContentCopy, Refresh, Check, Link as LinkIcon, Group, HowToReg } from "@mui/icons-material";
 import { ConnectedParentsMenu } from "../parents/ConnectedParentsMenu";
+import { CalendarSyncRequestsMenu } from "./CalendarSyncRequestsMenu";
 
 interface ParentsAndAthletesMenuProps {
   defaultOpen?: boolean;
@@ -53,6 +56,7 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
   const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
 
   const {
     data: shareData,
@@ -67,6 +71,10 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
 
   const handleToggle = () => {
     setOpen(!open);
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
   };
 
   const handleCopyLink = async () => {
@@ -97,118 +105,123 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
       </Typography>
 
       <Card variant="outlined" sx={{ mb: 2 }}>
-        {/* <ListItemButton onClick={handleToggle}>
-          <ListItemIcon>
-            <Person color="primary" />
-          </ListItemIcon>
-          <ListItemText primary="Parents & Athletes" secondary="Manage parent connections" />
-          {open ? <ExpandLess /> : <ExpandMore />}
-        </ListItemButton> */}
-
         <Collapse in={open} timeout="auto" unmountOnExit>
-          <Box sx={{ p: 2, pt: 0 }}>
-            <ConnectedParentsMenu />
-
-            <Divider sx={{ my: 2 }} />
-
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                <LinkIcon color="primary" />
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Share Parent Portal Link
-                </Typography>
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Share this unique link with parents to let them easily connect to your school&apos;s athletic program.
-              </Typography>
-
-              {isLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              ) : error ? (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  Failed to load share link. Please try again.
-                </Alert>
-              ) : shareData ? (
-                <>
-                  <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      value={shareData.shareUrl}
-                      InputProps={{
-                        readOnly: true,
-                      }}
-                      sx={{
-                        "& .MuiInputBase-input": {
-                          fontFamily: "monospace",
-                          fontSize: "0.8rem",
-                        },
-                      }}
-                    />
-                    <Tooltip title={copied ? "Copied!" : "Copy link"}>
-                      <IconButton onClick={handleCopyLink} color={copied ? "success" : "default"} size="small">
-                        {copied ? <Check /> : <ContentCopy />}
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Generate new code">
-                      <IconButton onClick={handleRegenerateCode} size="small">
-                        <Refresh />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-
-                  <Typography variant="caption" color="text.secondary">
-                    Share Code:{" "}
-                    <Box component="span" sx={{ fontFamily: "monospace", fontWeight: "bold" }}>
-                      {shareData.shareCode}
-                    </Box>
-                  </Typography>
-
-                  {shareData.schoolName && (
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      School: {shareData.schoolName}
-                    </Typography>
-                  )}
-                </>
-              ) : null}
-            </Box>
-
-            <Button
-              variant="contained"
-              startIcon={<Share />}
-              onClick={async () => {
-                const url = shareData?.shareUrl || `${window.location.origin}/onboarding/parent-signup`;
-                const shareText = `Join our athletic program! Sign up as a parent here: ${url}`;
-
-                // Use native share on mobile, fallback to mailto on desktop
-                if (navigator.share) {
-                  try {
-                    await navigator.share({
-                      title: "Join Our Athletic Program",
-                      text: shareText,
-                      url,
-                    });
-                  } catch (err) {
-                    // User cancelled or share failed — ignore AbortError
-                    if ((err as Error).name !== "AbortError") {
-                      console.error("Share failed:", err);
-                    }
-                  }
-                } else {
-                  // Desktop fallback: open email compose
-                  const subject = encodeURIComponent("Join Our Athletic Program");
-                  const body = encodeURIComponent(shareText);
-                  window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
-                }
-              }}
-              disabled={isLoading}
-              sx={{ maxWidth: 320 }}
+          <Box sx={{ p: 2, pt: 1 }}>
+            <Tabs 
+              value={tabValue} 
+              onChange={handleTabChange} 
+              sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+              variant="scrollable"
+              scrollButtons="auto"
             >
-              Share Parent Link
-            </Button>
+              <Tab icon={<HowToReg fontSize="small" />} iconPosition="start" label="Sync Requests" />
+              <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Connected Parents" />
+              <Tab icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Portal Setup" />
+            </Tabs>
+
+            {tabValue === 0 && <CalendarSyncRequestsMenu />}
+            
+            {tabValue === 1 && <ConnectedParentsMenu />}
+            
+            {tabValue === 2 && (
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                  <LinkIcon color="primary" />
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Share Parent Portal Link
+                  </Typography>
+                </Box>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Share this unique link with parents to let them easily connect to your school&apos;s athletic program.
+                </Typography>
+
+                {isLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                ) : error ? (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    Failed to load share link. Please try again.
+                  </Alert>
+                ) : shareData ? (
+                  <>
+                    <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={shareData.shareUrl}
+                        InputProps={{
+                          readOnly: true,
+                        }}
+                        sx={{
+                          "& .MuiInputBase-input": {
+                            fontFamily: "monospace",
+                            fontSize: "0.8rem",
+                          },
+                        }}
+                      />
+                      <Tooltip title={copied ? "Copied!" : "Copy link"}>
+                        <IconButton onClick={handleCopyLink} color={copied ? "success" : "default"} size="small">
+                          {copied ? <Check /> : <ContentCopy />}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Generate new code">
+                        <IconButton onClick={handleRegenerateCode} size="small">
+                          <Refresh />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+
+                    <Typography variant="caption" color="text.secondary">
+                      Share Code:{" "}
+                      <Box component="span" sx={{ fontFamily: "monospace", fontWeight: "bold" }}>
+                        {shareData.shareCode}
+                      </Box>
+                    </Typography>
+
+                    {shareData.schoolName && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        School: {shareData.schoolName}
+                      </Typography>
+                    )}
+                  </>
+                ) : null}
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Share />}
+                    onClick={async () => {
+                      const url = shareData?.shareUrl || `${window.location.origin}/onboarding/parent-signup`;
+                      const shareText = `Join our athletic program! Sign up as a parent here: ${url}`;
+
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: "Join Our Athletic Program",
+                            text: shareText,
+                            url,
+                          });
+                        } catch (err) {
+                          if ((err as Error).name !== "AbortError") {
+                            console.error("Share failed:", err);
+                          }
+                        }
+                      } else {
+                        const subject = encodeURIComponent("Join Our Athletic Program");
+                        const body = encodeURIComponent(shareText);
+                        window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+                      }
+                    }}
+                    disabled={isLoading}
+                    sx={{ maxWidth: 320 }}
+                  >
+                    Share Parent Link
+                  </Button>
+                </Box>
+              </Box>
+            )}
           </Box>
         </Collapse>
       </Card>
