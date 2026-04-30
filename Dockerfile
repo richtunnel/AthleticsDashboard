@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat openssl
 COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-RUN yarn install --frozen-lockfile --network-timeout 600000
+RUN yarn install --network-timeout 600000
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -36,7 +36,6 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
-COPY --from=builder --chown=nextjs:nodejs /app/yarn.lock ./
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
