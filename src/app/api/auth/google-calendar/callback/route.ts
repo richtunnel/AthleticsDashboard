@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/utils/auth";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { handleIncrementalAuthCallback } from "@/lib/services/incremental-auth.service";
 
 /**
@@ -9,7 +9,14 @@ import { handleIncrementalAuthCallback } from "@/lib/services/incremental-auth.s
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    const session = await getParentSession();
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
     
     // Get callback parameters
     const body = await request.json();
@@ -24,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     // Handle the callback and update account
     const result = await handleIncrementalAuthCallback(
-      session.user.id,
+      (session.user as any).id,
       code,
       state,
       redirectUrl
