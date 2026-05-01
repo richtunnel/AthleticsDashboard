@@ -19,7 +19,7 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    email: searchParams.get("email") || "",
     password: "",
     confirmPassword: "",
   });
@@ -88,7 +88,7 @@ function SignupForm() {
         email: formData.email,
         password: formData.password,
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl,
       });
 
       if (signInResult?.error) {
@@ -97,7 +97,7 @@ function SignupForm() {
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(callbackUrl);
     } catch (error) {
       // Error handled by onError callback
     }

@@ -85,6 +85,7 @@ model User {
   organization               Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   loginEvents                UserLoginEvent[]
   calendarSyncRequests       CalendarSyncRequest[]     @relation("ParentCalendarSyncRequests")
+  emailJobs                  EmailJob[]
 
   @@index([organizationId])
   @@map("User")
@@ -292,11 +293,12 @@ model Venue {
 }
 
 model EmailLog {
-  id                  String      @id @default(cuid())
+  id                  String      @default(cuid())
   to                  String[]
   cc                  String[]
   subject             String
   body                String
+  replyTo             String?
   status              EmailStatus @default(PENDING)
   sentAt              DateTime?
   error               String?
@@ -314,9 +316,52 @@ model EmailLog {
   game                Game?       @relation(fields: [gameId], references: [id])
   sentBy              User?       @relation(fields: [sentById], references: [id], onDelete: Cascade)
 
+  @@id([id, createdAt])
   @@index([gameId])
   @@index([sentById])
   @@index([createdAt])
+  @@index([status])
+}
+
+model EmailJob {
+  id                  String         @id @default(cuid())
+  userId              String
+  organizationId      String
+  subject             String
+  body                String
+  replyTo             String?
+  status              EmailJobStatus @default(PENDING)
+  totalCount          Int            @default(0)
+  sentCount           Int            @default(0)
+  failedCount         Int            @default(0)
+  gameIds             String[]       @default([])
+  groupId             String?
+  campaignId          String?
+  recipientCategory   String?
+  additionalMessage   String?
+  visibleColumnIds    String[]       @default([])
+  selectedSchoolNames String[]       @default([])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipients          EmailRecipient[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model EmailRecipient {
+  id          String               @id @default(cuid())
+  jobId       String
+  email       String
+  status      EmailRecipientStatus @default(PENDING)
+  error       String?
+  retryCount  Int                  @default(0)
+  lastAttempt DateTime?
+  job         EmailJob             @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
   @@index([status])
 }
 
@@ -861,6 +906,21 @@ enum EmailStatus {
   SENT
   FAILED
   BOUNCED
+}
+
+enum EmailJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL_SUCCESS
+}
+
+enum EmailRecipientStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRYING
 }
 
 enum SubscriptionStatus {

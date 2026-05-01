@@ -31,19 +31,50 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 };
 
 // Digital Ocean Spaces (S3-compatible) configuration
-const SPACES_BUCKET = process.env.DO_SPACES_BUCKET ?? "";
-const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
-const SPACES_ENDPOINT = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
-const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`).replace(/\/$/, "");
+const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || "";
+const SPACES_REGION = process.env.DO_SPACES_REGION || "nyc3";
+
+// Build the base endpoint without the bucket name to avoid SSL certificate mismatches
+// when forcePathStyle is false (virtual-hosted style requires clean endpoints).
+// Input:  https://opletics-main-bucket.atl1.digitaloceanspaces.com
+// Output: https://atl1.digitaloceanspaces.com
+function buildEndpoint(rawUrl: string): string {
+  // Remove trailing slash
+  let url = rawUrl.replace(/\/$/, "");
+
+  // Parse the URL to safely remove bucket name from hostname
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+
+    // If hostname starts with "bucket." remove the bucket prefix
+    if (hostname.startsWith(`${SPACES_BUCKET}.`)) {
+      parsed.hostname = hostname.slice(SPACES_BUCKET.length + 1); // +1 for the dot
+    }
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    // Fallback to regex if URL parsing fails
+    return url.replace(`://${SPACES_BUCKET}.`, "://");
+  }
+}
+
+const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const SPACES_ENDPOINT = buildEndpoint(rawEndpoint);
+
+const rawCdnUrl = process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
+const SPACES_CDN_URL = rawCdnUrl.replace(/\/$/, "");
+
+const FORCE_PATH_STYLE = process.env.DO_SPACES_FORCE_PATH_STYLE === "true";
 
 const s3Client = new S3Client({
-  endpoint: SPACES_ENDPOINT.replace(/\/$/, ""),
+  endpoint: SPACES_ENDPOINT,
   region: SPACES_REGION,
   credentials: {
-    accessKeyId: process.env.DO_SPACES_ACCESS_KEY_NAME ?? "",
-    secretAccessKey: process.env.DO_SPACES_SECRET_KEY ?? "",
+    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME || "",
+    secretAccessKey: process.env.DO_SPACES_SECRET_KEY || process.env.DO_SPACES_SECRET_KEY_VALUE || "",
   },
-  forcePathStyle: false,
+  forcePathStyle: FORCE_PATH_STYLE,
 });
 
 export async function POST(request: NextRequest) {

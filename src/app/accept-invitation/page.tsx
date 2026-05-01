@@ -13,6 +13,7 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  Divider,
 } from "@mui/material";
 import { Google, Person, Business } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
@@ -36,6 +37,10 @@ function AcceptInvitationContent() {
   const [error, setError] = useState<string | null>(null);
   const [isEmailMismatch, setIsEmailMismatch] = useState(false);
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
+
+  const isNonGmailInvitation = invitation && 
+    !invitation.email.toLowerCase().endsWith("@gmail.com") && 
+    !invitation.email.toLowerCase().endsWith("@googlemail.com");
 
   const token = searchParams.get("token") || "";
 
@@ -146,12 +151,25 @@ function AcceptInvitationContent() {
               {error}
             </Alert>
             {isEmailMismatch ? (
-              <Button
-                variant="contained"
-                onClick={() => signOut({ callbackUrl: window.location.href })}
-              >
-                Sign Out
-              </Button>
+              <Box sx={{ mt: 2 }}>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body1">
+                    This invitation was sent to <strong>{invitation?.email}</strong>, but you are currently signed in as <strong>{session?.user?.email}</strong>. 
+                    Please sign out and sign in with the correct account to accept this invitation.
+                  </Typography>
+                  {isNonGmailInvitation && (
+                    <Typography variant="body2" sx={{ mt: 1, fontStyle: "italic", color: "text.secondary" }}>
+                      If you don&apos;t have a Google account, you can use the &quot;Sign Up&quot; or &quot;Log In&quot; options after signing out.
+                    </Typography>
+                  )}
+                </Box>
+                <Button
+                  variant="contained"
+                  onClick={() => signOut({ callbackUrl: window.location.href })}
+                >
+                  Sign Out and Try Again
+                </Button>
+              </Box>
             ) : (
               <Button variant="contained" onClick={() => router.push("/login")}>
                 Go to Login
@@ -222,7 +240,9 @@ function AcceptInvitationContent() {
 
           <Card sx={{ p: 4, textAlign: "center" }}>
             <Typography variant="body1" sx={{ mb: 3 }}>
-              Sign in with Google to accept this invitation
+              {isNonGmailInvitation 
+                ? "Sign in to accept this invitation. Non-Gmail users can set up their account manually." 
+                : "Sign in with Google to accept this invitation"}
             </Typography>
 
             <Button
@@ -231,17 +251,44 @@ function AcceptInvitationContent() {
               size="large"
               startIcon={<Google />}
               onClick={handleSignIn}
-              sx={{ borderRadius: 2, py: 1.5, fontSize: "1rem" }}
+              sx={{ borderRadius: 2, py: 1.5, fontSize: "1rem", mb: isNonGmailInvitation ? 2 : 0 }}
             >
               Sign in with Google
             </Button>
+
+            {isNonGmailInvitation && (
+              <>
+                <Divider sx={{ my: 2 }}>OR MANUAL SETUP</Divider>
+                
+                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => router.push(`/signup?email=${encodeURIComponent(invitation?.email || "")}&callbackUrl=${encodeURIComponent(window.location.href)}`)}
+                  >
+                    Sign Up
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={() => router.push(`/login?email=${encodeURIComponent(invitation?.email || "")}&callbackUrl=${encodeURIComponent(window.location.href)}`)}
+                  >
+                    Log In
+                  </Button>
+                </Box>
+                
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2, fontStyle: "italic" }}>
+                  Note: If you don&apos;t have a Google account, please use the &quot;Sign Up&quot; button above to create an account with your email and a password.
+                </Typography>
+              </>
+            )}
 
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{ display: "block", mt: 2 }}
             >
-              Use the email address: {invitation?.email}
+              Use the email address: <strong>{invitation?.email}</strong>
             </Typography>
           </Card>
         </Container>

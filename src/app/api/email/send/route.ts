@@ -7,10 +7,11 @@ import { format } from "date-fns";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { requireAuth, hasPermission, WRITE_ROLES } from "@/lib/utils/auth";
-import { sendBulkEmail, validateBulkEmails } from "@/lib/utils/bulk-email";
+import { validateBulkEmails } from "@/lib/utils/bulk-email";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
+import { emailQueueService } from "@/lib/services/email-queue.service";
 
 interface Game {
   id: string;
@@ -440,20 +441,20 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[EMAIL-API] ${requestId} - Validated ${validEmails.length} email addresses`);
-    console.log(`[EMAIL-API] ${requestId} - Calling sendBulkEmail...`);
+    console.log(`[EMAIL-API] ${requestId} - Enqueueing bulk email...`);
 
-    const result = await sendBulkEmail({
+    const job = await emailQueueService.enqueueBulkEmail({
+      userId: session.user.id,
+      organizationId: session.user.organizationId,
       to: validEmails,
       subject,
-      html: emailBody,
-      sentById: session.user.id,
-      replyTo,
+      body: emailBody,
       ...emailParams,
     });
 
-    console.log(`[EMAIL-API] ${requestId} - Email send result: ${result.success} success, ${result.failed} failed`);
+    console.log(`[EMAIL-API] ${requestId} - Email job enqueued: ${job.id}`);
 
-    if (campaignId && result.success > 0) {
+    if (campaignId) {
       try {
         console.log(`[EMAIL-API] ${requestId} - Updating campaign sentAt timestamp`);
         await prisma.emailCampaign.update({
@@ -466,24 +467,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (result.failed > 0 && result.success === 0) {
-      console.error(`[EMAIL-API] ${requestId} - All emails failed to send`);
-      return ApiResponse.error(`Failed to send all emails. Errors: ${result.errors.map((e) => `${e.email}: ${e.error}`).join("; ")}`, 500);
-    }
-
-    const message = result.failed > 0 
-      ? `Partially sent: ${result.success} succeeded, ${result.failed} failed` 
-      : `Successfully sent ${result.success} email${result.success > 1 ? "s" : ""}`;
-
-    console.log(`[EMAIL-API] ${requestId} - ${message}`);
+    const message = `Successfully enqueued ${validEmails.length} email${validEmails.length > 1 ? "s" : ""} for sending`;
 
     return ApiResponse.success({
       message,
       result: {
-        success: result.success,
-        failed: result.failed,
-        errors: result.errors,
-        emailLogIds: result.emailLogIds,
+        jobId: job.id,
+        totalCount: validEmails.length,
       },
     });
   } catch (error) {

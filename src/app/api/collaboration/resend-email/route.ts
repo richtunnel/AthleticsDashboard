@@ -106,11 +106,24 @@ export async function POST(request: NextRequest) {
 
     // Resend the invitation email
     try {
+      // Use the configured app URL or default to production
+      let appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
+      
+      // In production, we want to make sure we don't use 0.0.0.0
+      if (process.env.NODE_ENV === "production" && appUrl.includes("0.0.0.0")) {
+        appUrl = "https://opletics.com";
+      } else if (appUrl.includes("0.0.0.0")) {
+        // For local development with Docker, we might have 0.0.0.0:3000
+        appUrl = appUrl.replace("0.0.0.0", "localhost");
+      }
+      
+      const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${collaborator.token}`;
+
       await emailService.sendCollaborationInviteEmail({
         to: collaborator.email,
         inviterName: inviter.name || "A team member",
         role: collaborator.role as CollaborativeRole,
-        acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com"}/api/collaboration/accept-invitation?token=${collaborator.token}`,
+        acceptUrl: acceptUrl,
         expiresAt,
       });
 
