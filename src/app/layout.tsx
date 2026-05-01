@@ -32,15 +32,81 @@ const websiteJsonLd = {
   url: siteUrl,
 };
 
+const softwareAppJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Opletics",
+  operatingSystem: "Web",
+  applicationCategory: "BusinessApplication",
+  offers: {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+  },
+};
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "How does this actually save me time as an athletic director, coach or staff?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Explain automating my spreadsheet?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Start by creating an account importing your spreadsheet. Use our filters, email campaigns and AI tools to quickly update, track and send your games and schedules.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can I use this to keep track of data or analytics?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "At the moment you can keep track of all your leagues scores, any email transactions and games. Financial and other types of analytics in progress.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How do I get support?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "We are happy to help! You can reach out to us at support@opletics.com",
+      },
+    },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: getSiteUrlAsUrl(),
   title: {
-    default: "Opletics",
+    default: "Opletics | Premier Athletic Department Management Platform",
     template: "%s | Opletics",
   },
-  description: "Opletics is an athletic department management platform to schedule games, manage teams, and sync with Google Calendar.",
+  description:
+    "Opletics is the premier athletic department management platform designed for athletic directors and coaches. Streamline game scheduling, team management, and Google Calendar synchronization with our AI-powered tools.",
   applicationName: "Opletics",
-  keywords: ["athletic department management", "athletics scheduling software", "sports scheduling", "athletic director software", "game schedule management", "google calendar sync"],
+  keywords: [
+    "athletic department management",
+    "athletics scheduling software",
+    "sports scheduling",
+    "athletic director software",
+    "game schedule management",
+    "google calendar sync",
+    "high school sports management",
+    "middle school athletics",
+    "sports program coordinator",
+    "automated game scheduling",
+    "athletic department workflow",
+    "AI sports scheduling",
+  ],
   alternates: {
     canonical: "/",
   },
@@ -48,8 +114,9 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "Opletics",
-    title: "Opletics",
-    description: "Athletic department management platform to schedule games, manage teams, and sync with Google Calendar.",
+    title: "Opletics | Premier Athletic Department Management Platform",
+    description:
+      "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync for athletic directors and coaches.",
     images: [
       {
         url: "/assets/images/opletic-dash-sample.png",
@@ -61,8 +128,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Opletics",
-    description: "Athletic department management platform to schedule games, manage teams, and sync with Google Calendar.",
+    title: "Opletics | Premier Athletic Department Management Platform",
+    description:
+      "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync.",
     images: ["/assets/images/opletic-dash-sample.png"],
   },
   robots: {
@@ -94,6 +162,12 @@ export default function RootLayout({
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="rgb(17 17 17)" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script id="ld-website" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
+        <script
+          id="ld-software"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+        />
+        <script id="ld-faq" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
         {/* Google Analytics */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">

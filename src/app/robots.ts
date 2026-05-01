@@ -9,18 +9,18 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/onboarding/plans"],
+        allow: [
+          "/onboarding/start",
+          "/onboarding/plans",
+          "/onboarding/parent/plans",
+          "/onboarding/parent-signup",
+        ],
         disallow: [
           "/api/",
           "/auth/",
           "/dashboard/",
           "/onboarding/",
-          "/login",
-          "/signup",
-          "/forgot-password",
-          "/reset-password",
           "/verify-recovery-email",
-          "/feedback",
         ],
       },
     ],
