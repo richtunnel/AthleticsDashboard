@@ -34,16 +34,36 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || "";
 const SPACES_REGION = process.env.DO_SPACES_REGION || "nyc3";
 
-// Clean the endpoint: ensure it doesn't include the bucket name to avoid duplication
-// and potential SSL certificate mismatches when forcePathStyle is false.
-// If DO_SPACES_ENDPOINT is https://bucket.region.digitaloceanspaces.com, we want https://region.digitaloceanspaces.com
-const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_REGION}.digitaloceanspaces.com`;
-const SPACES_ENDPOINT = rawEndpoint
-  .replace(/\/$/, "")
-  .replace(`://${SPACES_BUCKET}.`, "://");
+// Build the base endpoint without the bucket name to avoid SSL certificate mismatches
+// when forcePathStyle is false (virtual-hosted style requires clean endpoints).
+// Input:  https://opletics-main-bucket.atl1.digitaloceanspaces.com
+// Output: https://atl1.digitaloceanspaces.com
+function buildEndpoint(rawUrl: string): string {
+  // Remove trailing slash
+  let url = rawUrl.replace(/\/$/, "");
 
-const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`)
-  .replace(/\/$/, "");
+  // Parse the URL to safely remove bucket name from hostname
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname;
+
+    // If hostname starts with "bucket." remove the bucket prefix
+    if (hostname.startsWith(`${SPACES_BUCKET}.`)) {
+      parsed.hostname = hostname.slice(SPACES_BUCKET.length + 1); // +1 for the dot
+    }
+
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    // Fallback to regex if URL parsing fails
+    return url.replace(`://${SPACES_BUCKET}.`, "://");
+  }
+}
+
+const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const SPACES_ENDPOINT = buildEndpoint(rawEndpoint);
+
+const rawCdnUrl = process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
+const SPACES_CDN_URL = rawCdnUrl.replace(/\/$/, "");
 
 const FORCE_PATH_STYLE = process.env.DO_SPACES_FORCE_PATH_STYLE === "true";
 
