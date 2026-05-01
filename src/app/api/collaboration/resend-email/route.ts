@@ -106,11 +106,17 @@ export async function POST(request: NextRequest) {
 
     // Resend the invitation email
     try {
+      let appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
+      if (appUrl.includes("0.0.0.0")) {
+        appUrl = appUrl.replace("0.0.0.0", "localhost");
+      }
+      const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${collaborator.token}`;
+
       await emailService.sendCollaborationInviteEmail({
         to: collaborator.email,
         inviterName: inviter.name || "A team member",
         role: collaborator.role as CollaborativeRole,
-        acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com"}/api/collaboration/accept-invitation?token=${collaborator.token}`,
+        acceptUrl: acceptUrl,
         expiresAt,
       });
 

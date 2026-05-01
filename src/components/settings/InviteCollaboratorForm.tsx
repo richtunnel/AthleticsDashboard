@@ -34,6 +34,7 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<InviteFormData>({
     resolver: zodResolver(inviteSchema),
@@ -42,6 +43,11 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
       role: "VIEWER",
     },
   });
+
+  const watchedEmail = watch("email");
+  const isNonGmail = watchedEmail && 
+    !watchedEmail.toLowerCase().endsWith("@gmail.com") && 
+    !watchedEmail.toLowerCase().endsWith("@googlemail.com");
 
   const countInfo = formatCollaboratorCount(usedSlots, collaboratorLimit);
 
@@ -125,9 +131,15 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
               helperText={errors.email?.message}
               disabled={isLoading}
               placeholder="colleague@example.com"
-            />
+              />
 
-            <FormControl fullWidth error={!!errors.role}>
+              {isNonGmail && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: -1, fontStyle: "italic" }}>
+              Users have a better experience using a gmail address. Non-gmail users must finish setting up their account manually when invited via email.
+              </Typography>
+              )}
+
+              <FormControl fullWidth error={!!errors.role}>
               <InputLabel id="role-select-label">Role</InputLabel>
               <Select {...register("role")} labelId="role-select-label" label="Role" defaultValue="VIEWER" disabled={isLoading}>
                 <MenuItem value="VIEWER">

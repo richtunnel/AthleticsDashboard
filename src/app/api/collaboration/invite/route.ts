@@ -129,6 +129,13 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
+    // Fix invitation URL
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
+    if (appUrl.includes("0.0.0.0")) {
+      appUrl = appUrl.replace("0.0.0.0", "localhost");
+    }
+    const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${token}`;
+
     // Create the invitation
     const collaborator = await prisma.collaborativeMember.create({
       data: {
@@ -165,7 +172,7 @@ export async function POST(request: NextRequest) {
         to: email,
         inviterName: user.name || "A team member",
         role: role as CollaborativeRole,
-        acceptUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com"}/api/collaboration/accept-invitation?token=${token}`,
+        acceptUrl: acceptUrl,
         expiresAt,
       });
       emailSent = true;
