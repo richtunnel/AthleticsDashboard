@@ -1,6 +1,7 @@
 import { getResendClientOptional } from "../resend";
 import { prisma } from "../database/prisma";
 import { emailLimitService } from "./email-limit.service";
+import { emailQueueService } from "./email-queue.service";
 import { format } from "date-fns";
 
 interface SendEmailParams {
@@ -10,6 +11,13 @@ interface SendEmailParams {
   body: string;
   gameId?: string;
   sentById?: string; // Make optional for system emails
+  replyTo?: string;
+  campaignId?: string;
+  groupId?: string;
+  recipientCategory?: string;
+  additionalMessage?: string;
+  visibleColumnIds?: string[];
+  selectedSchoolNames?: string[];
 }
 
 type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "payment_success" | "trial_ending" | "upgrade";
@@ -32,9 +40,60 @@ interface SubscriptionEmailParams {
 
 export class EmailService {
   async sendEmail(params: SendEmailParams) {
-    const { to, cc = [], subject, body, gameId, sentById } = params;
+    const { 
+      to, 
+      cc = [], 
+      subject, 
+      body, 
+      gameId, 
+      sentById,
+      replyTo,
+      campaignId,
+      groupId,
+      recipientCategory,
+      additionalMessage,
+      visibleColumnIds,
+      selectedSchoolNames
+    } = params;
 
-    // Check email limits if user is sending (skip for system emails)
+    // 1. Get user context if available
+    let user = null;
+    if (sentById) {
+      user = await prisma.user.findUnique({
+        where: { id: sentById },
+        select: { id: true, organizationId: true }
+      });
+    }
+
+    // 2. If we have a user and organization, use the QUEUE for scalability and reliability
+    if (user?.organizationId) {
+      try {
+        const job = await emailQueueService.enqueueBulkEmail({
+          userId: user.id,
+          organizationId: user.organizationId,
+          to: [...new Set([...to, ...cc])], // Deduplicate
+          subject,
+          body: body.includes("<html>") ? body : this.buildHtmlEmail(body),
+          replyTo,
+          gameIds: gameId ? [gameId] : [],
+          campaignId,
+          groupId,
+          recipientCategory,
+          additionalMessage,
+          visibleColumnIds,
+          selectedSchoolNames
+        });
+        return { success: true, jobId: job.id };
+      } catch (queueError) {
+        console.error("[EmailService] Failed to enqueue email, falling back to synchronous send:", queueError);
+        // Fallback to sync send if queueing fails
+      }
+    }
+
+    // 3. Fallback to synchronous send for system emails or if queueing failed
+    // This maintains backward compatibility for system emails without a clear organization context
+    
+    // Check limits if user context exists
     if (sentById) {
       const recipientCount = to.length + cc.length;
       const limitCheck = await emailLimitService.checkEmailLimits(sentById, recipientCount);
@@ -52,7 +111,7 @@ export class EmailService {
         body,
         status: "PENDING",
         gameId: gameId || null,
-        sentById: sentById || null, // Allow null for system emails
+        sentById: sentById || null,
       },
     });
 
@@ -68,11 +127,10 @@ export class EmailService {
         to,
         cc,
         subject,
-        html: this.buildHtmlEmail(body),
+        html: body.includes("<html>") ? body : this.buildHtmlEmail(body),
+        reply_to: replyTo,
       });
 
-      // The Resend API returns { data: { id: string } } on success or { error: ... }
-      // Check if we have data property
       const emailId = result.data?.id || null;
 
       // Update log on success
@@ -599,13 +657,8 @@ export class EmailService {
     }
   }
 
-  async sendCollaborationInviteEmail(params: { to: string; inviterName: string; role: "VIEWER" | "MEMBER"; acceptUrl: string; expiresAt: Date }): Promise<void> {
-    const resend = getResendClientOptional();
-    if (!resend) {
-      throw new Error("Email service not configured. Please set RESEND_API_KEY environment variable to send collaboration invitation emails.");
-    }
-
-    const { to, inviterName, role, acceptUrl, expiresAt } = params;
+  async sendCollaborationInviteEmail(params: { to: string; inviterName: string; role: "VIEWER" | "MEMBER"; acceptUrl: string; expiresAt: Date; sentById?: string }): Promise<void> {
+    const { to, inviterName, role, acceptUrl, expiresAt, sentById } = params;
 
     const roleDescription = role === "VIEWER" ? "Viewer (Read-Only)" : "Member (Full Access)";
     const expiresAtFormatted = expiresAt.toLocaleDateString(undefined, {
@@ -638,29 +691,28 @@ export class EmailService {
       <p style="margin-top: 24px;">
         <a
           href="${acceptUrl}"
-          style="display: inline-block; padding: 12px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px;"
+          style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: bold;"
         >
           Accept Invitation
         </a>
       </p>
+
+      <div style="background-color: #fff9db; padding: 15px; border-radius: 8px; border: 1px solid #fab005; margin: 20px 0;">
+        <p style="margin: 0; font-weight: bold; color: #856404;">Not a Gmail user?</p>
+        <p style="margin: 5px 0 0 0; font-size: 14px;">No problem! You can still collaborate. After clicking the button above, you can choose to sign up with a password if you don't use Google for login.</p>
+      </div>
 
       <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">
         This invitation expires in 24 hours. After that, you'll need to request a new invitation from the account owner.
       </p>
     `;
 
-    try {
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
-        to: [to],
-        subject: `Invitation to collaborate on Opletics dashboard`,
-        html: this.buildHtmlEmail(body),
-      });
-      console.log(`Collaboration invitation email sent to ${to}`);
-    } catch (error) {
-      console.error("Failed to send collaboration invitation email:", error);
-      throw error;
-    }
+    await this.sendEmail({
+      to: [to],
+      subject: `Invitation to collaborate on Opletics dashboard`,
+      body,
+      sentById,
+    });
   }
 
   async sendTicketClosedNotification(params: { ticketNumber: string; subject: string; closedBy: { name: string; email: string } }): Promise<void> {

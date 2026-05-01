@@ -239,6 +239,7 @@ model Game {
   travelTimeMinutes        Int?
   autoFillBusInfo          Boolean                @default(false)
   calendarSynced           Boolean                @default(false)
+  syncInProgress           Boolean                @default(false)
   lastSyncedAt             DateTime?
   googleCalendarEventId    String?
   googleCalendarHtmlLink   String?

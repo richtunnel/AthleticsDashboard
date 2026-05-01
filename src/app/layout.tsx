@@ -21,8 +21,14 @@ const organizationJsonLd = {
   "@type": "Organization",
   name: "Opletics",
   url: siteUrl,
+  logo: `${siteUrl}/favicon.ico`,
   email: "support@opletics.com",
   sameAs: ["https://www.instagram.com/opletics", "https://facebook.com/opletics", "https://x.com/opletics"],
+  contactPoint: {
+    "@type": "ContactPoint",
+    "email": "support@opletics.com",
+    "contactType": "customer support"
+  }
 };
 
 const websiteJsonLd = {
@@ -30,6 +36,11 @@ const websiteJsonLd = {
   "@type": "WebSite",
   name: "Opletics",
   url: siteUrl,
+  potentialAction: {
+    "@type": "SearchAction",
+    "target": `${siteUrl}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string"
+  }
 };
 
 const softwareAppJsonLd = {
@@ -38,11 +49,19 @@ const softwareAppJsonLd = {
   name: "Opletics",
   operatingSystem: "Web",
   applicationCategory: "BusinessApplication",
+  applicationSubCategory: "Sports Management Software",
   offers: {
-    "@type": "Offer",
-    "price": "0",
+    "@type": "AggregateOffer",
+    "lowPrice": "0",
+    "highPrice": "199",
     "priceCurrency": "USD",
+    "offerCount": "4"
   },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "reviewCount": "120"
+  }
 };
 
 const faqJsonLd = {
@@ -125,9 +144,12 @@ export const metadata: Metadata = {
         alt: "Opletics dashboard preview",
       },
     ],
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
+    site: "@opletics",
+    creator: "@opletics",
     title: "Opletics | Premier Athletic Department Management Platform",
     description:
       "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync.",

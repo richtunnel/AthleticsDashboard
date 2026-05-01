@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
-import { getResendClient } from "@/lib/resend";
+import { emailService } from "@/lib/services/email.service";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
 import crypto from "crypto";
 
@@ -65,18 +65,17 @@ export async function POST(req: NextRequest) {
     const verificationUrl = `${baseUrl}/verify-recovery-email?token=${token}`;
 
     try {
-      const resend = getResendClient();
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "noreply@opletics.com",
-        to: recoveryEmail,
+      await emailService.sendEmail({
+        to: [recoveryEmail],
         subject: "Verify Your Recovery Email",
-        html: `
+        body: `
           <h2>Verify Your Recovery Email</h2>
           <p>Please click the link below to verify your recovery email address:</p>
           <p><a href="${verificationUrl}">Verify Recovery Email</a></p>
           <p>This link will expire in 24 hours.</p>
           <p>If you didn't request this verification, you can safely ignore this email.</p>
         `,
+        sentById: session.user.id,
       });
     } catch (emailError) {
       console.error("Error sending verification email:", emailError);

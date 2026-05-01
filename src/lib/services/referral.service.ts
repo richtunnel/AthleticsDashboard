@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/database/prisma";
 import { ReferralStatus } from "@prisma/client";
-import { Resend } from "resend";
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+import { emailService } from "./email.service";
 
 export interface ReferralStats {
   totalReferrals: number;
@@ -208,17 +206,11 @@ export function getSmsShareContent(referralLink: string): string {
  * Send notification email to referrer when someone signs up
  */
 export async function sendReferralSuccessEmail(referrerEmail: string, referrerName: string, newUserName: string, pointsAwarded: number): Promise<void> {
-  if (!resend) {
-    console.warn("[Referral] Email service not configured, skipping notification email");
-    return;
-  }
-
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@opletics.com>",
-      to: referrerEmail,
+    await emailService.sendEmail({
+      to: [referrerEmail],
       subject: "🎉 Great news! Your referral just signed up",
-      html: `
+      body: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1976d2;">Congratulations, ${referrerName}! 🎉</h2>
           <p style="font-size: 16px; line-height: 1.6;">
@@ -248,17 +240,11 @@ export async function sendReferralSuccessEmail(referrerEmail: string, referrerNa
  * Send welcome email to new user who was referred
  */
 export async function sendWelcomeReferralEmail(newUserEmail: string, newUserName: string, referrerName: string): Promise<void> {
-  if (!resend) {
-    console.warn("[Referral] Email service not configured, skipping welcome email");
-    return;
-  }
-
   try {
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Athletics Director Hub <noreply@opletics.com>",
-      to: newUserEmail,
+    await emailService.sendEmail({
+      to: [newUserEmail],
       subject: "Welcome to Athletics Director Hub! 👋",
-      html: `
+      body: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #1976d2;">Welcome to Athletics Director Hub, ${newUserName}! 👋</h2>
           <p style="font-size: 16px; line-height: 1.6;">
@@ -273,7 +259,7 @@ export async function sendWelcomeReferralEmail(newUserEmail: string, newUserName
               <li>Manage communications and emails</li>
             </ul>
           </div>
-          <p style="font-size: 14px; color: #666;">
+          <p style="font-size: 14px; color: #6b7280;">
             If you have any questions, feel free to reach out to our support team.
           </p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />
