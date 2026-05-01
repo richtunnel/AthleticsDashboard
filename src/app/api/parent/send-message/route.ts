@@ -58,14 +58,14 @@ export async function POST(request: NextRequest) {
     const parentLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
-        athleticDirectorId: validatedData.athleticDirectorId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
+        schoolId: ad.organizationId,
+        sport: validatedData.sportName,
+        teamName: validatedData.sportLevel,
       },
     });
 
-    const childName = parentLink?.childName || "Your child";
-    const childGrade = parentLink?.childGrade ? ` (Grade ${parentLink.childGrade})` : "";
+    const childName = parentLink?.athleteName || "Your child";
+    const childGrade = parentLink?.gradeLevel ? ` (Grade ${parentLink.gradeLevel})` : "";
 
     // Compose email
     const subject = `Parent Message: ${validatedData.sportName} - ${validatedData.sportLevel}`;
