@@ -126,7 +126,7 @@ export class EmailLimitService {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
-    const count = await prisma.emailLog.count({
+    const sentCount = await prisma.emailLog.count({
       where: {
         sentById: userId,
         status: "SENT",
@@ -136,7 +136,23 @@ export class EmailLimitService {
       },
     });
 
-    return count;
+    const enqueuedCount = await prisma.emailRecipient.count({
+      where: {
+        job: {
+          userId,
+        },
+        status: {
+          in: ["PENDING", "RETRYING"],
+        },
+        job: {
+          createdAt: {
+            gte: firstDayOfMonth,
+          },
+        },
+      },
+    });
+
+    return sentCount + enqueuedCount;
   }
 
   /**
@@ -146,7 +162,7 @@ export class EmailLimitService {
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    const count = await prisma.emailLog.count({
+    const sentCount = await prisma.emailLog.count({
       where: {
         sentById: userId,
         status: "SENT",
@@ -156,7 +172,23 @@ export class EmailLimitService {
       },
     });
 
-    return count;
+    const enqueuedCount = await prisma.emailRecipient.count({
+      where: {
+        job: {
+          userId,
+        },
+        status: {
+          in: ["PENDING", "RETRYING"],
+        },
+        job: {
+          createdAt: {
+            gte: twentyFourHoursAgo,
+          },
+        },
+      },
+    });
+
+    return sentCount + enqueuedCount;
   }
 
   /**
@@ -166,7 +198,7 @@ export class EmailLimitService {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
-    const count = await prisma.emailLog.count({
+    const sentCount = await prisma.emailLog.count({
       where: {
         status: "SENT",
         sentAt: {
@@ -175,7 +207,20 @@ export class EmailLimitService {
       },
     });
 
-    return count;
+    const enqueuedCount = await prisma.emailRecipient.count({
+      where: {
+        status: {
+          in: ["PENDING", "RETRYING"],
+        },
+        job: {
+          createdAt: {
+            gte: firstDayOfMonth,
+          },
+        },
+      },
+    });
+
+    return sentCount + enqueuedCount;
   }
 
   /**
