@@ -129,11 +129,17 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Fix invitation URL
+    // Fix invitation URL - ensure it uses NEXT_PUBLIC_APP_URL and handles local development
     let appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
-    if (appUrl.includes("0.0.0.0")) {
+    
+    // In production, we want to make sure we don't use 0.0.0.0
+    if (process.env.NODE_ENV === "production" && appUrl.includes("0.0.0.0")) {
+      appUrl = "https://opletics.com";
+    } else if (appUrl.includes("0.0.0.0")) {
+      // For local development with Docker, we might have 0.0.0.0:3000
       appUrl = appUrl.replace("0.0.0.0", "localhost");
     }
+    
     const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${token}`;
 
     // Create the invitation
