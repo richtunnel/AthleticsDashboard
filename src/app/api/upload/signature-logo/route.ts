@@ -31,26 +31,28 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 };
 
 // Digital Ocean Spaces (S3-compatible) configuration
-const SPACES_BUCKET = process.env.DO_SPACES_BUCKET ?? "";
-const SPACES_REGION = process.env.DO_SPACES_REGION ?? "nyc3";
+const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || "";
+const SPACES_REGION = process.env.DO_SPACES_REGION || "nyc3";
 
-// Clean the endpoint: ensure it doesn't include the bucket name to avoid duplication in AWS SDK v3
-// If DO_SPACES_ENDPOINT is https://bucket.nyc3.digitaloceanspaces.com, we want https://nyc3.digitaloceanspaces.com
-let rawEndpoint = process.env.DO_SPACES_ENDPOINT ?? `https://${SPACES_REGION}.digitaloceanspaces.com`;
-if (SPACES_BUCKET && rawEndpoint.includes(`${SPACES_BUCKET}.`)) {
-  rawEndpoint = rawEndpoint.replace(`${SPACES_BUCKET}.`, "");
-}
-const SPACES_ENDPOINT = rawEndpoint.replace(/\/$/, "");
+// Clean the endpoint: ensure it doesn't include the bucket name to avoid duplication
+// and potential SSL certificate mismatches when forcePathStyle is false.
+// If DO_SPACES_ENDPOINT is https://bucket.region.digitaloceanspaces.com, we want https://region.digitaloceanspaces.com
+const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const SPACES_ENDPOINT = rawEndpoint
+  .replace(/\/$/, "")
+  .replace(`://${SPACES_BUCKET}.`, "://");
 
-const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL ?? `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`).replace(/\/$/, "");
+const SPACES_CDN_URL = (process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`)
+  .replace(/\/$/, "");
+
 const FORCE_PATH_STYLE = process.env.DO_SPACES_FORCE_PATH_STYLE === "true";
 
 const s3Client = new S3Client({
   endpoint: SPACES_ENDPOINT,
   region: SPACES_REGION,
   credentials: {
-    accessKeyId: process.env.DO_SPACES_ACCESS_KEY ?? "",
-    secretAccessKey: process.env.DO_SPACES_SECRET_KEY ?? "",
+    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME || "",
+    secretAccessKey: process.env.DO_SPACES_SECRET_KEY || process.env.DO_SPACES_SECRET_KEY_VALUE || "",
   },
   forcePathStyle: FORCE_PATH_STYLE,
 });
