@@ -76,12 +76,10 @@ export class EmailService {
       const emailId = result.data?.id || null;
 
       // Update log on success
-      await prisma.emailLog.update({
+      await prisma.emailLog.updateMany({
         where: {
-          id_createdAt: {
-            id: emailLog.id,
-            createdAt: emailLog.createdAt,
-          },
+          id: emailLog.id,
+          createdAt: emailLog.createdAt,
         },
         data: {
           status: "SENT",
@@ -92,12 +90,10 @@ export class EmailService {
       return { success: true, emailId };
     } catch (error) {
       // Update log on failure
-      await prisma.emailLog.update({
+      await prisma.emailLog.updateMany({
         where: {
-          id_createdAt: {
-            id: emailLog.id,
-            createdAt: emailLog.createdAt,
-          },
+          id: emailLog.id,
+          createdAt: emailLog.createdAt,
         },
         data: {
           status: "FAILED",
