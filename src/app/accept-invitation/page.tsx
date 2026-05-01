@@ -152,10 +152,17 @@ function AcceptInvitationContent() {
             </Alert>
             {isEmailMismatch ? (
               <Box sx={{ mt: 2 }}>
-                <Typography variant="body1" sx={{ mb: 3 }}>
-                  This invitation was sent to <strong>{invitation?.email}</strong>, but you are currently signed in as <strong>{session?.user?.email}</strong>. 
-                  Please sign out and sign in with the correct account to accept this invitation.
-                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="body1">
+                    This invitation was sent to <strong>{invitation?.email}</strong>, but you are currently signed in as <strong>{session?.user?.email}</strong>. 
+                    Please sign out and sign in with the correct account to accept this invitation.
+                  </Typography>
+                  {isNonGmailInvitation && (
+                    <Typography variant="body2" sx={{ mt: 1, fontStyle: "italic", color: "text.secondary" }}>
+                      If you don&apos;t have a Google account, you can use the &quot;Sign Up&quot; or &quot;Log In&quot; options after signing out.
+                    </Typography>
+                  )}
+                </Box>
                 <Button
                   variant="contained"
                   onClick={() => signOut({ callbackUrl: window.location.href })}
