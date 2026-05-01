@@ -40,7 +40,7 @@ const s3Client = new S3Client({
   endpoint: SPACES_ENDPOINT.replace(/\/$/, ""),
   region: SPACES_REGION,
   credentials: {
-    accessKeyId: process.env.DO_SPACES_ACCESS_KEY ?? "",
+    accessKeyId: process.env.DO_SPACES_ACCESS_KEY_NAME ?? "",
     secretAccessKey: process.env.DO_SPACES_SECRET_KEY ?? "",
   },
   forcePathStyle: false,
@@ -78,7 +78,6 @@ export async function POST(request: NextRequest) {
           "If you're uploading from an iPhone, try converting the image to JPEG first.",
       );
     }
-    
 
     // Read file bytes
     const bytes = await file.arrayBuffer();
