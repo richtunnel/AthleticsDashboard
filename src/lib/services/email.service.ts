@@ -77,7 +77,12 @@ export class EmailService {
 
       // Update log on success
       await prisma.emailLog.update({
-        where: { id: emailLog.id },
+        where: {
+          id_createdAt: {
+            id: emailLog.id,
+            createdAt: emailLog.createdAt,
+          },
+        },
         data: {
           status: "SENT",
           sentAt: new Date(),
@@ -88,7 +93,12 @@ export class EmailService {
     } catch (error) {
       // Update log on failure
       await prisma.emailLog.update({
-        where: { id: emailLog.id },
+        where: {
+          id_createdAt: {
+            id: emailLog.id,
+            createdAt: emailLog.createdAt,
+          },
+        },
         data: {
           status: "FAILED",
           error: error instanceof Error ? error.message : "Unknown error",

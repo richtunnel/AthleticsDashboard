@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { z } from "zod";
-import { sendEmail } from "@/lib/services/email.service";
+import { emailService } from "@/lib/services/email.service";
 
 // Validation schema
 const messageSchema = z.object({
@@ -85,29 +85,17 @@ export async function POST(request: NextRequest) {
 
     // Send email using the email service
     try {
-      await sendEmail({
-        to: ad.email,
+      await emailService.sendEmail({
+        to: [ad.email],
         subject,
-        html: emailBody,
+        body: emailBody,
+        sentById: user.id,
       });
     } catch (emailError) {
       console.error("[API] Failed to send email:", emailError);
       // For now, we'll still return success since the message was "sent"
       // In production, you might want to handle this differently
     }
-
-    // Log the email
-    await prisma.emailLog.create({
-      data: {
-        to: [ad.email],
-        cc: [],
-        subject,
-        body: emailBody,
-        status: "SENT",
-        sentAt: new Date(),
-        sentById: user.id,
-      },
-    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
