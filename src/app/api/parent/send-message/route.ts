@@ -20,12 +20,9 @@ const messageSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -33,10 +30,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -48,10 +42,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!ad || !ad.email) {
-      return NextResponse.json(
-        { error: "Athletic director not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Athletic director not found" }, { status: 404 });
     }
 
     // Get the parent link to get child's info
@@ -93,23 +84,15 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailError) {
       console.error("[API] Failed to send email:", emailError);
-      // For now, we'll still return success since the message was "sent"
-      // In production, you might want to handle this differently
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
     }
-    
+
     console.error("[API] Error sending message:", error);
-    return NextResponse.json(
-      { error: "Failed to send message" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
   }
 }
