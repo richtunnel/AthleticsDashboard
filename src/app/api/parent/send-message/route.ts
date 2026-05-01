@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { z } from "zod";
-import { emailService } from "@/lib/services/email.service";
+import { ApiResponse } from "@/lib/utils/api-response";
+import { handleApiError } from "@/lib/utils/error-handler";
+import { logger } from "@/lib/utils/logger";
+import { emailLimitService } from "@/lib/services/email-limit.service";
 
 // Validation schema
 const messageSchema = z.object({
@@ -15,14 +18,20 @@ const messageSchema = z.object({
 
 /**
  * POST /api/parent/send-message
- * Sends a message to the athletic director
+ * Sends a message to the athletic director with Transactional Outbox Pattern and Idempotency
  */
 export async function POST(request: NextRequest) {
+  const context = {
+    url: request.url,
+    method: request.method,
+    userAgent: request.headers.get("user-agent"),
+  };
+
   try {
     const session = await getParentSession();
 
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return ApiResponse.unauthorized();
     }
 
     const user = await prisma.user.findUnique({
@@ -30,19 +39,35 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return ApiResponse.notFound("User not found");
     }
 
     const body = await request.json();
     const validatedData = messageSchema.parse(body);
 
-    // Get the athletic director's email
+    // 1. Idempotency Check
+    const recentMessage = await prisma.chatMessage.findFirst({
+      where: {
+        senderUserId: user.id,
+        content: validatedData.message,
+        createdAt: {
+          gte: new Date(Date.now() - 60 * 1000), // 60 seconds window
+        },
+      },
+    });
+
+    if (recentMessage) {
+      logger.warn("Duplicate message detected", { userId: user.id, ...context });
+      return ApiResponse.error("Duplicate message detected. Please wait 60 seconds before sending the same message.", 409);
+    }
+
+    // Get the athletic director's info
     const ad = await prisma.user.findUnique({
       where: { id: validatedData.athleticDirectorId },
     });
 
-    if (!ad || !ad.email) {
-      return NextResponse.json({ error: "Athletic director not found" }, { status: 404 });
+    if (!ad || !ad.email || !ad.organizationId) {
+      return ApiResponse.notFound("Athletic director or organization not found");
     }
 
     // Get the parent link to get child's info
@@ -74,25 +99,93 @@ export async function POST(request: NextRequest) {
       </p>
     `;
 
-    // Send email using the email service
+    // 2. Transactional Outbox Pattern
+    // Wrap message saving and email enqueuing in a single transaction
     try {
-      await emailService.sendEmail({
-        to: [ad.email],
-        subject,
-        body: emailBody,
-        sentById: user.id,
+      await prisma.$transaction(async (tx) => {
+        // Find or create conversation
+        let conversation = await tx.conversation.findUnique({
+          where: {
+            parentUserId_schoolId: {
+              parentUserId: user.id,
+              schoolId: ad.organizationId,
+            },
+          },
+        });
+
+        if (!conversation) {
+          conversation = await tx.conversation.create({
+            data: {
+              parentUserId: user.id,
+              schoolId: ad.organizationId,
+            },
+          });
+        }
+
+        // Save Chat Message
+        await tx.chatMessage.create({
+          data: {
+            conversationId: conversation.id,
+            senderUserId: user.id,
+            content: validatedData.message,
+          },
+        });
+
+        // Enqueue Email (Outbox)
+        // Check limits first (within transaction is safer but might be slow, 
+        // however for single message it's fine)
+        const limitCheck = await emailLimitService.checkEmailLimits(user.id, 1);
+        if (!limitCheck.allowed) {
+          throw new Error(`Email limit exceeded: ${limitCheck.reason}`);
+        }
+
+        const job = await tx.emailJob.create({
+          data: {
+            userId: user.id,
+            organizationId: ad.organizationId,
+            subject,
+            body: emailBody,
+            status: "PENDING",
+            totalCount: 1,
+          },
+        });
+
+        await tx.emailRecipient.create({
+          data: {
+            jobId: job.id,
+            email: ad.email!,
+            status: "PENDING",
+          },
+        });
+
+        logger.info("Message saved and email enqueued", { userId: user.id, jobId: job.id });
       });
-    } catch (emailError) {
-      console.error("[API] Failed to send email:", emailError);
-    }
 
-    return NextResponse.json({ success: true });
+      return ApiResponse.success({ message: "Message sent successfully" });
+    } catch (dbError: any) {
+      // 3. Graceful Degradation
+      // If DB is unavailable or transaction fails due to connection issues
+      if (dbError.code === 'P2024' || dbError.message.includes('connection')) {
+        logger.error("Email queue unavailable", { error: dbError, ...context });
+        return new NextResponse(
+          JSON.stringify({ 
+            success: false, 
+            error: "Service temporarily unavailable. Please try again in a few moments.",
+            retryAfter: 60 
+          }),
+          {
+            status: 503,
+            headers: {
+              "Retry-After": "60",
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+      throw dbError; // Let the outer catch handle it
+    }
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
-    }
-
-    console.error("[API] Error sending message:", error);
-    return NextResponse.json({ error: "Failed to send message" }, { status: 500 });
+    logger.error("Error in send-message API", { error, ...context });
+    return handleApiError(error);
   }
 }

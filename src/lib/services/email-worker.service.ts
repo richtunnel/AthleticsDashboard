@@ -1,10 +1,11 @@
 import { prisma } from "../database/prisma";
 import { emailGatewayService } from "./email-gateway.service";
-import { EmailRecipientStatus, EmailJobStatus } from "@prisma/client";
+import { EmailJobStatus } from "@prisma/client";
 
 export class EmailWorkerService {
   async processBatch(batchSize: number = 50) {
     // 1. Fetch pending or retrying recipients using SKIP LOCKED for atomic locking
+    // We use a raw query because Prisma doesn't support SKIP LOCKED yet
     const recipients = await prisma.$queryRaw`
       SELECT * FROM "EmailRecipient"
       WHERE "status" IN ('PENDING', 'RETRYING')
@@ -26,10 +27,10 @@ export class EmailWorkerService {
         });
 
         if (!job) {
-          await prisma.emailRecipient.update({
-            where: { id: recipient.id },
-            data: { status: "FAILED", error: "Job not found" }
-          });
+          // If job is gone, just purge the recipient
+          await prisma.emailRecipient.delete({
+            where: { id: recipient.id }
+          }).catch(() => {});
           continue;
         }
 
@@ -42,13 +43,10 @@ export class EmailWorkerService {
         });
 
         if (result.success) {
+          // SUCCESS: Record in EmailLog and PURGE from Active Queue (EmailRecipient)
           await prisma.$transaction([
-            prisma.emailRecipient.update({
-              where: { id: recipient.id },
-              data: { 
-                status: "SENT", 
-                lastAttempt: new Date() 
-              }
+            prisma.emailRecipient.delete({
+              where: { id: recipient.id }
             }),
             prisma.emailJob.update({
               where: { id: job.id },
@@ -74,22 +72,51 @@ export class EmailWorkerService {
             })
           ]);
         } else {
+          // FAILURE: Check if we should retry
           const shouldRetry = recipient.retryCount < 3;
-          await prisma.$transaction([
-            prisma.emailRecipient.update({
+          
+          if (shouldRetry) {
+            // Update for retry
+            await prisma.emailRecipient.update({
               where: { id: recipient.id },
               data: { 
-                status: shouldRetry ? "RETRYING" : "FAILED", 
+                status: "RETRYING", 
                 error: String(result.error),
                 retryCount: { increment: 1 },
                 lastAttempt: new Date()
               }
-            }),
-            prisma.emailJob.update({
-              where: { id: job.id },
-              data: { failedCount: shouldRetry ? undefined : { increment: 1 } } // Only increment job failed count if final failure
-            })
-          ]);
+            });
+          } else {
+            // FINAL FAILURE: Record in EmailLog and PURGE from Active Queue
+            await prisma.$transaction([
+              prisma.emailRecipient.delete({
+                where: { id: recipient.id }
+              }),
+              prisma.emailJob.update({
+                where: { id: job.id },
+                data: { failedCount: { increment: 1 } }
+              }),
+              prisma.emailLog.create({
+                data: {
+                  to: [recipient.email],
+                  subject: job.subject,
+                  body: job.body,
+                  replyTo: job.replyTo,
+                  status: "FAILED",
+                  error: String(result.error),
+                  sentAt: null,
+                  sentById: job.userId,
+                  gameIds: job.gameIds,
+                  groupId: job.groupId,
+                  campaignId: job.campaignId,
+                  recipientCategory: job.recipientCategory,
+                  additionalMessage: job.additionalMessage,
+                  visibleColumnIds: job.visibleColumnIds,
+                  selectedSchoolNames: job.selectedSchoolNames,
+                }
+              })
+            ]);
+          }
         }
       } catch (err) {
         console.error(`[EmailWorkerService] Error processing recipient ${recipient.id}:`, err);

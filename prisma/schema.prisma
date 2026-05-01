@@ -861,6 +861,7 @@ model ChatMessage {
 
   @@index([conversationId, createdAt])
   @@index([senderUserId])
+  @@index([senderUserId, createdAt])
 }
 
 enum UserRole {
