@@ -19,7 +19,7 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    email: searchParams.get("email") || "",
     password: "",
     confirmPassword: "",
   });

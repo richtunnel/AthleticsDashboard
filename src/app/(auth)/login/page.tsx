@@ -16,7 +16,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
-    email: "",
+    email: searchParams.get("email") || "",
     password: "",
   });
 
