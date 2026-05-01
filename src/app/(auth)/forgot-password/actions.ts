@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/database/prisma";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { getResendClientOptional } from "@/lib/resend";
+import { emailService } from "@/lib/services/email.service";
 import { sanitizeEmail } from "@/lib/security/sanitizer";
 
 // Use centralized rate limiting - removed local store
@@ -69,37 +69,28 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
     });
 
     // Send reset email
-    const resend = getResendClientOptional();
-    if (resend) {
-      const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
+    const resetUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
-      try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
-          to: normalizedEmail,
-          subject: "Reset Your Password - Opletics.com",
-          html: buildPasswordResetEmail(user.name || "there", resetUrl),
-        });
-      } catch (emailError) {
-        console.error("Failed to send password reset email:", emailError);
-        // Clear the reset token if email fails
-        await prisma.user.update({
-          where: { email: normalizedEmail },
-          data: {
-            resetToken: null,
-            resetTokenExpiry: null,
-          },
-        });
-        return {
-          success: false,
-          message: "Failed to send reset email. Please try again later.",
-        };
-      }
-    } else {
-      console.error("Email service not configured");
+    try {
+      await emailService.sendEmail({
+        to: [normalizedEmail],
+        subject: "Reset Your Password - Opletics.com",
+        body: buildPasswordResetEmail(user.name || "there", resetUrl),
+        sentById: user.id,
+      });
+    } catch (emailError) {
+      console.error("Failed to send password reset email:", emailError);
+      // Clear the reset token if email fails
+      await prisma.user.update({
+        where: { email: normalizedEmail },
+        data: {
+          resetToken: null,
+          resetTokenExpiry: null,
+        },
+      });
       return {
         success: false,
-        message: "Email service is not configured. Please contact support.",
+        message: "Failed to send reset email. Please try again later.",
       };
     }
 

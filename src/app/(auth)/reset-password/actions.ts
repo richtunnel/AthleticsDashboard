@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
-import { getResendClientOptional } from "@/lib/resend";
+import { emailService } from "@/lib/services/email.service";
 import { sanitizeEmail, validatePassword } from "@/lib/security/sanitizer";
 
 interface ValidateTokenResult {
@@ -147,19 +147,16 @@ export async function resetPassword(token: string, email: string, newPassword: s
     });
 
     // Send confirmation email
-    const resend = getResendClientOptional();
-    if (resend) {
-      try {
-        await resend.emails.send({
-          from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
-          to: normalizedEmail,
-          subject: "Password Successfully Reset - Opletics",
-          html: buildPasswordResetConfirmationEmail(user.name || "there"),
-        });
-      } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-        // Don't fail the reset if email fails - password is already updated
-      }
+    try {
+      await emailService.sendEmail({
+        to: [normalizedEmail],
+        subject: "Password Successfully Reset - Opletics",
+        body: buildPasswordResetConfirmationEmail(user.name || "there"),
+        sentById: user.id,
+      });
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError);
+      // Don't fail the reset if email fails - password is already updated
     }
 
     return {

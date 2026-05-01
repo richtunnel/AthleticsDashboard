@@ -496,12 +496,6 @@ export class CalendarService {
       }
     });
 
-    // Create a temporary mapping for this sync if needed, 
-    // or just pass the target calendar ID directly.
-    // Given the current syncGameToCalendar implementation, 
-    // it uses resolveCalendarIdForGame.
-    // We can temporarily inject a mapping or modify syncGameToCalendar.
-    
     const results = [];
     for (const game of games) {
       try {
@@ -543,416 +537,297 @@ export class CalendarService {
   }
 
   async syncGameToCalendar(gameId: string, userId: string) {
-    // Get user's organizationId (only need this field)
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, organizationId: true, role: true },
-    });
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Get the game with its details
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      include: {
-        homeTeam: {
-          include: {
-            sport: true,
-            organization: true, // Get timezone from org
-          },
-        },
-        opponent: true,
-        awayTeam: true,
-        venue: true,
-      },
-    });
-
-    if (!game) {
-      throw new Error("Game not found");
-    }
-
-    // ✅ VALIDATE permissions
-    if (user.role === "PARENT") {
-      // Parent must have an approved request for this sport/level
-      const approvedRequests = await prisma.calendarSyncRequest.findMany({
+    // 1. Acquire an atomic lock to prevent concurrent syncs for the same game
+    try {
+      const lockAcquired = await prisma.game.updateMany({
         where: {
-          parentUserId: userId,
-          schoolId: game.homeTeam.organizationId,
-          status: "APPROVED",
-          sportName: { equals: game.homeTeam.sport.name, mode: "insensitive" },
+          id: gameId,
+          syncInProgress: false,
+        },
+        data: {
+          syncInProgress: true,
         },
       });
 
-      const hasApprovedRequest = approvedRequests.some((req) => {
-        const levelParts = req.sportLevel.split(" ");
-        const baseLevel = levelParts[0];
-        const gender = levelParts.length > 1 ? levelParts[1] : null;
-
-        const levelMatches = game.homeTeam.level.toLowerCase() === baseLevel.toLowerCase();
-        const genderMatches = !gender || game.homeTeam.gender?.toLowerCase() === gender.toLowerCase();
-
-        return levelMatches && genderMatches;
-      });
-
-      if (!hasApprovedRequest) {
-        throw new Error("Unauthorized: No approved sync request for this sport and level");
+      if (lockAcquired.count === 0) {
+        console.log(`[Calendar Sync] Sync already in progress for game ${gameId}, skipping.`);
+        return { 
+          success: false, 
+          skipped: true, 
+          message: "A synchronization is already in progress for this game." 
+        };
       }
-    } else {
-      // AD/Staff must be in the same organization
-      if (game.homeTeam.organizationId !== user.organizationId) {
-        throw new Error("Unauthorized: Game does not belong to your organization");
-      }
+    } catch (lockError) {
+      console.error("[Calendar Sync] Lock acquisition error:", lockError);
+      return { success: false, error: "Sync lock failed" };
     }
-
-    // Check if this is the user's first synced game (for tracker)
-    const isNewSyncUser = await calendarSyncTrackerService.isNewSyncUser(userId);
-
-    // Check if calendar is connected before proceeding
-    const isConnected = await this.isCalendarConnected(userId);
-    if (!isConnected) {
-      return {
-        success: false,
-        skipped: true,
-        message: "Google Calendar not connected",
-      };
-    }
-
-    // Get calendar client (this already handles tokens via Account table)
-    const calendar = await this.getCalendarClient(userId);
-
-    // Use organization's timezone
-    const timezone = game.homeTeam.organization.timezone || "America/New_York";
-
-    // Prepare event data
-    // Safari-friendly date parsing: extract date components from ISO string
-    // Handle both Date objects and strings
-    const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
-    const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
-    const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-    
-    // Parse time components (HH:mm format)
-    let hours = 12; // Default to noon if no time specified
-    let minutes = 0;
-    
-    if (game.time && typeof game.time === 'string' && game.time.trim()) {
-      const timeParts = game.time.trim().split(":");
-      if (timeParts.length >= 2) {
-        const parsedHours = parseInt(timeParts[0], 10);
-        const parsedMinutes = parseInt(timeParts[1], 10);
-        if (!isNaN(parsedHours) && !isNaN(parsedMinutes) && parsedHours >= 0 && parsedHours <= 23 && parsedMinutes >= 0 && parsedMinutes <= 59) {
-          hours = parsedHours;
-          minutes = parsedMinutes;
-        }
-      }
-    }
-
-    // Format as RFC3339 datetime string for Google Calendar
-    // Google Calendar API requires proper RFC3339 format with timezone offset
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    
-    // Create Date object to get timezone offset (handles DST automatically)
-    const startDate = new Date(year, month - 1, day, hours, minutes, 0);
-    const timezoneOffset = startDate.getTimezoneOffset(); // in minutes
-    const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-    const offsetMinutes = Math.abs(timezoneOffset) % 60;
-    const offsetSign = timezoneOffset <= 0 ? '+' : '-'; // Note: getTimezoneOffset returns negative for positive offsets
-    const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
-    
-    const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
-    
-    // Calculate end time (2 hours later)
-    const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-    const endYear = endDate.getFullYear();
-    const endMonth = endDate.getMonth() + 1;
-    const endDay = endDate.getDate();
-    const endHours = endDate.getHours();
-    const endMinutes = endDate.getMinutes();
-    const endDateTime = `${endYear}-${pad(endMonth)}-${pad(endDay)}T${pad(endHours)}:${pad(endMinutes)}:00${offsetString}`;
-
-    // Build location string, properly handling null/undefined values
-    let location = "TBD";
-    if (game.isHome) {
-      location = "Home";
-    } else if (game.venue) {
-      const locationParts = [
-        game.venue.name,
-        game.venue.address,
-        game.venue.city,
-        game.venue.state
-      ].filter(part => part && part.trim()); // Filter out null, undefined, and empty strings
-      
-      location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
-    }
-
-    // ✅ FIX: Don't include timeZone field when using RFC3339 datetime with offset
-    // Google Calendar API expects EITHER datetime with offset OR datetime + timeZone, not both
-    const event: calendar_v3.Schema$Event = {
-      status: CALENDAR_EVENT_STATUS_SCHEDULED,
-      summary: this.buildEventSummary(game),
-      description: this.buildEventDescription(game),
-      location,
-      start: {
-        dateTime: startDateTime,
-        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
-      },
-      end: {
-        dateTime: endDateTime,
-        // ❌ REMOVED: timeZone field conflicts with RFC3339 offset format
-      },
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: "email", minutes: 24 * 60 }, // 1 day before
-          { method: "notification", minutes: 60 }, // 1 hour before
-        ],
-      },
-    };
-    
-    console.log("[Calendar Sync] Event payload:", {
-      gameId,
-      summary: event.summary,
-      description: event.description,
-      location: event.location,
-      startDateTime,
-      endDateTime,
-    });
-
-    const targetCalendarId = await this.resolveCalendarIdForGame(game, userId, calendar);
 
     try {
+      // Get user's organizationId (only need this field)
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, organizationId: true, role: true },
+      });
+
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      // Get the game with its details
+      const game = await prisma.game.findUnique({
+        where: { id: gameId },
+        include: {
+          homeTeam: {
+            include: {
+              sport: true,
+              organization: true, // Get timezone from org
+            },
+          },
+          opponent: true,
+          awayTeam: true,
+          venue: true,
+        },
+      });
+
+      if (!game) {
+        throw new Error("Game not found");
+      }
+
+      // ✅ VALIDATE permissions
+      if (user.role === "PARENT") {
+        // Parent must have an approved request for this sport/level
+        const approvedRequests = await prisma.calendarSyncRequest.findMany({
+          where: {
+            parentUserId: userId,
+            schoolId: game.homeTeam.organizationId,
+            status: "APPROVED",
+            sportName: { equals: game.homeTeam.sport.name, mode: "insensitive" },
+          },
+        });
+
+        const hasApprovedRequest = approvedRequests.some((req) => {
+          const levelParts = req.sportLevel.split(" ");
+          const baseLevel = levelParts[0];
+          const gender = levelParts.length > 1 ? levelParts[1] : null;
+
+          const levelMatches = game.homeTeam.level.toLowerCase() === baseLevel.toLowerCase();
+          const genderMatches = !gender || game.homeTeam.gender?.toLowerCase() === gender.toLowerCase();
+
+          return levelMatches && genderMatches;
+        });
+
+        if (!hasApprovedRequest) {
+          throw new Error("Unauthorized: No approved sync request for this sport and level");
+        }
+      } else {
+        // AD/Staff must be in the same organization
+        if (game.homeTeam.organizationId !== user.organizationId) {
+          throw new Error("Unauthorized: Game does not belong to your organization");
+        }
+      }
+
+      // Check if this is the user's first synced game (for tracker)
+      const isNewSyncUser = await calendarSyncTrackerService.isNewSyncUser(userId);
+
+      // Check if calendar is connected before proceeding
+      const isConnected = await this.isCalendarConnected(userId);
+      if (!isConnected) {
+        return {
+          success: false,
+          skipped: true,
+          message: "Google Calendar not connected",
+        };
+      }
+
+      // Get calendar client
+      const calendar = await this.getCalendarClient(userId);
+
+      // Prepare event data
+      const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
+      const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
+      const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
+      
+      let hours = 12; 
+      let minutes = 0;
+      
+      if (game.time && typeof game.time === 'string' && game.time.trim()) {
+        const timeParts = game.time.trim().split(":");
+        if (timeParts.length >= 2) {
+          const parsedHours = parseInt(timeParts[0], 10);
+          const parsedMinutes = parseInt(timeParts[1], 10);
+          if (!isNaN(parsedHours) && !isNaN(parsedMinutes) && parsedHours >= 0 && parsedHours <= 23 && parsedMinutes >= 0 && parsedMinutes <= 59) {
+            hours = parsedHours;
+            minutes = parsedMinutes;
+          }
+        }
+      }
+
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const startDate = new Date(year, month - 1, day, hours, minutes, 0);
+      const timezoneOffset = startDate.getTimezoneOffset(); 
+      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
+      const offsetMinutes = Math.abs(timezoneOffset) % 60;
+      const offsetSign = timezoneOffset <= 0 ? '+' : '-'; 
+      const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
+      
+      const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
+      const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+      const endDateTime = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}:00${offsetString}`;
+
+      let location = "TBD";
+      if (game.isHome) {
+        location = "Home";
+      } else if (game.venue) {
+        const locationParts = [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter(part => part && part.trim()); 
+        location = locationParts.length > 0 ? locationParts.join(", ") : "TBD";
+      }
+
+      const event: calendar_v3.Schema$Event = {
+        status: CALENDAR_EVENT_STATUS_SCHEDULED,
+        summary: this.buildEventSummary(game),
+        description: this.buildEventDescription(game),
+        location,
+        start: { dateTime: startDateTime },
+        end: { dateTime: endDateTime },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "email", minutes: 24 * 60 },
+            { method: "notification", minutes: 60 },
+          ],
+        },
+      };
+
+      const targetCalendarId = await this.resolveCalendarIdForGame(game, userId, calendar);
+
+      let response: any;
       if (game.googleCalendarEventId) {
         const candidateCalendarIds = await this.getCandidateCalendarIds(userId);
         const calendarIdsToTry = [targetCalendarId, ...candidateCalendarIds.filter((id) => id !== targetCalendarId)];
 
-        let response: any | null = null;
-
+        let updateResponse: any | null = null;
         for (const calendarId of calendarIdsToTry) {
           try {
-            response = await calendar.events.update({
+            updateResponse = await calendar.events.update({
               calendarId,
               eventId: game.googleCalendarEventId,
               requestBody: event,
             });
             break;
           } catch (err: any) {
-            const statusCode = err?.code ?? err?.status ?? err?.response?.status;
-            if (statusCode === 404) {
-              continue;
-            }
+            if ((err?.code ?? err?.status) === 404) continue;
             throw err;
           }
         }
 
-        if (!response) {
-          // Event not found in any candidate calendar - create a new one in the target calendar
-          response = await calendar.events.insert({
-            calendarId: targetCalendarId,
-            requestBody: event,
-          });
-
-          await prisma.game.update({
-            where: { id: gameId },
-            data: {
-              googleCalendarEventId: response.data.id || null,
-              googleCalendarHtmlLink: response.data.htmlLink || null,
-              calendarSynced: true,
-              lastSyncedAt: new Date(),
-            },
-          });
-
-          // Update tracker if this was the user's first synced game
-          if (isNewSyncUser) {
-            await calendarSyncTrackerService.incrementSyncedUserCount();
-          }
-
-          return response.data;
+        if (!updateResponse) {
+          response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
+        } else {
+          response = updateResponse;
         }
+      } else {
+        response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
+      }
 
-        // Update sync timestamp
-        await prisma.game.update({
+      // Update game and tracker in a transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.game.update({
           where: { id: gameId },
           data: {
+            googleCalendarEventId: response.data.id || null,
+            googleCalendarHtmlLink: response.data.htmlLink || null,
             calendarSynced: true,
             lastSyncedAt: new Date(),
-            googleCalendarHtmlLink: response.data.htmlLink || null,
           },
         });
 
-        // Update tracker if this was the user's first synced game
         if (isNewSyncUser) {
-          await calendarSyncTrackerService.incrementSyncedUserCount();
+          const tracker = await tx.googleCalendarSyncTracker.findFirst({ select: { id: true } });
+          if (tracker) {
+            await tx.googleCalendarSyncTracker.update({ where: { id: tracker.id }, data: { count: { increment: 1 } } });
+          } else {
+            await tx.googleCalendarSyncTracker.create({ data: { id: "default", count: 1, lastCountedAt: new Date() } });
+          }
         }
-
-        return response.data;
-      }
-
-      // Create new event
-      const response = await calendar.events.insert({
-        calendarId: targetCalendarId,
-        requestBody: event,
       });
-
-      // Update game with event ID
-      await prisma.game.update({
-        where: { id: gameId },
-        data: {
-          googleCalendarEventId: response.data.id || null,
-          googleCalendarHtmlLink: response.data.htmlLink || null,
-          calendarSynced: true,
-          lastSyncedAt: new Date(),
-        },
-      });
-
-      // Update tracker if this was the user's first synced game
-      if (isNewSyncUser) {
-        await calendarSyncTrackerService.incrementSyncedUserCount();
-      }
 
       return response.data;
     } catch (error: any) {
-      // Extract detailed error information from Google API response
-      const googleErrors = error.response?.data?.error?.errors || [];
-      const detailedErrors = googleErrors.map((e: any) => `${e.domain}: ${e.message} (${e.reason})`).join("; ");
-      
-      console.error("[Calendar Sync] Failed:", {
-        error: error.message,
-        status: error.code || error.status,
-        gameId,
-        response: error.response?.data || error.response || "No response data",
-        detailedErrors: detailedErrors || "No detailed errors",
-      });
-      
-      // Provide more specific error messages based on error code
-      if (error.code === 400 || error.status === 400) {
-        const errorMsg = detailedErrors || error.message || "Check event fields for malformed data";
-        throw new Error(`Invalid event data: ${errorMsg}`);
-      } else if (error.code === 401 || error.status === 401) {
-        throw new Error("Google Calendar authentication failed. Please reconnect your calendar.");
-      } else if (error.code === 403 || error.status === 403) {
-        throw new Error("Permission denied. Please ensure calendar access is granted.");
-      } else if (error.code === 404 || error.status === 404) {
-        throw new Error("Calendar or event not found.");
+      console.error("[Calendar Sync] Failed:", error.message);
+      throw error;
+    } finally {
+      try {
+        await prisma.game.update({
+          where: { id: gameId },
+          data: { syncInProgress: false }
+        });
+      } catch (releaseError) {
+        console.error("[Calendar Sync] Error releasing lock:", releaseError);
       }
-      
-      throw new Error(`Failed to sync to Google Calendar: ${error.message || "Unknown error"}`);
     }
   }
 
   async deleteCalendarEvent(userId: string, eventId: string): Promise<boolean> {
     try {
-      // Check if calendar is connected before proceeding
       const isConnected = await this.isCalendarConnected(userId);
-      if (!isConnected) {
-        console.info(`[Calendar] Skipping event deletion for ${eventId} - calendar not connected for user ${userId}`);
-        return true;
-      }
+      if (!isConnected) return true;
 
-      console.info(`[Calendar] Attempting to delete event ${eventId} for user ${userId}`);
       const calendar = await this.getCalendarClient(userId);
       const calendarIdsToTry = await this.getCandidateCalendarIds(userId);
 
       for (const calendarId of calendarIdsToTry) {
         try {
-          await calendar.events.delete({
-            calendarId,
-            eventId,
-          });
-
-          console.info(`[Calendar] Successfully deleted event ${eventId} from calendar ${calendarId} for user ${userId}`);
+          await calendar.events.delete({ calendarId, eventId });
           return true;
         } catch (error: any) {
-          const statusCode = error?.code ?? error?.status ?? error?.response?.status;
-
-          if (statusCode === 404) {
-            continue;
-          }
-
-          if (statusCode === 410) {
-            console.warn(`[Calendar] Event ${eventId} already deleted (410) for user ${userId}. Treating as success.`);
-            return true;
-          }
-
+          const statusCode = error?.code ?? error?.status;
+          if (statusCode === 404 || statusCode === 410) continue;
           throw error;
         }
       }
-
-      console.warn(`[Calendar] Event ${eventId} not found in any candidate calendar for user ${userId}. Treating as success.`);
       return true;
     } catch (error: any) {
-      const statusCode = error?.code ?? error?.status ?? error?.response?.status;
-
-      if (statusCode === 404 || statusCode === 410) {
-        console.warn(`[Calendar] Event ${eventId} not found during deletion for user ${userId} (status ${statusCode}). Treating as success.`);
-        return true;
-      }
-
-      console.error(`[Calendar] Failed to delete event ${eventId} for user ${userId}:`, error);
+      console.error(`[Calendar] Failed to delete event ${eventId}:`, error);
       return false;
     }
   }
 
   async unsyncGame(gameId: string, userId: string) {
-    // Get user's organizationId
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { organizationId: true }, // ✅ Only select what we need
+      select: { organizationId: true },
     });
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+    if (!user) throw new Error("User not found");
 
-    // Check if calendar is connected before proceeding
     const isConnected = await this.isCalendarConnected(userId);
-    if (!isConnected) {
-      return {
-        success: false,
-        skipped: true,
-        message: "Google Calendar not connected",
-      };
-    }
+    if (!isConnected) return { success: false, skipped: true, message: "Google Calendar not connected" };
 
-    // ✅ VALIDATE: Game belongs to user's organization
     const game = await prisma.game.findFirst({
-      where: {
-        id: gameId,
-        homeTeam: {
-          organizationId: user.organizationId,
-        },
-      },
-      select: {
-        id: true,
-        googleCalendarEventId: true,
-      },
+      where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
+      select: { id: true, googleCalendarEventId: true },
     });
 
-    if (!game || !game.googleCalendarEventId) {
-      throw new Error("Game not found, unauthorized, or not synced to calendar");
-    }
+    if (!game || !game.googleCalendarEventId) throw new Error("Game not found or not synced");
 
     try {
-      const deletionSucceeded = await this.deleteCalendarEvent(userId, game.googleCalendarEventId);
+      const deleted = await this.deleteCalendarEvent(userId, game.googleCalendarEventId);
+      if (!deleted) throw new Error("Failed to remove event from Google Calendar");
 
-      if (!deletionSucceeded) {
-        throw new Error("Failed to remove event from Google Calendar");
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.game.update({
+          where: { id: game.id },
+          data: { googleCalendarEventId: null, googleCalendarHtmlLink: null, calendarSynced: false },
+        });
 
-      await prisma.game.update({
-        where: { id: game.id },
-        data: {
-          googleCalendarEventId: null,
-          googleCalendarHtmlLink: null,
-          calendarSynced: false,
-        },
+        const syncedCount = await tx.game.count({ where: { createdById: userId, calendarSynced: true } });
+        if (syncedCount === 0) {
+          const tracker = await tx.googleCalendarSyncTracker.findFirst({ select: { id: true, count: true } });
+          if (tracker && tracker.count > 0) {
+            await tx.googleCalendarSyncTracker.update({ where: { id: tracker.id }, data: { count: { decrement: 1 } } });
+          }
+        }
       });
-
-      // Check if user has no more synced games and decrement tracker
-      const hasNoMoreSyncedGames = await calendarSyncTrackerService.hasNoMoreSyncedGames(userId);
-      if (hasNoMoreSyncedGames) {
-        await calendarSyncTrackerService.decrementSyncedUserCount();
-      }
 
       return { success: true };
     } catch (error) {
@@ -964,235 +839,101 @@ export class CalendarService {
   private buildEventSummary(game: any): string {
     const primaryTeamName = this.getPrimaryTeamName(game);
     const opponentName = this.getOpponentTeamName(game);
-    const separator = this.getSummarySeparator(game.isHome);
+    const separator = game.isHome ? " vs " : " @ ";
     const sportLevelInfo = this.getSportLevelInfo(game);
     
     let summary = `${primaryTeamName}${separator}${opponentName}`;
-    if (sportLevelInfo) {
-      summary += ` - ${sportLevelInfo}`;
-    }
-    
+    if (sportLevelInfo) summary += ` - ${sportLevelInfo}`;
     return summary;
   }
 
   private getPrimaryTeamName(game: any): string {
-    // Check custom fields first - try multiple common column names
     const customFields = (game.customFields as Record<string, any>) || {};
-
-    // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
-        // Try exact match first
         if (customFields[name]) return customFields[name]?.trim();
-        // Try case-insensitive match
         const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
         if (key && customFields[key]) return customFields[key]?.trim();
       }
       return undefined;
     };
 
-    // PRIORITY 1: Check for explicit Home column first (highest priority)
-    const homeTeam = getField(["Home"]);
-    if (homeTeam) {
-      return homeTeam;
-    }
-
-    // PRIORITY 2: Check for Team column (second priority)
-    const teamValue = getField(["Team"]);
-    if (teamValue) {
-      return teamValue;
-    }
-
-    // PRIORITY 3: Try to build a descriptive name from Sport + Level if available
-    const sport = getField(["Sport"]);
-    const level = getField(["Level"]);
-
-    if (sport && level) {
-      // Format: "Boys Varsity Basketball" or "B V Basketball"
-      return `${sport} ${level}`;
-    }
-
-    if (sport) {
-      return sport;
-    }
-
-    // PRIORITY 4: Check other common team column names
-    const teamLevelValue = getField(["Sports Level", "Team Level"]);
-    if (teamLevelValue) {
-      return teamLevelValue;
-    }
-
-    // Fall back to default columns
-    const teamName = game.homeTeam?.name?.trim();
-    if (teamName) {
-      return teamName;
-    }
-    const sportName = game.homeTeam?.sport?.name?.trim();
-    if (sportName) {
-      return sportName;
-    }
-    return "TBD";
+    return getField(["Home"]) || getField(["Team"]) || 
+           (getField(["Sport"]) && getField(["Level"]) ? `${getField(["Sport"])} ${getField(["Level"])}` : getField(["Sport"])) ||
+           getField(["Sports Level", "Team Level"]) ||
+           game.homeTeam?.name?.trim() || game.homeTeam?.sport?.name?.trim() || "TBD";
   }
 
   private getOpponentTeamName(game: any): string {
-    // Check custom fields first - try multiple common column names for opponent/away team
     const customFields = (game.customFields as Record<string, any>) || {};
-
-    // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
-        // Try exact match first
         if (customFields[name]) return customFields[name]?.trim();
-        // Try case-insensitive match
         const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
         if (key && customFields[key]) return customFields[key]?.trim();
       }
       return undefined;
     };
 
-    // PRIORITY 1: Check for explicit Away column first (highest priority)
-    const awayTeam = getField(["Away"]);
-    if (awayTeam) {
-      return awayTeam;
-    }
-
-    // PRIORITY 2: Check for Opponent column
-    const opponent = getField(["Opponent"]);
-    if (opponent) {
-      return opponent;
-    }
-
-    // PRIORITY 3: Check for other common opponent column names
-    const otherOpponent = getField(["Enemy", "Visiting Team", "Visitor"]);
-    if (otherOpponent) {
-      return otherOpponent;
-    }
-
-    // Fall back to opponent/awayTeam relations
-    const opponentName = game.opponent?.name?.trim();
-    if (opponentName) {
-      return opponentName;
-    }
-    const awayTeamName = game.awayTeam?.name?.trim();
-    if (awayTeamName) {
-      return awayTeamName;
-    }
-    return "TBD";
-  }
-
-  private getSummarySeparator(isHome?: boolean): string {
-    return isHome ? " vs " : " @ ";
+    return getField(["Away"]) || getField(["Opponent"]) || getField(["Enemy", "Visiting Team", "Visitor"]) ||
+           game.opponent?.name?.trim() || game.awayTeam?.name?.trim() || "TBD";
   }
 
   private getSportLevelInfo(game: any): string | null {
     const customFields = (game.customFields as Record<string, any>) || {};
-
-    // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[]): string | undefined => {
       for (const name of fieldNames) {
-        // Try exact match first
         if (customFields[name]) return customFields[name]?.trim();
-        // Try case-insensitive match
         const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
         if (key && customFields[key]) return customFields[key]?.trim();
       }
       return undefined;
     };
 
-    // Check for combined sport/level columns first
     const sportLevel = getField(["Sport Level", "Sport/Level", "Sports Level", "Team Level"]);
-    if (sportLevel) {
-      return sportLevel;
-    }
-
-    // Check for tier information
+    if (sportLevel) return sportLevel;
     const tier = getField(["Tier", "Tiers"]);
-    if (tier) {
-      return tier;
-    }
+    if (tier) return tier;
 
-    // Try to build from separate Sport + Level columns
     const sport = getField(["Sport"]);
     const level = getField(["Level"]);
+    if (sport && level) return `${sport} ${level}`;
+    if (sport) return sport;
+    if (level) return level;
 
-    if (sport && level) {
-      return `${sport} ${level}`;
-    }
-
-    if (sport) {
-      return sport;
-    }
-
-    if (level) {
-      return level;
-    }
-
-    // Fall back to database fields if custom fields don't exist
     const dbSport = game.homeTeam?.sport?.name?.trim();
     const dbLevel = game.homeTeam?.level?.trim();
     const dbGender = game.homeTeam?.gender;
-
-    if (dbSport && dbLevel) {
-      return dbGender ? `${dbSport} ${dbLevel} ${dbGender}` : `${dbSport} ${dbLevel}`;
-    }
-
-    if (dbSport) {
-      return dbSport;
-    }
-
-    if (dbLevel) {
-      return dbLevel;
-    }
-
+    if (dbSport && dbLevel) return dbGender ? `${dbSport} ${dbLevel} ${dbGender}` : `${dbSport} ${dbLevel}`;
+    if (dbSport) return dbSport;
+    if (dbLevel) return dbLevel;
     return null;
   }
 
   private buildEventDescription(game: any): string {
-    // Helper to get value from custom fields or default columns
     const customFields = (game.customFields as Record<string, any>) || {};
-    
-    // Helper function for case-insensitive field lookup
     const getField = (fieldNames: string[], defaultValue?: any): string => {
       for (const name of fieldNames) {
-        // Try exact match first
         if (customFields[name]) return customFields[name];
-        // Try case-insensitive match
         const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
         if (key && customFields[key]) return customFields[key];
       }
       return defaultValue || "TBD";
     };
     
-    // Check custom fields first (case-insensitive), fall back to default columns
     const sport = getField(["Sport"], game.homeTeam?.sport?.name);
     const level = getField(["Level"], game.homeTeam?.level);
     const team = getField(["Team", "Home"], game.homeTeam?.name);
     const status = getField(["Status"], game.status);
     
-    let description = `Sport: ${sport}\n`;
-    description += `Level: ${level}\n`;
-    description += `Team: ${team}\n`;
-    description += `Status: ${status}\n`;
-
-    if (game.opponent) {
-      description += `Opponent: ${game.opponent.name}\n`;
-    }
-
+    let description = `Sport: ${sport}\nLevel: ${level}\nTeam: ${team}\nStatus: ${status}\n`;
+    if (game.opponent) description += `Opponent: ${game.opponent.name}\n`;
     if (game.travelRequired) {
-      description += `\nTravel Information:\n`;
-      description += `- Travel Time: ${game.estimatedTravelTime || "TBD"} minutes\n`;
-      if (game.busCount) {
-        description += `- Buses: ${game.busCount}\n`;
-      }
-      if (game.departureTime) {
-        description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
-      }
+      description += `\nTravel Information:\n- Travel Time: ${game.estimatedTravelTime || "TBD"} minutes\n`;
+      if (game.busCount) description += `- Buses: ${game.busCount}\n`;
+      if (game.departureTime) description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
     }
-
-    if (game.notes) {
-      description += `\nNotes: ${game.notes}`;
-    }
-
+    if (game.notes) description += `\nNotes: ${game.notes}`;
     return description;
   }
 }

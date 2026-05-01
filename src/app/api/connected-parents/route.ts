@@ -29,25 +29,39 @@ export async function GET(request: Request) {
       );
     }
 
-    // Get connected parents for the user's organization directly
-    const connectedParents = await prisma.connectedParent.findMany({
-      where: {
-        schoolId: user.organizationId,
-      },
-      include: {
-        school: {
-          select: { name: true },
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
+
+    // Get connected parents for the user's organization directly with pagination
+    const [connectedParents, total] = await Promise.all([
+      prisma.connectedParent.findMany({
+        where: {
+          schoolId: user.organizationId,
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        include: {
+          school: {
+            select: { name: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.connectedParent.count({
+        where: {
+          schoolId: user.organizationId,
+        },
+      }),
+    ]);
 
     return Response.json({
-      parents: connectedParents.map(p => ({
+      parents: connectedParents.map((p: any) => ({
         id: p.id,
         parentUserId: p.parentUserId,
-        parentUserName: p.parentUserName,
-        parentEmail: p.parentEmail,
+        parentUserName: p.parentUserName || p.fullName,
+        parentEmail: p.email,
         schoolId: p.schoolId,
         schoolName: p.school.name,
         sportName: p.sportName,
@@ -57,6 +71,12 @@ export async function GET(request: Request) {
         membershipStatus: p.membershipStatus,
         createdAt: p.createdAt.toISOString(),
       })),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("[API] Error fetching connected parents:", error);

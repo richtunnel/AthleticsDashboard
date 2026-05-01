@@ -4,7 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { NextResponse } from "next/server";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
 import { getResendClientOptional } from "@/lib/resend";
-import { sendBulkEmail } from "@/lib/utils/bulk-email";
+import { emailQueueService } from "@/lib/services/email-queue.service";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -98,38 +98,26 @@ export async function POST(request: Request) {
     }
 
     try {
-      const result = await sendBulkEmail({
+      const job = await emailQueueService.enqueueBulkEmail({
+        userId: session.user.id,
+        organizationId: organization.id,
         to: toEmails,
         subject,
-        html: body,
-        sentById: session.user.id,
+        body,
         campaignId: campaign.id,
         groupId,
         recipientCategory: "emailGroup",
       });
 
-      if (result.failed > 0 && result.success === 0) {
-        return NextResponse.json({ 
-          error: `Campaign created but failed to send: ${result.errors.map(e => e.error).join("; ")}`,
-          campaign,
-        }, { status: 500 });
-      }
-
-      if (result.failed > 0) {
-        return NextResponse.json({ 
-          message: `Campaign partially sent: ${result.success} succeeded, ${result.failed} failed`,
-          campaign,
-          result: {
-            success: result.success,
-            failed: result.failed,
-            errors: result.errors,
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Failed to send campaign email:", error);
       return NextResponse.json({ 
-        error: "Campaign created but failed to send email",
+        message: "Campaign queued for sending",
+        campaign,
+        jobId: job.id
+      });
+    } catch (error) {
+      console.error("Failed to queue campaign email:", error);
+      return NextResponse.json({ 
+        error: "Campaign created but failed to queue for sending",
         campaign,
       }, { status: 500 });
     }

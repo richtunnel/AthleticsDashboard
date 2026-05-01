@@ -7,6 +7,7 @@ import { generateInvitationToken } from "@/lib/utils/collaborationTokens";
 import { CollaborativeRole, CollaborationAction } from "@prisma/client";
 import { emailService } from "@/lib/services/email.service";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
+import { normalizeAppUrl } from "@/lib/utils/siteUrl";
 
 export async function POST(request: NextRequest) {
   try {
@@ -129,17 +130,8 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Fix invitation URL - ensure it uses NEXT_PUBLIC_APP_URL and handles local development
-    let appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://opletics.com";
-    
-    // In production, we want to make sure we don't use 0.0.0.0
-    if (process.env.NODE_ENV === "production" && appUrl.includes("0.0.0.0")) {
-      appUrl = "https://opletics.com";
-    } else if (appUrl.includes("0.0.0.0")) {
-      // For local development with Docker, we might have 0.0.0.0:3000
-      appUrl = appUrl.replace("0.0.0.0", "localhost");
-    }
-    
+    // Fix invitation URL - ensure it uses normalized app URL
+    const appUrl = normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL);
     const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${token}`;
 
     // Create the invitation
@@ -180,6 +172,7 @@ export async function POST(request: NextRequest) {
         role: role as CollaborativeRole,
         acceptUrl: acceptUrl,
         expiresAt,
+        sentById: userId,
       });
       emailSent = true;
 

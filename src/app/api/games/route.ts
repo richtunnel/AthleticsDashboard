@@ -108,17 +108,24 @@ export async function GET(request: NextRequest) {
 
     // Build orderBy based on sortBy parameter
     let orderBy: any = { date: "asc" };
-    let needsClientSideSort = false;
-    let clientSortField = "";
-    let clientSortOrder = sortOrder;
 
     // Check if this is a custom or imported column sort
-    if (sortBy.startsWith("custom:") || sortBy.startsWith("imported:")) {
-      // For custom/imported columns, we'll sort on the client side after fetching
-      needsClientSideSort = true;
-      clientSortField = sortBy;
-      // Default to date ordering for DB query
-      orderBy = { date: "asc" };
+    if (sortBy.startsWith("custom:")) {
+      const columnId = sortBy.replace("custom:", "");
+      orderBy = {
+        customData: {
+          path: [columnId],
+          sort: sortOrder as "asc" | "desc"
+        }
+      };
+    } else if (sortBy.startsWith("imported:")) {
+      const columnName = sortBy.replace("imported:", "");
+      orderBy = {
+        customFields: {
+          path: [columnName],
+          sort: sortOrder as "asc" | "desc"
+        }
+      };
     } else {
       switch (sortBy) {
         case "date":
@@ -163,76 +170,24 @@ export async function GET(request: NextRequest) {
     const total = await prisma.game.count({ where });
     const totalCount = Number(total);
 
-    // Get games - for custom/imported column sorting, we need to fetch all games
-    // then sort and paginate on the client side
-    let games;
-    if (needsClientSideSort) {
-      // Fetch all games for custom/imported column sorting
-      games = await prisma.game.findMany({
-        where,
-        include: {
-          homeTeam: {
-            include: {
-              sport: true,
-              organization: true,
-            },
+    // Get games - database-level sorting and pagination
+    const games = await prisma.game.findMany({
+      where,
+      include: {
+        homeTeam: {
+          include: {
+            sport: true,
+            organization: true,
           },
-          awayTeam: true,
-          opponent: true,
-          venue: true,
         },
-        orderBy,
-      });
-
-      // Sort on client side
-      const sortField = clientSortField;
-      games.sort((a: any, b: any) => {
-        let aValue: any;
-        let bValue: any;
-
-        if (sortField.startsWith("custom:")) {
-          const columnId = sortField.replace("custom:", "");
-          aValue = (a.customData as any)?.[columnId] || "";
-          bValue = (b.customData as any)?.[columnId] || "";
-        } else if (sortField.startsWith("imported:")) {
-          const columnName = sortField.replace("imported:", "");
-          aValue = (a.customFields as any)?.[columnName] || "";
-          bValue = (b.customFields as any)?.[columnName] || "";
-        }
-
-        // Convert to string for comparison
-        const aStr = String(aValue).toLowerCase();
-        const bStr = String(bValue).toLowerCase();
-
-        if (clientSortOrder === "asc") {
-          return aStr.localeCompare(bStr);
-        } else {
-          return bStr.localeCompare(aStr);
-        }
-      });
-
-      // Paginate after sorting
-      games = games.slice((page - 1) * limit, page * limit);
-    } else {
-      // Normal database-level sorting and pagination
-      games = await prisma.game.findMany({
-        where,
-        include: {
-          homeTeam: {
-            include: {
-              sport: true,
-              organization: true,
-            },
-          },
-          awayTeam: true,
-          opponent: true,
-          venue: true,
-        },
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
-      });
-    }
+        awayTeam: true,
+        opponent: true,
+        venue: true,
+      },
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
     const serializedGames = games.map((game) => ({
       ...game,
