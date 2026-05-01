@@ -13,7 +13,7 @@ export async function GET(
 
     const { id } = await context.params;
 
-    const log = await prisma.emailLog.findUnique({
+    const log = await prisma.emailLog.findFirst({
       where: {
         id,
         sentById: session.user.id,
@@ -98,7 +98,7 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    const log = await prisma.emailLog.findUnique({
+    const log = await prisma.emailLog.findFirst({
       where: {
         id,
         sentById: session.user.id,
@@ -109,9 +109,10 @@ export async function DELETE(
       return ApiResponse.error("Email log not found", 404);
     }
 
-    await prisma.emailLog.delete({
+    await prisma.emailLog.deleteMany({
       where: {
         id,
+        sentById: session.user.id,
       },
     });
 
