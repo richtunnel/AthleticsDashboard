@@ -17,6 +17,7 @@ export interface BulkEmailParams {
   additionalMessage?: string;
   visibleColumnIds?: string[];
   selectedSchoolNames?: string[];
+  idempotencyKey?: string;
 }
 
 export class EmailQueueService {
@@ -34,7 +35,8 @@ export class EmailQueueService {
       recipientCategory,
       additionalMessage,
       visibleColumnIds,
-      selectedSchoolNames
+      selectedSchoolNames,
+      idempotencyKey,
     } = params;
 
     // 1. Check limits
@@ -43,15 +45,27 @@ export class EmailQueueService {
       throw new Error(limitCheck.reason || "Email limit exceeded");
     }
 
-    // Use the new generic background job queue for each recipient or for the whole batch
-    // For now, let's keep the existing EmailJob but also support generic background jobs if needed.
-    // Actually, to satisfy the requirement, I'll enqueue it as a generic job.
-    
+    // Use the enhanced job queue with idempotency support
     const job = await jobQueueService.enqueue({
       type: JobType.EMAIL,
-      payload: params,
+      payload: {
+        to,
+        subject,
+        body,
+        replyTo,
+        gameIds,
+        groupId,
+        campaignId,
+        recipientCategory,
+        additionalMessage,
+        visibleColumnIds,
+        selectedSchoolNames,
+        enqueuedAt: new Date().toISOString(),
+      },
       userId,
       organizationId,
+      maxAttempts: 3,
+      idempotencyKey: idempotencyKey || `email_${userId}_${Date.now()}`,
     });
 
     return job;
