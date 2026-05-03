@@ -6,6 +6,7 @@ import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionSchema } from "@/lib/validations/subscription";
 import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -140,7 +141,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+    // Use env-driven site URL so Stripe redirect URLs never use the bind address (0.0.0.0:3000).
+    const baseUrl = normalizeBrowserUrl(process.env.NEXT_PUBLIC_APP_URL || getSiteUrl());
 
     const checkoutSessionParams: any = {
       customer: customerId,
