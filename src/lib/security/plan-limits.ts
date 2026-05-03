@@ -12,12 +12,15 @@ export enum PlanFeature {
 export const PLAN_LIMITS = {
   STANDARD: {
     monthlyEmailLimit: 200,
+    maxWorksheets: 5,
   },
   TEAM: {
     monthlyEmailLimit: 150000,
+    maxWorksheets: 10,
   },
   PLUS: {
     monthlyEmailLimit: 250000,
+    maxWorksheets: 1000, // Unlimited
   },
 } as const;
 
@@ -123,4 +126,16 @@ export async function getEmailLimit(userId: string): Promise<number> {
   if (planInfo.planType === "PLUS") return PLAN_LIMITS.PLUS.monthlyEmailLimit;
   if (planInfo.planType === "TEAM") return PLAN_LIMITS.TEAM.monthlyEmailLimit;
   return PLAN_LIMITS.STANDARD.monthlyEmailLimit;
+}
+
+export async function getWorksheetLimit(userId: string): Promise<number> {
+  const planInfo = await getUserPlanInfo(userId);
+  if (!planInfo) return PLAN_LIMITS.STANDARD.maxWorksheets;
+
+  if (planInfo.isOpletics25) return 1000; // Unlimited
+  if (planInfo.isTrialActive) return 1000; // Full access during trial
+
+  if (planInfo.planType === "PLUS") return PLAN_LIMITS.PLUS.maxWorksheets;
+  if (planInfo.planType === "TEAM") return PLAN_LIMITS.TEAM.maxWorksheets;
+  return PLAN_LIMITS.STANDARD.maxWorksheets;
 }
