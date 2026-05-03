@@ -27,21 +27,26 @@ export async function handleApiError(error: unknown, context?: any) {
   }
 
   // Handle custom errors with status codes
-  if (error instanceof Error) {
-    const message = error.message;
+  if (error instanceof Error || (typeof error === "object" && error !== null && "message" in error)) {
+    const message = (error as any).message || "An error occurred";
 
-    // Determine status code based on error message
-    let status = 500;
-    if (message.includes("Unauthorized") || message.includes("not authenticated")) {
-      status = 401;
-    } else if (message.includes("Forbidden") || message.includes("access denied")) {
-      status = 403;
-    } else if (message.includes("not found")) {
-      status = 404;
-    } else if (message.includes("required") || message.includes("invalid") || message.includes("limit exceeded")) {
-      status = 400;
-    } else if (message.includes("Duplicate")) {
-      status = 409;
+    // Determine status code based on error message or error properties
+    let status = (error as any).status || (error as any).statusCode || 500;
+    
+    if (status === 500 || !status) {
+      if (message.includes("Unauthorized") || message.includes("not authenticated")) {
+        status = 401;
+      } else if (message.includes("Forbidden") || message.includes("access denied")) {
+        status = 403;
+      } else if (message.includes("not found")) {
+        status = 404;
+      } else if (message.includes("required") || message.includes("invalid") || message.includes("limit exceeded")) {
+        status = 400;
+      } else if (message.includes("Duplicate")) {
+        status = 409;
+      } else if (message.includes("misconfigured")) {
+        status = 500;
+      }
     }
 
     return NextResponse.json(
@@ -51,6 +56,18 @@ export async function handleApiError(error: unknown, context?: any) {
         requestId 
       }, 
       { status }
+    );
+  }
+
+  // Handle string errors
+  if (typeof error === "string") {
+    return NextResponse.json(
+      {
+        success: false,
+        error,
+        requestId
+      },
+      { status: 500 }
     );
   }
 
