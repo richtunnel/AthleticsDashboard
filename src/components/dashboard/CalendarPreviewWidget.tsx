@@ -636,18 +636,22 @@ function parseGameDate(game: Game): Date | null {
 
     let parsed: Date;
 
-    try {
-      parsed = parseISO(game.date);
-      if (isNaN(parsed.getTime())) {
-        throw new Error("Invalid date from parseISO");
-      }
-    } catch {
-      // Fallback to Date constructor
+    // Always parse the date portion in LOCAL time to avoid UTC-offset issues.
+    // parseISO / new Date("YYYY-MM-DD") both treat date-only strings as UTC
+    // midnight, which shifts to the previous calendar day for users west of UTC.
+    const datePart = game.date.split("T")[0]; // handles "YYYY-MM-DD" and ISO strings
+    const parts = datePart.split("-").map(Number);
+    if (parts.length === 3 && parts.every((n) => !isNaN(n))) {
+      const [year, month, day] = parts;
+      parsed = new Date(year, month - 1, day); // local time — no timezone shift
+    } else {
+      // Fallback for unexpected formats
       parsed = new Date(game.date);
-      if (isNaN(parsed.getTime())) {
-        console.warn("⚠️ Could not parse date:", game.date);
-        return null;
-      }
+    }
+
+    if (isNaN(parsed.getTime())) {
+      console.warn("⚠️ Could not parse date:", game.date);
+      return null;
     }
 
     // Use the new getGameTime helper to find time from any source
