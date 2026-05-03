@@ -1,10 +1,9 @@
 import { Resend } from "resend";
 import { getResendClient } from "../resend";
-import { 
-  CircuitBreakerPolicy, 
-  RetryPolicy, 
-  Policy, 
-  handleAll, 
+import {
+  CircuitBreakerPolicy,
+  RetryPolicy,
+  Policy,
   ConsecutiveBreaker,
 } from "cockatiel";
 
@@ -24,7 +23,7 @@ export class EmailGatewayService {
 
   constructor() {
     // Configure retry policy: 3 retries with exponential backoff
-    this.retryPolicy = handleAll()
+    this.retryPolicy = Policy.handleAll()
       .retry()
       .attempts(3)
       .exponential({
@@ -33,7 +32,7 @@ export class EmailGatewayService {
       });
 
     // Configure circuit breaker: break after 5 consecutive failures, for 30 seconds
-    this.circuitBreaker = handleAll().circuitBreaker(30000, new ConsecutiveBreaker(5));
+    this.circuitBreaker = Policy.handleAll().circuitBreaker(30000, new ConsecutiveBreaker(5));
   }
 
   private getResend() {
@@ -57,7 +56,7 @@ export class EmailGatewayService {
           cc: cc ? (Array.isArray(cc) ? cc : [cc]) : undefined,
           subject,
           html: body,
-          reply_to: replyTo,
+          replyTo: replyTo,
         });
 
         if (response.error) {

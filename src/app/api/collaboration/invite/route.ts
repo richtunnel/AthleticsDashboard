@@ -234,9 +234,18 @@ export async function POST(request: NextRequest) {
       emailError: emailErrorMessage,
     });
   } catch (error) {
-    console.error("Error inviting collaborator:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("[CollaborationInvite] Failed:", {
+      message: errorMessage,
+      stack: errorStack,
+      error,
+    });
     return NextResponse.json(
-      { success: false, message: "An error occurred while sending the invitation" },
+      {
+        success: false,
+        message: `Failed to send invitation: ${errorMessage}`,
+      },
       { status: 500 }
     );
   }
