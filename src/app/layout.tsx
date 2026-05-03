@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Providers } from "./provider";
 import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
@@ -11,8 +10,6 @@ import { getSiteUrl, getSiteUrlAsUrl } from "@/lib/utils/siteUrl";
 
 import "./globals.css";
 import "../styles/sortable-drag-drop.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 const siteUrl = getSiteUrl();
 
@@ -201,7 +198,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={inter.className}>
+      <body>
         <Providers>
           <MixpanelProvider />
           <Suspense fallback={null}>
