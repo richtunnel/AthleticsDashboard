@@ -65,6 +65,7 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     monthlyPrice: 19,
     annualPrice: 125,
     features: [
+      "5 isolated spreadsheets",
       "Email game schedules using campaign manager",
       "200+ batch email campaigns",
       "Travel Recommendations (Bus Departure)",
@@ -81,6 +82,7 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     annualPrice: 250,
     mostPopular: true,
     features: [
+      "10 isolated spreadsheets",
       "Sync schedule with your google calendars +groups",
       "150,000 emails/mo. (Parents, Schools, etc.)",
       "Use AI to scan for dates",
@@ -98,6 +100,7 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     monthlyPrice: 60,
     annualPrice: 350,
     features: [
+      "Unlimited isolated spreadsheets",
       "Everything in Team plan plus...",
       "250,000+ email/mo.",
       "AI Email Generation",
