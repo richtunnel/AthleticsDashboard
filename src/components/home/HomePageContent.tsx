@@ -128,7 +128,7 @@ export default function HomePageContent() {
                   color: "#0f172a",
                 }}
               >
-                The Operating System for <br /> Sports & Athletic Departments
+                The Operating System for <br /> Athletics
               </h1>
               <p
                 className="text-xl mb-8"
@@ -139,7 +139,7 @@ export default function HomePageContent() {
                   fontWeight: "500",
                 }}
               >
-                The premier athlete management system. Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
+                Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
@@ -239,10 +239,10 @@ export default function HomePageContent() {
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
                 <h1 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white", fontSize: "2.5rem" }}>
-                  Operating System for Sports
+                  The Operating System for Athletics
                 </h1>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  The ultimate athlete management system. Upload your sports schedule CSV and instantly start automating your daily workflow.
+                  Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
                 </p>
               </div>
 
