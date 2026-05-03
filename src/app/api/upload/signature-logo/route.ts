@@ -59,7 +59,7 @@ function buildEndpoint(rawUrl: string): string {
   }
 }
 
-const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_REGION}.digitaloceanspaces.com`;
+const rawEndpoint = process.env.DO_SPACES_ENDPOINT || `https://${SPACES_BUCKET}.${SPACES_REGION}.digitaloceanspaces.com`;
 const SPACES_ENDPOINT = buildEndpoint(rawEndpoint);
 
 const rawCdnUrl = process.env.DO_SPACES_CDN_URL || `https://${SPACES_BUCKET}.${SPACES_REGION}.cdn.digitaloceanspaces.com`;
