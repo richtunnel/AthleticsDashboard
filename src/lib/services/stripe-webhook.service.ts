@@ -30,7 +30,10 @@ interface SubscriptionSyncResult {
 }
 
 export class StripeWebhookService {
-  async processWebhookEvent(event: Stripe.Event) {
+  async processWebhookEvent(payload: { event: Stripe.Event; rawBody?: string }) {
+    // Handle new payload format from queue
+    const event = payload.event || payload;
+    
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated":

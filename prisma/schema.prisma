@@ -151,8 +151,10 @@ model BackgroundJob {
   updatedAt      DateTime  @updatedAt
 
   @@index([status, nextAttemptAt])
+  @@index([status, createdAt])
   @@index([organizationId])
   @@index([userId])
+  @@index([payload])
 }
 
 enum JobType {
