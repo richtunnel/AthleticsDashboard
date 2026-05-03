@@ -1,13 +1,16 @@
 // /lib/mixpanelServer.ts
 import mixpanel from "mixpanel";
 
-const serviceSecret = process.env.MIXPANEL_SERVICE_SECRET;
+// The mixpanel Node.js package needs the project token (same token used client-side).
+// MIXPANEL_API_SECRET and the service account credentials are for the Data Export /
+// JQL APIs — they are NOT used here for event tracking.
+const token = process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
 
-if (!serviceSecret) {
-  console.warn("MIXPANEL_SERVICE_SECRET not configured - server-side tracking disabled");
+if (!token) {
+  console.warn("NEXT_PUBLIC_MIXPANEL_TOKEN not configured - server-side tracking disabled");
 }
 
-export const mixpanelServer = serviceSecret ? mixpanel.init(serviceSecret) : null;
+export const mixpanelServer = token ? mixpanel.init(token) : null;
 
 export const trackServerEvent = (event: string, properties?: Record<string, any>) => {
   try {
