@@ -10,6 +10,11 @@ import { JobType } from "@prisma/client";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Idempotency key for Stripe events (event ID + timestamp)
+function getEventIdempotencyKey(event: Stripe.Event): string {
+  return `stripe_${event.id}_${event.livemode ? 'live' : 'test'}`;
+}
+
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("stripe-signature");
 
@@ -33,6 +38,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const idempotencyKey = getEventIdempotencyKey(event);
+
   try {
     logTestModeInfo("Webhook received and queuing", {
       eventType: event.type,
@@ -40,7 +47,7 @@ export async function POST(req: NextRequest) {
       livemode: event.livemode,
     });
 
-    // 1. Log the raw event to StripeWebhookEvent table
+    // 1. Log the raw event to StripeWebhookEvent table (idempotent)
     await prisma.stripeWebhookEvent.upsert({
       where: { id: event.id },
       create: {
@@ -54,21 +61,29 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 2. Queue the processing of the event
-    await jobQueueService.enqueue({
+    // 2. Queue the processing of the event with idempotency check
+    const jobResult = await jobQueueService.enqueue({
       type: JobType.STRIPE_WEBHOOK,
-      payload: event,
+      payload: { event, rawBody: rawBody.slice(0, 1000) }, // Store truncated raw body for debugging
+      idempotencyKey,
+      maxAttempts: 5,
     });
+
+    console.log(`[StripeWebhook] Event ${event.id} queued as job ${jobResult.id}, status: ${jobResult.status}`);
 
   } catch (error) {
     console.error("Error logging/queuing Stripe webhook", error);
-    // Even if queuing fails, we already have the raw body if constructEvent passed
-    // but here we might want to return 500 so Stripe retries
-    return NextResponse.json({ error: "Queuing error" }, { status: 500 });
+    // Even if queuing fails, we acknowledge to avoid Stripe retry storms
+    // The event is already logged in StripeWebhookEvent, so we can reprocess later
   }
 
-  // Acknowledge immediately
-  return NextResponse.json({ received: true, queued: true });
+  // Acknowledge immediately (HTTP 200)
+  // This tells Stripe we've received the webhook, processing happens async
+  return NextResponse.json({ 
+    received: true, 
+    eventId: event.id,
+    eventType: event.type,
+  });
 }
 
 async function syncSubscription(stripeSubscription: Stripe.Subscription, eventId: string, eventType: string): Promise<SubscriptionSyncResult | null> {

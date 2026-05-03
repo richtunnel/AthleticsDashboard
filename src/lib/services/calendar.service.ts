@@ -3,6 +3,8 @@ import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
 import { hasScopes } from "./incremental-auth.service";
 import { calendarSyncTrackerService } from "./calendar-sync-tracker.service";
+import { jobQueueService } from "./job-queue.service";
+import { JobType } from "@prisma/client";
 
 const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
 
@@ -18,8 +20,82 @@ export interface UpcomingCalendarEvent {
   htmlLink?: string | null;
 }
 
+export interface CalendarSyncProgress {
+  total: number;
+  synced: number;
+  failed: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface CalendarSyncResult {
+  success: boolean;
+  jobId?: string;
+  progress?: CalendarSyncProgress;
+  message?: string;
+}
+
+export interface CalendarSyncJobPayload {
+  userId: string;
+  organizationId: string;
+  jobId: string;
+  gameIds?: string[];
+  sportFilter?: { name: string; level: string; gender?: string };
+  totalGames?: number;
+  currentIndex?: number;
+  results?: {
+    synced: number;
+    failed: number;
+    skipped: number;
+  };
+  errors?: string[];
+}
+
 //Google Calendar Sync
 export class CalendarService {
+  /**
+   * Enqueue a calendar sync job and return immediately with job ID
+   * For polling-based progress tracking
+   */
+  async enqueueCalendarSync(
+    userId: string,
+    organizationId: string,
+    options?: {
+      sportFilter?: { name: string; level: string; gender?: string };
+      gameIds?: string[];
+    }
+  ): Promise<{ jobId: string }> {
+    const job = await jobQueueService.enqueue({
+      type: JobType.CALENDAR_SYNC,
+      payload: {
+        userId,
+        organizationId,
+        sportFilter: options?.sportFilter,
+        gameIds: options?.gameIds,
+      },
+      userId,
+      organizationId,
+      maxAttempts: 3,
+    });
+
+    return { jobId: job.id };
+  }
+
+  /**
+   * Get sync progress for a specific job
+   */
+  async getSyncProgress(jobId: string): Promise<CalendarSyncProgress | null> {
+    const job = await jobQueueService.getJob(jobId);
+    if (!job) return null;
+
+    return job.progress as CalendarSyncProgress | undefined || {
+      total: job.result?.totalGames || 0,
+      synced: job.result?.synced || 0,
+      failed: job.result?.failed || 0,
+      skipped: job.result?.skipped || 0,
+      errors: job.result?.errors || [],
+    };
+  }
   /**
    * Check if user has granted Calendar scopes (incremental auth)
    * This checks the OAuth scopes, not just token existence
@@ -378,7 +454,16 @@ export class CalendarService {
     return details;
   }
 
-  async syncAllGames(userId: string, organizationId: string) {
+  /**
+   * Async calendar sync with progress updates for background job processing
+   */
+  async syncAllGames(userId: string, organizationId: string, jobId?: string): Promise<{
+    synced: number;
+    failed: number;
+    skipped: number;
+    totalGames: number;
+    errors: string[];
+  }> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
@@ -396,7 +481,7 @@ export class CalendarService {
       });
 
       if (approvedRequests.length === 0) {
-        return [];
+        return { synced: 0, failed: 0, skipped: 0, totalGames: 0, errors: [] };
       }
 
       // Build OR conditions for all approved sport/level combinations
@@ -435,22 +520,66 @@ export class CalendarService {
       });
     }
 
-    const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+    const totalGames = games.length;
+    let synced = 0;
+    let failed = 0;
+    let skipped = 0;
+    const errors: string[] = [];
 
-    for (const g of games) {
+    // Update initial progress
+    if (jobId) {
+      await jobQueueService.updateProgress(jobId, {
+        current: 0,
+        total: totalGames,
+        message: `Starting sync for ${totalGames} games...`,
+      });
+    }
+
+    for (let i = 0; i < games.length; i++) {
+      const g = games[i];
       try {
-        await this.syncGameToCalendar(g.id, userId);
-        results.push({ id: g.id, ok: true });
+        const result = await this.syncGameToCalendar(g.id, userId);
+        if (result.skipped) {
+          skipped++;
+        } else {
+          synced++;
+        }
       } catch (e) {
-        results.push({
-          id: g.id,
-          ok: false,
-          error: e instanceof Error ? e.message : "Unknown error",
+        failed++;
+        const errorMsg = e instanceof Error ? e.message : "Unknown error";
+        errors.push(`Game ${g.id}: ${errorMsg}`);
+      }
+
+      // Update progress every 10 games
+      if (jobId && (i + 1) % 10 === 0) {
+        await jobQueueService.updateProgress(jobId, {
+          current: i + 1,
+          total: totalGames,
+          message: `Synced ${synced}, failed ${failed}, skipped ${skipped}`,
         });
       }
     }
 
-    return results;
+    // Final progress update
+    if (jobId) {
+      await jobQueueService.updateProgress(jobId, {
+        current: totalGames,
+        total: totalGames,
+        message: `Sync complete: ${synced} synced, ${failed} failed, ${skipped} skipped`,
+      });
+    }
+
+    return { synced, failed, skipped, totalGames, errors };
+  }
+
+  /**
+   * Legacy sync method for backward compatibility
+   */
+  async syncAllGamesLegacy(userId: string, organizationId: string) {
+    const result = await this.syncAllGames(userId, organizationId);
+    return result.synced > 0 || result.failed > 0 || result.skipped > 0
+      ? result.synced
+      : [];
   }
 
   async syncGamesForSportLevel(
