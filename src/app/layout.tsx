@@ -59,7 +59,7 @@ const softwareAppJsonLd = {
   operatingSystem: "Web, iOS, Android",
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Sports Management Software",
-  description: "The ultimate athlete management system and sports software for athletic departments.",
+  description: "The ultimate athlete management system (AMS), athletic management system, and sports software for athletic departments. Features include workout tracking, fitness monitoring, and centralized AMS capabilities.",
   featureList: [
     "AI-powered game scheduling",
     "Real-time Google Calendar synchronization",
@@ -67,7 +67,12 @@ const softwareAppJsonLd = {
     "Automated travel time calculation",
     "League-wide conflict detection",
     "Direct Athletics & Teamworks alternative",
-    "Athlete management system"
+    "Athlete management system (AMS)",
+    "Teambuilder and workout integration",
+    "Kinduct and Athlete SR features",
+    "Smart athlete monitoring",
+    "Centralized AMS and athletes desk",
+    "Adhub and athletics hub"
   ],
   offers: {
     "@type": "AggregateOffer",
@@ -127,6 +132,20 @@ export const metadata: Metadata = {
     "athletic department workflow",
     "AI sports scheduling",
     "Operating System for Sports",
+    "Teambuilder",
+    "team builder",
+    "workout",
+    "fitness",
+    "AMS",
+    "athletic management system",
+    "athlete monitoring",
+    "smart athlete",
+    "Kinduct",
+    "athlete SR",
+    "athletes desk",
+    "adhub",
+    "athletics hub",
+    "centralized ams",
   ],
   alternates: {
     canonical: "/",

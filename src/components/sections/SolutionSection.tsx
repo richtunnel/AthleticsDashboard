@@ -77,7 +77,7 @@ const SolutionSection = () => {
                 fontSize: "1.125rem",
               }}
             >
-              Opletics gives you a centralized athlete management system where you can upload, create, and manage your athletic schedules all in one place. Our sports scheduling software eliminates back-and-forth by automating email schedules, game date discovery, and bus departure planning.
+              Opletics gives you a centralized hub where you can upload, create, and manage your athletic schedules all in one place. Our sports scheduling software eliminates back-and-forth by automating email schedules, game date discovery, and bus departure planning.
             </Typography>
 
             <Box sx={{ mb: 4 }}>
