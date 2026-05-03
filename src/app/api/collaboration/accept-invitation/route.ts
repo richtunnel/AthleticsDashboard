@@ -6,6 +6,7 @@ import { isInvitationExpired } from "@/lib/utils/collaboration";
 import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
 import { CollaborativeRole, CollaborationAction } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 
 
 export async function GET(request: NextRequest) {
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     // If signed in, check if the email matches
     if (isSignedIn && session.user.email.toLowerCase() !== email.toLowerCase()) {
-      const acceptPageUrl = new URL("/accept-invitation", request.url);
+      const acceptPageUrl = new URL("/accept-invitation", getSiteUrl());
       acceptPageUrl.searchParams.set("token", token);
       return NextResponse.redirect(acceptPageUrl);
     }
@@ -141,15 +142,16 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Redirect to the dashboard
+      // Redirect to the dashboard — use env-driven site URL so we don't echo back
+      // the server's bind address (0.0.0.0:3000) when behind a misconfigured proxy.
       return NextResponse.redirect(
-        new URL(`/dashboard?collaboration=accepted&role=${role}`, request.url)
+        new URL(`/dashboard?collaboration=accepted&role=${role}`, getSiteUrl())
       );
     }
 
     // Not signed in — redirect to the accept-invitation page
     // which will show invitation details and a sign-in button
-    const acceptPageUrl = new URL("/accept-invitation", request.url);
+    const acceptPageUrl = new URL("/accept-invitation", getSiteUrl());
     acceptPageUrl.searchParams.set("token", token);
     return NextResponse.redirect(acceptPageUrl);
 

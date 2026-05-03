@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
 
     const stripe = getStripe();
 
-    // Build return URL
-    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+    // Build return URL — env-driven so the Stripe portal never bounces users back to 0.0.0.0:3000.
+    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || getSiteUrl()).replace(/\/$/, "");
     const baseUrl = normalizeBrowserUrl(rawBaseUrl);
     const returnUrl = `${baseUrl}/dashboard/settings`;
 
