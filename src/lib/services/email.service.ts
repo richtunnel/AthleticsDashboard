@@ -2,6 +2,7 @@ import { getResendClientOptional } from "../resend";
 import { prisma } from "../database/prisma";
 import { emailLimitService } from "./email-limit.service";
 import { emailQueueService } from "./email-queue.service";
+import { emailGatewayService } from "./email-gateway.service";
 import { format } from "date-fns";
 
 interface SendEmailParams {
@@ -18,6 +19,7 @@ interface SendEmailParams {
   additionalMessage?: string;
   visibleColumnIds?: string[];
   selectedSchoolNames?: string[];
+  immediate?: boolean;
 }
 
 type SubscriptionEmailType = "confirmation" | "cancellation" | "payment_failure" | "payment_success" | "trial_ending" | "upgrade";
@@ -53,7 +55,8 @@ export class EmailService {
       recipientCategory,
       additionalMessage,
       visibleColumnIds,
-      selectedSchoolNames
+      selectedSchoolNames,
+      immediate = false
     } = params;
 
     // 1. Get user context if available
@@ -66,7 +69,8 @@ export class EmailService {
     }
 
     // 2. If we have a user and organization, use the QUEUE for scalability and reliability
-    if (user?.organizationId) {
+    // UNLESS immediate: true is requested
+    if (user?.organizationId && !immediate) {
       try {
         const job = await emailQueueService.enqueueBulkEmail({
           userId: user.id,
@@ -90,8 +94,7 @@ export class EmailService {
       }
     }
 
-    // 3. Fallback to synchronous send for system emails or if queueing failed
-    // This maintains backward compatibility for system emails without a clear organization context
+    // 3. Fallback to synchronous send for system emails, immediate requests, or if queueing failed
     
     // Check limits if user context exists
     if (sentById) {
@@ -108,32 +111,28 @@ export class EmailService {
         to,
         cc,
         subject,
-        body,
+        body: body.includes("<html>") ? body : this.buildHtmlEmail(body),
         status: "PENDING",
         gameId: gameId || null,
         sentById: sentById || null,
       },
     });
 
-    const resend = getResendClientOptional();
-    if (!resend) {
-      throw new Error("Email service not configured. Please set RESEND_API_KEY.");
-    }
-
     try {
-      // Send email via Resend
-      const result = await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+      // Send email via EmailGatewayService for better reliability
+      const result = await emailGatewayService.send({
         to,
         cc,
         subject,
-        html: body.includes("<html>") ? body : this.buildHtmlEmail(body),
-        replyTo: replyTo,
+        body: body.includes("<html>") ? body : this.buildHtmlEmail(body),
+        replyTo,
       });
 
-      const emailId = result.data?.id || null;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to send email");
+      }
 
-      // Update log on success
+      // Update log on success using updateMany to avoid composite ID issues
       await prisma.emailLog.updateMany({
         where: {
           id: emailLog.id,
@@ -145,9 +144,9 @@ export class EmailService {
         },
       });
 
-      return { success: true, emailId };
+      return { success: true, emailId: result.id };
     } catch (error) {
-      // Update log on failure
+      // Update log on failure using updateMany to avoid composite ID issues
       await prisma.emailLog.updateMany({
         where: {
           id: emailLog.id,
@@ -177,6 +176,7 @@ export class EmailService {
       subject,
       body,
       sentById: user.id, // User emails still have sentById
+      immediate: true,
     });
   }
 
@@ -207,38 +207,14 @@ export class EmailService {
         return;
       }
 
-      const resend = getResendClientOptional();
-
-      if (!resend) {
-        console.warn(`Email service not configured. Welcome email not sent to ${user.email}. Please set RESEND_API_KEY.`);
-        return;
-      }
-
       const { subject, body } = this.buildWelcomeEmailTemplate(user);
-      const html = this.buildHtmlEmail(body);
 
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+      await this.sendEmail({
         to: [user.email],
         subject,
-        html,
+        body,
+        immediate: true,
       });
-
-      await prisma.emailLog
-        .create({
-          data: {
-            to: [user.email],
-            cc: [],
-            subject,
-            body: html,
-            status: "SENT",
-            sentAt: new Date(),
-            sentById: null,
-          },
-        })
-        .catch((err) => {
-          console.error("Email log failed:", err);
-        });
     } catch (error) {
       console.error("Welcome email send failed:", error);
     }
@@ -569,12 +545,6 @@ export class EmailService {
   }
 
   async sendSupportNotificationEmail(params: { type: "feedback" | "ticket"; submitter: { name: string; email: string }; subject: string; message: string; ticketNumber?: string }): Promise<void> {
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.warn("Email service not configured. Support notification not sent.");
-      return;
-    }
-
     const { type, submitter, subject, message, ticketNumber } = params;
     const typeLabel = type === "feedback" ? "Feedback" : "Support Ticket";
     const ticketInfo = ticketNumber ? ` (${ticketNumber})` : "";
@@ -593,11 +563,11 @@ export class EmailService {
     `;
 
     try {
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+      await this.sendEmail({
         to: ["support@opletics.com"],
         subject: `New ${typeLabel}: ${subject}`,
-        html: this.buildHtmlEmail(body),
+        body,
+        immediate: true,
       });
       console.log("Support notification email sent successfully");
     } catch (error) {
@@ -607,12 +577,6 @@ export class EmailService {
   }
 
   async sendTicketConfirmationEmail(params: { userEmail: string; userName: string; ticketNumber: string; subject: string }): Promise<void> {
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.warn("Email service not configured. Ticket confirmation email not sent.");
-      return;
-    }
-
     const { userEmail, userName, ticketNumber, subject } = params;
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const ticketUrl = `${baseUrl.replace(/\/$/, "")}/dashboard/support/${ticketNumber}`;
@@ -644,11 +608,11 @@ export class EmailService {
     `;
 
     try {
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+      await this.sendEmail({
         to: [userEmail],
         subject: `Support Ticket ${ticketNumber} - We're on it!`,
-        html: this.buildHtmlEmail(body),
+        body,
+        immediate: true,
       });
       console.log(`Ticket confirmation email sent to ${userEmail}`);
     } catch (error) {
@@ -712,16 +676,11 @@ export class EmailService {
       subject: `Invitation to collaborate on Opletics dashboard`,
       body,
       sentById,
+      immediate: true,
     });
   }
 
   async sendTicketClosedNotification(params: { ticketNumber: string; subject: string; closedBy: { name: string; email: string } }): Promise<void> {
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.warn("Email service not configured. Ticket closed notification not sent.");
-      return;
-    }
-
     const { ticketNumber, subject, closedBy } = params;
 
     const body = `
@@ -740,11 +699,11 @@ export class EmailService {
     `;
 
     try {
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || "Opletics <noreply@opletics.com>",
+      await this.sendEmail({
         to: ["support@opletics.com"],
         subject: `Ticket ${ticketNumber} Closed by User`,
-        html: this.buildHtmlEmail(body),
+        body,
+        immediate: true,
       });
       console.log("Ticket closed notification email sent to support team");
     } catch (error) {
