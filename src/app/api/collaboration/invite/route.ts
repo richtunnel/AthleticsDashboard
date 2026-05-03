@@ -134,17 +134,43 @@ export async function POST(request: NextRequest) {
     const appUrl = normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL);
     const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${token}`;
 
-    // Create the invitation
-    const collaborator = await prisma.collaborativeMember.create({
-      data: {
+    // Create or re-activate the invitation.
+    // The table has @@unique([userId, email]), so if a previous invitation was
+    // REVOKED or EXPIRED we must update it instead of creating a new row.
+    const existingStaleRecord = await prisma.collaborativeMember.findFirst({
+      where: {
         userId: userId,
         email: email.toLowerCase(),
-        role: role as CollaborativeRole,
-        status: "PENDING",
-        invitedAt,
-        token,
+        status: { in: ["REVOKED", "EXPIRED"] },
       },
     });
+
+    const collaborator = existingStaleRecord
+      ? await prisma.collaborativeMember.update({
+          where: { id: existingStaleRecord.id },
+          data: {
+            role: role as CollaborativeRole,
+            status: "PENDING",
+            invitedAt,
+            token,
+            revokedAt: null,
+            revokeReason: null,
+            acceptedAt: null,
+            emailSent: false,
+            emailSentAt: null,
+            emailError: null,
+          },
+        })
+      : await prisma.collaborativeMember.create({
+          data: {
+            userId: userId,
+            email: email.toLowerCase(),
+            role: role as CollaborativeRole,
+            status: "PENDING",
+            invitedAt,
+            token,
+          },
+        });
 
     // Log the invitation
     const metadata = extractRequestMetadataFromHeaders(request.headers);
