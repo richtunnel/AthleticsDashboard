@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
           "/onboarding/plans",
           "/onboarding/parent/plans",
           "/onboarding/parent-signup",
+          "/assets/",
         ],
         disallow: [
           "/api/",
@@ -21,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
           "/dashboard/",
           "/onboarding/",
           "/verify-recovery-email",
+          "/_next/",
         ],
       },
     ],

@@ -1,111 +1,21 @@
-"use client";
+import type { Metadata } from "next";
+import AboutClient from "./AboutClient";
 
-import Link from "next/link";
-import Image from "next/image";
-import styles from "../../styles/logo.module.css";
-import { VscGithubProject } from "react-icons/vsc";
-import Footer from "@/components/layout/Footer";
-import TopFooter from "@/components/footer/topFooter";
-import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+export const metadata: Metadata = {
+  title: "About Opletics | Revolutionizing Athletic Department Management",
+  description:
+    "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments. Our mission is to streamline sports scheduling and team management.",
+  alternates: {
+    canonical: "/about",
+  },
+  openGraph: {
+    title: "About Opletics | Revolutionizing Athletic Department Management",
+    description:
+      "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments.",
+    url: "/about",
+  },
+};
 
 export default function AboutUsPage() {
-  return (
-    <div
-      className="grid h-screen lg:grid-cols-[1fr_1.2fr] grid-cols-1 text-left"
-      style={{
-        backgroundColor: "#fdfdfd",
-        color: "#0f172a",
-      }}
-    >
-      <div style={{ height: "75%" }} className="relative lg:block hidden">
-        <Image fill src="/assets/images/opletics-team.jpg" alt="Conference Meeting" className="object-contain w-full" priority />
-      </div>
-
-      <div className="flex flex-col h-full">
-        <div
-          className={styles.homeHeaderContainer}
-          style={{
-            color: "#0f172a",
-          }}
-        >
-          <Link
-            className={`${styles["ad-hub-logo"]} flex d-flex`}
-            href="/"
-            style={{
-              // Force light mode colors for logo
-              color: "#0f172a",
-            }}
-          >
-            <CircularProjectIcon />
-            <span style={{ marginLeft: "2.5px" }}>opletics</span>
-          </Link>
-        </div>
-
-        <div className="flex flex-1 items-center justify-center px-4">
-          <div className={styles.homePageContentContainer}>
-            <h3
-              className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
-              style={{
-                color: "#0f172a",
-              }}
-            >
-              About Us
-            </h3>
-
-            {/* <h4
-              className="text-2xl font-semibold mb-2"
-              style={{
-                color: "#6d92e2",
-              }}
-            >
-              Built by Athletic Directors and School Administrators,
-            </h4>
-
-            <h4
-              className="text-2xl font-semibold mb-6"
-              style={{
-                color: "#475569",
-              }}
-            >
-              for the people who lead our programs.
-            </h4> */}
-
-            <div
-              className="text-lg mb-4"
-              style={{
-                maxWidth: "665px",
-                padding: 0,
-                color: "#0f172a",
-                lineHeight: 1.8,
-                fontSize: "0.95rem",
-              }}
-            >
-              <p className="mb-4">
-                Opletics was created with one mission: to give athletic departments and school leadership the modern tools they deserve. After decades of watching athletic directors, coaches, and
-                administrators juggle spreadsheets, emails, forms, and outdated systems, we knew the industry needed something better - something built by people who truly understand the challenges of
-                running a successful school athletic program.
-              </p>
-
-              <p className="mb-4">
-                With over 50 years of combined experience across athletics, school administration, education, and technology, our team brings together the people who have lived the problems and the
-                experts who know how to solve them. From former athletic directors and school administrators to seasoned software professionals, we've built a platform that blends real-world insight
-                with cutting-edge innovation.
-              </p>
-
-              <p className="mb-4" style={{ fontWeight: 600 }}>
-                At Opletics, you're not just in good hands, you're in experienced, trusted, industry-tested hands.
-              </p>
-
-              <p>
-                We're committed to helping athletic directors and school administrators lead with confidence, reclaim their time, and elevate their programs without the administrative overwhelm. This
-                isn't generic software trying to fit your world - this is a platform built specifically for it.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <TopFooter />
-      </div>
-    </div>
-  );
+  return <AboutClient />;
 }

@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Container, Typography, GridLegacy as Grid, Button, useTheme } from "@mui/material";
 import { CheckCircle, Schedule, Notifications, Sync, CalendarMonth, People, AutoAwesome, Send, DepartureBoard } from "@mui/icons-material";
 import Link from "next/link";
+import Image from "next/image";
 
 const SolutionSection = () => {
   const theme = useTheme();
@@ -65,7 +66,7 @@ const SolutionSection = () => {
                 color: theme.palette.text.primary,
               }}
             >
-              One Central Hub to Manage Games.
+              Comprehensive League Management Software Solutions
             </Typography>
             <Typography
               variant="body1"
@@ -76,8 +77,7 @@ const SolutionSection = () => {
                 fontSize: "1.125rem",
               }}
             >
-              Opletics gives you a centralized hub where you can upload, create and manage your athletic schedules all in one place. No more back-and-forth between emailing schedules, finding game
-              dates or figuring out the right time for bus departure.
+              Opletics gives you a centralized athlete management system where you can upload, create, and manage your athletic schedules all in one place. Our sports scheduling software eliminates back-and-forth by automating email schedules, game date discovery, and bus departure planning.
             </Typography>
 
             <Box sx={{ mb: 4 }}>
@@ -146,32 +146,16 @@ const SolutionSection = () => {
                 height: { xs: 400, md: 500 },
                 borderRadius: 4,
                 background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
-                backgroundImage: "url(assets/images/office-basketball.jpg)",
-                backgroundRepeat: "no-repeat",
-                backgroundSize: "100%",
-                backgroundPosition: "center",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 position: "relative",
                 overflow: "hidden",
               }}
             >
-              {/* <Box
-                sx={{
-                  textAlign: "center",
-                  color: "white",
-                  p: 4,
-                }}
-              >
-                <CalendarMonth sx={{ fontSize: "8rem", opacity: 0.3, mb: 2 }} />
-                <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                  Your Schedule Hub
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  Access all game information in one centralized location
-                </Typography>
-              </Box> */}
+              <Image
+                src="/assets/images/office-basketball.jpg"
+                alt="Athletic director using Opletics sports management software to manage league schedules"
+                fill
+                style={{ objectFit: "cover" }}
+              />
             </Box>
           </Grid>
         </Grid>
