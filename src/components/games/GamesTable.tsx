@@ -41,6 +41,7 @@ import { GameStatus } from "@prisma/client";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import NextLink from "next/link";
+import styles from "@/styles/gamestable.module.css";
 
 import {
   Box,
@@ -164,7 +165,6 @@ const formatBusTimeDisplay = (dateTime: string | null): string => {
     return "—";
   }
 };
-
 
 type CustomColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
 
@@ -525,7 +525,6 @@ export function GamesTable() {
       })
       .catch((err) => console.error("Error fetching plan limits:", err));
   }, []);
-
 
   // Dismiss/Depart Modal state (for Bus Info/Travel custom columns)
   const [dismissDepartModal, setDismissDepartModal] = useState<{
@@ -3040,13 +3039,10 @@ export function GamesTable() {
     }
   }, [addNotification]);
 
-  const handleViewSelectWorkbook = useCallback(
-    (id: string) => {
-      useGamesWorkbookStore.setState({ selectedWorkbookId: id });
-      setWorksheetTab("worksheet");
-    },
-    [],
-  );
+  const handleViewSelectWorkbook = useCallback((id: string) => {
+    useGamesWorkbookStore.setState({ selectedWorkbookId: id });
+    setWorksheetTab("worksheet");
+  }, []);
 
   const handleViewRenameWorkbook = useCallback(
     (id: string, name: string) => {
@@ -3899,7 +3895,8 @@ export function GamesTable() {
     if (!mounted) return dateString;
     try {
       // Parse the date as UTC to avoid timezone shifts
-      const date = new Date(dateString); if (isNaN(date.getTime())) return dateString;
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
       // Extract the UTC date parts to ensure consistent display
       const year = date.getUTCFullYear();
       const month = date.getUTCMonth();
@@ -6310,7 +6307,9 @@ export function GamesTable() {
                 )}
               </TableCell>
             );
-          } else if (mapping === "time") { cellValue = formatTimeDisplay(customFields[columnName]); } else {
+          } else if (mapping === "time") {
+            cellValue = formatTimeDisplay(customFields[columnName]);
+          } else {
             // Display value from customFields (editable)
             cellValue = customFields[columnName] || "—";
           }
@@ -6901,11 +6900,7 @@ export function GamesTable() {
   return (
     <Box>
       {/* Worksheet Toggle */}
-      <WorksheetToggle
-        activeTab={worksheetTab}
-        worksheetName={currentWorksheetName}
-        onTabChange={setWorksheetTab}
-      />
+      <WorksheetToggle activeTab={worksheetTab} worksheetName={currentWorksheetName} onTabChange={setWorksheetTab} />
 
       {/* Worksheet View - shown when "View" tab is active */}
       {worksheetTab === "view" ? (
@@ -6916,106 +6911,119 @@ export function GamesTable() {
           onCreateWorkbook={handleViewImportNew}
           onRenameWorkbook={handleViewRenameWorkbook}
           onDeleteWorkbook={handleViewDeleteWorkbook}
-          isCreating={createWorkbookMutation.isPending} worksheetLimit={planLimits?.worksheetLimit}
+          isCreating={createWorkbookMutation.isPending}
+          worksheetLimit={planLimits?.worksheetLimit}
         />
       ) : (
-      <>
-      {/* Header */}
-      <Box
-        sx={{ mb: { xs: 2, md: 4 }, display: "flex", flexDirection: { xs: "column", md: "row" }, gap: { xs: 2, md: 0 }, justifyContent: "space-between", alignItems: { xs: "stretch", md: "center" } }}
-      >
-        <Box>
-          <Typography
-            variant="h5"
-            sx={{ fontWeight: 700, mb: 0.5, fontSize: { xs: "1.25rem", md: "1.5rem" }, color: (theme) => (theme.palette.mode === "dark" ? theme.palette.primary.light : theme.palette.text.primary) }}
+        <>
+          {/* Header */}
+          <Box
+            sx={{
+              mb: { xs: 2, md: 4 },
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: 2, md: 0 },
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", md: "center" },
+            }}
           >
-            Game Schedules
-          </Typography>
-
-          <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            {/* Manage your athletic schedules and create your own customized columns. */}
-            Import your CSV or image game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
-            <span>
-              <Tooltip
-                title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
-                placement="top"
-                arrow
-              >
-                <IconButton size="small" sx={{ ml: 0, pl: 0 }}>
-                  <InfoOutlinedIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            </span>
-            {activeFilterCount > 0 && (
-              <Chip
-                label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`}
-                size="small"
-                onDelete={() => setColumnFilters({})}
+            <Box className={styles.GamesTableContainer}>
+              <Typography
+                variant="h5"
                 sx={{
-                  ml: 1,
-                  bgcolor: "primary.main",
-                  color: "primary.contrastText",
-                  "& .MuiChip-deleteIcon": {
-                    color: "primary.contrastText",
-                    "&:hover": {
-                      color: (theme) => alpha(theme.palette.primary.contrastText, 0.7),
-                    },
-                  },
-                  "&:hover": {
-                    bgcolor: "primary.dark",
-                  },
+                  fontWeight: 700,
+                  mb: 0.5,
+                  fontSize: { xs: "1.25rem", md: "1.5rem" },
+                  color: (theme) => (theme.palette.mode === "dark" ? theme.palette.primary.light : theme.palette.text.primary),
                 }}
-              />
-            )}
-          </Typography>
+              >
+                Game Schedules
+              </Typography>
 
-          {!showWorkbookSelector && (
-            <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
-              {selectedGames.size > 0 && games.length > 0 && (
-                <Button
-                  variant="contained"
-                  startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
-                  onClick={handleSendEmail}
-                  size="small"
-                  sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-                >
-                  Send Email ({selectedGames.size})
-                </Button>
-              )}
-              {/* Create Game Button - conditional rendering based on selection */}
-              <Tooltip title="Create a new row in the table below">
-                {selectedGames.size > 0 ? (
-                  <IconButton
-                    disabled
+              <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+                {/* Manage your athletic schedules and create your own customized columns. */}
+                Import your CSV or image game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
+                <span>
+                  <Tooltip
+                    title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
+                    placement="top"
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ ml: 0, pl: 0 }}>
+                      <InfoOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </span>
+                {activeFilterCount > 0 && (
+                  <Chip
+                    label={`${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`}
                     size="small"
+                    onDelete={() => setColumnFilters({})}
                     sx={{
-                      opacity: 0.5,
-                      minWidth: 32,
-                      width: 32,
-                      height: 32,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
+                      ml: 1,
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      "& .MuiChip-deleteIcon": {
+                        color: "primary.contrastText",
+                        "&:hover": {
+                          color: (theme) => alpha(theme.palette.primary.contrastText, 0.7),
+                        },
+                      },
+                      "&:hover": {
+                        bgcolor: "primary.dark",
+                      },
                     }}
-                  >
-                    <Add fontSize="small" />
-                  </IconButton>
-                ) : (
-                  <Button
-                    variant="contained"
-                    startIcon={<Add />}
-                    onClick={handleNewGame}
-                    disabled={isAddingNew}
-                    size="small"
-                    sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-                  >
-                    Create Game
-                  </Button>
+                  />
                 )}
-              </Tooltip>
+              </Typography>
 
-              {/* Create Table Button - to create separate tables */}
-              {/* <Tooltip title="Add a separate table">
+              {!showWorkbookSelector && (
+                <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
+                  {selectedGames.size > 0 && games.length > 0 && (
+                    <Button
+                      variant="contained"
+                      startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
+                      onClick={handleSendEmail}
+                      size="small"
+                      sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                    >
+                      Send Email ({selectedGames.size})
+                    </Button>
+                  )}
+                  {/* Create Game Button - conditional rendering based on selection */}
+                  <Tooltip title="Create a new row in the table below">
+                    {selectedGames.size > 0 ? (
+                      <IconButton
+                        disabled
+                        size="small"
+                        sx={{
+                          opacity: 0.5,
+                          minWidth: 32,
+                          width: 32,
+                          height: 32,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Add fontSize="small" />
+                      </IconButton>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        startIcon={<Add />}
+                        onClick={handleNewGame}
+                        disabled={isAddingNew}
+                        size="small"
+                        sx={{ color: `${theme.palette.mode}` === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                      >
+                        Create Game
+                      </Button>
+                    )}
+                  </Tooltip>
+
+                  {/* Create Table Button - to create separate tables */}
+                  {/* <Tooltip title="Add a separate table">
                 {selectedGames.size > 0 ? (
                   <IconButton
                     disabled
@@ -7049,210 +7057,210 @@ export function GamesTable() {
                 )}
               </Tooltip> */}
 
-              <Tooltip title="Use AI to find available dates in your schedule">
-                <Button
-                  variant="outlined"
-                  startIcon={<AutoAwesome />}
-                  onClick={handleFindAvailableDates}
-                  size="small"
-                  sx={{
-                    textTransform: "none",
-                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                    color: "white",
-                    border: "none",
-                    "&:hover": {
-                      background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
-                      border: "none",
-                    },
-                  }}
-                >
-                  Find Dates
-                </Button>
-              </Tooltip>
-
-              {/* Add Columns Button - conditional rendering based on selection */}
-              <Tooltip title="Add a custom column to the table below.">
-                {selectedGames.size > 0 ? (
-                  <IconButton
-                    disabled
-                    size="small"
-                    sx={{
-                      opacity: 0.5,
-                      minWidth: 32,
-                      width: 32,
-                      height: 32,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    <ViewColumn fontSize="small" />
-                  </IconButton>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    startIcon={<ViewColumn />}
-                    onClick={handleAddColumnsClick}
-                    size="small"
-                    sx={{
-                      borderColor: theme.palette.themeButtonText.subtle,
-                      color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                      textTransform: "none",
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    Add Columns ({customColumns.length})
-                  </Button>
-                )}
-              </Tooltip>
-
-              {/* Columns Button - conditional rendering based on selection */}
-              <Tooltip title="Arrange your columns using drag and drop.">
-                {selectedGames.size > 0 ? (
-                  <IconButton
-                    disabled
-                    size="small"
-                    sx={{
-                      opacity: 0.5,
-                      minWidth: 32,
-                      width: 32,
-                      height: 32,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Tune fontSize="small" />
-                  </IconButton>
-                ) : (
-                  <Button
-                    variant="outlined"
-                    startIcon={<Tune />}
-                    onClick={() => {
-                      trackEvent("Columns Button Clicked", {
-                        source: "games_table",
-                        action: "customize_columns",
-                        visible_columns_count: visibleColumnIds.length,
-                      });
-                      setIsColumnPreferencesOpen(true);
-                    }}
-                    size="small"
-                    sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-                  >
-                    Columns ({visibleColumnIds.length})
-                  </Button>
-                )}
-              </Tooltip>
-
-              {selectedGames.size > 0 && games.length > 0 && (
-                <>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<ContentCopy />}
-                    onClick={handleCopySelectedRows}
-                    size="small"
-                    sx={{
-                      color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                      borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                      textTransform: "none",
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    Copy ({selectedGames.size})
-                  </Button>
-                  <Tooltip title="Sync calendars">
-                    <IconButton
-                      onClick={handleBulkSync}
-                      disabled={bulkSyncGamesMutation.isPending}
+                  <Tooltip title="Use AI to find available dates in your schedule">
+                    <Button
+                      variant="outlined"
+                      startIcon={<AutoAwesome />}
+                      onClick={handleFindAvailableDates}
                       size="small"
                       sx={{
-                        color: "primary.main",
-                        display: { xs: "none", sm: "inline-flex" },
+                        textTransform: "none",
+                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white",
+                        border: "none",
+                        "&:hover": {
+                          background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                          border: "none",
+                        },
                       }}
                     >
-                      {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
-                    </IconButton>
+                      Find Dates
+                    </Button>
                   </Tooltip>
+
+                  {/* Add Columns Button - conditional rendering based on selection */}
+                  <Tooltip title="Add a custom column to the table below.">
+                    {selectedGames.size > 0 ? (
+                      <IconButton
+                        disabled
+                        size="small"
+                        sx={{
+                          opacity: 0.5,
+                          minWidth: 32,
+                          width: 32,
+                          height: 32,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 1,
+                          display: { xs: "none", sm: "inline-flex" },
+                        }}
+                      >
+                        <ViewColumn fontSize="small" />
+                      </IconButton>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        startIcon={<ViewColumn />}
+                        onClick={handleAddColumnsClick}
+                        size="small"
+                        sx={{
+                          borderColor: theme.palette.themeButtonText.subtle,
+                          color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                          textTransform: "none",
+                          display: { xs: "none", sm: "inline-flex" },
+                        }}
+                      >
+                        Add Columns ({customColumns.length})
+                      </Button>
+                    )}
+                  </Tooltip>
+
+                  {/* Columns Button - conditional rendering based on selection */}
+                  <Tooltip title="Arrange your columns using drag and drop.">
+                    {selectedGames.size > 0 ? (
+                      <IconButton
+                        disabled
+                        size="small"
+                        sx={{
+                          opacity: 0.5,
+                          minWidth: 32,
+                          width: 32,
+                          height: 32,
+                          border: "1px solid",
+                          borderColor: "divider",
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Tune fontSize="small" />
+                      </IconButton>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        startIcon={<Tune />}
+                        onClick={() => {
+                          trackEvent("Columns Button Clicked", {
+                            source: "games_table",
+                            action: "customize_columns",
+                            visible_columns_count: visibleColumnIds.length,
+                          });
+                          setIsColumnPreferencesOpen(true);
+                        }}
+                        size="small"
+                        sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
+                      >
+                        Columns ({visibleColumnIds.length})
+                      </Button>
+                    )}
+                  </Tooltip>
+
+                  {selectedGames.size > 0 && games.length > 0 && (
+                    <>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<ContentCopy />}
+                        onClick={handleCopySelectedRows}
+                        size="small"
+                        sx={{
+                          color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                          borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                          textTransform: "none",
+                          display: { xs: "none", sm: "inline-flex" },
+                        }}
+                      >
+                        Copy ({selectedGames.size})
+                      </Button>
+                      <Tooltip title="Sync calendars">
+                        <IconButton
+                          onClick={handleBulkSync}
+                          disabled={bulkSyncGamesMutation.isPending}
+                          size="small"
+                          sx={{
+                            color: "primary.main",
+                            display: { xs: "none", sm: "inline-flex" },
+                          }}
+                        >
+                          {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
+                  {hiddenColumnCount > 0 && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => {
+                        trackEvent("Columns Hidden Indicator Clicked", {
+                          source: "games_table",
+                          action: "customize_columns",
+                          hidden_columns_count: hiddenColumnCount,
+                          visible_columns_count: visibleColumnIds.length,
+                        });
+                        setIsColumnPreferencesOpen(true);
+                      }}
+                      startIcon={<VisibilityOff />}
+                      sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                    >
+                      {hiddenColumnCount} hidden
+                    </Button>
+                  )}
+                </Stack>
+              )}
+            </Box>
+            <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
+              {selectedGames.size > 0 && games.length > 0 && (
+                <>
+                  {/* Delete Button */}
+                  <LoadingButton
+                    variant="outlined"
+                    startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
+                    onClick={handleBulkDelete}
+                    loading={bulkDeleteMutation.isPending}
+                    size="small"
+                    sx={{
+                      border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
+                      borderRadius: "10px",
+                      padding: "3px 9px",
+                      textTransform: "none",
+                      background: "transparent",
+                      boxShadow: 0,
+                      "&:hover": { boxShadow: 0 },
+                    }}
+                  >
+                    {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
+                  </LoadingButton>
                 </>
               )}
-              {hiddenColumnCount > 0 && (
+              {/* Import Button */}
+              <Tooltip title="Import games from CSV">
                 <Button
+                  variant="outlined"
+                  startIcon={<Upload />}
+                  onClick={handleImportClick}
                   size="small"
-                  variant="text"
-                  onClick={() => {
-                    trackEvent("Columns Hidden Indicator Clicked", {
-                      source: "games_table",
-                      action: "customize_columns",
-                      hidden_columns_count: hiddenColumnCount,
-                      visible_columns_count: visibleColumnIds.length,
-                    });
-                    setIsColumnPreferencesOpen(true);
-                  }}
-                  startIcon={<VisibilityOff />}
-                  sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
+                  sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
                 >
-                  {hiddenColumnCount} hidden
+                  Import
                 </Button>
-              )}
-            </Stack>
-          )}
-        </Box>
-        <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
-          {selectedGames.size > 0 && games.length > 0 && (
-            <>
-              {/* Delete Button */}
-              <LoadingButton
-                variant="outlined"
-                startIcon={!bulkDeleteMutation.isPending && <DeleteOutline sx={{ color: "darkgray" }} />}
-                onClick={handleBulkDelete}
-                loading={bulkDeleteMutation.isPending}
-                size="small"
-                sx={{
-                  border: `${theme.palette.mode}` === "dark" ? "1px solid gray" : "#181b38",
-                  borderRadius: "10px",
-                  padding: "3px 9px",
-                  textTransform: "none",
-                  background: "transparent",
-                  boxShadow: 0,
-                  "&:hover": { boxShadow: 0 },
-                }}
-              >
-                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete(${selectedGames.size})`}
-              </LoadingButton>
-            </>
-          )}
-          {/* Import Button */}
-          <Tooltip title="Import games from CSV">
-            <Button
-              variant="outlined"
-              startIcon={<Upload />}
-              onClick={handleImportClick}
-              size="small"
-              sx={{ borderColor: theme.palette.themeButtonText.subtle, color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit", textTransform: "none" }}
-            >
-              Import
-            </Button>
-          </Tooltip>
-          <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleExport}
-              disabled={games.length === 0}
-              size="small"
-              sx={{
-                borderColor: theme.palette.themeButtonText.subtle,
-                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                textTransform: "none",
-                display: { xs: "none", sm: "inline-flex" },
-              }}
-            >
-              Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
-            </Button>
-          </Tooltip>
-          {/* <Tooltip title={"Go to Calendar"}>
+              </Tooltip>
+              <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
+                <Button
+                  variant="outlined"
+                  startIcon={<Download />}
+                  onClick={handleExport}
+                  disabled={games.length === 0}
+                  size="small"
+                  sx={{
+                    borderColor: theme.palette.themeButtonText.subtle,
+                    color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
+                    textTransform: "none",
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
+                >
+                  Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
+                </Button>
+              </Tooltip>
+              {/* <Tooltip title={"Go to Calendar"}>
             <Button
               component={NextLink}
               href="/gsync"
@@ -7267,463 +7275,462 @@ export function GamesTable() {
               <EditCalendarIcon />
             </Button>
           </Tooltip> */}
-        </Stack>
-      </Box>
-
-      {/* Edit Workbook Name Dialog */}
-      <Dialog open={editingWorkbookDialog?.open ?? false} onClose={() => setEditingWorkbookDialog(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Rename Table</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            label="Table Name"
-            defaultValue={editingWorkbookDialog?.currentName}
-            variant="outlined"
-            sx={{ mt: 2 }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (editingWorkbookDialog?.currentName.trim()) {
-                  updateWorkbookMutation.mutate({
-                    id: editingWorkbookDialog.workbookId,
-                    name: editingWorkbookDialog.currentName.trim(),
-                  });
-                }
-              }
-            }}
-            onChange={(e) => {
-              if (editingWorkbookDialog) {
-                setEditingWorkbookDialog({
-                  ...editingWorkbookDialog,
-                  currentName: e.target.value,
-                });
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingWorkbookDialog(null)}>Cancel</Button>
-          <LoadingButton
-            onClick={() => {
-              if (editingWorkbookDialog?.currentName.trim()) {
-                updateWorkbookMutation.mutate({
-                  id: editingWorkbookDialog.workbookId,
-                  name: editingWorkbookDialog.currentName.trim(),
-                });
-              }
-            }}
-            loading={updateWorkbookMutation.isPending}
-            variant="contained"
-            disabled={!editingWorkbookDialog?.currentName.trim()}
-          >
-            Rename
-          </LoadingButton>
-        </DialogActions>
-      </Dialog>
-
-      {/* Save Status Banner */}
-      <SaveStatusBanner status={saveStatus} />
-
-      {/* Sample Game Banner */}
-      <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
-
-      {/* Mobile Card View */}
-      {isMobile ? (
-        <Box sx={{ position: "relative" }}>
-          {/* Show skeleton loader on initial load OR when fetching with no data */}
-          {isLoading || (!mounted && !isAddingNew) ? (
-            <Stack spacing={2}>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Card key={`skeleton-${index}`}>
-                  <CardContent>
-                    <Skeleton variant="rectangular" width={120} height={20} sx={{ mb: 1 }} />
-                    <Skeleton variant="text" width="60%" height={24} sx={{ mb: 1 }} />
-                    <Skeleton variant="text" width="80%" height={20} sx={{ mb: 1 }} />
-                    <Skeleton variant="text" width="40%" height={20} />
-                  </CardContent>
-                </Card>
-              ))}
             </Stack>
-          ) : games.length === 0 ? (
-            <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
-              <Typography color="text.secondary" variant="body2">
-                No games found. Import your spreadsheet or click "Create Game" to add one.
-              </Typography>
-            </Paper>
-          ) : (
-            <Box>{games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}</Box>
-          )}
+          </Box>
 
-          {/* Loading overlay for data refresh - show when fetching and we have previous data */}
-          {isFetching && mounted && !isLoading && games.length > 0 && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-                borderRadius: 2,
-              }}
-            >
-              <CircularProgress size={40} sx={{ mb: 2 }} />
-              <Typography variant="body1" color="text.secondary">
-                Loading spreadsheet...
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      ) : (
-        /* Desktop Table View */
-        <Box sx={{ position: "relative" }}>
-          <TableContainer
-            component={Paper}
-            elevation={0}
-            sx={{
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2,
-              overflowX: "auto",
-            }}
-          >
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
-                  <TableCell padding="checkbox" sx={{ py: 0 }}>
-                    <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
-                  </TableCell>
-                  {resolvedColumns.map((column) => renderHeaderCell(column))}
-                </TableRow>
-              </TableHead>
+          {/* Edit Workbook Name Dialog */}
+          <Dialog open={editingWorkbookDialog?.open ?? false} onClose={() => setEditingWorkbookDialog(null)} maxWidth="xs" fullWidth>
+            <DialogTitle>Rename Table</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                fullWidth
+                label="Table Name"
+                defaultValue={editingWorkbookDialog?.currentName}
+                variant="outlined"
+                sx={{ mt: 2 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (editingWorkbookDialog?.currentName.trim()) {
+                      updateWorkbookMutation.mutate({
+                        id: editingWorkbookDialog.workbookId,
+                        name: editingWorkbookDialog.currentName.trim(),
+                      });
+                    }
+                  }
+                }}
+                onChange={(e) => {
+                  if (editingWorkbookDialog) {
+                    setEditingWorkbookDialog({
+                      ...editingWorkbookDialog,
+                      currentName: e.target.value,
+                    });
+                  }
+                }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setEditingWorkbookDialog(null)}>Cancel</Button>
+              <LoadingButton
+                onClick={() => {
+                  if (editingWorkbookDialog?.currentName.trim()) {
+                    updateWorkbookMutation.mutate({
+                      id: editingWorkbookDialog.workbookId,
+                      name: editingWorkbookDialog.currentName.trim(),
+                    });
+                  }
+                }}
+                loading={updateWorkbookMutation.isPending}
+                variant="contained"
+                disabled={!editingWorkbookDialog?.currentName.trim()}
+              >
+                Rename
+              </LoadingButton>
+            </DialogActions>
+          </Dialog>
+
+          {/* Save Status Banner */}
+          <SaveStatusBanner status={saveStatus} />
+
+          {/* Sample Game Banner */}
+          <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
+
+          {/* Mobile Card View */}
+          {isMobile ? (
+            <Box sx={{ position: "relative" }}>
               {/* Show skeleton loader on initial load OR when fetching with no data */}
               {isLoading || (!mounted && !isAddingNew) ? (
-                <TableBody>
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <TableRow key={`skeleton-${index}`}>
-                      <TableCell padding="checkbox">
-                        <Skeleton
-                          variant="rectangular"
-                          width={18}
-                          height={18}
-                          sx={{
-                            borderRadius: 0.5,
-                            bgcolor: "rgba(0, 0, 0, 0.11)",
-                          }}
-                        />
-                      </TableCell>
-                      {resolvedColumns.map((column) => (
-                        <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
-                          <Skeleton
-                            variant="rectangular"
-                            width={
-                              column.id === "date"
-                                ? "80%"
-                                : column.id === "time"
-                                  ? "60%"
-                                  : column.id === "sport"
-                                    ? "70%"
-                                    : column.id === "level"
-                                      ? "65%"
-                                      : column.id === "opponent"
-                                        ? "85%"
-                                        : column.id === "status"
-                                          ? "50%"
-                                          : column.id === "isHome"
-                                            ? "55%"
-                                            : column.id === "location"
-                                              ? "75%"
-                                              : column.id === "busTravel"
-                                                ? "70%"
-                                                : column.id === "notes"
-                                                  ? "90%"
-                                                  : column.id === "actions"
-                                                    ? "90%"
-                                                    : "75%"
-                            }
-                            height={24}
-                            sx={{
-                              borderRadius: 1,
-                              bgcolor: "rgba(0, 0, 0, 0.11)",
-                            }}
-                          />
-                        </TableCell>
-                      ))}
-                    </TableRow>
+                <Stack spacing={2}>
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Card key={`skeleton-${index}`}>
+                      <CardContent>
+                        <Skeleton variant="rectangular" width={120} height={20} sx={{ mb: 1 }} />
+                        <Skeleton variant="text" width="60%" height={24} sx={{ mb: 1 }} />
+                        <Skeleton variant="text" width="80%" height={20} sx={{ mb: 1 }} />
+                        <Skeleton variant="text" width="40%" height={20} />
+                      </CardContent>
+                    </Card>
                   ))}
-                </TableBody>
-              ) : games.length === 0 && !isAddingNew ? (
-                <TableBody>
-                  {renderNewRow()}
-                  <TableRow>
-                    <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
-                      {/* Show loading indicator when fetching with no results, otherwise show empty state */}
-                      {isFetching ? (
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                          <CircularProgress size={40} />
-                          <Typography color="text.secondary" variant="body2">
-                            Loading spreadsheet...
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Typography color="text.secondary" variant="body2">
-                          No games found. Import your spreadsheet or click "Create Game" to add one.
-                        </Typography>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
+                </Stack>
+              ) : games.length === 0 ? (
+                <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
+                  <Typography color="text.secondary" variant="body2">
+                    No games found. Import your spreadsheet or click "Create Game" to add one.
+                  </Typography>
+                </Paper>
               ) : (
-                <TableBody>
-                  {renderNewRow()}
-                  {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
-                </TableBody>
+                <Box>{games.filter((game: any) => game && game.id).map((game: any) => renderMobileCard(game))}</Box>
               )}
-            </Table>
-          </TableContainer>
 
-          {/* Loading overlay for data refresh (after import) */}
-          {isFetching && mounted && !isLoading && (
-            <Box
-              sx={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-                borderRadius: 2,
-              }}
-            >
-              <CircularProgress size={40} sx={{ mb: 2 }} />
-              <Typography variant="body1" color="text.secondary">
-                Loading spreadsheet...
-              </Typography>
-            </Box>
-          )}
-        </Box>
-      )}
-
-      {/* Workbook Selector Dialog */}
-      <Dialog open={showWorkbookSelector} onClose={() => setShowWorkbookSelector(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Select or Create a Table</DialogTitle>
-        <DialogContent>
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "repeat(auto-fill, minmax(280px, 1fr))",
-                sm: "repeat(auto-fill, minmax(320px, 1fr))",
-                md: "repeat(auto-fill, minmax(360px, 1fr))",
-              },
-              gap: 3,
-              mt: 2,
-            }}
-          >
-            {/* Render existing workbooks */}
-            {workbooks.map((workbook) => (
-              <Card
-                key={workbook.id}
-                sx={{
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  border: selectedWorkbookId === workbook.id ? "2px solid" : "1px solid",
-                  borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "divider",
-                  bgcolor: "background.paper",
-                  "&:hover": {
-                    boxShadow: 3,
-                    transform: "translateY(-2px)",
-                  },
-                }}
-                onClick={() => setSelectedWorkbookId(workbook.id)}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem" }}>
-                      {workbook.name}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 0.5 }}>
-                      <Tooltip title="Rename table">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingWorkbookDialog({
-                              open: true,
-                              workbookId: workbook.id,
-                              currentName: workbook.name,
-                            });
-                          }}
-                          sx={{ p: 0.5 }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {workbooks.length > 1 && workbook._count?.games === 0 && (
-                        <Tooltip title="Delete table">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteWorkbook(workbook.id);
-                            }}
-                            sx={{ p: 0.5, color: "error.main" }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {workbook._count?.games || 0} game{workbook._count?.games !== 1 ? "s" : ""}
-                  </Typography>
-                </CardContent>
-              </Card>
-            ))}
-
-            {/* Add new workbook card */}
-            <Card
-              sx={{
-                cursor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "not-allowed" : "pointer",
-                border: "2px dashed",
-                borderColor: "divider",
-                bgcolor: "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 140,
-                transition: "all 0.2s ease",
-                opacity: planLimits && workbooks.length >= planLimits.worksheetLimit ? 0.6 : 1,
-                "&:hover": {
-                  borderColor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "divider" : "primary.main",
-                  bgcolor: (theme) => (planLimits && workbooks.length >= planLimits.worksheetLimit ? "transparent" : alpha(theme.palette.primary.main, 0.05)),
-                },
-              }}
-              onClick={() => {
-                if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
-                  addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
-                  return;
-                }
-                const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
-                createWorkbookMutation.mutate({ name: newWorkbookName });
-                setShowWorkbookSelector(false);
-              }}
-            >
-              <CardContent sx={{ textAlign: "center", p: 3 }}>
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                  <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Create Table
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Start a new games table
+              {/* Loading overlay for data refresh - show when fetching and we have previous data */}
+              {isFetching && mounted && !isLoading && games.length > 0 && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10,
+                    borderRadius: 2,
+                  }}
+                >
+                  <CircularProgress size={40} sx={{ mb: 2 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    Loading spreadsheet...
                   </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowWorkbookSelector(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+              )}
+            </Box>
+          ) : (
+            /* Desktop Table View */
+            <Box sx={{ position: "relative" }}>
+              <TableContainer
+                component={Paper}
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  overflowX: "auto",
+                }}
+              >
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
+                      <TableCell padding="checkbox" sx={{ py: 0 }}>
+                        <Checkbox indeterminate={isIndeterminate} checked={isAllSelected} onChange={handleSelectAll} sx={{ p: 0 }} />
+                      </TableCell>
+                      {resolvedColumns.map((column) => renderHeaderCell(column))}
+                    </TableRow>
+                  </TableHead>
+                  {/* Show skeleton loader on initial load OR when fetching with no data */}
+                  {isLoading || (!mounted && !isAddingNew) ? (
+                    <TableBody>
+                      {Array.from({ length: 5 }).map((_, index) => (
+                        <TableRow key={`skeleton-${index}`}>
+                          <TableCell padding="checkbox">
+                            <Skeleton
+                              variant="rectangular"
+                              width={18}
+                              height={18}
+                              sx={{
+                                borderRadius: 0.5,
+                                bgcolor: "rgba(0, 0, 0, 0.11)",
+                              }}
+                            />
+                          </TableCell>
+                          {resolvedColumns.map((column) => (
+                            <TableCell key={`skeleton-${index}-${column.id}`} sx={{ py: 1.5 }}>
+                              <Skeleton
+                                variant="rectangular"
+                                width={
+                                  column.id === "date"
+                                    ? "80%"
+                                    : column.id === "time"
+                                      ? "60%"
+                                      : column.id === "sport"
+                                        ? "70%"
+                                        : column.id === "level"
+                                          ? "65%"
+                                          : column.id === "opponent"
+                                            ? "85%"
+                                            : column.id === "status"
+                                              ? "50%"
+                                              : column.id === "isHome"
+                                                ? "55%"
+                                                : column.id === "location"
+                                                  ? "75%"
+                                                  : column.id === "busTravel"
+                                                    ? "70%"
+                                                    : column.id === "notes"
+                                                      ? "90%"
+                                                      : column.id === "actions"
+                                                        ? "90%"
+                                                        : "75%"
+                                }
+                                height={24}
+                                sx={{
+                                  borderRadius: 1,
+                                  bgcolor: "rgba(0, 0, 0, 0.11)",
+                                }}
+                              />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  ) : games.length === 0 && !isAddingNew ? (
+                    <TableBody>
+                      {renderNewRow()}
+                      <TableRow>
+                        <TableCell colSpan={resolvedColumns.length + 1} align="center" sx={{ py: 8, bgcolor: "background.paper" }}>
+                          {/* Show loading indicator when fetching with no results, otherwise show empty state */}
+                          {isFetching ? (
+                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                              <CircularProgress size={40} />
+                              <Typography color="text.secondary" variant="body2">
+                                Loading spreadsheet...
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Typography color="text.secondary" variant="body2">
+                              No games found. Import your spreadsheet or click "Create Game" to add one.
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  ) : (
+                    <TableBody>
+                      {renderNewRow()}
+                      {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
+                    </TableBody>
+                  )}
+                </Table>
+              </TableContainer>
 
-      {/* Pagination */}
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          justifyContent: "space-between",
-          alignItems: { xs: "stretch", sm: "center" },
-          gap: { xs: 2, sm: 0 },
-          mt: 3,
-          px: 2,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, sm: 3 }, flexWrap: "wrap" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
-              Rows per page:
-            </Typography>
-            <Select
-              value={rowsPerPage}
-              onChange={(e) => handleChangeRowsPerPage(Number(e.target.value))}
-              size="small"
-              sx={{
-                minWidth: 70,
-                "& .MuiSelect-select": { py: 0.5 },
-              }}
-            >
-              <MenuItem value={25}>25</MenuItem>
-              <MenuItem value={50}>50</MenuItem>
-              <MenuItem value={100}>100</MenuItem>
-            </Select>
-          </Box>
-
-          <Typography variant="body2" color="text.secondary">
-            {pagination.total > 0 ? `${page * rowsPerPage + 1}–${Math.min((page + 1) * rowsPerPage, pagination.total)} of ${pagination.total}` : "0 results"}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", gap: { xs: 2, sm: 3 }, justifyContent: { xs: "space-between", sm: "flex-start" } }}>
-          <Typography variant="body2" color="text.secondary">
-            Page {page + 1} of {pagination.totalPages || 1}
-          </Typography>
-          {selectedGames.size > 0 && (
-            <Typography variant="body2" color="primary">
-              {selectedGames.size} selected
-            </Typography>
+              {/* Loading overlay for data refresh (after import) */}
+              {isFetching && mounted && !isLoading && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    bgcolor: (theme) => alpha(theme.palette.background.paper, 0.95),
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10,
+                    borderRadius: 2,
+                  }}
+                >
+                  <CircularProgress size={40} sx={{ mb: 2 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    Loading spreadsheet...
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           )}
-        </Box>
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: { xs: "center", sm: "flex-start" } }}>
-          <Tooltip title="First page">
-            <span>
-              <IconButton onClick={handleFirstPage} disabled={page === 0} size="small">
-                <FirstPage />
-              </IconButton>
-            </span>
-          </Tooltip>
+          {/* Workbook Selector Dialog */}
+          <Dialog open={showWorkbookSelector} onClose={() => setShowWorkbookSelector(false)} maxWidth="md" fullWidth>
+            <DialogTitle>Select or Create a Table</DialogTitle>
+            <DialogContent>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "repeat(auto-fill, minmax(280px, 1fr))",
+                    sm: "repeat(auto-fill, minmax(320px, 1fr))",
+                    md: "repeat(auto-fill, minmax(360px, 1fr))",
+                  },
+                  gap: 3,
+                  mt: 2,
+                }}
+              >
+                {/* Render existing workbooks */}
+                {workbooks.map((workbook) => (
+                  <Card
+                    key={workbook.id}
+                    sx={{
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      border: selectedWorkbookId === workbook.id ? "2px solid" : "1px solid",
+                      borderColor: selectedWorkbookId === workbook.id ? "primary.main" : "divider",
+                      bgcolor: "background.paper",
+                      "&:hover": {
+                        boxShadow: 3,
+                        transform: "translateY(-2px)",
+                      },
+                    }}
+                    onClick={() => setSelectedWorkbookId(workbook.id)}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1.1rem" }}>
+                          {workbook.name}
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Tooltip title="Rename table">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingWorkbookDialog({
+                                  open: true,
+                                  workbookId: workbook.id,
+                                  currentName: workbook.name,
+                                });
+                              }}
+                              sx={{ p: 0.5 }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          {workbooks.length > 1 && workbook._count?.games === 0 && (
+                            <Tooltip title="Delete table">
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteWorkbook(workbook.id);
+                                }}
+                                sx={{ p: 0.5, color: "error.main" }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Box>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        {workbook._count?.games || 0} game{workbook._count?.games !== 1 ? "s" : ""}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                ))}
 
-          <Tooltip title="Previous page">
-            <span>
-              <IconButton onClick={() => handleChangePage(null, page - 1)} disabled={page === 0} size="small">
-                <NavigateBefore />
-              </IconButton>
-            </span>
-          </Tooltip>
+                {/* Add new workbook card */}
+                <Card
+                  sx={{
+                    cursor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "not-allowed" : "pointer",
+                    border: "2px dashed",
+                    borderColor: "divider",
+                    bgcolor: "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: 140,
+                    transition: "all 0.2s ease",
+                    opacity: planLimits && workbooks.length >= planLimits.worksheetLimit ? 0.6 : 1,
+                    "&:hover": {
+                      borderColor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "divider" : "primary.main",
+                      bgcolor: (theme) => (planLimits && workbooks.length >= planLimits.worksheetLimit ? "transparent" : alpha(theme.palette.primary.main, 0.05)),
+                    },
+                  }}
+                  onClick={() => {
+                    if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
+                      addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
+                      return;
+                    }
+                    const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
+                    createWorkbookMutation.mutate({ name: newWorkbookName });
+                    setShowWorkbookSelector(false);
+                  }}
+                >
+                  <CardContent sx={{ textAlign: "center", p: 3 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                      <TableChart sx={{ fontSize: 48, color: "text.secondary" }} />
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        Create Table
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Start a new games table
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setShowWorkbookSelector(false)}>Cancel</Button>
+            </DialogActions>
+          </Dialog>
 
-          <Tooltip title="Next page">
-            <span>
-              <IconButton onClick={() => handleChangePage(null, page + 1)} disabled={page >= pagination.totalPages - 1} size="small">
-                <NavigateNext />
-              </IconButton>
-            </span>
-          </Tooltip>
+          {/* Pagination */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              justifyContent: "space-between",
+              alignItems: { xs: "stretch", sm: "center" },
+              gap: { xs: 2, sm: 0 },
+              mt: 3,
+              px: 2,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 2, sm: 3 }, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
+                  Rows per page:
+                </Typography>
+                <Select
+                  value={rowsPerPage}
+                  onChange={(e) => handleChangeRowsPerPage(Number(e.target.value))}
+                  size="small"
+                  sx={{
+                    minWidth: 70,
+                    "& .MuiSelect-select": { py: 0.5 },
+                  }}
+                >
+                  <MenuItem value={25}>25</MenuItem>
+                  <MenuItem value={50}>50</MenuItem>
+                  <MenuItem value={100}>100</MenuItem>
+                </Select>
+              </Box>
 
-          <Tooltip title="Last page">
-            <span>
-              <IconButton onClick={handleLastPage} disabled={page >= pagination.totalPages - 1} size="small">
-                <LastPage />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      </Box>
+              <Typography variant="body2" color="text.secondary">
+                {pagination.total > 0 ? `${page * rowsPerPage + 1}–${Math.min((page + 1) * rowsPerPage, pagination.total)} of ${pagination.total}` : "0 results"}
+              </Typography>
+            </Box>
 
-      </>
+            <Box sx={{ display: "flex", gap: { xs: 2, sm: 3 }, justifyContent: { xs: "space-between", sm: "flex-start" } }}>
+              <Typography variant="body2" color="text.secondary">
+                Page {page + 1} of {pagination.totalPages || 1}
+              </Typography>
+              {selectedGames.size > 0 && (
+                <Typography variant="body2" color="primary">
+                  {selectedGames.size} selected
+                </Typography>
+              )}
+            </Box>
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: { xs: "center", sm: "flex-start" } }}>
+              <Tooltip title="First page">
+                <span>
+                  <IconButton onClick={handleFirstPage} disabled={page === 0} size="small">
+                    <FirstPage />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title="Previous page">
+                <span>
+                  <IconButton onClick={() => handleChangePage(null, page - 1)} disabled={page === 0} size="small">
+                    <NavigateBefore />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title="Next page">
+                <span>
+                  <IconButton onClick={() => handleChangePage(null, page + 1)} disabled={page >= pagination.totalPages - 1} size="small">
+                    <NavigateNext />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title="Last page">
+                <span>
+                  <IconButton onClick={handleLastPage} disabled={page >= pagination.totalPages - 1} size="small">
+                    <LastPage />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          </Box>
+        </>
       )}
 
       <ColumnPreferencesMenu
