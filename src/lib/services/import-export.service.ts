@@ -68,8 +68,10 @@ export class ImportExportService {
     return csvContent;
   }
 
-  async importGamesFromCSV(csvContent: string, userId: string, organizationId: string): Promise<{ success: number; errors: string[] }> {
+  async importGamesFromCSV(csvContent: string, userId: string, organizationId: string, startLine: number = 1): Promise<{ success: number; errors: string[]; lastLine: number }> {
     const lines = csvContent.split("\n");
+    if (lines.length <= 1) return { success: 0, errors: [], lastLine: 0 };
+
     const rawHeaders = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
     const headers = this.mapColumnAliases(rawHeaders);
 
@@ -90,105 +92,128 @@ export class ImportExportService {
       where: { organizationId },
     });
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+    let i = startLine;
+    try {
+      for (; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
 
-      try {
-        // Parse CSV line (handle quoted values)
-        const values = this.parseCSVLine(line);
-        const row: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || "";
-        });
-
-        // Parse date - only required field
-        const date = new Date(row["Date"]);
-        if (isNaN(date.getTime())) {
-          errors.push(`Line ${i + 1}: Invalid or missing date`);
-          continue;
-        }
-
-        // Find matching team, or use defaults if sport/level not provided
-        let team = teams.find((t: any) => 
-          t.sport.name === (row["Sport"] || "Unknown Sport") && 
-          t.level === (row["Level"] || "VARSITY") && 
-          (row["Team"] ? t.name === row["Team"] : true)
-        );
-
-        // If team not found, create a default sport and team
-        if (!team) {
-          const sportName = row["Sport"] || "Unknown Sport";
-          const levelValue = row["Level"] || "VARSITY";
-
-          let sport = await prisma.sport.findFirst({
-            where: {
-              name: {
-                equals: sportName,
-                mode: "insensitive",
-              },
-            },
+        try {
+          // Parse CSV line (handle quoted values)
+          const values = this.parseCSVLine(line);
+          const row: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || "";
           });
 
-          if (!sport) {
-            sport = await prisma.sport.create({
-              data: {
-                name: sportName,
-                season: "FALL",
-              },
-            });
+          // Parse date - only required field
+          const date = new Date(row["Date"]);
+          if (isNaN(date.getTime())) {
+            errors.push(`Line ${i + 1}: Invalid or missing date`);
+            continue;
           }
 
-          team = await prisma.team.create({
+          // Find matching team, or use defaults if sport/level not provided
+          let team = teams.find((t: any) => 
+            t.sport.name === (row["Sport"] || "Unknown Sport") && 
+            t.level === (row["Level"] || "VARSITY") && 
+            (row["Team"] ? t.name === row["Team"] : true)
+          );
+
+          // If team not found, create a default sport and team
+          if (!team) {
+            const sportName = row["Sport"] || "Unknown Sport";
+            const levelValue = row["Level"] || "VARSITY";
+
+            let sport = await prisma.sport.findFirst({
+              where: {
+                name: {
+                  equals: sportName,
+                  mode: "insensitive",
+                },
+              },
+            });
+
+            if (!sport) {
+              sport = await prisma.sport.create({
+                data: {
+                  name: sportName,
+                  season: "FALL",
+                },
+              });
+            }
+
+            team = await prisma.team.create({
+              data: {
+                name: `${sportName} ${levelValue}`,
+                sportId: sport.id,
+                level: levelValue as any,
+                organizationId,
+              },
+              include: { sport: true },
+            });
+
+            teams.push(team);
+          }
+
+          if (!team) {
+            throw new Error("Failed to resolve team for imported row");
+          }
+
+          // Find opponent
+          const opponent = row["Opponent"] ? opponents.find((o: any) => o.name === row["Opponent"]) : null;
+
+          // Find venue
+          const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
+
+          // Create game
+          await prisma.game.create({
             data: {
-              name: `${sportName} ${levelValue}`,
-              sportId: sport.id,
-              level: levelValue as any,
-              organizationId,
+              date,
+              time: row["Time"] || null,
+              status: (row["Status"] as any) || "SCHEDULED",
+              isHome: row["Location Type"]?.toLowerCase() === "home",
+              notes: row["Notes"] || null,
+              travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
+              busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
+              estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
+              busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
+              travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
+              homeTeamId: team.id,
+              opponentId: opponent?.id || null,
+              venueId: venue?.id || null,
+              createdById: userId,
             },
-            include: { sport: true },
           });
 
-          teams.push(team);
+          success++;
+        } catch (error) {
+          errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
-
-        if (!team) {
-          throw new Error("Failed to resolve team for imported row");
-        }
-
-        // Find opponent
-        const opponent = row["Opponent"] ? opponents.find((o: any) => o.name === row["Opponent"]) : null;
-
-        // Find venue
-        const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
-
-        // Create game
-        await prisma.game.create({
-          data: {
-            date,
-            time: row["Time"] || null,
-            status: (row["Status"] as any) || "SCHEDULED",
-            isHome: row["Location Type"]?.toLowerCase() === "home",
-            notes: row["Notes"] || null,
-            travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
-            busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
-            estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
-            busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
-            travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
-            homeTeamId: team.id,
-            opponentId: opponent?.id || null,
-            venueId: venue?.id || null,
-            createdById: userId,
-          },
-        });
-
-        success++;
-      } catch (error) {
-        errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        
+        // Every 100 rows, if we're in a background job, we might want to checkpoint
+        // but here we just return the full result. Checkpointing will be handled in processImportJob
       }
+    } catch (criticalError) {
+      console.error(`Critical error during import at line ${i}:`, criticalError);
     }
 
-    return { success, errors };
+    return { success, errors, lastLine: i };
+  }
+
+  async processImportJob(payload: { csvContent: string, userId: string, organizationId: string, startLine?: number, totalSuccess?: number, totalErrors?: string[] }) {
+    const startLine = payload.startLine || 1;
+    const { success, errors, lastLine } = await this.importGamesFromCSV(payload.csvContent, payload.userId, payload.organizationId, startLine);
+    
+    const newTotalSuccess = (payload.totalSuccess || 0) + success;
+    const newTotalErrors = (payload.totalErrors || []).concat(errors);
+
+    return {
+      success: newTotalSuccess,
+      errors: newTotalErrors,
+      lastLine,
+      completed: lastLine >= payload.csvContent.split("\n").length
+    };
   }
 
   async exportTeamsToCSV(organizationId: string): Promise<string> {

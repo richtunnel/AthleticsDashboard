@@ -121,12 +121,52 @@ model Session {
 }
 
 model StripeWebhookEvent {
-  id          String   @id
+  id          String    @id
   type        String
-  createdAt   DateTime @default(now())
-  processedAt DateTime @default(now())
+  payload     Json
+  status      String    @default("PENDING") // PENDING, PROCESSED, FAILED
+  error       String?
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
 
   @@map("StripeWebhookEvent")
+}
+
+model BackgroundJob {
+  id             String    @id @default(cuid())
+  type           JobType
+  status         JobStatus @default(PENDING)
+  payload        Json
+  result         Json?
+  error          String?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  nextAttemptAt  DateTime? @default(now())
+  lastAttemptAt  DateTime?
+  completedAt    DateTime?
+  failedAt       DateTime?
+  userId         String?
+  organizationId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+enum JobType {
+  EMAIL
+  STRIPE_WEBHOOK
+  CALENDAR_SYNC
+  GAME_IMPORT
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 model CustomColumn {

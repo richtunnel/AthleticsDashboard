@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { handleApiError } from "@/lib/utils/error-handler";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { requireAuth } from "@/lib/utils/auth";
-import { importExportService } from "@/lib/services/import-export.service";
+import { jobQueueService } from "@/lib/services/job-queue.service";
+import { JobType } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,9 +18,18 @@ export async function POST(request: NextRequest) {
 
     const csvContent = await file.text();
 
-    const result = await importExportService.importGamesFromCSV(csvContent, session.user.id, session.user.organizationId);
+    const job = await jobQueueService.enqueue({
+      type: JobType.GAME_IMPORT,
+      payload: {
+        csvContent,
+        userId: session.user.id,
+        organizationId: session.user.organizationId,
+      },
+      userId: session.user.id,
+      organizationId: session.user.organizationId,
+    });
 
-    return ApiResponse.success(result);
+    return ApiResponse.success({ jobId: job.id });
   } catch (error) {
     return await handleApiError(error);
   }
