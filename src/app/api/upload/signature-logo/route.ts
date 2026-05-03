@@ -79,6 +79,16 @@ const s3Client = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate required S3 configuration before processing the file.
+    // Missing DO_SPACES_BUCKET causes the AWS SDK to build a URL like
+    // "https://.region.digitaloceanspaces.com" which throws TypeError: Invalid URL.
+    if (!SPACES_BUCKET) {
+      return ApiResponse.error("File storage is not configured (DO_SPACES_BUCKET missing). Please contact support.");
+    }
+    if (!process.env.DO_SPACES_ACCESS_KEY && !process.env.DO_SPACES_ACCESS_KEY_NAME) {
+      return ApiResponse.error("File storage credentials are not configured. Please contact support.");
+    }
+
     const session = await requireAuth();
 
     const formData = await request.formData();
@@ -176,15 +186,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Digital Ocean Spaces
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: SPACES_BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        ACL: "public-read",
-      }),
-    );
+    try {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: SPACES_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          ACL: "public-read",
+        }),
+      );
+    } catch (s3Error) {
+      const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
+      // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
+      // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
+      if (msg === "Invalid URL" || msg.includes("Invalid URL")) {
+        throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+      }
+      throw s3Error;
+    }
 
     const publicUrl = `${SPACES_CDN_URL}/${key}`;
 
