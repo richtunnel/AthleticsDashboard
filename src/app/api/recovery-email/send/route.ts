@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
           <p>If you didn't request this verification, you can safely ignore this email.</p>
         `,
         sentById: session.user.id,
+        immediate: true,
       });
     } catch (emailError) {
       console.error("Error sending verification email:", emailError);

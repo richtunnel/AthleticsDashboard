@@ -77,6 +77,7 @@ export async function requestPasswordReset(email: string): Promise<ForgotPasswor
         subject: "Reset Your Password - Opletics.com",
         body: buildPasswordResetEmail(user.name || "there", resetUrl),
         sentById: user.id,
+        immediate: true,
       });
     } catch (emailError) {
       console.error("Failed to send password reset email:", emailError);
