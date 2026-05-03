@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
 WORKDIR /app
@@ -6,7 +7,10 @@ RUN apk add --no-cache libc6-compat openssl
 COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-RUN yarn install --network-timeout 600000
+# Mount the Yarn cache so packages are only downloaded once across builds.
+RUN --mount=type=cache,target=/root/.yarn \
+    YARN_CACHE_FOLDER=/root/.yarn \
+    yarn install --frozen-lockfile --network-timeout 300000 --network-concurrency 3
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
