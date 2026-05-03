@@ -11,6 +11,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const recommendation = await travelService.getAIRecommendation(id, session.user.organizationId);
     return ApiResponse.success(recommendation);
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

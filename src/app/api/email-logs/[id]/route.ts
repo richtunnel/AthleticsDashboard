@@ -85,7 +85,7 @@ export async function GET(
 
     return ApiResponse.success({ log, games });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }
 
@@ -112,12 +112,13 @@ export async function DELETE(
     await prisma.emailLog.deleteMany({
       where: {
         id,
+        createdAt: log.createdAt,
         sentById: session.user.id,
       },
     });
 
     return ApiResponse.success({ message: "Email log deleted successfully" });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

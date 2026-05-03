@@ -21,6 +21,6 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

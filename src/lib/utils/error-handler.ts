@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { headers } from "next/headers";
+import { logger } from "./logger";
 
-export function handleApiError(error: unknown) {
-  console.error("API Error:", error);
+export async function handleApiError(error: unknown, context?: any) {
+  const headersList = await headers();
+  const requestId = headersList.get("x-request-id") || "unknown";
+
+  logger.error(`API Error - RequestID: ${requestId}`, {
+    error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
+    ...context,
+    timestamp: new Date().toISOString(),
+  });
 
   // Handle Zod validation errors
   if (error instanceof ZodError) {
@@ -11,6 +20,7 @@ export function handleApiError(error: unknown) {
         success: false,
         error: "Validation error",
         details: error.issues,
+        requestId,
       },
       { status: 400 }
     );
@@ -28,13 +38,29 @@ export function handleApiError(error: unknown) {
       status = 403;
     } else if (message.includes("not found")) {
       status = 404;
-    } else if (message.includes("required") || message.includes("invalid")) {
+    } else if (message.includes("required") || message.includes("invalid") || message.includes("limit exceeded")) {
       status = 400;
+    } else if (message.includes("Duplicate")) {
+      status = 409;
     }
 
-    return NextResponse.json({ success: false, error: message }, { status });
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: message,
+        requestId 
+      }, 
+      { status }
+    );
   }
 
   // Default error response
-  return NextResponse.json({ success: false, error: "An unexpected error occurred" }, { status: 500 });
+  return NextResponse.json(
+    { 
+      success: false, 
+      error: "An unexpected error occurred",
+      requestId 
+    }, 
+    { status: 500 }
+  );
 }

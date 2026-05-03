@@ -12,6 +12,6 @@ export async function GET(request: NextRequest) {
 
     return ApiResponse.success(conflicts);
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

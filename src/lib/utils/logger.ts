@@ -38,8 +38,8 @@ export const logger = {
   /**
    * Log errors (always enabled)
    */
-  error: (message: string, error?: unknown) => {
-    console.error(`[ERROR] ${message}`, error || "");
+  error: (message: string, context?: LogContext) => {
+    console.error(`[ERROR] ${message}`, context || "");
   },
 
   /**

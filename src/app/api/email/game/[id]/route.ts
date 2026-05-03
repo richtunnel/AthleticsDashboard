@@ -39,6 +39,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return ApiResponse.success(result);
   } catch (error: any) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

@@ -186,6 +186,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     logger.error("Error in send-message API", { error, ...context });
-    return handleApiError(error);
+    return await handleApiError(error, context);
   }
 }

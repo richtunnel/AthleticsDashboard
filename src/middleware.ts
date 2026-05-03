@@ -34,14 +34,27 @@ async function getParentOrMainToken(req: NextRequest) {
 export const runtime = "nodejs";
 
 export async function middleware(req: NextRequest) {
+  // Generate a Request ID for better observability
+  const requestId = crypto.randomUUID();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("X-Request-ID", requestId);
+
   // Check if this is an image request and handle ETag
   const etagResponse = etagMiddleware(req);
   if (etagResponse) {
+    etagResponse.headers.set("X-Request-ID", requestId);
     return etagResponse;
   }
 
   // Apply security headers to all responses
-  const response = NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  // Add request ID to response headers
+  response.headers.set("X-Request-ID", requestId);
 
   // Security headers
   response.headers.set("X-DNS-Prefetch-Control", "on");

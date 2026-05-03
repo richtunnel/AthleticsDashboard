@@ -12,6 +12,6 @@ export async function POST(request: NextRequest) {
 
     return ApiResponse.success(results);
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }
