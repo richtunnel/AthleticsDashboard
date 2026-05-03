@@ -24,7 +24,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN yarn prisma generate
-RUN yarn build
+# Mount the Next.js cache so fonts (next/font/google) and webpack modules are
+# reused across builds instead of re-downloaded every time.
+RUN --mount=type=cache,target=/app/.next/cache \
+    yarn build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner
