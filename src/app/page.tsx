@@ -7,6 +7,22 @@ export const metadata: Metadata = {
   title: "Opletics | The Ultimate Athlete Management System & Sports Software",
   description:
     "Opletics is the premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
+  keywords: [
+    "Teambuilder",
+    "team builder",
+    "workout",
+    "fitness",
+    "AMS",
+    "athletic management system",
+    "athlete monitoring",
+    "smart athlete",
+    "Kinduct",
+    "athlete SR",
+    "athletes desk",
+    "adhub",
+    "athletics hub",
+    "centralized ams",
+  ],
   alternates: {
     canonical: "/",
   },
