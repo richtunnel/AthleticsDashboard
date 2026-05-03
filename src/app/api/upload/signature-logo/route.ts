@@ -42,6 +42,11 @@ function buildEndpoint(rawUrl: string): string {
   // Remove trailing slash
   let url = rawUrl.replace(/\/$/, "");
 
+  // Add https:// protocol if missing (e.g. DO_SPACES_ENDPOINT set without scheme)
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+
   // Parse the URL to safely remove bucket name from hostname
   try {
     const parsed = new URL(url);

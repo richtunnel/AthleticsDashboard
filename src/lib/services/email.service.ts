@@ -128,7 +128,7 @@ export class EmailService {
         cc,
         subject,
         html: body.includes("<html>") ? body : this.buildHtmlEmail(body),
-        reply_to: replyTo,
+        replyTo: replyTo,
       });
 
       const emailId = result.data?.id || null;
