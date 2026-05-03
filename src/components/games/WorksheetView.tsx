@@ -22,11 +22,12 @@ interface WorksheetViewProps {
   onRenameWorkbook: (id: string, name: string) => void;
   onDeleteWorkbook: (id: string) => void;
   isCreating?: boolean;
+  worksheetLimit?: number;
 }
 
 const MAX_TITLE_LENGTH = 22;
 
-export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook, onCreateWorkbook, onRenameWorkbook, onDeleteWorkbook, isCreating }: WorksheetViewProps) {
+export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook, onCreateWorkbook, onRenameWorkbook, onDeleteWorkbook, isCreating, worksheetLimit }: WorksheetViewProps) {
   const theme = useTheme();
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -89,7 +90,7 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
                 borderRadius: 3,
                 border: "2px dashed",
                 borderColor: cardBorder,
-                cursor: "pointer",
+                cursor: worksheetLimit && workbooks.length >= worksheetLimit ? "not-allowed" : "pointer",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -100,11 +101,11 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
                 width: "100%",
                 maxWidth: "320px",
                 transition: "all 0.2s ease",
-                opacity: isCreating ? 0.5 : 1,
+                opacity: isCreating || (worksheetLimit && workbooks.length >= worksheetLimit) ? 0.5 : 1,
                 pointerEvents: isCreating ? "none" : "auto",
                 "&:hover": {
-                  borderColor: theme.palette.primary.main,
-                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  borderColor: worksheetLimit && workbooks.length >= worksheetLimit ? cardBorder : theme.palette.primary.main,
+                  bgcolor: worksheetLimit && workbooks.length >= worksheetLimit ? "transparent" : alpha(theme.palette.primary.main, 0.05),
                 },
               }}
             >
