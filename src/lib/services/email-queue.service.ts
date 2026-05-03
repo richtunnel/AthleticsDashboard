@@ -1,5 +1,7 @@
 import { prisma } from "../database/prisma";
 import { emailLimitService } from "./email-limit.service";
+import { jobQueueService } from "./job-queue.service";
+import { JobType } from "@prisma/client";
 
 export interface BulkEmailParams {
   userId: string;
@@ -41,38 +43,15 @@ export class EmailQueueService {
       throw new Error(limitCheck.reason || "Email limit exceeded");
     }
 
-    // 2. Create Job and Recipients in a transaction
-    const job = await prisma.$transaction(async (tx) => {
-      const newJob = await tx.emailJob.create({
-        data: {
-          userId,
-          organizationId,
-          subject,
-          body,
-          replyTo: replyTo || null,
-          totalCount: to.length,
-          status: "PENDING",
-          gameIds: gameIds || [],
-          groupId: groupId || null,
-          campaignId: campaignId || null,
-          recipientCategory: recipientCategory || null,
-          additionalMessage: additionalMessage || null,
-          visibleColumnIds: visibleColumnIds || [],
-          selectedSchoolNames: selectedSchoolNames || [],
-        },
-      });
-
-      // Split recipients into chunks of 1000 for createMany if needed
-      // But for now, just create them
-      await tx.emailRecipient.createMany({
-        data: to.map((email) => ({
-          jobId: newJob.id,
-          email,
-          status: "PENDING",
-        })),
-      });
-
-      return newJob;
+    // Use the new generic background job queue for each recipient or for the whole batch
+    // For now, let's keep the existing EmailJob but also support generic background jobs if needed.
+    // Actually, to satisfy the requirement, I'll enqueue it as a generic job.
+    
+    const job = await jobQueueService.enqueue({
+      type: JobType.EMAIL,
+      payload: params,
+      userId,
+      organizationId,
     });
 
     return job;
