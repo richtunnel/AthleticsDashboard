@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const result = await calendarService.syncGameToCalendar(id, session.user.id);
     return ApiResponse.success(result);
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }
 
@@ -22,6 +22,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const result = await calendarService.unsyncGame(id, session.user.id);
     return ApiResponse.success(result);
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

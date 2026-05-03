@@ -76,6 +76,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

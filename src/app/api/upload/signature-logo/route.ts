@@ -199,6 +199,6 @@ export async function POST(request: NextRequest) {
       url: publicUrl,
     });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

@@ -478,6 +478,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error(`[EMAIL-API] Request failed:`, error);
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }

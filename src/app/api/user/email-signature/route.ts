@@ -34,7 +34,7 @@ export async function GET() {
 
     return response;
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }
 
@@ -92,6 +92,6 @@ export async function PATCH(request: NextRequest) {
       signature: updatedUser,
     });
   } catch (error) {
-    return handleApiError(error);
+    return await handleApiError(error);
   }
 }
