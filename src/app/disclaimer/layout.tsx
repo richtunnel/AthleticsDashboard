@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclaimer",
-  description: "Important disclaimers and limitations for using Opletics.",
+  title: "Disclaimer | Opletics",
+  description: "Opletics platform disclaimer and limitations of liability.",
   alternates: {
     canonical: "/disclaimer",
   },
