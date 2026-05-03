@@ -10,7 +10,7 @@ COPY prisma ./prisma
 # Mount the Yarn cache so packages are only downloaded once across builds.
 RUN --mount=type=cache,target=/root/.yarn \
     YARN_CACHE_FOLDER=/root/.yarn \
-    yarn install --frozen-lockfile --network-timeout 300000 --network-concurrency 3
+    yarn install --network-timeout 300000 --network-concurrency 3
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
