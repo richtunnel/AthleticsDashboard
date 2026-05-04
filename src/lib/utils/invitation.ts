@@ -75,37 +75,46 @@ export async function setBypassOnboardingCookie() {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 300, // 5 minutes is plenty
+      maxAge: 300, // 5 minutes is plenty for the redirect flow
       path: "/",
     });
+    return true;
   } catch (error) {
     console.error("[Invitation] Error setting bypass onboarding cookie:", error);
-  }
-}
-
-export async function shouldBypassOnboarding() {
-  try {
-    const cookieStore = await cookies();
-    return cookieStore.get(BYPASS_ONBOARDING_COOKIE_NAME)?.value === "true";
-  } catch (error) {
     return false;
   }
 }
 
-export async function clearBypassOnboardingCookie() {
+export async function shouldBypassOnboarding(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
-    cookieStore.delete(BYPASS_ONBOARDING_COOKIE_NAME);
+    const cookieValue = cookieStore.get(BYPASS_ONBOARDING_COOKIE_NAME)?.value;
+    return cookieValue === "true";
   } catch (error) {
-    console.error("[Invitation] Error clearing bypass onboarding cookie:", error);
+    // On any error (e.g., cookie access issues), deny bypass for security
+    console.error("[Invitation] Error checking bypass onboarding cookie:", error);
+    return false;
   }
 }
 
-export async function clearInvitationCookie() {
+export async function clearBypassOnboardingCookie(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(BYPASS_ONBOARDING_COOKIE_NAME);
+    return true;
+  } catch (error) {
+    console.error("[Invitation] Error clearing bypass onboarding cookie:", error);
+    return false;
+  }
+}
+
+export async function clearInvitationCookie(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
     cookieStore.delete(INVITATION_COOKIE_NAME);
+    return true;
   } catch (error) {
     console.error("[Invitation] Error clearing invitation cookie:", error);
+    return false;
   }
 }

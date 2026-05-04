@@ -9,8 +9,7 @@ import { CollaborativeRole, UserRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
 
-import { INVITATION_COOKIE_NAME, clearInvitationCookie, roleMapping, COOKIE_MAX_AGE } from "@/lib/utils/invitation";
-import { CollaborativeRole, UserRole } from "@prisma/client";
+import { INVITATION_COOKIE_NAME, clearInvitationCookie, clearBypassOnboardingCookie, roleMapping, COOKIE_MAX_AGE } from "@/lib/utils/invitation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -279,8 +278,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Clear the pending invitation cookie now that acceptance is complete
+    // Clear cookies now that acceptance is complete
+    // Clear both cookies for robustness - the bypass cookie may or may not exist
     await clearInvitationCookie();
+    await clearBypassOnboardingCookie();
 
     return NextResponse.json({
       success: true,
