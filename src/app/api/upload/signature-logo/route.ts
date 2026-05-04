@@ -36,7 +36,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 
 // Digital Ocean Spaces (S3-compatible) configuration
 const SPACES_BUCKET = process.env.DO_SPACES_BUCKET || "";
-const SPACES_REGION = process.env.DO_SPACES_REGION || "nyc3";
+const SPACES_REGION = process.env.DO_SPACES_REGION || "atl1";
 
 // Build the base endpoint without the bucket name to avoid SSL certificate mismatches
 // when forcePathStyle is false (virtual-hosted style requires clean endpoints).
@@ -80,8 +80,8 @@ const s3Client = new S3Client({
   endpoint: SPACES_ENDPOINT,
   region: SPACES_REGION,
   credentials: {
-    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME || "",
-    secretAccessKey: process.env.DO_SPACES_SECRET_KEY || process.env.DO_SPACES_SECRET_KEY_VALUE || "",
+    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME,
+    secretAccessKey: process.env.DO_SPACES_SECRET_KEY,
   },
   forcePathStyle: FORCE_PATH_STYLE,
 });
@@ -105,10 +105,7 @@ export async function POST(request: NextRequest) {
         logger.warn(`[SignatureLogoUpload] S3 not fully configured in dev mode: ${configErrors.join(", ")}. Using local storage fallback.`);
       } else {
         logger.error(`[SignatureLogoUpload] Misconfigured S3 in production: ${configErrors.join(", ")}`);
-        return ApiResponse.error(
-          `File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`,
-          500
-        );
+        return ApiResponse.error(`File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`, 500);
       }
     }
 
@@ -125,7 +122,7 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
       fileType: file.type,
       hasS3Config,
-      isDev
+      isDev,
     });
 
     // Validate file size
@@ -182,9 +179,9 @@ export async function POST(request: NextRequest) {
         buffer = optimizedBuffer;
         contentType = "image/png";
         wasOptimized = true;
-        logger.info("[SignatureLogoUpload] Image optimized successfully", { 
+        logger.info("[SignatureLogoUpload] Image optimized successfully", {
           newSize: buffer.length,
-          reduction: `${(((bytes.byteLength - buffer.length) / bytes.byteLength) * 100).toFixed(2)}%`
+          reduction: `${(((bytes.byteLength - buffer.length) / bytes.byteLength) * 100).toFixed(2)}%`,
         });
       } catch (sharpError) {
         const msg = sharpError instanceof Error ? sharpError.message : String(sharpError);
@@ -247,7 +244,7 @@ export async function POST(request: NextRequest) {
     if (!shouldUseS3) {
       // Use local storage fallback (development or misconfigured S3)
       logger.info("[SignatureLogoUpload] Using local storage fallback", { isDev });
-      
+
       try {
         const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
         if (!existsSync(uploadDir)) {
@@ -257,9 +254,9 @@ export async function POST(request: NextRequest) {
 
         const filePath = path.join(uploadDir, filename);
         await writeFile(filePath, buffer);
-        
+
         publicUrl = `/uploads/signatures/${filename}`;
-        
+
         logger.info("[SignatureLogoUpload] Local storage upload successful", { publicUrl, fileSize: buffer.length });
       } catch (localError: any) {
         const msg = localError instanceof Error ? localError.message : String(localError);
@@ -294,28 +291,28 @@ export async function POST(request: NextRequest) {
       } catch (s3Error: any) {
         const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
         const errorName = s3Error instanceof Error ? s3Error.name : "UnknownError";
-        
+
         logger.error("[SignatureLogoUpload] S3 upload failed", {
           error: msg,
           errorName,
           bucket: SPACES_BUCKET,
           key,
         });
-        
+
         // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
         // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
         if (msg.includes("Invalid URL") || msg.includes("TypeError") || errorName === "TypeError") {
           throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
         }
-        
+
         if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
           throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
         }
-        
+
         if (msg.includes("NoSuchBucket")) {
           throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
         }
-        
+
         // For other S3 errors, provide a helpful message
         throw new Error(`Failed to upload logo to file storage: ${msg}`);
       }
