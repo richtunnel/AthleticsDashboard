@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
@@ -7,6 +8,9 @@ import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
 import { CollaborativeRole, UserRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
+
+const INVITATION_COOKIE_NAME = "pending_invitation_token";
+const COOKIE_MAX_AGE = 60 * 60 * 24; // 24 hours in seconds
 
 const roleMapping: Record<CollaborativeRole, UserRole> = {
   VIEWER: UserRole.VENDOR_READ_ONLY,
@@ -103,6 +107,19 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Set the pending invitation token cookie before redirecting
+    // This allows NextAuth's createUser to detect the invitation and bypass onboarding
+    const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === "production";
+    
+    cookieStore.set(INVITATION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      maxAge: COOKIE_MAX_AGE,
+      path: "/",
+    });
 
     // Always redirect to the client-side page so the browser can call update()
     // to refresh the session after acceptance. Auto-accepting here would skip
@@ -256,6 +273,10 @@ export async function POST(request: NextRequest) {
         userAgent: metadata.userAgent,
       },
     });
+
+    // Clear the pending invitation cookie now that acceptance is complete
+    const cookieStore = await cookies();
+    cookieStore.delete(INVITATION_COOKIE_NAME);
 
     return NextResponse.json({
       success: true,

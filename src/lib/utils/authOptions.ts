@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
 import { encode as defaultJwtEncode, decode as defaultJwtDecode } from "next-auth/jwt";
+import { cookies } from "next/headers";
 import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
@@ -14,6 +15,11 @@ import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
+import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
+import {
+  CollaborativeRole,
+  UserRole,
+} from "@prisma/client";
 import {
   generateMemberSessionId,
   generateMemberEmail,
@@ -27,6 +33,68 @@ import {
 } from "@/lib/utils/memberAccess";
 
 const MEMBER_ACCESS_CODE = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
+
+// Cookie name and max age (must match route.ts constants)
+const INVITATION_COOKIE_NAME = "pending_invitation_token";
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24; // 24 hours
+
+// Helper to check for pending invitation cookie and fetch owner details
+async function checkInvitationCookie(): Promise<{
+  ownerId: string;
+  organizationId: string;
+  role: UserRole;
+  schoolName: string | null;
+  teamName: string | null;
+  schoolAddress: string | null;
+  city: string | null;
+} | null> {
+  try {
+    const cookieStore = await cookies();
+    const pendingToken = cookieStore.get(INVITATION_COOKIE_NAME)?.value;
+    if (!pendingToken) return null;
+
+    const decodedToken = verifyInvitationToken(pendingToken);
+    if (!decodedToken) return null;
+
+    // Check if token has expired
+    const now = new Date();
+    if (new Date(decodedToken.expiresAt) < now) return null;
+
+    // Map the collaborative role to internal role
+    const roleMapping: Record<CollaborativeRole, UserRole> = {
+      VIEWER: UserRole.VENDOR_READ_ONLY,
+      MEMBER: UserRole.ASSISTANT_AD,
+    };
+    const mappedRole = roleMapping[decodedToken.role as CollaborativeRole] ?? UserRole.VENDOR_READ_ONLY;
+
+    // Fetch the owner's organization and school details
+    const owner = await prisma.user.findUnique({
+      where: { id: decodedToken.ownerId },
+      select: {
+        organizationId: true,
+        schoolName: true,
+        teamName: true,
+        schoolAddress: true,
+        city: true,
+      },
+    });
+
+    if (!owner?.organizationId) return null;
+
+    return {
+      ownerId: decodedToken.ownerId,
+      organizationId: owner.organizationId,
+      role: mappedRole,
+      schoolName: owner.schoolName,
+      teamName: owner.teamName,
+      schoolAddress: owner.schoolAddress,
+      city: owner.city,
+    };
+  } catch (error) {
+    console.error("[Invitation] Error checking invitation cookie:", error);
+    return null;
+  }
+}
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -71,78 +139,137 @@ const customAdapter = {
     // Generate a unique share code for the new user
     const shareCode = await generateUniqueShareCode();
 
-    // Create user with their own organization
-    const newUser = await prisma.user.create({
-      data: {
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        emailVerified: user.emailVerified,
-        role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
-        plan: plan,
-        stripeCustomerId,
-        shareCode,
-        trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
-        organization: {
-          create: {
-            name: user.name 
-              ? (isParentPlan ? `${user.name}'s Family` : `${user.name}'s Organization`)
-              : (isParentPlan ? "My Family" : "My Organization"),
-            timezone: "America/New_York", // Set default timezone
-            // Add any other required organization fields from your schema
+    // Check if user is joining via an invitation
+    const invitationData = await checkInvitationCookie();
+    let newUser: any;
+
+    if (invitationData) {
+      // Join existing organization (no sample games, no welcome email for collaborators)
+      console.log(`[Invitation] Creating user ${user.email} as collaborator in org ${invitationData.organizationId}`);
+      newUser = await prisma.user.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          emailVerified: user.emailVerified,
+          role: invitationData.role,
+          plan: "free_trial_plan",
+          stripeCustomerId,
+          shareCode,
+          trialEnd: null,
+          organizationId: invitationData.organizationId,
+          // Copy school details from the inviter
+          schoolName: invitationData.schoolName,
+          teamName: invitationData.teamName,
+          schoolAddress: invitationData.schoolAddress,
+          city: invitationData.city,
+        },
+        include: {
+          organization: true,
+        },
+      });
+
+      // Clear the invitation cookie now that user has been created
+      try {
+        const cookieStore = await cookies();
+        cookieStore.delete(INVITATION_COOKIE_NAME);
+      } catch {
+        // Ignore cookie clearing errors - non-critical
+      }
+
+      // Track collaboration signup in Mixpanel (non-blocking)
+      void runNonCritical(() => {
+        trackServerEvent("Collaborator Signup", {
+          distinct_id: newUser.id,
+          signup_method: "google",
+          email: newUser.email,
+          name: newUser.name,
+          invited_by: invitationData.ownerId,
+          organization_id: invitationData.organizationId,
+          role: newUser.role,
+        });
+        identifyServerUser(newUser.id, {
+          $email: newUser.email,
+          $name: newUser.name,
+          role: newUser.role,
+          signup_method: "google",
+          signup_date: new Date().toISOString(),
+        });
+      }, `mixpanel tracking for collaborator ${newUser.id}`);
+    } else {
+      // Normal signup flow - create user with their own organization
+      newUser = await prisma.user.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          emailVerified: user.emailVerified,
+          role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
+          plan: plan,
+          stripeCustomerId,
+          shareCode,
+          trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
+          organization: {
+            create: {
+              name: user.name 
+                ? (isParentPlan ? `${user.name}'s Family` : `${user.name}'s Organization`)
+                : (isParentPlan ? "My Family" : "My Organization"),
+              timezone: "America/New_York", // Set default timezone
+              // Add any other required organization fields from your schema
+            },
           },
         },
-      },
-      include: {
-        organization: true,
-      },
-    });
+        include: {
+          organization: true,
+        },
+      });
 
-    // Create sample game for new user (non-blocking)
-    void runNonCritical(
-      () =>
-        createSampleGame({
-          userId: newUser.id,
-          organizationId: newUser.organizationId,
-        }),
-      `sample game creation for user ${newUser.id}`
-    );
-
-    // Create initial column preferences for new user (non-blocking)
-    // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
-    void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
-
-    // Send welcome email (non-blocking)
-    if (newUser.email) {
+      // Create sample game for new user (non-blocking)
       void runNonCritical(
         () =>
-          emailService.sendWelcomeEmail({
-            id: newUser.id,
-            email: newUser.email,
-            name: newUser.name,
+          createSampleGame({
+            userId: newUser.id,
+            organizationId: newUser.organizationId,
           }),
-        `welcome email for user ${newUser.id}`
+        `sample game creation for user ${newUser.id}`
       );
-    }
 
-    // Track Google OAuth signup in Mixpanel (non-blocking)
-    void runNonCritical(() => {
-      trackServerEvent("User Signup", {
-        distinct_id: newUser.id,
-        signup_method: "google",
-        plan: newUser.plan,
-        email: newUser.email,
-        name: newUser.name,
-      });
-      identifyServerUser(newUser.id, {
-        $email: newUser.email,
-        $name: newUser.name,
-        plan: newUser.plan,
-        role: newUser.role,
-        signup_method: "google",
-        signup_date: new Date().toISOString(),
-      });
-    }, `mixpanel tracking for user ${newUser.id}`);
+      // Create initial column preferences for new user (non-blocking)
+      // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
+      void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
+
+      // Send welcome email (non-blocking)
+      if (newUser.email) {
+        void runNonCritical(
+          () =>
+            emailService.sendWelcomeEmail({
+              id: newUser.id,
+              email: newUser.email,
+              name: newUser.name,
+            }),
+          `welcome email for user ${newUser.id}`
+        );
+      }
+
+      // Track Google OAuth signup in Mixpanel (non-blocking)
+      void runNonCritical(() => {
+        trackServerEvent("User Signup", {
+          distinct_id: newUser.id,
+          signup_method: "google",
+          plan: newUser.plan,
+          email: newUser.email,
+          name: newUser.name,
+        });
+        identifyServerUser(newUser.id, {
+          $email: newUser.email,
+          $name: newUser.name,
+          plan: newUser.plan,
+          role: newUser.role,
+          signup_method: "google",
+          signup_date: new Date().toISOString(),
+        });
+      }, `mixpanel tracking for user ${newUser.id}`);
+    }
 
     return newUser;
   },
