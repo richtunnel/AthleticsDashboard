@@ -329,6 +329,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       recommendations: result.recommendations,
       debug: result.debug,
+      aiQuotaExceeded: parsedQuery?.quotaExceeded ?? false,
     });
   } catch (error) {
     console.error("Find available dates API error:", error);

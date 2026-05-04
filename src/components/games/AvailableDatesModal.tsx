@@ -66,6 +66,7 @@ interface DebugInfo {
 interface AvailableDatesResult {
   recommendations: string[]; // ISO date strings
   debug: DebugInfo;
+  aiQuotaExceeded?: boolean;
 }
 
 const formatDateDisplay = (dateStr: string): string => {
@@ -429,11 +430,19 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                 </Box>
 
                 {/* AI Info Banner */}
-                <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
-                  <Typography variant="body2">
-                    <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
-                  </Typography>
-                </Alert>
+                {result?.aiQuotaExceeded ? (
+                  <Alert severity="warning" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
+                    <Typography variant="body2">
+                      Opletics is experiencing AI token usage at a high volume, try again in a few hours.
+                    </Typography>
+                  </Alert>
+                ) : (
+                  <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
+                    <Typography variant="body2">
+                      <strong>AI-Powered Search:</strong> Use natural language to find dates with constraints like "in December", "at least 3 days apart", or "not on same days as other teams"
+                    </Typography>
+                  </Alert>
+                )}
               </AccordionDetails>
             </Accordion>
           </Stack>
@@ -461,7 +470,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               <Divider />
 
               {/* AI Interpretation & Recommendation */}
-              {(result.debug.interpretation || result.debug.recommendation) && (
+              {!result.aiQuotaExceeded && (result.debug.interpretation || result.debug.recommendation) && (
                 <Alert
                   severity="success"
                   icon={<AutoAwesome />}

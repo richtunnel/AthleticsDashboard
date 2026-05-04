@@ -21,13 +21,14 @@ interface ParsedQuery {
     start?: string;
     end?: string;
     month?: string;
-    months?: string[]; // Support multiple months
+    months?: string[];
   };
-  minSpacing?: number; // Minimum days between dates
+  minSpacing?: number;
   maxResults?: number;
-  excludeDays?: number[]; // Days of week to exclude (0=Sunday, 6=Saturday)
-  interpretation?: string; // Human-friendly interpretation of the query
-  recommendation?: string; // AI recommendation/summary based on results
+  excludeDays?: number[];
+  interpretation?: string;
+  recommendation?: string;
+  quotaExceeded?: boolean; // true when OpenAI returned 429
 }
 
 export class AvailableDatesAIService {
@@ -98,60 +99,144 @@ Return JSON format:
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       return this.normalizeParsedQuery(result);
     } catch (error: any) {
-      if (error?.status === 429 || error?.code === "insufficient_quota") {
+      const isQuota = error?.status === 429 || error?.code === "insufficient_quota";
+      if (isQuota) {
         console.warn("[Available Dates AI] OpenAI quota exceeded — using fallback parsing.");
       } else {
         console.error("AI query parsing failed:", error);
       }
-      return this.fallbackParse(prompt);
+      return this.fallbackParse(prompt, isQuota);
     }
   }
 
   /**
-   * Fallback parsing when OpenAI is not available
+   * Robust fallback parser — works without OpenAI.
+   * Extracts months (full names + abbreviations), spacing, day-of-week
+   * exclusions, and team info (sport / gender / level) from free-text prompts.
    */
-  private fallbackParse(prompt: string): ParsedQuery {
-    const lowerPrompt = prompt.toLowerCase();
-    const result: ParsedQuery = {
-      targetTeams: [],
-      excludeTeams: [],
-      interpretation: "Using basic keyword matching (AI is currently unavailable).",
-    };
+  private fallbackParse(prompt: string, quotaExceeded = false): ParsedQuery {
+    const lower = prompt.toLowerCase();
 
-    // Try to extract spacing requirements
-    const spacingMatch = lowerPrompt.match(/(\d+)\s*days?\s*apart/);
-    if (spacingMatch) {
-      result.minSpacing = parseInt(spacingMatch[1], 10);
+    // ── months ────────────────────────────────────────────────────────────────
+    const MONTH_CANONICAL: Record<string, string> = {
+      jan: "january", january: "january",
+      feb: "february", february: "february",
+      mar: "march",   march: "march",
+      apr: "april",   april: "april",
+      may: "may",
+      jun: "june",    june: "june",
+      jul: "july",    july: "july",
+      aug: "august",  august: "august",
+      sep: "september", sept: "september", september: "september",
+      oct: "october", october: "october",
+      nov: "november", november: "november",
+      dec: "december", december: "december",
+    };
+    const MONTH_RE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi;
+    const foundMonths: string[] = [];
+    for (const m of lower.matchAll(MONTH_RE)) {
+      const canonical = MONTH_CANONICAL[m[1].toLowerCase()];
+      if (canonical && !foundMonths.includes(canonical)) foundMonths.push(canonical);
     }
 
-    // Try to extract month
-    const months = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ];
-    for (const month of months) {
-      if (lowerPrompt.includes(month)) {
-        result.dateRange = { month };
-        break;
+    // ── spacing ───────────────────────────────────────────────────────────────
+    const spacingMatch =
+      lower.match(/(\d+)\s*days?\s*(?:apart|between|gap|spacing)/i) ??
+      lower.match(/at\s+least\s+(\d+)\s*days?/i) ??
+      lower.match(/every\s+(\d+)\s*days?/i) ??
+      lower.match(/(\d+)\s*day\s*minimum/i);
+    const minSpacing = spacingMatch ? parseInt(spacingMatch[1], 10) : undefined;
+
+    // ── day-of-week exclusions ────────────────────────────────────────────────
+    const excludeDays: number[] = [];
+    if (/\b(no\s+weekends?|weekdays?\s+only|mon(?:day)?\s*(?:through|to|thru|[-–])\s*fri(?:day)?)\b/i.test(lower)) {
+      excludeDays.push(0, 6);
+    } else {
+      if (/\bno\s+sun(?:days?)?\b/i.test(lower)) excludeDays.push(0);
+      if (/\bno\s+mon(?:days?)?\b/i.test(lower)) excludeDays.push(1);
+      if (/\bno\s+(?:tue|tues)(?:days?)?\b/i.test(lower)) excludeDays.push(2);
+      if (/\bno\s+wed(?:nesdays?)?\b/i.test(lower)) excludeDays.push(3);
+      if (/\bno\s+thu(?:rs(?:days?)?)?\b/i.test(lower)) excludeDays.push(4);
+      if (/\bno\s+fri(?:days?)?\b/i.test(lower)) excludeDays.push(5);
+      if (/\bno\s+sat(?:urdays?)?\b/i.test(lower)) excludeDays.push(6);
+    }
+
+    // ── team extraction ───────────────────────────────────────────────────────
+    // Combined abbreviations first (bv, gv, bjv, gjv)
+    let detectedGender: string | undefined;
+    let detectedLevel: string | undefined;
+    if (/\bbjv\b/i.test(lower))      { detectedGender = "Boys";  detectedLevel = "Junior Varsity"; }
+    else if (/\bgjv\b/i.test(lower)) { detectedGender = "Girls"; detectedLevel = "Junior Varsity"; }
+    else if (/\bbv\b/i.test(lower))  { detectedGender = "Boys";  detectedLevel = "Varsity"; }
+    else if (/\bgv\b/i.test(lower))  { detectedGender = "Girls"; detectedLevel = "Varsity"; }
+
+    if (!detectedGender) {
+      if (/\b(boys?|mens?|b)\b/i.test(lower))       detectedGender = "Boys";
+      else if (/\b(girls?|womens?|g)\b/i.test(lower)) detectedGender = "Girls";
+    }
+    if (!detectedLevel) {
+      if (/\bjunior\s+varsity\b/i.test(lower))         detectedLevel = "Junior Varsity";
+      else if (/\b(jv|j\.v\.)\b/i.test(lower))         detectedLevel = "Junior Varsity";
+      else if (/\b(varsity|var|v)\b/i.test(lower))     detectedLevel = "Varsity";
+      else if (/\b(frosh|freshman|freshmen|fs)\b/i.test(lower)) detectedLevel = "Freshmen";
+    }
+
+    // Multi-word sports first, then single-word
+    let detectedSport: string | undefined;
+    if      (/\bcross\s+country\b/i.test(lower))  detectedSport = "Cross Country";
+    else if (/\bfield\s+hockey\b/i.test(lower))   detectedSport = "Field Hockey";
+    else if (/\bwater\s+polo\b/i.test(lower))     detectedSport = "Water Polo";
+    else {
+      const SPORT_KW: [RegExp, string][] = [
+        [/\b(basketball|bball|bb)\b/i, "Basketball"],
+        [/\b(football|fb)\b/i,         "Football"],
+        [/\bsoccer\b/i,                "Soccer"],
+        [/\b(volleyball|vball|vb)\b/i, "Volleyball"],
+        [/\bbaseball\b/i,              "Baseball"],
+        [/\b(softball|sb)\b/i,         "Softball"],
+        [/\btennis\b/i,                "Tennis"],
+        [/\bgolf\b/i,                  "Golf"],
+        [/\b(swimming|swim)\b/i,       "Swimming"],
+        [/\btrack\b/i,                 "Track"],
+        [/\blacrosse\b/i,              "Lacrosse"],
+        [/\bwrestling\b/i,             "Wrestling"],
+        [/\bgymnastics\b/i,            "Gymnastics"],
+        [/\bbadminton\b/i,             "Badminton"],
+        [/\b(cheer(?:leading)?)\b/i,   "Cheerleading"],
+      ];
+      for (const [re, name] of SPORT_KW) {
+        if (re.test(lower)) { detectedSport = name; break; }
       }
     }
 
-    // Try to extract exclude conditions
-    const excludeMatch = lowerPrompt.match(/not\s+on\s+.*?same\s+days?\s+as\s+(.+?)(?:\s+and|\s+or|$)/);
-    if (excludeMatch) {
-      // Simple extraction - just store the text for now
-      result.excludeTeams = [{ sport: excludeMatch[1].trim() }];
+    const targetTeams = (detectedSport || detectedGender || detectedLevel)
+      ? [{ sport: detectedSport, gender: detectedGender, level: detectedLevel }]
+      : [];
+
+    // ── interpretation ────────────────────────────────────────────────────────
+    let interpretation: string;
+    if (quotaExceeded) {
+      interpretation = "Opletics is experiencing AI token usage at a high volume, try again in a few hours.";
+    } else {
+      const teamDesc = [detectedGender, detectedLevel, detectedSport].filter(Boolean).join(" ");
+      const monthDesc = foundMonths.length
+        ? `in ${foundMonths.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(", ")}`
+        : "";
+      const spacingDesc = minSpacing ? `at least ${minSpacing} days apart` : "";
+      interpretation = ["Finding available dates", teamDesc, monthDesc, spacingDesc]
+        .filter(Boolean).join(" ").replace(/\s+/g, " ").trim() + ".";
     }
+
+    const result: ParsedQuery = {
+      targetTeams,
+      excludeTeams: [],
+      interpretation,
+      quotaExceeded,
+    };
+    if (foundMonths.length > 1) result.dateRange = { months: foundMonths };
+    else if (foundMonths.length === 1) result.dateRange = { month: foundMonths[0] };
+    if (minSpacing) result.minSpacing = minSpacing;
+    if (excludeDays.length > 0) result.excludeDays = excludeDays;
 
     return result;
   }
