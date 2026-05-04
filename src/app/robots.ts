@@ -12,8 +12,11 @@ export default function robots(): MetadataRoute.Robots {
         allow: [
           "/onboarding/start",
           "/onboarding/plans",
+          "/onboarding/signup",
+          "/onboarding/parent",
           "/onboarding/parent/plans",
           "/onboarding/parent-signup",
+          "/assets/",
         ],
         disallow: [
           "/api/",
@@ -21,10 +24,11 @@ export default function robots(): MetadataRoute.Robots {
           "/dashboard/",
           "/onboarding/",
           "/verify-recovery-email",
+          "/_next/",
         ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: "https://opletics.com/sitemap.xml",
     host: baseUrl,
   };
 }

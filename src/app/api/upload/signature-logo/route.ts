@@ -84,6 +84,22 @@ const s3Client = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate required S3 configuration before processing the file.
+    // High-granularity validation for environment variables.
+    const configErrors: string[] = [];
+    if (!SPACES_BUCKET) configErrors.push("DO_SPACES_BUCKET");
+    if (!process.env.DO_SPACES_ACCESS_KEY && !process.env.DO_SPACES_ACCESS_KEY_NAME) configErrors.push("DO_SPACES_ACCESS_KEY");
+    if (!process.env.DO_SPACES_SECRET_KEY && !process.env.DO_SPACES_SECRET_KEY_VALUE) configErrors.push("DO_SPACES_SECRET_KEY");
+    if (!process.env.DO_SPACES_ENDPOINT) configErrors.push("DO_SPACES_ENDPOINT");
+
+    if (configErrors.length > 0) {
+      console.error(`[SignatureLogoUpload] Misconfigured environment variables: ${configErrors.join(", ")}`);
+      return ApiResponse.error(
+        `File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`,
+        500
+      );
+    }
+
     const session = await requireAuth();
 
     const formData = await request.formData();
@@ -181,15 +197,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload to Digital Ocean Spaces
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: SPACES_BUCKET,
-        Key: key,
-        Body: buffer,
-        ContentType: contentType,
-        ACL: "public-read",
-      }),
-    );
+    try {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: SPACES_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          ACL: "public-read",
+        }),
+      );
+    } catch (s3Error: any) {
+      console.error("[SignatureLogoUpload] S3 Upload Error:", s3Error);
+      
+      const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
+      
+      // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
+      // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
+      if (msg.includes("Invalid URL") || msg.includes("TypeError") || s3Error.name === "TypeError") {
+        throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+      }
+      
+      if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
+        throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
+      }
+      
+      if (msg.includes("NoSuchBucket")) {
+        throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
+      }
+      
+      throw s3Error;
+    }
 
     const publicUrl = `${SPACES_CDN_URL}/${key}`;
 

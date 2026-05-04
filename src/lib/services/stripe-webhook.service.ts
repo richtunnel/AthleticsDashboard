@@ -1,0 +1,388 @@
+import Stripe from "stripe";
+import { prisma } from "../database/prisma";
+import { emailService } from "./email.service";
+import { slackService } from "./slack.service";
+import { calculateDeletionDeadline, getAccountCleanupConfig } from "../utils/accountCleanup";
+import { runNonCritical } from "../utils/nonCritical";
+import { PlanType, SubscriptionStatus, Prisma } from "@prisma/client";
+
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+  plan: true,
+  stripeCustomerId: true,
+};
+
+type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>;
+type SubscriptionStatusEnum = SubscriptionStatus;
+type PlanTypeEnum = PlanType;
+
+interface SubscriptionSyncResult {
+  subscription: any;
+  previousStatus: SubscriptionStatusEnum | null;
+  previousCancelAt: Date | null;
+  planPriceId: string | null;
+  planLookupKey: string | null;
+  planNickname: string | null;
+  planProductId: string | null;
+  user: SelectedUser;
+}
+
+export class StripeWebhookService {
+  async processWebhookEvent(payload: { event: Stripe.Event; rawBody?: string }) {
+    // Handle new payload format from queue
+    const event = payload.event || payload;
+    
+    switch (event.type) {
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const result = await this.syncSubscription(subscription, event.id, event.type);
+        if (result) {
+          await this.maybeSendConfirmationEmail(result, event.type);
+          await this.maybeSendCancellationEmail(result, event.type);
+        }
+        break;
+      }
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await this.handlePaymentSuccess(invoice);
+        break;
+      }
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await this.handlePaymentFailure(invoice);
+        break;
+      }
+      case "customer.created": {
+        const customer = event.data.object as Stripe.Customer;
+        await this.handleCustomerCreated(customer);
+        break;
+      }
+    }
+    
+    // Mark event as processed in log
+    await prisma.stripeWebhookEvent.update({
+      where: { id: event.id },
+      data: { status: "PROCESSED", processedAt: new Date() }
+    });
+  }
+
+  private async syncSubscription(stripeSubscription: Stripe.Subscription, eventId: string, eventType: string): Promise<SubscriptionSyncResult | null> {
+    const stripeSubscriptionId = stripeSubscription.id;
+    const customerId = typeof stripeSubscription.customer === 'string' ? stripeSubscription.customer : stripeSubscription.customer?.id;
+    const metadataUserId = stripeSubscription.metadata?.userId ?? stripeSubscription.metadata?.userID ?? null;
+
+    const orFilters: Prisma.SubscriptionWhereInput[] = [{ stripeSubscriptionId }];
+    if (metadataUserId) {
+      orFilters.push({ userId: metadataUserId });
+    }
+    if (customerId) {
+      orFilters.push({ stripeCustomerId: customerId });
+    }
+
+    const existing = await prisma.subscription.findFirst({
+      where: { OR: orFilters },
+      include: { user: { select: userSelect } },
+    });
+
+    let user = existing?.user ?? null;
+
+    if (!user && metadataUserId) {
+      user = await prisma.user.findUnique({ where: { id: metadataUserId }, select: userSelect });
+    }
+
+    if (!user && customerId) {
+      user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId }, select: userSelect });
+    }
+
+    if (!user) {
+      console.warn(`No user found for subscription ${stripeSubscriptionId}`);
+      return null;
+    }
+
+    const previousStatus = existing?.status ?? null;
+    const previousCancelAt = existing?.cancelAt ?? null;
+
+    const priceItem = stripeSubscription.items?.data?.[0];
+    const planPriceId = priceItem?.price?.id ?? null;
+    const planLookupKey = priceItem?.price?.lookup_key ?? null;
+    const planNickname = priceItem?.price?.nickname ?? null;
+    const planProductId = typeof priceItem?.price?.product === 'string' ? priceItem.price.product : priceItem?.price?.product?.id ?? null;
+
+    const billingCycle = this.deriveBillingCycle([planLookupKey, planNickname, planPriceId]);
+    const planType = this.toPlanType(billingCycle) ?? (existing?.planType as PlanType) ?? null;
+
+    const status = this.mapStripeStatus(stripeSubscription.status);
+    const currentPeriodStart = this.toDate(stripeSubscription.current_period_start);
+    const currentPeriodEnd = this.toDate(stripeSubscription.current_period_end);
+    const cancelAt = this.toDate(stripeSubscription.cancel_at);
+    const canceledAt = this.toDate(stripeSubscription.canceled_at);
+    const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end ?? false;
+    const trialStart = this.toDate(stripeSubscription.trial_start);
+    const trialEnd = this.toDate(stripeSubscription.trial_end);
+    const endedAt = this.toDate(stripeSubscription.ended_at);
+    const latestInvoiceId = typeof stripeSubscription.latest_invoice === "string" ? stripeSubscription.latest_invoice : (stripeSubscription.latest_invoice?.id ?? null);
+
+    const { gracePeriodDays } = getAccountCleanupConfig();
+    const cancellationReference = cancelAt ?? currentPeriodEnd ?? canceledAt ?? null;
+    const computedGracePeriodEndsAt = (cancelAtPeriodEnd || status === "CANCELED") && cancellationReference ? calculateDeletionDeadline(cancellationReference, gracePeriodDays) : null;
+    const shouldClearGrace = !cancelAtPeriodEnd && status !== "CANCELED";
+
+    const subscriptionPayload = {
+      userId: user.id,
+      stripeSubscriptionId,
+      stripeCustomerId: customerId ?? user.stripeCustomerId,
+      status,
+      planType,
+      billingCycle: billingCycle ?? existing?.billingCycle,
+      priceId: planPriceId ?? existing?.priceId,
+      planProductId: planProductId ?? existing?.planProductId,
+      planLookupKey: planLookupKey ?? existing?.planLookupKey,
+      planNickname: planNickname ?? existing?.planNickname,
+      currentPeriodStart,
+      currentPeriodEnd,
+      cancelAt,
+      cancelAtPeriodEnd,
+      canceledAt,
+      gracePeriodEndsAt: shouldClearGrace ? null : (computedGracePeriodEndsAt ?? existing?.gracePeriodEndsAt),
+      deletionScheduledAt: shouldClearGrace ? null : (computedGracePeriodEndsAt ?? existing?.deletionScheduledAt),
+      trialStart,
+      trialEnd,
+      endedAt,
+      latestInvoiceId,
+      lastEventId: eventId,
+    };
+
+    const updatedSubscription = await prisma.subscription.upsert({
+      where: { userId: user.id },
+      create: subscriptionPayload,
+      update: subscriptionPayload,
+      include: { user: { select: userSelect } },
+    });
+
+    const nextPlan = planPriceId ?? user.plan;
+    const userUpdate: Prisma.UserUpdateInput = {
+      plan: nextPlan,
+      trialEnd,
+    };
+
+    if (this.isActiveOrTrialing(stripeSubscription.status)) {
+      await prisma.$transaction([
+        prisma.accountDeletionReminder.deleteMany({ where: { userId: user.id } }), 
+        prisma.user.update({ where: { id: user.id }, data: userUpdate })
+      ]);
+    } else {
+      await prisma.user.update({ where: { id: user.id }, data: userUpdate });
+    }
+
+    return {
+      subscription: updatedSubscription,
+      previousStatus,
+      previousCancelAt,
+      planPriceId,
+      planLookupKey,
+      planNickname,
+      planProductId,
+      user: updatedSubscription.user,
+    };
+  }
+
+  private async handlePaymentSuccess(invoice: Stripe.Invoice) {
+    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    if (!subscriptionId) return;
+
+    const subscriptionRecord = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: subscriptionId },
+      include: { user: { select: userSelect } },
+    });
+
+    const user = subscriptionRecord?.user;
+    if (!user?.email) return;
+
+    try {
+      const { autoEnableOnPayment } = await import("./account-disable.service");
+      await autoEnableOnPayment(user.id);
+    } catch (error) {
+      console.error('[Webhook] Error auto-enabling account:', error);
+    }
+
+    const planName = this.derivePlanName(null, invoice);
+    
+    void runNonCritical(
+      async () => {
+        await emailService.sendSubscriptionEmail({
+          type: 'payment_success',
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          },
+          planName: planName || 'Subscription',
+          status: subscriptionRecord?.status ?? null,
+          invoiceUrl: invoice.hosted_invoice_url ?? null,
+          amount: invoice.amount_paid,
+          currency: invoice.currency,
+          paidAt: invoice.status_transitions?.paid_at ? new Date(invoice.status_transitions.paid_at * 1000) : null,
+        });
+      },
+      `invoice email for user ${user.id}`,
+    );
+  }
+
+  private async handlePaymentFailure(invoice: Stripe.Invoice) {
+    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    if (!subscriptionId) return;
+
+    const subscriptionRecord = await prisma.subscription.findFirst({
+      where: { stripeSubscriptionId: subscriptionId },
+      include: { user: { select: userSelect } },
+    });
+
+    const user = subscriptionRecord?.user;
+    if (!user?.email) return;
+
+    const planName = this.derivePlanName(null, invoice);
+    await emailService.sendSubscriptionEmail({
+      type: "payment_failure",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+      planName: planName || 'Subscription',
+      status: subscriptionRecord?.status ?? null,
+      invoiceUrl: invoice.hosted_invoice_url ?? null,
+      dueDate: invoice.due_date ? new Date(invoice.due_date * 1000) : null,
+    });
+  }
+
+  private async handleCustomerCreated(customer: Stripe.Customer) {
+    const email = customer.email;
+    if (!email) return;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: userSelect,
+    });
+
+    if (!user) return;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        stripeCustomerId: customer.id,
+      },
+    });
+  }
+
+  private async maybeSendConfirmationEmail(result: SubscriptionSyncResult, eventType: string) {
+    if (!result.user?.email) return;
+
+    const becameActive = (result.subscription.status === "ACTIVE" || result.subscription.status === "TRIALING") && result.previousStatus !== result.subscription.status;
+    if (!becameActive) return;
+
+    const planName = this.derivePlanName(result);
+    const previousUserPlan = result.user.plan?.toLowerCase() || "free";
+    const isUpgrade = previousUserPlan === "free" || previousUserPlan === "free_plan" || !result.user.plan;
+
+    await emailService.sendSubscriptionEmail({
+      type: isUpgrade ? "upgrade" : "confirmation",
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+      },
+      planName: planName || 'Subscription',
+      status: result.subscription.status,
+      currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
+      previousPlan: isUpgrade ? "Free Plan" : undefined,
+    });
+
+    slackService.sendSignupNotification({
+      time: new Date().toISOString(),
+      endpoint: '/api/stripe/webhook',
+      customer: `${result.user.name || 'User'} (${result.user.email})`,
+      body: `Plan: ${planName || 'Unknown'} | Status: ${result.subscription.status} | Previous Plan: ${result.user.plan || 'None'}`,
+    }).catch(err => console.error('Failed to send Slack notification:', err));
+  }
+
+  private async maybeSendCancellationEmail(result: SubscriptionSyncResult, eventType: string) {
+    if (!result.user?.email) return;
+
+    const cancellationScheduled = !result.previousCancelAt && !!result.subscription.cancelAt;
+    const newlyCanceled = result.subscription.status === "CANCELED" && result.previousStatus !== "CANCELED";
+
+    if (!cancellationScheduled && !newlyCanceled) return;
+
+    const planName = this.derivePlanName(result);
+    const cancellationDate = result.subscription.cancelAt ?? result.subscription.canceledAt ?? result.subscription.currentPeriodEnd ?? null;
+
+    await emailService.sendSubscriptionEmail({
+      type: "cancellation",
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+      },
+      planName: planName || 'Subscription',
+      status: result.subscription.status,
+      currentPeriodEnd: result.subscription.currentPeriodEnd ?? result.subscription.trialEnd,
+      cancellationDate,
+    });
+  }
+
+  private derivePlanName(result?: SubscriptionSyncResult | null, invoice?: Stripe.Invoice): string | null {
+    if (result) {
+      return result.planNickname ?? result.planLookupKey ?? result.planPriceId ?? result.planProductId ?? null;
+    }
+
+    if (invoice) {
+      const line = invoice.lines?.data?.[0];
+      return line?.price?.nickname ?? line?.price?.lookup_key ?? line?.price?.id ?? null;
+    }
+
+    return null;
+  }
+
+  private toDate(timestamp: number | null | undefined): Date | null {
+    return timestamp ? new Date(timestamp * 1000) : null;
+  }
+
+  private isActiveOrTrialing(status: string | null | undefined): boolean {
+    const normalized = status?.toLowerCase();
+    return normalized === "active" || normalized === "trialing";
+  }
+
+  private mapStripeStatus(status: string | null | undefined): SubscriptionStatusEnum {
+    switch ((status ?? "").toLowerCase()) {
+      case "trialing": return "TRIALING";
+      case "active": return "ACTIVE";
+      case "past_due": return "PAST_DUE";
+      case "canceled": return "CANCELED";
+      case "unpaid": return "UNPAID";
+      case "incomplete_expired": return "INCOMPLETE_EXPIRED";
+      case "incomplete": return "INCOMPLETE";
+      default: return "INCOMPLETE";
+    }
+  }
+
+  private deriveBillingCycle(values: Array<string | null | undefined>): string | null {
+    const normalized = values.filter((v): v is string => !!v).map(v => v.toLowerCase());
+    if (normalized.some(v => v.includes("annual") || v.includes("year"))) return "ANNUAL";
+    if (normalized.some(v => v.includes("month"))) return "MONTHLY";
+    return null;
+  }
+
+  private toPlanType(value: string | null): PlanTypeEnum | null {
+    if (!value) return null;
+    const normalized = value.toUpperCase();
+    if (normalized.includes("ANNUAL")) return "ANNUAL";
+    if (normalized.includes("MONTH")) return "MONTHLY";
+    return null;
+  }
+}
+
+export const stripeWebhookService = new StripeWebhookService();

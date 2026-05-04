@@ -7,6 +7,7 @@ import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
 import { getTestModeMetadata, logTestModeInfo, getTestModeCheckoutOptions, getTrialPeriodDays, getStripeConfig } from "@/lib/stripe-config";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -249,7 +250,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin).replace(/\/$/, "");
+    // Build base URL from env vars — never use req.nextUrl.origin in production
+    // because it can leak the bind address (0.0.0.0:3000) when the proxy doesn't
+    // rewrite the Host header.
+    const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || getSiteUrl()).replace(/\/$/, "");
     const baseUrl = normalizeBrowserUrl(rawBaseUrl);
     
     const successUrl = `${baseUrl}/dashboard/settings?checkout=success`;

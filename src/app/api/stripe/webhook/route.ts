@@ -3,39 +3,17 @@ import Stripe from "stripe";
 
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
-import { calculateDeletionDeadline, getAccountCleanupConfig } from "@/lib/utils/accountCleanup";
-import { emailService } from "@/lib/services/email.service";
-import { slackService } from "@/lib/services/slack.service";
 import { logTestModeInfo } from "@/lib/stripe-config";
-import type { PlanType, Prisma, SubscriptionStatus } from "@prisma/client";
-import { runNonCritical } from "@/lib/utils/nonCritical";
+import { jobQueueService } from "@/lib/services/job-queue.service";
+import { JobType } from "@prisma/client";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const userSelect = {
-  id: true,
-  email: true,
-  name: true,
-  plan: true,
-  stripeCustomerId: true,
-};
-
-type SelectedUser = Prisma.UserGetPayload<{ select: typeof userSelect }>; // prettier-ignore
-type SubscriptionWithUser = Prisma.SubscriptionGetPayload<{ include: { user: { select: typeof userSelect } } }>; // prettier-ignore
-type SubscriptionStatusEnum = SubscriptionStatus;
-type PlanTypeEnum = PlanType;
-
-type SubscriptionSyncResult = {
-  subscription: SubscriptionWithUser;
-  previousStatus: SubscriptionStatusEnum | null;
-  previousCancelAt: Date | null;
-  planPriceId: string | null;
-  planLookupKey: string | null;
-  planNickname: string | null;
-  planProductId: string | null;
-  user: SelectedUser;
-};
+// Idempotency key for Stripe events (event ID + timestamp)
+function getEventIdempotencyKey(event: Stripe.Event): string {
+  return `stripe_${event.id}_${event.livemode ? 'live' : 'test'}`;
+}
 
 export async function POST(req: NextRequest) {
   const signature = req.headers.get("stripe-signature");
@@ -60,72 +38,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const idempotencyKey = getEventIdempotencyKey(event);
+
   try {
-    logTestModeInfo("Webhook received", {
+    logTestModeInfo("Webhook received and queuing", {
       eventType: event.type,
       eventId: event.id,
       livemode: event.livemode,
     });
 
-    switch (event.type) {
-      case "customer.subscription.created":
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        logTestModeInfo("Processing subscription event", {
-          eventType: event.type,
-          subscriptionId: subscription.id,
-          status: subscription.status,
-          customerId: subscription.customer,
-        });
-        const result = await syncSubscription(subscription, event.id, event.type);
-        if (result) {
-          await maybeSendConfirmationEmail(result, event.type);
-          await maybeSendCancellationEmail(result, event.type);
-        }
-        break;
+    // 1. Log the raw event to StripeWebhookEvent table (idempotent)
+    await prisma.stripeWebhookEvent.upsert({
+      where: { id: event.id },
+      create: {
+        id: event.id,
+        type: event.type,
+        payload: event as any,
+        status: "PENDING",
+      },
+      update: {
+        payload: event as any,
       }
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-        logTestModeInfo("Processing successful payment", {
-          invoiceId: invoice.id,
-          customerId: invoice.customer,
-          amount: invoice.amount_paid,
-        });
-        await handlePaymentSuccess(invoice);
-        break;
-      }
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        logTestModeInfo("Processing payment failure", {
-          invoiceId: invoice.id,
-          customerId: invoice.customer,
-          amount: invoice.amount_due,
-        });
-        await handlePaymentFailure(invoice);
-        break;
-      }
-      case "customer.created": {
-        const customer = event.data.object as Stripe.Customer;
-        logTestModeInfo("Processing customer created", {
-          customerId: customer.id,
-          email: customer.email,
-        });
-        await handleCustomerCreated(customer);
-        break;
-      }
-      default:
-        logTestModeInfo("Webhook event ignored (not handled)", {
-          eventType: event.type,
-        });
-        break;
-    }
+    });
+
+    // 2. Queue the processing of the event with idempotency check
+    const jobResult = await jobQueueService.enqueue({
+      type: JobType.STRIPE_WEBHOOK,
+      payload: { event, rawBody: rawBody.slice(0, 1000) }, // Store truncated raw body for debugging
+      idempotencyKey,
+      maxAttempts: 5,
+    });
+
+    console.log(`[StripeWebhook] Event ${event.id} queued as job ${jobResult.id}, status: ${jobResult.status}`);
+
   } catch (error) {
-    console.error("Stripe webhook processing error", error);
-    return NextResponse.json({ error: "Processing error" }, { status: 500 });
+    console.error("Error logging/queuing Stripe webhook", error);
+    // Even if queuing fails, we acknowledge to avoid Stripe retry storms
+    // The event is already logged in StripeWebhookEvent, so we can reprocess later
   }
 
-  return NextResponse.json({ received: true });
+  // Acknowledge immediately (HTTP 200)
+  // This tells Stripe we've received the webhook, processing happens async
+  return NextResponse.json({ 
+    received: true, 
+    eventId: event.id,
+    eventType: event.type,
+  });
 }
 
 async function syncSubscription(stripeSubscription: Stripe.Subscription, eventId: string, eventType: string): Promise<SubscriptionSyncResult | null> {

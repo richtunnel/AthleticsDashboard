@@ -14,6 +14,11 @@ const roleMapping: Record<CollaborativeRole, UserRole> = {
 };
 
 
+const roleMapping: Record<CollaborativeRole, UserRole> = {
+  VIEWER: UserRole.VENDOR_READ_ONLY,
+  MEMBER: UserRole.ASSISTANT_AD,
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -35,7 +40,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { email, ownerId, role, invitedAt, expiresAt } = decodedToken;
+    const { email, ownerId, invitedAt, expiresAt } = decodedToken;
 
     // Check if invitation has expired
     if (isInvitationExpired(invitedAt, expiresAt)) {
@@ -159,6 +164,17 @@ export async function POST(request: NextRequest) {
         token: token,
         status: "PENDING",
         revokedAt: null,
+      },
+      include: {
+        owner: {
+          select: {
+            organizationId: true,
+            schoolName: true,
+            teamName: true,
+            schoolAddress: true,
+            city: true,
+          },
+        },
       },
     });
 

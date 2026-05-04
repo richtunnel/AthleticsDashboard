@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Stage 1: Dependencies
 FROM node:20-alpine AS deps
 WORKDIR /app
@@ -6,7 +7,10 @@ RUN apk add --no-cache libc6-compat openssl
 COPY package.json yarn.lock* ./
 COPY prisma ./prisma
 
-RUN yarn install --network-timeout 600000
+# Mount the Yarn cache so packages are only downloaded once across builds.
+RUN --mount=type=cache,target=/root/.yarn \
+    YARN_CACHE_FOLDER=/root/.yarn \
+    yarn install --frozen-lockfile --network-timeout 300000 --network-concurrency 3
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
@@ -20,7 +24,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN yarn prisma generate
-RUN yarn build
+# Mount the Next.js cache so fonts (next/font/google) and webpack modules are
+# reused across builds instead of re-downloaded every time.
+RUN --mount=type=cache,target=/app/.next/cache \
+    yarn build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner

@@ -1,6 +1,29 @@
 import { prisma } from "../database/prisma";
 import { format } from "date-fns";
 import { formatLevelDisplay } from "../utils/formatters";
+import { jobQueueService } from "./job-queue.service";
+import { JobType, JobStatus } from "@prisma/client";
+
+const BATCH_SIZE = 100;
+const CHECKPOINT_INTERVAL = 50;
+
+export interface ImportResult {
+  success: number;
+  errors: string[];
+  lastLine: number;
+  completed: boolean;
+  totalProcessed?: number;
+}
+
+export interface ImportJobPayload {
+  csvContent: string;
+  userId: string;
+  organizationId: string;
+  startLine?: number;
+  totalSuccess?: number;
+  totalErrors?: string[];
+  jobId?: string;
+}
 
 export class ImportExportService {
   async exportGamesToCSV(organizationId: string): Promise<string> {
@@ -68,15 +91,17 @@ export class ImportExportService {
     return csvContent;
   }
 
-  async importGamesFromCSV(csvContent: string, userId: string, organizationId: string): Promise<{ success: number; errors: string[] }> {
+  async importGamesFromCSV(csvContent: string, userId: string, organizationId: string, startLine: number = 1): Promise<ImportResult> {
     const lines = csvContent.split("\n");
+    if (lines.length <= 1) return { success: 0, errors: [], lastLine: 0, completed: true };
+
     const rawHeaders = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
     const headers = this.mapColumnAliases(rawHeaders);
 
     let success = 0;
     const errors: string[] = [];
 
-    // Get reference data
+    // Get reference data once at the start
     const teams = await prisma.team.findMany({
       where: { organizationId },
       include: { sport: true },
@@ -90,105 +115,245 @@ export class ImportExportService {
       where: { organizationId },
     });
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+    let i = startLine;
+    let lastCheckpoint = i;
+    
+    try {
+      for (; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
 
-      try {
-        // Parse CSV line (handle quoted values)
-        const values = this.parseCSVLine(line);
-        const row: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || "";
-        });
-
-        // Parse date - only required field
-        const date = new Date(row["Date"]);
-        if (isNaN(date.getTime())) {
-          errors.push(`Line ${i + 1}: Invalid or missing date`);
-          continue;
-        }
-
-        // Find matching team, or use defaults if sport/level not provided
-        let team = teams.find((t: any) => 
-          t.sport.name === (row["Sport"] || "Unknown Sport") && 
-          t.level === (row["Level"] || "VARSITY") && 
-          (row["Team"] ? t.name === row["Team"] : true)
-        );
-
-        // If team not found, create a default sport and team
-        if (!team) {
-          const sportName = row["Sport"] || "Unknown Sport";
-          const levelValue = row["Level"] || "VARSITY";
-
-          let sport = await prisma.sport.findFirst({
-            where: {
-              name: {
-                equals: sportName,
-                mode: "insensitive",
-              },
-            },
+        try {
+          // Parse CSV line (handle quoted values)
+          const values = this.parseCSVLine(line);
+          const row: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] || "";
           });
 
-          if (!sport) {
-            sport = await prisma.sport.create({
-              data: {
-                name: sportName,
-                season: "FALL",
-              },
-            });
+          // Parse date - only required field
+          const date = new Date(row["Date"]);
+          if (isNaN(date.getTime())) {
+            errors.push(`Line ${i + 1}: Invalid or missing date`);
+            continue;
           }
 
-          team = await prisma.team.create({
-            data: {
-              name: `${sportName} ${levelValue}`,
-              sportId: sport.id,
-              level: levelValue as any,
-              organizationId,
-            },
-            include: { sport: true },
+          // Find matching team, or use defaults if sport/level not provided
+          let team = teams.find((t: any) => 
+            t.sport.name === (row["Sport"] || "Unknown Sport") && 
+            t.level === (row["Level"] || "VARSITY") && 
+            (row["Team"] ? t.name === row["Team"] : true)
+          );
+
+          // If team not found, create a default sport and team
+          if (!team) {
+            const sportName = row["Sport"] || "Unknown Sport";
+            const levelValue = row["Level"] || "VARSITY";
+
+            let sport = await prisma.sport.findFirst({
+              where: {
+                name: {
+                  equals: sportName,
+                  mode: "insensitive",
+                },
+              },
+            });
+
+            if (!sport) {
+              sport = await prisma.sport.create({
+                data: {
+                  name: sportName,
+                  season: "FALL",
+                },
+              });
+            }
+
+            team = await prisma.team.create({
+              data: {
+                name: `${sportName} ${levelValue}`,
+                sportId: sport.id,
+                level: levelValue as any,
+                organizationId,
+              },
+              include: { sport: true },
+            });
+
+            teams.push(team);
+          }
+
+          if (!team) {
+            throw new Error("Failed to resolve team for imported row");
+          }
+
+          // Find opponent
+          const opponent = row["Opponent"] ? opponents.find((o: any) => o.name === row["Opponent"]) : null;
+
+          // Find venue
+          const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
+
+          // Create game atomically with transaction
+          await prisma.$transaction(async (tx) => {
+            await tx.game.create({
+              data: {
+                date,
+                time: row["Time"] || null,
+                status: (row["Status"] as any) || "SCHEDULED",
+                isHome: row["Location Type"]?.toLowerCase() === "home",
+                notes: row["Notes"] || null,
+                travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
+                busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
+                estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
+                busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
+                travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
+                homeTeamId: team.id,
+                opponentId: opponent?.id || null,
+                venueId: venue?.id || null,
+                createdById: userId,
+              },
+            });
+          }, {
+            timeout: 5000, // 5 second timeout for individual operations
           });
 
-          teams.push(team);
+          success++;
+
+          // Checkpoint: update progress every CHECKPOINT_INTERVAL rows
+          if (i - lastCheckpoint >= CHECKPOINT_INTERVAL && i < lines.length - 1) {
+            lastCheckpoint = i;
+          }
+        } catch (error) {
+          // Check if it's a transient error (DB locked, timeout, etc.)
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          const isTransientError = this.isTransientError(error);
+          
+          if (isTransientError) {
+            // Re-throw to trigger requeue
+            throw error;
+          }
+          
+          errors.push(`Line ${i + 1}: ${errorMsg}`);
         }
-
-        if (!team) {
-          throw new Error("Failed to resolve team for imported row");
-        }
-
-        // Find opponent
-        const opponent = row["Opponent"] ? opponents.find((o: any) => o.name === row["Opponent"]) : null;
-
-        // Find venue
-        const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
-
-        // Create game
-        await prisma.game.create({
-          data: {
-            date,
-            time: row["Time"] || null,
-            status: (row["Status"] as any) || "SCHEDULED",
-            isHome: row["Location Type"]?.toLowerCase() === "home",
-            notes: row["Notes"] || null,
-            travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
-            busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
-            estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
-            busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
-            travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
-            homeTeamId: team.id,
-            opponentId: opponent?.id || null,
-            venueId: venue?.id || null,
-            createdById: userId,
-          },
-        });
-
-        success++;
-      } catch (error) {
-        errors.push(`Line ${i + 1}: ${error instanceof Error ? error.message : "Unknown error"}`);
       }
+    } catch (criticalError) {
+      console.error(`Critical error during import at line ${i}:`, criticalError);
+      // Return partial results with checkpoint info
+      return {
+        success,
+        errors,
+        lastLine: i,
+        completed: false,
+      };
     }
 
-    return { success, errors };
+    return { success, errors, lastLine: i, completed: true };
+  }
+
+  /**
+   * Process an import job with checkpointing for large CSV files
+   * Supports requeue if processing fails midway
+   */
+  async processImportJob(payload: ImportJobPayload): Promise<{
+    success: number;
+    errors: string[];
+    lastLine: number;
+    completed: boolean;
+    checkpoint?: string;
+  }> {
+    const startLine = payload.startLine || 1;
+    const jobId = payload.jobId;
+    const totalLines = payload.csvContent.split("\n").length;
+
+    // Update progress if we have a job ID
+    if (jobId) {
+      await jobQueueService.updateProgress(jobId, {
+        current: startLine,
+        total: totalLines,
+        message: `Processing CSV import... (${startLine}/${totalLines})`,
+      });
+    }
+
+    const { success, errors, lastLine, completed } = await this.importGamesFromCSV(
+      payload.csvContent,
+      payload.userId,
+      payload.organizationId,
+      startLine
+    );
+
+    // Accumulate totals
+    const newTotalSuccess = (payload.totalSuccess || 0) + success;
+    const newTotalErrors = (payload.totalErrors || []).concat(errors);
+
+    // If not completed, we need to checkpoint and potentially requeue
+    if (!completed && lastLine < totalLines - 1) {
+      // Update job with checkpoint progress
+      if (jobId) {
+        await jobQueueService.updateProgress(jobId, {
+          current: lastLine,
+          total: totalLines,
+          checkpoint: `resume from line ${lastLine}`,
+          message: `Checkpointing at line ${lastLine}/${totalLines}`,
+        });
+      }
+
+      // Check if we should retry this batch
+      const hasErrors = newTotalErrors.length > 0;
+      const lastError = newTotalErrors[newTotalErrors.length - 1];
+      
+      if (this.isTransientError(lastError)) {
+        // Requeue for retry with current progress
+        await jobQueueService.requeue(jobId || '', lastError);
+      }
+
+      return {
+        success: newTotalSuccess,
+        errors: newTotalErrors,
+        lastLine,
+        completed: false,
+        checkpoint: `resume from line ${lastLine}`,
+      };
+    }
+
+    // All done
+    if (jobId) {
+      await jobQueueService.updateProgress(jobId, {
+        current: totalLines,
+        total: totalLines,
+        message: `Import completed: ${newTotalSuccess} games imported, ${newTotalErrors.length} errors`,
+      });
+    }
+
+    return {
+      success: newTotalSuccess,
+      errors: newTotalErrors,
+      lastLine,
+      completed: true,
+    };
+  }
+
+  /**
+   * Detect transient errors that should trigger requeue
+   */
+  private isTransientError(error: any): boolean {
+    if (!error) return false;
+    
+    const message = error instanceof Error ? error.message : String(error);
+    const transientPatterns = [
+      'connection',
+      'timeout',
+      'deadlock',
+      'locked',
+      'too many connections',
+      'pool',
+      'network',
+      'EHOSTUNREACH',
+      'ECONNREFUSED',
+      'ETIMEDOUT',
+      'ENOTFOUND',
+    ];
+
+    return transientPatterns.some(pattern => 
+      message.toLowerCase().includes(pattern.toLowerCase())
+    );
   }
 
   async exportTeamsToCSV(organizationId: string): Promise<string> {

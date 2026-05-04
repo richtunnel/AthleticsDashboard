@@ -1,5 +1,7 @@
 import { prisma } from "../database/prisma";
 import { emailLimitService } from "./email-limit.service";
+import { jobQueueService } from "./job-queue.service";
+import { JobType } from "@prisma/client";
 
 export interface BulkEmailParams {
   userId: string;
@@ -15,6 +17,7 @@ export interface BulkEmailParams {
   additionalMessage?: string;
   visibleColumnIds?: string[];
   selectedSchoolNames?: string[];
+  idempotencyKey?: string;
 }
 
 export class EmailQueueService {
@@ -32,7 +35,8 @@ export class EmailQueueService {
       recipientCategory,
       additionalMessage,
       visibleColumnIds,
-      selectedSchoolNames
+      selectedSchoolNames,
+      idempotencyKey,
     } = params;
 
     // 1. Check limits
@@ -41,38 +45,27 @@ export class EmailQueueService {
       throw new Error(limitCheck.reason || "Email limit exceeded");
     }
 
-    // 2. Create Job and Recipients in a transaction
-    const job = await prisma.$transaction(async (tx) => {
-      const newJob = await tx.emailJob.create({
-        data: {
-          userId,
-          organizationId,
-          subject,
-          body,
-          replyTo: replyTo || null,
-          totalCount: to.length,
-          status: "PENDING",
-          gameIds: gameIds || [],
-          groupId: groupId || null,
-          campaignId: campaignId || null,
-          recipientCategory: recipientCategory || null,
-          additionalMessage: additionalMessage || null,
-          visibleColumnIds: visibleColumnIds || [],
-          selectedSchoolNames: selectedSchoolNames || [],
-        },
-      });
-
-      // Split recipients into chunks of 1000 for createMany if needed
-      // But for now, just create them
-      await tx.emailRecipient.createMany({
-        data: to.map((email) => ({
-          jobId: newJob.id,
-          email,
-          status: "PENDING",
-        })),
-      });
-
-      return newJob;
+    // Use the enhanced job queue with idempotency support
+    const job = await jobQueueService.enqueue({
+      type: JobType.EMAIL,
+      payload: {
+        to,
+        subject,
+        body,
+        replyTo,
+        gameIds,
+        groupId,
+        campaignId,
+        recipientCategory,
+        additionalMessage,
+        visibleColumnIds,
+        selectedSchoolNames,
+        enqueuedAt: new Date().toISOString(),
+      },
+      userId,
+      organizationId,
+      maxAttempts: 3,
+      idempotencyKey: idempotencyKey || `email_${userId}_${Date.now()}`,
     });
 
     return job;

@@ -511,6 +511,21 @@ export function GamesTable() {
 
   // Available Dates Modal state
   const [availableDatesModalOpen, setAvailableDatesModalOpen] = useState(false);
+  // Plan limits state
+  const [planLimits, setPlanLimits] = useState<{ worksheetLimit: number } | null>(null);
+
+  // Fetch plan limits
+  useEffect(() => {
+    fetch("/api/user/plan-limits")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.worksheetLimit === "number") {
+          setPlanLimits({ worksheetLimit: data.worksheetLimit });
+        }
+      })
+      .catch((err) => console.error("Error fetching plan limits:", err));
+  }, []);
+
 
   // Dismiss/Depart Modal state (for Bus Info/Travel custom columns)
   const [dismissDepartModal, setDismissDepartModal] = useState<{
@@ -3002,6 +3017,10 @@ export function GamesTable() {
   }, []);
 
   const handleViewImportNew = useCallback(async () => {
+    if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
+      addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
+      return;
+    }
     try {
       const currentLength = useGamesWorkbookStore.getState().workbooks.length;
       const tempName = `Spreadsheet${currentLength + 1}`;
@@ -6897,7 +6916,7 @@ export function GamesTable() {
           onCreateWorkbook={handleViewImportNew}
           onRenameWorkbook={handleViewRenameWorkbook}
           onDeleteWorkbook={handleViewDeleteWorkbook}
-          isCreating={createWorkbookMutation.isPending}
+          isCreating={createWorkbookMutation.isPending} worksheetLimit={planLimits?.worksheetLimit}
         />
       ) : (
       <>
@@ -7577,7 +7596,7 @@ export function GamesTable() {
             {/* Add new workbook card */}
             <Card
               sx={{
-                cursor: "pointer",
+                cursor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "not-allowed" : "pointer",
                 border: "2px dashed",
                 borderColor: "divider",
                 bgcolor: "transparent",
@@ -7586,12 +7605,17 @@ export function GamesTable() {
                 justifyContent: "center",
                 minHeight: 140,
                 transition: "all 0.2s ease",
+                opacity: planLimits && workbooks.length >= planLimits.worksheetLimit ? 0.6 : 1,
                 "&:hover": {
-                  borderColor: "primary.main",
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+                  borderColor: planLimits && workbooks.length >= planLimits.worksheetLimit ? "divider" : "primary.main",
+                  bgcolor: (theme) => (planLimits && workbooks.length >= planLimits.worksheetLimit ? "transparent" : alpha(theme.palette.primary.main, 0.05)),
                 },
               }}
               onClick={() => {
+                if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
+                  addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
+                  return;
+                }
                 const newWorkbookName = `Spreadsheet${workbooks.length + 1}`;
                 createWorkbookMutation.mutate({ name: newWorkbookName });
                 setShowWorkbookSelector(false);

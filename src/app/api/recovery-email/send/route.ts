@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { emailService } from "@/lib/services/email.service";
 import { normalizeBrowserUrl } from "@/lib/utils/url";
+import { getSiteUrl } from "@/lib/utils/siteUrl";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -60,8 +61,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Send verification email
-    const baseUrl = normalizeBrowserUrl(req.nextUrl.origin);
+    // Send verification email — use env-driven site URL since this URL is embedded
+    // in an email and must point to the public domain, not the server's bind address.
+    const baseUrl = normalizeBrowserUrl(process.env.NEXT_PUBLIC_APP_URL || getSiteUrl());
     const verificationUrl = `${baseUrl}/verify-recovery-email?token=${token}`;
 
     try {
@@ -76,6 +78,7 @@ export async function POST(req: NextRequest) {
           <p>If you didn't request this verification, you can safely ignore this email.</p>
         `,
         sentById: session.user.id,
+        immediate: true,
       });
     } catch (emailError) {
       console.error("Error sending verification email:", emailError);

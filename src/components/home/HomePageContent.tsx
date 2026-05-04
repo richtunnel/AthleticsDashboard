@@ -80,7 +80,13 @@ export default function HomePageContent() {
       >
         {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
-          <Image src="/assets/images/green-energy.jpg" alt="Opletics athletic department scheduling software" fill className="object-cover" unoptimized />
+          <Image
+            src="/assets/images/green-energy.jpg"
+            alt="Opletics Athlete Management System Dashboard showing sports schedule automation"
+            fill
+            className="object-cover"
+            unoptimized
+          />
         </div>
 
         {/* Desktop content */}
@@ -116,14 +122,14 @@ export default function HomePageContent() {
 
           <div className="flex flex-1 items-center justify-center px-4">
             <div className={styles.homePageContentContainer}>
-              <h3
+              <h1
                 className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
                 style={{
                   color: "#0f172a",
                 }}
               >
                 Automate Your <br /> Sports Schedules
-              </h3>
+              </h1>
               <p
                 className="text-xl mb-8"
                 style={{
@@ -226,15 +232,15 @@ export default function HomePageContent() {
                   unoptimized
                   className={styles.mobileSpreadsheetImg}
                   src="/assets/images/spreadsheet-illustration-dark-01.png"
-                  alt="spreadsheet illustration"
+                  alt="Opletics athlete management system spreadsheet automation illustration"
                   style={{ objectFit: "contain" }}
                 />
               </div>
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
-                <h4 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white" }}>
+                <h1 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white", fontSize: "2.5rem" }}>
                   Automate Your Sports Schedules
-                </h4>
+                </h1>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
                   Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
                 </p>

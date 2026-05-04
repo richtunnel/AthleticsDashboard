@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import { getWorksheetLimit } from "@/lib/security/plan-limits";
 
 // GET all workbooks for current user
 export async function GET(request: NextRequest) {
@@ -41,6 +42,19 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check worksheet limit
+    const workbookCount = await prisma.gamesWorkbook.count({
+      where: { userId: session.user.id },
+    });
+    const limit = await getWorksheetLimit(session.user.id);
+
+    if (workbookCount >= limit) {
+      return NextResponse.json(
+        { error: `You have reached the limit of ${limit} isolated spreadsheets for your plan. Please upgrade to create more.` },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
