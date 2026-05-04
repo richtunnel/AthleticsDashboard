@@ -237,39 +237,15 @@ export async function POST(request: NextRequest) {
     }
 
     let publicUrl = "";
+    let uploadSuccessful = false;
 
     // Determine if we should use S3 based on configuration
     const shouldUseS3 = hasS3Config && SPACES_BUCKET && SPACES_ENDPOINT;
 
-    if (!shouldUseS3) {
-      // Use local storage fallback (development or misconfigured S3)
-      logger.info("[SignatureLogoUpload] Using local storage fallback", { isDev });
-
-      try {
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
-        if (!existsSync(uploadDir)) {
-          await mkdir(uploadDir, { recursive: true });
-          logger.info("[SignatureLogoUpload] Created local upload directory", { uploadDir });
-        }
-
-        const filePath = path.join(uploadDir, filename);
-        await writeFile(filePath, buffer);
-
-        publicUrl = `/uploads/signatures/${filename}`;
-
-        logger.info("[SignatureLogoUpload] Local storage upload successful", { publicUrl, fileSize: buffer.length });
-      } catch (localError: any) {
-        const msg = localError instanceof Error ? localError.message : String(localError);
-        logger.error("[SignatureLogoUpload] Local storage write failed", {
-          error: msg,
-          stack: localError instanceof Error ? localError.stack : undefined,
-        });
-        throw new Error(`Failed to save logo locally: ${msg}`);
-      }
-    } else {
+    if (shouldUseS3) {
       // Upload to Digital Ocean Spaces
       try {
-        logger.info("[SignatureLogoUpload] Uploading to Digital Ocean Spaces", {
+        logger.info("[SignatureLogoUpload] Attempting Digital Ocean Spaces upload", {
           key,
           contentType,
           bucket: SPACES_BUCKET,
@@ -287,6 +263,7 @@ export async function POST(request: NextRequest) {
         );
 
         publicUrl = `${SPACES_CDN_URL}/${key}`;
+        uploadSuccessful = true;
         logger.info("[SignatureLogoUpload] S3 upload successful", { publicUrl });
       } catch (s3Error: any) {
         const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
@@ -297,29 +274,60 @@ export async function POST(request: NextRequest) {
           errorName,
           bucket: SPACES_BUCKET,
           key,
+          isDev,
         });
 
-        // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
-        // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
-        if (msg.includes("Invalid URL") || msg.includes("TypeError") || errorName === "TypeError") {
-          throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+        if (!isDev) {
+          // In production, we want to throw the error
+          if (msg.includes("Invalid URL") || msg.includes("TypeError") || errorName === "TypeError") {
+            throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+          }
+
+          if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
+            throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
+          }
+
+          if (msg.includes("NoSuchBucket")) {
+            throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
+          }
+
+          throw new Error(`Failed to upload logo to file storage: ${msg}`);
+        } else {
+          logger.warn("[SignatureLogoUpload] S3 upload failed in development, falling back to local storage");
+        }
+      }
+    }
+
+    if (!uploadSuccessful) {
+      // Use local storage fallback (development or misconfigured S3)
+      logger.info("[SignatureLogoUpload] Using local storage fallback", { isDev, shouldUseS3 });
+
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
+        if (!existsSync(uploadDir)) {
+          await mkdir(uploadDir, { recursive: true });
+          logger.info("[SignatureLogoUpload] Created local upload directory", { uploadDir });
         }
 
-        if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
-          throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
-        }
+        const filePath = path.join(uploadDir, filename);
+        await writeFile(filePath, buffer);
 
-        if (msg.includes("NoSuchBucket")) {
-          throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
-        }
+        publicUrl = `/uploads/signatures/${filename}`;
+        uploadSuccessful = true;
 
-        // For other S3 errors, provide a helpful message
-        throw new Error(`Failed to upload logo to file storage: ${msg}`);
+        logger.info("[SignatureLogoUpload] Local storage upload successful", { publicUrl, fileSize: buffer.length });
+      } catch (localError: any) {
+        const msg = localError instanceof Error ? localError.message : String(localError);
+        logger.error("[SignatureLogoUpload] Local storage write failed", {
+          error: msg,
+          stack: localError instanceof Error ? localError.stack : undefined,
+        });
+        throw new Error(`Failed to save logo locally: ${msg}`);
       }
     }
 
     // Auto-save the logo URL to the user's profile
-    logger.info("[SignatureLogoUpload] Updating user record with new logo URL");
+    logger.info("[SignatureLogoUpload] Updating user record with new logo URL", { userId: session.user.id, publicUrl });
     try {
       await prisma.user.update({
         where: { id: session.user.id },

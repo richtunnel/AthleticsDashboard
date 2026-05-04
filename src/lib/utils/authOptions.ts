@@ -15,7 +15,11 @@ import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
-import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
+import { 
+  INVITATION_COOKIE_NAME, 
+  checkInvitationCookie, 
+  clearInvitationCookie 
+} from "@/lib/utils/invitation";
 import {
   CollaborativeRole,
   UserRole,
@@ -33,68 +37,6 @@ import {
 } from "@/lib/utils/memberAccess";
 
 const MEMBER_ACCESS_CODE = normalizeMemberAccessCode(process.env.MEMBER_ACCESS_CODE) ?? "vip.opletics.com";
-
-// Cookie name and max age (must match route.ts constants)
-const INVITATION_COOKIE_NAME = "pending_invitation_token";
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24; // 24 hours
-
-// Helper to check for pending invitation cookie and fetch owner details
-async function checkInvitationCookie(): Promise<{
-  ownerId: string;
-  organizationId: string;
-  role: UserRole;
-  schoolName: string | null;
-  teamName: string | null;
-  schoolAddress: string | null;
-  city: string | null;
-} | null> {
-  try {
-    const cookieStore = await cookies();
-    const pendingToken = cookieStore.get(INVITATION_COOKIE_NAME)?.value;
-    if (!pendingToken) return null;
-
-    const decodedToken = verifyInvitationToken(pendingToken);
-    if (!decodedToken) return null;
-
-    // Check if token has expired
-    const now = new Date();
-    if (new Date(decodedToken.expiresAt) < now) return null;
-
-    // Map the collaborative role to internal role
-    const roleMapping: Record<CollaborativeRole, UserRole> = {
-      VIEWER: UserRole.VENDOR_READ_ONLY,
-      MEMBER: UserRole.ASSISTANT_AD,
-    };
-    const mappedRole = roleMapping[decodedToken.role as CollaborativeRole] ?? UserRole.VENDOR_READ_ONLY;
-
-    // Fetch the owner's organization and school details
-    const owner = await prisma.user.findUnique({
-      where: { id: decodedToken.ownerId },
-      select: {
-        organizationId: true,
-        schoolName: true,
-        teamName: true,
-        schoolAddress: true,
-        city: true,
-      },
-    });
-
-    if (!owner?.organizationId) return null;
-
-    return {
-      ownerId: decodedToken.ownerId,
-      organizationId: owner.organizationId,
-      role: mappedRole,
-      schoolName: owner.schoolName,
-      teamName: owner.teamName,
-      schoolAddress: owner.schoolAddress,
-      city: owner.city,
-    };
-  } catch (error) {
-    console.error("[Invitation] Error checking invitation cookie:", error);
-    return null;
-  }
-}
 
 // Wrap the PrismaAdapter to customize createUser
 const adapter = PrismaAdapter(prisma);
@@ -163,6 +105,11 @@ const customAdapter = {
           teamName: invitationData.teamName,
           schoolAddress: invitationData.schoolAddress,
           city: invitationData.city,
+          aiSchedulerEnabled: invitationData.aiSchedulerEnabled,
+          aiTravelTimesEnabled: invitationData.aiTravelTimesEnabled,
+          aiEmailGenerationEnabled: invitationData.aiEmailGenerationEnabled,
+          costBudgetEnabled: invitationData.costBudgetEnabled,
+          scoreTrackerEnabled: invitationData.scoreTrackerEnabled,
         },
         include: {
           organization: true,
@@ -170,12 +117,7 @@ const customAdapter = {
       });
 
       // Clear the invitation cookie now that user has been created
-      try {
-        const cookieStore = await cookies();
-        cookieStore.delete(INVITATION_COOKIE_NAME);
-      } catch {
-        // Ignore cookie clearing errors - non-critical
-      }
+      await clearInvitationCookie();
 
       // Track collaboration signup in Mixpanel (non-blocking)
       void runNonCritical(() => {
