@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/utils/authOptions";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { prisma } from "@/lib/database/prisma";
 
@@ -19,8 +21,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get the current logged-in user session (AD or Parent)
-    const session = await getParentSession();
+    // Prefer main AD session; fall back to parent session
+    let session = await getServerSession(authOptions);
+    if (!session?.user) {
+      session = await getParentSession();
+    }
 
     if (!session?.user) {
       console.error("❌ No active session - user must be logged in");
@@ -29,7 +34,6 @@ export async function GET(request: NextRequest) {
 
     console.log("📅 Connecting calendar for user:", session.user.email);
 
-    let stateUserId: string | null = rawState;
     let returnTo: string | null = null;
 
     if (rawState) {
@@ -37,21 +41,34 @@ export async function GET(request: NextRequest) {
         const decoded = Buffer.from(rawState, "base64url").toString("utf8");
         const parsed = JSON.parse(decoded);
 
-        if (parsed && typeof parsed.userId === "string") {
-          stateUserId = parsed.userId;
-          if (typeof parsed.returnTo === "string") {
-            returnTo = parsed.returnTo;
+        if (parsed && typeof parsed.token === "string") {
+          // New incremental-auth format: { token, returnTo }
+          // Verify CSRF token against user.resetToken
+          const dbUser = await prisma.user.findUnique({
+            where: { id: (session.user as any).id },
+            select: { resetToken: true, resetTokenExpiry: true },
+          });
+          if (!dbUser?.resetToken || dbUser.resetToken !== parsed.token || !dbUser.resetTokenExpiry || dbUser.resetTokenExpiry < new Date()) {
+            console.error("❌ Invalid or expired incremental-auth state token");
+            return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
           }
+          // Consume the token
+          await prisma.user.update({
+            where: { id: (session.user as any).id },
+            data: { resetToken: null, resetTokenExpiry: null },
+          });
+          if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
+        } else if (parsed && typeof parsed.userId === "string") {
+          // Legacy format: { userId, returnTo }
+          if (parsed.userId !== (session.user as any).id) {
+            console.error("❌ State mismatch - possible CSRF attack");
+            return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+          }
+          if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
         }
       } catch {
-        // Ignore parse errors and fall back to legacy state format
+        // Unparseable state — proceed without returnTo
       }
-    }
-
-    // Verify state matches user ID (optional security check)
-    if (stateUserId && stateUserId !== session.user.id) {
-      console.error("❌ State mismatch - possible CSRF attack");
-      return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
     }
 
     // Exchange authorization code for tokens
