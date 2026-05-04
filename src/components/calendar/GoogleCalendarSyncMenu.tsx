@@ -13,6 +13,7 @@ import { AutoCalendarSyncToggle } from "@/components/settings/AutoCalendarSyncTo
 import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappings";
 import { useTheme as customTheme } from "@mui/material/styles";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
+import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -53,6 +54,7 @@ function ConnectionHandlerFallback() {
 function GoogleCalendarSyncMenuContent() {
   const router = useRouter();
   const theme = customTheme();
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   // Fetch the user's current connection status
   const { data, isLoading, refetch } = useQuery({
@@ -61,10 +63,17 @@ function GoogleCalendarSyncMenuContent() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
+  const { connect, isLoading: isConnecting } = useGoogleCalendarConnection();
+
   const isConnected = data?.isConnected;
 
-  const handleConnect = () => {
-    router.push("/api/auth/calendar-connect?returnTo=/dashboard/gsync");
+  const handleConnect = async () => {
+    try {
+      setConnectError(null);
+      await connect("/dashboard/gsync");
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : "Failed to connect Google Calendar");
+    }
   };
 
   const handleDisconnect = async () => {
@@ -149,8 +158,20 @@ function GoogleCalendarSyncMenuContent() {
           <Typography variant="body2" color="text.secondary">
             Connect your gmail account to enable game synchronization and add games to your personal calendar with a single click.
           </Typography>
-          <Button variant="contained" color="primary" startIcon={<FaGoogle />} onClick={handleConnect} sx={{ mt: 2, textTransform: "none", width: "fit-content" }}>
-            Connect Google Calendar
+          {connectError && (
+            <Alert severity="error" onClose={() => setConnectError(null)}>
+              {connectError}
+            </Alert>
+          )}
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={isConnecting ? <CircularProgress size={16} color="inherit" /> : <FaGoogle />}
+            onClick={handleConnect}
+            disabled={isConnecting}
+            sx={{ mt: 2, textTransform: "none", width: "fit-content" }}
+          >
+            {isConnecting ? "Connecting..." : "Connect Google Calendar"}
           </Button>
         </Stack>
       )}
