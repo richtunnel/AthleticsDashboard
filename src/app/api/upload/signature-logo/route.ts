@@ -42,9 +42,7 @@ function buildEndpoint(rawUrl: string): string {
   // Remove trailing slash
   let url = rawUrl.replace(/\/$/, "");
 
-  // Add https:// protocol if missing — DO_SPACES_ENDPOINT is sometimes set without
-  // a scheme (e.g. "bucket.region.digitaloceanspaces.com"), which makes new URL()
-  // throw and the AWS SDK fail with "Invalid URL".
+  // Add https:// protocol if missing (e.g. DO_SPACES_ENDPOINT set without scheme)
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     url = `https://${url}`;
   }

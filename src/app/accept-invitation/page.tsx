@@ -56,7 +56,6 @@ function AcceptInvitationContent() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Update the session to reflect the new role and organization
         await update();
         router.push(data.redirectUrl || "/dashboard?collaboration=accepted");
       } else {
