@@ -461,7 +461,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
               <Divider />
 
               {/* AI Interpretation & Recommendation */}
-              {/* {(result.debug.interpretation || result.debug.recommendation) && (
+              {(result.debug.interpretation || result.debug.recommendation) && (
                 <Alert
                   severity="success"
                   icon={<AutoAwesome />}
@@ -482,7 +482,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     </Typography>
                   )}
                 </Alert>
-              )} */}
+              )}
 
               {/* Matched Teams Info */}
               {result.debug.matchedClusters.length > 0 && showMatchedTeamsAlert && (

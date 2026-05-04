@@ -372,9 +372,14 @@ export class AvailableDatesService {
       if (STOP_WORDS.has(token)) {
         continue;
       }
-      
+
       // Skip constraint-related words
       if (CONSTRAINT_WORDS.has(token)) {
+        continue;
+      }
+
+      // Skip standalone numbers (years like "2025", day numbers, jersey numbers)
+      if (/^\d+$/.test(token)) {
         continue;
       }
       
