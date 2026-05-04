@@ -170,24 +170,46 @@ export async function GET(request: NextRequest) {
     const total = await prisma.game.count({ where });
     const totalCount = Number(total);
 
-    // Get games - database-level sorting and pagination
-    const games = await prisma.game.findMany({
-      where,
-      include: {
-        homeTeam: {
-          include: {
-            sport: true,
-            organization: true,
+    // Get games - database-level sorting and pagination with fallback for complex sorting
+    let games;
+    try {
+      games = await prisma.game.findMany({
+        where,
+        include: {
+          homeTeam: {
+            include: {
+              sport: true,
+              organization: true,
+            },
           },
+          awayTeam: true,
+          opponent: true,
+          venue: true,
         },
-        awayTeam: true,
-        opponent: true,
-        venue: true,
-      },
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    } catch (sortError) {
+      console.error("Sorting error, falling back to default sort:", sortError);
+      games = await prisma.game.findMany({
+        where,
+        include: {
+          homeTeam: {
+            include: {
+              sport: true,
+              organization: true,
+            },
+          },
+          awayTeam: true,
+          opponent: true,
+          venue: true,
+        },
+        orderBy: { date: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
+    }
 
     const serializedGames = games.map((game) => ({
       ...game,

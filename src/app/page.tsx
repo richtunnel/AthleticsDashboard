@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description:
     "Opletics is the premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
   keywords: [
+    "Direct Athletics",
+    "teamworks",
     "Teambuilder",
     "team builder",
     "workout",

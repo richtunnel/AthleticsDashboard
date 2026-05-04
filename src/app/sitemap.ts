@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/onboarding/start", changeFrequency: "monthly", priority: 0.8 },
     { path: "/onboarding/plans", changeFrequency: "monthly", priority: 0.7 },
     { path: "/onboarding/signup", changeFrequency: "monthly", priority: 0.7 },
+    { path: "/onboarding/parent", changeFrequency: "monthly", priority: 0.7 },
     { path: "/onboarding/parent/plans", changeFrequency: "monthly", priority: 0.7 },
     { path: "/onboarding/parent-signup", changeFrequency: "monthly", priority: 0.7 },
     { path: "/parents", changeFrequency: "monthly", priority: 0.9 },
