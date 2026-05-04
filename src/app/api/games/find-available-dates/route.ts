@@ -131,15 +131,35 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Map Prisma enum values to the human-readable strings used in canonical-sports.json
+    // so that extractClusterDates pattern matching works correctly.
+    const GENDER_MAP: Record<string, string> = {
+      MALE: 'Boys',
+      FEMALE: 'Girls',
+      COED: 'Coed',
+    };
+    const LEVEL_MAP: Record<string, string> = {
+      VARSITY: 'Varsity',
+      JV: 'Junior Varsity',
+      FRESHMAN: 'Freshmen',
+      MIDDLE_SCHOOL: 'Middle School',
+      YOUTH: 'Youth',
+    };
+
     // Convert Prisma games to GameRow format
     const gamesTable = allGames.map(game => {
       const customFields = game.customFields as Record<string, any> | null;
+      const rawGender = game.homeTeam.gender as string | null;
+      const rawLevel = game.homeTeam.level as string | null;
+      const gender = (rawGender && GENDER_MAP[rawGender]) || rawGender || '';
+      const level = (rawLevel && LEVEL_MAP[rawLevel]) || rawLevel || '';
+      const sport = game.homeTeam.sport.name;
       return {
         date: game.date,
-        sport: game.homeTeam.sport.name,
-        level: game.homeTeam.level,
-        gender: game.homeTeam.gender,
-        team: `${game.homeTeam.gender} ${game.homeTeam.level} ${game.homeTeam.sport.name}`,
+        sport,
+        level,
+        gender,
+        team: `${gender} ${level} ${sport}`,
         description: game.notes,
         title: game.opponent?.name || null,
         ...(customFields || {}),
