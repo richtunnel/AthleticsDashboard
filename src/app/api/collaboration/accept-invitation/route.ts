@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
@@ -8,10 +9,7 @@ import { CollaborativeRole, UserRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
 
-const roleMapping: Record<CollaborativeRole, UserRole> = {
-  VIEWER: UserRole.VENDOR_READ_ONLY,
-  MEMBER: UserRole.ASSISTANT_AD,
-};
+import { INVITATION_COOKIE_NAME, clearInvitationCookie, clearBypassOnboardingCookie, roleMapping, COOKIE_MAX_AGE } from "@/lib/utils/invitation";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,19 +17,13 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get("token");
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Invalid invitation token" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Invalid invitation token" }, { status: 400 });
     }
 
     // Verify the token
     const decodedToken = verifyInvitationToken(token);
     if (!decodedToken) {
-      return NextResponse.json(
-        { success: false, message: "Invalid or expired invitation token" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Invalid or expired invitation token" }, { status: 400 });
     }
 
     const { email, ownerId, invitedAt, expiresAt } = decodedToken;
@@ -59,10 +51,7 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(
-        { success: false, message: "This invitation has expired. Please request a new invitation." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "This invitation has expired. Please request a new invitation." }, { status: 400 });
     }
 
     // Find the invitation in the database
@@ -90,19 +79,26 @@ export async function GET(request: NextRequest) {
     });
 
     if (!invitation) {
-      return NextResponse.json(
-        { success: false, message: "Invitation not found or already accepted" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "Invitation not found or already accepted" }, { status: 404 });
     }
 
     // Check if invitation was revoked
     if (invitation.revokedAt) {
-      return NextResponse.json(
-        { success: false, message: "This invitation has been revoked" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "This invitation has been revoked" }, { status: 400 });
     }
+
+    // Set the pending invitation token cookie before redirecting
+    // This allows NextAuth's createUser to detect the invitation and bypass onboarding
+    const cookieStore = await cookies();
+    const isProduction = process.env.NODE_ENV === "production";
+
+    cookieStore.set(INVITATION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      maxAge: COOKIE_MAX_AGE,
+      path: "/",
+    });
 
     // Always redirect to the client-side page so the browser can call update()
     // to refresh the session after acceptance. Auto-accepting here would skip
@@ -111,13 +107,9 @@ export async function GET(request: NextRequest) {
     const acceptPageUrl = new URL(`${siteUrl}/accept-invitation`);
     acceptPageUrl.searchParams.set("token", token);
     return NextResponse.redirect(acceptPageUrl);
-
   } catch (error) {
     console.error("Error accepting invitation:", error);
-    return NextResponse.json(
-      { success: false, message: "An error occurred while processing the invitation" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "An error occurred while processing the invitation" }, { status: 500 });
   }
 }
 
@@ -127,29 +119,20 @@ export async function POST(request: NextRequest) {
     const { token } = body;
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, message: "Invalid invitation token" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Invalid invitation token" }, { status: 400 });
     }
 
     // Verify the token
     const decodedToken = verifyInvitationToken(token);
     if (!decodedToken) {
-      return NextResponse.json(
-        { success: false, message: "Invalid or expired invitation token" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Invalid or expired invitation token" }, { status: 400 });
     }
 
     const { email, ownerId, role } = decodedToken;
 
     // Check if invitation has expired
     if (isInvitationExpired(decodedToken.invitedAt, decodedToken.expiresAt)) {
-      return NextResponse.json(
-        { success: false, message: "This invitation has expired. Please request a new invitation." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "This invitation has expired. Please request a new invitation." }, { status: 400 });
     }
 
     // Find the invitation
@@ -173,19 +156,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (!invitation) {
-      return NextResponse.json(
-        { success: false, message: "Invitation not found or already accepted" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "Invitation not found or already accepted" }, { status: 404 });
     }
 
     // Check if the user is authenticated
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { success: false, message: "Please sign in to accept this invitation" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: "Please sign in to accept this invitation" }, { status: 401 });
     }
 
     // Verify the email matches
@@ -193,9 +170,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: "This invitation was sent to a different email address"
+          message: "This invitation was sent to a different email address",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -208,14 +185,16 @@ export async function POST(request: NextRequest) {
         teamName: true,
         schoolAddress: true,
         city: true,
+        aiSchedulerEnabled: true,
+        aiTravelTimesEnabled: true,
+        aiEmailGenerationEnabled: true,
+        costBudgetEnabled: true,
+        scoreTrackerEnabled: true,
       },
     });
 
     if (!owner) {
-      return NextResponse.json(
-        { success: false, message: "Inviting account not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "Inviting account not found" }, { status: 404 });
     }
 
     const mappedRole = roleMapping[role as CollaborativeRole] ?? UserRole.VENDOR_READ_ONLY;
@@ -238,6 +217,11 @@ export async function POST(request: NextRequest) {
           teamName: owner.teamName,
           schoolAddress: owner.schoolAddress,
           city: owner.city,
+          aiSchedulerEnabled: owner.aiSchedulerEnabled,
+          aiTravelTimesEnabled: owner.aiTravelTimesEnabled,
+          aiEmailGenerationEnabled: owner.aiEmailGenerationEnabled,
+          costBudgetEnabled: owner.costBudgetEnabled,
+          scoreTrackerEnabled: owner.scoreTrackerEnabled,
         },
       }),
     ]);
@@ -257,17 +241,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Clear cookies now that acceptance is complete
+    // Clear both cookies for robustness - the bypass cookie may or may not exist
+    await clearInvitationCookie();
+    await clearBypassOnboardingCookie();
+
     return NextResponse.json({
       success: true,
       message: "Invitation accepted successfully",
       redirectUrl: `/dashboard?collaboration=accepted`,
     });
-
   } catch (error) {
     console.error("Error accepting invitation:", error);
-    return NextResponse.json(
-      { success: false, message: "An error occurred while accepting the invitation" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "An error occurred while accepting the invitation" }, { status: 500 });
   }
 }

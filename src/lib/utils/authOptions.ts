@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/database/prisma";
 import bcrypt from "bcryptjs";
 import { encode as defaultJwtEncode, decode as defaultJwtDecode } from "next-auth/jwt";
+import { cookies } from "next/headers";
 import { LoginTrackingPayload, recordUserLogin } from "@/lib/services/loginTracking.service";
 import { extractRequestMetadataFromHeaders, getRequestMetadataFromContext } from "@/lib/utils/requestMetadata";
 import { emailService } from "@/lib/services/email.service";
@@ -14,6 +15,18 @@ import { isSignupBlocked } from "@/lib/services/signup-log.service";
 import { createSampleGame } from "@/lib/services/sample-game.service";
 import { createInitialColumnPreferences } from "@/lib/services/initial-columns.service";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
+import { 
+  INVITATION_COOKIE_NAME, 
+  checkInvitationCookie, 
+  clearInvitationCookie,
+  setBypassOnboardingCookie,
+  shouldBypassOnboarding,
+  clearBypassOnboardingCookie
+} from "@/lib/utils/invitation";
+import {
+  CollaborativeRole,
+  UserRole,
+} from "@prisma/client";
 import {
   generateMemberSessionId,
   generateMemberEmail,
@@ -71,78 +84,140 @@ const customAdapter = {
     // Generate a unique share code for the new user
     const shareCode = await generateUniqueShareCode();
 
-    // Create user with their own organization
-    const newUser = await prisma.user.create({
-      data: {
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        emailVerified: user.emailVerified,
-        role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
-        plan: plan,
-        stripeCustomerId,
-        shareCode,
-        trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
-        organization: {
-          create: {
-            name: user.name 
-              ? (isParentPlan ? `${user.name}'s Family` : `${user.name}'s Organization`)
-              : (isParentPlan ? "My Family" : "My Organization"),
-            timezone: "America/New_York", // Set default timezone
-            // Add any other required organization fields from your schema
+    // Check if user is joining via an invitation
+    const invitationData = await checkInvitationCookie();
+    let newUser: any;
+
+    if (invitationData) {
+      // Join existing organization (no sample games, no welcome email for collaborators)
+      console.log(`[Invitation] Creating user ${user.email} as collaborator in org ${invitationData.organizationId}`);
+      newUser = await prisma.user.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          emailVerified: user.emailVerified,
+          role: invitationData.role,
+          plan: "free_trial_plan",
+          stripeCustomerId,
+          shareCode,
+          trialEnd: null,
+          organizationId: invitationData.organizationId,
+          // Copy school details from the inviter
+          schoolName: invitationData.schoolName,
+          teamName: invitationData.teamName,
+          schoolAddress: invitationData.schoolAddress,
+          city: invitationData.city,
+          aiSchedulerEnabled: invitationData.aiSchedulerEnabled,
+          aiTravelTimesEnabled: invitationData.aiTravelTimesEnabled,
+          aiEmailGenerationEnabled: invitationData.aiEmailGenerationEnabled,
+          costBudgetEnabled: invitationData.costBudgetEnabled,
+          scoreTrackerEnabled: invitationData.scoreTrackerEnabled,
+        },
+        include: {
+          organization: true,
+        },
+      });
+
+      // Clear the invitation cookie now that user has been created
+      await clearInvitationCookie();
+
+      // Set a temporary cookie to bypass onboarding redirect
+      await setBypassOnboardingCookie();
+
+      // Track collaboration signup in Mixpanel (non-blocking)
+      void runNonCritical(() => {
+        trackServerEvent("Collaborator Signup", {
+          distinct_id: newUser.id,
+          signup_method: "google",
+          email: newUser.email,
+          name: newUser.name,
+          invited_by: invitationData.ownerId,
+          organization_id: invitationData.organizationId,
+          role: newUser.role,
+        });
+        identifyServerUser(newUser.id, {
+          $email: newUser.email,
+          $name: newUser.name,
+          role: newUser.role,
+          signup_method: "google",
+          signup_date: new Date().toISOString(),
+        });
+      }, `mixpanel tracking for collaborator ${newUser.id}`);
+    } else {
+      // Normal signup flow - create user with their own organization
+      newUser = await prisma.user.create({
+        data: {
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          emailVerified: user.emailVerified,
+          role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR", // Set role based on plan type
+          plan: plan,
+          stripeCustomerId,
+          shareCode,
+          trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
+          organization: {
+            create: {
+              name: user.name 
+                ? (isParentPlan ? `${user.name}'s Family` : `${user.name}'s Organization`)
+                : (isParentPlan ? "My Family" : "My Organization"),
+              timezone: "America/New_York", // Set default timezone
+              // Add any other required organization fields from your schema
+            },
           },
         },
-      },
-      include: {
-        organization: true,
-      },
-    });
+        include: {
+          organization: true,
+        },
+      });
 
-    // Create sample game for new user (non-blocking)
-    void runNonCritical(
-      () =>
-        createSampleGame({
-          userId: newUser.id,
-          organizationId: newUser.organizationId,
-        }),
-      `sample game creation for user ${newUser.id}`
-    );
-
-    // Create initial column preferences for new user (non-blocking)
-    // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
-    void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
-
-    // Send welcome email (non-blocking)
-    if (newUser.email) {
+      // Create sample game for new user (non-blocking)
       void runNonCritical(
         () =>
-          emailService.sendWelcomeEmail({
-            id: newUser.id,
-            email: newUser.email,
-            name: newUser.name,
+          createSampleGame({
+            userId: newUser.id,
+            organizationId: newUser.organizationId,
           }),
-        `welcome email for user ${newUser.id}`
+        `sample game creation for user ${newUser.id}`
       );
-    }
 
-    // Track Google OAuth signup in Mixpanel (non-blocking)
-    void runNonCritical(() => {
-      trackServerEvent("User Signup", {
-        distinct_id: newUser.id,
-        signup_method: "google",
-        plan: newUser.plan,
-        email: newUser.email,
-        name: newUser.name,
-      });
-      identifyServerUser(newUser.id, {
-        $email: newUser.email,
-        $name: newUser.name,
-        plan: newUser.plan,
-        role: newUser.role,
-        signup_method: "google",
-        signup_date: new Date().toISOString(),
-      });
-    }, `mixpanel tracking for user ${newUser.id}`);
+      // Create initial column preferences for new user (non-blocking)
+      // This ensures they see only the 5 essential columns: Date, Sport, Level, Location, Actions
+      void runNonCritical(() => createInitialColumnPreferences(newUser.id), `initial column preferences for user ${newUser.id}`);
+
+      // Send welcome email (non-blocking)
+      if (newUser.email) {
+        void runNonCritical(
+          () =>
+            emailService.sendWelcomeEmail({
+              id: newUser.id,
+              email: newUser.email,
+              name: newUser.name,
+            }),
+          `welcome email for user ${newUser.id}`
+        );
+      }
+
+      // Track Google OAuth signup in Mixpanel (non-blocking)
+      void runNonCritical(() => {
+        trackServerEvent("User Signup", {
+          distinct_id: newUser.id,
+          signup_method: "google",
+          plan: newUser.plan,
+          email: newUser.email,
+          name: newUser.name,
+        });
+        identifyServerUser(newUser.id, {
+          $email: newUser.email,
+          $name: newUser.name,
+          plan: newUser.plan,
+          role: newUser.role,
+          signup_method: "google",
+          signup_date: new Date().toISOString(),
+        });
+      }, `mixpanel tracking for user ${newUser.id}`);
+    }
 
     return newUser;
   },
@@ -599,7 +674,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         // For new users via Google OAuth, redirect to onboarding/details
+        // UNLESS they are joining via an invitation (collaborators)
         if (isNewUser && resolvedUrl.pathname === "/dashboard") {
+          const bypassOnboarding = await shouldBypassOnboarding();
+          if (bypassOnboarding) {
+            await clearBypassOnboardingCookie();
+            return `${baseUrl}/dashboard?collaboration=accepted`;
+          }
           return `${baseUrl}/onboarding/details`;
         }
 

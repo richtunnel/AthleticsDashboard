@@ -124,7 +124,7 @@ export class EmailService {
         to,
         cc,
         subject,
-        html: body.includes("<html>") ? body : this.buildHtmlEmail(body),
+        body: body.includes("<html>") ? body : this.buildHtmlEmail(body),
         replyTo: replyTo,
       });
 

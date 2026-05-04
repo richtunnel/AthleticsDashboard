@@ -88,13 +88,13 @@ CREATE INDEX "EmailRecipient_jobId_idx" ON "EmailRecipient"("jobId");
 -- CreateIndex
 CREATE INDEX "EmailRecipient_status_idx" ON "EmailRecipient"("status");
 
--- CreateIndex
+-- -- CreateIndex
 -- CREATE INDEX "CalendarSyncRequest_parentUserId_idx" ON "CalendarSyncRequest"("parentUserId");
 
--- CreateIndex
+-- -- CreateIndex
 -- CREATE INDEX "CalendarSyncRequest_schoolId_idx" ON "CalendarSyncRequest"("schoolId");
 
--- CreateIndex
+-- -- CreateIndex
 -- CREATE INDEX "CalendarSyncRequest_status_idx" ON "CalendarSyncRequest"("status");
 
 -- AddForeignKey
@@ -103,7 +103,7 @@ ALTER TABLE "EmailJob" ADD CONSTRAINT "EmailJob_userId_fkey" FOREIGN KEY ("userI
 -- AddForeignKey
 ALTER TABLE "EmailRecipient" ADD CONSTRAINT "EmailRecipient_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "EmailJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
+-- -- AddForeignKey
 -- ALTER TABLE "CalendarSyncRequest" ADD CONSTRAINT "CalendarSyncRequest_parentUserId_fkey" FOREIGN KEY ("parentUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- -- AddForeignKey

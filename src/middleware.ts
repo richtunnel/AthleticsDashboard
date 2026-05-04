@@ -9,8 +9,7 @@ import { prisma } from "@/lib/database/prisma";
  * Cookie name for the separate parent session.
  * Must match the cookie name in parentAuthOptions.ts.
  */
-const PARENT_COOKIE_NAME =
-  process.env.NODE_ENV === "production" ? "__Secure-parent-session-token" : "parent-session-token";
+const PARENT_COOKIE_NAME = process.env.NODE_ENV === "production" ? "__Secure-parent-session-token" : "parent-session-token";
 
 /**
  * Try to get a token for parent routes.
@@ -80,7 +79,14 @@ export async function middleware(req: NextRequest) {
 
   // CORS handling for API routes
   const origin = req.headers.get("origin");
-  const allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"];
+
+  let allowedOrigins;
+
+  if (process.env.NODE_ENV === "development") {
+    allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"];
+  }
+
+  allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com"];
 
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
@@ -177,16 +183,12 @@ export async function middleware(req: NextRequest) {
   }
 
   // Determine if this is a parent route
-  const isParentRoute =
-    pathname.startsWith("/parent-dashboard") ||
-    pathname.startsWith("/api/parent");
+  const isParentRoute = pathname.startsWith("/parent-dashboard") || pathname.startsWith("/api/parent") || pathname === "/api/calendar/list-calendars";
   const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/login";
 
   // For parent routes, check parent cookie first then fall back to main cookie
   // For all other routes, use the standard main cookie
-  const token = isParentRoute
-    ? await getParentOrMainToken(req)
-    : await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const token = isParentRoute ? await getParentOrMainToken(req) : await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
     return NextResponse.redirect(new URL(unauthRedirect, req.url));

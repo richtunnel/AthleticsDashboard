@@ -11,6 +11,7 @@ import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-lim
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { sanitizeEmail, sanitizeString, validatePassword } from "@/lib/security/sanitizer";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
+import { checkInvitationCookie, clearInvitationCookie, setBypassOnboardingCookie } from "@/lib/utils/invitation";
 
 export async function POST(request: NextRequest) {
   // Apply rate limiting - strict limit for signup to prevent abuse
@@ -133,31 +134,73 @@ export async function POST(request: NextRequest) {
     // Generate a unique share code for the new user
     const shareCode = await generateUniqueShareCode();
 
-    // Create user with organization and plan
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        name: sanitizedName,
-        phone: sanitizedPhone,
-        hashedPassword,
-        role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR",
-        plan: plan || "free_trial_plan",
-        stripeCustomerId,
-        shareCode,
-        trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null, // 14 days from now
-        organization: {
-          create: {
-            name: isParentPlan ? `${sanitizedName}'s Family` : `${sanitizedName}'s Organization`,
-            timezone: "America/New_York",
+    // Check if user is joining via an invitation
+    const invitationData = await checkInvitationCookie();
+    let user;
+
+    if (invitationData) {
+      // Create user as collaborator in existing organization
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: sanitizedName,
+          phone: sanitizedPhone,
+          hashedPassword,
+          role: invitationData.role,
+          plan: "free_trial_plan",
+          stripeCustomerId,
+          shareCode,
+          trialEnd: null,
+          organizationId: invitationData.organizationId,
+          // Copy school details from the inviter
+          schoolName: invitationData.schoolName,
+          teamName: invitationData.teamName,
+          schoolAddress: invitationData.schoolAddress,
+          city: invitationData.city,
+          aiSchedulerEnabled: invitationData.aiSchedulerEnabled,
+          aiTravelTimesEnabled: invitationData.aiTravelTimesEnabled,
+          aiEmailGenerationEnabled: invitationData.aiEmailGenerationEnabled,
+          costBudgetEnabled: invitationData.costBudgetEnabled,
+          scoreTrackerEnabled: invitationData.scoreTrackerEnabled,
+        },
+        include: {
+          organization: true,
+        },
+      });
+
+      // Clear the invitation cookie
+      await clearInvitationCookie();
+
+      // Set a temporary cookie to bypass onboarding redirect
+      await setBypassOnboardingCookie();
+      
+      console.log("[Signup] User created via invitation:", user.id, normalizedEmail);
+    } else {
+      // Normal signup flow - create user with their own organization
+      user = await prisma.user.create({
+        data: {
+          email: normalizedEmail,
+          name: sanitizedName,
+          phone: sanitizedPhone,
+          hashedPassword,
+          role: isParentPlan ? "PARENT" : "ATHLETIC_DIRECTOR",
+          plan: plan || "free_trial_plan",
+          stripeCustomerId,
+          shareCode,
+          trialEnd: plan === "free_trial_plan" ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null,
+          organization: {
+            create: {
+              name: isParentPlan ? `${sanitizedName}'s Family` : `${sanitizedName}'s Organization`,
+              timezone: "America/New_York",
+            },
           },
         },
-      },
-      include: {
-        organization: true,
-      },
-    });
-
-    console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+        include: {
+          organization: true,
+        },
+      });
+      console.log("[Signup] User created successfully:", user.id, normalizedEmail);
+    }
 
     // Create sample game for new user (non-blocking)
     void createSampleGame({
