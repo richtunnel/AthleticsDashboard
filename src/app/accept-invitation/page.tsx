@@ -31,7 +31,7 @@ interface InvitationDetails {
 function AcceptInvitationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +56,8 @@ function AcceptInvitationContent() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // Update the session to reflect the new role and organization
+        await update();
         router.push(data.redirectUrl || "/dashboard?collaboration=accepted");
       } else {
         setError(data.message || "Failed to accept invitation");
@@ -65,7 +67,7 @@ function AcceptInvitationContent() {
       setError("An error occurred while accepting the invitation");
       setAccepting(false);
     }
-  }, [token, router]);
+  }, [token, router, update]);
 
   // Fetch invitation details on mount
   useEffect(() => {
