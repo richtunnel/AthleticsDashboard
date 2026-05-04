@@ -4,10 +4,15 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { isInvitationExpired } from "@/lib/utils/collaboration";
 import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
-import { CollaborativeRole, CollaborationAction } from "@prisma/client";
+import { CollaborativeRole, CollaborationAction, UserRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
 
+
+const roleMapping: Record<CollaborativeRole, UserRole> = {
+  VIEWER: UserRole.VENDOR_READ_ONLY,
+  MEMBER: UserRole.ASSISTANT_AD,
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { email, ownerId, role, invitedAt, expiresAt } = decodedToken;
+    const { email, ownerId, invitedAt, expiresAt } = decodedToken;
 
     // Check if invitation has expired
     if (isInvitationExpired(invitedAt, expiresAt)) {
@@ -100,55 +105,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is already signed in
-    const session = await getServerSession(authOptions);
-    const isSignedIn = !!session?.user;
-
-    // If signed in, check if the email matches
-    if (isSignedIn && session.user.email.toLowerCase() !== email.toLowerCase()) {
-      const acceptPageUrl = new URL("/accept-invitation", getSiteUrl());
-      acceptPageUrl.searchParams.set("token", token);
-      return NextResponse.redirect(acceptPageUrl);
-    }
-
-    // Get the owner details
-    const ownerName = invitation.owner.name || "Account Owner";
-    const organizationName = invitation.owner.organization?.name || "the organization";
-    const ownerEmail = invitation.owner.email;
-
-    // If signed in, auto-accept the invitation
-    if (isSignedIn) {
-      // Update the invitation status
-      await prisma.collaborativeMember.update({
-        where: { id: invitation.id },
-        data: {
-          status: "ACCEPTED",
-          acceptedAt: new Date(),
-        },
-      });
-
-      // Log the acceptance
-      const metadata = extractRequestMetadataFromHeaders(request.headers);
-      await prisma.collaborationAuditLog.create({
-        data: {
-          action: "INVITE_ACCEPTED",
-          ownerId: ownerId,
-          targetEmail: email,
-          collaboratorId: invitation.id,
-          role: role as CollaborativeRole,
-          details: `Invitation accepted by ${email}`,
-          ipAddress: metadata.ip,
-          userAgent: metadata.userAgent,
-        },
-      });
-
-      // Redirect to the dashboard — use env-driven site URL so we don't echo back
-      // the server's bind address (0.0.0.0:3000) when behind a misconfigured proxy.
-      return NextResponse.redirect(
-        new URL(`/dashboard?collaboration=accepted&role=${role}`, getSiteUrl())
-      );
-    }
-
     // Not signed in — redirect to the accept-invitation page
     // which will show invitation details and a sign-in button
     const acceptPageUrl = new URL("/accept-invitation", getSiteUrl());
@@ -202,6 +158,17 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
         revokedAt: null,
       },
+      include: {
+        owner: {
+          select: {
+            organizationId: true,
+            schoolName: true,
+            teamName: true,
+            schoolAddress: true,
+            city: true,
+          },
+        },
+      },
     });
 
     if (!invitation) {
@@ -231,14 +198,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update the invitation status
-    await prisma.collaborativeMember.update({
-      where: { id: invitation.id },
-      data: {
-        status: "ACCEPTED",
-        acceptedAt: new Date(),
-      },
-    });
+    const mappedRole = roleMapping[role as CollaborativeRole] || UserRole.VENDOR_READ_ONLY;
+
+    // Update the invitation status and the user profile in a transaction
+    await prisma.$transaction([
+      // Update invitation status
+      prisma.collaborativeMember.update({
+        where: { id: invitation.id },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+        },
+      }),
+      // Update user role, organization, and copy school details to bypass onboarding
+      prisma.user.update({
+        where: { email: email.toLowerCase() },
+        data: {
+          organizationId: invitation.owner.organizationId,
+          role: mappedRole,
+          schoolName: invitation.owner.schoolName,
+          teamName: invitation.owner.teamName,
+          schoolAddress: invitation.owner.schoolAddress,
+          city: invitation.owner.city,
+        },
+      }),
+    ]);
 
     // Log the acceptance
     const metadata = extractRequestMetadataFromHeaders(request.headers);
