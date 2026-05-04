@@ -16,6 +16,7 @@ export interface IncrementalAuthResult {
 export interface CallbackResult {
   success: boolean;
   scopes?: string[];
+  returnTo?: string;
   error?: string;
 }
 
@@ -35,7 +36,7 @@ export type ScopeType = keyof typeof GOOGLE_SCOPES;
 /**
  * Generate OAuth URL for requesting additional scopes
  */
-export async function initiateIncrementalAuth(userId: string, scopeType: ScopeType, redirectUrl: string): Promise<IncrementalAuthResult> {
+export async function initiateIncrementalAuth(userId: string, scopeType: ScopeType, redirectUrl: string, returnTo?: string): Promise<IncrementalAuthResult> {
   try {
     // Get user's existing account
     const account = await prisma.account.findFirst({
@@ -67,14 +68,17 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     // ✅ FIXED: Use the same OAuth client as NextAuth for incremental auth
     const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, redirectUrl);
 
-    // Generate state token for CSRF protection
-    const state = crypto.randomBytes(32).toString("hex");
+    // Generate random CSRF token
+    const token = crypto.randomBytes(32).toString("hex");
 
-    // Store state token with expiry (5 minutes)
+    // Encode token + returnTo in state so the callback can redirect correctly
+    const statePayload = Buffer.from(JSON.stringify({ token, returnTo: returnTo ?? null })).toString("base64url");
+
+    // Store only the random token for verification
     await prisma.user.update({
       where: { id: userId },
       data: {
-        resetToken: state,
+        resetToken: token,
         resetTokenExpiry: new Date(Date.now() + 5 * 60 * 1000),
       },
     });
@@ -83,10 +87,9 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: requestedScopes,
-      include_granted_scopes: true, // KEY: Include previously granted scopes
-      state,
-      prompt: "consent", // Force consent screen to get refresh token
-      login_hint: account.providerAccountId ? undefined : undefined, // Optional: hint which account to use
+      include_granted_scopes: true,
+      state: statePayload,
+      prompt: "consent",
     });
 
     return {
@@ -107,6 +110,19 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
  */
 export async function handleIncrementalAuthCallback(userId: string, code: string, state: string, redirectUrl: string): Promise<CallbackResult> {
   try {
+    // Decode state — may be base64url JSON { token, returnTo } or legacy raw token
+    let verifyToken = state;
+    let returnTo: string | null = null;
+    try {
+      const parsed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
+      if (parsed && typeof parsed.token === "string") {
+        verifyToken = parsed.token;
+        returnTo = typeof parsed.returnTo === "string" ? parsed.returnTo : null;
+      }
+    } catch {
+      // Legacy format: state IS the token directly
+    }
+
     // Verify state token
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -116,7 +132,7 @@ export async function handleIncrementalAuthCallback(userId: string, code: string
       },
     });
 
-    if (!user || !user.resetToken || user.resetToken !== state || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+    if (!user || !user.resetToken || user.resetToken !== verifyToken || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
       return {
         success: false,
         error: "Invalid or expired state token",
@@ -195,6 +211,7 @@ export async function handleIncrementalAuthCallback(userId: string, code: string
     return {
       success: true,
       scopes: mergedScopes,
+      returnTo: returnTo ?? undefined,
     };
   } catch (error) {
     console.error("[IncrementalAuth] Error handling callback:", error);

@@ -16,16 +16,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const returnTo = body.returnTo || "/dashboard/gsync";
     
-    // Construct callback URL — always use env-driven site URL, never request-derived
-    // origin (which can leak the bind address 0.0.0.0:3000 in production behind a proxy).
-    const baseUrl = getSiteUrl();
-    const callbackUrl = `${baseUrl}/auth/calendar/callback?returnTo=${encodeURIComponent(returnTo)}`;
-    
+    // Use the registered redirect URI — must exactly match Google Cloud Console.
+    // returnTo is carried in the OAuth state parameter instead of the URI.
+    const callbackUrl = process.env.GOOGLE_REDIRECT_URI || `${getSiteUrl()}/api/auth/calendar-callback`;
+
     // Initiate incremental auth for Calendar scopes
     const result = await initiateIncrementalAuth(
       session.user.id,
       "CALENDAR",
-      callbackUrl
+      callbackUrl,
+      returnTo
     );
     
     if (!result.success) {
