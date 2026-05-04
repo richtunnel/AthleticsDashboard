@@ -48,11 +48,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Best-effort scope check: users can have legacy tokens without Account.scope populated.
-    // In that case we still try the request; if Google returns 403, we instruct them to reconnect.
+    // Scope check: if the Account record has no calendar scope the tokens will
+    // not work for calendarList.list, so we fail fast rather than making a
+    // round-trip to Google that always returns 401.
     const hasCalendarScopes = await hasScopes(session.user.id, "CALENDAR");
     if (!hasCalendarScopes) {
-      console.warn("[Calendar] User is missing CALENDAR scopes in Account record; attempting calendarList.list with available tokens");
+      return NextResponse.json(
+        {
+          error: "Calendar access requires additional Google permissions. Please go to Calendar Sync and reconnect your Google account to grant calendar access.",
+          needsReconnect: true,
+        },
+        { status: 403 }
+      );
     }
 
     const oauth2Client = new google.auth.OAuth2(
