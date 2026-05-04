@@ -135,19 +135,18 @@ export async function POST(request: NextRequest) {
     const acceptUrl = `${appUrl}/api/collaboration/accept-invitation?token=${token}`;
 
     // Create or re-activate the invitation.
-    // The table has @@unique([userId, email]), so if a previous invitation was
-    // REVOKED or EXPIRED we must update it instead of creating a new row.
-    const existingStaleRecord = await prisma.collaborativeMember.findFirst({
+    // The table has @@unique([userId, email]), so we must use an update if a record already exists
+    // for this user/email combination to avoid unique constraint violations.
+    const existingRecord = await prisma.collaborativeMember.findFirst({
       where: {
         userId: userId,
         email: email.toLowerCase(),
-        status: { in: ["REVOKED", "EXPIRED"] },
       },
     });
 
-    const collaborator = existingStaleRecord
+    const collaborator = existingRecord
       ? await prisma.collaborativeMember.update({
-          where: { id: existingStaleRecord.id },
+          where: { id: existingRecord.id },
           data: {
             role: role as CollaborativeRole,
             status: "PENDING",

@@ -11,7 +11,7 @@ import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-lim
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { sanitizeEmail, sanitizeString, validatePassword } from "@/lib/security/sanitizer";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
-import { checkInvitationCookie, clearInvitationCookie } from "@/lib/utils/invitation";
+import { checkInvitationCookie, clearInvitationCookie, setBypassOnboardingCookie } from "@/lib/utils/invitation";
 
 export async function POST(request: NextRequest) {
   // Apply rate limiting - strict limit for signup to prevent abuse
@@ -170,6 +170,9 @@ export async function POST(request: NextRequest) {
 
       // Clear the invitation cookie
       await clearInvitationCookie();
+
+      // Set a temporary cookie to bypass onboarding redirect
+      await setBypassOnboardingCookie();
       
       console.log("[Signup] User created via invitation:", user.id, normalizedEmail);
     } else {

@@ -11,7 +11,8 @@ export interface EmailOptions {
   to: string | string[];
   cc?: string | string[];
   subject: string;
-  body: string;
+  body?: string;
+  html?: string;
   from?: string;
   replyTo?: string;
 }
@@ -47,7 +48,7 @@ export class EmailGatewayService {
 
     try {
       const result = await combinedPolicy.execute(async () => {
-        const { to, cc, subject, body, from, replyTo } = options;
+        const { to, cc, subject, body, html, from, replyTo } = options;
         const resend = this.getResend();
         
         const response = await resend.emails.send({
@@ -55,7 +56,7 @@ export class EmailGatewayService {
           to: Array.isArray(to) ? to : [to],
           cc: cc ? (Array.isArray(cc) ? cc : [cc]) : undefined,
           subject,
-          html: body,
+          html: (html || body) as string,
           replyTo: replyTo,
         });
 

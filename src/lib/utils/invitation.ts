@@ -4,6 +4,7 @@ import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
 import { CollaborativeRole, UserRole } from "@prisma/client";
 
 export const INVITATION_COOKIE_NAME = "pending_invitation_token";
+export const BYPASS_ONBOARDING_COOKIE_NAME = "bypass_onboarding";
 export const COOKIE_MAX_AGE = 60 * 60 * 24; // 24 hours in seconds
 
 export const roleMapping: Record<CollaborativeRole, UserRole> = {
@@ -64,6 +65,39 @@ export async function checkInvitationCookie() {
   } catch (error) {
     console.error("[Invitation] Error checking invitation cookie:", error);
     return null;
+  }
+}
+
+export async function setBypassOnboardingCookie() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(BYPASS_ONBOARDING_COOKIE_NAME, "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 300, // 5 minutes is plenty
+      path: "/",
+    });
+  } catch (error) {
+    console.error("[Invitation] Error setting bypass onboarding cookie:", error);
+  }
+}
+
+export async function shouldBypassOnboarding() {
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get(BYPASS_ONBOARDING_COOKIE_NAME)?.value === "true";
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function clearBypassOnboardingCookie() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(BYPASS_ONBOARDING_COOKIE_NAME);
+  } catch (error) {
+    console.error("[Invitation] Error clearing bypass onboarding cookie:", error);
   }
 }
 
