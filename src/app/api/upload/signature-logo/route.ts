@@ -99,12 +99,17 @@ export async function POST(request: NextRequest) {
     if (!process.env.DO_SPACES_SECRET_KEY && !process.env.DO_SPACES_SECRET_KEY_VALUE) configErrors.push("DO_SPACES_SECRET_KEY");
     if (!process.env.DO_SPACES_ENDPOINT) configErrors.push("DO_SPACES_ENDPOINT");
 
-    if (configErrors.length > 0 && !isDev) {
-      logger.error(`[SignatureLogoUpload] Misconfigured S3 in production: ${configErrors.join(", ")}`);
-      return ApiResponse.error(
-        `File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`,
-        500
-      );
+    if (configErrors.length > 0) {
+      if (isDev) {
+        // In development, log the missing config but continue - we'll use local fallback
+        logger.warn(`[SignatureLogoUpload] S3 not fully configured in dev mode: ${configErrors.join(", ")}. Using local storage fallback.`);
+      } else {
+        logger.error(`[SignatureLogoUpload] Misconfigured S3 in production: ${configErrors.join(", ")}`);
+        return ApiResponse.error(
+          `File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`,
+          500
+        );
+      }
     }
 
     const formData = await request.formData();
@@ -155,7 +160,10 @@ export async function POST(request: NextRequest) {
 
     if (sharp) {
       try {
-        logger.info("[SignatureLogoUpload] Optimizing image with sharp");
+        logger.info("[SignatureLogoUpload] Optimizing image with sharp", {
+          inputSize: buffer.length,
+          inputType: contentType,
+        });
         // Resize and optimize the image for email signatures
         // Max dimensions: 240x240 (double for retina, displayed at 120x120)
         const optimizedBuffer = await sharp(buffer)
@@ -178,10 +186,16 @@ export async function POST(request: NextRequest) {
           newSize: buffer.length,
           reduction: `${(((bytes.byteLength - buffer.length) / bytes.byteLength) * 100).toFixed(2)}%`
         });
-      } catch (error) {
-        logger.warn("[SignatureLogoUpload] Image optimization failed, using original", { error });
+      } catch (sharpError) {
+        const msg = sharpError instanceof Error ? sharpError.message : String(sharpError);
+        logger.error("[SignatureLogoUpload] Sharp processing failed, using original", {
+          error: msg,
+          stack: sharpError instanceof Error ? sharpError.stack : undefined,
+        });
         // Continue with original buffer
       }
+    } else {
+      logger.info("[SignatureLogoUpload] Sharp not available, skipping optimization");
     }
 
     // Generate unique filename
@@ -227,24 +241,44 @@ export async function POST(request: NextRequest) {
 
     let publicUrl = "";
 
-    if (!hasS3Config && isDev) {
-      logger.info("[SignatureLogoUpload] S3 not configured, using local fallback");
-      
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
+    // Determine if we should use S3 based on configuration
+    const shouldUseS3 = hasS3Config && SPACES_BUCKET && SPACES_ENDPOINT;
 
-      const filePath = path.join(uploadDir, filename);
-      await writeFile(filePath, buffer);
+    if (!shouldUseS3) {
+      // Use local storage fallback (development or misconfigured S3)
+      logger.info("[SignatureLogoUpload] Using local storage fallback", { isDev });
       
-      publicUrl = `/uploads/signatures/${filename}`;
-      
-      logger.info("[SignatureLogoUpload] Local fallback upload successful", { publicUrl });
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
+        if (!existsSync(uploadDir)) {
+          await mkdir(uploadDir, { recursive: true });
+          logger.info("[SignatureLogoUpload] Created local upload directory", { uploadDir });
+        }
+
+        const filePath = path.join(uploadDir, filename);
+        await writeFile(filePath, buffer);
+        
+        publicUrl = `/uploads/signatures/${filename}`;
+        
+        logger.info("[SignatureLogoUpload] Local storage upload successful", { publicUrl, fileSize: buffer.length });
+      } catch (localError: any) {
+        const msg = localError instanceof Error ? localError.message : String(localError);
+        logger.error("[SignatureLogoUpload] Local storage write failed", {
+          error: msg,
+          stack: localError instanceof Error ? localError.stack : undefined,
+        });
+        throw new Error(`Failed to save logo locally: ${msg}`);
+      }
     } else {
       // Upload to Digital Ocean Spaces
       try {
-        logger.info("[SignatureLogoUpload] Uploading to Digital Ocean Spaces", { key, contentType });
+        logger.info("[SignatureLogoUpload] Uploading to Digital Ocean Spaces", {
+          key,
+          contentType,
+          bucket: SPACES_BUCKET,
+          endpoint: SPACES_ENDPOINT,
+        });
+
         await s3Client.send(
           new PutObjectCommand({
             Bucket: SPACES_BUCKET,
@@ -254,16 +288,23 @@ export async function POST(request: NextRequest) {
             ACL: "public-read",
           }),
         );
+
         publicUrl = `${SPACES_CDN_URL}/${key}`;
         logger.info("[SignatureLogoUpload] S3 upload successful", { publicUrl });
       } catch (s3Error: any) {
-        logger.error("[SignatureLogoUpload] S3 Upload Error", { error: s3Error });
-        
         const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
+        const errorName = s3Error instanceof Error ? s3Error.name : "UnknownError";
+        
+        logger.error("[SignatureLogoUpload] S3 upload failed", {
+          error: msg,
+          errorName,
+          bucket: SPACES_BUCKET,
+          key,
+        });
         
         // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
         // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
-        if (msg.includes("Invalid URL") || msg.includes("TypeError") || s3Error.name === "TypeError") {
+        if (msg.includes("Invalid URL") || msg.includes("TypeError") || errorName === "TypeError") {
           throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
         }
         
@@ -275,16 +316,31 @@ export async function POST(request: NextRequest) {
           throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
         }
         
-        throw s3Error;
+        // For other S3 errors, provide a helpful message
+        throw new Error(`Failed to upload logo to file storage: ${msg}`);
       }
     }
 
     // Auto-save the logo URL to the user's profile
     logger.info("[SignatureLogoUpload] Updating user record with new logo URL");
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { signatureLogoUrl: publicUrl } as any,
-    });
+    try {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { signatureLogoUrl: publicUrl } as any,
+      });
+    } catch (dbError: any) {
+      const msg = dbError instanceof Error ? dbError.message : String(dbError);
+      logger.error("[SignatureLogoUpload] Failed to save logo URL to user record", {
+        error: msg,
+        userId: session.user.id,
+      });
+      // The file was uploaded but we couldn't save the URL - return a partial success
+      return ApiResponse.success({
+        message: wasOptimized ? "Logo uploaded and optimized, but profile update failed" : "Logo uploaded, but profile update failed",
+        url: publicUrl,
+        warning: "Please refresh the page to see the updated logo.",
+      });
+    }
 
     return ApiResponse.success({
       message: wasOptimized ? "Logo uploaded and optimized successfully" : "Logo uploaded successfully",
