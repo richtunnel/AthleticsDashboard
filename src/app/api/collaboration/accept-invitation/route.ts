@@ -13,12 +13,6 @@ const roleMapping: Record<CollaborativeRole, UserRole> = {
   MEMBER: UserRole.ASSISTANT_AD,
 };
 
-
-const roleMapping: Record<CollaborativeRole, UserRole> = {
-  VIEWER: UserRole.VENDOR_READ_ONLY,
-  MEMBER: UserRole.ASSISTANT_AD,
-};
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
