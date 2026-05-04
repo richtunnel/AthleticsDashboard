@@ -44,6 +44,7 @@ import {
   EmailPreviewBox,
   buildEmailPreviewHtml,
 } from "./EmailPreview";
+import styles from "@/styles/email.compose.module.css";
 
 export default function ComposeEmailPage() {
   const router = useRouter();
@@ -120,7 +121,7 @@ export default function ComposeEmailPage() {
   // Use buildEmailPreviewHtml to generate HTML string
   const emailPreviewHtml = useMemo(() => {
     if (!mounted) return "<p>Loading preview...</p>";
-    
+
     return buildEmailPreviewHtml({
       mounted,
       theme,
@@ -422,6 +423,7 @@ export default function ComposeEmailPage() {
 
               <Stack spacing={3}>
                 <TextField
+                  className={styles.ReceiptSelectField}
                   select
                   label="Recipient Category"
                   value={recipientCategory}
@@ -534,15 +536,7 @@ export default function ComposeEmailPage() {
                   </Box>
                 )}
 
-                <TextField
-                  label="Subject"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  fullWidth
-                  required
-                  error={!subject}
-                  helperText={!subject ? "Subject is required" : ""}
-                />
+                <TextField label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth required error={!subject} helperText={!subject ? "Subject is required" : ""} />
 
                 <TextField
                   label="Additional Message (Optional)"
@@ -568,11 +562,7 @@ export default function ComposeEmailPage() {
         </Paper>
 
         {/* Error Display */}
-        {sendEmailMutation.isError && (
-          <Alert severity="error">
-            {sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved."}
-          </Alert>
-        )}
+        {sendEmailMutation.isError && <Alert severity="error">{sendEmailMutation.error?.message || "Failed to send email. Your draft has been saved."}</Alert>}
 
         {/* Action Buttons */}
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
@@ -612,12 +602,7 @@ export default function ComposeEmailPage() {
                     : undefined,
               });
             }}
-            disabled={
-              sendEmailMutation.isPending ||
-              !recipientCategory ||
-              !subject ||
-              (recipientCategory === "custom" && !customRecipients.trim())
-            }
+            disabled={sendEmailMutation.isPending || !recipientCategory || !subject || (recipientCategory === "custom" && !customRecipients.trim())}
           >
             {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
           </Button>
