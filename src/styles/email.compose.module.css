@@ -1,11 +1,11 @@
 .ReceiptSelectField .MuiSelect-select {
-  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .ReceiptSelectField > .MuiSelect-select {
-  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
 
 .ReceiptSelectField.select {
-  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
