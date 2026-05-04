@@ -28,7 +28,7 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: "https://opletics.com/sitemap.xml",
     host: baseUrl,
   };
 }
