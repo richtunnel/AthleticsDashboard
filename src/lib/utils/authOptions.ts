@@ -18,7 +18,10 @@ import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 import { 
   INVITATION_COOKIE_NAME, 
   checkInvitationCookie, 
-  clearInvitationCookie 
+  clearInvitationCookie,
+  setBypassOnboardingCookie,
+  shouldBypassOnboarding,
+  clearBypassOnboardingCookie
 } from "@/lib/utils/invitation";
 import {
   CollaborativeRole,
@@ -118,6 +121,9 @@ const customAdapter = {
 
       // Clear the invitation cookie now that user has been created
       await clearInvitationCookie();
+
+      // Set a temporary cookie to bypass onboarding redirect
+      await setBypassOnboardingCookie();
 
       // Track collaboration signup in Mixpanel (non-blocking)
       void runNonCritical(() => {
@@ -668,7 +674,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         // For new users via Google OAuth, redirect to onboarding/details
+        // UNLESS they are joining via an invitation (collaborators)
         if (isNewUser && resolvedUrl.pathname === "/dashboard") {
+          const bypassOnboarding = await shouldBypassOnboarding();
+          if (bypassOnboarding) {
+            await clearBypassOnboardingCookie();
+            return `${baseUrl}/dashboard?collaboration=accepted`;
+          }
           return `${baseUrl}/onboarding/details`;
         }
 

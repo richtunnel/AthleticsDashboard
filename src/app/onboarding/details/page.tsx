@@ -32,8 +32,10 @@ export default function DetailsPage() {
         const res = await fetch("/api/user/profile");
         if (res.ok) {
           const userData = await res.json();
-          // If they already have school details, redirect to dashboard
-          if (userData.schoolName && userData.teamName && userData.schoolAddress) {
+          const isCollaborator = userData.role !== "ATHLETIC_DIRECTOR" && userData.role !== "SUPER_ADMIN";
+          
+          // If they already have school details or are a collaborator, redirect to dashboard
+          if ((userData.schoolName && userData.teamName && userData.schoolAddress) || isCollaborator) {
             router.push("/dashboard");
             return;
           }

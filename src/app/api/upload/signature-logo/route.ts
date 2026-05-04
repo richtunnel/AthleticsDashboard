@@ -268,13 +268,16 @@ export async function POST(request: NextRequest) {
       } catch (s3Error: any) {
         const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
         const errorName = s3Error instanceof Error ? s3Error.name : "UnknownError";
+        const errorCode = s3Error?.Code || s3Error?.code || s3Error?.$metadata?.httpStatusCode;
 
         logger.error("[SignatureLogoUpload] S3 upload failed", {
           error: msg,
           errorName,
+          errorCode,
           bucket: SPACES_BUCKET,
           key,
           isDev,
+          requestId: s3Error?.$metadata?.requestId,
         });
 
         if (!isDev) {
@@ -283,17 +286,17 @@ export async function POST(request: NextRequest) {
             throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
           }
 
-          if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
+          if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId") || errorCode === "InvalidAccessKeyId") {
             throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
           }
 
-          if (msg.includes("NoSuchBucket")) {
+          if (msg.includes("NoSuchBucket") || errorCode === "NoSuchBucket") {
             throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
           }
 
           throw new Error(`Failed to upload logo to file storage: ${msg}`);
         } else {
-          logger.warn("[SignatureLogoUpload] S3 upload failed in development, falling back to local storage");
+          logger.warn(`[SignatureLogoUpload] S3 upload failed in development (${errorName}: ${errorCode}), falling back to local storage`);
         }
       }
     }
