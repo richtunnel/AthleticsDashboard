@@ -1,3 +1,1 @@
-# This file ensures the signatures directory is tracked by git
-# Signature logos are stored here when users upload them
-# Files are served from /uploads/signatures/ via the image optimization API
+# Keep directory structure

@@ -279,14 +279,19 @@ export function EmailSignatureManager() {
                     variant="outlined"
                     startIcon={<PhotoCamera />}
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadMutation.isPending}
+                    disabled={uploadMutation.isPending || updateMutation.isPending}
                     sx={{ color: `${theme.palette.themeText.text}`, borderColor: theme.palette.themeText.text }}
                   >
                     {logoUrl ? "Change Logo" : "Upload Logo"}
                   </Button>
                   {logoUrl && (
                     <>
-                      <IconButton color="error" onClick={handleRemoveLogo} size="small" disabled={uploadMutation.isPending}>
+                      <IconButton 
+                        color="error" 
+                        onClick={handleRemoveLogo} 
+                        size="small" 
+                        disabled={uploadMutation.isPending || updateMutation.isPending}
+                      >
                         <DeleteIcon />
                       </IconButton>
                       <SignatureLogoImage logoUrl={logoUrl} />

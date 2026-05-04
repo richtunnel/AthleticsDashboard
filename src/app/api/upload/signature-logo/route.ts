@@ -4,13 +4,17 @@ import { requireAuth } from "@/lib/utils/auth";
 import { prisma } from "@/lib/database/prisma";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { handleApiError } from "@/lib/utils/error-handler";
+import { logger } from "@/lib/utils/logger";
+import { writeFile, mkdir, unlink } from "fs/promises";
+import { existsSync } from "fs";
+import path from "path";
 
 // Try to import sharp, but make it optional
 let sharp: any = null;
 try {
   sharp = require("sharp");
 } catch (error) {
-  console.warn("Sharp not available, image optimization will be skipped");
+  logger.warn("Sharp not available, image optimization will be skipped");
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
@@ -84,23 +88,24 @@ const s3Client = new S3Client({
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate required S3 configuration before processing the file.
-    // High-granularity validation for environment variables.
+    const session = await requireAuth();
+    const isDev = process.env.NODE_ENV !== "production";
+    const hasS3Config = !!(SPACES_BUCKET && (process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME));
+
+    // Validate required S3 configuration before processing the file, but only if not in dev or if we want to use S3 in dev
     const configErrors: string[] = [];
     if (!SPACES_BUCKET) configErrors.push("DO_SPACES_BUCKET");
     if (!process.env.DO_SPACES_ACCESS_KEY && !process.env.DO_SPACES_ACCESS_KEY_NAME) configErrors.push("DO_SPACES_ACCESS_KEY");
     if (!process.env.DO_SPACES_SECRET_KEY && !process.env.DO_SPACES_SECRET_KEY_VALUE) configErrors.push("DO_SPACES_SECRET_KEY");
     if (!process.env.DO_SPACES_ENDPOINT) configErrors.push("DO_SPACES_ENDPOINT");
 
-    if (configErrors.length > 0) {
-      console.error(`[SignatureLogoUpload] Misconfigured environment variables: ${configErrors.join(", ")}`);
+    if (configErrors.length > 0 && !isDev) {
+      logger.error(`[SignatureLogoUpload] Misconfigured S3 in production: ${configErrors.join(", ")}`);
       return ApiResponse.error(
         `File storage is misconfigured (missing: ${configErrors.join(", ")}). Please contact support.`,
         500
       );
     }
-
-    const session = await requireAuth();
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -108,6 +113,15 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return ApiResponse.error("No file selected. Please choose an image file to upload.");
     }
+
+    logger.info(`[SignatureLogoUpload] Received upload request`, {
+      userId: session.user.id,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      hasS3Config,
+      isDev
+    });
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
@@ -141,6 +155,7 @@ export async function POST(request: NextRequest) {
 
     if (sharp) {
       try {
+        logger.info("[SignatureLogoUpload] Optimizing image with sharp");
         // Resize and optimize the image for email signatures
         // Max dimensions: 240x240 (double for retina, displayed at 120x120)
         const optimizedBuffer = await sharp(buffer)
@@ -159,8 +174,12 @@ export async function POST(request: NextRequest) {
         buffer = optimizedBuffer;
         contentType = "image/png";
         wasOptimized = true;
+        logger.info("[SignatureLogoUpload] Image optimized successfully", { 
+          newSize: buffer.length,
+          reduction: `${(((bytes.byteLength - buffer.length) / bytes.byteLength) * 100).toFixed(2)}%`
+        });
       } catch (error) {
-        console.warn("Image optimization failed, using original:", error);
+        logger.warn("[SignatureLogoUpload] Image optimization failed, using original", { error });
         // Continue with original buffer
       }
     }
@@ -169,69 +188,99 @@ export async function POST(request: NextRequest) {
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     const ext = wasOptimized ? ".png" : fileExtension || ".png";
-    const key = `signatures/${session.user.id}_${timestamp}_${randomSuffix}${ext}`;
+    const filename = `${session.user.id}_${timestamp}_${randomSuffix}${ext}`;
+    const key = `signatures/${filename}`;
 
-    // Delete old signature logo from Spaces if one exists
+    // Delete old signature logo if one exists (S3 or local)
     try {
       const user = (await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { signatureLogoUrl: true } as any,
       })) as any;
 
-      if (user?.signatureLogoUrl && (user.signatureLogoUrl.includes("digitaloceanspaces.com") || user.signatureLogoUrl.includes("vercel-storage.com"))) {
-        // Extract the key from the URL
-        const url = new URL(user.signatureLogoUrl);
-        const oldKey = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
-        if (oldKey) {
-          await s3Client.send(
-            new DeleteObjectCommand({
-              Bucket: SPACES_BUCKET,
-              Key: oldKey,
-            }),
-          );
+      if (user?.signatureLogoUrl) {
+        if (user.signatureLogoUrl.includes("digitaloceanspaces.com") || user.signatureLogoUrl.includes("vercel-storage.com")) {
+          logger.info("[SignatureLogoUpload] Deleting old logo from S3", { url: user.signatureLogoUrl });
+          // Extract the key from the URL
+          const url = new URL(user.signatureLogoUrl);
+          const oldKey = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
+          if (oldKey) {
+            await s3Client.send(
+              new DeleteObjectCommand({
+                Bucket: SPACES_BUCKET,
+                Key: oldKey,
+              }),
+            );
+          }
+        } else if (user.signatureLogoUrl.startsWith("/uploads/")) {
+          logger.info("[SignatureLogoUpload] Deleting old logo from local storage", { url: user.signatureLogoUrl });
+          const oldPath = path.join(process.cwd(), "public", user.signatureLogoUrl);
+          if (existsSync(oldPath)) {
+            await unlink(oldPath);
+          }
         }
       }
     } catch (error) {
-      console.warn("Failed to delete old signature logo:", error);
+      logger.warn("[SignatureLogoUpload] Failed to delete old signature logo", { error });
       // Continue with upload even if old file deletion fails
     }
 
-    // Upload to Digital Ocean Spaces
-    try {
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: SPACES_BUCKET,
-          Key: key,
-          Body: buffer,
-          ContentType: contentType,
-          ACL: "public-read",
-        }),
-      );
-    } catch (s3Error: any) {
-      console.error("[SignatureLogoUpload] S3 Upload Error:", s3Error);
+    let publicUrl = "";
+
+    if (!hasS3Config && isDev) {
+      logger.info("[SignatureLogoUpload] S3 not configured, using local fallback");
       
-      const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
-      
-      // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
-      // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
-      if (msg.includes("Invalid URL") || msg.includes("TypeError") || s3Error.name === "TypeError") {
-        throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+      const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
+      if (!existsSync(uploadDir)) {
+        await mkdir(uploadDir, { recursive: true });
       }
+
+      const filePath = path.join(uploadDir, filename);
+      await writeFile(filePath, buffer);
       
-      if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
-        throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
+      publicUrl = `/uploads/signatures/${filename}`;
+      
+      logger.info("[SignatureLogoUpload] Local fallback upload successful", { publicUrl });
+    } else {
+      // Upload to Digital Ocean Spaces
+      try {
+        logger.info("[SignatureLogoUpload] Uploading to Digital Ocean Spaces", { key, contentType });
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: SPACES_BUCKET,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+            ACL: "public-read",
+          }),
+        );
+        publicUrl = `${SPACES_CDN_URL}/${key}`;
+        logger.info("[SignatureLogoUpload] S3 upload successful", { publicUrl });
+      } catch (s3Error: any) {
+        logger.error("[SignatureLogoUpload] S3 Upload Error", { error: s3Error });
+        
+        const msg = s3Error instanceof Error ? s3Error.message : String(s3Error);
+        
+        // The SDK throws "Invalid URL" when the endpoint or bucket name produces a
+        // malformed URL (e.g. empty SPACES_BUCKET → "https://.region.example.com").
+        if (msg.includes("Invalid URL") || msg.includes("TypeError") || s3Error.name === "TypeError") {
+          throw new Error("File storage endpoint is misconfigured. Please verify DO_SPACES_ENDPOINT and DO_SPACES_BUCKET environment variables.");
+        }
+        
+        if (msg.includes("SignatureDoesNotMatch") || msg.includes("InvalidAccessKeyId")) {
+          throw new Error("File storage credentials (Access Key or Secret Key) are invalid.");
+        }
+        
+        if (msg.includes("NoSuchBucket")) {
+          throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
+        }
+        
+        throw s3Error;
       }
-      
-      if (msg.includes("NoSuchBucket")) {
-        throw new Error(`File storage bucket "${SPACES_BUCKET}" was not found.`);
-      }
-      
-      throw s3Error;
     }
 
-    const publicUrl = `${SPACES_CDN_URL}/${key}`;
-
     // Auto-save the logo URL to the user's profile
+    logger.info("[SignatureLogoUpload] Updating user record with new logo URL");
     await prisma.user.update({
       where: { id: session.user.id },
       data: { signatureLogoUrl: publicUrl } as any,
