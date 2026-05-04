@@ -106,26 +106,16 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Build orderBy based on sortBy parameter
+    // Build orderBy based on sortBy parameter.
+    // Prisma 6.x dropped JSON-path orderBy (customFields/customData path sorting),
+    // so we handle those in-memory after fetching all matching rows.
     let orderBy: any = { date: "asc" };
+    let jsonSortField: { source: "customData" | "customFields"; key: string } | null = null;
 
-    // Check if this is a custom or imported column sort
     if (sortBy.startsWith("custom:")) {
-      const columnId = sortBy.replace("custom:", "");
-      orderBy = {
-        customData: {
-          path: [columnId],
-          sort: sortOrder as "asc" | "desc"
-        }
-      };
+      jsonSortField = { source: "customData", key: sortBy.replace("custom:", "") };
     } else if (sortBy.startsWith("imported:")) {
-      const columnName = sortBy.replace("imported:", "");
-      orderBy = {
-        customFields: {
-          path: [columnName],
-          sort: sortOrder as "asc" | "desc"
-        }
-      };
+      jsonSortField = { source: "customFields", key: sortBy.replace("imported:", "") };
     } else {
       switch (sortBy) {
         case "date":
@@ -170,42 +160,38 @@ export async function GET(request: NextRequest) {
     const total = await prisma.game.count({ where });
     const totalCount = Number(total);
 
-    // Get games - database-level sorting and pagination with fallback for complex sorting
+    const gameInclude = {
+      homeTeam: {
+        include: {
+          sport: true,
+          organization: true,
+        },
+      },
+      awayTeam: true,
+      opponent: true,
+      venue: true,
+    } as const;
+
+    // Get games
     let games;
-    try {
-      games = await prisma.game.findMany({
-        where,
-        include: {
-          homeTeam: {
-            include: {
-              sport: true,
-              organization: true,
-            },
-          },
-          awayTeam: true,
-          opponent: true,
-          venue: true,
-        },
-        orderBy,
-        skip: (page - 1) * limit,
-        take: limit,
+    if (jsonSortField) {
+      // JSON field sorts can't be pushed to Prisma 6.x — fetch all matching rows,
+      // sort in memory, then slice for the requested page.
+      const { source, key } = jsonSortField;
+      const allGames = await prisma.game.findMany({ where, include: gameInclude, orderBy: { date: "asc" } });
+      allGames.sort((a, b) => {
+        const av = String((a[source] as any)?.[key] ?? "");
+        const bv = String((b[source] as any)?.[key] ?? "");
+        if (av < bv) return sortOrder === "asc" ? -1 : 1;
+        if (av > bv) return sortOrder === "asc" ? 1 : -1;
+        return 0;
       });
-    } catch (sortError) {
-      console.error("Sorting error, falling back to default sort:", sortError);
+      games = allGames.slice((page - 1) * limit, page * limit);
+    } else {
       games = await prisma.game.findMany({
         where,
-        include: {
-          homeTeam: {
-            include: {
-              sport: true,
-              organization: true,
-            },
-          },
-          awayTeam: true,
-          opponent: true,
-          venue: true,
-        },
-        orderBy: { date: "asc" },
+        include: gameInclude,
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
       });

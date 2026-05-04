@@ -97,8 +97,12 @@ Return JSON format:
 
       const result = JSON.parse(completion.choices[0].message.content || "{}");
       return this.normalizeParsedQuery(result);
-    } catch (error) {
-      console.error("AI query parsing failed:", error);
+    } catch (error: any) {
+      if (error?.status === 429 || error?.code === "insufficient_quota") {
+        console.warn("[Available Dates AI] OpenAI quota exceeded — using fallback parsing.");
+      } else {
+        console.error("AI query parsing failed:", error);
+      }
       return this.fallbackParse(prompt);
     }
   }
