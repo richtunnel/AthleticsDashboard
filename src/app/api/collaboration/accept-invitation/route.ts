@@ -9,13 +9,8 @@ import { CollaborativeRole, UserRole } from "@prisma/client";
 import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
 
-const INVITATION_COOKIE_NAME = "pending_invitation_token";
-const COOKIE_MAX_AGE = 60 * 60 * 24; // 24 hours in seconds
-
-const roleMapping: Record<CollaborativeRole, UserRole> = {
-  VIEWER: UserRole.VENDOR_READ_ONLY,
-  MEMBER: UserRole.ASSISTANT_AD,
-};
+import { INVITATION_COOKIE_NAME, clearInvitationCookie, roleMapping, COOKIE_MAX_AGE } from "@/lib/utils/invitation";
+import { CollaborativeRole, UserRole } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -225,6 +220,11 @@ export async function POST(request: NextRequest) {
         teamName: true,
         schoolAddress: true,
         city: true,
+        aiSchedulerEnabled: true,
+        aiTravelTimesEnabled: true,
+        aiEmailGenerationEnabled: true,
+        costBudgetEnabled: true,
+        scoreTrackerEnabled: true,
       },
     });
 
@@ -255,6 +255,11 @@ export async function POST(request: NextRequest) {
           teamName: owner.teamName,
           schoolAddress: owner.schoolAddress,
           city: owner.city,
+          aiSchedulerEnabled: owner.aiSchedulerEnabled,
+          aiTravelTimesEnabled: owner.aiTravelTimesEnabled,
+          aiEmailGenerationEnabled: owner.aiEmailGenerationEnabled,
+          costBudgetEnabled: owner.costBudgetEnabled,
+          scoreTrackerEnabled: owner.scoreTrackerEnabled,
         },
       }),
     ]);
@@ -275,8 +280,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Clear the pending invitation cookie now that acceptance is complete
-    const cookieStore = await cookies();
-    cookieStore.delete(INVITATION_COOKIE_NAME);
+    await clearInvitationCookie();
 
     return NextResponse.json({
       success: true,
