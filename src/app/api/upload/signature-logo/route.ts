@@ -162,15 +162,15 @@ export async function POST(request: NextRequest) {
           inputType: contentType,
         });
         // Resize and optimize the image for email signatures
-        // Max dimensions: 240x240 (double for retina, displayed at 120x120)
+        // Max dimensions: 120x120 for optimal display in email clients
         const optimizedBuffer = await sharp(buffer)
-          .resize(240, 240, {
+          .resize(120, 120, {
             fit: "inside",
             withoutEnlargement: true,
           })
           .png({
             palette: true,
-            quality: 80,
+            quality: 85,
             compressionLevel: 9,
           })
           .toBuffer();
@@ -306,14 +306,35 @@ export async function POST(request: NextRequest) {
       logger.info("[SignatureLogoUpload] Using local storage fallback", { isDev, shouldUseS3 });
 
       try {
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "signatures");
+        // Robust local storage fallback with defensive directory creation
+        const publicDir = path.join(process.cwd(), "public");
+        const uploadDir = path.join(publicDir, "uploads", "signatures");
+
+        // Ensure parent directories exist before attempting to write
+        if (!existsSync(publicDir)) {
+          logger.info("[SignatureLogoUpload] Creating public directory", { publicDir });
+          await mkdir(publicDir, { recursive: true });
+        }
+
         if (!existsSync(uploadDir)) {
           await mkdir(uploadDir, { recursive: true });
           logger.info("[SignatureLogoUpload] Created local upload directory", { uploadDir });
         }
 
         const filePath = path.join(uploadDir, filename);
-        await writeFile(filePath, buffer);
+
+        // Write the file with error handling for race conditions
+        try {
+          await writeFile(filePath, buffer);
+        } catch (writeError) {
+          // If write failed, check if file already exists (handle concurrent uploads)
+          if (existsSync(filePath)) {
+            logger.info("[SignatureLogoUpload] File already exists, using existing file", { filePath });
+            // File exists, use it
+          } else {
+            throw writeError;
+          }
+        }
 
         publicUrl = `/uploads/signatures/${filename}`;
         uploadSuccessful = true;

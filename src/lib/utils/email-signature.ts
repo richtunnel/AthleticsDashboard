@@ -182,22 +182,22 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
       const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl, useOptimized);
 
       if (logoUrl) {
-        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="120" height="120" style="max-width: 120px; max-height: 120px; width: 120px; height: auto; display: block; margin-bottom: 12px; border-radius: 4px;" />`);
+        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="120" height="120" style="max-width: 120px; max-height: 120px; width: 120px; height: auto; display: block; margin-bottom: 10px; border-radius: 4px;" />`);
       }
     } catch (error) {
       console.error("[EMAIL-SIG] Error processing signature logo:", error);
     }
   }
 
-  // Collect text content
+  // Collect text content - using tighter spacing for professional business signatures
   const textContent: string[] = [];
 
   if (signatureText?.trim()) {
-    textContent.push(`<div style="margin-bottom: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.5;">${escapeHtml(signatureText)}</div>`);
+    textContent.push(`<div style="margin-bottom: 4px; white-space: pre-wrap; font-size: 14px; line-height: 1.3; font-weight: 600;">${escapeHtml(signatureText)}</div>`);
   }
 
   if (signaturePhone?.trim()) {
-    textContent.push(`<div style="margin-bottom: 6px; font-size: 14px; color: ${secondaryColor};">${escapeHtml(signaturePhone)}</div>`);
+    textContent.push(`<div style="margin-bottom: 2px; font-size: 13px; color: ${secondaryColor}; line-height: 1.3;">${escapeHtml(signaturePhone)}</div>`);
   }
 
   if (signatureWebsite?.trim()) {
@@ -205,15 +205,15 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
     // Ensure website has protocol for href
     const websiteHref = website.startsWith("http") ? website : `https://${website}`;
     textContent.push(
-      `<div style="margin-bottom: 6px; font-size: 14px;"><a href="${escapeHtml(websiteHref)}" style="color: ${linkColor}; text-decoration: none; font-weight: 500;">${escapeHtml(website)}</a></div>`,
+      `<div style="margin-bottom: 2px; font-size: 13px; line-height: 1.3;"><a href="${escapeHtml(websiteHref)}" style="color: ${linkColor}; text-decoration: none; font-weight: 500;">${escapeHtml(website)}</a></div>`,
     );
   }
 
   if (textContent.length > 0) {
-    sections.push(`<div style="font-size: 14px; color: ${secondaryColor}; line-height: 1.6;">${textContent.join("")}</div>`);
+    sections.push(`<div style="font-size: 13px; color: ${secondaryColor}; line-height: 1.3;">${textContent.join("")}</div>`);
   }
 
-  return `<div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid ${dividerColor}; font-family: Arial, sans-serif; color: ${primaryColor};">${sections.join("")}</div>`;
+  return `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif; color: ${primaryColor};">${sections.join("")}</div>`;
 }
 
 /**

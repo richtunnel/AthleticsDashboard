@@ -46,17 +46,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if the invitation is still valid
-    const invitedAt = collaborator.invitedAt;
-    const expiresAt = new Date(invitedAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from invite
-
-    if (isInvitationExpired(invitedAt, expiresAt)) {
-      return NextResponse.json(
-        { success: false, message: "This invitation has expired. Please create a new invitation." },
-        { status: 400 }
-      );
-    }
-
     // Check if the invitation has already been accepted
     if (collaborator.status === "ACCEPTED") {
       return NextResponse.json(
@@ -71,6 +60,19 @@ export async function POST(request: NextRequest) {
         { success: false, message: "This invitation has been revoked." },
         { status: 400 }
       );
+    }
+
+    // Calculate the new expiry time based on current invitedAt
+    // If the current invitation is expired, allow re-invite by updating invitedAt
+    const currentInvitedAt = collaborator.invitedAt;
+    const currentExpiresAt = new Date(currentInvitedAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from current invite
+    const isCurrentlyExpired = isInvitationExpired(currentInvitedAt, currentExpiresAt);
+
+    // For pending invitations that are expired, allow re-invite (update timestamp)
+    // This makes the resend-email endpoint more robust by auto-extending expired invitations
+    if (isCurrentlyExpired && collaborator.status === "PENDING") {
+      console.log("[ResendEmail] Re-inviting expired invitation, will update timestamp");
+      // Allow the resend to proceed - the timestamp will be updated below
     }
 
     // Get the inviter's info
@@ -106,6 +108,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Resend the invitation email
+    // Use the new invitedAt timestamp if this is a re-invite of an expired invitation
+    const newInvitedAt = new Date();
+    const newExpiresAt = new Date(newInvitedAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+
     try {
       // Use the normalized app URL
       const appUrl = normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL);
@@ -116,14 +122,16 @@ export async function POST(request: NextRequest) {
         inviterName: inviter.name || "A team member",
         role: collaborator.role as CollaborativeRole,
         acceptUrl: acceptUrl,
-        expiresAt,
+        expiresAt: newExpiresAt,
         sentById: userId,
       });
 
-      // Update collaborator record to mark email as sent
+      // Update collaborator record with new timestamp and clear error state
+      // This extends the invitation expiry and resets the email tracking state
       await prisma.collaborativeMember.update({
         where: { id: collaborator.id },
         data: {
+          invitedAt: newInvitedAt, // Update invite timestamp for extended expiry
           emailSent: true,
           emailSentAt: new Date(),
           emailError: null, // Clear any previous error
