@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
           "/onboarding/start",
           "/onboarding/plans",
           "/onboarding/signup",
+          "/onboarding/parent",
           "/onboarding/parent/plans",
           "/onboarding/parent-signup",
           "/assets/",

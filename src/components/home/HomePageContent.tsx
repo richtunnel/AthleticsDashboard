@@ -139,7 +139,7 @@ export default function HomePageContent() {
                   fontWeight: "500",
                 }}
               >
-                Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
+                Opletics is the operating system for athletic departments. Automate your sports schedules, sync calendars, and manage teams with our advanced athlete management system.
               </p>
               <div className="flex flex-col sm:flex-row content-center items-center gap-4">
                 <AuthActionButton
@@ -239,10 +239,10 @@ export default function HomePageContent() {
               {/* Top content */}
               <div className={`pt-2 ${styles["mobile-hero-section"]}`}>
                 <h1 className={`${styles.heroTitle} font-bold leading-tight mb-6`} style={{ color: "white", fontSize: "2.5rem" }}>
-                  Automate Your <br /> Sports Schedules
+                  Automate Your Sports Schedules
                 </h1>
                 <p className="max-w-sm leading-relaxed" style={{ color: "#e5e7eb", fontSize: "0.985", padding: "12px 0px" }}>
-                  Upload your sports schedule CSV and instantly start automating your spreadsheet and daily workflow.
+                  Opletics is the operating system for athletic departments. Automate your sports schedules, sync calendars, and manage teams.
                 </p>
               </div>
 
