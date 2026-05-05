@@ -5,6 +5,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, B
 import { DirectionsBus, Schedule, LocationOn } from "@mui/icons-material";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 import { useTheme } from "@mui/material/styles";
+import { formatTimeDisplay } from "@/lib/utils/formatters";
 interface TravelTimeModalProps {
   open: boolean;
   onClose: () => void;
@@ -192,10 +193,10 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                     Recommended Departure Time
                   </Typography>
                   <Typography variant="h3" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[900], fontWeight: 600 }}>
-                    {calculation.recommendedDepartureTime}
+                    {formatTimeDisplay(calculation.recommendedDepartureTime)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: theme.palette.mode === "dark" ? theme.palette.themeText.text : theme.palette.grey[800], mt: 1 }}>
-                    Based on your input: <strong>{arrivalTime}</strong>
+                    Based on your input: <strong>{formatTimeDisplay(arrivalTime)}</strong>
                   </Typography>
                 </Box>
 
