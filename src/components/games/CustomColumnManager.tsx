@@ -29,6 +29,7 @@ import { LoadingButton } from "@/components/utils/LoadingButton";
 interface CustomColumnManagerProps {
   open: boolean;
   onClose: () => void;
+  workbookId?: string | null;
 }
 
 type ColumnType = "TEXT" | "TIME" | "DROPDOWN" | "DATETIME";
@@ -60,7 +61,7 @@ const COLUMN_TYPES = [
   },
 ];
 
-export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps) {
+export function CustomColumnManager({ open, onClose, workbookId }: CustomColumnManagerProps) {
   const queryClient = useQueryClient();
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnType, setNewColumnType] = useState<ColumnType>("TEXT");
@@ -68,9 +69,12 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
 
   // Fetch custom columns
   const { data: columnsResponse, isLoading } = useQuery({
-    queryKey: ["customColumns"],
+    queryKey: ["customColumns", workbookId],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/custom-columns");
+      const url = workbookId 
+        ? `/api/organizations/custom-columns?workbookId=${workbookId}`
+        : "/api/organizations/custom-columns";
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch custom columns");
       return res.json();
     },
@@ -85,7 +89,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       const res = await fetch("/api/organizations/custom-columns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, type }),
+        body: JSON.stringify({ name, type, workbookId }),
       });
 
       if (!res.ok) {
@@ -96,7 +100,8 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customColumns"] });
+      queryClient.invalidateQueries({ queryKey: ["customColumns", workbookId] });
+      queryClient.invalidateQueries({ queryKey: ["customColumns"] }); // Also invalidate global if any
       queryClient.invalidateQueries({ queryKey: ["games"] });
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });
       setNewColumnName("");
@@ -119,6 +124,7 @@ export function CustomColumnManager({ open, onClose }: CustomColumnManagerProps)
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customColumns", workbookId] });
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["games"] });
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", "games"] });

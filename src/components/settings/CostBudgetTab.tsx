@@ -19,13 +19,20 @@ import {
   IconButton,
   Chip,
 } from "@mui/material";
-import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown, Download, Delete } from "@mui/icons-material";
+import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown, Download, Delete, TableChart } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
+import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
+import { Select, MenuItem, FormControl, InputLabel } from "@mui/material";
 
-async function fetchCostBudgetData() {
+async function fetchCostBudgetData(workbookId?: string | null) {
+  const params = new URLSearchParams();
+  if (workbookId && workbookId !== "all") {
+    params.append("workbookId", workbookId);
+  }
+  
   const [settingsRes, gamesRes] = await Promise.all([
     fetch("/api/user/cost-budget"),
-    fetch("/api/games"),
+    fetch(`/api/games?${params}&limit=1000`), // Increase limit to get more games for cost analysis
   ]);
 
   if (!settingsRes.ok || !gamesRes.ok) {
@@ -43,12 +50,14 @@ async function fetchCostBudgetData() {
 
 export function CostBudgetTab() {
   const theme = useTheme();
+  const { workbooks } = useGamesWorkbookStore();
   const [budgetInput, setBudgetInput] = useState("");
-  const [expanded, setExpanded] = useState(true); // Start expanded by default
+  const [expanded, setExpanded] = useState(true);
+  const [selectedWorkbookId, setSelectedWorkbookId] = useState<string>("all");
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["costBudgetData"],
-    queryFn: fetchCostBudgetData,
+    queryKey: ["costBudgetData", selectedWorkbookId],
+    queryFn: () => fetchCostBudgetData(selectedWorkbookId),
     enabled: true,
   });
 
@@ -176,16 +185,48 @@ export function CostBudgetTab() {
         
         <AccordionDetails sx={{ px: 3, pb: 3 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 2, mb: 3 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Track and analyze your game expenses throughout the month.
-            </Typography>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" }, mb: 2 }}>
+                Track and analyze your game expenses throughout the month.
+              </Typography>
+              
+              {/* Workbook Selector */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel id="workbook-select-label">Worksheet</InputLabel>
+                  <Select
+                    labelId="workbook-select-label"
+                    value={selectedWorkbookId}
+                    label="Worksheet"
+                    onChange={(e) => setSelectedWorkbookId(e.target.value)}
+                    startAdornment={<TableChart sx={{ mr: 1, color: "text.secondary", fontSize: 20 }} />}
+                  >
+                    <MenuItem value="all">All Worksheets</MenuItem>
+                    {workbooks.map((workbook) => (
+                      <MenuItem key={workbook.id} value={workbook.id}>
+                        {workbook.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {selectedWorkbookId !== "all" && (
+                  <Typography variant="caption" color="text.secondary">
+                    Showing data for {workbooks.find(w => w.id === selectedWorkbookId)?.name}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
               <Button
                 variant="outlined"
                 color="primary"
                 size="small"
                 startIcon={<Download />}
-                onClick={() => window.open("/api/export/cost-budget", "_blank")}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (selectedWorkbookId !== "all") params.append("workbookId", selectedWorkbookId);
+                  window.open(`/api/export/cost-budget?${params}`, "_blank");
+                }}
                 sx={{ textTransform: "none" }}
               >
                 Download CSV

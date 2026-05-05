@@ -769,9 +769,12 @@ export function GamesTable() {
   });
 
   const { data: customColumnsResponse } = useQuery({
-    queryKey: ["customColumns"],
+    queryKey: ["customColumns", selectedWorkbookId],
     queryFn: async () => {
-      const res = await fetch("/api/organizations/custom-columns");
+      const url = selectedWorkbookId
+        ? `/api/organizations/custom-columns?workbookId=${selectedWorkbookId}`
+        : "/api/organizations/custom-columns";
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch custom columns");
       return res.json();
     },
@@ -7743,7 +7746,7 @@ export function GamesTable() {
         onDeleteColumn={handleDeleteColumn}
       />
 
-      <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} />
+      <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} workbookId={selectedWorkbookId} />
 
       {showImportDialog && (
         <ErrorBoundary
