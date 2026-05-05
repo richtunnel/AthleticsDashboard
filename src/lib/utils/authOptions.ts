@@ -348,21 +348,7 @@ export const authOptions: NextAuthOptions = {
         const memberEmail = generateMemberEmail(sessionId);
         const memberOrgId = generateMemberOrgId(sessionId);
 
-        // First, check if this session already exists and clean up any old data
-        // This ensures a fresh start for each member
-        const existingUser = await prisma.user.findUnique({
-          where: { email: memberEmail },
-        });
-
-        if (existingUser) {
-          // Delete the old session data to ensure fresh start
-          await prisma.user.delete({
-            where: { id: existingUser.id },
-          });
-          console.log(`[MemberAccess] Cleaned up previous session for: ${memberEmail}`);
-        }
-
-        // Create a unique organization for this member
+        // Create a unique organization for this member (idempotent)
         const org = await prisma.organization.upsert({
           where: { id: memberOrgId },
           update: {
@@ -376,18 +362,20 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        // Create a new individual user account for this member
-        // Add placeholder school details to bypass onboarding checks
-        // Member access users are not expected to complete onboarding
-        const user = await prisma.user.create({
-          data: {
+        // Upsert the member user to make session creation idempotent
+        // Placeholder school details ensure member access users bypass onboarding
+        const user = await prisma.user.upsert({
+          where: { email: memberEmail },
+          update: {
+            trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+          create: {
             email: memberEmail,
             name: "Member",
             role: "ATHLETIC_DIRECTOR",
             organizationId: org.id,
             plan: "free_trial_plan",
-            trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hour trial
-            // Placeholder values to bypass onboarding checks
+            trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000),
             schoolName: "Member Access",
             teamName: "Member Team",
             schoolAddress: "Member Location",
@@ -529,6 +517,8 @@ export const authOptions: NextAuthOptions = {
         session.user.teamName = token.teamName;
         session.user.schoolAddress = token.schoolAddress;
         session.user.city = token.city;
+        // Single source of truth for onboarding completion
+        session.user.isOnboarded = token.isOnboarded ?? false;
       }
 
       if (isMemberAccessToken(token)) {
@@ -566,8 +556,8 @@ export const authOptions: NextAuthOptions = {
           token.memberAccessExpiresAt = nowMs - 1000;
         }
 
-        // For member access tokens, we skip school details check
-        // They bypass onboarding entirely
+        // Member access users are always considered onboarded
+        token.isOnboarded = true;
         return token;
       }
 
@@ -647,6 +637,17 @@ export const authOptions: NextAuthOptions = {
         token.city = (user as any).city ?? undefined;
       }
 
+      // Calculate isOnboarded as the single source of truth.
+      // A user is onboarded if:
+      // - They are not an ATHLETIC_DIRECTOR (collaborators and super admins are always onboarded), OR
+      // - They have all required school details filled in
+      const isAthleticDirector = token.role === "ATHLETIC_DIRECTOR";
+      token.isOnboarded = !isAthleticDirector || Boolean(
+        token.schoolName?.trim() &&
+        token.teamName?.trim() &&
+        token.schoolAddress?.trim()
+      );
+
       return token;
     },
 
@@ -700,10 +701,6 @@ export const authOptions: NextAuthOptions = {
           return resolvedUrl.toString();
         }
 
-        if (resolvedUrl.pathname === "/") {
-          return `${baseUrl}/dashboard`;
-        }
-
         return resolvedUrl.toString();
       } catch {
         return baseUrl;
@@ -745,9 +742,9 @@ export const authOptions: NextAuthOptions = {
   },
 
   pages: {
-    signIn: "/",
-    signOut: "/",
-    error: "/",
+    signIn: "/login",
+    signOut: "/login",
+    error: "/login",
   },
   debug: process.env.NODE_ENV === "development",
 };
