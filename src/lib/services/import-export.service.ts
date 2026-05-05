@@ -427,12 +427,18 @@ export class ImportExportService {
     return [headers.join(","), ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(","))].join("\n");
   }
 
-  async exportCostBudgetToCSV(organizationId: string): Promise<string> {
+  async exportCostBudgetToCSV(organizationId: string, workbookId?: string | null): Promise<string> {
+    const where: any = {
+      homeTeam: { organizationId },
+      cost: { not: null },
+    };
+
+    if (workbookId) {
+      where.workbookId = workbookId;
+    }
+
     const games = await prisma.game.findMany({
-      where: {
-        homeTeam: { organizationId },
-        cost: { not: null },
-      },
+      where,
       include: {
         homeTeam: {
           include: { sport: true },

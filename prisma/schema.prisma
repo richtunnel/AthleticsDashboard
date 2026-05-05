@@ -177,11 +177,14 @@ model CustomColumn {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   organizationId String
+  workbookId     String?
   type           CustomColumnType @default(TEXT)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workbook       GamesWorkbook?   @relation(fields: [workbookId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, name])
+  @@unique([organizationId, name, workbookId])
   @@index([organizationId])
+  @@index([workbookId])
 }
 
 model TablePreference {
