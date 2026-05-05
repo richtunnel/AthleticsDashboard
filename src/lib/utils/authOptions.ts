@@ -377,6 +377,8 @@ export const authOptions: NextAuthOptions = {
         });
 
         // Create a new individual user account for this member
+        // Add placeholder school details to bypass onboarding checks
+        // Member access users are not expected to complete onboarding
         const user = await prisma.user.create({
           data: {
             email: memberEmail,
@@ -385,6 +387,10 @@ export const authOptions: NextAuthOptions = {
             organizationId: org.id,
             plan: "free_trial_plan",
             trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hour trial
+            // Placeholder values to bypass onboarding checks
+            schoolName: "Member Access",
+            teamName: "Member Team",
+            schoolAddress: "Member Location",
           },
           include: {
             organization: {
@@ -518,6 +524,11 @@ export const authOptions: NextAuthOptions = {
         session.user.googleCalendarAccessToken = token.googleCalendarAccessToken;
         session.user.calendarTokenExpiry = token.calendarTokenExpiry;
         session.user.googleCalendarEmail = token.googleCalendarEmail;
+        // Include school onboarding fields from token
+        session.user.schoolName = token.schoolName;
+        session.user.teamName = token.teamName;
+        session.user.schoolAddress = token.schoolAddress;
+        session.user.city = token.city;
       }
 
       if (isMemberAccessToken(token)) {
@@ -531,6 +542,35 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, account, trigger }) {
+      // Skip database lookups for member access tokens to avoid redirect loops
+      if (isMemberAccessToken(token)) {
+        const nowMs = Date.now();
+        
+        if (account?.provider === "member-code" || (user as any)?.memberAccessCode) {
+          const issuedAtMs = typeof (user as any)?.memberAccessIssuedAt === "number" ? (user as any).memberAccessIssuedAt : nowMs;
+          token.memberAccessCode = normalizeMemberAccessCode((user as any)?.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+          token.memberAccessSessionId = (user as any)?.memberAccessSessionId;
+          token.memberAccessIssuedAt = issuedAtMs;
+          token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
+        } else if (isMemberAccessToken(token)) {
+          const issuedAtMs = typeof token.memberAccessIssuedAt === "number" ? token.memberAccessIssuedAt : typeof token.iat === "number" ? token.iat * 1000 : nowMs;
+          token.memberAccessIssuedAt = issuedAtMs;
+          token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
+          token.memberAccessCode = normalizeMemberAccessCode(token.memberAccessCode) ?? MEMBER_ACCESS_CODE;
+          if (!token.memberAccessSessionId) {
+            token.memberAccessSessionId = token.email?.replace("@opletics.com", "")?.replace("member-", "") || null;
+          }
+        }
+
+        if (isMemberAccessCodeDisabled(token.memberAccessCode ?? MEMBER_ACCESS_CODE)) {
+          token.memberAccessExpiresAt = nowMs - 1000;
+        }
+
+        // For member access tokens, we skip school details check
+        // They bypass onboarding entirely
+        return token;
+      }
+
       // Save Google tokens when account is first linked
       if (account?.provider === "google" && account.refresh_token && token.email) {
         await prisma.user.update({
@@ -548,17 +588,8 @@ export const authOptions: NextAuthOptions = {
         token.calendarTokenExpiry = account.expires_at ? new Date(account.expires_at * 1000) : undefined;
       }
 
-      if (user) {
-        token.role = user.role;
-        token.organizationId = user.organizationId;
-        token.organization = user.organization;
-        token.googleCalendarRefreshToken = user.googleCalendarRefreshToken ?? undefined;
-        token.googleCalendarAccessToken = user.googleCalendarAccessToken ?? undefined;
-        token.calendarTokenExpiry = user.calendarTokenExpiry ?? undefined;
-        token.googleCalendarEmail = user.googleCalendarEmail ?? undefined;
-      }
-
-      if (account?.provider === "google" && token.email) {
+      // Consolidated database lookup - fetch all necessary fields in one query
+      if (token.email && (trigger === "update" || !token.organization || !token.googleCalendarEmail || !token.schoolName)) {
         const dbUser = (await prisma.user.findUnique({
           where: { email: token.email },
           select: {
@@ -576,6 +607,11 @@ export const authOptions: NextAuthOptions = {
             googleCalendarAccessToken: true,
             calendarTokenExpiry: true,
             googleCalendarEmail: true,
+            // School onboarding fields
+            schoolName: true,
+            teamName: true,
+            schoolAddress: true,
+            city: true,
           },
         } as any)) as any;
 
@@ -587,61 +623,28 @@ export const authOptions: NextAuthOptions = {
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
           token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
+          // Include school onboarding fields
+          token.schoolName = dbUser.schoolName ?? undefined;
+          token.teamName = dbUser.teamName ?? undefined;
+          token.schoolAddress = dbUser.schoolAddress ?? undefined;
+          token.city = dbUser.city ?? undefined;
         }
       }
 
-      if ((trigger === "update" || !token.organization || !token.googleCalendarEmail) && token.email) {
-        const dbUser = (await prisma.user.findUnique({
-          where: { email: token.email },
-          select: {
-            role: true,
-            organizationId: true,
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                timezone: true,
-              },
-            },
-            googleCalendarRefreshToken: true,
-            googleCalendarAccessToken: true,
-            calendarTokenExpiry: true,
-            googleCalendarEmail: true,
-          },
-        } as any)) as any;
-
-        if (dbUser) {
-          token.role = dbUser.role;
-          token.organizationId = dbUser.organizationId;
-          token.organization = dbUser.organization || undefined;
-          token.googleCalendarRefreshToken = dbUser.googleCalendarRefreshToken ?? undefined;
-          token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
-          token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
-          token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
-        }
-      }
-
-      const nowMs = Date.now();
-
-      if (account?.provider === "member-code" || (user as any)?.memberAccessCode) {
-        const issuedAtMs = typeof (user as any)?.memberAccessIssuedAt === "number" ? (user as any).memberAccessIssuedAt : nowMs;
-        token.memberAccessCode = normalizeMemberAccessCode((user as any)?.memberAccessCode) ?? MEMBER_ACCESS_CODE;
-        token.memberAccessSessionId = (user as any)?.memberAccessSessionId;
-        token.memberAccessIssuedAt = issuedAtMs;
-        token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
-      } else if (isMemberAccessToken(token)) {
-        const issuedAtMs = typeof token.memberAccessIssuedAt === "number" ? token.memberAccessIssuedAt : typeof token.iat === "number" ? token.iat * 1000 : nowMs;
-        token.memberAccessIssuedAt = issuedAtMs;
-        token.memberAccessExpiresAt = issuedAtMs + MEMBER_SESSION_MAX_AGE_MS;
-        token.memberAccessCode = normalizeMemberAccessCode(token.memberAccessCode) ?? MEMBER_ACCESS_CODE;
-        // Preserve session ID if not already set
-        if (!token.memberAccessSessionId) {
-          token.memberAccessSessionId = token.email?.replace("@opletics.com", "")?.replace("member-", "") || null;
-        }
-      }
-
-      if (isMemberAccessToken(token) && isMemberAccessCodeDisabled(token.memberAccessCode ?? MEMBER_ACCESS_CODE)) {
-        token.memberAccessExpiresAt = nowMs - 1000;
+      // Handle new user from credentials provider
+      if (user) {
+        token.role = user.role;
+        token.organizationId = user.organizationId;
+        token.organization = user.organization;
+        token.googleCalendarRefreshToken = (user as any).googleCalendarRefreshToken ?? undefined;
+        token.googleCalendarAccessToken = (user as any).googleCalendarAccessToken ?? undefined;
+        token.calendarTokenExpiry = (user as any).calendarTokenExpiry ?? undefined;
+        token.googleCalendarEmail = (user as any).googleCalendarEmail ?? undefined;
+        // Include school onboarding fields from user
+        token.schoolName = (user as any).schoolName ?? undefined;
+        token.teamName = (user as any).teamName ?? undefined;
+        token.schoolAddress = (user as any).schoolAddress ?? undefined;
+        token.city = (user as any).city ?? undefined;
       }
 
       return token;
