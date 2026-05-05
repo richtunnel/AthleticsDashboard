@@ -1,6 +1,6 @@
 "use client";
 
-import { getSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Box, TextField, Typography, Link, Alert } from "@mui/material";
@@ -11,42 +11,26 @@ import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocompl
 
 export default function DetailsPage() {
   const router = useRouter();
+  const { data: session, status, update } = useSession();
   const [schoolName, setSchoolName] = useState("");
   const [teamName, setTeamName] = useState("");
   const [schoolAddress, setSchoolAddress] = useState("");
   const [schoolEmail, setSchoolEmail] = useState("");
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    (async () => {
-      const session = await getSession();
-      if (!session) {
-        router.push("/onboarding/plans");
-        return;
-      }
+    if (status === "loading") return;
 
-      // Check if user already has school details
-      try {
-        const res = await fetch("/api/user/profile");
-        if (res.ok) {
-          const userData = await res.json();
-          const isCollaborator = userData.role !== "ATHLETIC_DIRECTOR" && userData.role !== "SUPER_ADMIN";
-          
-          // If they already have school details or are a collaborator, redirect to dashboard
-          if ((userData.schoolName && userData.teamName && userData.schoolAddress) || isCollaborator) {
-            router.push("/dashboard");
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("Failed to check user profile:", error);
-      }
+    if (status === "unauthenticated") {
+      router.push("/onboarding/plans");
+      return;
+    }
 
-      setLoading(false);
-    })();
-  }, [router]);
+    if (session?.user?.isOnboarded) {
+      router.push("/dashboard");
+    }
+  }, [session, status, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +51,7 @@ export default function DetailsPage() {
         return;
       }
 
-      // Success - redirect to dashboard
+      await update();
       router.push("/dashboard");
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -75,7 +59,9 @@ export default function DetailsPage() {
     }
   };
 
-  if (loading) return <Typography>Loading...</Typography>;
+  if (status === "loading" || (status === "authenticated" && session?.user?.isOnboarded)) {
+    return <Typography>Loading...</Typography>;
+  }
 
   return (
     <>
