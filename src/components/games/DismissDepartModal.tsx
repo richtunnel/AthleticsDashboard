@@ -16,6 +16,7 @@ import {
   Chip,
 } from "@mui/material";
 import { DirectionsBus, Schedule, TrendingUp, Cloud, LocationOn } from "@mui/icons-material";
+import { formatTimeDisplay } from "@/lib/utils/formatters";
 
 interface DismissDepartModalProps {
   open: boolean;
@@ -180,7 +181,7 @@ export function DismissDepartModal({
                     Recommended Departure
                   </Typography>
                   <Typography variant="h4" sx={{ color: "#0f172a", fontWeight: 600 }}>
-                    {recommendation.recommendedDepartureTime}
+                    {formatTimeDisplay(recommendation.recommendedDepartureTime)}
                   </Typography>
                 </Box>
 
