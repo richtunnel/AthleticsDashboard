@@ -582,7 +582,9 @@ export const authOptions: NextAuthOptions = {
       // Always re-fetch on trigger==="update" so school details and isOnboarded are
       // refreshed immediately after the user completes onboarding.
       // Also re-fetch when the token is missing key fields (first login or new user).
-      if (token.email && (trigger === "update" || !token.organization || !token.role)) {
+      // When a new user object is present (sign-in), fetch from DB to get school details
+      // the credentials/oauth provider may not have returned.
+      if (token.email && (trigger === "update" || user || !token.organization || !token.role)) {
         const dbUser = (await prisma.user.findUnique({
           where: { email: token.email },
           select: {
@@ -600,7 +602,6 @@ export const authOptions: NextAuthOptions = {
             googleCalendarAccessToken: true,
             calendarTokenExpiry: true,
             googleCalendarEmail: true,
-            // School onboarding fields
             schoolName: true,
             teamName: true,
             schoolAddress: true,
@@ -616,16 +617,13 @@ export const authOptions: NextAuthOptions = {
           token.googleCalendarAccessToken = dbUser.googleCalendarAccessToken ?? undefined;
           token.calendarTokenExpiry = dbUser.calendarTokenExpiry ?? undefined;
           token.googleCalendarEmail = dbUser.googleCalendarEmail ?? undefined;
-          // Include school onboarding fields
           token.schoolName = dbUser.schoolName ?? undefined;
           token.teamName = dbUser.teamName ?? undefined;
           token.schoolAddress = dbUser.schoolAddress ?? undefined;
           token.city = dbUser.city ?? undefined;
         }
-      }
-
-      // Handle new user from credentials provider
-      if (user) {
+      } else if (user) {
+        // Fallback: populate token from user object when DB lookup was skipped
         token.role = user.role;
         token.organizationId = user.organizationId;
         token.organization = user.organization;
@@ -633,19 +631,15 @@ export const authOptions: NextAuthOptions = {
         token.googleCalendarAccessToken = (user as any).googleCalendarAccessToken ?? undefined;
         token.calendarTokenExpiry = (user as any).calendarTokenExpiry ?? undefined;
         token.googleCalendarEmail = (user as any).googleCalendarEmail ?? undefined;
-        // Include school onboarding fields from user
-        token.schoolName = (user as any).schoolName ?? undefined;
-        token.teamName = (user as any).teamName ?? undefined;
-        token.schoolAddress = (user as any).schoolAddress ?? undefined;
-        token.city = (user as any).city ?? undefined;
       }
 
       // Calculate isOnboarded as the single source of truth.
-      // A user is onboarded if:
-      // - They are not an ATHLETIC_DIRECTOR (collaborators and super admins are always onboarded), OR
-      // - They have all required school details filled in
-      const isAthleticDirector = token.role === "ATHLETIC_DIRECTOR";
-      token.isOnboarded = !isAthleticDirector || Boolean(
+      // Roles that require school details to be considered onboarded:
+      // - ATHLETIC_DIRECTOR: must complete school details
+      // All other roles (ASSISTANT_AD, VENDOR_READ_ONLY, COACH, STAFF, SUPER_ADMIN, PARENT)
+      // are considered onboarded without requiring school details.
+      const requiresSchoolDetails = token.role === "ATHLETIC_DIRECTOR";
+      token.isOnboarded = !requiresSchoolDetails || Boolean(
         token.schoolName?.trim() &&
         token.teamName?.trim() &&
         token.schoolAddress?.trim()
@@ -664,7 +658,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (resolvedUrl.searchParams.has("postLogout")) {
-          return baseUrl;
+          return `${baseUrl}/login`;
         }
 
         // Check if this is a new user signup (indicated by newUser query param)
@@ -704,9 +698,14 @@ export const authOptions: NextAuthOptions = {
           return resolvedUrl.toString();
         }
 
+        // Prevent root path from causing redirect loops — send to login
+        if (resolvedUrl.pathname === "/") {
+          return `${baseUrl}/login`;
+        }
+
         return resolvedUrl.toString();
       } catch {
-        return baseUrl;
+        return `${baseUrl}/login`;
       }
     },
   },
