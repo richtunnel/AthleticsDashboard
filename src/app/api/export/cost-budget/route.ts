@@ -5,8 +5,10 @@ import { importExportService } from "@/lib/services/import-export.service";
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const workbookId = searchParams.get("workbookId");
 
-    const csv = await importExportService.exportCostBudgetToCSV(session.user.organizationId);
+    const csv = await importExportService.exportCostBudgetToCSV(session.user.organizationId, workbookId);
 
     return new Response(csv, {
       headers: {

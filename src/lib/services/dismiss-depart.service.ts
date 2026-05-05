@@ -1,7 +1,7 @@
 import { prisma } from "../database/prisma";
 
 interface DepartureRecommendation {
-  recommendedDepartureTime: string; // 12-hour format with AM/PM
+  recommendedDepartureTime: string; // 24-hour HH:mm format
   trafficCondition: string;
   weatherNote: string;
   bufferMinutes: number;
@@ -9,12 +9,11 @@ interface DepartureRecommendation {
   distance?: string;
 }
 
-// Helper function to format time with AM/PM
-function formatTimeWithAMPM(hours: number, minutes: number): string {
-  const period = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 || 12; // Convert 0 to 12 for midnight, and 13-23 to 1-11
+// Helper function to format time as 24h HH:mm
+function formatTime24h(hours: number, minutes: number): string {
+  const displayHours = hours.toString().padStart(2, "0");
   const displayMinutes = minutes.toString().padStart(2, "0");
-  return `${displayHours}:${displayMinutes} ${period}`;
+  return `${displayHours}:${displayMinutes}`;
 }
 
 export class DismissDepartService {
@@ -93,10 +92,10 @@ export class DismissDepartService {
     const departureDateTime = new Date(dismissalDateTime);
     departureDateTime.setMinutes(departureDateTime.getMinutes() - totalMinutesNeeded);
 
-    // Format departure time with AM/PM
+    // Format departure time as 24h
     const departureHours = departureDateTime.getHours();
     const departureMinutes = departureDateTime.getMinutes();
-    const recommendedDepartureTime = formatTimeWithAMPM(departureHours, departureMinutes);
+    const recommendedDepartureTime = formatTime24h(departureHours, departureMinutes);
 
     // Generate weather note
     const weatherNote = this.generateWeatherNote(weatherData);

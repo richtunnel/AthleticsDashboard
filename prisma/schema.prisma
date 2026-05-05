@@ -178,11 +178,14 @@ model CustomColumn {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   organizationId String
+  workbookId     String?
   type           CustomColumnType @default(TEXT)
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workbook       GamesWorkbook?   @relation(fields: [workbookId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, name])
+  @@unique([organizationId, name, workbookId])
   @@index([organizationId])
+  @@index([workbookId])
 }
 
 model TablePreference {
@@ -198,14 +201,15 @@ model TablePreference {
 }
 
 model GamesWorkbook {
-  id        String   @id @default(cuid())
-  name      String
-  sortOrder Int      @default(0)
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  games     Game[]
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  name          String
+  sortOrder     Int            @default(0)
+  userId        String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  games         Game[]
+  customColumns CustomColumn[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, sortOrder])
   @@index([userId])
