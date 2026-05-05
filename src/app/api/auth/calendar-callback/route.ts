@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { prisma } from "@/lib/database/prisma";
+import { createGoogleOAuth2Client } from "@/lib/google/auth";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -36,43 +37,55 @@ export async function GET(request: NextRequest) {
 
     let returnTo: string | null = null;
 
-    if (rawState) {
-      try {
-        const decoded = Buffer.from(rawState, "base64url").toString("utf8");
-        const parsed = JSON.parse(decoded);
+    if (!rawState) {
+      console.error("❌ No state provided in callback");
+      return NextResponse.redirect(new URL("/dashboard/gsync?error=missing_state", process.env.NEXTAUTH_URL));
+    }
 
-        if (parsed && typeof parsed.token === "string") {
-          // New incremental-auth format: { token, returnTo }
-          // Verify CSRF token against user.resetToken
-          const dbUser = await prisma.user.findUnique({
-            where: { id: (session.user as any).id },
-            select: { resetToken: true, resetTokenExpiry: true },
-          });
-          if (!dbUser?.resetToken || dbUser.resetToken !== parsed.token || !dbUser.resetTokenExpiry || dbUser.resetTokenExpiry < new Date()) {
-            console.error("❌ Invalid or expired incremental-auth state token");
-            return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
-          }
-          // Consume the token
-          await prisma.user.update({
-            where: { id: (session.user as any).id },
-            data: { resetToken: null, resetTokenExpiry: null },
-          });
-          if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
-        } else if (parsed && typeof parsed.userId === "string") {
-          // Legacy format: { userId, returnTo }
-          if (parsed.userId !== (session.user as any).id) {
-            console.error("❌ State mismatch - possible CSRF attack");
-            return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
-          }
-          if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
-        }
-      } catch {
-        // Unparseable state — proceed without returnTo
+    try {
+      const decoded = Buffer.from(rawState, "base64url").toString("utf8");
+      const parsed = JSON.parse(decoded);
+
+      if (!parsed || typeof parsed.token !== "string" || typeof parsed.userId !== "string") {
+        console.error("❌ Invalid state format");
+        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
       }
+
+      if (parsed.userId !== (session.user as any).id) {
+        console.error("❌ User ID mismatch in state");
+        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+      }
+
+      // Verify CSRF token against user.resetToken
+      const dbUser = await prisma.user.findUnique({
+        where: { id: (session.user as any).id },
+        select: { resetToken: true, resetTokenExpiry: true },
+      });
+
+      if (
+        !dbUser?.resetToken || 
+        dbUser.resetToken !== parsed.token || 
+        !dbUser.resetTokenExpiry || 
+        dbUser.resetTokenExpiry < new Date()
+      ) {
+        console.error("❌ Invalid or expired state token");
+        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+      }
+
+      // Consume the token
+      await prisma.user.update({
+        where: { id: (session.user as any).id },
+        data: { resetToken: null, resetTokenExpiry: null },
+      });
+
+      if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
+    } catch (e) {
+      console.error("❌ Error parsing state:", e);
+      return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
     }
 
     // Exchange authorization code for tokens
-    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
+    const oauth2Client = createGoogleOAuth2Client();
 
     const { tokens } = await oauth2Client.getToken(code);
 

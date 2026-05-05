@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { getServerSession } from "next-auth";
+import crypto from "crypto";
 
 import { authOptions } from "@/lib/utils/authOptions";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { prisma } from "@/lib/database/prisma";
+import { createGoogleOAuth2Client } from "@/lib/google/auth";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
@@ -32,11 +35,28 @@ export async function GET(request: NextRequest) {
 
   const userId = (session.user as any).id;
   const returnTo = request.nextUrl.searchParams.get("returnTo");
-  const state = returnTo
-    ? Buffer.from(JSON.stringify({ userId, returnTo })).toString("base64url")
-    : userId;
+  
+  // Generate a secure CSRF token and store it in the user record
+  const stateToken = crypto.randomUUID();
+  const stateTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      resetToken: stateToken,
+      resetTokenExpiry: stateTokenExpiry,
+    },
+  });
+
+  const state = Buffer.from(
+    JSON.stringify({ 
+      token: stateToken, 
+      userId, 
+      returnTo: returnTo || undefined 
+    })
+  ).toString("base64url");
+
+  const oauth2Client = createGoogleOAuth2Client();
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",

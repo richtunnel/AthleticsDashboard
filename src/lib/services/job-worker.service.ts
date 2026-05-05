@@ -3,6 +3,7 @@ import { JobType, JobStatus, BackgroundJob } from "@prisma/client";
 import { emailGatewayService } from "./email-gateway.service";
 import { calendarService } from "./calendar.service";
 import { importExportService } from "./import-export.service";
+import { emailImportService } from "./email-import.service";
 import { stripeWebhookService } from "./stripe-webhook.service";
 import { jobQueueService } from "./job-queue.service";
 import { emailImportWorkerService } from "./email-import-worker.service";
@@ -28,9 +29,8 @@ export class JobWorker {
       // Pass jobId so the import can update progress
       return await importExportService.processImportJob({ ...payload, jobId: job.id });
     },
-    [JobType.EMAIL_IMPORT]: async (_payload, job) => {
-      // Chunked bulk email insert with per-chunk backoff and progress tracking
-      return await emailImportWorkerService.processImportJob(job);
+    [JobType.EMAIL_IMPORT]: async (payload, job) => {
+      return await emailImportService.processImportJob({ ...payload, jobId: job.id });
     },
   };
 
@@ -40,7 +40,7 @@ export class JobWorker {
   async processNextJob(): Promise<boolean> {
     const startTime = Date.now();
     const job = await this.acquireJob();
-    
+
     if (!job) return false;
 
     console.log(`[JobWorker] Processing job ${job.id} of type ${job.type} (attempt ${job.attempts + 1}/${job.maxAttempts})`);
@@ -53,24 +53,24 @@ export class JobWorker {
 
       // Execute the handler
       const result = await handler(job.payload, job);
-      
+
       // Mark as completed
       await jobQueueService.complete(job.id, result);
       console.log(`[JobWorker] Job ${job.id} completed successfully`);
-      
+
       return true;
     } catch (error: any) {
       console.error(`[JobWorker] Error processing job ${job.id}:`, error);
-      
+
       // Determine if we should retry with exponential backoff
       const shouldRetry = job.attempts + 1 < job.maxAttempts;
       const errorMessage = error.message || String(error);
-      
+
       if (shouldRetry) {
         // Calculate exponential backoff: 1s, 2s, 4s, 8s, 16s...
         const backoffMs = BASE_BACKOFF_MS * Math.pow(2, job.attempts);
         const nextAttemptAt = new Date(Date.now() + backoffMs);
-        
+
         await prisma.backgroundJob.update({
           where: { id: job.id },
           data: {
@@ -81,7 +81,7 @@ export class JobWorker {
             lastAttemptAt: new Date(),
           },
         });
-        
+
         console.log(`[JobWorker] Job ${job.id} requeued with backoff ${backoffMs}ms`);
       } else {
         // Max attempts reached, mark as permanently failed
@@ -89,7 +89,7 @@ export class JobWorker {
           error: errorMessage,
           failedAt: new Date(),
         });
-        
+
         await prisma.backgroundJob.update({
           where: { id: job.id },
           data: {
@@ -99,7 +99,7 @@ export class JobWorker {
             nextAttemptAt: null,
           },
         });
-        
+
         console.warn(`[JobWorker] Job ${job.id} permanently failed after ${job.maxAttempts} attempts`);
       }
     }
@@ -127,27 +127,24 @@ export class JobWorker {
     try {
       while (Date.now() - startTime < maxRuntimeMs) {
         const jobAvailable = await this.processNextJob();
-        
+
         if (!jobAvailable) {
           // No job available, wait before checking again
           await this.sleep(2000);
-          
+
           // Check again after waiting
           if (Date.now() - startTime >= maxRuntimeMs - 2000) {
             break;
           }
-          
+
           // Double check for jobs one more time
           const pendingCount = await prisma.backgroundJob.count({
             where: {
               status: JobStatus.PENDING,
-              OR: [
-                { nextAttemptAt: null },
-                { nextAttemptAt: { lte: new Date() } },
-              ],
+              OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: new Date() } }],
             },
           });
-          
+
           if (pendingCount === 0) {
             break;
           }
@@ -161,7 +158,7 @@ export class JobWorker {
             failedAt: { gte: new Date(Date.now() - 60000) },
           },
         });
-        
+
         if (recentFailures > 5) {
           console.warn(`[JobWorker] High failure rate detected (${recentFailures} in last minute), slowing down`);
           await this.sleep(5000);
@@ -218,10 +215,7 @@ export class JobWorker {
       const job = await tx.backgroundJob.findFirst({
         where: {
           status: JobStatus.PENDING,
-          OR: [
-            { nextAttemptAt: null },
-            { nextAttemptAt: { lte: new Date() } },
-          ],
+          OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: new Date() } }],
         },
         orderBy: { createdAt: "asc" },
       });
@@ -231,8 +225,8 @@ export class JobWorker {
       // Mark it as processing
       return await tx.backgroundJob.update({
         where: { id: job.id },
-        data: { 
-          status: JobStatus.PROCESSING, 
+        data: {
+          status: JobStatus.PROCESSING,
           lastAttemptAt: new Date(),
           attempts: { increment: 1 },
           updatedAt: new Date(),
@@ -249,7 +243,7 @@ export class JobWorker {
     if (!job) return;
 
     const shouldRequeue = job.attempts < job.maxAttempts;
-    
+
     if (shouldRequeue) {
       const backoffMs = BASE_BACKOFF_MS * Math.pow(2, job.attempts);
       await prisma.backgroundJob.update({
@@ -274,7 +268,7 @@ export class JobWorker {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 

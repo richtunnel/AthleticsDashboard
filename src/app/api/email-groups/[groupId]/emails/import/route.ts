@@ -4,33 +4,19 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
-import { getEmailContactLimit } from "@/lib/security/plan-limits";
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { emailImportService } from "@/lib/services/email-import.service";
 
 /** Emails at or below this threshold are inserted synchronously (no queue needed) */
-const SYNC_THRESHOLD = 50;
-
-function normalizeEmails(raw: string[]): string[] {
-  const seen = new Set<string>();
-  for (const item of raw) {
-    if (typeof item !== "string") continue;
-    const email = item.trim().toLowerCase();
-    if (email && EMAIL_REGEX.test(email)) {
-      seen.add(email);
-    }
-  }
-  return Array.from(seen);
-}
+const SYNC_THRESHOLD = 100;
 
 /**
  * POST /api/email-groups/[groupId]/emails/import
  *
- * Accepts { emails: string[] } in the request body.
- * - ≤ 50 emails: synchronous insert, returns { added, duplicates } immediately.
- * - > 50 emails: enqueues an EMAIL_IMPORT background job and returns { jobId }.
- *   One concurrent import job per group is enforced (backpressure).
- *   Contact limit is enforced per plan: Standard 5k / Team 10k / Plus 100k.
+ * Supports JSON body: { emails: string[] }
+ * Supports Multipart/Form-Data: file upload (.csv, .txt)
+ *
+ * - ≤ SYNC_THRESHOLD emails: synchronous insert
+ * - > SYNC_THRESHOLD emails: enqueues an EMAIL_IMPORT background job
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   const session = await getServerSession(authOptions);
@@ -55,78 +41,52 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "Email group not found" }, { status: 404 });
   }
 
-  // Parse and validate the body
-  let body: { emails?: unknown };
+  let rawEmails: string[] = [];
+  const contentType = request.headers.get("content-type") || "";
+
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    if (contentType.includes("application/json")) {
+      const body = await request.json();
+      if (Array.isArray(body.emails)) {
+        rawEmails = body.emails;
+      }
+    } else if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      const file = formData.get("file") as File;
+      if (file) {
+        const text = await file.text();
+        // Use the same normalization logic as the service to extract emails from text
+        rawEmails = text.split(/[\n,;]/);
+      }
+    }
+  } catch (error) {
+    console.error("Error parsing import request:", error);
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  if (!Array.isArray(body.emails)) {
-    return NextResponse.json({ error: "'emails' must be an array" }, { status: 400 });
-  }
-
-  const normalized = normalizeEmails(body.emails as string[]);
+  const normalized = emailImportService.normalizeEmails(rawEmails);
 
   if (normalized.length === 0) {
     return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
   }
 
-  // ─── Contact limit check ─────────────────────────────────────────────────
-  const [contactLimit, currentContactCount] = await Promise.all([
-    getEmailContactLimit(session.user.id),
-    prisma.emailAddress.count({
-      where: {
-        group: { organizationId: session.user.organizationId },
-      },
-    }),
-  ]);
-
-  const isLimitFinite = isFinite(contactLimit);
-  const available = isLimitFinite ? Math.max(0, contactLimit - currentContactCount) : Infinity;
-
-  if (isLimitFinite && currentContactCount >= contactLimit) {
-    return NextResponse.json(
-      {
-        error: `You have reached your plan's email contact limit of ${contactLimit.toLocaleString()} contacts. Please upgrade your plan to import more emails.`,
-        limitExceeded: true,
-        contactLimit,
-        currentContactCount,
-      },
-      { status: 403 },
-    );
-  }
-
-  // Clamp the import to what's available under the plan
-  const emailsToImport = isLimitFinite ? normalized.slice(0, available) : normalized;
-  const clampedCount = normalized.length - emailsToImport.length;
-
   // ─── Small batch: handle synchronously ───────────────────────────────────
-  if (emailsToImport.length <= SYNC_THRESHOLD) {
-    const existing = await prisma.emailAddress.findMany({
-      where: { groupId, email: { in: emailsToImport } },
-      select: { email: true },
-    });
-
-    const existingSet = new Set(existing.map((e) => e.email));
-    const newEmails = emailsToImport.filter((e) => !existingSet.has(e));
-
-    if (newEmails.length > 0) {
-      await prisma.emailAddress.createMany({
-        data: newEmails.map((email) => ({ email, groupId })),
-        skipDuplicates: true,
+  if (normalized.length <= SYNC_THRESHOLD) {
+    try {
+      const result = await emailImportService.processImportJob({
+        groupId,
+        userId: session.user.id,
+        organizationId: session.user.organizationId,
+        emails: normalized,
       });
-    }
 
-    return NextResponse.json({
-      mode: "sync",
-      added: newEmails.length,
-      duplicates: emailsToImport.length - newEmails.length,
-      clamped: clampedCount,
-      contactLimit: isLimitFinite ? contactLimit : null,
-      currentContactCount: currentContactCount + newEmails.length,
-    });
+      return NextResponse.json({
+        mode: "sync",
+        ...result,
+      });
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
   }
 
   // ─── Large batch: enqueue background job ─────────────────────────────────
@@ -160,7 +120,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       groupId,
       userId: session.user.id,
       organizationId: session.user.organizationId,
-      emails: emailsToImport,
+      emails: normalized,
     },
   });
 
@@ -168,9 +128,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     {
       mode: "async",
       jobId: job.id,
-      total: emailsToImport.length,
-      clamped: clampedCount,
-      contactLimit: isLimitFinite ? contactLimit : null,
+      total: normalized.length,
     },
     { status: 202 },
   );
@@ -188,7 +146,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { groupId: _groupId } = await params;
   const jobId = request.nextUrl.searchParams.get("jobId");
 
   if (!jobId) {
