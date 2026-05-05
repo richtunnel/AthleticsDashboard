@@ -4,7 +4,6 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { authOptions } from "@/lib/utils/authOptions";
-import { shouldBypassOnboarding, clearBypassOnboardingCookie } from "@/lib/utils/invitation";
 import DashboardLayoutClient from "./DashboardLayoutClient";
 
 export const metadata: Metadata = {
@@ -21,14 +20,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect("/login");
   }
 
-  const bypassOnboarding = await shouldBypassOnboarding();
-
-  if (!session.user.isOnboarded && !bypassOnboarding) {
+  if (!session.user.isOnboarded) {
     redirect("/onboarding/details");
-  }
-
-  if (bypassOnboarding) {
-    await clearBypassOnboardingCookie();
   }
 
   return <DashboardLayoutClient>{children}</DashboardLayoutClient>;

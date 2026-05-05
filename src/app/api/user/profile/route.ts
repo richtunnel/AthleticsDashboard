@@ -20,6 +20,7 @@ export async function GET() {
         schoolName: true,
         teamName: true,
         schoolAddress: true,
+        city: true,
       },
     });
 

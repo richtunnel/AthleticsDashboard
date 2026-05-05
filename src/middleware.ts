@@ -79,10 +79,11 @@ export async function middleware(req: NextRequest) {
   // CORS handling for API routes
   const origin = req.headers.get("origin");
 
-  const allowedOrigins =
-    process.env.NODE_ENV === "development"
-      ? ["https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"]
-      : ["https://opletics.com", "https://www.opletics.com"];
+  const allowedOrigins = [
+    "https://opletics.com",
+    "https://www.opletics.com",
+    ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000", "http://localhost:3001"] : []),
+  ];
 
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
@@ -190,8 +191,7 @@ export async function middleware(req: NextRequest) {
 
   // Check onboarding completion for dashboard routes
   if (pathname.startsWith("/dashboard")) {
-    const bypassOnboarding = req.cookies.get("bypass_onboarding")?.value === "true";
-    if (!token.isOnboarded && !bypassOnboarding) {
+    if (!token.isOnboarded) {
       const url = req.nextUrl.clone();
       url.pathname = "/onboarding/details";
       return NextResponse.redirect(url);
@@ -202,6 +202,11 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/dashboard")) {
     // Allow settings page and account-disabled page regardless of payment status
     if (pathname.startsWith("/dashboard/settings") || pathname.startsWith("/dashboard/account-disabled")) {
+      return response;
+    }
+
+    // Member sessions have no payment status — skip the check entirely
+    if (isMemberAccessToken(token)) {
       return response;
     }
 
