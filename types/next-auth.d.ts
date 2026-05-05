@@ -30,6 +30,8 @@ declare module "next-auth" {
       lastLoginAt?: Date | null;
       lastLoginDate?: Date | null;
       dailyLoginCount?: number;
+      // Single source of truth for onboarding completion
+      isOnboarded: boolean;
       // Collaboration fields
       isCollaborator?: boolean;
       collaboratorRole?: CollaborativeRole;
@@ -50,7 +52,6 @@ declare module "next-auth" {
     googleCalendarAccessToken?: string;
     googleCalendarEmail?: string;
     calendarTokenExpiry?: Date;
-    googleCalendarEmail?: string;
     city?: string | null;
     // School onboarding fields - centralized to prevent redirect loops
     schoolName?: string | null;
@@ -62,6 +63,8 @@ declare module "next-auth" {
     memberAccessCode?: string;
     memberAccessIssuedAt?: number;
     memberAccessExpiresAt?: number;
+    // Single source of truth for onboarding completion
+    isOnboarded?: boolean;
     // Collaboration fields
     isCollaborator?: boolean;
     collaboratorRole?: CollaborativeRole;
@@ -94,6 +97,8 @@ declare module "next-auth/jwt" {
     memberAccessCode?: string;
     memberAccessIssuedAt?: number;
     memberAccessExpiresAt?: number;
+    // Single source of truth for onboarding completion
+    isOnboarded?: boolean;
     // Collaboration fields
     isCollaborator?: boolean;
     collaboratorRole?: CollaborativeRole;

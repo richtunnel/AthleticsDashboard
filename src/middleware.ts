@@ -79,13 +79,10 @@ export async function middleware(req: NextRequest) {
   // CORS handling for API routes
   const origin = req.headers.get("origin");
 
-  let allowedOrigins;
-
-  if (process.env.NODE_ENV === "development") {
-    allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"];
-  }
-
-  allowedOrigins = ["https://opletics.com", "https://www.opletics.com", "https://opletics.com", "https://www.opletics.com"];
+  const allowedOrigins =
+    process.env.NODE_ENV === "development"
+      ? ["https://opletics.com", "https://www.opletics.com", "http://localhost:3000", "http://localhost:3001"]
+      : ["https://opletics.com", "https://www.opletics.com"];
 
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
@@ -115,21 +112,8 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Allow member access users - they bypass onboarding entirely
-    if (isMemberAccessToken(token)) {
-      return response;
-    }
-
-    // Use school details from token (set during jwt callback) instead of database query
-    // This centralizes onboarding checks and prevents redirect loops
-    const hasSchoolDetails = Boolean(
-      token.schoolName?.trim() && 
-      token.teamName?.trim() && 
-      token.schoolAddress?.trim()
-    );
-
-    // If user already has school details, redirect to dashboard
-    if (hasSchoolDetails) {
+    // If user is already onboarded, redirect to dashboard
+    if (token.isOnboarded) {
       const url = req.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
@@ -201,6 +185,16 @@ export async function middleware(req: NextRequest) {
     const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
     if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
       return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+
+  // Check onboarding completion for dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    const bypassOnboarding = req.cookies.get("bypass_onboarding")?.value === "true";
+    if (!token.isOnboarded && !bypassOnboarding) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/onboarding/details";
+      return NextResponse.redirect(url);
     }
   }
 
