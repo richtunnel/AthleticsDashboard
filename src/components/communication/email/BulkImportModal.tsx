@@ -231,13 +231,14 @@ export function BulkImportModal({ open, groupId, groupName, onClose, onSuccess }
     };
   }, []);
 
-  // ── CSV upload ─────────────────────────────────────────────────────────────
+  // ── File upload ─────────────────────────────────────────────────────────────
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setCsvError("Only .csv files are accepted. Please export your contacts as a CSV and try again.");
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith(".csv") && !fileName.endsWith(".txt")) {
+      setCsvError("Only .csv and .txt files are accepted. Please check your file format and try again.");
       e.target.value = "";
       return;
     }
@@ -246,17 +247,25 @@ export function BulkImportModal({ open, groupId, groupName, onClose, onSuccess }
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const rows = parseCsvRows(text);
-      const emails = extractEmailsFromCsv(rows);
+      let emails: string[] = [];
+
+      if (fileName.endsWith(".csv")) {
+        const rows = parseCsvRows(text);
+        emails = extractEmailsFromCsv(rows);
+      } else {
+        // For .txt files, use the text parser
+        const parsed = parseEmailsFromText(text);
+        emails = parsed.valid;
+      }
 
       if (emails.length === 0) {
-        setCsvError("No valid email addresses found in the CSV. Make sure the file has an 'Email' column or contains email addresses in any column.");
+        setCsvError(`No valid email addresses found in the ${fileName.endsWith(".csv") ? "CSV" : "text"} file.`);
         setCsvEmails(null);
         setCsvFileName(null);
       } else {
         setCsvEmails(emails);
         setCsvFileName(file.name);
-        // Clear the text area if we have CSV data
+        // Clear the text area if we have file data
         setRawInput("");
       }
     };
@@ -375,11 +384,11 @@ export function BulkImportModal({ open, groupId, groupName, onClose, onSuccess }
           {(mode === "idle" || mode === "error") && (
             <>
               <Alert severity="info" icon={<InfoOutlinedIcon />} sx={{ fontSize: "0.8rem" }}>
-                <strong>CSV files only.</strong> Upload a .csv file with an <em>Email</em> column, or paste email
+                <strong>CSV or TXT files only.</strong> Upload a file with an <em>Email</em> column, or paste email
                 addresses directly into the text box below. Duplicates are automatically skipped.
               </Alert>
 
-              {/* CSV upload section */}
+              {/* File upload section */}
               <Box>
                 <Button
                   variant="outlined"
@@ -388,12 +397,12 @@ export function BulkImportModal({ open, groupId, groupName, onClose, onSuccess }
                   onClick={() => fileInputRef.current?.click()}
                   sx={{ textTransform: "none" }}
                 >
-                  Upload CSV File
+                  Upload File (.csv, .txt)
                 </Button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.txt"
                   style={{ display: "none" }}
                   onChange={handleFileUpload}
                 />

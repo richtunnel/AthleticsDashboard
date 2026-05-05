@@ -162,6 +162,7 @@ enum JobType {
   STRIPE_WEBHOOK
   CALENDAR_SYNC
   GAME_IMPORT
+  EMAIL_IMPORT
 }
 
 enum JobStatus {

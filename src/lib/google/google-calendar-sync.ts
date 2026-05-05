@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
+import { createGoogleOAuth2Client } from "./auth";
 
 const CALENDAR_EVENT_STATUS_SCHEDULED: calendar_v3.Schema$Event["status"] = "confirmed";
 
@@ -126,7 +127,7 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   if (!game) throw new Error("Game not found");
 
   // 2. Auth setup
-  const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.GOOGLE_REDIRECT_URI);
+  const oauth2Client = createGoogleOAuth2Client();
   oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -489,11 +490,7 @@ export async function unsyncGameFromCalendar(gameId: string, userId: string) {
   }
 
   // Auth setup
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CALENDAR_CLIENT_ID,
-    process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
+  const oauth2Client = createGoogleOAuth2Client();
   oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 

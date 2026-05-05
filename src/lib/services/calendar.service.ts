@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
+import { createGoogleOAuth2Client } from "../google/auth";
 import { hasScopes } from "./incremental-auth.service";
 import { calendarSyncTrackerService } from "./calendar-sync-tracker.service";
 import { jobQueueService } from "./job-queue.service";
@@ -164,7 +165,7 @@ export class CalendarService {
       throw new Error("Google account not connected");
     }
 
-    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, process.env.NEXTAUTH_URL + "/api/auth/callback/google");
+    const oauth2Client = createGoogleOAuth2Client();
 
     oauth2Client.setCredentials({
       access_token: accessToken,

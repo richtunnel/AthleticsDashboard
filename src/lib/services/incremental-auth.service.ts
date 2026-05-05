@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { prisma } from "@/lib/database/prisma";
 import crypto from "crypto";
+import { createGoogleOAuth2Client } from "../google/auth";
 
 /**
  * Service for handling Google OAuth incremental authorization
@@ -66,7 +67,7 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     }
 
     // ✅ FIXED: Use the same OAuth client as NextAuth for incremental auth
-    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, redirectUrl);
+    const oauth2Client = createGoogleOAuth2Client(redirectUrl);
 
     // Generate random CSRF token
     const token = crypto.randomBytes(32).toString("hex");
@@ -149,7 +150,7 @@ export async function handleIncrementalAuthCallback(userId: string, code: string
     });
 
     // ✅ FIXED: Use the same OAuth client as NextAuth
-    const oauth2Client = new google.auth.OAuth2(process.env.GOOGLE_CALENDAR_CLIENT_ID, process.env.GOOGLE_CALENDAR_CLIENT_SECRET, redirectUrl);
+    const oauth2Client = createGoogleOAuth2Client(redirectUrl);
 
     const { tokens } = await oauth2Client.getToken(code);
 

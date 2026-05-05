@@ -3,6 +3,7 @@ import { JobType, JobStatus, BackgroundJob } from "@prisma/client";
 import { emailGatewayService } from "./email-gateway.service";
 import { calendarService } from "./calendar.service";
 import { importExportService } from "./import-export.service";
+import { emailImportService } from "./email-import.service";
 import { stripeWebhookService } from "./stripe-webhook.service";
 import { jobQueueService } from "./job-queue.service";
 
@@ -26,6 +27,9 @@ export class JobWorker {
     [JobType.GAME_IMPORT]: async (payload, job) => {
       // Pass jobId so the import can update progress
       return await importExportService.processImportJob({ ...payload, jobId: job.id });
+    },
+    [JobType.EMAIL_IMPORT]: async (payload, job) => {
+      return await emailImportService.processImportJob({ ...payload, jobId: job.id });
     },
   };
 
