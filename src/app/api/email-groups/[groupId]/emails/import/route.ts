@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
+import { getEmailContactLimit } from "@/lib/security/plan-limits";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,6 +30,7 @@ function normalizeEmails(raw: string[]): string[] {
  * - ≤ 50 emails: synchronous insert, returns { added, duplicates } immediately.
  * - > 50 emails: enqueues an EMAIL_IMPORT background job and returns { jobId }.
  *   One concurrent import job per group is enforced (backpressure).
+ *   Contact limit is enforced per plan: Standard 5k / Team 10k / Plus 100k.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   const session = await getServerSession(authOptions);
@@ -71,15 +73,44 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
   }
 
+  // ─── Contact limit check ─────────────────────────────────────────────────
+  const [contactLimit, currentContactCount] = await Promise.all([
+    getEmailContactLimit(session.user.id),
+    prisma.emailAddress.count({
+      where: {
+        group: { organizationId: session.user.organizationId },
+      },
+    }),
+  ]);
+
+  const isLimitFinite = isFinite(contactLimit);
+  const available = isLimitFinite ? Math.max(0, contactLimit - currentContactCount) : Infinity;
+
+  if (isLimitFinite && currentContactCount >= contactLimit) {
+    return NextResponse.json(
+      {
+        error: `You have reached your plan's email contact limit of ${contactLimit.toLocaleString()} contacts. Please upgrade your plan to import more emails.`,
+        limitExceeded: true,
+        contactLimit,
+        currentContactCount,
+      },
+      { status: 403 }
+    );
+  }
+
+  // Clamp the import to what's available under the plan
+  const emailsToImport = isLimitFinite ? normalized.slice(0, available) : normalized;
+  const clampedCount = normalized.length - emailsToImport.length;
+
   // ─── Small batch: handle synchronously ───────────────────────────────────
-  if (normalized.length <= SYNC_THRESHOLD) {
+  if (emailsToImport.length <= SYNC_THRESHOLD) {
     const existing = await prisma.emailAddress.findMany({
-      where: { groupId, email: { in: normalized } },
+      where: { groupId, email: { in: emailsToImport } },
       select: { email: true },
     });
 
     const existingSet = new Set(existing.map((e) => e.email));
-    const newEmails = normalized.filter((e) => !existingSet.has(e));
+    const newEmails = emailsToImport.filter((e) => !existingSet.has(e));
 
     if (newEmails.length > 0) {
       await prisma.emailAddress.createMany({
@@ -91,7 +122,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({
       mode: "sync",
       added: newEmails.length,
-      duplicates: normalized.length - newEmails.length,
+      duplicates: emailsToImport.length - newEmails.length,
+      clamped: clampedCount,
+      contactLimit: isLimitFinite ? contactLimit : null,
+      currentContactCount: currentContactCount + newEmails.length,
     });
   }
 
@@ -126,11 +160,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       groupId,
       userId: session.user.id,
       organizationId: session.user.organizationId,
-      emails: normalized,
+      emails: emailsToImport,
     },
   });
 
-  return NextResponse.json({ mode: "async", jobId: job.id }, { status: 202 });
+  return NextResponse.json(
+    {
+      mode: "async",
+      jobId: job.id,
+      total: emailsToImport.length,
+      clamped: clampedCount,
+      contactLimit: isLimitFinite ? contactLimit : null,
+    },
+    { status: 202 }
+  );
 }
 
 /**
@@ -145,7 +188,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { groupId } = await params;
+  const { groupId: _groupId } = await params;
   const jobId = request.nextUrl.searchParams.get("jobId");
 
   if (!jobId) {
@@ -158,10 +201,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
 
-  // Verify the job belongs to this organisation (groupId is in payload)
+  // Scope check — job must belong to caller's organisation
   const raw = await prisma.backgroundJob.findUnique({
     where: { id: jobId },
-    select: { payload: true, organizationId: true },
+    select: { organizationId: true },
   });
 
   if (raw?.organizationId !== session.user.organizationId) {
