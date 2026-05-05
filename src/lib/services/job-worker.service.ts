@@ -5,6 +5,7 @@ import { calendarService } from "./calendar.service";
 import { importExportService } from "./import-export.service";
 import { stripeWebhookService } from "./stripe-webhook.service";
 import { jobQueueService } from "./job-queue.service";
+import { emailImportWorkerService } from "./email-import-worker.service";
 
 export type JobHandler = (payload: any, job: BackgroundJob) => Promise<any>;
 
@@ -26,6 +27,10 @@ export class JobWorker {
     [JobType.GAME_IMPORT]: async (payload, job) => {
       // Pass jobId so the import can update progress
       return await importExportService.processImportJob({ ...payload, jobId: job.id });
+    },
+    [JobType.EMAIL_IMPORT]: async (_payload, job) => {
+      // Chunked bulk email insert with per-chunk backoff and progress tracking
+      return await emailImportWorkerService.processImportJob(job);
     },
   };
 
