@@ -20,24 +20,19 @@ const organizationJsonLd = {
   url: siteUrl,
   logo: `${siteUrl}/favicon.ico`,
   email: "support@opletics.com",
-  sameAs: [
-    "https://www.instagram.com/opletics",
-    "https://facebook.com/opletics",
-    "https://x.com/opletics",
-    "https://www.linkedin.com/company/opletics"
-  ],
+  sameAs: ["https://www.instagram.com/opletics", "https://facebook.com/opletics", "https://x.com/opletics", "https://www.linkedin.com/company/opletics"],
   contactPoint: [
     {
       "@type": "ContactPoint",
-      "email": "support@opletics.com",
-      "contactType": "customer support"
+      email: "support@opletics.com",
+      contactType: "customer support",
     },
     {
       "@type": "ContactPoint",
-      "email": "sales@opletics.com",
-      "contactType": "sales"
-    }
-  ]
+      email: "sales@opletics.com",
+      contactType: "sales",
+    },
+  ],
 };
 
 const websiteJsonLd = {
@@ -47,9 +42,9 @@ const websiteJsonLd = {
   url: siteUrl,
   potentialAction: {
     "@type": "SearchAction",
-    "target": `${siteUrl}/search?q={search_term_string}`,
-    "query-input": "required name=search_term_string"
-  }
+    target: `${siteUrl}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 const softwareAppJsonLd = {
@@ -59,7 +54,8 @@ const softwareAppJsonLd = {
   operatingSystem: "Web, iOS, Android",
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Sports Management Software",
-  description: "The ultimate athlete management system (AMS), athletic management system, and sports software for athletic departments. Features include workout tracking, fitness monitoring, and centralized AMS capabilities.",
+  description:
+    "The ultimate athlete management system (AMS), athletic management system, and sports software for athletic departments. Features include workout tracking, fitness monitoring, and centralized AMS capabilities.",
   featureList: [
     "AI-powered game scheduling",
     "Real-time Google Calendar synchronization",
@@ -72,40 +68,40 @@ const softwareAppJsonLd = {
     "Kinduct and Athlete SR features",
     "Smart athlete monitoring",
     "Centralized AMS and athletes desk",
-    "Adhub and athletics hub"
+    "Adhub and athletics hub",
   ],
   offers: {
     "@type": "AggregateOffer",
-    "lowPrice": "0",
-    "highPrice": "199",
-    "priceCurrency": "USD",
-    "offerCount": "4",
-    "offers": [
+    lowPrice: "0",
+    highPrice: "199",
+    priceCurrency: "USD",
+    offerCount: "4",
+    offers: [
       {
         "@type": "Offer",
-        "name": "Starter",
-        "price": "0",
-        "priceCurrency": "USD"
+        name: "Starter",
+        price: "0",
+        priceCurrency: "USD",
       },
       {
         "@type": "Offer",
-        "name": "Pro",
-        "price": "49",
-        "priceCurrency": "USD"
+        name: "Pro",
+        price: "49",
+        priceCurrency: "USD",
       },
       {
         "@type": "Offer",
-        "name": "Elite",
-        "price": "199",
-        "priceCurrency": "USD"
-      }
-    ]
+        name: "Elite",
+        price: "199",
+        priceCurrency: "USD",
+      },
+    ],
   },
   aggregateRating: {
     "@type": "AggregateRating",
-    "ratingValue": "4.9",
-    "reviewCount": "120"
-  }
+    ratingValue: "4.9",
+    reviewCount: "120",
+  },
 };
 
 export const metadata: Metadata = {
@@ -172,8 +168,7 @@ export const metadata: Metadata = {
     site: "@opletics",
     creator: "@opletics",
     title: "Opletics | Premier Athlete Management System & Sports Software",
-    description:
-      "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync. The best athlete management system.",
+    description: "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync. The best athlete management system.",
     images: ["/assets/images/opletic-dash-sample.png"],
   },
   robots: {
@@ -194,6 +189,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  console.log("Current Env:", process.env.NODE_ENV);
   return (
     <html lang="en">
       {/* Built by Richard Stokes @ Visual Embassy */}
@@ -205,11 +201,7 @@ export default function RootLayout({
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="rgb(17 17 17)" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
         <script id="ld-website" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
-        <script
-          id="ld-software"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
-        />
+        <script id="ld-software" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }} />
         {/* Google Analytics */}
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
