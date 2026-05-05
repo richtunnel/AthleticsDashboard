@@ -16,6 +16,7 @@ export async function GET() {
         id: true,
         email: true,
         name: true,
+        role: true,
         schoolName: true,
         teamName: true,
         schoolAddress: true,

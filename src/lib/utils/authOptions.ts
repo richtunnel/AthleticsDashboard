@@ -578,8 +578,11 @@ export const authOptions: NextAuthOptions = {
         token.calendarTokenExpiry = account.expires_at ? new Date(account.expires_at * 1000) : undefined;
       }
 
-      // Consolidated database lookup - fetch all necessary fields in one query
-      if (token.email && (trigger === "update" || !token.organization || !token.googleCalendarEmail || !token.schoolName)) {
+      // Consolidated database lookup - fetch all necessary fields in one query.
+      // Always re-fetch on trigger==="update" so school details and isOnboarded are
+      // refreshed immediately after the user completes onboarding.
+      // Also re-fetch when the token is missing key fields (first login or new user).
+      if (token.email && (trigger === "update" || !token.organization || !token.role)) {
         const dbUser = (await prisma.user.findUnique({
           where: { email: token.email },
           select: {
