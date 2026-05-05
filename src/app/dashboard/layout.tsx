@@ -3,9 +3,9 @@ import { ReactNode } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
-import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
 import { shouldBypassOnboarding, clearBypassOnboardingCookie } from "@/lib/utils/invitation";
+import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import DashboardLayoutClient from "./DashboardLayoutClient";
 
 export const metadata: Metadata = {
@@ -22,23 +22,29 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect("/login");
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      schoolName: true,
-      teamName: true,
-      schoolAddress: true,
-      role: true,
-    },
-  });
-
-  const hasSchoolDetails = Boolean(user?.schoolName?.trim()) && Boolean(user?.teamName?.trim()) && Boolean(user?.schoolAddress?.trim());
+  // Check if user is a member access user - they bypass onboarding entirely
+  const isMemberAccess = isMemberAccessToken(session.user as any);
+  
+  // Use session user fields instead of database queries
+  // School details are now centralized in the JWT/Session
+  const hasSchoolDetails = Boolean(
+    session.user.schoolName?.trim() && 
+    session.user.teamName?.trim() && 
+    session.user.schoolAddress?.trim()
+  );
+  
   const bypassOnboarding = await shouldBypassOnboarding();
   
-  // Collaborators (non-AD roles) or those with the bypass cookie should not be forced into onboarding
-  const isCollaborator = user?.role !== "ATHLETIC_DIRECTOR" && user?.role !== "SUPER_ADMIN";
+  // Collaborators (non-AD roles) should not be forced into onboarding
+  // Super admins also don't need onboarding
+  const isCollaborator = session.user.role !== "ATHLETIC_DIRECTOR" && session.user.role !== "SUPER_ADMIN";
 
-  if (!hasSchoolDetails && !isCollaborator && !bypassOnboarding) {
+  // Redirect to onboarding if:
+  // - User is not a member access user (members bypass onboarding)
+  // - User doesn't have school details
+  // - User is not a collaborator (they inherit details from inviter)
+  // - No bypass cookie is set
+  if (!isMemberAccess && !hasSchoolDetails && !isCollaborator && !bypassOnboarding) {
     redirect("/onboarding/details");
   }
 
