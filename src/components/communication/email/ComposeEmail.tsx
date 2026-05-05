@@ -81,6 +81,15 @@ export default function ComposeEmailPage() {
     },
   });
 
+  const { data: userProfile } = useQuery({
+    queryKey: ["user-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/profile");
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
   const { data: customColumnsResponse } = useQuery({
     queryKey: ["customColumns"],
     queryFn: async () => {
@@ -262,19 +271,16 @@ export default function ComposeEmailPage() {
           } catch {
             // Ignore parse errors
           }
-        } else if (games.length > 0 && !subject) {
-          // Generate default subject only if no draft
-          if (games.length === 1) {
-            setSubject(`Game Confirmation: ${games[0].homeTeam.sport.name} vs ${games[0].opponent?.name || "TBD"}`);
-          } else {
-            setSubject(`Game Schedule Confirmation - ${games.length} Games`);
-          }
+        } else if (games.length > 0 && !subject && userProfile) {
+          // Generate default subject only if no draft and profile is loaded
+          const schoolName = userProfile?.schoolName || "School";
+          setSubject(`${schoolName} Games Confirmation`);
         }
       }
     } catch (e) {
       console.error("Error loading stored data:", e);
     }
-  }, [mounted, visibleColumnIds, columnMapping, customColumns, subject]);
+  }, [mounted, visibleColumnIds, columnMapping, customColumns, subject, userProfile]);
 
   // Callbacks
   const handleRestoreFailedDraft = useCallback(() => {
