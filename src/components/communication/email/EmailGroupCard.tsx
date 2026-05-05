@@ -29,7 +29,9 @@ import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import SearchIcon from "@mui/icons-material/Search";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FileUploadIcon from "@mui/icons-material/FileUpload";
 import { LoadingButton } from "@/components/utils/LoadingButton";
+import { BulkImportModal } from "./BulkImportModal";
 import type { EmailGroup, AddEmailsResponse } from "./types";
 import { useTheme as customTheme } from "@mui/material/styles";
 
@@ -55,6 +57,7 @@ interface EmailGroupCardProps {
   onDelete: () => Promise<void>;
   deleteLoading: boolean;
   onShowMessage: (message: string, severity?: SnackbarSeverity) => void;
+  onImportSuccess?: () => void;
 }
 
 export function EmailGroupCard({
@@ -74,6 +77,7 @@ export function EmailGroupCard({
   onDelete,
   deleteLoading,
   onShowMessage,
+  onImportSuccess,
 }: EmailGroupCardProps) {
   const [emailInput, setEmailInput] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
@@ -85,6 +89,7 @@ export function EmailGroupCard({
   const [searchQuery, setSearchQuery] = useState("");
   const [showAllEmails, setShowAllEmails] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const theme = customTheme();
 
@@ -328,6 +333,23 @@ export function EmailGroupCard({
                 >
                   {isAddingEmails ? "Close" : "Add Emails"}
                 </Button>
+                <Tooltip title="Bulk import emails from CSV or paste">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<FileUploadIcon />}
+                    sx={(theme) => ({
+                      borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                      color: theme.palette.text.primary,
+                    })}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setImportModalOpen(true);
+                    }}
+                  >
+                    Import
+                  </Button>
+                </Tooltip>
                 <Button
                   size="small"
                   variant="outlined"
@@ -596,6 +618,18 @@ export function EmailGroupCard({
           </LoadingButton>
         </DialogActions>
       </Dialog>
+
+      <BulkImportModal
+        open={importModalOpen}
+        groupId={group.id}
+        groupName={group.name}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={() => {
+          setImportModalOpen(false);
+          onShowMessage(`Emails imported into "${group.name}" successfully`, "success");
+          onImportSuccess?.();
+        }}
+      />
     </Paper>
   );
 }

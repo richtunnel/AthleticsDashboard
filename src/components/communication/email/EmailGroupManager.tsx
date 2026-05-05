@@ -251,6 +251,9 @@ export function EmailGroupManager() {
                 }}
                 deleteLoading={deleteGroupMutation.isPending && deleteGroupMutation.variables === group.id}
                 onShowMessage={showMessage}
+                onImportSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
+                }}
               />
             ))}
           </Stack>
