@@ -13,14 +13,17 @@ export const PLAN_LIMITS = {
   STANDARD: {
     monthlyEmailLimit: 200,
     maxWorksheets: 5,
+    maxEmailContacts: 5_000,
   },
   TEAM: {
     monthlyEmailLimit: 150000,
     maxWorksheets: 10,
+    maxEmailContacts: 10_000,
   },
   PLUS: {
     monthlyEmailLimit: 250000,
     maxWorksheets: 1000, // Unlimited
+    maxEmailContacts: 100_000,
   },
 } as const;
 
@@ -126,6 +129,22 @@ export async function getEmailLimit(userId: string): Promise<number> {
   if (planInfo.planType === "PLUS") return PLAN_LIMITS.PLUS.monthlyEmailLimit;
   if (planInfo.planType === "TEAM") return PLAN_LIMITS.TEAM.monthlyEmailLimit;
   return PLAN_LIMITS.STANDARD.monthlyEmailLimit;
+}
+
+/**
+ * Max total stored email contacts (EmailAddress rows) per organisation.
+ * Standard: 5 000 | Team: 10 000 | Plus: 100 000 | Trial / Opletics25: unlimited
+ */
+export async function getEmailContactLimit(userId: string): Promise<number> {
+  const planInfo = await getUserPlanInfo(userId);
+  if (!planInfo) return PLAN_LIMITS.STANDARD.maxEmailContacts;
+
+  if (planInfo.isOpletics25) return Infinity;
+  if (planInfo.isTrialActive) return Infinity;
+
+  if (planInfo.planType === "PLUS") return PLAN_LIMITS.PLUS.maxEmailContacts;
+  if (planInfo.planType === "TEAM") return PLAN_LIMITS.TEAM.maxEmailContacts;
+  return PLAN_LIMITS.STANDARD.maxEmailContacts;
 }
 
 export async function getWorksheetLimit(userId: string): Promise<number> {
