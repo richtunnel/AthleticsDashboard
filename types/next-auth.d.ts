@@ -22,8 +22,11 @@ declare module "next-auth" {
       googleCalendarAccessToken?: string;
       googleCalendarEmail?: string;
       calendarTokenExpiry?: Date;
-      googleCalendarEmail?: string;
       city?: string | null;
+      // School onboarding fields - centralized to prevent redirect loops
+      schoolName?: string | null;
+      teamName?: string | null;
+      schoolAddress?: string | null;
       lastLoginAt?: Date | null;
       lastLoginDate?: Date | null;
       dailyLoginCount?: number;
@@ -49,6 +52,10 @@ declare module "next-auth" {
     calendarTokenExpiry?: Date;
     googleCalendarEmail?: string;
     city?: string | null;
+    // School onboarding fields - centralized to prevent redirect loops
+    schoolName?: string | null;
+    teamName?: string | null;
+    schoolAddress?: string | null;
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;
@@ -77,6 +84,10 @@ declare module "next-auth/jwt" {
     calendarTokenExpiry?: Date;
     googleCalendarEmail?: string;
     city?: string | null;
+    // School onboarding fields - centralized to prevent redirect loops
+    schoolName?: string | null;
+    teamName?: string | null;
+    schoolAddress?: string | null;
     lastLoginAt?: Date | null;
     lastLoginDate?: Date | null;
     dailyLoginCount?: number;

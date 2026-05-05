@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getMemberAccessExpiresAtMs, isMemberAccessCodeDisabled, isMemberAccessToken, normalizeMemberAccessCode } from "@/lib/utils/memberAccess";
 import { etagMiddleware } from "./middleware/etag-middleware";
-import { prisma } from "@/lib/database/prisma";
 
 /**
  * Cookie name for the separate parent session.
@@ -116,45 +115,28 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Allow member access users
+    // Allow member access users - they bypass onboarding entirely
     if (isMemberAccessToken(token)) {
       return response;
     }
 
-    // Check if user is in onboarding flow (hasn't completed school details)
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: token.sub as string },
-        select: {
-          schoolName: true,
-          teamName: true,
-          schoolAddress: true,
-        },
-      });
+    // Use school details from token (set during jwt callback) instead of database query
+    // This centralizes onboarding checks and prevents redirect loops
+    const hasSchoolDetails = Boolean(
+      token.schoolName?.trim() && 
+      token.teamName?.trim() && 
+      token.schoolAddress?.trim()
+    );
 
-      // If user doesn't exist, redirect to login
-      if (!user) {
-        const url = req.nextUrl.clone();
-        url.pathname = "/login";
-        return NextResponse.redirect(url);
-      }
-
-      // If user already has school details, redirect to dashboard
-      if (user.schoolName?.trim() && user.teamName?.trim() && user.schoolAddress?.trim()) {
-        const url = req.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
-
-      // User is in onboarding flow, allow access
-      return response;
-    } catch (error) {
-      console.error("[Middleware] Error checking user onboarding status:", error);
-      // On error, redirect to plans to be safe
+    // If user already has school details, redirect to dashboard
+    if (hasSchoolDetails) {
       const url = req.nextUrl.clone();
-      url.pathname = "/onboarding/plans";
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
+
+    // User is in onboarding flow, allow access
+    return response;
   }
 
   // Handle parent onboarding routes - require authentication (parent or main session)
