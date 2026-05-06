@@ -428,6 +428,12 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Either gameIds or campaignId is required");
     }
 
+    // Guard: email body must not be empty
+    if (!emailBody?.trim()) {
+      console.error(`[EMAIL-API] ${requestId} - Empty email body`);
+      return ApiResponse.error("Email body is empty. Cannot send a blank email.", 400);
+    }
+
     const { valid: validEmails, invalid: invalidEmails } = validateBulkEmails(toEmails);
 
     if (invalidEmails.length > 0) {
