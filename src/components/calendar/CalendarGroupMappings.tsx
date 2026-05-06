@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
 import {
   Box,
   Typography,
@@ -81,6 +82,7 @@ export function CalendarGroupMappings() {
   const { addNotification } = useNotifications();
   const theme = customTheme();
   const queryClient = useQueryClient();
+  const { disconnect: disconnectCalendar, connect: connectCalendar } = useGoogleCalendarConnection();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [newMapping, setNewMapping] = useState({
@@ -203,26 +205,23 @@ export function CalendarGroupMappings() {
     }
   };
 
-  // Handle reconnection when scopes are insufficient
+  // Handle reconnection when scopes are insufficient.
+  // Uses the incremental-auth flow which:
+  //   1. Removes calendar scopes from Account.scope (via revokeScopes)
+  //   2. Re-initiates OAuth with prompt:consent so Google re-issues tokens
+  //   3. Callback restores Account.access_token, refresh_token, and scope
   const handleReconnect = async () => {
     try {
       setIsReconnecting(true);
-
-      // Step 1: Disconnect to clear old tokens
-      const disconnectRes = await fetch("/api/user/calendar-disconnect", {
-        method: "POST",
-      });
-
-      if (!disconnectRes.ok) {
-        throw new Error("Failed to disconnect calendar");
-      }
-
       addNotification("Redirecting to Google to update permissions...", "info");
 
-      // Step 2: Redirect to reconnect with new scopes
-      setTimeout(() => {
-        window.location.href = "/api/auth/calendar-connect";
-      }, 500);
+      // Step 1: Remove calendar scopes so initiateIncrementalAuth regenerates
+      // the OAuth URL (it skips if all scopes are already present).
+      await disconnectCalendar();
+
+      // Step 2: Initiate incremental auth — this redirects the browser to
+      // Google OAuth. connect() redirects window.location so nothing after it runs.
+      await connectCalendar(window.location.pathname);
     } catch (error) {
       console.error("Reconnection error:", error);
       addNotification("Failed to reconnect calendar. Please try again.", "error");
