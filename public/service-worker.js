@@ -1,93 +1,165 @@
-// Image Caching Service Worker
-const CACHE_NAME = "image-cache-v1";
-const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+// ============================================================
+// Opletics Service Worker  v2
+// ============================================================
+// Principles followed:
+//   1. Version everything   — SW_VERSION + CACHE_NAME are versioned
+//   2. Never assume immediate activation — skipWaiting() only on explicit request
+//   3. Atomic updates       — CACHE_NAME bump ensures clean swap
+//   4. Idempotent events    — notificationclick focuses existing window if open
+//   5. Graceful fallback    — all push/notification code wrapped in try/catch
+//   6. Explicit client coordination — postMessage protocol (SKIP_WAITING, VERSION_CHECK)
+//   7. Short-lived stateless — no persistent in-SW state; each event is standalone
+// ============================================================
 
-// Images to cache on install
-const PRECACHE_IMAGES = ["/uploads/signatures/", "/cache/images/", "/api/images/optimize"];
+const SW_VERSION = "v2";
+const CACHE_NAME = "opletics-images-v2";
+const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// Install event - cache core assets
+// ---------------------------------------------------------------------------
+// Install — open new cache, skip waiting only when explicitly told to
+// ---------------------------------------------------------------------------
 self.addEventListener("install", (event) => {
+  // Principle 2: do NOT call skipWaiting() here; wait for client postMessage
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log("Service Worker: Caching core assets");
-      // Don't fail if some precache items don't exist yet
-      return Promise.allSettled(PRECACHE_IMAGES.map((url) => cache.add(url))).then(() => {
-        console.log("Service Worker: Precache completed");
+      // Pre-warm entries that are likely to exist; don't fail on missing ones
+      return Promise.allSettled([
+        cache.add("/uploads/signatures/"),
+        cache.add("/cache/images/"),
+      ]).then(() => {
+        console.log(`[SW ${SW_VERSION}] install complete`);
       });
-    }),
+    })
   );
 });
 
-// Activate event - clean up old caches
+// ---------------------------------------------------------------------------
+// Activate — claim all clients, evict stale caches (principle 3)
+// ---------------------------------------------------------------------------
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log("Service Worker: Removing old cache", cacheName);
-            return caches.delete(cacheName);
-          }
-        }),
-      );
-    }),
+    caches
+      .keys()
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((n) => n !== CACHE_NAME)
+            .map((n) => {
+              console.log(`[SW ${SW_VERSION}] deleting old cache: ${n}`);
+              return caches.delete(n);
+            })
+        )
+      )
+      .then(() => {
+        console.log(`[SW ${SW_VERSION}] activate — claiming clients`);
+        return self.clients.claim(); // Principle 2
+      })
   );
 });
 
-// Fetch event - handle image requests
+// ---------------------------------------------------------------------------
+// Fetch — stale-while-revalidate image cache (unchanged from v1)
+// ---------------------------------------------------------------------------
 self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // Only handle image requests
-  if (isImageRequest(requestUrl)) {
+  const url = new URL(event.request.url);
+  if (_isImageRequest(url)) {
     event.respondWith(
-      handleImageRequest(event.request).catch(() => {
-        // Fall back to network if cache fails
-        return fetch(event.request).catch(() => null);
-      }),
+      _handleImageRequest(event.request).catch(() =>
+        fetch(event.request).catch(() => null)
+      )
     );
   }
 });
 
-function isImageRequest(url) {
+function _isImageRequest(url) {
   return (
     url.pathname.includes("/api/images/optimize") ||
     url.pathname.includes("/uploads/") ||
     url.pathname.includes("/cache/images/") ||
-    ["jpg", "jpeg", "png", "gif", "webp", "avif"].some((ext) => url.pathname.endsWith(`.${ext}`))
+    ["jpg", "jpeg", "png", "gif", "webp", "avif"].some((ext) =>
+      url.pathname.endsWith(`.${ext}`)
+    )
   );
 }
 
-async function handleImageRequest(request) {
+async function _handleImageRequest(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cachedResponse = await cache.match(request);
+  const cached = await cache.match(request);
 
-  if (cachedResponse) {
-    const cachedDate = new Date(cachedResponse.headers.get("date"));
-    const now = new Date();
-
-    if (now.getTime() - cachedDate.getTime() < MAX_CACHE_AGE) {
-      console.log("Service Worker: Serving cached image", request.url);
-      return cachedResponse;
-    }
+  if (cached) {
+    const age = Date.now() - new Date(cached.headers.get("date") || 0).getTime();
+    if (age < MAX_CACHE_AGE) return cached;
   }
 
   try {
-    const networkResponse = await fetch(request);
-
-    if (networkResponse && networkResponse.status === 200) {
-      console.log("Service Worker: Caching new image", request.url);
-      const responseClone = networkResponse.clone();
-      cache.put(request, responseClone);
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      cache.put(request, response.clone());
     }
-
-    return networkResponse;
-  } catch (error) {
-    if (cachedResponse) {
-      console.log("Service Worker: Serving stale cache due to network error", request.url);
-      return cachedResponse;
-    }
-
-    throw error;
+    return response;
+  } catch {
+    if (cached) return cached;
+    throw new Error("Network request failed and no cached version available");
   }
 }
+
+// ---------------------------------------------------------------------------
+// Notification click — focus existing tab or open /dashboard/messages
+// (Principle 4: idempotent — checks for open window first)
+// ---------------------------------------------------------------------------
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetPath = event.notification.data?.url || "/dashboard/messages";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        // Re-focus if the tab is already open
+        for (const client of clientList) {
+          try {
+            const clientUrl = new URL(client.url);
+            if (
+              clientUrl.pathname.startsWith("/dashboard") &&
+              "focus" in client
+            ) {
+              client.postMessage({
+                type: "NOTIFICATION_CLICK",
+                url: targetPath,
+              });
+              return client.focus();
+            }
+          } catch {
+            // Ignore cross-origin or malformed URLs
+          }
+        }
+        // No matching tab — open a new one
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetPath);
+        }
+      })
+  );
+});
+
+// ---------------------------------------------------------------------------
+// postMessage — client ↔ SW coordination (Principle 6)
+//
+//   { type: 'SKIP_WAITING' }  — apply waiting update immediately
+//   { type: 'VERSION_CHECK' } — reply with current version
+// ---------------------------------------------------------------------------
+self.addEventListener("message", (event) => {
+  if (!event.data) return;
+
+  if (event.data.type === "SKIP_WAITING") {
+    console.log(`[SW ${SW_VERSION}] SKIP_WAITING received — activating now`);
+    self.skipWaiting();
+  }
+
+  if (event.data.type === "VERSION_CHECK") {
+    const source = event.source;
+    if (source && "postMessage" in source) {
+      source.postMessage({ type: "VERSION_REPLY", version: SW_VERSION });
+    }
+  }
+});
