@@ -255,7 +255,7 @@ export function EmailSignatureManager() {
             </Box>
 
             <Alert severity="info" icon={<InfoOutlinedIcon />}>
-              Your signature will include your logo (max 120px), custom text, phone number, and website link.
+              Your signature will include the information you see in the preview.
             </Alert>
 
             <Divider />
@@ -286,12 +286,7 @@ export function EmailSignatureManager() {
                   </Button>
                   {logoUrl && (
                     <>
-                      <IconButton 
-                        color="error" 
-                        onClick={handleRemoveLogo} 
-                        size="small" 
-                        disabled={uploadMutation.isPending || updateMutation.isPending}
-                      >
+                      <IconButton color="error" onClick={handleRemoveLogo} size="small" disabled={uploadMutation.isPending || updateMutation.isPending}>
                         <DeleteIcon />
                       </IconButton>
                       <SignatureLogoImage logoUrl={logoUrl} />
