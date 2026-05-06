@@ -182,7 +182,9 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
       const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl, useOptimized);
 
       if (logoUrl) {
-        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="120" height="120" style="max-width: 120px; max-height: 120px; width: 120px; height: auto; display: block; margin-bottom: 10px; border-radius: 4px;" />`);
+        // 60×60 px: right-sized for email signatures; explicit HTML attributes
+        // ensure email clients that ignore CSS still render at the correct size.
+        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="60" height="60" style="width: 60px; max-width: 60px; height: auto; display: block; margin-bottom: 8px; border-radius: 4px; border: 0;" />`);
       }
     } catch (error) {
       console.error("[EMAIL-SIG] Error processing signature logo:", error);

@@ -359,8 +359,8 @@ export default function ComposeEmailPage() {
       <Stack spacing={3}>
         {/* Two-column layout */}
         <Box sx={{ display: "flex", flexDirection: isWideScreen ? "row" : "column", gap: 3, width: "100%" }}>
-          {/* Selected Games */}
-          <Box sx={{ flex: isWideScreen ? 1.5 : "none", width: "100%" }}>
+          {/* Selected Games — capped at 65% so Email Details always has room */}
+          <Box sx={{ flex: isWideScreen ? "0 0 65%" : "none", maxWidth: isWideScreen ? "65%" : "100%", minWidth: 0 }}>
             <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 Selected Games ({selectedGames.length}/{allGames.length})
@@ -420,8 +420,8 @@ export default function ComposeEmailPage() {
             </Paper>
           </Box>
 
-          {/* Email Composition */}
-          <Box sx={{ flex: isWideScreen ? 1 : "none", width: "100%" }}>
+          {/* Email Composition — takes all remaining space (~35%) */}
+          <Box sx={{ flex: "1 1 0%", minWidth: isWideScreen ? 280 : "100%" }}>
             <Paper sx={{ p: 3, height: "100%", bgcolor: "background.paper" }}>
               <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
                 Email Details
