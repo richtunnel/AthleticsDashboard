@@ -1731,7 +1731,7 @@ export function GamesTable() {
       // Flag will be cleared in savePreferencesMutation.onSuccess after cache update
       setIsUserReordering(true);
 
-      const validOrder = ensureRequiredColumnOrder(order.filter((value): value is ColumnId => isColumnId(value)));
+      const validOrder = order.filter((value): value is ColumnId => isColumnId(value));
       setColumnState((prev) => {
         const previousState = prev.map((column) => ({ ...column }));
         // Use the provided order directly - user's explicit reorder should be respected
@@ -7965,13 +7965,6 @@ export function GamesTable() {
   );
 }
 
-function ensureRequiredColumnOrder(order: ColumnId[]): ColumnId[] {
-  const withoutPinned = order.filter((id) => id !== "select" && id !== "actions");
-  const selectCols = order.filter((id) => id === "select");
-  const actionsCols = order.filter((id) => id === "actions");
-  return [...selectCols, ...withoutPinned, ...actionsCols];
-}
-
 function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferencesData | null = null): ColumnId[] {
   // Check if user has imported custom columns from CSV
   const importedColumns = preferences?.customColumns as string[] | undefined;
@@ -8013,12 +8006,12 @@ function getDefaultColumnOrder(customColumns: any[], preferences: TablePreferenc
 
     // CRITICAL FIX: Add custom columns before "actions" when user has imported columns
     finalOrder.push(...customIds, "actions");
-    return ensureRequiredColumnOrder(finalOrder);
+    return finalOrder;
   }
 
   // No imported columns - use default column order with custom columns
   // CRITICAL: Place custom columns (including Travel Time) right before "actions"
-  return ensureRequiredColumnOrder(["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", ...customIds, "actions"]);
+  return ["date", "sport", "level", "opponent", "isHome", "time", "status", "location", "busTravel", "notes", ...customIds, "actions"];
 }
 
 function isColumnId(value: string): value is ColumnId {
@@ -8066,7 +8059,7 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
   }
 
   // Determine visibility: respect saved hidden state, otherwise default to visible
-  return ensureRequiredColumnOrder(finalOrder).map((id) => ({
+  return finalOrder.map((id) => ({
     id,
     visible: !hiddenSet.has(id),
   }));
@@ -8111,5 +8104,5 @@ function mergeWithDefaultOrder(order: ColumnId[], defaultOrder: ColumnId[]): Col
     }
   });
 
-  return ensureRequiredColumnOrder(merged);
+  return merged;
 }
