@@ -72,8 +72,12 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
     // Generate random CSRF token
     const token = crypto.randomBytes(32).toString("hex");
 
-    // Encode token + returnTo in state so the callback can redirect correctly
-    const statePayload = Buffer.from(JSON.stringify({ token, returnTo: returnTo ?? null })).toString("base64url");
+    // Encode token + userId + returnTo in state.
+    // userId is included so calendar-callback can verify identity even
+    // when the session may have changed (e.g. multi-tab).
+    const statePayload = Buffer.from(
+      JSON.stringify({ token, userId, returnTo: returnTo ?? null })
+    ).toString("base64url");
 
     // Store only the random token for verification
     await prisma.user.update({

@@ -46,12 +46,15 @@ export async function GET(request: NextRequest) {
       const decoded = Buffer.from(rawState, "base64url").toString("utf8");
       const parsed = JSON.parse(decoded);
 
-      if (!parsed || typeof parsed.token !== "string" || typeof parsed.userId !== "string") {
+      // Must have at least a CSRF token field
+      if (!parsed || typeof parsed.token !== "string") {
         console.error("❌ Invalid state format");
         return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
       }
 
-      if (parsed.userId !== (session.user as any).id) {
+      // If userId is present in state, verify it matches the session.
+      // Incremental-auth flows may omit userId (session is the source of truth).
+      if (typeof parsed.userId === "string" && parsed.userId !== (session.user as any).id) {
         console.error("❌ User ID mismatch in state");
         return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
       }
@@ -137,32 +140,59 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Keep incremental-auth (Account.scope) in sync when a user connected via the
-    // legacy calendar OAuth flow.
-    const tokenScopes = tokens.scope?.split(" ").filter(Boolean) ?? [];
-    if (tokenScopes.length > 0) {
-      const account = await prisma.account.findFirst({
-        where: {
-          userId: session.user.id,
-          provider: "google",
-        },
-        select: {
-          id: true,
-          scope: true,
-        },
-      });
+    // Keep the Account record (used by incremental-auth and list-calendars) fully in
+    // sync with the newly issued tokens.
+    //
+    // Scope source: prefer tokens.scope; fall back to the URL's `scope` query param
+    // because Google sometimes omits tokens.scope in the JSON response when the
+    // scopes are the same as the authorization request.
+    const rawScopeString =
+      tokens.scope ||
+      searchParams.get("scope") ||
+      "";
+    const tokenScopes = rawScopeString.split(/[\s,]+/).filter(Boolean);
 
-      if (account) {
-        const existingScopes = account.scope?.split(" ").filter(Boolean) ?? [];
-        const mergedScopes = Array.from(new Set([...existingScopes, ...tokenScopes]));
+    const account = await prisma.account.findFirst({
+      where: {
+        userId: session.user.id,
+        provider: "google",
+      },
+      select: {
+        id: true,
+        scope: true,
+        refresh_token: true,
+      },
+    });
 
-        await prisma.account.update({
-          where: { id: account.id },
-          data: {
-            scope: mergedScopes.join(" "),
-          },
-        });
+    if (account) {
+      const existingScopes = account.scope?.split(" ").filter(Boolean) ?? [];
+      const mergedScopes = Array.from(
+        new Set([...existingScopes, ...tokenScopes])
+      );
+
+      const accountUpdate: Record<string, unknown> = {
+        scope: mergedScopes.join(" "),
+      };
+
+      // Restore access_token — cleared by /api/user/calendar-disconnect
+      if (tokens.access_token) {
+        accountUpdate.access_token = tokens.access_token;
       }
+
+      // Restore refresh_token — only present when Google issues a new one
+      // (e.g. after prompt:consent).  Keep the existing one if not provided.
+      if (tokens.refresh_token) {
+        accountUpdate.refresh_token = tokens.refresh_token;
+      }
+
+      if (typeof tokens.expiry_date === "number") {
+        accountUpdate.expires_at = Math.floor(tokens.expiry_date / 1000);
+      }
+
+      await prisma.account.update({
+        where: { id: account.id },
+        data: accountUpdate,
+      });
     }
 
     console.log("✅ Calendar connected to user:", session.user.email);
