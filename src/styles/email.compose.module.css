@@ -9,3 +9,7 @@
 .ReceiptSelectField.select {
   padding-bottom: 0 !important;
 }
+
+.ReceiptSelectFiel .MuiOutlinedInput-input {
+  padding-bottom: 0 !important;
+}
