@@ -14,10 +14,7 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, message: "Authentication required" }, { status: 401 });
     }
 
     const userId = session.user.id;
@@ -26,18 +23,12 @@ export async function POST(request: NextRequest) {
 
     // Validate email
     if (!email || !email.includes("@")) {
-      return NextResponse.json(
-        { success: false, message: "Please enter a valid email address" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Please enter a valid email address" }, { status: 400 });
     }
 
     // Validate role
     if (!role || !["VIEWER", "MEMBER"].includes(role)) {
-      return NextResponse.json(
-        { success: false, message: "Invalid role selected" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "Invalid role selected" }, { status: 400 });
     }
 
     // Get the user and their plan
@@ -52,18 +43,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, message: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
     // Prevent inviting yourself
     if (user.email.toLowerCase() === email.toLowerCase()) {
-      return NextResponse.json(
-        { success: false, message: "You cannot invite yourself to collaborate on your own account" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "You cannot invite yourself to collaborate on your own account" }, { status: 400 });
     }
 
     // Check collaborator limit
@@ -77,11 +62,11 @@ export async function POST(request: NextRequest) {
 
     if (currentCollaborators >= collaboratorLimit) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: `You have reached your collaborator limit (${collaboratorLimit}). Upgrade your plan to invite more collaborators.` 
+        {
+          success: false,
+          message: `You have reached your collaborator limit (${collaboratorLimit}). Upgrade your plan to invite more collaborators.`,
         },
-        { status: 400 }
+        { status: 403 },
       );
     }
 
@@ -96,10 +81,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingInvitation) {
-      return NextResponse.json(
-        { success: false, message: "This person has already been invited to your account" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "This person has already been invited to your account" }, { status: 400 });
     }
 
     // Check if already a member (accepted invitation)
@@ -113,10 +95,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingMember) {
-      return NextResponse.json(
-        { success: false, message: "This person is already a member of your account" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: "This person is already a member of your account" }, { status: 400 });
     }
 
     // Generate invitation token
@@ -225,9 +204,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: emailSent
-        ? "Invitation sent successfully"
-        : "Invitation created but email failed to send. Please check your email configuration.",
+      message: emailSent ? "Invitation sent successfully" : "Invitation created but email failed to send. Please check your email configuration.",
       collaboratorId: collaborator.id,
       emailSent,
       emailError: emailErrorMessage,
@@ -245,7 +222,7 @@ export async function POST(request: NextRequest) {
         success: false,
         message: `Failed to send invitation: ${errorMessage}`,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
