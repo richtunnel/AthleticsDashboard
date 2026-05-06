@@ -7,6 +7,7 @@ import { emailImportService } from "./email-import.service";
 import { stripeWebhookService } from "./stripe-webhook.service";
 import { jobQueueService } from "./job-queue.service";
 import { emailImportWorkerService } from "./email-import-worker.service";
+import { sendBulkEmail } from "../utils/bulk-email";
 
 export type JobHandler = (payload: any, job: BackgroundJob) => Promise<any>;
 
@@ -15,8 +16,72 @@ const MAX_RUNTIME_MS = 55000;
 
 export class JobWorker {
   private handlers: Partial<Record<JobType, JobHandler>> = {
-    [JobType.EMAIL]: async (payload) => {
-      return await emailGatewayService.send(payload);
+    [JobType.EMAIL]: async (payload, job) => {
+      // ── Pre-flight validation ────────────────────────────────────────────
+      const recipients: string[] = Array.isArray(payload.to) ? payload.to : payload.to ? [payload.to] : [];
+
+      if (recipients.length === 0) {
+        throw new Error("[EMAIL] No recipients in job payload");
+      }
+
+      const subject: string = payload.subject?.trim() ?? "";
+      if (!subject) {
+        throw new Error("[EMAIL] Missing subject in job payload");
+      }
+
+      const html: string = (payload.html || payload.body || "").trim();
+      if (!html) {
+        throw new Error("[EMAIL] Missing HTML content in job payload");
+      }
+
+      // ── Route ────────────────────────────────────────────────────────────
+      // Multi-recipient: use sendBulkEmail so each recipient gets their own
+      // copy (no visible CC list), email logs are created per address, daily/
+      // monthly limits are tracked, and per-address failures are recorded.
+      if (recipients.length > 1) {
+        const result = await sendBulkEmail({
+          to: recipients,
+          subject,
+          html,
+          replyTo: payload.replyTo,
+          sentById: job.userId ?? "",
+          gameIds: payload.gameIds,
+          groupId: payload.groupId,
+          campaignId: payload.campaignId,
+          recipientCategory: payload.recipientCategory,
+          additionalMessage: payload.additionalMessage,
+          visibleColumnIds: payload.visibleColumnIds,
+          selectedSchoolNames: payload.selectedSchoolNames,
+          customRecipients: payload.customRecipients,
+        });
+
+        // Throw if every single email failed so the job system retries
+        if (result.success === 0 && result.failed > 0) {
+          throw new Error(`[EMAIL] All ${result.failed} emails failed. First error: ${result.errors[0]?.error}`);
+        }
+
+        if (result.failed > 0) {
+          console.warn(`[EMAIL] Partial failure: ${result.failed}/${recipients.length} emails failed. ` + `First error: ${result.errors[0]?.error}`);
+        }
+
+        return result;
+      }
+
+      // Single recipient: use the gateway (has circuit-breaker + retry built in)
+      const result = await emailGatewayService.send({
+        to: recipients[0],
+        subject,
+        html,
+        replyTo: payload.replyTo,
+      });
+
+      // Gateway returns { success: false } on failure — turn it into a throw
+      // so the job system marks the job as failed and schedules a retry.
+      if (!result.success) {
+        throw new Error(`[EMAIL] Gateway send failed: ${result.error ?? "unknown error"}`);
+      }
+
+      return result;
     },
     [JobType.STRIPE_WEBHOOK]: async (payload) => {
       return await stripeWebhookService.processWebhookEvent(payload);
