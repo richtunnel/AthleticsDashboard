@@ -34,7 +34,7 @@ export default function MessageBubble({
         sx={{
           width: 32,
           height: 32,
-          bgcolor: isCurrentUser ? "primary.main" : "grey.400",
+          bgcolor: "grey.300",
         }}
       >
         <Person fontSize="small" />

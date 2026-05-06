@@ -5,7 +5,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Box, Button, TextField, MenuItem, Typography, Alert, CircularProgress, LinearProgress, FormControl, InputLabel, Select } from "@mui/material";
-import { PersonAdd, PersonRemove } from "@mui/icons-material";
+import { PersonAdd, PersonRemove, Upgrade as UpgradeIcon } from "@mui/icons-material";
+
+const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "";
 import { formatCollaboratorCount } from "@/lib/utils/collaboration";
 
 const inviteSchema = z.object({
@@ -28,7 +30,29 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const isAtLimit = usedSlots >= collaboratorLimit;
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    try {
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceId: MONTHLY_PRICE_ID, isOnboarding: false }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to start upgrade");
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to start upgrade. Please try again.");
+      setIsUpgrading(false);
+    }
+  };
 
   const {
     register,
@@ -118,7 +142,24 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
       )}
 
       {isAtLimit ? (
-        <Alert severity="info">You&apos;ve reached your collaborator limit ({collaboratorLimit}). Upgrade your plan to invite more team members.</Alert>
+        <Alert
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              variant="outlined"
+              startIcon={isUpgrading ? <CircularProgress size={14} color="inherit" /> : <UpgradeIcon />}
+              onClick={handleUpgrade}
+              disabled={isUpgrading}
+              sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+            >
+              {isUpgrading ? "Redirecting..." : "Upgrade Plan"}
+            </Button>
+          }
+        >
+          You&apos;ve reached your collaborator limit ({collaboratorLimit}). Upgrade your plan to invite more team members.
+        </Alert>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
