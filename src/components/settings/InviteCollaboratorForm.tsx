@@ -5,10 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Box, Button, TextField, MenuItem, Typography, Alert, CircularProgress, LinearProgress, FormControl, InputLabel, Select } from "@mui/material";
-import { PersonAdd, PersonRemove, Upgrade as UpgradeIcon } from "@mui/icons-material";
+import { PersonAdd } from "@mui/icons-material";
+import { formatCollaboratorCount } from "@/lib/utils/collaboration";
 
 const MONTHLY_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? "";
-import { formatCollaboratorCount } from "@/lib/utils/collaboration";
 
 const inviteSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,6 +36,12 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
   const handleUpgrade = async () => {
     setIsUpgrading(true);
     try {
+      // If the price ID is not embedded in the bundle (e.g. build-time env missing),
+      // fall back to the plans page where the upgrade card always works.
+      if (!MONTHLY_PRICE_ID) {
+        window.location.href = "/onboarding/plans";
+        return;
+      }
       const response = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,7 +155,6 @@ export function InviteCollaboratorForm({ usedSlots, availableSlots, collaborator
               color="inherit"
               size="small"
               variant="outlined"
-              startIcon={isUpgrading ? <CircularProgress size={14} color="inherit" /> : <UpgradeIcon />}
               onClick={handleUpgrade}
               disabled={isUpgrading}
               sx={{ textTransform: "none", whiteSpace: "nowrap" }}
