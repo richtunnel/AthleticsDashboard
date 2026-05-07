@@ -47,7 +47,13 @@ export function useChatSSE(conversationId: string | null) {
 
     eventSource.onmessage = (event) => {
       try {
-        const message: ChatMessage = JSON.parse(event.data);
+        const data = JSON.parse(event.data);
+
+        // Skip control messages (e.g. the initial "connected" handshake)
+        // They don't have an `id` or `content` field and must not be stored.
+        if (!data.id || !data.content) return;
+
+        const message: ChatMessage = data;
 
         // Append the new message to the React Query cache
         queryClient.setQueryData<{ messages: ChatMessage[] }>(

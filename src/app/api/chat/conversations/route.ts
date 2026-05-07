@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
 import { authOptions } from "@/lib/utils/authOptions";
 import { decrypt } from "@/lib/utils/encryption";
+import { UserRole } from "@prisma/client";
 
 /**
  * GET /api/chat/conversations
@@ -24,9 +25,9 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // AD sees all conversations for their school (organization)
+    // AD sees only conversations with PARENT-role users (excludes members/collaborators)
     const conversations = await prisma.conversation.findMany({
-      where: { schoolId: user.organizationId },
+      where: { schoolId: user.organizationId, parent: { role: UserRole.PARENT } },
       include: {
         parent: {
           select: { id: true, name: true, email: true, image: true },
