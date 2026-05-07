@@ -58,8 +58,8 @@ function getOptimizedImageUrl(imageUrl: string, baseUrl?: string): string {
   try {
     const params = new URLSearchParams({
       url: imageUrl,
-      w: "120",
-      h: "120",
+      w: "80",
+      h: "80",
       format: "png",
     });
     const relativeUrl = `/api/images/optimize?${params.toString()}`;
@@ -182,9 +182,9 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
       const logoUrl = processLogoUrl(signatureLogoUrl, baseUrl, useOptimized);
 
       if (logoUrl) {
-        // 60×60 px: right-sized for email signatures; explicit HTML attributes
-        // ensure email clients that ignore CSS still render at the correct size.
-        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="60" height="60" style="width: 60px; max-width: 60px; height: auto; display: block; margin-bottom: 8px; border-radius: 4px; border: 0;" />`);
+        // 40×40 px: compact size suitable for email signatures; explicit HTML
+        // attributes ensure email clients that ignore CSS still render correctly.
+        sections.push(`<img src="${escapeHtml(logoUrl)}" alt="Company Logo" width="40" height="40" style="width: 40px; max-width: 40px; height: auto; display: block; margin-bottom: 6px; border-radius: 3px; border: 0;" />`);
       }
     } catch (error) {
       console.error("[EMAIL-SIG] Error processing signature logo:", error);
