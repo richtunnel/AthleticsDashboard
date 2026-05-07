@@ -13,10 +13,6 @@ import {
   Card,
   CardContent,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Autocomplete,
   TextField,
   CircularProgress,
@@ -57,7 +53,7 @@ export default function ParentOnboardingPage() {
   const [childName, setChildName] = useState("");
   const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
-  const [selectedLevel, setSelectedLevel] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState<LevelOption | null>(null);
 
   // Data state
   const [schools, setSchools] = useState<SchoolOption[]>([]);
@@ -92,7 +88,10 @@ export default function ParentOnboardingPage() {
           try {
             const prefs = JSON.parse(saved);
             if (prefs.childName) setChildName(prefs.childName);
-            if (prefs.selectedLevel || prefs.level) setSelectedLevel(prefs.selectedLevel || prefs.level);
+            if (prefs.selectedLevel || prefs.level) {
+              const levelName = prefs.selectedLevel || prefs.level;
+              setSelectedLevel({ id: levelName, name: levelName });
+            }
 
             // Restore school selection
             if (prefs.schoolId) {
@@ -166,7 +165,7 @@ export default function ParentOnboardingPage() {
       // Clear dependent selections
       setSelectedSport(null);
       setSports([]);
-      setSelectedLevel("");
+      setSelectedLevel(null);
       setLevels([]);
 
       if (newValue) {
@@ -180,7 +179,7 @@ export default function ParentOnboardingPage() {
     (_: any, newValue: Sport | null) => {
       setSelectedSport(newValue);
       // Clear dependent selection
-      setSelectedLevel("");
+      setSelectedLevel(null);
       setLevels([]);
 
       if (newValue && selectedSchool) {
@@ -208,8 +207,8 @@ export default function ParentOnboardingPage() {
         athleticDirectorName: selectedSchool.athleticDirectorName || "",
         sportId: selectedSport.id,
         sportName: selectedSport.name,
-        level: selectedLevel,
-        selectedLevel,
+        level: selectedLevel.name,
+        selectedLevel: selectedLevel.name,
       };
 
       localStorage.setItem("parentOnboardingPrefs", JSON.stringify(parentPreferences));
@@ -354,26 +353,32 @@ export default function ParentOnboardingPage() {
                     Sport Level
                   </Typography>
                 </Box>
-                <FormControl fullWidth size="small" disabled={!selectedSport}>
-                  <InputLabel>{selectedSport ? "Select level" : "Select a sport first"}</InputLabel>
-                  <Select
-                    value={selectedLevel}
-                    onChange={(e) => setSelectedLevel(e.target.value)}
-                    label={selectedSport ? "Select level" : "Select a sport first"}
-                  >
-                    {loadingLevels ? (
-                      <MenuItem disabled>
-                        <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
-                      </MenuItem>
-                    ) : (
-                      levelOptions.map((level) => (
-                        <MenuItem key={level.id} value={level.name}>
-                          {level.name}
-                        </MenuItem>
-                      ))
-                    )}
-                  </Select>
-                </FormControl>
+                <Autocomplete
+                  options={levelOptions}
+                  getOptionLabel={(option) => option.name}
+                  value={selectedLevel}
+                  onChange={(_: any, newValue: LevelOption | null) => setSelectedLevel(newValue)}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  disabled={!selectedSport}
+                  loading={loadingLevels}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={selectedSport ? "Search or select level..." : "Select a sport first"}
+                      fullWidth
+                      size="small"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {loadingLevels ? <CircularProgress size={16} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
               </Box>
             </Box>
 
@@ -382,7 +387,7 @@ export default function ParentOnboardingPage() {
                 variant="contained"
                 size="large"
                 onClick={handleSubmit}
-                disabled={submitting || !childName || !selectedSchool || !selectedSport || !selectedLevel}
+                disabled={submitting || !childName.trim() || !selectedSchool || !selectedSport || !selectedLevel}
                 sx={{ minWidth: 150 }}
               >
                 {submitting ? <CircularProgress size={24} /> : "Next"}

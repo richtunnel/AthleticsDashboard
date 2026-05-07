@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { calendarService } from "@/lib/services/calendar.service";
 
 /**
  * POST /api/parent/create-link
@@ -132,6 +133,68 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       // Non-critical — don't fail the whole request if ConnectedParent fails
       console.warn("[API] Failed to create ConnectedParent entry:", err);
+    }
+
+    // Auto-create an approved CalendarSyncRequest so the AD's calendar panel
+    // immediately shows this parent without requiring manual approval.
+    if (sport && gradeLevel) {
+      try {
+        const existingRequest = await prisma.calendarSyncRequest.findFirst({
+          where: {
+            parentUserId: user.id,
+            schoolId: organizationId,
+            sportName: sport,
+            sportLevel: gradeLevel,
+          },
+        });
+
+        if (existingRequest) {
+          await prisma.calendarSyncRequest.update({
+            where: { id: existingRequest.id },
+            data: { status: "APPROVED" },
+          });
+        } else {
+          await prisma.calendarSyncRequest.create({
+            data: {
+              parentUserId: user.id,
+              schoolId: organizationId,
+              sportName: sport,
+              sportLevel: gradeLevel,
+              status: "APPROVED",
+            },
+          });
+        }
+      } catch (err) {
+        console.warn("[API] Failed to auto-create CalendarSyncRequest:", err);
+      }
+    }
+
+    // Auto-trigger calendar sync if the parent has Google Calendar connected
+    if (sport && gradeLevel) {
+      try {
+        const hasCalendar = await prisma.account.findFirst({
+          where: { userId: user.id, provider: "google" },
+          select: { refresh_token: true, access_token: true },
+        });
+
+        if (hasCalendar?.refresh_token || hasCalendar?.access_token) {
+          // Fire-and-forget — don't block the response
+          calendarService
+            .syncGamesForSportLevel(user.id, organizationId, sport, gradeLevel, "primary")
+            .then(() => {
+              // Update ConnectedParent calendarSynced flag on success
+              return prisma.connectedParent.updateMany({
+                where: { parentUserId: user.id, schoolId: organizationId },
+                data: { calendarSynced: true, lastSyncedAt: new Date() },
+              });
+            })
+            .catch((syncErr) => {
+              console.warn("[API] Background calendar auto-sync failed:", syncErr);
+            });
+        }
+      } catch (err) {
+        console.warn("[API] Failed to check Google Calendar connection:", err);
+      }
     }
 
     // Create parent subscription (free — no trial period)
