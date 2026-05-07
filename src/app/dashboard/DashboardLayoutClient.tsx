@@ -664,7 +664,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             px: { xs: 2, sm: 3 },
             maxWidth: {
               xs: "100%",
-              sm: isSidebarVisible ? "1536px" : "1936px",
+              sm: isSidebarVisible ? "1755px" : "100%",
             },
             mx: "auto",
           }}

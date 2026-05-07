@@ -32,11 +32,11 @@ function SignatureLogoImage({ logoUrl }: { logoUrl: string }) {
       src={logoUrl}
       alt="Logo preview"
       sx={{
-        maxWidth: 120,
-        maxHeight: 120,
+        maxWidth: 60,
+        maxHeight: 60,
         border: (theme) => `1px solid ${theme.palette.divider}`,
         borderRadius: 1,
-        p: 1,
+        p: 0.5,
       }}
       loading="lazy"
     />
@@ -294,7 +294,7 @@ export function EmailSignatureManager() {
                   )}
                 </Stack>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  Recommended max size: 120px. Max file size: 2MB. Supported: JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images
+                  Recommended max size: 60px. Max file size: 2MB. Supported: JPG, JPEG, PNG, WebP, and iPhone/Android (HEIC) images
                 </Typography>
               </Box>
 

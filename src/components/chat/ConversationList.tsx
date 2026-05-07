@@ -106,7 +106,7 @@ export default function ConversationList({
               >
                 <Avatar
                   src={displayImage || undefined}
-                  sx={{ width: 40, height: 40, bgcolor: "primary.main" }}
+                  sx={{ width: 40, height: 40, bgcolor: variant === "parent" ? "grey.300" : "primary.main" }}
                 >
                   {variant === "parent" ? (
                     <School fontSize="small" />

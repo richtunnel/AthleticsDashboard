@@ -285,7 +285,7 @@ export default function ParentChatPage() {
                 >
                   <Avatar
                     src={selectedConversation.adImage || undefined}
-                    sx={{ width: 36, height: 36, bgcolor: "primary.main" }}
+                    sx={{ width: 36, height: 36, bgcolor: "grey.300" }}
                   >
                     <School fontSize="small" />
                   </Avatar>
