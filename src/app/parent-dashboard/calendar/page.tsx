@@ -239,7 +239,9 @@ function ParentCalendarPageContent() {
             bgcolor: "background.paper",
           }}
         >
-          <CalendarGroupMappings />
+          {/* Pass the verified calendar email so CalendarGroupMappings
+              never falls back to the sign-in email from useSession */}
+          <CalendarGroupMappings connectedEmailOverride={connectedEmail} />
         </Box>
       )}
     </Box>

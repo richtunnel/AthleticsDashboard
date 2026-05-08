@@ -103,7 +103,11 @@ export async function GET(request: NextRequest) {
       expiryDate: tokens.expiry_date,
     });
 
-    let connectedEmail = session.user.googleCalendarEmail ?? null;
+    // Always fetch the calendar email directly from Google userinfo.
+    // Never fall back to session.user.email — that is the sign-in email and
+    // would overwrite the real calendar email with the wrong address (the bug
+    // that causes the parent dashboard to display someone else's email).
+    let connectedEmail: string | null = null;
     try {
       const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
       const profile = await oauth2.userinfo.get();
@@ -128,9 +132,11 @@ export async function GET(request: NextRequest) {
       updateData.calendarTokenExpiry = new Date(tokens.expiry_date);
     }
 
-    const emailToPersist = connectedEmail ?? session.user.googleCalendarEmail ?? session.user.email ?? null;
-    if (emailToPersist) {
-      updateData.googleCalendarEmail = emailToPersist;
+    // Only write googleCalendarEmail when we have a verified address from
+    // Google — if the userinfo call failed we leave the existing value alone
+    // rather than overwriting it with a wrong email.
+    if (connectedEmail) {
+      updateData.googleCalendarEmail = connectedEmail;
     }
 
     if (Object.keys(updateData).length > 0) {

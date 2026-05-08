@@ -79,11 +79,25 @@ const fetchImportedColumns = async (): Promise<{ data: string[] }> => {
   return res.json();
 };
 
-export function CalendarGroupMappings() {
+interface CalendarGroupMappingsProps {
+  /** Override the connected-account email shown in the header.
+   *  Pass this from the parent calendar page so the component
+   *  shows the actual calendar email rather than the sign-in email
+   *  derived from useSession (which uses the AD session, not the
+   *  parent session). */
+  connectedEmailOverride?: string | null;
+}
+
+export function CalendarGroupMappings({ connectedEmailOverride }: CalendarGroupMappingsProps = {}) {
   const { addNotification } = useNotifications();
   const theme = customTheme();
   const { data: session } = useSession();
-  const connectedEmail = (session?.user as any)?.googleCalendarEmail || session?.user?.email || null;
+  // Prefer the caller-supplied override (e.g. from the parent calendar page)
+  // so we never show the sign-in email in place of the real calendar email.
+  const connectedEmail =
+    connectedEmailOverride !== undefined
+      ? connectedEmailOverride
+      : (session?.user as any)?.googleCalendarEmail || null;
   const queryClient = useQueryClient();
   const { disconnect: disconnectCalendar, connect: connectCalendar } = useGoogleCalendarConnection();
   const [dialogOpen, setDialogOpen] = useState(false);
