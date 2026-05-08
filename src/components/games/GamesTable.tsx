@@ -1215,10 +1215,16 @@ export function GamesTable() {
         values.time.add(game.time);
       }
 
-      // Add date value
+      // Add date value — emit full date, month token, and year token so the
+      // filter panel can show individual-date, by-month, and by-year groups.
       if (game.date) {
-        const datePart = extractDatePart(game.date);
+        const datePart = extractDatePart(game.date); // YYYY-MM-DD
         values.date.add(datePart);
+        // Month and year tokens are prefixed so the filter UI and API can
+        // distinguish them from exact-date values.
+        const [yyyy, mm] = datePart.split("-");
+        if (yyyy && mm) values.date.add(`month:${yyyy}-${mm}`);
+        if (yyyy) values.date.add(`year:${yyyy}`);
       }
 
       const customData = (game.customData as any) || {};

@@ -55,6 +55,45 @@ const CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean;
   between: { label: "Between", requiresValue: true, requiresSecondValue: true },
 };
 
+// Operators that make sense for date fields (human-friendly labels)
+const DATE_CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean; requiresSecondValue?: boolean }> = {
+  equals:      { label: "On date",        requiresValue: true },
+  not_equals:  { label: "Not on date",    requiresValue: true },
+  less_than:   { label: "Before",         requiresValue: true },
+  greater_than:{ label: "After",          requiresValue: true },
+  between:     { label: "Between",        requiresValue: true, requiresSecondValue: true },
+  is_empty:    { label: "Is empty",       requiresValue: false },
+  is_not_empty:{ label: "Is not empty",   requiresValue: false },
+};
+
+// ── Date formatting helpers ──────────────────────────────────────────────────
+
+/** Formats a raw filter value for human display in the filter panel. */
+function formatFilterValue(raw: string, columnType: string): string {
+  if (columnType !== "date") return raw;
+
+  // Month token: "month:YYYY-MM" → "January 2026"
+  if (raw.startsWith("month:")) {
+    const [yyyy, mm] = raw.slice(6).split("-").map(Number);
+    if (!yyyy || !mm) return raw;
+    const d = new Date(Date.UTC(yyyy, mm - 1, 1));
+    return d.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  }
+  // Year token: "year:YYYY" → "2026"
+  if (raw.startsWith("year:")) return raw.slice(5);
+  // Exact date: "YYYY-MM-DD" → "Jan 29, 2026"
+  const d = new Date(raw + "T00:00:00Z");
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+/** Returns the section a raw date filter value belongs to. */
+function dateValueSection(raw: string): "year" | "month" | "date" {
+  if (raw.startsWith("year:")) return "year";
+  if (raw.startsWith("month:")) return "month";
+  return "date";
+}
+
 interface DragItem {
   id: string;
   name: string;
@@ -160,8 +199,11 @@ export function ColumnFilterDragDrop({
 
   const filteredCheckboxValues = useMemo(() => {
     if (!searchTerm) return uniqueValues;
-    return uniqueValues.filter((value) => value.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [uniqueValues, searchTerm]);
+    // For date columns match against the human-readable label, not the raw token
+    return uniqueValues.filter((value) =>
+      formatFilterValue(value, columnType).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [uniqueValues, searchTerm, columnType]);
 
   const filteredAvailableItems = useMemo(() => {
     if (!searchTerm) return availableItems;
@@ -211,7 +253,10 @@ export function ColumnFilterDragDrop({
   };
 
   const handleApplyConditionFilter = () => {
-    const conditionConfig = CONDITION_OPTIONS[selectedCondition];
+    // Use the appropriate option set for this column type
+    const opts = columnType === "date" ? DATE_CONDITION_OPTIONS : CONDITION_OPTIONS;
+    const conditionConfig = opts[selectedCondition] ?? CONDITION_OPTIONS[selectedCondition];
+    if (!conditionConfig) return;
     if (!conditionConfig.requiresValue || conditionValue.trim()) {
       onFilterChange(columnId, {
         type: "condition",
@@ -263,7 +308,11 @@ export function ColumnFilterDragDrop({
   };
 
   const hasActiveFilter = mounted && currentFilter !== null && currentFilter !== undefined;
-  const conditionConfig = CONDITION_OPTIONS[selectedCondition];
+  // conditionConfig is kept for backward-compat use in the JSX below (the
+  // date-specific sections rebuild their own config inline via activeOpts)
+  const conditionConfig = (columnType === "date" ? DATE_CONDITION_OPTIONS : CONDITION_OPTIONS)[selectedCondition]
+    ?? CONDITION_OPTIONS[selectedCondition]
+    ?? CONDITION_OPTIONS.contains;
 
   return (
     <>
@@ -511,118 +560,198 @@ export function ColumnFilterDragDrop({
             </Box>
           )} */}
 
-          {/* Checkbox Values Mode */}
-          {filterMode === "values" && (
-            <Box>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder={`Search ${columnName.toLowerCase()}...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: <Search fontSize="small" sx={{ mr: 1, color: "action.active" }} />,
-                }}
-                sx={{ mb: 2 }}
-              />
+          {/* Select Values Mode */}
+          {filterMode === "values" && (() => {
+            // For date columns: split uniqueValues into year / month / exact-date groups
+            // and render each as its own collapsible section.
+            if (columnType === "date") {
+              const years  = uniqueValues.filter((v) => v.startsWith("year:"));
+              const months = uniqueValues.filter((v) => v.startsWith("month:"));
+              const dates  = uniqueValues.filter((v) => !v.startsWith("year:") && !v.startsWith("month:"));
 
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                <Button size="small" onClick={handleSelectAll} sx={{ textTransform: "none", fontSize: 12 }}>
-                  Select all
-                </Button>
-                <Button size="small" onClick={handleClearAll} sx={{ textTransform: "none", fontSize: 12 }}>
-                  Clear all
-                </Button>
-              </Stack>
+              const renderSection = (label: string, items: string[]) => {
+                if (items.length === 0) return null;
+                const filtered = searchTerm
+                  ? items.filter((v) => formatFilterValue(v, "date").toLowerCase().includes(searchTerm.toLowerCase()))
+                  : items;
+                return (
+                  <Box key={label} sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ px: 0.5, display: "block", mb: 0.25 }}>
+                      {label}
+                    </Typography>
+                    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                      <List dense sx={{ p: 0 }}>
+                        {filtered.length === 0 ? (
+                          <ListItem dense>
+                            <ListItemText primary="No matches" primaryTypographyProps={{ variant: "body2", color: "text.secondary" }} />
+                          </ListItem>
+                        ) : (
+                          filtered.map((raw) => (
+                            <ListItemButton key={raw} onClick={() => handleValueToggle(raw)} dense sx={{ py: 0.25 }}>
+                              <Checkbox edge="start" checked={selectedValues.has(raw)} tabIndex={-1} disableRipple size="small" />
+                              <ListItemText
+                                primary={formatFilterValue(raw, "date")}
+                                primaryTypographyProps={{ variant: "body2", sx: { fontSize: 13 } }}
+                              />
+                            </ListItemButton>
+                          ))
+                        )}
+                      </List>
+                    </Box>
+                  </Box>
+                );
+              };
 
-              <Box
-                sx={{
-                  maxHeight: 300,
-                  overflow: "auto",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
-                <List dense sx={{ p: 0 }}>
-                  {filteredCheckboxValues.length === 0 ? (
-                    <ListItem>
-                      <ListItemText
-                        primary="No values found"
-                        primaryTypographyProps={{
-                          variant: "body2",
-                          color: "text.secondary",
-                        }}
-                      />
-                    </ListItem>
-                  ) : (
-                    filteredCheckboxValues.map((value) => (
-                      <ListItemButton key={value} onClick={() => handleValueToggle(value)} dense sx={{ py: 0.5 }}>
-                        <Checkbox edge="start" checked={selectedValues.has(value)} tabIndex={-1} disableRipple size="small" />
+              return (
+                <Box>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search dates…"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{ startAdornment: <Search fontSize="small" sx={{ mr: 1, color: "action.active" }} /> }}
+                    sx={{ mb: 1.5 }}
+                  />
+                  <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
+                    <Button size="small" onClick={handleSelectAll} sx={{ textTransform: "none", fontSize: 12 }}>Select all</Button>
+                    <Button size="small" onClick={handleClearAll} sx={{ textTransform: "none", fontSize: 12 }}>Clear all</Button>
+                  </Stack>
+                  <Box sx={{ maxHeight: 340, overflowY: "auto" }}>
+                    {renderSection("Year", years)}
+                    {renderSection("Month", months)}
+                    {renderSection("Specific Date", dates)}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                    {selectedValues.size} of {uniqueValues.length} selected
+                  </Typography>
+                </Box>
+              );
+            }
+
+            // Default (non-date) checkbox list
+            return (
+              <Box>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder={`Search ${columnName.toLowerCase()}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: <Search fontSize="small" sx={{ mr: 1, color: "action.active" }} />,
+                  }}
+                  sx={{ mb: 2 }}
+                />
+
+                <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+                  <Button size="small" onClick={handleSelectAll} sx={{ textTransform: "none", fontSize: 12 }}>
+                    Select all
+                  </Button>
+                  <Button size="small" onClick={handleClearAll} sx={{ textTransform: "none", fontSize: 12 }}>
+                    Clear all
+                  </Button>
+                </Stack>
+
+                <Box
+                  sx={{
+                    maxHeight: 300,
+                    overflow: "auto",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <List dense sx={{ p: 0 }}>
+                    {filteredCheckboxValues.length === 0 ? (
+                      <ListItem>
                         <ListItemText
-                          primary={value || "(Empty)"}
+                          primary="No values found"
                           primaryTypographyProps={{
                             variant: "body2",
-                            sx: { fontSize: 13 },
+                            color: "text.secondary",
                           }}
                         />
-                      </ListItemButton>
-                    ))
-                  )}
-                </List>
-              </Box>
+                      </ListItem>
+                    ) : (
+                      filteredCheckboxValues.map((value) => (
+                        <ListItemButton key={value} onClick={() => handleValueToggle(value)} dense sx={{ py: 0.5 }}>
+                          <Checkbox edge="start" checked={selectedValues.has(value)} tabIndex={-1} disableRipple size="small" />
+                          <ListItemText
+                            primary={value || "(Empty)"}
+                            primaryTypographyProps={{
+                              variant: "body2",
+                              sx: { fontSize: 13 },
+                            }}
+                          />
+                        </ListItemButton>
+                      ))
+                    )}
+                  </List>
+                </Box>
 
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                {selectedValues.size} of {uniqueValues.length} selected
-              </Typography>
-            </Box>
-          )}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                  {selectedValues.size} of {uniqueValues.length} selected
+                </Typography>
+              </Box>
+            );
+          })()}
 
           {/* Condition Mode */}
-          {filterMode === "condition" && (
-            <Box>
-              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel>Condition</InputLabel>
-                <Select value={selectedCondition} onChange={(e) => setSelectedCondition(e.target.value as FilterCondition)} label="Condition">
-                  {Object.entries(CONDITION_OPTIONS).map(([key, { label }]) => (
-                    <MenuItem key={key} value={key}>
-                      {label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+          {filterMode === "condition" && (() => {
+            // Use date-specific operators for date columns
+            const activeOpts = columnType === "date" ? DATE_CONDITION_OPTIONS : CONDITION_OPTIONS;
+            const activeConditionConfig = activeOpts[selectedCondition] ?? activeOpts.contains ?? Object.values(activeOpts)[0];
 
-              {conditionConfig.requiresValue && (
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Value"
-                  value={conditionValue}
-                  onChange={(e) => setConditionValue(e.target.value)}
-                  sx={{ mb: 2 }}
-                  type={columnType === "number" ? "number" : columnType === "date" ? "date" : "text"}
-                  InputLabelProps={columnType === "date" ? { shrink: true } : undefined}
-                />
-              )}
+            return (
+              <Box>
+                <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                  <InputLabel>Condition</InputLabel>
+                  <Select
+                    value={selectedCondition in activeOpts ? selectedCondition : Object.keys(activeOpts)[0]}
+                    onChange={(e) => setSelectedCondition(e.target.value as FilterCondition)}
+                    label="Condition"
+                  >
+                    {Object.entries(activeOpts).map(([key, { label }]) => (
+                      <MenuItem key={key} value={key}>{label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
 
-              {conditionConfig.requiresSecondValue && (
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Second value"
-                  value={conditionSecondValue}
-                  onChange={(e) => setConditionSecondValue(e.target.value)}
-                  sx={{ mb: 2 }}
-                  type={columnType === "number" ? "number" : columnType === "date" ? "date" : "text"}
-                  InputLabelProps={columnType === "date" ? { shrink: true } : undefined}
-                />
-              )}
+                {activeConditionConfig.requiresValue && (
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label={columnType === "date" ? "Date" : "Value"}
+                    value={conditionValue}
+                    onChange={(e) => setConditionValue(e.target.value)}
+                    sx={{ mb: 2 }}
+                    type={columnType === "number" ? "number" : columnType === "date" ? "date" : "text"}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
 
-              <Typography variant="caption" color="text.secondary">
-                Apply a condition-based filter to this column
-              </Typography>
-            </Box>
-          )}
+                {activeConditionConfig.requiresSecondValue && (
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label={columnType === "date" ? "End date" : "Second value"}
+                    value={conditionSecondValue}
+                    onChange={(e) => setConditionSecondValue(e.target.value)}
+                    sx={{ mb: 2 }}
+                    type={columnType === "number" ? "number" : columnType === "date" ? "date" : "text"}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                )}
+
+                <Typography variant="caption" color="text.secondary">
+                  {columnType === "date"
+                    ? "Filter by a specific date or date range"
+                    : "Apply a condition-based filter to this column"}
+                </Typography>
+              </Box>
+            );
+          })()}
 
           <Divider sx={{ my: 2 }} />
 

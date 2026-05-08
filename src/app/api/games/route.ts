@@ -364,20 +364,30 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
     case "date": {
       const dateConditions = values
         .map((v) => {
+          // Month token: "month:YYYY-MM" → full calendar-month range
+          if (v.startsWith("month:")) {
+            const [yyyy, mm] = v.slice(6).split("-").map(Number);
+            if (!yyyy || !mm) return null;
+            const start = new Date(Date.UTC(yyyy, mm - 1, 1, 0, 0, 0, 0));
+            const end   = new Date(Date.UTC(yyyy, mm, 0, 23, 59, 59, 999)); // day 0 = last day of prev month
+            return { date: { gte: start, lte: end } };
+          }
+          // Year token: "year:YYYY" → full calendar-year range
+          if (v.startsWith("year:")) {
+            const yyyy = Number(v.slice(5));
+            if (!yyyy) return null;
+            const start = new Date(Date.UTC(yyyy, 0, 1, 0, 0, 0, 0));
+            const end   = new Date(Date.UTC(yyyy, 11, 31, 23, 59, 59, 999));
+            return { date: { gte: start, lte: end } };
+          }
+          // Exact date: "YYYY-MM-DD"
           const d = new Date(v);
           if (isNaN(d.getTime())) return null;
-
           const start = new Date(d);
           start.setUTCHours(0, 0, 0, 0);
           const end = new Date(d);
           end.setUTCHours(23, 59, 59, 999);
-
-          return {
-            date: {
-              gte: start,
-              lte: end,
-            },
-          };
+          return { date: { gte: start, lte: end } };
         })
         .filter(Boolean);
 
@@ -546,9 +556,59 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
       break;
     }
 
-    case "date":
-      where.date = buildCondition("date");
+    case "date": {
+      // Prisma DateTime fields require Date objects, not strings.
+      // We also expand single-day "equals" into a gte/lte range so timezone
+      // differences in stored values don't cause misses.
+      const parseDate = (s: string) => {
+        if (!s) return null;
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      };
+      const d1 = parseDate(value);
+      if (!d1) break;
+
+      const startOfDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
+      const endOfDay   = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+
+      switch (condition) {
+        case "equals":
+          // Match the whole day
+          where.date = { gte: startOfDay(d1), lte: endOfDay(d1) };
+          break;
+        case "not_equals":
+          // Exclude the whole day
+          if (!where.AND) where.AND = [];
+          where.AND.push({ OR: [{ date: { lt: startOfDay(d1) } }, { date: { gt: endOfDay(d1) } }] });
+          break;
+        case "greater_than": // "After"
+          where.date = { gt: endOfDay(d1) };
+          break;
+        case "less_than": // "Before"
+          where.date = { lt: startOfDay(d1) };
+          break;
+        case "between": {
+          const d2 = parseDate(secondValue || "");
+          if (!d2) {
+            where.date = { gte: startOfDay(d1), lte: endOfDay(d1) };
+          } else {
+            // Swap if needed so start ≤ end
+            const [lo, hi] = d1 <= d2 ? [d1, d2] : [d2, d1];
+            where.date = { gte: startOfDay(lo), lte: endOfDay(hi) };
+          }
+          break;
+        }
+        case "is_empty":
+          where.date = { equals: null };
+          break;
+        case "is_not_empty":
+          where.date = { not: null };
+          break;
+        default:
+          break;
+      }
       break;
+    }
 
     case "time":
       where.time = buildCondition("time");
