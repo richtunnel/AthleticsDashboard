@@ -541,9 +541,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
-              {/* Identity header — not interactive */}
-              <Box sx={{ px: 2, py: 1.5, pointerEvents: "none" }}>
-                <Typography variant="body2" fontWeight={600} noWrap>
+              {/* Identity header — navigates to settings, no pointer cursor */}
+              <Box
+                component={Link}
+                href="/dashboard/settings"
+                onClick={handleClose}
+                sx={{
+                  display: "block",
+                  px: 2,
+                  py: 1.5,
+                  textDecoration: "none",
+                  cursor: "default",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <Typography variant="body2" fontWeight={600} noWrap color="text.primary">
                   {session?.user?.name || ""}
                 </Typography>
                 <Typography variant="caption" noWrap sx={{ color: "text.disabled", display: "block" }}>
