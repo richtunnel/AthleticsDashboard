@@ -174,7 +174,13 @@ export function ColumnFilterDragDrop({
     if (currentFilter) {
       if (currentFilter.type === "condition") {
         setFilterMode("condition");
-        setSelectedCondition(currentFilter.condition || "contains");
+        // If restoring a saved condition, fall back to a valid operator for the column type
+        const savedCondition = currentFilter.condition || "contains";
+        const validCondition =
+          columnType === "date" && !(savedCondition in DATE_CONDITION_OPTIONS)
+            ? "equals"
+            : savedCondition;
+        setSelectedCondition(validCondition);
         setConditionValue(currentFilter.value || "");
         setConditionSecondValue(currentFilter.secondValue || "");
       } else if (currentFilter.type === "values") {
@@ -184,6 +190,10 @@ export function ColumnFilterDragDrop({
       setSelectedValues(new Set());
       setConditionValue("");
       setConditionSecondValue("");
+      // Reset to a valid operator when opening a date column with no existing filter
+      if (columnType === "date") {
+        setSelectedCondition("equals");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
