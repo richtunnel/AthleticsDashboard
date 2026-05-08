@@ -2,14 +2,14 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, useSession } from "next-auth/react";
-import { 
-  Box, 
-  Container, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Button, 
+import { useSession } from "next-auth/react";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  Button,
   TextField,
   Alert,
   CircularProgress,
@@ -18,6 +18,36 @@ import {
 import { Google, School, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
+
+/**
+ * Sign in via the parent auth endpoint (/api/auth/parent/...) instead of the
+ * main NextAuth endpoint (/api/auth/...).  Using the main endpoint would route
+ * errors to /login (the AD sign-in page) and could cause OAuthAccountNotLinked
+ * because the parent flow uses a separate Google OAuth client ID.
+ */
+async function signInAsParent(callbackUrl: string): Promise<void> {
+  // 1. Fetch a CSRF token from the PARENT auth endpoint
+  const csrfRes = await fetch("/api/auth/parent/csrf");
+  if (!csrfRes.ok) throw new Error("Failed to fetch CSRF token");
+  const { csrfToken } = await csrfRes.json();
+
+  // 2. POST to the parent OAuth sign-in endpoint — mirrors what next-auth/react
+  //    signIn() does internally, just targeting the parent auth base path so
+  //    errors redirect to /onboarding/parent-signup and allowDangerousEmailAccountLinking
+  //    is active.
+  const res = await fetch("/api/auth/parent/signin/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ csrfToken, callbackUrl, json: "true" }).toString(),
+  });
+
+  if (!res.ok) throw new Error("Failed to initiate Google sign-in");
+
+  const data = await res.json();
+  if (data.url) {
+    window.location.href = data.url;
+  }
+}
 
 interface AthleticDirectorInfo {
   athleticDirectorId: string;
@@ -45,6 +75,20 @@ function ParentSignupContent() {
   const level = searchParams.get("level") || "";
   const childName = searchParams.get("childName") || "";
   const childGrade = searchParams.get("childGrade") || "";
+
+  // If NextAuth redirected back here with an error param, surface it
+  useEffect(() => {
+    const authError = searchParams.get("error");
+    if (authError) {
+      const messages: Record<string, string> = {
+        OAuthAccountNotLinked: "This Google account is linked to a different sign-in method. Please try signing in with the same account you used originally.",
+        OAuthSignin: "There was a problem signing in with Google. Please try again.",
+        OAuthCallback: "There was a problem completing Google sign-in. Please try again.",
+        Default: "Sign-in failed. Please try again.",
+      };
+      setError(messages[authError] ?? messages.Default);
+    }
+  }, [searchParams]);
 
   // If user already has a parent session, redirect to parent onboarding.
   // Note: With separate parent auth cookies, an AD logged in via the main
@@ -101,10 +145,10 @@ function ParentSignupContent() {
         }));
       }
       
-      // Redirect to Google signup with callback to handle the link creation
-      await signIn("google", { 
-        callbackUrl: "/onboarding/parent-callback" 
-      });
+      // Redirect to Google sign-up via the PARENT auth endpoint so that errors
+      // land on /onboarding/parent-signup (not the AD /login page) and
+      // allowDangerousEmailAccountLinking is in effect.
+      await signInAsParent("/onboarding/parent-callback");
     } catch (err) {
       setError("Failed to sign up with Google");
       setLoading(false);
@@ -213,7 +257,7 @@ function ParentSignupContent() {
               <Button
                 variant="text"
                 size="small"
-                onClick={() => signIn("google", { callbackUrl: "/parent-dashboard" })}
+                onClick={() => signInAsParent("/parent-dashboard").catch(console.error)}
               >
                 Sign in instead
               </Button>

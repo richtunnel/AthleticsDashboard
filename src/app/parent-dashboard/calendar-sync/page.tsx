@@ -12,6 +12,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Autocomplete,
+  TextField,
   CircularProgress,
   Alert,
   Stepper,
@@ -221,54 +223,84 @@ function CalendarSyncPageContent() {
           </Stepper>
 
           {activeStep === 0 && (
-            <FormControl fullWidth>
-              <InputLabel>School</InputLabel>
-              <Select
-                value={selectedSchoolId}
-                label="School"
-                onChange={(e) => setSelectedSchoolId(e.target.value)}
-              >
-                {schoolsData?.schools.map((school) => (
-                  <MenuItem key={school.schoolId} value={school.schoolId}>
-                    {school.schoolName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={schoolsData?.schools || []}
+              getOptionLabel={(o) => o.schoolName}
+              value={schoolsData?.schools.find((s) => s.schoolId === selectedSchoolId) ?? null}
+              onChange={(_: any, v) => setSelectedSchoolId(v?.schoolId ?? "")}
+              isOptionEqualToValue={(o, v) => o.schoolId === v.schoolId}
+              loading={schoolsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="School"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {schoolsLoading ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
           )}
 
           {activeStep === 1 && (
-            <FormControl fullWidth>
-              <InputLabel>Sport</InputLabel>
-              <Select
-                value={selectedSportName}
-                label="Sport"
-                onChange={(e) => setSelectedSportName(e.target.value)}
-              >
-                {sportsData?.sports.map((sport) => (
-                  <MenuItem key={sport.id} value={sport.name}>
-                    {sport.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={sportsData?.sports || []}
+              getOptionLabel={(o) => o.name}
+              value={sportsData?.sports.find((s) => s.name === selectedSportName) ?? null}
+              onChange={(_: any, v) => setSelectedSportName(v?.name ?? "")}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              loading={sportsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Sport"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {sportsLoading ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
           )}
 
           {activeStep === 2 && (
-            <FormControl fullWidth>
-              <InputLabel>Level</InputLabel>
-              <Select
-                value={selectedSportLevel}
-                label="Level"
-                onChange={(e) => setSelectedSportLevel(e.target.value)}
-              >
-                {levelsData?.levels.map((level) => (
-                  <MenuItem key={level.id} value={level.name}>
-                    {level.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              options={levelsData?.levels || []}
+              getOptionLabel={(o) => o.name}
+              value={levelsData?.levels.find((l) => l.name === selectedSportLevel) ?? null}
+              onChange={(_: any, v) => setSelectedSportLevel(v?.name ?? "")}
+              isOptionEqualToValue={(o, v) => o.id === v.id}
+              loading={levelsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Level"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {levelsLoading ? <CircularProgress size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
           )}
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, gap: 2 }}>

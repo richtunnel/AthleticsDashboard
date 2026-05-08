@@ -431,7 +431,9 @@ export class CalendarService {
 
     const details: { opponent?: string | null; location?: string | null } = {};
 
-    const lines = description.split(/\r?\n/);
+    // Strip HTML tags and split on <br>, \n, or both
+    const plain = description.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+    const lines = plain.split(/\r?\n/);
 
     for (const line of lines) {
       const [label, ...rest] = line.split(":");
@@ -583,6 +585,114 @@ export class CalendarService {
       : [];
   }
 
+  // ---------------------------------------------------------------------------
+  // League keyword helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Extract normalised tokens from a sport name + level string.
+   *
+   * e.g. sportName="Boys Basketball", sportLevel="VARSITY"
+   *   → { gender: "boys", sportCore: "basketball", levelTokens: ["varsity"] }
+   *
+   * e.g. sportName="Soccer", sportLevel="JV"
+   *   → { gender: null, sportCore: "soccer", levelTokens: ["jv","junior varsity","jr varsity"] }
+   */
+  private parseLeagueTokens(sportName: string, sportLevel: string) {
+    const GENDER_WORDS = ["boys", "girls", "men", "women", "male", "female"];
+    const LEVEL_ALIASES: Record<string, string[]> = {
+      varsity:         ["varsity", "var"],
+      jv:              ["jv", "j.v.", "junior varsity", "jr varsity", "jr. varsity", "junior v"],
+      freshman:        ["freshman", "frosh", "fresh"],
+      "middle school": ["middle school", "ms", "middle"],
+    };
+
+    const nameLower  = sportName.toLowerCase();
+    const levelLower = sportLevel.toLowerCase();
+
+    // Gender — look for it in the sport name string
+    const gender = GENDER_WORDS.find((g) => nameLower.includes(g)) ?? null;
+
+    // Core sport keyword — strip gender prefix/suffix, keep meaningful word(s)
+    let sportCore = nameLower;
+    if (gender) sportCore = sportCore.replace(gender, "").trim();
+    sportCore = sportCore.trim(); // e.g. "basketball", "flag football", "cross country"
+
+    // Level — expand the level value into all aliases so "VARSITY" matches "varsity" in text
+    const matchedLevel = Object.entries(LEVEL_ALIASES).find(([key, aliases]) =>
+      levelLower === key || aliases.some((a) => levelLower.includes(a))
+    );
+    const levelTokens = matchedLevel
+      ? matchedLevel[1]
+      : [levelLower]; // fall back to the raw value
+
+    return { gender, sportCore, levelTokens };
+  }
+
+  /**
+   * Collect all searchable text for a game into one lowercase string.
+   * Scans homeTeam relations AND every custom-field value — this handles
+   * spreadsheet columns like "Team = Tigers Boys Varsity" where gender and
+   * level are embedded in a single column.
+   */
+  private buildGameSearchText(game: any): string {
+    const parts: string[] = [];
+
+    // Structured DB fields
+    if (game.homeTeam?.sport?.name) parts.push(game.homeTeam.sport.name);
+    if (game.homeTeam?.level)       parts.push(game.homeTeam.level);
+    if (game.homeTeam?.gender)      parts.push(game.homeTeam.gender);
+    if (game.homeTeam?.name)        parts.push(game.homeTeam.name);
+    if (game.awayTeam?.name)        parts.push(game.awayTeam.name);
+
+    // All custom-field values from the spreadsheet import
+    const cf = game.customFields;
+    if (cf && typeof cf === "object") {
+      for (const v of Object.values(cf)) {
+        if (typeof v === "string") parts.push(v);
+        else if (v != null)        parts.push(String(v));
+      }
+    }
+
+    return parts.join(" ").toLowerCase();
+  }
+
+  /**
+   * Returns true if the game's combined text matches the given sport + level.
+   *
+   * Matching rules (all must pass):
+   *  1. Level   — at least one level alias found anywhere in game text
+   *  2. Gender  — if gender is encoded in sportName, it must appear in game text
+   *  3. Sport   — the core sport word(s) must appear somewhere (skipped only
+   *               when the sport name is a single-word catch-all that might
+   *               produce false positives — we still require it)
+   */
+  private gameMatchesLeague(
+    game: any,
+    sportName: string,
+    sportLevel: string
+  ): boolean {
+    const { gender, sportCore, levelTokens } = this.parseLeagueTokens(sportName, sportLevel);
+    const text = this.buildGameSearchText(game);
+
+    // 1. Level must be present
+    if (!levelTokens.some((t) => text.includes(t))) return false;
+
+    // 2. Gender must be present (if specified)
+    if (gender && !text.includes(gender)) return false;
+
+    // 3. Sport core must be present (if we have a meaningful keyword)
+    if (sportCore && sportCore.length > 2) {
+      // Multi-word sports like "cross country" — try each word
+      const sportWords = sportCore.split(" ").filter((w) => w.length > 2);
+      if (sportWords.length > 0 && !sportWords.some((w) => text.includes(w))) return false;
+    }
+
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
+
   async syncGamesForSportLevel(
     userId: string,
     organizationId: string,
@@ -596,35 +706,47 @@ export class CalendarService {
       throw new Error("Google Calendar not connected");
     }
 
-    // Find games for this sport and level
-    // Handle the case where sportLevel might include gender (e.g. "VARSITY MALE")
-    const levelParts = sportLevel.split(' ');
-    const baseLevel = levelParts[0];
-    const gender = levelParts.length > 1 ? levelParts[1] : null;
+    // ── Strategy 1: match via homeTeam DB relations (fast, index-backed) ──
+    // Handle sportLevel that might already encode gender (e.g. "VARSITY MALE")
+    const levelParts = sportLevel.split(" ");
+    const baseLevel  = levelParts[0];
+    const gender     = levelParts.length > 1 ? levelParts[1] : null;
 
-    const games = await prisma.game.findMany({
+    let games = await prisma.game.findMany({
       where: {
         homeTeam: {
           organizationId,
-          sport: {
-            name: {
-              equals: sportName,
-              mode: 'insensitive'
-            }
-          },
-          level: {
-            equals: baseLevel,
-            mode: 'insensitive'
-          },
-          ...(gender ? {
-            gender: {
-              equals: gender as any,
-              mode: 'insensitive'
-            }
-          } : {})
-        }
-      }
+          sport: { name: { equals: sportName, mode: "insensitive" } },
+          level: { equals: baseLevel, mode: "insensitive" },
+          ...(gender ? { gender: { equals: gender as any, mode: "insensitive" } } : {}),
+        },
+      },
+      include: { homeTeam: { include: { sport: true } } },
     });
+
+    // ── Strategy 2: keyword scan across all custom-field columns ──
+    // Handles spreadsheet imports where sport/level/gender are embedded in a
+    // single column (e.g. "Team = Tigers Boys Varsity") rather than in the
+    // normalised DB relations.
+    if (games.length === 0) {
+      console.log(
+        `[CalendarSync] Relation query found 0 games for "${sportName} ${sportLevel}" — ` +
+          `falling back to keyword scan of custom fields`
+      );
+
+      const allOrgGames = await prisma.game.findMany({
+        where: { homeTeam: { organizationId } },
+        include: { homeTeam: { include: { sport: true } } },
+      });
+
+      games = allOrgGames.filter((g) =>
+        this.gameMatchesLeague(g, sportName, sportLevel)
+      );
+
+      console.log(
+        `[CalendarSync] Keyword scan matched ${games.length} game(s) for "${sportName} ${sportLevel}"`
+      );
+    }
 
     const results = [];
     for (const game of games) {
@@ -1050,20 +1172,41 @@ export class CalendarService {
       }
       return defaultValue || "TBD";
     };
-    
-    const sport = getField(["Sport"], game.homeTeam?.sport?.name);
-    const level = getField(["Level"], game.homeTeam?.level);
-    const team = getField(["Team", "Home"], game.homeTeam?.name);
-    const status = getField(["Status"], game.status);
-    
-    let description = `Sport: ${sport}\nLevel: ${level}\nTeam: ${team}\nStatus: ${status}\n`;
-    if (game.opponent) description += `Opponent: ${game.opponent.name}\n`;
-    if (game.travelRequired) {
-      description += `\nTravel Information:\n- Travel Time: ${game.estimatedTravelTime || "TBD"} minutes\n`;
-      if (game.busCount) description += `- Buses: ${game.busCount}\n`;
-      if (game.departureTime) description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
+
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const sport  = getField(["Sport"],         game.homeTeam?.sport?.name);
+    const level  = getField(["Level"],          game.homeTeam?.level);
+    const team   = getField(["Team", "Home"],   game.homeTeam?.name);
+    const status = getField(["Status"],         game.status);
+
+    // Use HTML <br> tags so Google Calendar renders each item on its own line.
+    // Plain-text \n characters are collapsed by Google Calendar's HTML renderer.
+    const lines: string[] = [
+      `<b>Sport:</b> ${esc(sport)}`,
+      `<b>Level:</b> ${esc(level)}`,
+      `<b>Team:</b> ${esc(team)}`,
+      `<b>Status:</b> ${esc(status)}`,
+    ];
+
+    if (game.opponent) {
+      lines.push(`<b>Opponent:</b> ${esc(game.opponent.name)}`);
     }
-    if (game.notes) description += `\nNotes: ${game.notes}`;
+
+    let description = lines.join("<br>");
+
+    if (game.travelRequired) {
+      description += "<br><br><b>Travel Information:</b><br>";
+      description += `&bull; Travel Time: ${esc(String(game.estimatedTravelTime || "TBD"))} minutes`;
+      if (game.busCount) description += `<br>&bull; Buses: ${esc(String(game.busCount))}`;
+      if (game.departureTime) description += `<br>&bull; Departure: ${esc(new Date(game.departureTime).toLocaleTimeString())}`;
+    }
+
+    if (game.notes) {
+      description += `<br><br><b>Notes:</b> ${esc(String(game.notes))}`;
+    }
+
     return description;
   }
 }
