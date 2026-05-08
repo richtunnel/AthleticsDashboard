@@ -570,6 +570,14 @@ export function GamesTable() {
     currentName: string;
   } | null>(null);
 
+  // Workbook delete confirmation dialog state
+  const [deleteWorkbookDialog, setDeleteWorkbookDialog] = useState<{
+    open: boolean;
+    workbookId: string;
+    workbookName: string;
+    gameCount: number;
+  } | null>(null);
+
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
@@ -7625,20 +7633,23 @@ export function GamesTable() {
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          {workbooks.length > 1 && workbook._count?.games === 0 && (
-                            <Tooltip title="Delete table">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteWorkbook(workbook.id);
-                                }}
-                                sx={{ p: 0.5, color: "error.main" }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          )}
+                          <Tooltip title="Delete table">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteWorkbookDialog({
+                                  open: true,
+                                  workbookId: workbook.id,
+                                  workbookName: workbook.name,
+                                  gameCount: workbook._count?.games || 0,
+                                });
+                              }}
+                              sx={{ p: 0.5, color: "error.main" }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </Box>
                       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -7959,6 +7970,40 @@ export function GamesTable() {
           monthlyBudget={monthlyBudget}
         />
       )}
+
+      {/* Delete Workbook Confirmation Dialog */}
+      <Dialog
+        open={deleteWorkbookDialog?.open ?? false}
+        onClose={() => setDeleteWorkbookDialog(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete &quot;{deleteWorkbookDialog?.workbookName}&quot;?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteWorkbookDialog?.gameCount
+              ? `This will permanently delete the worksheet and all ${deleteWorkbookDialog.gameCount} game${deleteWorkbookDialog.gameCount === 1 ? "" : "s"} inside it. This cannot be undone.`
+              : "This will permanently delete the worksheet. This cannot be undone."}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteWorkbookDialog(null)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (deleteWorkbookDialog) {
+                handleViewDeleteWorkbook(deleteWorkbookDialog.workbookId);
+                setDeleteWorkbookDialog(null);
+              }
+            }}
+            variant="contained"
+            color="error"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Unsync Confirmation Dialog */}
       <Dialog
