@@ -3064,6 +3064,10 @@ export function GamesTable() {
       // Do NOT also call deleteWorkbook() — that causes a double store update → crash
       fetch(`/api/games-workbooks/${id}`, { method: "DELETE" }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+        // Also invalidate games so deleted records disappear immediately
+        queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+        // Remove the stale per-workbook column preferences from the cache
+        queryClient.removeQueries({ queryKey: ["tablePreferences", `games-${id}`] });
       });
     },
     [queryClient],
