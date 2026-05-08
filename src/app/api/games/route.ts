@@ -565,11 +565,22 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
         const d = new Date(s);
         return isNaN(d.getTime()) ? null : d;
       };
-      const d1 = parseDate(value);
-      if (!d1) break;
 
       const startOfDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
       const endOfDay   = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+
+      // Handle no-value conditions BEFORE attempting to parse the date value
+      if (condition === "is_empty") {
+        where.date = { equals: null };
+        break;
+      }
+      if (condition === "is_not_empty") {
+        where.date = { not: null };
+        break;
+      }
+
+      const d1 = parseDate(value);
+      if (!d1) break; // value is required but invalid/missing — skip filter
 
       switch (condition) {
         case "equals":
@@ -598,12 +609,6 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
           }
           break;
         }
-        case "is_empty":
-          where.date = { equals: null };
-          break;
-        case "is_not_empty":
-          where.date = { not: null };
-          break;
         default:
           break;
       }
