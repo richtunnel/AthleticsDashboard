@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert, Snackbar, Avatar, Box } from "@mui/material";
+import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert, Snackbar, Avatar, Box, Chip } from "@mui/material";
+import { Google, Email } from "@mui/icons-material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { updateUserDetails } from "@/app/dashboard/settings/actions";
 import { ALLOWED_SETTINGS_ROLES, ROLE_OPTIONS, AllowedSettingsRole } from "@/lib/constants/role";
@@ -21,9 +22,13 @@ type Props = {
     role?: string | null;
     image?: string | null;
   };
+  /** Email address of the connected Google Calendar account (may differ from login email) */
+  googleCalendarEmail?: string | null;
+  /** School / institution email entered during onboarding */
+  schoolEmail?: string | null;
 };
 
-export default function AccountDetailsForm({ user }: Props) {
+export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEmail }: Props) {
   const theme = customTheme();
   const { mode } = useTheme();
 
@@ -149,7 +154,79 @@ export default function AccountDetailsForm({ user }: Props) {
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
             <TextField size="small" label="Name" name="name" value={form.name} onChange={handleChange} required fullWidth />
-            <TextField size="small" label="Email" name="email" value={form.email} InputProps={{ readOnly: true }} helperText="To change your email, contact support." fullWidth />
+            <TextField
+              size="small"
+              label="Google Sign-in Email"
+              name="email"
+              value={form.email}
+              InputProps={{
+                readOnly: true,
+                startAdornment: (
+                  <Box component="span" sx={{ display: "flex", alignItems: "center", mr: 1, color: "text.secondary" }}>
+                    <Google fontSize="small" />
+                  </Box>
+                ),
+              }}
+              helperText="Your Google account used to sign in. To change, contact support."
+              fullWidth
+            />
+
+            {/* Google Calendar connected email — only shown when present and different from sign-in email */}
+            {googleCalendarEmail && googleCalendarEmail !== form.email && (
+              <TextField
+                size="small"
+                label="Google Calendar Email"
+                value={googleCalendarEmail}
+                InputProps={{
+                  readOnly: true,
+                  startAdornment: (
+                    <Box component="span" sx={{ display: "flex", alignItems: "center", mr: 1, color: "text.secondary" }}>
+                      <Google fontSize="small" />
+                    </Box>
+                  ),
+                }}
+                helperText="The Google account connected to Calendar Sync. Manage this in the Calendar Sync page."
+                fullWidth
+              />
+            )}
+
+            {/* Always show Calendar email when connected (even if same as sign-in) */}
+            {googleCalendarEmail && googleCalendarEmail === form.email && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Chip
+                  icon={<Google />}
+                  label="Google Calendar connected"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ fontSize: "0.75rem" }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Same account as sign-in
+                </Typography>
+              </Box>
+            )}
+
+            {/* School email */}
+            <TextField
+              size="small"
+              label="School Email"
+              value={schoolEmail ?? ""}
+              InputProps={{
+                readOnly: true,
+                startAdornment: (
+                  <Box component="span" sx={{ display: "flex", alignItems: "center", mr: 1, color: "text.secondary" }}>
+                    <Email fontSize="small" />
+                  </Box>
+                ),
+              }}
+              helperText={
+                schoolEmail
+                  ? "Your school / institution email. Edit this in the School Details section below."
+                  : "No school email set. Add one in the School Details section below."
+              }
+              fullWidth
+            />
             <TextField size="small" label="Phone" name="phone" value={form.phone} onChange={handleChange} fullWidth />
             {/* <Autocomplete
               size="small"
