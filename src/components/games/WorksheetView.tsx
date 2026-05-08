@@ -34,6 +34,11 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
     workbookId: string;
     currentName: string;
   } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    workbookId: string;
+    workbookName: string;
+    gameCount: number;
+  } | null>(null);
 
   const cardBg = theme.palette.mode === "dark" ? alpha(theme.palette.background.paper, 0.6) : alpha(theme.palette.grey[100], 0.8);
 
@@ -188,13 +193,17 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
                       <EditIcon sx={{ fontSize: 14 }} />
                     </IconButton>
                   </Tooltip>
-                  {workbooks.length > 1 && workbook._count?.games === 0 && (
-                    <Tooltip title="Delete">
+                  {workbooks.length > 1 && (
+                    <Tooltip title="Delete worksheet">
                       <IconButton
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteWorkbook(workbook.id);
+                          setDeleteConfirm({
+                            workbookId: workbook.id,
+                            workbookName: workbook.name,
+                            gameCount: workbook._count?.games ?? 0,
+                          });
                         }}
                         sx={{ p: 0.25, color: "error.main" }}
                       >
@@ -234,6 +243,40 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
             ))}
           </Box>
         </Box>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ color: "error.main" }}>Delete Worksheet?</DialogTitle>
+          <DialogContent>
+            <Typography variant="body1">
+              Are you sure you want to delete <strong>&quot;{deleteConfirm?.workbookName}&quot;</strong>?
+            </Typography>
+            {(deleteConfirm?.gameCount ?? 0) > 0 && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                This will permanently delete{" "}
+                <strong>
+                  {deleteConfirm?.gameCount} game{deleteConfirm?.gameCount !== 1 ? "s" : ""}
+                </strong>{" "}
+                and cannot be undone.
+              </Typography>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+            <Button
+              color="error"
+              variant="contained"
+              onClick={() => {
+                if (deleteConfirm) {
+                  onDeleteWorkbook(deleteConfirm.workbookId);
+                  setDeleteConfirm(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Rename Dialog */}
         <Dialog open={editDialog?.open ?? false} onClose={() => setEditDialog(null)} maxWidth="xs" fullWidth>

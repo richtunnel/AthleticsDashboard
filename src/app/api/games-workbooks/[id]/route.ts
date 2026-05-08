@@ -77,30 +77,32 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "Workbook not found" }, { status: 404 });
     }
 
-    // Check if workbook has games
+    // Count games so we can include it in analytics
     const gameCount = await prisma.game.count({
-      where: {
-        workbookId: workbookId,
-      },
+      where: { workbookId },
     });
 
+    // Cascade-delete all games in this workbook first
     if (gameCount > 0) {
-      return NextResponse.json(
-        { error: "Cannot delete workbook with games. Please move or delete all games first." },
-        { status: 400 }
-      );
+      await prisma.game.deleteMany({
+        where: { workbookId },
+      });
     }
 
+    // Clean up the isolated column-preference record for this workbook
+    await prisma.tablePreference.deleteMany({
+      where: { tableKey: `games-${workbookId}` },
+    });
+
     await prisma.gamesWorkbook.delete({
-      where: {
-        id: workbookId,
-      },
+      where: { id: workbookId },
     });
 
     trackEvent("Games Workbook Deleted", {
       userId: session.user.id,
-      workbookId: workbookId,
+      workbookId,
       workbookName: workbook.name,
+      gameCount,
     });
 
     return NextResponse.json({ data: { id: workbookId } });
