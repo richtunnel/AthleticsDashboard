@@ -433,6 +433,7 @@ export function GamesTable() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
   const [viewImportWorkbookId, setViewImportWorkbookId] = useState<string | null>(null);
+  const [deletingWorkbookId, setDeletingWorkbookId] = useState<string | null>(null);
 
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
   const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
@@ -3060,15 +3061,21 @@ export function GamesTable() {
 
   const handleViewDeleteWorkbook = useCallback(
     (id: string) => {
+      // Show spinner on the card being deleted
+      setDeletingWorkbookId(id);
       // Only delete on server and invalidate — the useEffect will clean up the store
       // Do NOT also call deleteWorkbook() — that causes a double store update → crash
-      fetch(`/api/games-workbooks/${id}`, { method: "DELETE" }).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
-        // Also invalidate games so deleted records disappear immediately
-        queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
-        // Remove the stale per-workbook column preferences from the cache
-        queryClient.removeQueries({ queryKey: ["tablePreferences", `games-${id}`] });
-      });
+      fetch(`/api/games-workbooks/${id}`, { method: "DELETE" })
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
+          // Also invalidate games so deleted records disappear immediately
+          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+          // Remove the stale per-workbook column preferences from the cache
+          queryClient.removeQueries({ queryKey: ["tablePreferences", `games-${id}`] });
+        })
+        .finally(() => {
+          setDeletingWorkbookId(null);
+        });
     },
     [queryClient],
   );
@@ -6924,6 +6931,7 @@ export function GamesTable() {
           onDeleteWorkbook={handleViewDeleteWorkbook}
           isCreating={createWorkbookMutation.isPending}
           worksheetLimit={planLimits?.worksheetLimit}
+          deletingWorkbookId={deletingWorkbookId}
         />
       ) : (
         <>
