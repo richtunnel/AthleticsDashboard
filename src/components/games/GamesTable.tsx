@@ -780,10 +780,14 @@ export function GamesTable() {
     },
   });
 
+  // When a specific worksheet is active, load/save its own isolated column preferences
+  // so that columns from one worksheet never bleed into another.
+  const activePreferencesKey = selectedWorkbookId ? `games-${selectedWorkbookId}` : TABLE_PREFERENCES_KEY;
+
   const { data: columnPreferencesResponse, isLoading: isLoadingPreferences } = useQuery({
-    queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY],
+    queryKey: ["tablePreferences", activePreferencesKey],
     queryFn: async () => {
-      const res = await fetch(`/api/user/table-preferences?table=${TABLE_PREFERENCES_KEY}`);
+      const res = await fetch(`/api/user/table-preferences?table=${activePreferencesKey}`);
       if (!res.ok) throw new Error("Failed to fetch column preferences");
       return res.json();
     },
@@ -1643,7 +1647,7 @@ export function GamesTable() {
       const res = await fetch("/api/user/table-preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ table: TABLE_PREFERENCES_KEY, preferences: payload }),
+        body: JSON.stringify({ table: activePreferencesKey, preferences: payload }),
       });
       if (!res.ok) {
         let message = "Failed to save column preferences";
@@ -1661,7 +1665,7 @@ export function GamesTable() {
       // CRITICAL FIX: Only update the cache, do NOT invalidate queries
       // Invalidating triggers a refetch which causes column state to be recalculated
       // This was causing default columns to reappear after reordering
-      queryClient.setQueryData(["tablePreferences", TABLE_PREFERENCES_KEY], {
+      queryClient.setQueryData(["tablePreferences", activePreferencesKey], {
         success: true,
         data: data.data,
       });
@@ -3118,17 +3122,17 @@ export function GamesTable() {
       // Refresh data
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
-      queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["tablePreferences", activePreferencesKey] });
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-upcoming-games"] });
       queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
 
       // ALSO TRY: Force a refetch instead of just invalidate
       queryClient.refetchQueries({ queryKey: GAMES_QUERY_KEY });
-      queryClient.refetchQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
+      queryClient.refetchQueries({ queryKey: ["tablePreferences", activePreferencesKey] });
       queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] });
     },
-    [queryClient, addNotification, setIsCustomStructureActive, TABLE_PREFERENCES_KEY, viewImportWorkbookId],
+    [queryClient, addNotification, setIsCustomStructureActive, activePreferencesKey, viewImportWorkbookId],
   );
 
   const handleSaveNewGame = async () => {

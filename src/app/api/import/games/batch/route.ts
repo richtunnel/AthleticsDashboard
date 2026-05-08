@@ -368,7 +368,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save custom column configuration as user preferences if provided
+    // Save custom column configuration as user preferences if provided.
+    // Each worksheet import is treated as a completely isolated table — columns
+    // from a previous import are NEVER merged in.  When a workbookId is present
+    // we save under "games-<workbookId>" so each worksheet has its own isolated
+    // column set.  The main games table uses "games" as usual.
     if (customColumns && columnMapping) {
       try {
         // Sanitize column names to prevent injection
@@ -379,52 +383,14 @@ export async function POST(request: NextRequest) {
           sanitizedColumnMapping[sanitizedKey] = typeof value === "string" ? sanitizeColumnName(value) : value;
         }
 
-        // Check if user already has imported columns
-        const existingPreference = await prisma.tablePreference.findUnique({
-          where: {
-            userId_tableKey: {
-              userId: session.user.id,
-              tableKey: "games",
-            },
-          },
-        });
+        // Each import is a clean slate — no merging with previous column configs.
+        // For workbook-specific imports the tableKey is scoped to that workbook so
+        // columns from other worksheets can never bleed in.
+        const tableKey = workbookId ? `games-${workbookId}` : "games";
 
-        let finalCustomColumns = sanitizedCustomColumns;
-        let finalColumnMapping = sanitizedColumnMapping;
-
-        // If user already has imported columns, merge them instead of replacing
-        if (existingPreference?.preferences) {
-          const existingPrefs = existingPreference.preferences as any;
-          const existingCustomColumns = existingPrefs.customColumns as string[] | undefined;
-          const existingColumnMapping = existingPrefs.columnMapping as Record<string, string> | undefined;
-
-          if (existingCustomColumns && Array.isArray(existingCustomColumns) && existingCustomColumns.length > 0) {
-            console.log(`[Import] Merging new columns with existing imported columns for user ${session.user.id}`);
-
-            // Merge columns: Add new columns that don't already exist
-            const existingColumnSet = new Set(existingCustomColumns);
-            const newUniqueColumns = customColumns.filter((col: string) => !existingColumnSet.has(col));
-            finalCustomColumns = [...existingCustomColumns, ...newUniqueColumns];
-
-            // Merge column mappings
-            finalColumnMapping = {
-              ...(existingColumnMapping || {}),
-              ...columnMapping,
-            };
-
-            console.log(`[Import] Added ${newUniqueColumns.length} new columns. Total columns: ${finalCustomColumns.length}`);
-          } else {
-            console.log(`[Import] First import - replacing default columns for user ${session.user.id}`);
-          }
-        } else {
-          console.log(`[Import] First import - creating custom column configuration for user ${session.user.id}`);
-        }
-
-        // CRITICAL FIX: When saving imported columns, also reset column order and hidden columns
-        // to ensure default columns don't show alongside imported columns
-        const importedColumnIds = finalCustomColumns
+        const importedColumnIds = sanitizedCustomColumns
           .filter((colName: string) => {
-            const mapping = finalColumnMapping[colName];
+            const mapping = sanitizedColumnMapping[colName];
             return mapping && mapping !== "skip";
           })
           .map((colName: string) => `imported:${colName}`);
@@ -433,31 +399,31 @@ export async function POST(request: NextRequest) {
           where: {
             userId_tableKey: {
               userId: session.user.id,
-              tableKey: "games",
+              tableKey,
             },
           },
           create: {
             userId: session.user.id,
-            tableKey: "games",
+            tableKey,
             preferences: {
-              customColumns: finalCustomColumns,
-              columnMapping: finalColumnMapping,
+              customColumns: sanitizedCustomColumns,
+              columnMapping: sanitizedColumnMapping,
               importedAt: new Date().toISOString(),
-              order: [...importedColumnIds, "actions"], // Set order to ONLY imported columns + actions
-              hidden: [], // Clear any hidden columns
+              order: [...importedColumnIds, "actions"],
+              hidden: [],
             },
           },
           update: {
             preferences: {
-              customColumns: finalCustomColumns,
-              columnMapping: finalColumnMapping,
+              customColumns: sanitizedCustomColumns,
+              columnMapping: sanitizedColumnMapping,
               importedAt: new Date().toISOString(),
-              order: [...importedColumnIds, "actions"], // Reset order to ONLY imported columns + actions
-              hidden: [], // Clear any hidden columns
+              order: [...importedColumnIds, "actions"],
+              hidden: [],
             },
           },
         });
-        console.log(`[Import] Saved custom column configuration for user ${session.user.id}`);
+        console.log(`[Import] Saved column configuration for user ${session.user.id} under tableKey "${tableKey}" (${sanitizedCustomColumns.length} columns)`);
       } catch (prefError) {
         console.error("[Import] Failed to save column preferences:", prefError);
         // Don't fail the import if preference saving fails
