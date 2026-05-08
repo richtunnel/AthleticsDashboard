@@ -76,7 +76,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   });
 
   if (!user) {
-    throw new Error("User not found");
+    redirect("/login");
   }
 
   const hasPassword = !!user.hashedPassword;
