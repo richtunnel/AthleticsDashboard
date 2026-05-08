@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Typography, IconButton, Tooltip, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
+import { Box, Typography, IconButton, Tooltip, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import { Edit as EditIcon, Add, Delete as DeleteIcon } from "@mui/icons-material";
 
@@ -23,11 +23,13 @@ interface WorksheetViewProps {
   onDeleteWorkbook: (id: string) => void;
   isCreating?: boolean;
   worksheetLimit?: number;
+  /** ID of the workbook currently being deleted (shows spinner overlay on that card) */
+  deletingWorkbookId?: string | null;
 }
 
 const MAX_TITLE_LENGTH = 22;
 
-export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook, onCreateWorkbook, onRenameWorkbook, onDeleteWorkbook, isCreating, worksheetLimit }: WorksheetViewProps) {
+export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook, onCreateWorkbook, onRenameWorkbook, onDeleteWorkbook, isCreating, worksheetLimit, deletingWorkbookId }: WorksheetViewProps) {
   const theme = useTheme();
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -133,114 +135,141 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
               </Typography>
             </Box>
             {/* Existing workbook cards */}
-            {workbooks.map((workbook, index) => (
-              <Box
-                key={workbook.id}
-                onClick={() => onSelectWorkbook(workbook.id)}
-                sx={{
-                  position: "relative",
-                  bgcolor: cardBg,
-                  borderRadius: 3,
-                  border: "1px solid",
-                  borderColor: selectedWorkbookId === workbook.id ? theme.palette.primary.main : cardBorder,
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  aspectRatio: "1 / 1",
-                  maxHeight: 160,
-                  margin: "0 auto",
-                  width: "100%",
-                  maxWidth: "320px",
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    borderColor: theme.palette.primary.main,
-                    transform: "translateY(-2px)",
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
-                    "& .card-actions": {
-                      opacity: 1,
-                    },
-                  },
-                }}
-              >
-                {/* Edit/Delete actions */}
+            {workbooks.map((workbook, index) => {
+              const isDeleting = deletingWorkbookId === workbook.id;
+              return (
                 <Box
+                  key={workbook.id}
+                  onClick={() => !isDeleting && onSelectWorkbook(workbook.id)}
                   sx={{
-                    position: "absolute",
-                    top: 6,
-                    right: 6,
+                    position: "relative",
+                    bgcolor: cardBg,
+                    borderRadius: 3,
+                    border: "1px solid",
+                    borderColor: selectedWorkbookId === workbook.id ? theme.palette.primary.main : cardBorder,
+                    cursor: isDeleting ? "default" : "pointer",
                     display: "flex",
-                    gap: 0.25,
-                    opacity: 0,
-                    transition: "opacity 0.2s",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    aspectRatio: "1 / 1",
+                    maxHeight: 160,
+                    margin: "0 auto",
+                    width: "100%",
+                    maxWidth: "320px",
+                    transition: "all 0.2s ease",
+                    pointerEvents: isDeleting ? "none" : "auto",
+                    "&:hover": isDeleting ? {} : {
+                      borderColor: theme.palette.primary.main,
+                      transform: "translateY(-2px)",
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.common.black, 0.15)}`,
+                      "& .card-actions": {
+                        opacity: 1,
+                      },
+                    },
                   }}
-                  className="card-actions"
                 >
-                  <Tooltip title="Rename">
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditDialog({
-                          open: true,
-                          workbookId: workbook.id,
-                          currentName: workbook.name,
-                        });
+                  {/* Deleting overlay with spinner */}
+                  {isDeleting && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        borderRadius: 3,
+                        bgcolor: alpha(theme.palette.background.paper, 0.75),
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 1,
+                        zIndex: 1,
                       }}
-                      sx={{ p: 0.25 }}
                     >
-                      <EditIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </Tooltip>
-                  {workbooks.length > 1 && (
-                    <Tooltip title="Delete worksheet">
+                      <CircularProgress size={28} color="error" />
+                      <Typography variant="caption" color="error" sx={{ fontSize: "0.7rem" }}>
+                        Deleting…
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* Edit/Delete actions */}
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 6,
+                      right: 6,
+                      display: "flex",
+                      gap: 0.25,
+                      opacity: 0,
+                      transition: "opacity 0.2s",
+                    }}
+                    className="card-actions"
+                  >
+                    <Tooltip title="Rename">
                       <IconButton
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteConfirm({
+                          setEditDialog({
+                            open: true,
                             workbookId: workbook.id,
-                            workbookName: workbook.name,
-                            gameCount: workbook._count?.games ?? 0,
+                            currentName: workbook.name,
                           });
                         }}
-                        sx={{ p: 0.25, color: "error.main" }}
+                        sx={{ p: 0.25 }}
                       >
-                        <DeleteIcon sx={{ fontSize: 14 }} />
+                        <EditIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
-                  )}
-                </Box>
+                    {workbooks.length > 1 && (
+                      <Tooltip title="Delete worksheet">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirm({
+                              workbookId: workbook.id,
+                              workbookName: workbook.name,
+                              gameCount: workbook._count?.games ?? 0,
+                            });
+                          }}
+                          sx={{ p: 0.25, color: "error.main" }}
+                        >
+                          <DeleteIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
 
-                <Typography
-                  variant="h4"
-                  sx={{
-                    fontWeight: 500,
-                    color: "text.secondary",
-                    fontSize: "0.85rem",
-                    textAlign: "center",
-                    px: 1.5,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    maxWidth: "100%",
-                  }}
-                >
-                  {workbook.name}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: "text.disabled",
-                    mt: 0.5,
-                    fontSize: "0.7rem",
-                  }}
-                >
-                  #{index + 1}
-                </Typography>
-              </Box>
-            ))}
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: 500,
+                      color: "text.secondary",
+                      fontSize: "0.85rem",
+                      textAlign: "center",
+                      px: 1.5,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxWidth: "100%",
+                    }}
+                  >
+                    {workbook.name}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.disabled",
+                      mt: 0.5,
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    #{index + 1}
+                  </Typography>
+                </Box>
+              );
+            })}
           </Box>
         </Box>
 
