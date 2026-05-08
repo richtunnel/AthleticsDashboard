@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { hasScopes, getGrantedScopes } from "@/lib/services/incremental-auth.service";
 import { prisma } from "@/lib/database/prisma";
 
@@ -7,6 +8,7 @@ import { prisma } from "@/lib/database/prisma";
  * GET /api/auth/google-calendar/status
  *
  * Checks if user has granted Google Calendar permissions.
+ * Supports both AD and parent sessions.
  *
  * Note: Some parts of the app still connect Google Calendar via the legacy
  * /api/auth/calendar-connect + /api/auth/calendar-callback flow (which stores
@@ -17,7 +19,15 @@ import { prisma } from "@/lib/database/prisma";
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireAuth();
+    let session;
+    try {
+      session = await requireAuth();
+    } catch {
+      session = await getParentSession();
+    }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
     // Primary (incremental OAuth) check: Account scopes
     const hasCalendarScope = await hasScopes(session.user.id, "CALENDAR");

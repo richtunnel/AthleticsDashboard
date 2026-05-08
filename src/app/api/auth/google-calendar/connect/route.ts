@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { initiateIncrementalAuth } from "@/lib/services/incremental-auth.service";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
 
 /**
  * POST /api/auth/google-calendar/connect
- * 
- * Initiates incremental OAuth flow to request Google Calendar permissions
+ *
+ * Initiates incremental OAuth flow to request Google Calendar permissions.
+ * Supports both AD and parent sessions.
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth();
-    
+    let session;
+    try {
+      session = await requireAuth();
+    } catch {
+      session = await getParentSession();
+    }
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     // Get redirect URL from request body (optional, defaults to callback)
     const body = await request.json().catch(() => ({}));
     const returnTo = body.returnTo || "/dashboard/gsync";

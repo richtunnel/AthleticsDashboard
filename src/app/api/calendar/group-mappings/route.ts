@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { prisma } from "@/lib/database/prisma";
+
+/** Resolve userId from AD or parent session */
+async function resolveUserId(): Promise<string | null> {
+  const adSession = await getServerSession(authOptions);
+  if (adSession?.user?.id) return adSession.user.id;
+  const parentSession = await getParentSession();
+  return (parentSession?.user as any)?.id ?? null;
+}
 
 // GET - List all calendar group mappings for the user
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const userId = await resolveUserId();
 
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const mappings = await prisma.calendarGroupMapping.findMany({
-      where: { userId: session.user.id },
+      where: { userId },
       orderBy: [{ columnName: "asc" }, { columnValue: "asc" }],
     });
 
@@ -27,9 +36,9 @@ export async function GET(request: NextRequest) {
 // POST - Create a new calendar group mapping
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const userId = await resolveUserId();
 
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -47,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const mapping = await prisma.calendarGroupMapping.create({
       data: {
-        userId: session.user.id,
+        userId,
         columnName: trimmedColumnName,
         columnValue: trimmedColumnValue,
         googleCalendarId: trimmedCalendarId,
@@ -68,12 +77,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Delete all mappings (for bulk operations)
+// DELETE - Delete a specific mapping by ID
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const userId = await resolveUserId();
 
-    if (!session?.user?.id) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -88,7 +97,7 @@ export async function DELETE(request: NextRequest) {
     const result = await prisma.calendarGroupMapping.deleteMany({
       where: {
         id,
-        userId: session.user.id,
+        userId,
       },
     });
 
