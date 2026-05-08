@@ -50,6 +50,29 @@ export async function POST(
       );
     }
 
+    // Verify the parent has connected Google Calendar with calendar scope.
+    // syncGamesForSportLevel uses the parent's own OAuth tokens, so if they
+    // haven't gone through the calendar auth flow this will always fail.
+    const parentAccount = await prisma.account.findFirst({
+      where: { userId: connectedParent.parentUserId, provider: "google" },
+      select: { scope: true, refresh_token: true, access_token: true },
+    });
+
+    const hasTokens = !!(parentAccount?.refresh_token || parentAccount?.access_token);
+    const hasCalendarScope = parentAccount?.scope
+      ? parentAccount.scope.split(" ").some((s) => s.includes("calendar"))
+      : false;
+
+    if (!hasTokens || !hasCalendarScope) {
+      return NextResponse.json(
+        {
+          error:
+            "This parent hasn't connected their Google Calendar yet. Ask them to visit the Calendar Sync page in their parent dashboard to authorize access.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Run sync on behalf of the parent (uses parent's Google tokens)
     const results = await calendarService.syncGamesForSportLevel(
       connectedParent.parentUserId,
