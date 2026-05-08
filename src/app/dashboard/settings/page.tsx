@@ -68,6 +68,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           provider: true,
         },
       },
+      googleCalendarEmail: true,
       googleCalendarRefreshToken: true,
       calendarTokenExpiry: true,
     },
@@ -214,7 +215,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           Account Details
         </Typography>
 
-        <AccountDetailsForm user={user} />
+        <AccountDetailsForm
+          user={user}
+          googleCalendarEmail={user.googleCalendarEmail ?? null}
+          schoolEmail={user.schoolEmail ?? null}
+        />
       </Box>
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <SchoolDetailsForm user={user} />
