@@ -257,7 +257,7 @@ function ParentSignupContent() {
               <Button
                 variant="text"
                 size="small"
-                onClick={() => signInAsParent("/parent-dashboard").catch(console.error)}
+                onClick={() => signInAsParent("/onboarding/parent-callback").catch(console.error)}
               >
                 Sign in instead
               </Button>
