@@ -29,7 +29,10 @@ export async function GET() {
     });
 
     const hasLegacyTokens = Boolean(userRecord?.googleCalendarRefreshToken || userRecord?.googleCalendarAccessToken);
-    const connectedEmail = userRecord?.googleCalendarEmail || userRecord?.email || null;
+    // Only expose the actual calendar email — never fall back to the sign-in
+    // email, which would show the wrong address when someone connects a
+    // different Google account for their calendar.
+    const connectedEmail = userRecord?.googleCalendarEmail ?? null;
 
     return NextResponse.json({ isConnected: hasCalendarScope || hasLegacyTokens, connectedEmail });
   } catch (error) {
