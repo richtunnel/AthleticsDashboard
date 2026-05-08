@@ -87,7 +87,8 @@ export function EmailGroupCard({
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
   const [editingEmailValue, setEditingEmailValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAllEmails, setShowAllEmails] = useState(false);
+  // Email list is hidden by default — user must click to reveal
+  const [showEmailsList, setShowEmailsList] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
 
@@ -98,8 +99,9 @@ export function EmailGroupCard({
   }, [group.name]);
 
   useEffect(() => {
+    // When user searches, auto-reveal the email list
     if (searchQuery) {
-      setShowAllEmails(true);
+      setShowEmailsList(true);
     }
   }, [searchQuery]);
 
@@ -116,14 +118,8 @@ export function EmailGroupCard({
     return group.emails.filter((address) => address.email.toLowerCase().includes(query));
   }, [group.emails, searchQuery]);
 
-  const displayedEmails = useMemo(() => {
-    if (showAllEmails || filteredEmails.length <= DEFAULT_VISIBLE_EMAILS) {
-      return filteredEmails;
-    }
-    return filteredEmails.slice(0, DEFAULT_VISIBLE_EMAILS);
-  }, [filteredEmails, showAllEmails]);
-
-  const hasMoreEmails = filteredEmails.length > DEFAULT_VISIBLE_EMAILS;
+  // When visible, always show all emails at once (no "3 by default" truncation)
+  const displayedEmails = filteredEmails;
 
   const handleAddEmails = async () => {
     const parsed = emailInput
@@ -442,166 +438,188 @@ export function EmailGroupCard({
           </Box>
         )}
 
-        {
-          <Box onClick={(event) => event.stopPropagation()}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                {group._count.emails > 0 ? "Current emails" : "No emails yet"}
-              </Typography>
-              <Chip label={emailCountLabel} size="small" />
-            </Stack>
-
-            <Divider sx={{ mb: 2 }} />
-
-            {group.emails.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                Start adding contacts to this group to send campaigns.
-              </Typography>
-            ) : (
+        <Box onClick={(event) => event.stopPropagation()}>
+          {/* Emails toggle header — hidden by default, click to reveal */}
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{
+              cursor: group.emails.length > 0 ? "pointer" : "default",
+              userSelect: "none",
+              py: 0.5,
+              "&:hover": group.emails.length > 0 ? { opacity: 0.8 } : {},
+            }}
+            onClick={(e) => {
+              if (group.emails.length > 0) {
+                e.stopPropagation();
+                setShowEmailsList((prev) => !prev);
+                // Clear search when hiding the list
+                if (showEmailsList) setSearchQuery("");
+              }
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {group._count.emails > 0 ? "Emails" : "No emails yet"}
+            </Typography>
+            {group.emails.length > 0 && (
               <>
-                {group.emails.length > DEFAULT_VISIBLE_EMAILS && (
-                  <TextField
-                    size="small"
-                    placeholder="Search emails..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    fullWidth
-                    sx={{ mb: 2 }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                      endAdornment: searchQuery && (
-                        <InputAdornment position="end">
-                          <IconButton size="small" onClick={() => setSearchQuery("")} edge="end">
-                            <CloseIcon fontSize="small" />
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                )}
-
-                {filteredEmails.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                    No emails found matching &quot;{searchQuery}&quot;
-                  </Typography>
-                ) : (
-                  <>
-                    <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 1,
-                          alignItems: "center",
-                        }}
-                      >
-                        {displayedEmails.map((address) => (
-                          <Chip
-                            key={address.id}
-                            label={
-                              editingEmailId === address.id ? (
-                                <TextField
-                                  size="small"
-                                  value={editingEmailValue}
-                                  onChange={(e) => setEditingEmailValue(e.target.value)}
-                                  autoFocus
-                                  sx={{
-                                    minWidth: 200,
-                                    "& .MuiInputBase-root": {
-                                      height: 32,
-                                      fontSize: "0.875rem",
-                                    },
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              ) : (
-                                address.email
-                              )
-                            }
-                            onDelete={editingEmailId === address.id ? undefined : () => handleRemoveEmail(address.id, address.email)}
-                            deleteIcon={removeEmailLoadingId === address.id ? <CircularProgress size={18} /> : editingEmailId === address.id ? undefined : <CloseIcon fontSize="small" />}
-                            onClick={() => {
-                              if (editingEmailId !== address.id && updateEmailLoadingId === null) {
-                                setEditingEmailId(address.id);
-                                setEditingEmailValue(address.email);
-                              }
-                            }}
-                            sx={{
-                              cursor: editingEmailId === address.id ? "default" : "pointer",
-                              backgroundColor: editingEmailId === address.id ? "primary.light" : "default",
-                            }}
-                            disabled={removeEmailLoadingId === address.id || (updateEmailLoadingId !== null && updateEmailLoadingId !== address.id)}
-                          />
-                        ))}
-                        {editingEmailId && (
-                          <Box sx={{ display: "flex", gap: 0.5 }}>
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => {
-                                const address = group.emails.find((e) => e.id === editingEmailId);
-                                if (address) {
-                                  handleUpdateEmail(address.id, address.email);
-                                }
-                              }}
-                              disabled={updateEmailLoadingId === editingEmailId}
-                            >
-                              {updateEmailLoadingId === editingEmailId ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setEditingEmailId(null);
-                                setEditingEmailValue("");
-                              }}
-                              disabled={updateEmailLoadingId === editingEmailId}
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        )}
-                        {hasMoreEmails && !searchQuery && !showAllEmails && (
-                          <Chip
-                            label={`...${filteredEmails.length - DEFAULT_VISIBLE_EMAILS} more`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowAllEmails(true);
-                            }}
-                            sx={{
-                              cursor: "pointer",
-                              backgroundColor: "action.hover",
-                              "&:hover": {
-                                backgroundColor: "action.selected",
-                              },
-                            }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
-
-                    {hasMoreEmails && !searchQuery && showAllEmails && (
-                      <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
-                        <Button size="small" onClick={() => setShowAllEmails(false)} startIcon={<ExpandMoreIcon sx={{ transform: "rotate(180deg)" }} />}>
-                          Show less
-                        </Button>
-                      </Box>
-                    )}
-
-                    {searchQuery && filteredEmails.length > 0 && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                        Showing {filteredEmails.length} of {group.emails.length} emails
-                      </Typography>
-                    )}
-                  </>
-                )}
+                <Chip label={emailCountLabel} size="small" />
+                <IconButton
+                  size="small"
+                  tabIndex={-1}
+                  sx={{
+                    p: 0.25,
+                    transform: showEmailsList ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.25s ease",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <ExpandMoreIcon fontSize="small" />
+                </IconButton>
               </>
             )}
-          </Box>
-        }
+          </Stack>
+
+          <Divider sx={{ mt: 1, mb: 0 }} />
+
+          <Collapse in={showEmailsList} timeout="auto" unmountOnExit>
+            <Box sx={{ pt: 2 }}>
+              {group.emails.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Start adding contacts to this group to send campaigns.
+                </Typography>
+              ) : (
+                <>
+                  {/* Search — only when there are enough emails to warrant it */}
+                  {group.emails.length > DEFAULT_VISIBLE_EMAILS && (
+                    <TextField
+                      size="small"
+                      placeholder="Search emails..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: searchQuery && (
+                          <InputAdornment position="end">
+                            <IconButton size="small" onClick={() => setSearchQuery("")} edge="end">
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+
+                  {filteredEmails.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                      No emails found matching &quot;{searchQuery}&quot;
+                    </Typography>
+                  ) : (
+                    <>
+                      <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center" }}>
+                          {displayedEmails.map((address) => (
+                            <Chip
+                              key={address.id}
+                              label={
+                                editingEmailId === address.id ? (
+                                  <TextField
+                                    size="small"
+                                    value={editingEmailValue}
+                                    onChange={(e) => setEditingEmailValue(e.target.value)}
+                                    autoFocus
+                                    sx={{
+                                      minWidth: 200,
+                                      "& .MuiInputBase-root": { height: 32, fontSize: "0.875rem" },
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  address.email
+                                )
+                              }
+                              onDelete={editingEmailId === address.id ? undefined : () => handleRemoveEmail(address.id, address.email)}
+                              deleteIcon={
+                                removeEmailLoadingId === address.id
+                                  ? <CircularProgress size={18} />
+                                  : editingEmailId === address.id
+                                    ? undefined
+                                    : <CloseIcon fontSize="small" />
+                              }
+                              onClick={() => {
+                                if (editingEmailId !== address.id && updateEmailLoadingId === null) {
+                                  setEditingEmailId(address.id);
+                                  setEditingEmailValue(address.email);
+                                }
+                              }}
+                              sx={{
+                                cursor: editingEmailId === address.id ? "default" : "pointer",
+                                backgroundColor: editingEmailId === address.id ? "primary.light" : "default",
+                              }}
+                              disabled={
+                                removeEmailLoadingId === address.id ||
+                                (updateEmailLoadingId !== null && updateEmailLoadingId !== address.id)
+                              }
+                            />
+                          ))}
+
+                          {/* Inline save/cancel when editing an email */}
+                          {editingEmailId && (
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => {
+                                  const address = group.emails.find((e) => e.id === editingEmailId);
+                                  if (address) handleUpdateEmail(address.id, address.email);
+                                }}
+                                disabled={updateEmailLoadingId === editingEmailId}
+                              >
+                                {updateEmailLoadingId === editingEmailId ? <CircularProgress size={18} /> : <CheckIcon fontSize="small" />}
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => { setEditingEmailId(null); setEditingEmailValue(""); }}
+                                disabled={updateEmailLoadingId === editingEmailId}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* Search result count */}
+                      {searchQuery && filteredEmails.length > 0 && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                          Showing {filteredEmails.length} of {group.emails.length} emails
+                        </Typography>
+                      )}
+
+                      {/* Collapse list button */}
+                      <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
+                        <Button
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); setShowEmailsList(false); setSearchQuery(""); }}
+                          startIcon={<ExpandMoreIcon sx={{ transform: "rotate(180deg)" }} />}
+                        >
+                          Hide emails
+                        </Button>
+                      </Box>
+                    </>
+                  )}
+                </>
+              )}
+            </Box>
+          </Collapse>
+        </Box>
       </Collapse>
 
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
