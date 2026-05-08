@@ -541,6 +541,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
               transformOrigin={{ vertical: "top", horizontal: "right" }}
             >
+              {/* Identity header — not interactive */}
+              <Box sx={{ px: 2, py: 1.5, pointerEvents: "none" }}>
+                <Typography variant="body2" fontWeight={600} noWrap>
+                  {session?.user?.name || ""}
+                </Typography>
+                <Typography variant="caption" noWrap sx={{ color: "text.disabled", display: "block" }}>
+                  {session?.user?.email || ""}
+                </Typography>
+              </Box>
+              <Divider />
               <MenuItem component={Link} href="/dashboard/support" onClick={handleClose}>
                 <ListItemIcon>
                   <SupportAgent fontSize="small" />

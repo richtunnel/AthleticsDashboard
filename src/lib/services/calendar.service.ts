@@ -431,7 +431,9 @@ export class CalendarService {
 
     const details: { opponent?: string | null; location?: string | null } = {};
 
-    const lines = description.split(/\r?\n/);
+    // Strip HTML tags and split on <br>, \n, or both
+    const plain = description.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "");
+    const lines = plain.split(/\r?\n/);
 
     for (const line of lines) {
       const [label, ...rest] = line.split(":");
@@ -1050,20 +1052,41 @@ export class CalendarService {
       }
       return defaultValue || "TBD";
     };
-    
-    const sport = getField(["Sport"], game.homeTeam?.sport?.name);
-    const level = getField(["Level"], game.homeTeam?.level);
-    const team = getField(["Team", "Home"], game.homeTeam?.name);
-    const status = getField(["Status"], game.status);
-    
-    let description = `Sport: ${sport}\nLevel: ${level}\nTeam: ${team}\nStatus: ${status}\n`;
-    if (game.opponent) description += `Opponent: ${game.opponent.name}\n`;
-    if (game.travelRequired) {
-      description += `\nTravel Information:\n- Travel Time: ${game.estimatedTravelTime || "TBD"} minutes\n`;
-      if (game.busCount) description += `- Buses: ${game.busCount}\n`;
-      if (game.departureTime) description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
+
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const sport  = getField(["Sport"],         game.homeTeam?.sport?.name);
+    const level  = getField(["Level"],          game.homeTeam?.level);
+    const team   = getField(["Team", "Home"],   game.homeTeam?.name);
+    const status = getField(["Status"],         game.status);
+
+    // Use HTML <br> tags so Google Calendar renders each item on its own line.
+    // Plain-text \n characters are collapsed by Google Calendar's HTML renderer.
+    const lines: string[] = [
+      `<b>Sport:</b> ${esc(sport)}`,
+      `<b>Level:</b> ${esc(level)}`,
+      `<b>Team:</b> ${esc(team)}`,
+      `<b>Status:</b> ${esc(status)}`,
+    ];
+
+    if (game.opponent) {
+      lines.push(`<b>Opponent:</b> ${esc(game.opponent.name)}`);
     }
-    if (game.notes) description += `\nNotes: ${game.notes}`;
+
+    let description = lines.join("<br>");
+
+    if (game.travelRequired) {
+      description += "<br><br><b>Travel Information:</b><br>";
+      description += `&bull; Travel Time: ${esc(String(game.estimatedTravelTime || "TBD"))} minutes`;
+      if (game.busCount) description += `<br>&bull; Buses: ${esc(String(game.busCount))}`;
+      if (game.departureTime) description += `<br>&bull; Departure: ${esc(new Date(game.departureTime).toLocaleTimeString())}`;
+    }
+
+    if (game.notes) {
+      description += `<br><br><b>Notes:</b> ${esc(String(game.notes))}`;
+    }
+
     return description;
   }
 }
