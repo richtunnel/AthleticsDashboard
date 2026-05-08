@@ -27,7 +27,7 @@ import {
 import { ArrowBack, Send } from "@mui/icons-material";
 import { fetchEmailGroups } from "@/lib/api/emailGroups";
 import type { EmailGroup } from "./types";
-import { formatLevelDisplay } from "@/lib/utils/formatters";
+import { formatLevelDisplay, formatTimeDisplay } from "@/lib/utils/formatters";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 
 export interface Game {
@@ -159,7 +159,7 @@ export const getCellValue = (game: Game, columnId: string, columnMapping?: Recor
     if (mapping === "date") {
       return game.date;
     } else if (mapping === "time") {
-      return game.time || "TBD";
+      return formatTimeDisplay(game.time);
     }
 
     const customFields = game.customFields || {};
@@ -185,7 +185,7 @@ export const getCellValue = (game: Game, columnId: string, columnMapping?: Recor
     case "location":
       return game.isHome ? "Home" : game.venue?.name || "TBD";
     case "time":
-      return game.time || "TBD";
+      return formatTimeDisplay(game.time);
     case "status":
       return game.status;
     case "notes":

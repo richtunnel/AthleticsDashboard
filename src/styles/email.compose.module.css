@@ -1,15 +1,25 @@
-.ReceiptSelectField .MuiSelect-select {
-  padding-bottom: 0 !important;
+/* Fix MUI Select label placeholder centering.
+ *
+ * In MUI v5 the "placeholder" label is absolutely positioned using a CSS
+ * transform.  A non-zero padding-bottom on MuiSelect-select makes the input
+ * area asymmetric, pushing the transform-positioned label off-centre.
+ *
+ * CSS Modules scope ALL class names, so we must wrap MUI global names in
+ * :global() to prevent them from being treated as module-local classes.
+ */
+
+/* ① Equalise top / bottom padding so the placeholder label is centred */
+.ReceiptSelectField :global(.MuiSelect-select) {
+  padding-top: 16.5px;
+  padding-bottom: 16.5px;
 }
 
-.ReceiptSelectField > .MuiSelect-select {
-  padding-bottom: 0 !important;
+/* ② Ensure the inner input element has no stray bottom padding */
+.ReceiptSelectField :global(.MuiInputBase-input) {
+  padding-bottom: 16.5px;
 }
 
-.ReceiptSelectField.select {
-  padding-bottom: 0 !important;
-}
-
-.ReceiptSelectFiel .MuiOutlinedInput-input {
-  padding-bottom: 0 !important;
+/* ③ The outlined variant wraps the above — keep it consistent */
+.ReceiptSelectField :global(.MuiOutlinedInput-input) {
+  padding-bottom: 16.5px;
 }
