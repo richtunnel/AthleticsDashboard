@@ -143,6 +143,49 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       </Box>
 
       {/* ── No wrapper — matches original SubscriptionOverviewCard (full width) ── */}
+
+  const generalContent = (
+    <>
+      {/* Payment overdue warning */}
+      <PaymentOverdueWarning />
+
+      {/* Upgrade Plan Card - only shown for free users */}
+      <UpgradePlanCard userPlan={user.plan} />
+
+      {/* Calendar Connection Section */}
+      <CalendarConnectionSection />
+
+      {/* Score Tracker */}
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Score Tracker
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Enable score tracking to add game results and view team performance statistics. This adds score entry
+            functionality to teams menu options.
+          </Typography>
+          <ScoreTrackerToggle />
+        </CardContent>
+      </Card>
+
+      {/* Spreadsheet Columns */}
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Spreadsheet Columns
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want
+            to return to the standard view.
+          </Typography>
+          <ResetColumnsButton />
+        </CardContent>
+      </Card>
+
+      <EmailLimitsCard />
+
+      {/* Billing & Subscription */}
       <SubscriptionOverviewCard
         subscription={userWithSubscription?.subscription || null}
         recoveryEmail={userWithSubscription?.recoveryEmail || null}
@@ -154,7 +197,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         checkoutStatus={checkoutStatus}
       />
 
-      {/* ── Individual p: {xs:2, sm:3} sections — matches original ── */}
+      {/* Account Details */}
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
           Account Details
@@ -166,20 +209,24 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         />
       </Box>
 
+      {/* School Details */}
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <SchoolDetailsForm user={user} />
       </Box>
 
+      {/* Password Change */}
       {!isMemberAccess && (
         <Box sx={{ p: { xs: 2, sm: 3 } }}>
           <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
         </Box>
       )}
 
+      {/* Support */}
       <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
         <SupportCard />
       </Box>
 
+      {/* Delete Account */}
       <Box sx={{ p: { xs: 2, sm: 3 } }}>
         <DeleteAccountSection />
       </Box>
@@ -188,6 +235,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   const costBudgetContent = (
     <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+    <>
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
@@ -201,50 +249,45 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       </Card>
 
       <CostBudgetTab />
-    </Box>
+    </>
   );
 
   const aiFeaturesContent = (
-    <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            <AutoAwesome sx={{ color: "lightgray" }} /> AI Features
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Enable or disable AI-powered features to enhance your scheduling workflow.
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <AISchedulerToggle />
-            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
-              <AITravelTimesToggle />
-            </Box>
-            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
-              <AIEmailGenerationToggle />
-            </Box>
-            <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
-              <BookDemoButton>Learn More</BookDemoButton>
-            </Box>
+    <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+          <AutoAwesome sx={{ color: "lightgray" }} /> AI Features
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+          Enable or disable AI-powered features to enhance your scheduling workflow.
+        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <AISchedulerToggle />
+          <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+            <AITravelTimesToggle />
           </Box>
-        </CardContent>
-      </Card>
-    </Box>
+          <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+            <AIEmailGenerationToggle />
+          </Box>
+          <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 3 }}>
+            <BookDemoButton>Learn More</BookDemoButton>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
   );
 
   const collaboratorContent = (
-    <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+    <Box sx={{ pb: 3 }}>
       <CollaboratorsSection />
     </Box>
   );
 
   return (
-    <>
-      {/* Title — own padded row, no outer px wrapper around tab content */}
-      <Box sx={{ px: { xs: 2, sm: 3 }, pt: 0, mb: 1 }}>
-        <Typography sx={{ fontWeight: 700 }} variant="h4">
-          Settings
-        </Typography>
-      </Box>
+    <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
+      <Typography sx={{ mb: 2, fontWeight: 700 }} variant="h4">
+        Settings
+      </Typography>
 
       <SettingsTabsClient
         generalContent={generalContent}
@@ -252,6 +295,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         aiFeaturesContent={aiFeaturesContent}
         collaboratorContent={collaboratorContent}
       />
-    </>
+    </Box>
   );
 }
