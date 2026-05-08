@@ -21,9 +21,10 @@ import {
   Autocomplete,
   Snackbar,
   IconButton,
+  Tooltip,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { CreditCard, ChildCare, Add, School, Edit } from "@mui/icons-material";
+import { CreditCard, ChildCare, Add, School, Edit, DeleteOutline, DeleteForever } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
@@ -363,12 +364,44 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
 // Main settings page
 // ---------------------------------------------------------------------------
 export default function ParentSettingsPage() {
+  const queryClient = useQueryClient();
   const [editLink, setEditLink] = useState<ParentLink | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<ParentLink | null>(null);
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
+  });
+
+  const deleteChildMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/parent/athlete-links/${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete child");
+      return json;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      showMessage("Child removed successfully.");
+    },
+    onError: (err: Error) => showMessage(err.message, "error"),
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/parent/athlete-links/${id}`, { method: "DELETE" }).then((r) => r.json())
+        )
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      showMessage("All children removed successfully.");
+    },
+    onError: (err: Error) => showMessage(err.message, "error"),
   });
 
   const showMessage = (message: string, severity: AlertColor = "success") =>
@@ -433,9 +466,22 @@ export default function ParentSettingsPage() {
               </Typography>
             </Box>
             {links.length > 0 && (
-              <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
-                Add Child
-              </Button>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Tooltip title="Remove all children">
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteForever fontSize="small" />}
+                    onClick={() => setDeleteAllConfirm(true)}
+                  >
+                    Remove All
+                  </Button>
+                </Tooltip>
+                <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
+                  Add Child
+                </Button>
+              </Box>
             )}
           </Box>
 
@@ -485,14 +531,27 @@ export default function ParentSettingsPage() {
                           </Box>
                         </Box>
 
-                        <IconButton
-                          size="small"
-                          onClick={() => setEditLink(link)}
-                          sx={{ ml: 1, mt: -0.5 }}
-                          title="Edit child info"
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
+                        <Box sx={{ display: "flex", gap: 0.5, ml: 1, mt: -0.5 }}>
+                          <Tooltip title="Edit child info">
+                            <IconButton size="small" onClick={() => setEditLink(link)}>
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Remove this child">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeleteConfirm(link)}
+                              disabled={deleteChildMutation.isPending}
+                            >
+                              {deleteChildMutation.isPending && deleteConfirm?.id === link.id ? (
+                                <CircularProgress size={14} color="error" />
+                              ) : (
+                                <DeleteOutline fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                       </Box>
                     </CardContent>
                   </Card>
@@ -522,6 +581,63 @@ export default function ParentSettingsPage() {
         onClose={() => setEditLink(null)}
         onSaved={(message, isWarning) => showMessage(message, isWarning ? "warning" : "success")}
       />
+
+      {/* Delete single child confirm */}
+      <Dialog open={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ color: "error.main" }}>Remove Child?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to remove <strong>{deleteConfirm?.childName}</strong> from your account?
+            This will also cancel any pending calendar sync requests for this child.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteChildMutation.isPending}
+            startIcon={deleteChildMutation.isPending ? <CircularProgress size={14} /> : undefined}
+            onClick={() => {
+              if (deleteConfirm) {
+                deleteChildMutation.mutate(deleteConfirm.id, {
+                  onSettled: () => setDeleteConfirm(null),
+                });
+              }
+            }}
+          >
+            {deleteChildMutation.isPending ? "Removing…" : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete all children confirm */}
+      <Dialog open={deleteAllConfirm} onClose={() => setDeleteAllConfirm(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ color: "error.main" }}>Remove All Children?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This will remove <strong>all {links.length} child links</strong> from your account and cancel
+            any pending calendar sync requests. This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteAllConfirm(false)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteAllMutation.isPending}
+            startIcon={deleteAllMutation.isPending ? <CircularProgress size={14} /> : undefined}
+            onClick={() => {
+              deleteAllMutation.mutate(
+                links.map((l) => l.id),
+                { onSettled: () => setDeleteAllConfirm(false) }
+              );
+            }}
+          >
+            {deleteAllMutation.isPending ? "Removing…" : "Remove All"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

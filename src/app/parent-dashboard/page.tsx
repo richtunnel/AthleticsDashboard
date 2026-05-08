@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -12,7 +13,10 @@ import {
   Button,
   Alert,
   Divider,
+  Tooltip,
+  Snackbar,
 } from "@mui/material";
+import type { AlertColor } from "@mui/material";
 import {
   CalendarMonth,
   Sync,
@@ -21,7 +25,6 @@ import {
   Schedule,
   LocationOn,
   SportsScore,
-  ArrowForward,
 } from "@mui/icons-material";
 import Link from "next/link";
 
@@ -31,11 +34,15 @@ interface ParentLink {
   childGrade: string | null;
   sportName: string;
   sportLevel: string;
+  schoolId: string;
   schoolName: string;
-  athleticDirectorName: string;
-  confirmed: boolean;
-  active: boolean;
-  syncedAt: string | null;
+  athleticDirectorId: string | null;
+  athleticDirectorName: string | null;
+  calendarSynced: boolean;
+  syncRequestStatus: "PENDING" | "APPROVED" | "REJECTED" | null;
+  confirmed?: boolean;
+  active?: boolean;
+  syncedAt?: string | null;
 }
 
 interface ParentSubscription {
@@ -72,6 +79,8 @@ interface ParentOverviewData {
   subscription: ParentSubscription | null;
   upcomingGames: GameData[];
   calendarConnected: boolean;
+  monthlyRequestCount: number;
+  monthlyRequestLimit: number;
 }
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
@@ -100,6 +109,51 @@ function formatGameTime(dateStr: string, time: string | null): string {
 }
 
 export default function ParentDashboardPage() {
+  const queryClient = useQueryClient();
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
+    open: false, message: "", severity: "success",
+  });
+  const [syncingLinkId, setSyncingLinkId] = useState<string | null>(null);
+
+  const showSnack = (message: string, severity: AlertColor = "success") =>
+    setSnackbar({ open: true, message, severity });
+
+  const syncRequestMutation = useMutation({
+    mutationFn: async (link: ParentLink) => {
+      const res = await fetch("/api/parent/calendar-sync-request-full", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          linkId: link.id,
+          schoolId: link.schoolId,
+          sportName: link.sportName,
+          sportLevel: link.sportLevel,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw Object.assign(new Error(json.error || "Request failed"), json);
+      return json;
+    },
+    onSuccess: (_, link) => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      showSnack(
+        `Calendar sync request sent to ${link.athleticDirectorName ?? "the Athletic Director"}! They'll receive an email and chat notification.`,
+        "success"
+      );
+    },
+    onError: (err: any, link) => {
+      setSyncingLinkId(null);
+      if (err.limitReached) {
+        showSnack(err.message, "warning");
+      } else if (err.alreadyRequested) {
+        showSnack(err.message, "info");
+      } else {
+        showSnack(err.message || "Failed to send sync request", "error");
+      }
+    },
+    onSettled: () => setSyncingLinkId(null),
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
@@ -267,38 +321,93 @@ export default function ParentDashboardPage() {
       </Grid>
 
       {/* Connected Sports */}
-      <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
-        Your Connected Sports
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+        <Typography variant="h5" fontWeight={600}>
+          Your Connected Sports
+        </Typography>
+        {(data?.monthlyRequestCount ?? 0) > 0 && (
+          <Typography variant="caption" color="text.secondary">
+            Sync requests this month: {data?.monthlyRequestCount}/{data?.monthlyRequestLimit}
+          </Typography>
+        )}
+      </Box>
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        {data?.links?.map((link) => (
-          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={link.id}>
-            <Card variant="outlined">
-              <CardContent>
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                  <Typography variant="h6" fontWeight={600}>
-                    {link.sportName}
+        {data?.links?.map((link) => {
+          const isSynced = link.calendarSynced;
+          const hasPendingRequest = link.syncRequestStatus === "PENDING" || link.syncRequestStatus === "APPROVED";
+          const limitReached = (data?.monthlyRequestCount ?? 0) >= (data?.monthlyRequestLimit ?? 5);
+          const isSendingThis = syncingLinkId === link.id && syncRequestMutation.isPending;
+
+          const syncDisabled = isSynced || hasPendingRequest || limitReached || syncRequestMutation.isPending;
+
+          let syncTooltip = "Request calendar sync with Athletic Director";
+          if (isSynced) syncTooltip = "Calendar is already synced";
+          else if (link.syncRequestStatus === "PENDING") syncTooltip = "Sync request is pending AD approval";
+          else if (link.syncRequestStatus === "APPROVED") syncTooltip = "Sync has been approved";
+          else if (limitReached) syncTooltip = `Monthly limit of ${data?.monthlyRequestLimit} requests reached. Resets on the 1st.`;
+
+          return (
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={link.id}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                    <Typography variant="h6" fontWeight={600}>
+                      {link.sportName}
+                    </Typography>
+                    <Chip label={link.sportLevel} size="small" color="primary" variant="outlined" />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {link.schoolName}
                   </Typography>
-                  <Chip label={link.sportLevel} size="small" color="primary" variant="outlined" />
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {link.schoolName}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Child:</strong> {link.childName}
-                  {link.childGrade && ` (Grade ${link.childGrade})`}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                  {link.syncedAt ? (
-                    <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />
-                  ) : (
-                    <Chip icon={<Warning />} label="Needs Sync" size="small" color="warning" variant="outlined" />
-                  )}
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  <Typography variant="body2">
+                    <strong>Child:</strong> {link.childName}
+                    {link.childGrade && ` (Grade ${link.childGrade})`}
+                  </Typography>
+
+                  {/* Status + sync button row */}
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                      {isSynced ? (
+                        <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />
+                      ) : link.syncRequestStatus === "PENDING" ? (
+                        <Chip icon={<Warning />} label="Request Pending" size="small" color="warning" variant="outlined" />
+                      ) : link.syncRequestStatus === "APPROVED" ? (
+                        <Chip icon={<CheckCircle />} label="Approved" size="small" color="info" variant="outlined" />
+                      ) : (
+                        <Chip icon={<Warning />} label="Not Synced" size="small" color="default" variant="outlined" />
+                      )}
+                    </Box>
+
+                    <Tooltip title={syncTooltip} arrow>
+                      <span>
+                        <Button
+                          size="small"
+                          variant={isSynced || hasPendingRequest ? "outlined" : "contained"}
+                          color={isSynced ? "success" : "primary"}
+                          disabled={syncDisabled}
+                          startIcon={isSendingThis ? <CircularProgress size={14} color="inherit" /> : <Sync fontSize="small" />}
+                          onClick={() => {
+                            setSyncingLinkId(link.id);
+                            syncRequestMutation.mutate(link);
+                          }}
+                          sx={{ whiteSpace: "nowrap", fontSize: "0.75rem" }}
+                        >
+                          {isSendingThis
+                            ? "Sending…"
+                            : isSynced
+                            ? "Synced ✓"
+                            : hasPendingRequest
+                            ? "Requested"
+                            : "Sync Calendar"}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {/* Quick Actions */}
@@ -313,6 +422,23 @@ export default function ParentDashboardPage() {
           Contact Athletic Director
         </Button>
       </Box>
+
+      {/* Feedback snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

@@ -30,14 +30,45 @@ export async function GET(request: NextRequest) {
 
     // Get parent links
     const links = await prisma.parentAthleteLink.findMany({
-      where: {
-        parentUserId: user.id,
-      },
-      include: {
-        school: true,
-      },
+      where: { parentUserId: user.id },
+      include: { school: true },
       orderBy: { createdAt: "desc" },
     });
+
+    // Sync request status per link (PENDING / APPROVED only — those disable the button)
+    const syncRequests = await prisma.calendarSyncRequest.findMany({
+      where: {
+        parentUserId: user.id,
+        schoolId: { in: links.map((l) => l.schoolId) },
+        status: { in: ["PENDING", "APPROVED"] },
+      },
+      select: { schoolId: true, sportName: true, sportLevel: true, status: true },
+    });
+
+    // Monthly request count (capped at 5/month)
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const monthlyRequestCount = await prisma.calendarSyncRequest.count({
+      where: { parentUserId: user.id, requestedAt: { gte: monthStart } },
+    });
+
+    // AD per school (needed by the sync request call)
+    const schoolIds = [...new Set(links.map((l) => l.schoolId))];
+    const ads = await prisma.user.findMany({
+      where: {
+        organizationId: { in: schoolIds },
+        role: { in: ["ATHLETIC_DIRECTOR", "ASSISTANT_AD"] },
+      },
+      select: { id: true, name: true, organizationId: true },
+      orderBy: { role: "asc" },
+    });
+    const adBySchool = new Map(ads.map((a) => [a.organizationId, a]));
+
+    // CalendarSynced flag per school
+    const connectedParents = await prisma.connectedParent.findMany({
+      where: { parentUserId: user.id, schoolId: { in: schoolIds } },
+      select: { schoolId: true, calendarSynced: true },
+    });
+    const syncedBySchool = new Map(connectedParents.map((c) => [c.schoolId, c.calendarSynced]));
 
     // Get subscription
     const subscription = await prisma.parentSubscription.findFirst({
@@ -101,17 +132,33 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      links: links.map(link => ({
-        id: link.id,
-        childName: link.athleteName,
-        childGrade: link.gradeLevel,
-        sportName: link.sport,
-        sportLevel: link.gradeLevel,
-        schoolName: link.school?.name || "",
-        status: link.status,
-        createdAt: link.createdAt.toISOString(),
-        updatedAt: link.updatedAt.toISOString(),
-      })),
+      links: links.map((link) => {
+        const sr = syncRequests.find(
+          (r) =>
+            r.schoolId === link.schoolId &&
+            r.sportName === link.sport &&
+            r.sportLevel === link.gradeLevel
+        );
+        const ad = adBySchool.get(link.schoolId);
+        return {
+          id: link.id,
+          childName: link.athleteName,
+          childGrade: link.gradeLevel,
+          sportName: link.sport,
+          sportLevel: link.gradeLevel,
+          schoolId: link.schoolId,
+          schoolName: link.school?.name || "",
+          status: link.status,
+          athleticDirectorId: ad?.id ?? null,
+          athleticDirectorName: ad?.name ?? null,
+          calendarSynced: syncedBySchool.get(link.schoolId) ?? false,
+          syncRequestStatus: sr?.status ?? null,
+          createdAt: link.createdAt.toISOString(),
+          updatedAt: link.updatedAt.toISOString(),
+        };
+      }),
+      monthlyRequestCount,
+      monthlyRequestLimit: 5,
       subscription: subscription ? {
         status: subscription.status,
         trialEnd: subscription.expiresAt?.toISOString() || null,
