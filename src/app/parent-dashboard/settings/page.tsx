@@ -97,6 +97,12 @@ async function fetchLevels(schoolId: string, sport: string): Promise<{ levels: L
   return res.json();
 }
 
+async function fetchParentProfile(): Promise<{ name: string | null; email: string; phone: string | null }> {
+  const res = await fetch("/api/parent/profile");
+  if (!res.ok) throw new Error("Failed to fetch profile");
+  return res.json();
+}
+
 async function updateAthleteLink(
   id: string,
   data: { athleteName?: string; schoolId?: string; sport?: string; gradeLevel?: string }
@@ -109,6 +115,116 @@ async function updateAthleteLink(
   const result = await res.json();
   if (!res.ok) throw new Error(result.error || "Failed to update");
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// EditProfileDialog
+// ---------------------------------------------------------------------------
+interface EditProfileDialogProps {
+  open: boolean;
+  initialName: string;
+  initialEmail: string;
+  initialPhone: string;
+  onClose: () => void;
+  onSaved: (message: string, isError?: boolean) => void;
+}
+
+function EditProfileDialog({
+  open,
+  initialName,
+  initialEmail,
+  initialPhone,
+  onClose,
+  onSaved,
+}: EditProfileDialogProps) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const [phone, setPhone] = useState(initialPhone);
+
+  useEffect(() => {
+    if (open) {
+      setName(initialName);
+      setEmail(initialEmail);
+      setPhone(initialPhone);
+    }
+  }, [open, initialName, initialEmail, initialPhone]);
+
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/parent/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim() || null,
+        }),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to update profile");
+        return data;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentCalendarStatusDedicated"] });
+      queryClient.invalidateQueries({ queryKey: ["parentProfile"] });
+      onSaved("Profile updated successfully");
+      onClose();
+    },
+    onError: (err: Error) => onSaved(err.message, true),
+  });
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const canSave = Boolean(name.trim() && email.trim() && emailRegex.test(email.trim()));
+
+  return (
+    <Dialog open={open} onClose={() => !saveMutation.isPending && onClose()} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Profile</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <TextField
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            fullWidth
+            size="small"
+            required
+          />
+          <TextField
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            fullWidth
+            size="small"
+            required
+          />
+          <TextField
+            label="Phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            fullWidth
+            size="small"
+            placeholder="Add phone number"
+            helperText="Optional"
+          />
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={saveMutation.isPending}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          disabled={!canSave || saveMutation.isPending}
+          startIcon={saveMutation.isPending ? <CircularProgress size={14} /> : undefined}
+          onClick={() => saveMutation.mutate()}
+        >
+          {saveMutation.isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -364,6 +480,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
 // ---------------------------------------------------------------------------
 export default function ParentSettingsPage() {
   const [editLink, setEditLink] = useState<ParentLink | null>(null);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
 
   const { data, isLoading, error } = useQuery({
@@ -371,7 +488,6 @@ export default function ParentSettingsPage() {
     queryFn: fetchParentOverview,
   });
 
-  // Fetch parent account info (name + email) from the parent-only status endpoint
   const { data: calendarStatus } = useQuery({
     queryKey: ["parentCalendarStatusDedicated"],
     queryFn: async () => {
@@ -379,6 +495,12 @@ export default function ParentSettingsPage() {
       if (!res.ok) return null;
       return res.json();
     },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: profileData } = useQuery({
+    queryKey: ["parentProfile"],
+    queryFn: fetchParentProfile,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -416,11 +538,16 @@ export default function ParentSettingsPage() {
       {/* Account Details */}
       <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-            <AccountCircle color="primary" />
-            <Typography variant="h6" fontWeight={600}>
-              Account Details
-            </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <AccountCircle color="primary" />
+              <Typography variant="h6" fontWeight={600}>
+                Account Details
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setEditProfileOpen(true)} title="Edit profile">
+              <Edit fontSize="small" />
+            </IconButton>
           </Box>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {calendarStatus?.userName && (
@@ -439,6 +566,18 @@ export default function ParentSettingsPage() {
               </Typography>
               <Typography variant="body2" fontWeight={500}>
                 {calendarStatus?.userEmail ?? "—"}
+              </Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                Phone:
+              </Typography>
+              <Typography
+                variant="body2"
+                fontWeight={500}
+                color={profileData?.phone ? "text.primary" : "text.disabled"}
+              >
+                {profileData?.phone ?? "—"}
               </Typography>
             </Box>
             {calendarStatus?.connectedEmail && (
@@ -569,6 +708,15 @@ export default function ParentSettingsPage() {
 
       {/* Delete Account */}
       <DeleteAccountSection />
+
+      <EditProfileDialog
+        open={editProfileOpen}
+        initialName={calendarStatus?.userName ?? profileData?.name ?? ""}
+        initialEmail={calendarStatus?.userEmail ?? profileData?.email ?? ""}
+        initialPhone={profileData?.phone ?? ""}
+        onClose={() => setEditProfileOpen(false)}
+        onSaved={(message, isError) => showMessage(message, isError ? "error" : "success")}
+      />
 
       {/* Edit child dialog */}
       <EditChildDialog
