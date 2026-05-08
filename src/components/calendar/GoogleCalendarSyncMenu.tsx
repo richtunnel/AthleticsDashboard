@@ -66,6 +66,7 @@ function GoogleCalendarSyncMenuContent() {
   const { connect, isLoading: isConnecting } = useGoogleCalendarConnection();
 
   const isConnected = data?.isConnected;
+  const connectedEmail = data?.connectedEmail ?? null;
 
   const handleConnect = async () => {
     try {
@@ -120,6 +121,11 @@ function GoogleCalendarSyncMenuContent() {
           <Box sx={{ width: "100%", maxWidth: "1280px" }}>
             <Alert sx={{ width: "100%" }} severity="success" icon={<SyncLock />}>
               Your Google Calendar is connected
+              {connectedEmail && (
+                <Typography variant="caption" sx={{ display: "block", mt: 0.25, color: "success.dark", opacity: 0.85 }}>
+                  {connectedEmail}
+                </Typography>
+              )}
             </Alert>
           </Box>
           <Typography variant="body2" color="text.secondary">
