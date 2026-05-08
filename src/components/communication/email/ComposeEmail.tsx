@@ -108,11 +108,53 @@ export default function ComposeEmailPage() {
     },
   });
 
-  // Memoized values
-  const customColumns = useMemo<CustomColumn[]>(() => (customColumnsResponse?.data || []) as CustomColumn[], [customColumnsResponse?.data]);
-  const tablePreferences = useMemo<TablePreferencesData | null>(() => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null, [tablePreferencesResponse?.data]);
-  const visibleColumnIds = useMemo(() => getDisplayColumns(tablePreferences, customColumns), [tablePreferences, customColumns]);
-  const columnMapping = useMemo(() => tablePreferences?.columnMapping as Record<string, string> | undefined, [tablePreferences]);
+  // Column config — prefer values written by GamesTable into sessionStorage so
+  // ComposeEmail always shows the same columns the user saw in their worksheet
+  // (including workbook-specific ones).  Fall back to the API responses only
+  // when the sessionStorage values are missing (e.g. navigating here directly).
+  const customColumns = useMemo<CustomColumn[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("gamesTableCustomColumns");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed as CustomColumn[];
+        }
+      } catch {}
+    }
+    return (customColumnsResponse?.data || []) as CustomColumn[];
+  }, [customColumnsResponse?.data]);
+
+  const tablePreferences = useMemo<TablePreferencesData | null>(
+    () => (tablePreferencesResponse?.data as TablePreferencesData | null) ?? null,
+    [tablePreferencesResponse?.data],
+  );
+
+  const visibleColumnIds = useMemo(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("gamesTableVisibleColumns");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
+        }
+      } catch {}
+    }
+    return getDisplayColumns(tablePreferences, customColumns);
+  }, [tablePreferences, customColumns]);
+
+  const columnMapping = useMemo<Record<string, string> | undefined>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = sessionStorage.getItem("gamesTableColumnMapping");
+        if (stored && stored !== "null") {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === "object") return parsed as Record<string, string>;
+        }
+      } catch {}
+    }
+    return tablePreferences?.columnMapping as Record<string, string> | undefined;
+  }, [tablePreferences]);
 
   const recipientCategories = useMemo<EmailGroupCategory[]>(() => {
     const emailGroupCategories = emailGroups.map((group) => ({
@@ -186,6 +228,9 @@ export default function ComposeEmailPage() {
           sessionStorage.removeItem("selectedGames");
           sessionStorage.removeItem("gamesOpponentFilter");
           sessionStorage.removeItem("failedEmailDraft");
+          sessionStorage.removeItem("gamesTableVisibleColumns");
+          sessionStorage.removeItem("gamesTableColumnMapping");
+          sessionStorage.removeItem("gamesTableCustomColumns");
         } catch (e) {
           console.warn("Failed to clear sessionStorage:", e);
         }

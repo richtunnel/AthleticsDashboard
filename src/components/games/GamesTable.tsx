@@ -2843,6 +2843,14 @@ export function GamesTable() {
     }
   }, [games.length, selectedGameIds.length, clearSelectedGameIds]);
 
+  // Clear selections whenever the active workbook changes so game IDs from
+  // one worksheet don't pollute another.  selectedWorkbookId is included in
+  // the query key, so the games list is already re-fetched at this point.
+  useEffect(() => {
+    clearSelectedGameIds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWorkbookId]);
+
   // Auto-populate time based on pattern detection when sport and level are selected
   useEffect(() => {
     // Only run if:
@@ -3048,9 +3056,12 @@ export function GamesTable() {
   }, [addNotification]);
 
   const handleViewSelectWorkbook = useCallback((id: string) => {
+    // Clear selections before switching worksheets so IDs from the old
+    // worksheet don't bleed into the new one (they're stored in localStorage).
+    clearSelectedGameIds();
     useGamesWorkbookStore.setState({ selectedWorkbookId: id });
     setWorksheetTab("worksheet");
-  }, []);
+  }, [clearSelectedGameIds]);
 
   const handleViewRenameWorkbook = useCallback(
     (id: string, name: string) => {
@@ -3869,8 +3880,13 @@ export function GamesTable() {
     });
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
     const opponentFilter = columnFilters.opponent;
+    // Persist the exact column config from the active worksheet so ComposeEmail
+    // displays the same columns/mappings the user sees here, regardless of which
+    // workbook (or the default table) is currently active.
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
     sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(visibleColumnIds));
+    sessionStorage.setItem("gamesTableColumnMapping", JSON.stringify(columnPreferencesData?.columnMapping ?? null));
+    sessionStorage.setItem("gamesTableCustomColumns", JSON.stringify(customColumns));
     sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
     router.push("/dashboard/compose-email");
   };
