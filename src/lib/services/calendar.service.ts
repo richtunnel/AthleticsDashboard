@@ -2,7 +2,6 @@ import { google } from "googleapis";
 import type { calendar_v3 } from "googleapis";
 import { prisma } from "../database/prisma";
 import { createGoogleOAuth2Client } from "../google/auth";
-import { hasScopes } from "./incremental-auth.service";
 import { calendarSyncTrackerService } from "./calendar-sync-tracker.service";
 import { jobQueueService } from "./job-queue.service";
 import { JobType } from "@prisma/client";
@@ -97,32 +96,11 @@ export class CalendarService {
       errors: job.result?.errors || [],
     };
   }
-  /**
-   * Check if user has granted Calendar scopes (incremental auth)
-   * This checks the OAuth scopes, not just token existence
-   */
-  private async hasCalendarScopes(userId: string): Promise<boolean> {
-    return await hasScopes(userId, "CALENDAR");
-  }
-
-  /**
-   * Legacy method: Check if tokens exist
-   * Note: With incremental auth, this checks both scopes AND tokens
-   */
   private async isCalendarConnected(userId: string): Promise<boolean> {
-    // First check if Calendar scopes are granted
-    const hasCalendarAccess = await this.hasCalendarScopes(userId);
-    if (!hasCalendarAccess) {
-      return false;
-    }
-
-    // Then check if tokens exist
     const [account, userTokens] = await Promise.all([
       prisma.account.findFirst({
-        where: {
-          userId,
-          provider: "google",
-        },
+        where: { userId, provider: "google" },
+        select: { scope: true, refresh_token: true, access_token: true },
       }),
       prisma.user.findUnique({
         where: { id: userId },
@@ -133,10 +111,15 @@ export class CalendarService {
       }),
     ]);
 
-    const refreshToken = account?.refresh_token ?? userTokens?.googleCalendarRefreshToken ?? undefined;
-    const accessToken = account?.access_token ?? userTokens?.googleCalendarAccessToken ?? undefined;
+    const hasAccountTokens = !!(account?.refresh_token || account?.access_token);
+    const hasLegacyTokens = !!(
+      userTokens?.googleCalendarRefreshToken || userTokens?.googleCalendarAccessToken
+    );
+    const hasCalendarScopeViaAccount = account?.scope
+      ? account.scope.split(" ").some((s) => s.includes("calendar"))
+      : false;
 
-    return Boolean(refreshToken || accessToken);
+    return (hasAccountTokens || hasLegacyTokens) && (hasCalendarScopeViaAccount || hasLegacyTokens);
   }
 
   private async getCalendarClient(userId: string) {
