@@ -23,7 +23,7 @@ import {
   IconButton,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { CreditCard, ChildCare, Add, School, Edit } from "@mui/icons-material";
+import { CreditCard, ChildCare, Add, School, Edit, AccountCircle } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
@@ -371,6 +371,17 @@ export default function ParentSettingsPage() {
     queryFn: fetchParentOverview,
   });
 
+  // Fetch parent account info (name + email) from the parent-only status endpoint
+  const { data: calendarStatus } = useQuery({
+    queryKey: ["parentCalendarStatusDedicated"],
+    queryFn: async () => {
+      const res = await fetch("/api/parent/calendar/status");
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   const showMessage = (message: string, severity: AlertColor = "success") =>
     setSnackbar({ open: true, message, severity });
 
@@ -401,6 +412,49 @@ export default function ParentSettingsPage() {
           Manage your account and preferences
         </Typography>
       </Box>
+
+      {/* Account Details */}
+      <Card variant="outlined" sx={{ mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <AccountCircle color="primary" />
+            <Typography variant="h6" fontWeight={600}>
+              Account Details
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {calendarStatus?.userName && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                  Name:
+                </Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {calendarStatus.userName}
+                </Typography>
+              </Box>
+            )}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                Email:
+              </Typography>
+              <Typography variant="body2" fontWeight={500}>
+                {calendarStatus?.userEmail ?? "—"}
+              </Typography>
+            </Box>
+            {calendarStatus?.connectedEmail && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                  Calendar:
+                </Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {calendarStatus.connectedEmail}
+                </Typography>
+                <Chip label="Connected" size="small" color="success" variant="outlined" />
+              </Box>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Subscription */}
       <Card variant="outlined" sx={{ mb: 3 }}>

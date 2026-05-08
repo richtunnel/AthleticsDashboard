@@ -20,6 +20,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Snackbar,
   Tooltip,
 } from "@mui/material";
@@ -32,12 +36,18 @@ interface ConnectedParent {
   parentUserName: string | null;
   parentEmail: string;
   schoolName: string;
-  sportName: string;
-  sportLevel: string;
+  sportName: string | null;
+  sportLevel: string | null;
   calendarSynced: boolean;
   lastSyncedAt: string | null;
   membershipStatus: string;
   createdAt: string;
+}
+
+interface Team {
+  id: string;
+  sportName: string;
+  level: string;
 }
 
 type SnackbarState = { open: boolean; message: string; severity: AlertColor };
@@ -49,8 +59,34 @@ async function fetchConnectedParents(): Promise<{ parents: ConnectedParent[] }> 
   return res.json();
 }
 
-async function syncParent(id: string): Promise<{ message: string }> {
-  const res = await fetch(`/api/admin/connected-parents/${id}/sync`, { method: "POST" });
+async function fetchTeams(): Promise<{ teams: Team[] }> {
+  const res = await fetch("/api/teams");
+  if (!res.ok) return { teams: [] };
+  const json = await res.json();
+  // /api/teams returns { success, data: [...] } with sport.name nested
+  const raw: any[] = json.data ?? json.teams ?? [];
+  return {
+    teams: raw.map((t: any) => ({
+      id: t.id,
+      sportName: t.sport?.name ?? t.sportName ?? "",
+      level: t.level ?? "",
+    })),
+  };
+}
+
+async function syncParent(payload: {
+  id: string;
+  sportName?: string;
+  sportLevel?: string;
+}): Promise<{ message: string }> {
+  const res = await fetch(`/api/admin/connected-parents/${payload.id}/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sportName: payload.sportName,
+      sportLevel: payload.sportLevel,
+    }),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to sync");
   return data;
@@ -89,6 +125,9 @@ export function ConnectedParentsMenu() {
   const queryClient = useQueryClient();
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
   const [removeTarget, setRemoveTarget] = useState<ConnectedParent | null>(null);
+  const [syncTarget, setSyncTarget] = useState<ConnectedParent | null>(null);
+  const [syncSport, setSyncSport] = useState("");
+  const [syncLevel, setSyncLevel] = useState("");
 
   const showMessage = (message: string, severity: AlertColor = "success") =>
     setSnackbar({ open: true, message, severity });
@@ -99,11 +138,20 @@ export function ConnectedParentsMenu() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: teamsData } = useQuery({
+    queryKey: ["adTeamsForSync"],
+    queryFn: fetchTeams,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const syncMutation = useMutation({
     mutationFn: syncParent,
-    onSuccess: (data) => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
-      showMessage(data.message || "Calendar synced");
+      showMessage(res.message || "Calendar synced successfully");
+      setSyncTarget(null);
+      setSyncSport("");
+      setSyncLevel("");
     },
     onError: (err: Error) => showMessage(err.message, "error"),
   });
@@ -130,6 +178,29 @@ export function ConnectedParentsMenu() {
     },
   });
 
+  const handleSyncClick = (parent: ConnectedParent) => {
+    setSyncTarget(parent);
+    // Pre-fill from stored sport/level if available
+    setSyncSport(parent.sportName ?? "");
+    setSyncLevel(parent.sportLevel ?? "");
+  };
+
+  const handleSyncConfirm = () => {
+    if (!syncTarget) return;
+    syncMutation.mutate({
+      id: syncTarget.id,
+      sportName: syncSport || undefined,
+      sportLevel: syncLevel || undefined,
+    });
+  };
+
+  // Derive unique sport names and levels from teams
+  const teams = teamsData?.teams ?? [];
+  const uniqueSports = [...new Set(teams.map((t) => t.sportName))].filter(Boolean).sort();
+  const levelsForSport = syncSport
+    ? [...new Set(teams.filter((t) => t.sportName === syncSport).map((t) => t.level))].filter(Boolean).sort()
+    : [];
+
   if (isLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
@@ -155,7 +226,8 @@ export function ConnectedParentsMenu() {
           </Box>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Parents connected to your school. Use the action buttons to sync, unsync, or remove a parent.
+            Parents connected to your school. Use Sync to push your game schedule
+            to a parent&apos;s Google Calendar.
           </Typography>
 
           {parents.length === 0 ? (
@@ -187,8 +259,10 @@ export function ConnectedParentsMenu() {
 
                       {/* Sport & Level */}
                       <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1 }}>
-                        {parent.sportName && (
+                        {parent.sportName ? (
                           <Chip label={parent.sportName} size="small" variant="outlined" />
+                        ) : (
+                          <Chip label="No sport set" size="small" variant="outlined" color="warning" />
                         )}
                         {parent.sportLevel && (
                           <Chip label={parent.sportLevel} size="small" variant="outlined" color="primary" />
@@ -228,22 +302,16 @@ export function ConnectedParentsMenu() {
                     </CardContent>
 
                     <CardActions sx={{ pt: 0, px: 1.5, pb: 1.5, gap: 0.5 }}>
-                      {/* Sync */}
-                      <Tooltip title="Re-sync this parent's Google Calendar with upcoming games">
+                      {/* Sync — opens sport/level dialog */}
+                      <Tooltip title="Sync this parent's Google Calendar with your game schedule">
                         <span>
                           <Button
                             size="small"
                             variant="outlined"
                             color="primary"
-                            startIcon={
-                              syncMutation.isPending && syncMutation.variables === parent.id ? (
-                                <CircularProgress size={12} />
-                              ) : (
-                                <Sync sx={{ fontSize: 14 }} />
-                              )
-                            }
+                            startIcon={<Sync sx={{ fontSize: 14 }} />}
                             disabled={isBusy}
-                            onClick={() => syncMutation.mutate(parent.id)}
+                            onClick={() => handleSyncClick(parent)}
                             sx={{ fontSize: "0.7rem", py: 0.4, px: 1 }}
                           >
                             Sync
@@ -260,7 +328,7 @@ export function ConnectedParentsMenu() {
                               variant="outlined"
                               color="warning"
                               startIcon={
-                                unsyncMutation.isPending && unsyncMutation.variables === parent.id ? (
+                                unsyncMutation.isPending && (unsyncMutation.variables as string) === parent.id ? (
                                   <CircularProgress size={12} />
                                 ) : (
                                   <SyncDisabled sx={{ fontSize: 14 }} />
@@ -301,7 +369,74 @@ export function ConnectedParentsMenu() {
         </CardContent>
       </Card>
 
-      {/* Remove confirmation dialog */}
+      {/* ── Sync dialog ──────────────────────────────────────────────── */}
+      <Dialog
+        open={Boolean(syncTarget)}
+        onClose={() => !syncMutation.isPending && setSyncTarget(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Sync Calendar for {syncTarget?.parentUserName || syncTarget?.parentEmail}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select the sport and level to sync to this parent&apos;s Google Calendar.
+            All matching games from your schedule will be pushed to their calendar.
+          </Typography>
+
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Sport</InputLabel>
+            <Select
+              value={syncSport}
+              label="Sport"
+              onChange={(e) => {
+                setSyncSport(e.target.value);
+                setSyncLevel("");
+              }}
+            >
+              {uniqueSports.map((sport) => (
+                <MenuItem key={sport} value={sport}>
+                  {sport}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth disabled={!syncSport}>
+            <InputLabel>Level</InputLabel>
+            <Select
+              value={syncLevel}
+              label="Level"
+              onChange={(e) => setSyncLevel(e.target.value)}
+            >
+              {levelsForSport.map((level) => (
+                <MenuItem key={level} value={level}>
+                  {level}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Alert severity="info" sx={{ mt: 2 }} icon={false}>
+            The parent must have connected their Google Calendar in their parent portal for the sync to work.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSyncTarget(null)} disabled={syncMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            disabled={!syncSport || !syncLevel || syncMutation.isPending}
+            startIcon={syncMutation.isPending ? <CircularProgress size={14} color="inherit" /> : <Sync fontSize="small" />}
+            onClick={handleSyncConfirm}
+          >
+            {syncMutation.isPending ? "Syncing…" : "Sync Calendar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Remove confirmation dialog ──────────────────────────────── */}
       <Dialog open={Boolean(removeTarget)} onClose={() => !removeMutation.isPending && setRemoveTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Remove Parent Connection?</DialogTitle>
         <DialogContent>
@@ -322,14 +457,14 @@ export function ConnectedParentsMenu() {
             startIcon={removeMutation.isPending ? <CircularProgress size={14} /> : undefined}
             onClick={() => removeTarget && removeMutation.mutate(removeTarget.id)}
           >
-            {removeMutation.isPending ? "Removing..." : "Remove"}
+            {removeMutation.isPending ? "Removing…" : "Remove"}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={4000}
+        autoHideDuration={5000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
