@@ -43,6 +43,7 @@ import {
   Info,
   Warning,
   SupportAgent,
+  Sync,
 } from "@mui/icons-material";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
@@ -58,6 +59,7 @@ const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Overview", href: "/parent-dashboard", icon: Dashboard },
+  { name: "Calendar", href: "/parent-dashboard/calendar", icon: Sync },
   { name: "Chat", href: "/parent-dashboard/chat", icon: Chat },
   { name: "Settings", href: "/parent-dashboard/settings", icon: Settings },
 ];

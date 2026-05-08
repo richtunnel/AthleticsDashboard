@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { hasScopes } from "@/lib/services/incremental-auth.service";
 import { prisma } from "@/lib/database/prisma";
 
 export async function GET() {
   try {
-    const session = await requireAuth();
+    let session;
+    try {
+      session = await requireAuth();
+    } catch {
+      session = await getParentSession();
+    }
+    if (!session?.user?.id) {
+      return NextResponse.json({ isConnected: false }, { status: 200 });
+    }
 
     const hasCalendarScope = await hasScopes(session.user.id, "CALENDAR");
 
