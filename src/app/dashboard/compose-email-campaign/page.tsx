@@ -982,6 +982,7 @@ export default function ComposeEmailPage() {
                   required
                   error={!recipientCategory}
                   helperText={!recipientCategory ? "Recipient category is required" : "Select who should receive this email"}
+                  sx={{ "& .MuiSelect-select": { paddingBottom: 0 } }}
                 >
                   {recipientCategories.map((category) => (
                     <MenuItem key={category.value} value={category.value}>
