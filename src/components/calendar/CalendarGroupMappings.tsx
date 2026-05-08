@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
 import {
@@ -81,6 +82,8 @@ const fetchImportedColumns = async (): Promise<{ data: string[] }> => {
 export function CalendarGroupMappings() {
   const { addNotification } = useNotifications();
   const theme = customTheme();
+  const { data: session } = useSession();
+  const connectedEmail = (session?.user as any)?.googleCalendarEmail || session?.user?.email || null;
   const queryClient = useQueryClient();
   const { disconnect: disconnectCalendar, connect: connectCalendar } = useGoogleCalendarConnection();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -275,6 +278,11 @@ export function CalendarGroupMappings() {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Map your game columns to specific Google Calendar groups for organized scheduling
           </Typography>
+          {connectedEmail && (
+            <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block" }}>
+              Connected as: {connectedEmail}
+            </Typography>
+          )}
         </Box>
         <Button
           variant="contained"

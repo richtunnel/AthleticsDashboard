@@ -9,17 +9,20 @@ export async function GET() {
 
     const hasCalendarScope = await hasScopes(session.user.id, "CALENDAR");
 
-    const userTokens = await prisma.user.findUnique({
+    const userRecord = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
         googleCalendarRefreshToken: true,
         googleCalendarAccessToken: true,
+        googleCalendarEmail: true,
+        email: true,
       },
     });
 
-    const hasLegacyTokens = Boolean(userTokens?.googleCalendarRefreshToken || userTokens?.googleCalendarAccessToken);
+    const hasLegacyTokens = Boolean(userRecord?.googleCalendarRefreshToken || userRecord?.googleCalendarAccessToken);
+    const connectedEmail = userRecord?.googleCalendarEmail || userRecord?.email || null;
 
-    return NextResponse.json({ isConnected: hasCalendarScope || hasLegacyTokens });
+    return NextResponse.json({ isConnected: hasCalendarScope || hasLegacyTokens, connectedEmail });
   } catch (error) {
     // If auth fails or any error occurs, assume not connected
     return NextResponse.json({ isConnected: false, error: "Authentication failed or user not found." }, { status: 200 });
