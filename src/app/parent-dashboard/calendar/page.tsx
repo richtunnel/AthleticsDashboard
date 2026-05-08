@@ -12,14 +12,13 @@ import {
   Skeleton,
   CircularProgress,
 } from "@mui/material";
-import { CalendarMonth, LinkOff, SyncLock } from "@mui/icons-material";
+import { LinkOff, SyncLock } from "@mui/icons-material";
 import { FaGoogle } from "react-icons/fa";
 import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappings";
-import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
 
-/** Fetch calendar connection status scoped to the parent session */
-const fetchCalendarStatus = async () => {
-  const res = await fetch("/api/user/calendar-status");
+/** Fetch parent-only calendar status (never touches the AD session) */
+const fetchParentCalendarStatus = async () => {
+  const res = await fetch("/api/parent/calendar/status");
   if (!res.ok) return { isConnected: false, connectedEmail: null };
   return res.json();
 };
@@ -51,13 +50,12 @@ function CalendarConnectionHandler({ refetch }: { refetch: () => void }) {
 function ParentCalendarPageContent() {
   const queryClient = useQueryClient();
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
-  const { connect, isLoading: isConnecting } = useGoogleCalendarConnection();
-
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["parentCalendarStatus"],
-    queryFn: fetchCalendarStatus,
+    queryKey: ["parentCalendarStatusDedicated"],
+    queryFn: fetchParentCalendarStatus,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -67,11 +65,20 @@ function ParentCalendarPageContent() {
   const handleConnect = async () => {
     try {
       setConnectError(null);
-      await connect("/parent-dashboard/calendar");
+      setIsConnecting(true);
+      const res = await fetch("/api/parent/calendar/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnTo: "/parent-dashboard/calendar" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to connect");
+      if (json.authUrl) {
+        window.location.href = json.authUrl;
+      }
     } catch (err) {
-      setConnectError(
-        err instanceof Error ? err.message : "Failed to connect Google Calendar"
-      );
+      setConnectError(err instanceof Error ? err.message : "Failed to connect Google Calendar");
+      setIsConnecting(false);
     }
   };
 
@@ -84,9 +91,8 @@ function ParentCalendarPageContent() {
       return;
     try {
       setIsDisconnecting(true);
-      await fetch("/api/auth/google-calendar/disconnect", { method: "POST" });
-      queryClient.invalidateQueries({ queryKey: ["parentCalendarStatus"] });
-      queryClient.invalidateQueries({ queryKey: ["googleCalendarStatus"] });
+      await fetch("/api/parent/calendar/disconnect", { method: "POST" });
+      queryClient.invalidateQueries({ queryKey: ["parentCalendarStatusDedicated"] });
       refetch();
     } catch (error) {
       console.error("Failed to disconnect calendar:", error);
@@ -121,7 +127,7 @@ function ParentCalendarPageContent() {
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Connect your Google Calendar so approved game schedules sync
-          automatically.
+          automatically to your calendar.
         </Typography>
       </Box>
 
@@ -165,17 +171,13 @@ function ParentCalendarPageContent() {
             </Alert>
 
             <Typography variant="body2" color="text.secondary">
-              Once the Athletic Director approves your calendar sync request,
-              games will automatically appear in your Google Calendar.
+              Once the Athletic Director approves and syncs your calendar
+              request, your upcoming games will automatically appear here.
+              You can also use Calendar Group Mappings below to route specific
+              sports to dedicated calendar groups.
             </Typography>
 
-            <Box
-              sx={{
-                pt: 2,
-                borderTop: "1px solid",
-                borderColor: "divider",
-              }}
-            >
+            <Box sx={{ pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
               <Button
                 variant="outlined"
                 color="error"
@@ -197,9 +199,9 @@ function ParentCalendarPageContent() {
         ) : (
           <Stack spacing={2}>
             <Typography variant="body2" color="text.secondary">
-              Connect your Google account to enable automatic game sync. Once
-              the Athletic Director approves your request, games will
-              appear in your calendar automatically.
+              Connect your Google account so the Athletic Director can sync
+              game schedules directly to your calendar after approving your
+              request.
             </Typography>
 
             {connectError && (
@@ -239,8 +241,8 @@ function ParentCalendarPageContent() {
             bgcolor: "background.paper",
           }}
         >
-          {/* Pass the verified calendar email so CalendarGroupMappings
-              never falls back to the sign-in email from useSession */}
+          {/* Pass verified calendar email so CalendarGroupMappings never
+              falls back to the sign-in email from useSession */}
           <CalendarGroupMappings connectedEmailOverride={connectedEmail} />
         </Box>
       )}

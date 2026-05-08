@@ -6,11 +6,21 @@ import { calendarService } from "@/lib/services/calendar.service";
 
 /**
  * POST /api/admin/connected-parents/[id]/sync
- * AD triggers a calendar re-sync for a specific connected parent.
- * The sync runs against the parent's Google Calendar using their stored tokens.
+ *
+ * AD triggers a calendar sync for a connected parent.
+ * The sync pushes games that match the chosen sport/level from the AD's school
+ * to the parent's Google Calendar using their stored OAuth tokens.
+ *
+ * Body (optional):
+ *   sportName  – overrides the sport stored on ConnectedParent
+ *   sportLevel – overrides the level stored on ConnectedParent
+ *
+ * If the body omits sport/level, the values stored on the ConnectedParent
+ * record are used. If neither source has values, the request is rejected with
+ * a clear error so the AD knows to pick a sport/level in the dialog.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -38,47 +48,77 @@ export async function POST(
       return NextResponse.json({ error: "Connected parent not found" }, { status: 404 });
     }
 
-    // Ensure the parent belongs to this AD's school
     if (connectedParent.schoolId !== adUser.organizationId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (!connectedParent.sportName || !connectedParent.sportLevel) {
-      return NextResponse.json(
-        { error: "Parent has no sport/level configured — cannot sync" },
-        { status: 400 }
-      );
-    }
+    // Body may supply sport/level overrides from the sync dialog
+    const body = await req.json().catch(() => ({}));
+    const sportName: string | null = body.sportName || connectedParent.sportName || null;
+    const sportLevel: string | null = body.sportLevel || connectedParent.sportLevel || null;
 
-    // Verify the parent has connected Google Calendar with calendar scope.
-    // syncGamesForSportLevel uses the parent's own OAuth tokens, so if they
-    // haven't gone through the calendar auth flow this will always fail.
-    const parentAccount = await prisma.account.findFirst({
-      where: { userId: connectedParent.parentUserId, provider: "google" },
-      select: { scope: true, refresh_token: true, access_token: true },
-    });
-
-    const hasTokens = !!(parentAccount?.refresh_token || parentAccount?.access_token);
-    const hasCalendarScope = parentAccount?.scope
-      ? parentAccount.scope.split(" ").some((s) => s.includes("calendar"))
-      : false;
-
-    if (!hasTokens || !hasCalendarScope) {
+    if (!sportName || !sportLevel) {
       return NextResponse.json(
         {
           error:
-            "This parent hasn't connected their Google Calendar yet. Ask them to visit the Calendar Sync page in their parent dashboard to authorize access.",
+            "Please select a sport and level to sync. Use the Sync button and choose the appropriate options.",
         },
         { status: 400 }
       );
     }
 
-    // Run sync on behalf of the parent (uses parent's Google tokens)
+    // Persist the chosen sport/level on the ConnectedParent record so future
+    // syncs can default to the same values.
+    if (sportName !== connectedParent.sportName || sportLevel !== connectedParent.sportLevel) {
+      await prisma.connectedParent.update({
+        where: { id },
+        data: { sportName, sportLevel },
+      });
+    }
+
+    // Verify the parent has connected their Google Calendar.
+    // Check both the Account record (incremental OAuth) and the legacy
+    // User-level token fields.
+    const [parentAccount, parentUser] = await Promise.all([
+      prisma.account.findFirst({
+        where: { userId: connectedParent.parentUserId, provider: "google" },
+        select: { scope: true, refresh_token: true, access_token: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: connectedParent.parentUserId },
+        select: {
+          googleCalendarRefreshToken: true,
+          googleCalendarAccessToken: true,
+        },
+      }),
+    ]);
+
+    const hasAccountTokens = !!(parentAccount?.refresh_token || parentAccount?.access_token);
+    const hasLegacyTokens = !!(
+      parentUser?.googleCalendarRefreshToken || parentUser?.googleCalendarAccessToken
+    );
+    const hasCalendarScope =
+      hasLegacyTokens ||
+      (parentAccount?.scope
+        ? parentAccount.scope.split(" ").some((s) => s.includes("calendar"))
+        : false);
+
+    if ((!hasAccountTokens && !hasLegacyTokens) || !hasCalendarScope) {
+      return NextResponse.json(
+        {
+          error:
+            "This parent hasn't connected their Google Calendar yet. Ask them to visit the Calendar page in their parent dashboard and click 'Connect Google Calendar'.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Run sync — uses the parent's own OAuth tokens
     const results = await calendarService.syncGamesForSportLevel(
       connectedParent.parentUserId,
       connectedParent.schoolId,
-      connectedParent.sportName,
-      connectedParent.sportLevel,
+      sportName,
+      sportLevel,
       "primary"
     );
 
@@ -93,7 +133,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Sync complete — ${synced} game(s) synced, ${failed} failed`,
+      message: `Sync complete — ${synced} game(s) added to calendar, ${failed} failed`,
       synced,
       failed,
     });
