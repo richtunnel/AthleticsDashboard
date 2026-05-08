@@ -8,11 +8,11 @@ import { getParentSession } from "@/lib/utils/parentSession";
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -31,7 +31,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Verify ownership and status
     const syncRequest = await prisma.calendarSyncRequest.findFirst({
