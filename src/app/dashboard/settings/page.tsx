@@ -98,64 +98,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     );
   }
 
-  // ── Tab content ─────────────────────────────────────────────────────────────
-  // Each section uses the SAME padding pattern as the original settings page so
-  // card widths are perfectly consistent from top to bottom.
-
   const generalContent = (
     <>
-      {/* ── px: {xs:2, sm:3} group — matches original top box ── */}
-      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
-        <PaymentOverdueWarning />
-        <UpgradePlanCard userPlan={user.plan} />
-        <CalendarConnectionSection />
-      </Box>
-
-      {/* ── pl/pr: {md:"24px"} group — matches original middle box ── */}
-      <Box sx={{ pl: { md: "24px" }, pr: { md: "24px" } }}>
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              Score Tracker
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Enable score tracking to add game results and view team performance statistics. This adds score entry
-              functionality to teams menu options.
-            </Typography>
-            <ScoreTrackerToggle />
-          </CardContent>
-        </Card>
-
-        <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-              Spreadsheet Columns
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-              Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and
-              want to return to the standard view.
-            </Typography>
-            <ResetColumnsButton />
-          </CardContent>
-        </Card>
-
-        <EmailLimitsCard />
-      </Box>
-
-      {/* ── No wrapper — matches original SubscriptionOverviewCard (full width) ── */}
-
-  const generalContent = (
-    <>
-      {/* Payment overdue warning */}
       <PaymentOverdueWarning />
 
-      {/* Upgrade Plan Card - only shown for free users */}
       <UpgradePlanCard userPlan={user.plan} />
 
-      {/* Calendar Connection Section */}
       <CalendarConnectionSection />
 
-      {/* Score Tracker */}
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
@@ -169,7 +119,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </CardContent>
       </Card>
 
-      {/* Spreadsheet Columns */}
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
@@ -185,7 +134,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
       <EmailLimitsCard />
 
-      {/* Billing & Subscription */}
       <SubscriptionOverviewCard
         subscription={userWithSubscription?.subscription || null}
         recoveryEmail={userWithSubscription?.recoveryEmail || null}
@@ -197,44 +145,28 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         checkoutStatus={checkoutStatus}
       />
 
-      {/* Account Details */}
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
-          Account Details
-        </Typography>
-        <AccountDetailsForm
-          user={user}
-          googleCalendarEmail={user.googleCalendarEmail ?? null}
-          schoolEmail={user.schoolEmail ?? null}
-        />
-      </Box>
+      <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
+        Account Details
+      </Typography>
+      <AccountDetailsForm
+        user={user}
+        googleCalendarEmail={user.googleCalendarEmail ?? null}
+        schoolEmail={user.schoolEmail ?? null}
+      />
 
-      {/* School Details */}
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <SchoolDetailsForm user={user} />
-      </Box>
+      <SchoolDetailsForm user={user} />
 
-      {/* Password Change */}
       {!isMemberAccess && (
-        <Box sx={{ p: { xs: 2, sm: 3 } }}>
-          <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
-        </Box>
+        <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
       )}
 
-      {/* Support */}
-      <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
-        <SupportCard />
-      </Box>
+      <SupportCard />
 
-      {/* Delete Account */}
-      <Box sx={{ p: { xs: 2, sm: 3 } }}>
-        <DeleteAccountSection />
-      </Box>
+      <DeleteAccountSection />
     </>
   );
 
   const costBudgetContent = (
-    <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
     <>
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>

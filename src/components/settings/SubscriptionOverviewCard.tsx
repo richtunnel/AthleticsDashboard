@@ -277,9 +277,8 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
 
   return (
     <>
-      <Box sx={{ px: 3, pb: 3 }}>
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
             <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1, pt: "12px" }}>
               <CreditCardIcon />
               Billing & Subscription
@@ -490,7 +489,6 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
             </Box>
           </CardContent>
         </Card>
-      </Box>
 
       {/* Cancel Confirmation Dialog */}
       <Dialog open={cancelDialogOpen} onClose={() => !loading && setCancelDialogOpen(false)}>
