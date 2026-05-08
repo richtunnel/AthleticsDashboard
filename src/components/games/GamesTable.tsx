@@ -438,6 +438,7 @@ export function GamesTable() {
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
   const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
   const updateFilter = useGamesFiltersStore((state) => state.updateFilter);
+  const clearColumnFilters = useGamesFiltersStore((state) => state.clearFilters);
 
   const [showColumnManager, setShowColumnManager] = useState(false);
 
@@ -3062,12 +3063,13 @@ export function GamesTable() {
   }, [addNotification]);
 
   const handleViewSelectWorkbook = useCallback((id: string) => {
-    // Clear selections before switching worksheets so IDs from the old
-    // worksheet don't bleed into the new one (they're stored in localStorage).
+    // Clear selections and filters before switching worksheets so IDs and
+    // active filter conditions from the old worksheet don't bleed into the new one.
     clearSelectedGameIds();
+    clearColumnFilters();
     useGamesWorkbookStore.setState({ selectedWorkbookId: id });
     setWorksheetTab("worksheet");
-  }, [clearSelectedGameIds]);
+  }, [clearSelectedGameIds, clearColumnFilters]);
 
   const handleViewRenameWorkbook = useCallback(
     (id: string, name: string) => {
@@ -3130,6 +3132,10 @@ export function GamesTable() {
       // This is what prevents default columns from reappearing.
       if (result.success > 0) {
         setIsCustomStructureActive(true);
+        // Clear any stale column filters so the freshly imported games are
+        // immediately visible.  Filters persist in localStorage across sessions
+        // and an active filter (e.g. date "is empty") would hide all results.
+        clearColumnFilters();
       }
 
       // If import was for a specific workbook (from View), rename workbook to filename
@@ -3160,7 +3166,7 @@ export function GamesTable() {
       queryClient.refetchQueries({ queryKey: ["tablePreferences", activePreferencesKey] });
       queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] });
     },
-    [queryClient, addNotification, setIsCustomStructureActive, activePreferencesKey, viewImportWorkbookId],
+    [queryClient, addNotification, setIsCustomStructureActive, activePreferencesKey, viewImportWorkbookId, clearColumnFilters],
   );
 
   const handleSaveNewGame = async () => {
