@@ -14,11 +14,11 @@ const syncSchema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -37,7 +37,7 @@ export async function POST(
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { googleCalendarId } = syncSchema.parse(body);
 

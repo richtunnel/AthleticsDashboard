@@ -22,14 +22,14 @@ const emailGroupInclude = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function PATCH(request: NextRequest, { params }: { params: { groupId: string; emailId: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ groupId: string; emailId: string }> }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { groupId, emailId } = params;
+  const { groupId, emailId } = await params;
 
   if (!groupId || !emailId) {
     return NextResponse.json({ error: "Group ID and Email ID are required" }, { status: 400 });
@@ -96,14 +96,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { groupI
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { groupId: string; emailId: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ groupId: string; emailId: string }> }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { groupId, emailId } = params;
+  const { groupId, emailId } = await params;
 
   if (!groupId || !emailId) {
     return NextResponse.json({ error: "Group ID and Email ID are required" }, { status: 400 });

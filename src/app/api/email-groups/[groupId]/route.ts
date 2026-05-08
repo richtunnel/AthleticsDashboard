@@ -34,14 +34,14 @@ async function ensureGroupAccess(groupId: string, organizationId: string) {
   });
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { groupId: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const groupId = params.groupId;
+  const { groupId } = await params;
 
   if (!groupId) {
     return NextResponse.json({ error: "Group ID required" }, { status: 400 });
@@ -88,14 +88,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { groupI
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: { groupId: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const groupId = params.groupId;
+  const { groupId } = await params;
 
   if (!groupId) {
     return NextResponse.json({ error: "Group ID required" }, { status: 400 });
