@@ -114,15 +114,39 @@ function CalendarSyncPageContent() {
     },
   });
 
+  const { data: calendarStatus, isLoading: calendarStatusLoading } = useQuery({
+    queryKey: ["parentCalendarStatus"],
+    queryFn: async () => {
+      const res = await fetch("/api/parent/calendar/status");
+      if (!res.ok) return { isConnected: false, connectedEmail: null };
+      return res.json() as Promise<{ isConnected: boolean; connectedEmail: string | null }>;
+    },
+  });
+
   const { data: calendarsData, isLoading: calendarsLoading } = useQuery({
     queryKey: ["parentGoogleCalendars"],
     queryFn: async () => {
-      // Note: This might require parent-specific calendar list API
       const res = await fetch("/api/calendar/list-calendars");
       if (!res.ok) return { calendars: [] };
       return res.json() as Promise<{ calendars: GoogleCalendar[] }>;
     },
+    enabled: calendarStatus?.isConnected === true,
   });
+
+  const handleConnectCalendar = async () => {
+    try {
+      const res = await fetch("/api/parent/calendar/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ returnTo: "/parent-dashboard/calendar-sync" }),
+      });
+      if (!res.ok) throw new Error("Failed to initiate calendar connection");
+      const { authUrl } = await res.json();
+      if (authUrl) window.location.href = authUrl;
+    } catch (err) {
+      addNotification("Failed to start Google Calendar connection", "error");
+    }
+  };
 
   const createRequestMutation = useMutation({
     mutationFn: async () => {
@@ -407,9 +431,28 @@ function CalendarSyncPageContent() {
         <DialogTitle>Sync to Google Calendar</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Select which of your Google Calendars you want to sync {selectedRequestForSync?.sportName} {selectedRequestForSync?.sportLevel} games to.
+            Select which of your Google Calendars you want to sync{" "}
+            <strong>{selectedRequestForSync?.sportName} {selectedRequestForSync?.sportLevel}</strong> games to.
           </Typography>
-          {calendarsData?.calendars && calendarsData.calendars.length > 0 ? (
+
+          {calendarStatusLoading || calendarsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : !calendarStatus?.isConnected ? (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                You haven&apos;t connected your Google Calendar yet. Connect it to start syncing.
+              </Alert>
+              <Button
+                variant="contained"
+                startIcon={<CalendarMonth />}
+                onClick={handleConnectCalendar}
+              >
+                Connect Google Calendar
+              </Button>
+            </Box>
+          ) : calendarsData?.calendars && calendarsData.calendars.length > 0 ? (
             <FormControl fullWidth sx={{ mt: 1 }}>
               <InputLabel>Your Calendar</InputLabel>
               <Select
@@ -427,14 +470,14 @@ function CalendarSyncPageContent() {
           ) : (
             <Box sx={{ mt: 2 }}>
               <Alert severity="warning" sx={{ mb: 2 }}>
-                You haven&apos;t connected your Google Calendar yet.
+                Could not load your calendars. Your Google Calendar may need to be reconnected.
               </Alert>
               <Button
-                variant="contained"
+                variant="outlined"
                 startIcon={<CalendarMonth />}
-                href="/api/auth/calendar-connect?returnTo=/parent-dashboard/calendar-sync"
+                onClick={handleConnectCalendar}
               >
-                Connect Google Calendar
+                Reconnect Google Calendar
               </Button>
             </Box>
           )}
@@ -444,7 +487,7 @@ function CalendarSyncPageContent() {
           <Button
             variant="contained"
             color="primary"
-            disabled={!selectedCalendarId || syncMutation.isPending}
+            disabled={!selectedCalendarId || !calendarStatus?.isConnected || syncMutation.isPending}
             onClick={() => syncMutation.mutate({ id: selectedRequestForSync!.id, googleCalendarId: selectedCalendarId })}
           >
             {syncMutation.isPending ? <CircularProgress size={24} /> : "Start Sync"}

@@ -4,8 +4,10 @@ import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { z } from "zod";
 
+// googleCalendarId is optional — the parent picks their own calendar at sync time.
+// Storing the AD's calendar here served no purpose (it was never read by the sync route).
 const approveSchema = z.object({
-  googleCalendarId: z.string().min(1, "Calendar ID is required"),
+  googleCalendarId: z.string().optional(),
 });
 
 /**
@@ -51,7 +53,9 @@ export async function POST(
       where: { id },
       data: {
         status: "APPROVED",
-        googleCalendarId,
+        // googleCalendarId is intentionally omitted — the parent selects their
+        // own calendar when they click "Sync Now". Storing the AD's calendar ID
+        // here served no purpose since the sync route reads from the request body.
         reviewedAt: new Date(),
         reviewedById: user.id,
       },

@@ -221,24 +221,22 @@ export function WorksheetView({ workbooks, selectedWorkbookId, onSelectWorkbook,
                         <EditIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Tooltip>
-                    {workbooks.length > 1 && (
-                      <Tooltip title="Delete worksheet">
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteConfirm({
-                              workbookId: workbook.id,
-                              workbookName: workbook.name,
-                              gameCount: workbook._count?.games ?? 0,
-                            });
-                          }}
-                          sx={{ p: 0.25, color: "error.main" }}
-                        >
-                          <DeleteIcon sx={{ fontSize: 14 }} />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    <Tooltip title="Delete worksheet">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirm({
+                            workbookId: workbook.id,
+                            workbookName: workbook.name,
+                            gameCount: workbook._count?.games ?? 0,
+                          });
+                        }}
+                        sx={{ p: 0.25, color: "error.main" }}
+                      >
+                        <DeleteIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
 
                   <Typography

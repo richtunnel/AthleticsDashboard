@@ -23,12 +23,8 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
 } from "@mui/material";
-import { Check, Close, CalendarMonth, Info } from "@mui/icons-material";
+import { Check, Close, Info } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarSyncRequest {
@@ -45,12 +41,6 @@ interface CalendarSyncRequest {
   };
 }
 
-interface GoogleCalendar {
-  id: string;
-  name: string;
-  primary: boolean;
-}
-
 export function CalendarSyncRequestsMenu() {
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
@@ -58,7 +48,6 @@ export function CalendarSyncRequestsMenu() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CalendarSyncRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [selectedCalendarId, setSelectedCalendarId] = useState("");
 
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["adminCalendarSyncRequests"],
@@ -69,28 +58,19 @@ export function CalendarSyncRequestsMenu() {
     },
   });
 
-  const { data: calendarsData, isLoading: calendarsLoading } = useQuery({
-    queryKey: ["googleCalendars"],
-    queryFn: async () => {
-      const res = await fetch("/api/calendar/list-calendars");
-      if (!res.ok) throw new Error("Failed to fetch calendars");
-      return res.json() as Promise<{ calendars: GoogleCalendar[] }>;
-    },
-  });
-
   const approveMutation = useMutation({
-    mutationFn: async ({ id, googleCalendarId }: { id: string; googleCalendarId: string }) => {
+    mutationFn: async (id: string) => {
       const res = await fetch(`/api/admin/calendar-sync-requests/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ googleCalendarId }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error("Failed to approve request");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminCalendarSyncRequests"] });
-      addNotification("Request approved successfully", "success");
+      addNotification("Request approved — the parent can now sync their calendar", "success");
       setApproveDialogOpen(false);
       setSelectedRequest(null);
     },
@@ -200,24 +180,11 @@ export function CalendarSyncRequestsMenu() {
         <DialogTitle>Approve Calendar Sync Request</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Approve {selectedRequest?.parent.name}&apos;s request to sync {selectedRequest?.sportName} {selectedRequest?.sportLevel} games.
+            Approve <strong>{selectedRequest?.parent.name || selectedRequest?.parent.email}</strong>&apos;s
+            request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games.
           </Typography>
-          <FormControl fullWidth sx={{ mt: 1 }}>
-            <InputLabel>Target Calendar</InputLabel>
-            <Select
-              value={selectedCalendarId}
-              label="Target Calendar"
-              onChange={(e) => setSelectedCalendarId(e.target.value)}
-            >
-              {calendarsData?.calendars.map((cal) => (
-                <MenuItem key={cal.id} value={cal.id}>
-                  {cal.name} {cal.primary && "(Primary)"}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Alert severity="info" sx={{ mt: 2 }} icon={<Info />}>
-             Select which school calendar this parent should be synced with.
+          <Alert severity="info" sx={{ mt: 1 }} icon={<Info />}>
+            Once approved, the parent will be able to sync matching games directly to their own Google Calendar.
           </Alert>
         </DialogContent>
         <DialogActions>
@@ -225,8 +192,8 @@ export function CalendarSyncRequestsMenu() {
           <Button
             variant="contained"
             color="success"
-            disabled={!selectedCalendarId || approveMutation.isPending}
-            onClick={() => approveMutation.mutate({ id: selectedRequest!.id, googleCalendarId: selectedCalendarId })}
+            disabled={approveMutation.isPending}
+            onClick={() => approveMutation.mutate(selectedRequest!.id)}
           >
             {approveMutation.isPending ? <CircularProgress size={24} /> : "Approve"}
           </Button>
