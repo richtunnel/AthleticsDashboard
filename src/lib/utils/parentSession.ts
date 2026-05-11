@@ -46,6 +46,40 @@ function buildSessionFromToken(decoded: Record<string, unknown>): Session {
 }
 
 /**
+ * Resolve the DB user from a decoded JWT.
+ *
+ * Tries by `sub` (the JWT subject = DB user.id) first — this is the most
+ * stable identifier. Falls back to a case-insensitive email search for
+ * situations where the sub is stale or missing.
+ *
+ * Returns the DB user record (with its canonical email) or null if the
+ * user doesn't exist in this environment's database.
+ */
+async function resolveDbUser(decoded: Record<string, unknown>) {
+  const sub = decoded.sub as string | undefined;
+  const email = decoded.email as string | undefined;
+
+  if (sub) {
+    const user = await prisma.user.findUnique({
+      where: { id: sub },
+      select: { id: true, email: true, role: true },
+    });
+    if (user) return user;
+  }
+
+  if (email) {
+    // Case-insensitive fallback (handles Gmail alias differences, etc.)
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true, email: true, role: true },
+    });
+    if (user) return user;
+  }
+
+  return null;
+}
+
+/**
  * Server-side helper to get a parent session.
  *
  * Uses next/headers cookies() (properly awaited for Next.js 15) and
@@ -56,6 +90,10 @@ function buildSessionFromToken(decoded: Record<string, unknown>): Session {
  * Checks the parent cookie first (for standalone parent users),
  * then falls back to the main cookie (for ADs who are also parents
  * accessing the parent dashboard via their AD session).
+ *
+ * Both paths verify the user actually exists in the DB before returning a
+ * session. This prevents phantom sessions (e.g. a cookie from a different
+ * environment / database) from propagating as valid 404s downstream.
  */
 export async function getParentSession(): Promise<Session | null> {
   const cookieStore = await cookies();
@@ -71,8 +109,19 @@ export async function getParentSession(): Promise<Session | null> {
   if (parentCookieValue) {
     try {
       const decoded = await decode({ token: parentCookieValue, secret });
-      if (decoded?.email) {
-        return buildSessionFromToken(decoded as Record<string, unknown>);
+      if (decoded?.email || decoded?.sub) {
+        const dbUser = await resolveDbUser(decoded as Record<string, unknown>);
+        if (dbUser) {
+          // Patch the decoded token with the canonical DB email so all
+          // downstream callers always see an email that matches the DB.
+          const patchedDecoded = { ...decoded, email: dbUser.email };
+          return buildSessionFromToken(patchedDecoded as Record<string, unknown>);
+        }
+        // JWT valid but user doesn't exist in this DB — fall through.
+        console.warn(
+          "[getParentSession] parent cookie decoded but user not found in DB",
+          { sub: decoded.sub, email: decoded.email }
+        );
       }
     } catch {
       // Token invalid or expired — fall through to main cookie
@@ -84,29 +133,26 @@ export async function getParentSession(): Promise<Session | null> {
   if (mainCookieValue) {
     try {
       const decoded = await decode({ token: mainCookieValue, secret });
-      if (decoded?.email) {
-        const email = decoded.email as string;
+      if (decoded?.email || decoded?.sub) {
+        const dbUser = await resolveDbUser(decoded as Record<string, unknown>);
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true, role: true },
-        });
-
-        if (!user) return null;
+        if (!dbUser) return null;
 
         // If user is a PARENT role, allow
-        if (user.role === "PARENT") {
-          return buildSessionFromToken(decoded as Record<string, unknown>);
+        if (dbUser.role === "PARENT") {
+          const patchedDecoded = { ...decoded, email: dbUser.email };
+          return buildSessionFromToken(patchedDecoded as Record<string, unknown>);
         }
 
         // If user has parentAthleteLink records, allow (AD who is also a parent)
         const parentLink = await prisma.parentAthleteLink.findFirst({
-          where: { parentUserId: user.id },
+          where: { parentUserId: dbUser.id },
           select: { id: true },
         });
 
         if (parentLink) {
-          return buildSessionFromToken(decoded as Record<string, unknown>);
+          const patchedDecoded = { ...decoded, email: dbUser.email };
+          return buildSessionFromToken(patchedDecoded as Record<string, unknown>);
         }
       }
     } catch {
