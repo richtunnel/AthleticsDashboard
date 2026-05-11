@@ -9,7 +9,9 @@ export type FilterCondition =
   | "is_not_empty"
   | "greater_than"
   | "less_than"
-  | "between";
+  | "between"
+  | "in_month"
+  | "in_year";
 
 export interface ColumnFilterValue {
   type: "condition" | "values";
