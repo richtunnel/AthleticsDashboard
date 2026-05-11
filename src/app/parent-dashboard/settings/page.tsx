@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
+import { mergeSports, mergeLevels } from "@/lib/utils/parentSportsData";
 
 interface SchoolOption {
   id: string;
@@ -87,8 +88,6 @@ interface ParentOverviewData {
 
 type SnackbarState = { open: boolean; message: string; severity: AlertColor };
 const DEFAULT_SNACKBAR: SnackbarState = { open: false, message: "", severity: "success" };
-
-const FALLBACK_LEVELS = ["Varsity", "Junior Varsity", "Freshman", "Middle School"];
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
   const res = await fetch("/api/parent/overview");
@@ -264,7 +263,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
   const [selectedLevel, setSelectedLevel] = useState<LevelOption | null>(null);
 
   const [schools, setSchools] = useState<SchoolOption[]>([]);
-  const [sports, setSports] = useState<SportOption[]>([]);
+  const [sports, setSports] = useState<SportOption[]>(mergeSports([]));
   const [levels, setLevels] = useState<LevelOption[]>([]);
   const [loadingSchools, setLoadingSchools] = useState(false);
   const [loadingSports, setLoadingSports] = useState(false);
@@ -290,7 +289,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
             setLoadingSports(true);
             fetchSports(match.id)
               .then(({ sports: sList }) => {
-                setSports(sList);
+                setSports(mergeSports(sList));
                 const sportMatch = sList.find((s) => s.name === link.sportName);
                 if (sportMatch) {
                   setSelectedSport(sportMatch);
@@ -320,15 +319,16 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
   const handleSchoolChange = useCallback((_: any, newSchool: SchoolOption | null) => {
     setSelectedSchool(newSchool);
     setSelectedSport(null);
-    setSports([]);
     setSelectedLevel(null);
     setLevels([]);
     if (newSchool) {
       setLoadingSports(true);
       fetchSports(newSchool.id)
-        .then(({ sports: list }) => setSports(list))
+        .then(({ sports: list }) => setSports(mergeSports(list)))
         .catch(console.error)
         .finally(() => setLoadingSports(false));
+    } else {
+      setSports(mergeSports([]));
     }
   }, []);
 
@@ -348,10 +348,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
     [selectedSchool]
   );
 
-  const levelOptions =
-    levels.length > 0
-      ? levels
-      : FALLBACK_LEVELS.map((l) => ({ id: l, name: l }));
+  const levelOptions = mergeLevels(levels);
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -417,8 +414,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
             getOptionLabel={(o) => o.name}
             value={selectedSport}
             onChange={handleSportChange}
-            isOptionEqualToValue={(o, v) => o.id === v.id}
-            disabled={!selectedSchool}
+            isOptionEqualToValue={(o, v) => o.name === v.name}
             loading={loadingSports}
             renderInput={(params) => (
               <TextField
@@ -426,7 +422,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
                 label="Sport"
                 size="small"
                 fullWidth
-                placeholder={selectedSchool ? "Select sport..." : "Select a school first"}
+                placeholder="Search or select a sport..."
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (

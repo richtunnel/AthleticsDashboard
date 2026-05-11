@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import { School, Sports, EmojiEvents, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
+import { mergeSports, mergeLevels, STANDARD_LEVELS } from "@/lib/utils/parentSportsData";
 
 interface SchoolOption {
   id: string;
@@ -44,17 +45,6 @@ interface LevelOption {
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
-/**
- * Fallback levels shown when the school hasn't configured any teams yet.
- * IDs are the raw DB values so they match CalendarSyncRequest.sportLevel.
- */
-const FALLBACK_LEVELS: LevelOption[] = [
-  { id: "VARSITY", name: "Varsity" },
-  { id: "JV", name: "Junior Varsity (JV)" },
-  { id: "FROSH", name: "Frosh" },
-  { id: "FRESHMAN", name: "Freshman" },
-];
-
 export default function ParentOnboardingPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -68,9 +58,9 @@ export default function ParentOnboardingPage() {
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<LevelOption | null>(null);
 
-  // Data state
+  // Data state — sports pre-populated with full list immediately
   const [schools, setSchools] = useState<SchoolOption[]>([]);
-  const [sports, setSports] = useState<Sport[]>([]);
+  const [sports, setSports] = useState<Sport[]>(mergeSports([]));
   const [levels, setLevels] = useState<LevelOption[]>([]);
   const [loadingSports, setLoadingSports] = useState(false);
   const [loadingLevels, setLoadingLevels] = useState(false);
@@ -107,8 +97,6 @@ export default function ParentOnboardingPage() {
               // Build a minimal LevelOption; real options are loaded after sport restore
               setSelectedLevel({ id: storedId, name: storedId });
             }
-
-            // Restore school → sports → level chain
             if (prefs.schoolId) {
               const matchedSchool = schoolsList.find((s) => s.id === prefs.schoolId);
               if (matchedSchool) {
@@ -133,22 +121,24 @@ export default function ParentOnboardingPage() {
     setLoadingSports(true);
     try {
       const res = await fetch(`/api/parent/sports?schoolId=${encodeURIComponent(schoolId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const sportsList: Sport[] = data.sports || [];
-        setSports(sportsList);
+      const apiSports: Sport[] = res.ok ? (await res.json()).sports || [] : [];
+      // Always show the full list merged with any school-specific sports
+      const merged = mergeSports(apiSports);
+      setSports(merged);
 
-        // Restore saved sport selection if provided
-        if (savedPrefs?.sportId) {
-          const matchedSport = sportsList.find((s) => s.id === savedPrefs.sportId);
-          if (matchedSport) {
-            setSelectedSport(matchedSport);
-            await fetchLevelsForSport(schoolId, matchedSport.sportName, matchedSport.gender);
-          }
+      // Restore saved sport selection if provided
+      if (savedPrefs?.sportId || savedPrefs?.sportName) {
+        const matchedSport = merged.find(
+          (s) => s.id === savedPrefs.sportId || s.name === savedPrefs.sportName
+        );
+        if (matchedSport) {
+          setSelectedSport(matchedSport);
+          await fetchLevelsForSport(schoolId, matchedSport.name);
         }
       }
     } catch (err) {
       console.error("Failed to fetch sports:", err);
+      setSports(mergeSports([]));
     } finally {
       setLoadingSports(false);
     }
@@ -189,12 +179,12 @@ export default function ParentOnboardingPage() {
     (_: any, newValue: SchoolOption | null) => {
       setSelectedSchool(newValue);
       setSelectedSport(null);
-      setSports([]);
       setSelectedLevel(null);
       setLevels([]);
-
       if (newValue) {
         fetchSportsForSchool(newValue.id);
+      } else {
+        setSports(mergeSports([]));
       }
     },
     [],
@@ -205,7 +195,6 @@ export default function ParentOnboardingPage() {
       setSelectedSport(newValue);
       setSelectedLevel(null);
       setLevels([]);
-
       if (newValue && selectedSchool) {
         fetchLevelsForSport(selectedSchool.id, newValue.sportName, newValue.gender);
       }
@@ -261,8 +250,8 @@ export default function ParentOnboardingPage() {
     );
   }
 
-  // Use dynamic levels from API, fall back to hardcoded if none available
-  const levelOptions = levels.length > 0 ? levels : FALLBACK_LEVELS;
+  // Merge API levels (normalized by the API) with the standard fallback list
+  const levelOptions = mergeLevels(levels);
 
   return (
     <>
@@ -338,7 +327,7 @@ export default function ParentOnboardingPage() {
                 />
               </Box>
 
-              {/* Sport Selection — shows "Girls Basketball", "Boys Basketball", etc. */}
+              {/* Sport Selection — full list always available */}
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                   <Sports color="primary" />
@@ -351,13 +340,12 @@ export default function ParentOnboardingPage() {
                   getOptionLabel={(option) => option.name}
                   value={selectedSport}
                   onChange={handleSportChange}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
-                  disabled={!selectedSchool}
+                  isOptionEqualToValue={(option, value) => option.name === value.name}
                   loading={loadingSports}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder={selectedSchool ? "Search sport (e.g. Girls Basketball)…" : "Select a school first"}
+                      placeholder="Search or select a sport..."
                       fullWidth
                       size="small"
                       InputProps={{
@@ -387,7 +375,7 @@ export default function ParentOnboardingPage() {
                   getOptionLabel={(option) => option.name}
                   value={selectedLevel}
                   onChange={(_: any, newValue: LevelOption | null) => setSelectedLevel(newValue)}
-                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                  isOptionEqualToValue={(option, value) => option.name === value.name}
                   disabled={!selectedSport}
                   loading={loadingLevels}
                   renderInput={(params) => (
