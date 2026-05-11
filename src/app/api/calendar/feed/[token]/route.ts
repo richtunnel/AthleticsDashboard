@@ -54,13 +54,14 @@ export async function GET(
     }
 
     // Verify the parent has a link to this school/sport/level
+    // Uses correct ParentAthleteLink field names: sport, gradeLevel, status
     const parentLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: userId,
         schoolId: schoolId,
-        sportName: { equals: sportName, mode: 'insensitive' },
-        sportLevel: { contains: level, mode: 'insensitive' },
-        active: true,
+        sport: { equals: sportName, mode: "insensitive" },
+        gradeLevel: { contains: level, mode: "insensitive" },
+        status: { in: ["ACTIVE", "PENDING"] },
       },
     });
 
@@ -84,7 +85,9 @@ export async function GET(
     });
 
     if (teams.length === 0) {
-      return generateEmptyICalFeed(sportName, level);
+      return new NextResponse(generateEmptyICalFeed(sportName, level), {
+        headers: { "Content-Type": "text/calendar; charset=utf-8" },
+      });
     }
 
     const team = teams[0];
@@ -145,7 +148,7 @@ export async function GET(
 }
 
 /**
- * Generate an empty iCal feed with just the VCALENDAR wrapper
+ * Generate an empty iCal feed (plain string, wrapped by caller into NextResponse).
  */
 function generateEmptyICalFeed(sportName: string, level: string): string {
   const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
