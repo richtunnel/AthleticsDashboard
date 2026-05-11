@@ -11,7 +11,27 @@ import RadarIcon from "@mui/icons-material/Radar";
 import AlarmIcon from "@mui/icons-material/Alarm";
 import WaitlistFormModal from "@/components/home/WaitlistFormModal";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+
+/**
+ * Sign in via the parent auth endpoint (/api/auth/parent/...) instead of the
+ * main NextAuth. Using signIn("google") from next-auth/react routes through
+ * /api/auth/callback/google which throws OAuthAccountNotLinked for parents
+ * whose accounts were created via the parent OAuth flow.
+ */
+async function signInAsParent(): Promise<void> {
+  const callbackUrl = `${window.location.origin}/parent-dashboard`;
+  const csrfRes = await fetch("/api/auth/parent/csrf");
+  if (!csrfRes.ok) return;
+  const { csrfToken } = await csrfRes.json();
+  const res = await fetch("/api/auth/parent/signin/google", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ csrfToken, callbackUrl, json: "true" }).toString(),
+  });
+  if (!res.ok) return;
+  const data = await res.json();
+  if (data.url) window.location.href = data.url;
+}
 
 const ParentsClient = () => {
   const theme = useTheme();
@@ -144,7 +164,7 @@ const ParentsClient = () => {
                   Get Started&nbsp; <NavigateNextIcon />
                 </Button>
                 <Button
-                  onClick={() => signIn("google", { callbackUrl: "/parent-dashboard" })}
+                  onClick={() => signInAsParent()}
                   variant="outlined"
                   size="large"
                   sx={{
