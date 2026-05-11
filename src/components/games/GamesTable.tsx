@@ -848,6 +848,18 @@ export function GamesTable() {
   const costBudgetEnabled = costBudgetResponse?.costBudgetEnabled ?? false;
   const monthlyBudget = costBudgetResponse?.monthlyBudget ?? null;
 
+  // Fetch email send preferences (e.g. whether to include cost column)
+  const { data: emailSettingsData } = useQuery({
+    queryKey: ["emailSettings"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/table-preferences?table=email-settings");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as { includeCostInEmail?: boolean } | null;
+    },
+  });
+  const includeCostInEmail = emailSettingsData?.includeCostInEmail ?? false;
+
   // Fetch calendar connection status
   const { data: calendarStatusResponse } = useQuery({
     queryKey: ["calendarConnectionStatus"],
@@ -3940,11 +3952,24 @@ export function GamesTable() {
     });
     const selectedGamesData = games.filter((game: Game) => selectedGames.has(game.id));
     const opponentFilter = columnFilters.opponent;
+
+    // By default the cost column is excluded from emails so recipients never see
+    // internal cost/budget data.  The user can opt-in via Settings → Cost & Budget.
+    const isCostCustomColumn = (colId: string): boolean => {
+      if (!colId.startsWith("custom:")) return false;
+      const colIdPart = colId.substring(7);
+      const col = customColumns.find((c) => c.id === colIdPart);
+      return !!(col?.name && /^(cost|expenses?)$/i.test(col.name.trim()));
+    };
+    const emailVisibleColumns = includeCostInEmail
+      ? visibleColumnIds
+      : visibleColumnIds.filter((id) => !isCostCustomColumn(id));
+
     // Persist the exact column config from the active worksheet so ComposeEmail
     // displays the same columns/mappings the user sees here, regardless of which
     // workbook (or the default table) is currently active.
     sessionStorage.setItem("selectedGames", JSON.stringify(selectedGamesData));
-    sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(visibleColumnIds));
+    sessionStorage.setItem("gamesTableVisibleColumns", JSON.stringify(emailVisibleColumns));
     sessionStorage.setItem("gamesTableColumnMapping", JSON.stringify(columnPreferencesData?.columnMapping ?? null));
     sessionStorage.setItem("gamesTableCustomColumns", JSON.stringify(customColumns));
     sessionStorage.setItem("gamesOpponentFilter", JSON.stringify(opponentFilter || null));
