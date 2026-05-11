@@ -67,14 +67,10 @@ export async function middleware(req: NextRequest) {
     response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
 
-  // Redirect www to non-www
-  const host = req.headers.get("host");
-  if (host && host.startsWith("www.")) {
-    const nonWwwHost = host.replace("www.", "");
-    const newUrl = new URL(req.url);
-    newUrl.host = nonWwwHost;
-    return NextResponse.redirect(newUrl, 301);
-  }
+  // NOTE: www → non-www redirect is handled by next.config.ts `redirects()` which runs
+  // BEFORE middleware. Duplicating it here with `new URL(req.url)` is dangerous — if
+  // req.url's host differs from the Host header (can happen behind nginx), the redirect
+  // target equals the current URL, creating an infinite redirect loop.
 
   // CORS handling for API routes
   const origin = req.headers.get("origin");
@@ -158,19 +154,28 @@ export async function middleware(req: NextRequest) {
   const token = isParentRoute ? await getParentOrMainToken(req) : await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
-    return NextResponse.redirect(new URL(unauthRedirect, req.url));
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = unauthRedirect;
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
   }
 
   // Validate token expiration
   const { exp } = token as { exp?: number | string };
   if (typeof exp === "number" && Date.now() >= exp * 1000) {
-    return NextResponse.redirect(new URL(unauthRedirect, req.url));
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = unauthRedirect;
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
   }
 
   if (typeof exp === "string") {
     const expNumber = Number(exp);
     if (!Number.isNaN(expNumber) && Date.now() >= expNumber * 1000) {
-      return NextResponse.redirect(new URL(unauthRedirect, req.url));
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = unauthRedirect;
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
@@ -180,12 +185,18 @@ export async function middleware(req: NextRequest) {
     const memberCode = normalizeMemberAccessCode((token as any).memberAccessCode) ?? fallbackCode;
 
     if (isMemberAccessCodeDisabled(memberCode)) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
     }
 
     const memberExpiresAtMs = getMemberAccessExpiresAtMs(token);
     if (memberExpiresAtMs && Date.now() >= memberExpiresAtMs) {
-      return NextResponse.redirect(new URL("/login", req.url));
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
