@@ -56,12 +56,29 @@ export async function GET(request: Request) {
       }),
     ]);
 
+    // Batch-fetch parentCode for each connected parent (User model)
+    const parentUserIds = connectedParents
+      .map((p: any) => p.parentUserId)
+      .filter(Boolean) as string[];
+
+    const parentCodeMap = new Map<string, string | null>();
+    if (parentUserIds.length > 0) {
+      const parentUsers = await prisma.user.findMany({
+        where: { id: { in: parentUserIds } },
+        select: { id: true, parentCode: true },
+      });
+      for (const pu of parentUsers) {
+        parentCodeMap.set(pu.id, pu.parentCode ?? null);
+      }
+    }
+
     return Response.json({
       parents: connectedParents.map((p: any) => ({
         id: p.id,
         parentUserId: p.parentUserId,
         parentUserName: p.parentUserName || p.fullName,
         parentEmail: p.email,
+        parentCode: parentCodeMap.get(p.parentUserId) ?? null,
         schoolId: p.schoolId,
         schoolName: p.school.name,
         sportName: p.sportName,
