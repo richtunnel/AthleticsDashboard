@@ -13,6 +13,7 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
+  Chip,
   IconButton,
   Tooltip,
   Divider,
@@ -244,15 +245,15 @@ function CalendarsPageContent() {
                   {calendar.schoolName}
                 </Typography>
               </Box>
-              <Chip 
-                label="Subscribe" 
-                color="primary" 
-                size="small" 
-                onClick={(e) => {
+              <Chip
+                label="Subscribe"
+                color="primary"
+                size="small"
+                onClick={(e: React.MouseEvent) => {
                   e.stopPropagation();
                   handleOpenFeed(calendar);
                 }}
-                onMouseDown={(e) => e.stopPropagation()}
+                onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
               />
             </Box>
           </AccordionSummary>
