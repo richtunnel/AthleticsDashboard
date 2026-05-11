@@ -1045,4 +1045,5 @@ enum CalendarSyncStatus {
   PENDING
   APPROVED
   REJECTED
+  REMOVED
 }

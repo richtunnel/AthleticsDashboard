@@ -441,9 +441,10 @@ export function ConnectedParentsMenu() {
         <DialogTitle>Remove Parent Connection?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will permanently remove{" "}
+            This will remove{" "}
             <strong>{removeTarget?.parentUserName || removeTarget?.parentEmail}</strong> from your
-            connected parents list and delete all related calendar sync records. This cannot be undone.
+            calendar sync list and revoke their schedule access. Their account connection will remain
+            active, and they can submit a new calendar sync request if needed.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

@@ -5,8 +5,10 @@ import { prisma } from "@/lib/database/prisma";
 
 /**
  * DELETE /api/admin/connected-parents/[id]
- * AD removes a parent connection entirely.
- * Deletes: ConnectedParent, related CalendarSyncRequests, and the ParentAthleteLink.
+ * AD removes a parent from calendar sync.
+ * Marks existing CalendarSyncRequests as REMOVED and deletes the ConnectedParent
+ * record, but intentionally preserves the ParentAthleteLink so the parent can
+ * still see their child's card and submit a new re-sync request.
  */
 export async function DELETE(
   _req: NextRequest,
@@ -41,28 +43,25 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Remove related CalendarSyncRequests for this parent+school combination
-    await prisma.calendarSyncRequest.deleteMany({
+    // Mark all CalendarSyncRequests for this parent+school as REMOVED
+    await prisma.calendarSyncRequest.updateMany({
       where: {
         parentUserId: connectedParent.parentUserId,
         schoolId: connectedParent.schoolId,
       },
+      data: { status: "REMOVED" },
     });
 
-    // Remove related ParentAthleteLink(s) for this parent at this school
-    await prisma.parentAthleteLink.deleteMany({
-      where: {
-        parentUserId: connectedParent.parentUserId,
-        schoolId: connectedParent.schoolId,
-      },
-    });
-
-    // Finally remove the ConnectedParent record
+    // Remove the ConnectedParent record — ParentAthleteLink is intentionally kept
+    // so the parent still sees their child's card and can re-request sync.
     await prisma.connectedParent.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true, message: "Parent connection removed" });
+    return NextResponse.json({
+      success: true,
+      message: "Parent removed from calendar sync. Their connection remains active and they can re-request sync.",
+    });
   } catch (error: any) {
     console.error("[API] Error removing connected parent:", error);
     return NextResponse.json(
