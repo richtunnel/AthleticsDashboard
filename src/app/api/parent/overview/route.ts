@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const session = await getParentSession();
 
     if (!session?.user?.email) {
+      console.warn("[API] /api/parent/overview: no parent session found");
       return NextResponse.json(
         { error: "Authentication required" },
         { status: 401 }
