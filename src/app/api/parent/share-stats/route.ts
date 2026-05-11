@@ -53,16 +53,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get parent athlete links
+    // Get parent athlete links for the AD's organization
+    // ParentAthleteLink has no athleticDirectorId; link via schoolId = org ID
     const parentAthleteLinks = await prisma.parentAthleteLink.findMany({
       where: {
-        athleticDirectorId: user.id,
+        schoolId: user.organization?.id,
       },
       select: {
         id: true,
         athleteName: true,
         sport: true,
-        sportLevel: true,
+        gradeLevel: true,
         createdAt: true,
         parent: {
           select: {
