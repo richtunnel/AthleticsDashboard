@@ -22,14 +22,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    // getParentSession() already verified the user exists and patched in the
+    // canonical DB email — do a straightforward exact lookup here.
+    // Fallback to findFirst with case-insensitive email as a last resort.
+    const sessionUserId = (session.user as any).id as string | undefined;
+    let user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : null;
 
     if (!user) {
+      user = await prisma.user.findFirst({
+        where: { email: { equals: session.user.email, mode: "insensitive" } },
+      });
+    }
+
+    if (!user) {
+      console.error("[overview] User not found — email:", session.user.email, "id:", sessionUserId);
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
+        { error: "Authentication required" },
+        { status: 401 }
       );
     }
 
