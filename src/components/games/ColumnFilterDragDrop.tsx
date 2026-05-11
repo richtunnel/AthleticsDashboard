@@ -29,13 +29,14 @@ import { useTheme, alpha } from "@mui/material/styles";
 import { FilterList, Close, Search, Check, DragIndicator, Clear } from "@mui/icons-material";
 import type { ColumnFilterValue, FilterCondition } from "@/types/filters";
 import { ReactSortable } from "react-sortablejs";
+import { formatTimeDisplay } from "@/lib/utils/formatters";
 
 export type { ColumnFilterValue, FilterCondition } from "@/types/filters";
 
 interface ColumnFilterDragDropProps {
   columnId: string;
   columnName: string;
-  columnType?: "text" | "date" | "number" | "select";
+  columnType?: "text" | "date" | "number" | "select" | "time";
   uniqueValues?: string[];
   currentFilter?: ColumnFilterValue;
   onFilterChange: (columnId: string, filter: ColumnFilterValue | null) => void;
@@ -68,10 +69,15 @@ const DATE_CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boo
   is_not_empty:{ label: "Is not empty",   requiresValue: false },
 };
 
-// ── Date formatting helpers ──────────────────────────────────────────────────
+// ── Value formatting helpers ─────────────────────────────────────────────────
 
 /** Formats a raw filter value for human display in the filter panel. */
 function formatFilterValue(raw: string, columnType: string): string {
+  // Time: "HH:MM" → "2:30 PM"
+  if (columnType === "time") {
+    return formatTimeDisplay(raw) || raw;
+  }
+
   if (columnType !== "date") return raw;
 
   // Month token: "month:YYYY-MM" → "January 2026"
@@ -701,7 +707,7 @@ export function ColumnFilterDragDrop({
                         <ListItemButton key={value} onClick={() => handleValueToggle(value)} dense sx={{ py: 0.5 }}>
                           <Checkbox edge="start" checked={selectedValues.has(value)} tabIndex={-1} disableRipple size="small" />
                           <ListItemText
-                            primary={value || "(Empty)"}
+                            primary={formatFilterValue(value, columnType) || "(Empty)"}
                             primaryTypographyProps={{
                               variant: "body2",
                               sx: { fontSize: 13 },

@@ -4354,6 +4354,14 @@ export function GamesTable() {
           <TableCell key="time" sx={cellSx}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               {renderEditableColumnTitle("time", "Time", true, "time")}
+              <ColumnFilterDragDrop
+                columnId="time"
+                columnName={getColumnLabel("time")}
+                columnType="time"
+                uniqueValues={uniqueValues.time || []}
+                currentFilter={columnFilters.time}
+                onFilterChange={handleColumnFilterChange}
+              />
               <Tooltip title="Hide column">
                 <IconButton size="small" onClick={() => handleToggleColumnVisibility("time", false)} sx={{ ml: 0.5, p: 0.25 }}>
                   <VisibilityOff sx={{ fontSize: 16, opacity: 0.5 }} />
