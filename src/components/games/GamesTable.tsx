@@ -1254,13 +1254,29 @@ export function GamesTable() {
       // Add values for imported columns
       const customFields = (game.customFields as Record<string, any>) || {};
       if (importedColumns && Array.isArray(importedColumns)) {
+        const columnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
         importedColumns.forEach((colName) => {
           const value = customFields[colName];
           if (value) {
             const strValue = String(value);
+            const isMappedToDate = columnMapping?.[colName] === "date";
             // For imported columns, if it looks like an ISO date, extract the date part
             if (strValue.includes("T") && !isNaN(Date.parse(strValue))) {
-              values[`imported:${colName}`].add(extractDatePart(strValue));
+              const datePart = extractDatePart(strValue);
+              values[`imported:${colName}`].add(datePart);
+              // If this column is mapped to "date", also emit month/year tokens so the
+              // filter panel can show Year / Month / Specific Date groupings.
+              if (isMappedToDate) {
+                const [yyyy, mm] = datePart.split("-");
+                if (yyyy && mm) values[`imported:${colName}`].add(`month:${yyyy}-${mm}`);
+                if (yyyy) values[`imported:${colName}`].add(`year:${yyyy}`);
+              }
+            } else if (isMappedToDate && /^\d{4}-\d{2}-\d{2}$/.test(strValue)) {
+              // Already a bare YYYY-MM-DD date — still emit tokens
+              values[`imported:${colName}`].add(strValue);
+              const [yyyy, mm] = strValue.split("-");
+              if (yyyy && mm) values[`imported:${colName}`].add(`month:${yyyy}-${mm}`);
+              if (yyyy) values[`imported:${colName}`].add(`year:${yyyy}`);
             } else {
               values[`imported:${colName}`].add(strValue);
             }
@@ -4447,6 +4463,8 @@ export function GamesTable() {
           // Handle imported CSV columns
           const columnName = column.id.split(":")[1];
           const columnLabel = getColumnLabel(column.id);
+          const importedColumnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
+          const importedColumnType = importedColumnMapping?.[columnName] === "date" ? "date" : "text";
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -4454,7 +4472,7 @@ export function GamesTable() {
                 <ColumnFilterDragDrop
                   columnId={column.id}
                   columnName={getColumnLabel(column.id)}
-                  columnType="text"
+                  columnType={importedColumnType}
                   uniqueValues={uniqueValues[column.id] || []}
                   currentFilter={columnFilters[column.id]}
                   onFilterChange={handleColumnFilterChange}

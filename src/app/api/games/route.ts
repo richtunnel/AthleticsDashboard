@@ -404,8 +404,30 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
         // Imported column - stored in customFields with column name
         const columnName = columnId.substring(9);
         if (columnName) {
-          // Build OR conditions for each value to check in customFields
+          // Build OR conditions for each value to check in customFields.
+          // Month/year tokens are used when the column is mapped to "date" in the UI.
           const orConditions = values.map((value) => {
+            // Month token: "month:YYYY-MM" → string_contains "YYYY-MM-" to match stored "YYYY-MM-DD"
+            if (value.startsWith("month:")) {
+              const monthPart = value.slice(6); // "YYYY-MM"
+              return {
+                customFields: {
+                  path: [columnName],
+                  string_contains: monthPart + "-", // e.g. "2026-01-"
+                },
+              };
+            }
+            // Year token: "year:YYYY" → string_contains "YYYY-" to match stored "YYYY-MM-DD"
+            if (value.startsWith("year:")) {
+              const yearPart = value.slice(5); // "YYYY"
+              return {
+                customFields: {
+                  path: [columnName],
+                  string_contains: yearPart + "-", // e.g. "2026-"
+                },
+              };
+            }
+            // Exact date YYYY-MM-DD or any other string
             const isDatePart = /^\d{4}-\d{2}-\d{2}$/.test(value);
             return {
               customFields: {
