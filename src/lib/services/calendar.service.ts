@@ -613,10 +613,40 @@ export class CalendarService {
   }
 
   /**
+   * Expand common sport/level abbreviations so that a custom-field value like
+   * "GV Basketball" also contributes "girls varsity basketball" to the search
+   * text, enabling it to match a parent subscribed to "Girls Basketball / VARSITY".
+   *
+   * Returns a lowercased string with abbreviations replaced; if nothing changed
+   * the return value equals `text.toLowerCase()`.
+   */
+  private expandAbbreviations(text: string): string {
+    const ABBR_MAP: [RegExp, string][] = [
+      [/\bgv\b/g,  "girls varsity"],
+      [/\bbv\b/g,  "boys varsity"],
+      [/\bgjv\b/g, "girls junior varsity"],
+      [/\bbjv\b/g, "boys junior varsity"],
+      [/\bmv\b/g,  "mens varsity"],
+      [/\bwv\b/g,  "womens varsity"],
+      [/\bmsb\b/g, "middle school boys"],
+      [/\bmsg\b/g, "middle school girls"],
+    ];
+    let result = text.toLowerCase();
+    for (const [re, expansion] of ABBR_MAP) {
+      result = result.replace(re, expansion);
+    }
+    return result;
+  }
+
+  /**
    * Collect all searchable text for a game into one lowercase string.
    * Scans homeTeam relations AND every custom-field value — this handles
    * spreadsheet columns like "Team = Tigers Boys Varsity" where gender and
    * level are embedded in a single column.
+   *
+   * Custom-field values are also run through expandAbbreviations() so that
+   * abbreviated values like "GV Basketball" expand to include "girls varsity
+   * basketball", enabling keyword matching against parent sync requests.
    */
   private buildGameSearchText(game: any): string {
     const parts: string[] = [];
@@ -632,8 +662,14 @@ export class CalendarService {
     const cf = game.customFields;
     if (cf && typeof cf === "object") {
       for (const v of Object.values(cf)) {
-        if (typeof v === "string") parts.push(v);
-        else if (v != null)        parts.push(String(v));
+        const str = typeof v === "string" ? v : v != null ? String(v) : null;
+        if (str !== null) {
+          parts.push(str);
+          // Also include the abbreviation-expanded form — "GV Basketball"
+          // becomes "girls varsity basketball" so it matches sport/level tokens
+          const expanded = this.expandAbbreviations(str);
+          if (expanded !== str.toLowerCase()) parts.push(expanded);
+        }
       }
     }
 
@@ -650,7 +686,8 @@ export class CalendarService {
    *               when the sport name is a single-word catch-all that might
    *               produce false positives — we still require it)
    */
-  private gameMatchesLeague(
+  /** Public so trigger services can check matches without re-implementing logic. */
+  gameMatchesLeague(
     game: any,
     sportName: string,
     sportLevel: string
@@ -830,26 +867,39 @@ export class CalendarService {
 
       // ✅ VALIDATE permissions
       if (user.role === "PARENT") {
-        // Parent must have an approved request for this sport/level
+        // Parent must have an approved request for this sport/level.
+        // We fetch all approved requests first so we can try both strategies
+        // without additional round-trips.
         const approvedRequests = await prisma.calendarSyncRequest.findMany({
           where: {
             parentUserId: userId,
             schoolId: game.homeTeam.organizationId,
             status: "APPROVED",
-            sportName: { equals: game.homeTeam.sport.name, mode: "insensitive" },
           },
         });
 
-        const hasApprovedRequest = approvedRequests.some((req) => {
+        // Strategy 1: match via DB relations (fast)
+        let hasApprovedRequest = approvedRequests.some((req) => {
+          if (!game.homeTeam.sport?.name) return false;
+          if (req.sportName.toLowerCase() !== game.homeTeam.sport.name.toLowerCase()) return false;
+
           const levelParts = req.sportLevel.split(" ");
           const baseLevel = levelParts[0];
           const gender = levelParts.length > 1 ? levelParts[1] : null;
 
-          const levelMatches = game.homeTeam.level.toLowerCase() === baseLevel.toLowerCase();
+          const levelMatches = game.homeTeam.level?.toLowerCase() === baseLevel.toLowerCase();
           const genderMatches = !gender || game.homeTeam.gender?.toLowerCase() === gender.toLowerCase();
 
           return levelMatches && genderMatches;
         });
+
+        // Strategy 2: keyword fallback for CSV-imported games where sport/level/gender
+        // are in customFields rather than normalised DB relations
+        if (!hasApprovedRequest) {
+          hasApprovedRequest = approvedRequests.some((req) =>
+            this.gameMatchesLeague(game, req.sportName, req.sportLevel)
+          );
+        }
 
         if (!hasApprovedRequest) {
           throw new Error("Unauthorized: No approved sync request for this sport and level");
