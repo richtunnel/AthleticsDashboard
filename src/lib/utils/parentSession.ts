@@ -68,22 +68,28 @@ export async function getParentSession(): Promise<Session | null> {
 
   // ── 1. Try the dedicated parent session cookie ────────────────────────────
   const parentCookieValue = cookieStore.get(PARENT_COOKIE_NAME)?.value;
+  console.log("[getParentSession] parent cookie present:", !!parentCookieValue, "name:", PARENT_COOKIE_NAME);
+
   if (parentCookieValue) {
     try {
       const decoded = await decode({ token: parentCookieValue, secret });
+      console.log("[getParentSession] parent token decoded:", !!decoded, "email:", decoded?.email, "sub:", decoded?.sub);
       if (decoded?.email) {
         return buildSessionFromToken(decoded as Record<string, unknown>);
       }
-    } catch {
-      // Token invalid or expired — fall through to main cookie
+    } catch (e) {
+      console.error("[getParentSession] parent token decode failed:", e);
     }
   }
 
   // ── 2. Fall back to the main session cookie (AD-as-parent case) ──────────
   const mainCookieValue = cookieStore.get(MAIN_COOKIE_NAME)?.value;
+  console.log("[getParentSession] main cookie present:", !!mainCookieValue, "name:", MAIN_COOKIE_NAME);
+
   if (mainCookieValue) {
     try {
       const decoded = await decode({ token: mainCookieValue, secret });
+      console.log("[getParentSession] main token decoded:", !!decoded, "email:", decoded?.email, "sub:", decoded?.sub);
       if (decoded?.email) {
         const email = decoded.email as string;
 
@@ -91,6 +97,8 @@ export async function getParentSession(): Promise<Session | null> {
           where: { email },
           select: { id: true, role: true },
         });
+
+        console.log("[getParentSession] main user lookup:", !!user, "role:", user?.role);
 
         if (!user) return null;
 
@@ -105,15 +113,18 @@ export async function getParentSession(): Promise<Session | null> {
           select: { id: true },
         });
 
+        console.log("[getParentSession] parentAthleteLink:", !!parentLink);
+
         if (parentLink) {
           return buildSessionFromToken(decoded as Record<string, unknown>);
         }
       }
-    } catch {
-      // Token invalid or expired
+    } catch (e) {
+      console.error("[getParentSession] main token decode failed:", e);
     }
   }
 
+  console.log("[getParentSession] returning null — no valid session found");
   return null;
 }
 

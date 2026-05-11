@@ -22,11 +22,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("[overview] session email:", session.user.email, "sub:", (session.user as any).id);
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
     });
 
+    console.log("[overview] user lookup result:", !!user, "id:", user?.id);
+
     if (!user) {
+      console.error("[overview] User not found for email:", session.user.email);
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
