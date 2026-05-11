@@ -16,23 +16,18 @@ const requestSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : await prisma.user.findFirst({ where: { email: { equals: session.user.email, mode: "insensitive" } } });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const requests = await prisma.calendarSyncRequest.findMany({
@@ -70,23 +65,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : await prisma.user.findFirst({ where: { email: { equals: session.user.email, mode: "insensitive" } } });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -94,33 +84,34 @@ export async function POST(request: NextRequest) {
 
     // Verify parent is linked to this school
     const link = await prisma.parentAthleteLink.findFirst({
-      where: {
-        parentUserId: user.id,
-        schoolId: validatedData.schoolId,
-      }
+      where: { parentUserId: user.id, schoolId: validatedData.schoolId },
     });
 
     if (!link) {
-      return NextResponse.json(
-        { error: "You are not linked to this school" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "You are not linked to this school" }, { status: 403 });
     }
 
-    // Check for existing request for same sport/level
+    // Enforce single-pending rule: block if an active (PENDING or APPROVED) request
+    // already exists for this exact school + sport + level combination.
+    // REJECTED requests are allowed to be re-requested — that's the re-sync flow.
     const existing = await prisma.calendarSyncRequest.findFirst({
       where: {
         parentUserId: user.id,
         schoolId: validatedData.schoolId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
-        status: { in: ['PENDING', 'APPROVED'] }
-      }
+        sportName: { equals: validatedData.sportName, mode: "insensitive" },
+        sportLevel: { equals: validatedData.sportLevel, mode: "insensitive" },
+        status: { in: ["PENDING", "APPROVED"] },
+      },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: `You already have a ${existing.status.toLowerCase()} request for this sport and level` },
+        {
+          error:
+            existing.status === "APPROVED"
+              ? "Calendar sync is already active for this sport and level"
+              : "You already have a pending request for this sport and level. Please wait for the athletic director to review it.",
+        },
         { status: 400 }
       );
     }

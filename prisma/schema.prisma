@@ -60,6 +60,7 @@ model User {
   scoreTrackerEnabled        Boolean                   @default(false)
   schoolEmail                String?                   @unique
   shareCode                  String?                   @unique
+  parentCode                 String?                   @unique
   accounts                   Account[]
   accountDeletionReminders   AccountDeletionReminder[]
   calendarGroupMappings      CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
@@ -1045,4 +1046,5 @@ enum CalendarSyncStatus {
   PENDING
   APPROVED
   REJECTED
+  REMOVED
 }

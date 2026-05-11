@@ -32,21 +32,72 @@ function toTitleCase(str: string): string {
  * GET /api/parent/sport-levels
  * Returns available levels for a specific sport at a school.
  * Level names are normalized to proper case (Varsity, Junior Varsity, etc.).
+ *
+ * Returns the available levels for a specific sport at a school.
+ *
+ * Query params:
+ *   schoolId  – required
+ *   sport     – required (base sport name, e.g. "Basketball")
+ *   gender    – optional ("MALE" | "FEMALE") — narrows to that gender variant
+ *
+ * Response shape per item:
+ *   id   – stored value used for CalendarSyncRequest matching
+ *          e.g. "VARSITY FEMALE" or "VARSITY" (mirrors what the DB team record
+ *          has as level + gender so slice matching works case-insensitively)
+ *   name – human-readable label, e.g. "Varsity" or "Junior Varsity (JV)"
  */
+
+/** Map raw DB level values to human-readable display labels. */
+function formatLevel(raw: string): string {
+  switch (raw.trim().toUpperCase()) {
+    case "VARSITY":
+      return "Varsity";
+    case "JV":
+    case "JUNIOR_VARSITY":
+    case "JUNIOR VARSITY":
+      return "Junior Varsity (JV)";
+    case "FROSH":
+      return "Frosh";
+    case "FRESHMAN":
+      return "Freshman";
+    case "FRESHMEN":
+      return "Freshmen";
+    case "MIDDLE_SCHOOL":
+    case "MIDDLE SCHOOL":
+      return "Middle School";
+    case "YOUTH":
+      return "Youth";
+    default:
+      // Title-case anything else
+      return raw
+        .toLowerCase()
+        .replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+  }
+}
+
+const LEVEL_SORT_ORDER: Record<string, number> = {
+  VARSITY: 0,
+  JV: 1,
+  "JUNIOR_VARSITY": 1,
+  FROSH: 2,
+  FRESHMAN: 3,
+  FRESHMEN: 3,
+  MIDDLE_SCHOOL: 4,
+  YOUTH: 5,
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const schoolId = searchParams.get("schoolId");
     const sport = searchParams.get("sport");
+    const gender = searchParams.get("gender") || null; // "MALE" | "FEMALE" | null
 
     if (!schoolId || !sport) {
-      return NextResponse.json(
-        { error: "School ID and sport are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "School ID and sport are required" }, { status: 400 });
     }
 
-    // Resolve schoolId: could be a School entity ID or an Organization ID.
+    // Resolve schoolId
     let organizationId = schoolId;
     const schoolEntity = await prisma.school.findUnique({
       where: { id: schoolId },
@@ -56,7 +107,15 @@ export async function GET(request: NextRequest) {
       organizationId = schoolEntity.organizationId;
     }
 
-    // Get teams with this sport at the school
+    // Build team filter: sport name (case-insensitive) + optional gender
+    const teamWhere: any = {
+      organizationId,
+      sport: { name: { equals: sport, mode: "insensitive" } },
+    };
+    if (gender) {
+      teamWhere.gender = gender;
+    }
+
     const teams = await prisma.team.findMany({
       where: {
         organizationId,
@@ -89,9 +148,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ levels });
   } catch (error) {
     console.error("[API] Error fetching sport levels:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch sport levels" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch sport levels" }, { status: 500 });
   }
 }

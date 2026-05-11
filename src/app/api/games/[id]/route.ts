@@ -6,6 +6,7 @@ import { travelAIService } from "@/lib/services/travelAI";
 import { normalizeTimeFormat } from "@/lib/utils/timeValidation";
 import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
 import { sanitizeCustomFields, sanitizeObject } from "@/lib/utils/sanitizer";
+import { triggerParentCalendarSyncForGame } from "@/lib/services/parentCalendarTrigger.service";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -148,6 +149,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         venue: true,
       },
     });
+
+    // Push to any parents subscribed to this sport/level (fire-and-forget)
+    void triggerParentCalendarSyncForGame(
+      updatedGame.id,
+      session.user.organizationId
+    );
 
     return NextResponse.json({ success: true, data: updatedGame });
   } catch (error) {

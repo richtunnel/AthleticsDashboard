@@ -9,6 +9,7 @@ import { rateLimit, RateLimitConfig, getClientIp } from "@/lib/security/rate-lim
 import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { filterRestrictedGameFields } from "@/lib/security/plan-limits";
 import { sanitizeCustomFields, sanitizeObject } from "@/lib/utils/sanitizer";
+import { triggerParentCalendarSyncForGame } from "@/lib/services/parentCalendarTrigger.service";
 
 export async function GET(request: NextRequest) {
   // Apply rate limiting for games API
@@ -992,6 +993,9 @@ export async function POST(request: NextRequest) {
       console.error("Error auto-syncing to calendar:", error);
       // Don't fail the game creation if auto-sync fails
     }
+
+    // Push to any parents subscribed to this sport/level (fire-and-forget)
+    void triggerParentCalendarSyncForGame(game.id, session.user.organizationId);
 
     return NextResponse.json(
       {

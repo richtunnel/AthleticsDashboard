@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { calendarService } from "@/lib/services/calendar.service";
+import { ensureParentCode } from "@/lib/utils/parentCode";
 
 /**
  * POST /api/parent/create-link
@@ -83,13 +84,17 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingLink) {
-      // Link already exists, return success with existing link
+      // Link already exists — still ensure the parent has a code assigned
+      void ensureParentCode(user.id, user.name).catch(() => {});
       return NextResponse.json({
         success: true,
         linkId: existingLink.id,
         message: "Parent link already exists",
       });
     }
+
+    // Assign (or retrieve) the parent's unique profile code — fire-and-forget
+    void ensureParentCode(user.id, user.name).catch(() => {});
 
     // Create the parent athlete link using actual schema fields
     const link = await prisma.parentAthleteLink.create({

@@ -17,12 +17,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+    // Use session.user.id (= JWT sub = DB user.id) — more reliable than email lookup.
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId }, select: { id: true } })
+      : await prisma.user.findFirst({ where: { email: { equals: session.user.email, mode: "insensitive" } }, select: { id: true } });
+
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const body = await request.json().catch(() => ({}));

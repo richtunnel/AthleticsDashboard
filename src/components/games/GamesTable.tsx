@@ -179,6 +179,7 @@ interface CustomColumn {
 
 interface Game {
   id: string;
+  workbookId?: string | null;
   customData?: { [key: string]: any };
   date: string;
   time: string | null;
@@ -3316,6 +3317,7 @@ export function GamesTable() {
         location: newGameData.location || null,
         customData: newGameData.customData || {},
         customFields: newGameData.customFields || {}, // This contains all the imported data
+        workbookId: selectedWorkbookId || null,
       };
       console.log("🚀 Creating imported game with data:", gameData);
       createGameMutation.mutate({ gameData });
@@ -3433,6 +3435,7 @@ export function GamesTable() {
       location: newGameData.location || null,
       customData: newGameData.customData || {},
       customFields: newGameData.customFields || {}, // This contains all the imported data
+      workbookId: selectedWorkbookId || null,
     };
     console.log("🚀 Creating game with data:", gameData);
     createGameMutation.mutate({ gameData });
@@ -3655,6 +3658,8 @@ export function GamesTable() {
         notes: game.notes || null,
         location: game.location || null,
         customData: game.customData || {},
+        // Keep duplicate in the same worksheet as the original; fall back to active sheet
+        workbookId: game.workbookId || selectedWorkbookId || null,
       };
 
       createGameMutation.mutate(

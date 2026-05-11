@@ -30,14 +30,17 @@ interface SchoolOption {
   athleticDirectorName?: string;
 }
 
+/** Sport as returned by /api/parent/sports */
 interface Sport {
-  id: string;
-  name: string;
+  id: string;        // "<sportId>-<GENDER|COED>" — unique key
+  name: string;      // Display label: "Girls Basketball", "Boys Basketball", etc.
+  sportName: string; // Raw sport name for matching: "Basketball"
+  gender: string | null;
 }
 
 interface LevelOption {
-  id: string;
-  name: string;
+  id: string;   // Stored value — matches CalendarSyncRequest.sportLevel (e.g. "VARSITY FEMALE")
+  name: string; // Display: "Varsity", "Junior Varsity (JV)", "Frosh", "Freshman"
 }
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
@@ -87,9 +90,12 @@ export default function ParentOnboardingPage() {
           try {
             const prefs = JSON.parse(saved);
             if (prefs.childName) setChildName(prefs.childName);
+
+            // Restore level (use id/stored value, fall back to name for legacy)
             if (prefs.selectedLevel || prefs.level) {
-              const levelName = prefs.selectedLevel || prefs.level;
-              setSelectedLevel({ id: levelName, name: levelName });
+              const storedId = prefs.selectedLevel || prefs.level;
+              // Build a minimal LevelOption; real options are loaded after sport restore
+              setSelectedLevel({ id: storedId, name: storedId });
             }
             if (prefs.schoolId) {
               const matchedSchool = schoolsList.find((s) => s.id === prefs.schoolId);
@@ -138,12 +144,25 @@ export default function ParentOnboardingPage() {
     }
   };
 
-  const fetchLevelsForSport = async (schoolId: string, sportName: string) => {
+  /**
+   * Fetch levels for a sport+gender combo.
+   * `sportName` is the raw sport name (e.g. "Basketball"), not the display name.
+   * `gender` is "MALE" | "FEMALE" | null.
+   */
+  const fetchLevelsForSport = async (
+    schoolId: string,
+    sportName: string,
+    gender: string | null,
+  ) => {
     setLoadingLevels(true);
     try {
-      const res = await fetch(
-        `/api/parent/sport-levels?schoolId=${encodeURIComponent(schoolId)}&sport=${encodeURIComponent(sportName)}`
-      );
+      const params = new URLSearchParams({
+        schoolId,
+        sport: sportName,
+      });
+      if (gender) params.append("gender", gender);
+
+      const res = await fetch(`/api/parent/sport-levels?${params}`);
       if (res.ok) {
         const data = await res.json();
         const levelsList: LevelOption[] = data.levels || [];
@@ -168,7 +187,7 @@ export default function ParentOnboardingPage() {
         setSports(mergeSports([]));
       }
     },
-    []
+    [],
   );
 
   const handleSportChange = useCallback(
@@ -177,10 +196,10 @@ export default function ParentOnboardingPage() {
       setSelectedLevel(null);
       setLevels([]);
       if (newValue && selectedSchool) {
-        fetchLevelsForSport(selectedSchool.id, newValue.name);
+        fetchLevelsForSport(selectedSchool.id, newValue.sportName, newValue.gender);
       }
     },
-    [selectedSchool]
+    [selectedSchool],
   );
 
   const handleSubmit = async () => {
@@ -199,10 +218,15 @@ export default function ParentOnboardingPage() {
         schoolName: selectedSchool.name,
         athleticDirectorId: selectedSchool.athleticDirectorId || "",
         athleticDirectorName: selectedSchool.athleticDirectorName || "",
+        // Store the sport ID (new format) for restoration on revisit
         sportId: selectedSport.id,
-        sportName: selectedSport.name,
-        level: selectedLevel.name,
-        selectedLevel: selectedLevel.name,
+        // Base sport name (e.g. "Basketball") — used for CalendarSyncRequest.sportName matching
+        sportName: selectedSport.sportName,
+        // Display name (e.g. "Girls Basketball") — for UI only
+        sportDisplayName: selectedSport.name,
+        // Level ID is the stored value (e.g. "VARSITY FEMALE") that matches CalendarSyncRequest.sportLevel
+        level: selectedLevel.id,
+        selectedLevel: selectedLevel.id,
       };
 
       localStorage.setItem("parentOnboardingPrefs", JSON.stringify(parentPreferences));
@@ -338,7 +362,7 @@ export default function ParentOnboardingPage() {
                 />
               </Box>
 
-              {/* Level Selection */}
+              {/* Level Selection — "Varsity", "Junior Varsity (JV)", "Frosh", "Freshman" */}
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                   <EmojiEvents color="primary" />
@@ -357,7 +381,7 @@ export default function ParentOnboardingPage() {
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      placeholder={selectedSport ? "Search or select level..." : "Select a sport first"}
+                      placeholder={selectedSport ? "Select level…" : "Select a sport first"}
                       fullWidth
                       size="small"
                       InputProps={{
