@@ -23,7 +23,10 @@ import {
   IconButton,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { CreditCard, ChildCare, Add, School, Edit, AccountCircle, Sync } from "@mui/icons-material";
+import {
+  CreditCard, ChildCare, Add, School, Edit, AccountCircle,
+  Sync, CheckCircle, HourglassTop, BlockOutlined, Warning,
+} from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
@@ -64,9 +67,22 @@ interface ParentSubscription {
   plan: string;
 }
 
+interface SyncRequest {
+  id: string;
+  sportName: string;
+  sportLevel: string;
+  schoolId: string;
+  schoolName: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason: string | null;
+  requestedAt: string;
+  reviewedAt: string | null;
+}
+
 interface ParentOverviewData {
   links: ParentLink[];
   subscription: ParentSubscription | null;
+  syncRequests?: SyncRequest[];
 }
 
 type SnackbarState = { open: boolean; message: string; severity: AlertColor };
@@ -479,6 +495,142 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
 }
 
 // ---------------------------------------------------------------------------
+// CalendarSyncCard — shows per-sport sync status and re-sync button
+// ---------------------------------------------------------------------------
+interface CalendarSyncCardProps {
+  syncRequests: SyncRequest[];
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCardProps) {
+  const queryClient = useQueryClient();
+  const [requestingKey, setRequestingKey] = useState<string | null>(null);
+
+  const syncMutation = useMutation({
+    mutationFn: async (payload: { schoolId: string; sportName: string; sportLevel: string }) => {
+      const res = await fetch("/api/parent/calendar-sync-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send request");
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSuccess(`Re-sync request sent for ${vars.sportName}. The athletic director will review it shortly.`);
+    },
+    onError: (err: Error) => onError(err.message),
+    onSettled: () => setRequestingKey(null),
+  });
+
+  // Deduplicate: keep only the most-recent request per school+sport+level slot
+  const slotMap = new Map<string, SyncRequest>();
+  for (const req of syncRequests) {
+    const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+    if (!slotMap.has(key)) slotMap.set(key, req);
+  }
+  const latestRequests = Array.from(slotMap.values());
+
+  const statusChip = (status: SyncRequest["status"]) => {
+    switch (status) {
+      case "APPROVED":
+        return <Chip icon={<CheckCircle />} label="Active" size="small" color="success" variant="outlined" />;
+      case "PENDING":
+        return <Chip icon={<HourglassTop />} label="Pending Approval" size="small" color="warning" variant="outlined" />;
+      case "REJECTED":
+        return <Chip icon={<BlockOutlined />} label="Removed" size="small" color="error" variant="outlined" />;
+      default:
+        return <Chip icon={<Warning />} label="Unknown" size="small" variant="outlined" />;
+    }
+  };
+
+  return (
+    <Card variant="outlined" sx={{ mb: 3 }}>
+      <CardContent>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+          <Sync color="primary" />
+          <Typography variant="h6" fontWeight={600}>
+            Calendar Sync Status
+          </Typography>
+        </Box>
+
+        {latestRequests.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No calendar sync requests yet. Use the Overview page to request sync access for each sport.
+          </Typography>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {latestRequests.map((req) => {
+              const slotKey = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+              const isRequesting = requestingKey === slotKey;
+              const canRequest = req.status === "REJECTED";
+
+              return (
+                <Box
+                  key={req.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 1,
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: req.status === "REJECTED" ? "error.light" : "divider",
+                    bgcolor: req.status === "REJECTED" ? "error.50" : "background.paper",
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 0.25 }}>
+                      <Typography variant="subtitle2" fontWeight={600}>
+                        {req.sportName}
+                      </Typography>
+                      <Chip label={req.sportLevel} size="small" variant="outlined" color="primary" />
+                      {statusChip(req.status)}
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      {req.schoolName}
+                      {req.status === "REJECTED" && req.rejectionReason && (
+                        <> · Reason: <em>{req.rejectionReason}</em></>
+                      )}
+                    </Typography>
+                  </Box>
+
+                  {canRequest && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      startIcon={isRequesting ? <CircularProgress size={12} color="inherit" /> : <Sync />}
+                      disabled={isRequesting}
+                      onClick={() => {
+                        setRequestingKey(slotKey);
+                        syncMutation.mutate({
+                          schoolId: req.schoolId,
+                          sportName: req.sportName,
+                          sportLevel: req.sportLevel,
+                        });
+                      }}
+                      sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                    >
+                      {isRequesting ? "Sending…" : "Request Re-sync"}
+                    </Button>
+                  )}
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main settings page
 // ---------------------------------------------------------------------------
 export default function ParentSettingsPage() {
@@ -738,6 +890,13 @@ export default function ParentSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Calendar Sync Status */}
+      <CalendarSyncCard
+        syncRequests={data?.syncRequests ?? []}
+        onSuccess={(msg) => showMessage(msg)}
+        onError={(msg) => showMessage(msg, "error")}
+      />
 
       {/* Support */}
       <Card variant="outlined" sx={{ mb: 3 }}>

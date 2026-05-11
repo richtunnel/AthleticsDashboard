@@ -25,6 +25,7 @@ import {
   Tab,
 } from "@mui/material";
 import { ExpandLess, ExpandMore, Person, CalendarMonth, Share, ContentCopy, Refresh, Check, Link as LinkIcon, Group, HowToReg } from "@mui/icons-material";
+import Badge from "@mui/material/Badge";
 import { ConnectedParentsMenu } from "../parents/ConnectedParentsMenu";
 import { CalendarSyncRequestsMenu } from "./CalendarSyncRequestsMenu";
 
@@ -66,8 +67,20 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
   } = useQuery({
     queryKey: ["shareCode"],
     queryFn: fetchShareCode,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
+
+  // Badge count for pending sync requests
+  const { data: syncRequestsData } = useQuery({
+    queryKey: ["adminCalendarSyncRequests"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/calendar-sync-requests");
+      if (!res.ok) return { requests: [] };
+      return res.json() as Promise<{ requests: Array<{ status: string }> }>;
+    },
+    staleTime: 60 * 1000,
+  });
+  const pendingCount = (syncRequestsData?.requests ?? []).filter((r) => r.status === "PENDING").length;
 
   const handleToggle = () => {
     setOpen(!open);
@@ -114,7 +127,15 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
               variant="scrollable"
               scrollButtons="auto"
             >
-              <Tab icon={<HowToReg fontSize="small" />} iconPosition="start" label="Sync Requests" />
+              <Tab
+                icon={
+                  <Badge badgeContent={pendingCount} color="error" max={99}>
+                    <HowToReg fontSize="small" />
+                  </Badge>
+                }
+                iconPosition="start"
+                label="Sync Requests"
+              />
               <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Connected Parents" />
               <Tab icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Portal Setup" />
             </Tabs>

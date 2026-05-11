@@ -61,22 +61,28 @@ export async function GET(request: NextRequest) {
       select: { lastSyncedAt: true, calendarSynced: true },
     });
 
-    // ── 5. Sync status per school ────────────────────────────────────────────
+    // ── 4b. All CalendarSyncRequests — for per-sport status on child cards ───
+    // Ordered newest-first so we take the latest status for each slot.
     const allSyncRequests = await prisma.calendarSyncRequest.findMany({
       where: { parentUserId: user.id },
-      select: { schoolId: true, status: true },
+      include: { school: { select: { name: true } } },
       orderBy: { requestedAt: "desc" },
     });
 
-    // Build a map of schoolId → most-recent sync status
-    const syncStatusBySchool = new Map<string, string>();
+    // Map: "schoolId|sportName|sportLevel" (lowercased) → most-recent request
+    // Used to decorate each ParentAthleteLink card with its sync status.
+    const syncStatusBySlot = new Map<
+      string,
+      { status: string; requestId: string }
+    >();
     for (const req of allSyncRequests) {
-      if (!syncStatusBySchool.has(req.schoolId)) {
-        syncStatusBySchool.set(req.schoolId, req.status);
+      const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+      if (!syncStatusBySlot.has(key)) {
+        syncStatusBySlot.set(key, { status: req.status, requestId: req.id });
       }
     }
 
-    // ── 6. Upcoming games ────────────────────────────────────────────────────
+    // ── 5. Upcoming games ────────────────────────────────────────────────────
     // Strategy A: use approved CalendarSyncRequests (most precise — matches exact
     // sport + level that the AD approved).
     let upcomingGames: any[] = [];
@@ -163,23 +169,32 @@ export async function GET(request: NextRequest) {
     const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
 
     return NextResponse.json({
-      links: links.map((link) => ({
-        id: link.id,
-        childName: link.athleteName,
-        childGrade: link.gradeLevel,
-        sportName: link.sport,
-        sportLevel: link.gradeLevel, // gradeLevel stores team level (VARSITY, JV…)
-        schoolId: link.schoolId,
-        schoolName: link.school?.name || "",
-        athleticDirectorName: "", // Not stored on link; AD looked up separately if needed
-        confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
-        active: link.status === "ACTIVE",
-        syncedAt,
-        syncStatus: syncStatusBySchool.get(link.schoolId) ?? "NONE",
-        status: link.status,
-        createdAt: link.createdAt.toISOString(),
-        updatedAt: link.updatedAt.toISOString(),
-      })),
+      links: links.map((link) => {
+        const slotKey = `${link.schoolId}|${(link.sport || "").toLowerCase()}|${(link.gradeLevel || "").toLowerCase()}`;
+        const slotStatus = syncStatusBySlot.get(slotKey);
+        return {
+          id: link.id,
+          childName: link.athleteName,
+          childGrade: link.gradeLevel,
+          sportName: link.sport,
+          // gradeLevel stores the team level (VARSITY, JV…), not the child's grade
+          sportLevel: link.gradeLevel,
+          schoolId: link.schoolId,
+          schoolName: link.school?.name || "",
+          confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
+          active: link.status === "ACTIVE",
+          syncedAt,
+          status: link.status,
+          // Per-sport calendar sync status so each child card knows its state
+          calendarSyncStatus: (slotStatus?.status ?? "NONE") as
+            | "APPROVED"
+            | "PENDING"
+            | "REJECTED"
+            | "NONE",
+          createdAt: link.createdAt.toISOString(),
+          updatedAt: link.updatedAt.toISOString(),
+        };
+      }),
       subscription: subscription
         ? {
             status: subscription.status,
@@ -208,18 +223,18 @@ export async function GET(request: NextRequest) {
       calendarConnected,
       calendarSynced: connectedParent?.calendarSynced ?? false,
       lastSyncedAt: syncedAt,
-      // Full sync request list so the frontend can show per-sport status and
-      // offer a "Request Re-sync" button when the AD has revoked access.
+      // Full request list — used by settings page to show status per sport/level
+      // and offer re-sync when AD has revoked access.
       syncRequests: allSyncRequests.map((r) => ({
         id: r.id,
         sportName: r.sportName,
         sportLevel: r.sportLevel,
         schoolId: r.schoolId,
-        schoolName: r.school?.name || "",
-        status: r.status,
-        rejectionReason: r.rejectionReason,
+        schoolName: r.school?.name ?? "",
+        status: r.status as "PENDING" | "APPROVED" | "REJECTED",
+        rejectionReason: r.rejectionReason ?? null,
         requestedAt: r.requestedAt.toISOString(),
-        reviewedAt: r.reviewedAt?.toISOString() || null,
+        reviewedAt: r.reviewedAt?.toISOString() ?? null,
       })),
     });
   } catch (error) {

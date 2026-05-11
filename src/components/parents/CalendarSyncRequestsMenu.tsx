@@ -24,7 +24,7 @@ import {
   Alert,
   Tooltip,
 } from "@mui/material";
-import { Check, Close, Info } from "@mui/icons-material";
+import { Check, Close, Info, Refresh } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarSyncRequest {
@@ -35,6 +35,7 @@ interface CalendarSyncRequest {
   status: "PENDING" | "APPROVED" | "REJECTED";
   rejectionReason?: string;
   requestedAt: string;
+  reviewedAt?: string | null;
   parent: {
     name: string | null;
     email: string;
@@ -113,7 +114,20 @@ export function CalendarSyncRequestsMenu() {
 
   if (requestsLoading) return <CircularProgress />;
 
-  const pendingRequests = requestsData?.requests.filter(r => r.status === "PENDING") || [];
+  const allRequests = requestsData?.requests || [];
+  const pendingRequests = allRequests.filter((r) => r.status === "PENDING");
+
+  // A re-sync request is a PENDING request from a parent who previously had a
+  // REJECTED request for the same school + sport + level. We detect this by
+  // checking if there's any REJECTED entry for the same parentUserId / sport / level.
+  const rejectedKeys = new Set(
+    allRequests
+      .filter((r) => r.status === "REJECTED")
+      .map((r) => `${r.parentUserId}|${r.sportName.toLowerCase()}|${r.sportLevel.toLowerCase()}`)
+  );
+
+  const isResync = (req: CalendarSyncRequest) =>
+    rejectedKeys.has(`${req.parentUserId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`);
 
   return (
     <Box sx={{ mt: 3 }}>
@@ -134,7 +148,8 @@ export function CalendarSyncRequestsMenu() {
                 <TableCell>Parent</TableCell>
                 <TableCell>Sport</TableCell>
                 <TableCell>Level</TableCell>
-                <TableCell>Requested At</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Requested</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -152,6 +167,20 @@ export function CalendarSyncRequestsMenu() {
                   <TableCell>{request.sportName}</TableCell>
                   <TableCell>
                     <Chip label={request.sportLevel} size="small" />
+                  </TableCell>
+                  <TableCell>
+                    {isResync(request) ? (
+                      <Chip
+                        icon={<Refresh />}
+                        label="Re-sync"
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                        title="This parent previously had sync access that was removed"
+                      />
+                    ) : (
+                      <Chip label="New" size="small" color="primary" variant="outlined" />
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(request.requestedAt).toLocaleDateString()}
