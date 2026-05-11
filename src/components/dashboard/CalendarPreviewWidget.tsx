@@ -13,6 +13,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
+import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { useDashboardPreferencesStore } from "@/lib/stores/dashboardPreferencesStore";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 
@@ -203,16 +204,25 @@ const getGameTime = (game: Game): string | null => {
 export function CalendarPreviewWidget() {
   const { data: session } = useSession();
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
+  const selectedWorkbookId = useGamesWorkbookStore((state) => state.selectedWorkbookId);
+  const getSelectedWorkbook = useGamesWorkbookStore((state) => state.getSelectedWorkbook);
   const { calendarWidgetState, setCalendarWidgetState } = useDashboardPreferencesStore();
+
+  const selectedWorkbook = getSelectedWorkbook();
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
   const calendarTooltip = calendarAccountEmail ? `Open Google Calendar for ${calendarAccountEmail}` : "Open Google Calendar";
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["dashboard-upcoming-games", columnFilters],
+    queryKey: ["dashboard-upcoming-games", columnFilters, selectedWorkbookId],
     queryFn: async () => {
       const params = new URLSearchParams();
+
+      // Scope to the currently selected worksheet (null = all workbooks)
+      if (selectedWorkbookId) {
+        params.append("workbookId", selectedWorkbookId);
+      }
 
       // Apply filters from the store
       Object.entries(columnFilters).forEach(([columnId, filter]) => {
@@ -408,7 +418,11 @@ export function CalendarPreviewWidget() {
         <CardHeader
           avatar={<EventNoteIcon color="primary" />}
           title="Upcoming Games"
-          subheader={calendarWidgetState === "minimized" ? "Next game" : "Next 3 upcoming games"}
+          subheader={
+            calendarWidgetState === "minimized"
+              ? selectedWorkbook ? `Next game · ${selectedWorkbook.name}` : "Next game"
+              : selectedWorkbook ? `Next 3 upcoming · ${selectedWorkbook.name}` : "Next 3 upcoming games"
+          }
           action={
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <Tooltip title={calendarTooltip}>
