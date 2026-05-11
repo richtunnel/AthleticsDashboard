@@ -16,19 +16,14 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user?.email) {
       console.warn("[API] /api/parent/overview: no parent session found");
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     // getParentSession() already verified the user exists and patched in the
     // canonical DB email — do a straightforward exact lookup here.
     // Fallback to findFirst with case-insensitive email as a last resort.
     const sessionUserId = (session.user as any).id as string | undefined;
-    let user = sessionUserId
-      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
-      : null;
+    let user = sessionUserId ? await prisma.user.findUnique({ where: { id: sessionUserId } }) : null;
 
     if (!user) {
       user = await prisma.user.findFirst({
@@ -38,10 +33,7 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       console.error("[overview] User not found — email:", session.user.email, "id:", sessionUserId);
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     // ── 1. Parent links ──────────────────────────────────────────────────────
@@ -69,15 +61,22 @@ export async function GET(request: NextRequest) {
       select: { lastSyncedAt: true, calendarSynced: true },
     });
 
-    // ── 4b. Calendar sync request statuses ──────────────────────────────────
-    // Include ALL requests so the parent can see revoked syncs and re-request.
+    // ── 5. Sync status per school ────────────────────────────────────────────
     const allSyncRequests = await prisma.calendarSyncRequest.findMany({
       where: { parentUserId: user.id },
-      include: { school: { select: { name: true } } },
+      select: { schoolId: true, status: true },
       orderBy: { requestedAt: "desc" },
     });
 
-    // ── 5. Upcoming games ────────────────────────────────────────────────────
+    // Build a map of schoolId → most-recent sync status
+    const syncStatusBySchool = new Map<string, string>();
+    for (const req of allSyncRequests) {
+      if (!syncStatusBySchool.has(req.schoolId)) {
+        syncStatusBySchool.set(req.schoolId, req.status);
+      }
+    }
+
+    // ── 6. Upcoming games ────────────────────────────────────────────────────
     // Strategy A: use approved CalendarSyncRequests (most precise — matches exact
     // sport + level that the AD approved).
     let upcomingGames: any[] = [];
@@ -121,9 +120,7 @@ export async function GET(request: NextRequest) {
         }
       } else {
         // Strategy B: fall back to sport name from ParentAthleteLink
-        const sportNames = links
-          .map((l) => l.sport)
-          .filter(Boolean) as string[];
+        const sportNames = links.map((l) => l.sport).filter(Boolean) as string[];
 
         if (sportNames.length > 0) {
           const teams = await prisma.team.findMany({
@@ -147,10 +144,7 @@ export async function GET(request: NextRequest) {
 
         upcomingGames = await prisma.game.findMany({
           where: {
-            OR: [
-              { homeTeamId: { in: uniqueTeamIds } },
-              { awayTeamId: { in: uniqueTeamIds } },
-            ],
+            OR: [{ homeTeamId: { in: uniqueTeamIds } }, { awayTeamId: { in: uniqueTeamIds } }],
             date: { gte: today },
             status: { in: ["SCHEDULED", "CONFIRMED"] },
           },
@@ -165,7 +159,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 6. Build response ────────────────────────────────────────────────────
+    // ── 7. Build response ────────────────────────────────────────────────────
     const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
 
     return NextResponse.json({
@@ -175,11 +169,13 @@ export async function GET(request: NextRequest) {
         childGrade: link.gradeLevel,
         sportName: link.sport,
         sportLevel: link.gradeLevel, // gradeLevel stores team level (VARSITY, JV…)
+        schoolId: link.schoolId,
         schoolName: link.school?.name || "",
         athleticDirectorName: "", // Not stored on link; AD looked up separately if needed
         confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
         active: link.status === "ACTIVE",
         syncedAt,
+        syncStatus: syncStatusBySchool.get(link.schoolId) ?? "NONE",
         status: link.status,
         createdAt: link.createdAt.toISOString(),
         updatedAt: link.updatedAt.toISOString(),
@@ -202,18 +198,12 @@ export async function GET(request: NextRequest) {
           ? {
               id: game.homeTeam.id,
               name: game.homeTeam.name,
-              sport: game.homeTeam.sport
-                ? { name: game.homeTeam.sport.name }
-                : null,
+              sport: game.homeTeam.sport ? { name: game.homeTeam.sport.name } : null,
               level: game.homeTeam.level,
             }
           : null,
-        awayTeam: game.awayTeam
-          ? { id: game.awayTeam.id, name: game.awayTeam.name }
-          : null,
-        venue: game.venue
-          ? { name: game.venue.name, address: game.venue.address }
-          : null,
+        awayTeam: game.awayTeam ? { id: game.awayTeam.id, name: game.awayTeam.name } : null,
+        venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
       })),
       calendarConnected,
       calendarSynced: connectedParent?.calendarSynced ?? false,
@@ -234,9 +224,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[API] Error fetching parent overview:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch overview" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch overview" }, { status: 500 });
   }
 }

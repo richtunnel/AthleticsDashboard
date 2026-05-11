@@ -23,7 +23,7 @@ import {
   IconButton,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { CreditCard, ChildCare, Add, School, Edit, AccountCircle } from "@mui/icons-material";
+import { CreditCard, ChildCare, Add, School, Edit, AccountCircle, Sync } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
@@ -43,6 +43,8 @@ interface LevelOption {
   name: string;
 }
 
+type SyncStatus = "APPROVED" | "PENDING" | "REJECTED" | "REMOVED" | "NONE";
+
 interface ParentLink {
   id: string;
   childName: string;
@@ -50,9 +52,10 @@ interface ParentLink {
   sportName: string;
   sportLevel: string;
   schoolName: string;
-  schoolId?: string;
+  schoolId: string;
   athleticDirectorName: string;
   status?: string;
+  syncStatus: SyncStatus;
 }
 
 interface ParentSubscription {
@@ -479,6 +482,7 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
 // Main settings page
 // ---------------------------------------------------------------------------
 export default function ParentSettingsPage() {
+  const queryClient = useQueryClient();
   const [editLink, setEditLink] = useState<ParentLink | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
@@ -506,6 +510,28 @@ export default function ParentSettingsPage() {
 
   const showMessage = (message: string, severity: AlertColor = "success") =>
     setSnackbar({ open: true, message, severity });
+
+  const resyncMutation = useMutation({
+    mutationFn: (link: ParentLink) =>
+      fetch("/api/parent/calendar-sync-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: link.schoolId,
+          sportName: link.sportName,
+          sportLevel: link.sportLevel,
+        }),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to submit request");
+        return data;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      showMessage("Re-sync request submitted! The Athletic Director will review it.");
+    },
+    onError: (err: Error) => showMessage(err.message, "error"),
+  });
 
   if (isLoading) {
     return (
@@ -676,6 +702,23 @@ export default function ParentSettingsPage() {
                               />
                             )}
                           </Box>
+                          {(link.syncStatus === "REMOVED" || link.syncStatus === "REJECTED" || link.syncStatus === "NONE") && link.sportName && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="primary"
+                              startIcon={
+                                resyncMutation.isPending && (resyncMutation.variables as ParentLink)?.id === link.id
+                                  ? <CircularProgress size={12} />
+                                  : <Sync fontSize="small" />
+                              }
+                              disabled={resyncMutation.isPending}
+                              onClick={() => resyncMutation.mutate(link)}
+                              sx={{ mt: 1, py: 0.25, px: 1, fontSize: "0.7rem" }}
+                            >
+                              Request Re-sync
+                            </Button>
+                          )}
                         </Box>
 
                         <IconButton

@@ -1,34 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Chip,
-  CircularProgress,
-  Button,
-  Alert,
-  Divider,
-  Snackbar,
-} from "@mui/material";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Box, Typography, Card, CardContent, Grid, Chip, CircularProgress, Button, Alert, Divider, Snackbar } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import {
-  CalendarMonth,
-  Sync,
-  CheckCircle,
-  Warning,
-  Schedule,
-  LocationOn,
-  SportsScore,
-  ArrowForward,
-  NotificationsActive,
-  Refresh,
-} from "@mui/icons-material";
+import { CalendarMonth, Sync, CheckCircle, Warning, Schedule, LocationOn, SportsScore } from "@mui/icons-material";
 import Link from "next/link";
+
+type SyncStatus = "APPROVED" | "PENDING" | "REJECTED" | "REMOVED" | "NONE";
 
 interface ParentLink {
   id: string;
@@ -36,11 +15,13 @@ interface ParentLink {
   childGrade: string | null;
   sportName: string;
   sportLevel: string;
+  schoolId: string;
   schoolName: string;
   athleticDirectorName: string;
   confirmed: boolean;
   active: boolean;
   syncedAt: string | null;
+  syncStatus: SyncStatus;
 }
 
 interface SyncRequest {
@@ -99,11 +80,7 @@ async function fetchParentOverview(): Promise<ParentOverviewData> {
   return res.json();
 }
 
-async function requestReSync(payload: {
-  schoolId: string;
-  sportName: string;
-  sportLevel: string;
-}): Promise<void> {
+async function requestReSync(payload: { schoolId: string; sportName: string; sportLevel: string }): Promise<void> {
   const res = await fetch("/api/parent/calendar-sync-requests", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -132,124 +109,42 @@ function formatGameTime(dateStr: string, time: string | null): string {
   });
 }
 
-// ---------------------------------------------------------------------------
-// RevokedSyncBanners — shown at the top of the overview when the AD removed
-// the parent's calendar sync access. Allows sending a re-sync request.
-// ---------------------------------------------------------------------------
-interface RevokedSyncBannersProps {
-  syncRequests: SyncRequest[];
-  onSuccess: (msg: string) => void;
-  onError: (msg: string) => void;
-}
+type SnackbarState = { open: boolean; message: string; severity: AlertColor };
+const DEFAULT_SNACKBAR: SnackbarState = { open: false, message: "", severity: "success" };
 
-function RevokedSyncBanners({ syncRequests, onSuccess, onError }: RevokedSyncBannersProps) {
-  const queryClient = useQueryClient();
-
-  // Only show REJECTED requests where no PENDING re-request already exists
-  // for the same school + sport + level.
-  const pendingKeys = new Set(
-    syncRequests
-      .filter((r) => r.status === "PENDING")
-      .map((r) => `${r.schoolId}|${r.sportName}|${r.sportLevel}`)
-  );
-
-  const revokedRequests = syncRequests.filter(
-    (r) =>
-      r.status === "REJECTED" &&
-      !pendingKeys.has(`${r.schoolId}|${r.sportName}|${r.sportLevel}`)
-  );
-
-  const pendingRequests = syncRequests.filter((r) => r.status === "PENDING");
-
-  const reRequestMutation = useMutation({
-    mutationFn: requestReSync,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      onSuccess("Re-sync request sent! The athletic director will review it shortly.");
-    },
-    onError: (err: Error) => onError(err.message),
-  });
-
-  if (revokedRequests.length === 0 && pendingRequests.length === 0) return null;
-
-  return (
-    <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
-      {revokedRequests.map((req) => (
-        <Alert
-          key={req.id}
-          severity="warning"
-          icon={<Warning />}
-          action={
-            <Button
-              size="small"
-              variant="outlined"
-              color="warning"
-              startIcon={
-                reRequestMutation.isPending ? (
-                  <CircularProgress size={12} color="inherit" />
-                ) : (
-                  <Refresh fontSize="small" />
-                )
-              }
-              disabled={reRequestMutation.isPending}
-              onClick={() =>
-                reRequestMutation.mutate({
-                  schoolId: req.schoolId,
-                  sportName: req.sportName,
-                  sportLevel: req.sportLevel,
-                })
-              }
-              sx={{ whiteSpace: "nowrap" }}
-            >
-              {reRequestMutation.isPending ? "Sending…" : "Request Re-sync"}
-            </Button>
-          }
-          sx={{ alignItems: "center" }}
-        >
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600}>
-              Calendar sync removed — {req.sportName} / {req.sportLevel}
-            </Typography>
-            <Typography variant="body2">
-              The athletic director at <strong>{req.schoolName}</strong> removed your calendar sync
-              access. Send a re-sync request to restore it.
-              {req.rejectionReason && (
-                <> Reason: <em>{req.rejectionReason}</em></>
-              )}
-            </Typography>
-          </Box>
-        </Alert>
-      ))}
-
-      {pendingRequests.map((req) => (
-        <Alert key={req.id} severity="info" icon={<NotificationsActive />}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            Re-sync request pending — {req.sportName} / {req.sportLevel}
-          </Typography>
-          <Typography variant="body2">
-            Your request to re-sync <strong>{req.schoolName}</strong> calendar access is waiting
-            for the athletic director to approve it.
-          </Typography>
-        </Alert>
-      ))}
-    </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main overview page
-// ---------------------------------------------------------------------------
 export default function ParentDashboardPage() {
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
-    open: false,
-    message: "",
-    severity: "success",
-  });
+  const queryClient = useQueryClient();
+  const [resyncLoading, setResyncLoading] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
   });
+
+  const handleRequestResync = async (link: ParentLink) => {
+    if (!link.sportName || !link.schoolId) return;
+    setResyncLoading(link.id);
+    try {
+      const res = await fetch("/api/parent/calendar-sync-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: link.schoolId,
+          sportName: link.sportName,
+          sportLevel: link.sportLevel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit request");
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setSnackbar({ open: true, message: "Re-sync request submitted! The Athletic Director will review it.", severity: "success" });
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setResyncLoading(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -320,20 +215,11 @@ export default function ParentDashboardPage() {
                         <Typography variant="subtitle2" fontWeight={600} noWrap>
                           {game.homeTeam?.sport?.name || "Game"}
                         </Typography>
-                        {game.homeTeam?.level && (
-                          <Chip label={game.homeTeam.level} size="small" variant="outlined" />
-                        )}
-                        <Chip
-                          label={game.isHome ? "Home" : "Away"}
-                          size="small"
-                          color={game.isHome ? "success" : "warning"}
-                          variant="outlined"
-                        />
+                        {game.homeTeam?.level && <Chip label={game.homeTeam.level} size="small" variant="outlined" />}
+                        <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "success" : "warning"} variant="outlined" />
                       </Box>
                       <Typography variant="body2" color="text.secondary" noWrap>
-                        {game.isHome
-                          ? `vs ${game.awayTeam?.name || "TBD"}`
-                          : `at ${game.awayTeam?.name || "TBD"}`}
+                        {game.isHome ? `vs ${game.awayTeam?.name || "TBD"}` : `at ${game.awayTeam?.name || "TBD"}`}
                       </Typography>
                     </Box>
                   </Box>
@@ -442,11 +328,24 @@ export default function ParentDashboardPage() {
                   <strong>Child:</strong> {link.childName}
                   {link.childGrade && ` (Grade ${link.childGrade})`}
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                  {link.syncedAt ? (
-                    <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />
-                  ) : (
-                    <Chip icon={<Warning />} label="Needs Sync" size="small" color="warning" variant="outlined" />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+                  {link.syncStatus === "APPROVED" && <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />}
+                  {link.syncStatus === "PENDING" && <Chip icon={<Schedule />} label="Sync Pending" size="small" color="warning" variant="outlined" />}
+                  {(link.syncStatus === "REMOVED" || link.syncStatus === "REJECTED" || link.syncStatus === "NONE") && link.sportName && (
+                    <>
+                      <Chip icon={<Warning />} label={link.syncStatus === "REMOVED" ? "Sync Removed" : "Needs Sync"} size="small" color="warning" variant="outlined" />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={resyncLoading === link.id ? <CircularProgress size={12} /> : <Sync />}
+                        disabled={resyncLoading === link.id}
+                        onClick={() => handleRequestResync(link)}
+                        sx={{ py: 0.25, px: 1, fontSize: "0.7rem" }}
+                      >
+                        Request Re-sync
+                      </Button>
+                    </>
                   )}
                 </Box>
               </CardContent>
@@ -468,18 +367,8 @@ export default function ParentDashboardPage() {
         </Button>
       </Box>
 
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={5000}
-        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={snackbar.open} autoHideDuration={5000} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert onClose={() => setSnackbar((s) => ({ ...s, open: false }))} severity={snackbar.severity} variant="filled" sx={{ width: "100%" }}>
           {snackbar.message}
         </Alert>
       </Snackbar>
