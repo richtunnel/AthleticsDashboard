@@ -333,14 +333,14 @@ export function ColumnFilterDragDrop({
         onClick={handleOpen}
         sx={{
           ml: 0.5,
-          color: hasActiveFilter ? "primary.main" : "action.active",
-          bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.08) : "transparent",
+          color: hasActiveFilter ? "#6051f2" : "action.active",
+          bgcolor: hasActiveFilter ? alpha("#6051f2", 0.08) : "transparent",
           "&:hover": {
-            bgcolor: hasActiveFilter ? alpha(theme.palette.primary.main, 0.15) : alpha(theme.palette.action.active, 0.04),
+            bgcolor: hasActiveFilter ? alpha("#6051f2", 0.15) : alpha(theme.palette.action.active, 0.04),
           },
         }}
       >
-        <FilterList fontSize="small" />
+        <FilterList fontSize="small" sx={{ color: hasActiveFilter ? "#6051f2" : undefined }} />
       </IconButton>
 
       <Popover
