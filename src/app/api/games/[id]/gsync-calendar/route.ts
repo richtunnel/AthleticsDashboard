@@ -44,11 +44,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
   } catch (error: any) {
     console.error("Manual Sync Error:", error);
+
+    // Scope error — tell the frontend to prompt the user to reconnect their calendar.
+    if (error?.code === "INSUFFICIENT_SCOPE") {
+      return NextResponse.json(
+        { success: false, needsReauth: true, error: error.message },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error.message || "Failed to sync game.",
-      },
+      { success: false, error: error.message || "Failed to sync game." },
       { status: 500 }
     );
   }

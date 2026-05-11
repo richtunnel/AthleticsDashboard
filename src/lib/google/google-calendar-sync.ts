@@ -210,6 +210,24 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     return { success: true, id: response.data.id, htmlLink: response.data.htmlLink };
   } catch (error: any) {
     console.error("[Calendar Sync] Error details:", error.response?.data || error.message);
+
+    // Surface insufficient-scope errors with a recognisable code so the
+    // calling route can prompt the user to re-authorise instead of showing
+    // a generic 500.
+    const errData = error.response?.data?.error ?? error;
+    const isInsufficientScope =
+      errData?.code === 403 &&
+      (errData?.status === "PERMISSION_DENIED" ||
+        (errData?.message ?? "").toLowerCase().includes("insufficient"));
+
+    if (isInsufficientScope) {
+      const scopeError: any = new Error(
+        "Google Calendar authorisation is missing required permissions. Please reconnect your calendar."
+      );
+      scopeError.code = "INSUFFICIENT_SCOPE";
+      throw scopeError;
+    }
+
     throw error;
   }
 }

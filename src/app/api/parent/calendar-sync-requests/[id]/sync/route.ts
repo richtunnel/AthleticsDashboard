@@ -26,9 +26,13 @@ export async function POST(
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    // Prefer JWT sub (user ID) over email to avoid case-mismatch issues
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : await prisma.user.findFirst({
+          where: { email: { equals: session.user.email, mode: "insensitive" } },
+        });
 
     if (!user) {
       return NextResponse.json(
@@ -74,6 +78,13 @@ export async function POST(
       syncRequest.sportLevel,
       googleCalendarId
     );
+
+    // Persist the target calendar ID so the trigger service knows where to
+    // push future games that match this parent's sport/level subscription
+    await prisma.calendarSyncRequest.update({
+      where: { id },
+      data: { googleCalendarId },
+    });
 
     return NextResponse.json({ success: true, results });
   } catch (error) {
