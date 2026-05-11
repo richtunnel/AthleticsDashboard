@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { ensureParentCode } from "@/lib/utils/parentCode";
 
 export async function GET() {
   try {
@@ -11,14 +12,17 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, parentCode: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ name: user.name, email: user.email, phone: user.phone });
+    // Lazily assign a parentCode if this parent doesn't have one yet
+    const parentCode = user.parentCode ?? (await ensureParentCode(user.id, user.name).catch(() => null));
+
+    return NextResponse.json({ name: user.name, email: user.email, phone: user.phone, parentCode });
   } catch (error) {
     console.error("[API] Error fetching parent profile:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
