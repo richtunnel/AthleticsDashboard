@@ -230,6 +230,13 @@ export function ColumnFilterDragDrop({
       newSelected.add(value);
     }
     setSelectedValues(newSelected);
+    // Auto-apply immediately so the table updates without requiring the user
+    // to scroll down and click the bottom Apply button.
+    if (newSelected.size === 0) {
+      onFilterChange(columnId, null);
+    } else {
+      onFilterChange(columnId, { type: "values", values: Array.from(newSelected) });
+    }
   };
 
   const handleSelectAll = () => {
@@ -628,6 +635,7 @@ export function ColumnFilterDragDrop({
                   <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
                     <Button size="small" onClick={handleSelectAll} sx={{ textTransform: "none", fontSize: 12 }}>Select all</Button>
                     <Button size="small" onClick={handleClearAll} sx={{ textTransform: "none", fontSize: 12 }}>Clear all</Button>
+                    <Button size="small" onClick={handleApplyCheckboxFilter} sx={{ textTransform: "none", fontSize: 12 }}>Apply</Button>
                   </Stack>
                   <Box sx={{ maxHeight: 340, overflowY: "auto" }}>
                     {renderSection("Year", years)}
@@ -662,6 +670,9 @@ export function ColumnFilterDragDrop({
                   </Button>
                   <Button size="small" onClick={handleClearAll} sx={{ textTransform: "none", fontSize: 12 }}>
                     Clear all
+                  </Button>
+                  <Button size="small" onClick={handleApplyCheckboxFilter} sx={{ textTransform: "none", fontSize: 12 }}>
+                    Apply
                   </Button>
                 </Stack>
 
