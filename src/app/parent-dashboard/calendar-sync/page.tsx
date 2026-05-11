@@ -48,7 +48,7 @@ interface CalendarSyncRequest {
   schoolId: string;
   sportName: string;
   sportLevel: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "REMOVED";
   rejectionReason?: string;
   requestedAt: string;
   googleCalendarId?: string;
@@ -380,12 +380,14 @@ function CalendarSyncPageContent() {
                   <TableCell>{request.sportLevel}</TableCell>
                   <TableCell>
                     <Chip
-                      label={request.status}
+                      label={request.status === "REMOVED" ? "Removed" : request.status}
                       color={
                         request.status === "APPROVED"
                           ? "success"
                           : request.status === "REJECTED"
                           ? "error"
+                          : request.status === "REMOVED"
+                          ? "default"
                           : "warning"
                       }
                       size="small"
@@ -417,6 +419,11 @@ function CalendarSyncPageContent() {
                       >
                         Sync Now
                       </Button>
+                    )}
+                    {request.status === "REMOVED" && (
+                      <Typography variant="caption" color="text.secondary">
+                        Removed by AD — use the form above to re-request
+                      </Typography>
                     )}
                   </TableCell>
                 </TableRow>

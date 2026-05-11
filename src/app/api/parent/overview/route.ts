@@ -69,7 +69,22 @@ export async function GET(request: NextRequest) {
       select: { lastSyncedAt: true, calendarSynced: true },
     });
 
-    // ── 5. Upcoming games ────────────────────────────────────────────────────
+    // ── 5. Sync status per school ────────────────────────────────────────────
+    const allSyncRequests = await prisma.calendarSyncRequest.findMany({
+      where: { parentUserId: user.id },
+      select: { schoolId: true, status: true },
+      orderBy: { requestedAt: "desc" },
+    });
+
+    // Build a map of schoolId → most-recent sync status
+    const syncStatusBySchool = new Map<string, string>();
+    for (const req of allSyncRequests) {
+      if (!syncStatusBySchool.has(req.schoolId)) {
+        syncStatusBySchool.set(req.schoolId, req.status);
+      }
+    }
+
+    // ── 6. Upcoming games ────────────────────────────────────────────────────
     // Strategy A: use approved CalendarSyncRequests (most precise — matches exact
     // sport + level that the AD approved).
     let upcomingGames: any[] = [];
@@ -157,7 +172,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 6. Build response ────────────────────────────────────────────────────
+    // ── 7. Build response ────────────────────────────────────────────────────
     const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
 
     return NextResponse.json({
@@ -167,11 +182,13 @@ export async function GET(request: NextRequest) {
         childGrade: link.gradeLevel,
         sportName: link.sport,
         sportLevel: link.gradeLevel, // gradeLevel stores team level (VARSITY, JV…)
+        schoolId: link.schoolId,
         schoolName: link.school?.name || "",
         athleticDirectorName: "", // Not stored on link; AD looked up separately if needed
         confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
         active: link.status === "ACTIVE",
         syncedAt,
+        syncStatus: syncStatusBySchool.get(link.schoolId) ?? "NONE",
         status: link.status,
         createdAt: link.createdAt.toISOString(),
         updatedAt: link.updatedAt.toISOString(),

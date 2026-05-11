@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -12,7 +13,9 @@ import {
   Button,
   Alert,
   Divider,
+  Snackbar,
 } from "@mui/material";
+import type { AlertColor } from "@mui/material";
 import {
   CalendarMonth,
   Sync,
@@ -21,9 +24,10 @@ import {
   Schedule,
   LocationOn,
   SportsScore,
-  ArrowForward,
 } from "@mui/icons-material";
 import Link from "next/link";
+
+type SyncStatus = "APPROVED" | "PENDING" | "REJECTED" | "REMOVED" | "NONE";
 
 interface ParentLink {
   id: string;
@@ -31,11 +35,13 @@ interface ParentLink {
   childGrade: string | null;
   sportName: string;
   sportLevel: string;
+  schoolId: string;
   schoolName: string;
   athleticDirectorName: string;
   confirmed: boolean;
   active: boolean;
   syncedAt: string | null;
+  syncStatus: SyncStatus;
 }
 
 interface ParentSubscription {
@@ -99,11 +105,42 @@ function formatGameTime(dateStr: string, time: string | null): string {
   });
 }
 
+type SnackbarState = { open: boolean; message: string; severity: AlertColor };
+const DEFAULT_SNACKBAR: SnackbarState = { open: false, message: "", severity: "success" };
+
 export default function ParentDashboardPage() {
+  const queryClient = useQueryClient();
+  const [resyncLoading, setResyncLoading] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
   });
+
+  const handleRequestResync = async (link: ParentLink) => {
+    if (!link.sportName || !link.schoolId) return;
+    setResyncLoading(link.id);
+    try {
+      const res = await fetch("/api/parent/calendar-sync-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: link.schoolId,
+          sportName: link.sportName,
+          sportLevel: link.sportLevel,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit request");
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setSnackbar({ open: true, message: "Re-sync request submitted! The Athletic Director will review it.", severity: "success" });
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setResyncLoading(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -288,11 +325,34 @@ export default function ParentDashboardPage() {
                   <strong>Child:</strong> {link.childName}
                   {link.childGrade && ` (Grade ${link.childGrade})`}
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                  {link.syncedAt ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+                  {link.syncStatus === "APPROVED" && (
                     <Chip icon={<CheckCircle />} label="Synced" size="small" color="success" variant="outlined" />
-                  ) : (
-                    <Chip icon={<Warning />} label="Needs Sync" size="small" color="warning" variant="outlined" />
+                  )}
+                  {link.syncStatus === "PENDING" && (
+                    <Chip icon={<Schedule />} label="Sync Pending" size="small" color="warning" variant="outlined" />
+                  )}
+                  {(link.syncStatus === "REMOVED" || link.syncStatus === "REJECTED" || link.syncStatus === "NONE") && link.sportName && (
+                    <>
+                      <Chip
+                        icon={<Warning />}
+                        label={link.syncStatus === "REMOVED" ? "Sync Removed" : "Needs Sync"}
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                      />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        startIcon={resyncLoading === link.id ? <CircularProgress size={12} /> : <Sync />}
+                        disabled={resyncLoading === link.id}
+                        onClick={() => handleRequestResync(link)}
+                        sx={{ py: 0.25, px: 1, fontSize: "0.7rem" }}
+                      >
+                        Request Re-sync
+                      </Button>
+                    </>
                   )}
                 </Box>
               </CardContent>
@@ -313,6 +373,22 @@ export default function ParentDashboardPage() {
           Contact Athletic Director
         </Button>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
