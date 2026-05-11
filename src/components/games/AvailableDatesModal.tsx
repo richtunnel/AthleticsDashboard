@@ -106,7 +106,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [showConfiguration, setShowConfiguration] = useState<boolean>(true);
+  const [showConfiguration, setShowConfiguration] = useState<boolean>(false);
   const [showMatchedTeamsAlert, setShowMatchedTeamsAlert] = useState(true);
 
   // Pre-fill prompt if sport and level are provided
