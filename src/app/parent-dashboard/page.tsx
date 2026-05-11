@@ -24,18 +24,6 @@ interface ParentLink {
   syncStatus: SyncStatus;
 }
 
-interface SyncRequest {
-  id: string;
-  sportName: string;
-  sportLevel: string;
-  schoolId: string;
-  schoolName: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  rejectionReason: string | null;
-  requestedAt: string;
-  reviewedAt: string | null;
-}
-
 interface ParentSubscription {
   status: string;
   trialEnd: string | null;
@@ -71,23 +59,12 @@ interface ParentOverviewData {
   upcomingGames: GameData[];
   calendarConnected: boolean;
   calendarSynced: boolean;
-  syncRequests: SyncRequest[];
 }
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
   const res = await fetch("/api/parent/overview");
   if (!res.ok) throw new Error("Failed to fetch overview");
   return res.json();
-}
-
-async function requestReSync(payload: { schoolId: string; sportName: string; sportLevel: string }): Promise<void> {
-  const res = await fetch("/api/parent/calendar-sync-requests", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to send request");
 }
 
 function formatGameDate(dateStr: string): string {
@@ -162,7 +139,6 @@ export default function ParentDashboardPage() {
   const isOnTrial = subscriptionStatus === "TRIALING";
   const trialEnd = data?.subscription?.trialEnd ? new Date(data.subscription.trialEnd).toLocaleDateString() : null;
   const upcomingGames = data?.upcomingGames || [];
-  const syncRequests = data?.syncRequests || [];
 
   return (
     <Box>
@@ -181,13 +157,6 @@ export default function ParentDashboardPage() {
           Your free trial ends on {trialEnd}. Continue with Parent Power for $2.25/month to keep calendar sync.
         </Alert>
       )}
-
-      {/* Revoked / Pending re-sync banners */}
-      <RevokedSyncBanners
-        syncRequests={syncRequests}
-        onSuccess={(msg) => setSnackbar({ open: true, message: msg, severity: "success" })}
-        onError={(msg) => setSnackbar({ open: true, message: msg, severity: "error" })}
-      />
 
       {/* Upcoming Schedule - Primary Section */}
       <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
