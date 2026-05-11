@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -18,8 +18,10 @@ import {
   AccordionDetails,
   IconButton,
   Chip,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
-import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown, Download, Delete, TableChart } from "@mui/icons-material";
+import { AttachMoney, TrendingUp, AccountBalanceWallet, ExpandMore, KeyboardArrowDown, Download, Delete, TableChart, Email } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { Select, MenuItem, FormControl, InputLabel } from "@mui/material";
@@ -50,6 +52,7 @@ async function fetchCostBudgetData(workbookId?: string | null) {
 
 export function CostBudgetTab() {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const { workbooks } = useGamesWorkbookStore();
   const [budgetInput, setBudgetInput] = useState("");
   const [expanded, setExpanded] = useState(true);
@@ -60,6 +63,31 @@ export function CostBudgetTab() {
     queryFn: () => fetchCostBudgetData(selectedWorkbookId),
     enabled: true,
   });
+
+  // Email preference: whether the cost column is included when sending games
+  const { data: emailPrefsData } = useQuery({
+    queryKey: ["emailSettings"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/table-preferences?table=email-settings");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as { includeCostInEmail?: boolean } | null;
+    },
+  });
+
+  const includeCostInEmail = emailPrefsData?.includeCostInEmail ?? false;
+
+  const saveEmailPref = useCallback(async (checked: boolean) => {
+    await fetch("/api/user/table-preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        table: "email-settings",
+        preferences: { includeCostInEmail: checked },
+      }),
+    });
+    queryClient.invalidateQueries({ queryKey: ["emailSettings"] });
+  }, [queryClient]);
 
   const handleBudgetUpdate = async () => {
     try {
@@ -189,7 +217,39 @@ export function CostBudgetTab() {
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" }, mb: 2 }}>
                 Track and analyze your game expenses throughout the month.
               </Typography>
-              
+
+              {/* Email preference */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  mb: 2,
+                  p: 1.5,
+                  borderRadius: 1,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  maxWidth: 480,
+                }}
+              >
+                <Email sx={{ color: "text.secondary", fontSize: 20, flexShrink: 0 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" fontWeight={600}>
+                    Include cost column when sending email
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Off by default — cost data is hidden from email recipients unless enabled.
+                  </Typography>
+                </Box>
+                <Switch
+                  size="small"
+                  checked={includeCostInEmail}
+                  onChange={(e) => saveEmailPref(e.target.checked)}
+                  inputProps={{ "aria-label": "Include cost in email" }}
+                />
+              </Box>
+
               {/* Workbook Selector */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                 <FormControl size="small" sx={{ minWidth: 200 }}>

@@ -58,29 +58,24 @@ export const extractDatePart = (dateValue: string): string => {
  */
 export const formatTimeDisplay = (timeString: string | null): string => {
   if (!timeString || timeString.toUpperCase() === "TBD") return "TBD";
-  try {
-    // If already in 12-hour format (e.g. "6:00 PM"), return as-is so this
-    // function is safe to call on already-formatted values.
-    if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(timeString.trim())) return timeString.trim();
 
-    // Handle cases where it might already be in a readable format or include seconds
-    const parts = timeString.split(":");
-    if (parts.length < 2) return timeString;
+  const trimmed = timeString.trim();
 
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
+  // If already in 12-hour format (e.g. "6:00 PM") return as-is — idempotent.
+  if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(trimmed)) return trimmed;
 
-    if (isNaN(hours) || isNaN(minutes)) return timeString;
+  // Expect raw 24-hour "HH:MM" (with optional seconds appended)
+  const parts = trimmed.split(":");
+  if (parts.length < 2) return trimmed;
 
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes);
-    date.setSeconds(0);
-    date.setMilliseconds(0);
+  const h24 = parseInt(parts[0], 10);
+  const min = parseInt(parts[1], 10);
 
-    return format(date, "h:mm a");
-  } catch (error) {
-    console.warn("Error formatting time display:", error);
-    return timeString;
-  }
+  if (isNaN(h24) || isNaN(min) || h24 < 0 || h24 > 23 || min < 0 || min > 59) return trimmed;
+
+  // Pure-math 24 → 12 hour conversion (no date-fns, no Date object,
+  // no timezone ambiguity — guaranteed to produce the correct result).
+  const period = h24 < 12 ? "AM" : "PM";
+  const h12 = h24 % 12 || 12; // 0 → 12 (midnight), 12 → 12 (noon), 13 → 1, …
+  return `${h12}:${min.toString().padStart(2, "0")} ${period}`;
 };
