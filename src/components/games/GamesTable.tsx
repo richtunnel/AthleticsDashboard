@@ -1224,7 +1224,10 @@ export function GamesTable() {
       values.busTravel.add(game.busTravel ? "Yes" : "No");
       values.isHome.add(game.isHome ? "Home" : "Away");
       if (game.time) {
-        values.time.add(game.time);
+        // Store the human-readable 12-hour format in uniqueValues so filter
+        // checkboxes always show "6:00 PM" rather than raw "18:00".
+        const displayTime = formatTimeDisplay(game.time);
+        values.time.add(displayTime && displayTime !== "TBD" ? displayTime : game.time);
       }
 
       // Add date value — emit full date, month token, and year token so the
@@ -1285,9 +1288,27 @@ export function GamesTable() {
       }
     });
 
+    // Helper: convert a display time like "6:00 PM" to minutes-since-midnight
+    // for chronological sorting. Falls back to 0 for unrecognised strings.
+    const timeToMinutes = (t: string): number => {
+      const m = t.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      const period = m[3].toUpperCase();
+      if (period === "PM" && h !== 12) h += 12;
+      if (period === "AM" && h === 12) h = 0;
+      return h * 60 + min;
+    };
+
     const result: Record<string, string[]> = {};
     Object.keys(values).forEach((key) => {
-      result[key] = Array.from(values[key]).sort();
+      if (key === "time") {
+        // Sort times chronologically ("6:00 AM" < "12:00 PM" < "6:00 PM")
+        result[key] = Array.from(values[key]).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+      } else {
+        result[key] = Array.from(values[key]).sort();
+      }
     });
 
     return result;
