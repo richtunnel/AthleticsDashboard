@@ -12,34 +12,65 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const rawState = searchParams.get("state");
 
+  // ── Early state peek: determine flow type BEFORE resolving session ────────
+  // The state payload encodes returnTo and userId from the initiating request.
+  // We read these without CSRF validation here so we can route parent vs AD
+  // flows to the correct session type — preventing an active AD session from
+  // hijacking a parent-initiated OAuth flow.
+  let earlyReturnTo: string | null = null;
+  let isParentFlow = false;
+  if (rawState) {
+    try {
+      const earlyParsed = JSON.parse(Buffer.from(rawState, "base64url").toString("utf8"));
+      if (typeof earlyParsed?.returnTo === "string") {
+        earlyReturnTo = earlyParsed.returnTo;
+      }
+      isParentFlow = !!earlyReturnTo?.startsWith("/parent-dashboard");
+    } catch { /* will fail properly during full validation below */ }
+  }
+
+  // Error destination — parent flows land back on the parent calendar page,
+  // AD flows land on the AD gsync page.
+  const errorDest = isParentFlow
+    ? (earlyReturnTo || "/parent-dashboard/calendar")
+    : "/dashboard/gsync";
+
   if (error) {
     console.error("Calendar OAuth error:", error);
-    return NextResponse.redirect(new URL(`/dashboard/gsync?error=${encodeURIComponent(error)}`, process.env.NEXTAUTH_URL!));
+    return NextResponse.redirect(
+      new URL(`${errorDest}?error=${encodeURIComponent(error)}`, process.env.NEXTAUTH_URL!)
+    );
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/dashboard/gsync?error=no_code", process.env.NEXTAUTH_URL!));
+    return NextResponse.redirect(new URL(`${errorDest}?error=no_code`, process.env.NEXTAUTH_URL!));
   }
 
   try {
-    // Prefer main AD session; fall back to parent session
-    let session = await getServerSession(authOptions);
-    if (!session?.user) {
-      session = await getParentSession();
-    }
+    // ── Session resolution: check parent session FIRST for parent flows ──────
+    // This is critical: if both a parent cookie and an AD session cookie exist
+    // in the same browser (e.g. the user is also an AD), checking AD first
+    // caused the parent's calendar connect flow to run under the AD identity,
+    // then fail the userId CSRF check and redirect to the AD dashboard.
+    let session = isParentFlow
+      ? (await getParentSession() ?? await getServerSession(authOptions))
+      : (await getServerSession(authOptions) ?? await getParentSession());
 
     if (!session?.user) {
       console.error("❌ No active session - user must be logged in");
-      return NextResponse.redirect(new URL("/login?error=must_be_logged_in", process.env.NEXTAUTH_URL));
+      const loginUrl = isParentFlow
+        ? "/onboarding/parent-signup?error=session_expired"
+        : "/login?error=must_be_logged_in";
+      return NextResponse.redirect(new URL(loginUrl, process.env.NEXTAUTH_URL!));
     }
 
-    console.log("📅 Connecting calendar for user:", session.user.email);
+    console.log("📅 Connecting calendar for user:", session.user.email, "parentFlow:", isParentFlow);
 
     let returnTo: string | null = null;
 
     if (!rawState) {
       console.error("❌ No state provided in callback");
-      return NextResponse.redirect(new URL("/dashboard/gsync?error=missing_state", process.env.NEXTAUTH_URL));
+      return NextResponse.redirect(new URL(`${errorDest}?error=missing_state`, process.env.NEXTAUTH_URL!));
     }
 
     try {
@@ -49,14 +80,14 @@ export async function GET(request: NextRequest) {
       // Must have at least a CSRF token field
       if (!parsed || typeof parsed.token !== "string") {
         console.error("❌ Invalid state format");
-        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+        return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
       }
 
       // If userId is present in state, verify it matches the session.
       // Incremental-auth flows may omit userId (session is the source of truth).
       if (typeof parsed.userId === "string" && parsed.userId !== (session.user as any).id) {
-        console.error("❌ User ID mismatch in state");
-        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+        console.error("❌ User ID mismatch in state — expected:", parsed.userId, "got:", (session.user as any).id);
+        return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
       }
 
       // Verify CSRF token against user.resetToken
@@ -66,13 +97,13 @@ export async function GET(request: NextRequest) {
       });
 
       if (
-        !dbUser?.resetToken || 
-        dbUser.resetToken !== parsed.token || 
-        !dbUser.resetTokenExpiry || 
+        !dbUser?.resetToken ||
+        dbUser.resetToken !== parsed.token ||
+        !dbUser.resetTokenExpiry ||
         dbUser.resetTokenExpiry < new Date()
       ) {
         console.error("❌ Invalid or expired state token");
-        return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+        return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
       }
 
       // Consume the token
@@ -84,7 +115,7 @@ export async function GET(request: NextRequest) {
       if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
     } catch (e) {
       console.error("❌ Error parsing state:", e);
-      return NextResponse.redirect(new URL("/dashboard/gsync?error=invalid_state", process.env.NEXTAUTH_URL));
+      return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
     }
 
     // Exchange authorization code for tokens
@@ -204,12 +235,18 @@ export async function GET(request: NextRequest) {
     console.log("✅ Calendar connected to user:", session.user.email);
 
     const safeReturnTo = returnTo && returnTo.startsWith("/") ? returnTo : null;
-    const redirectPath = safeReturnTo || "/dashboard/gsync?calendar=connected";
+    const defaultSuccess = isParentFlow
+      ? "/parent-dashboard/calendar?calendar_connected=true"
+      : "/dashboard/gsync?calendar=connected";
+    const redirectPath = safeReturnTo
+      ? `${safeReturnTo}?calendar_connected=true`
+      : defaultSuccess;
 
     return NextResponse.redirect(new URL(redirectPath, process.env.NEXTAUTH_URL!));
   } catch (error) {
     console.error("❌ Calendar OAuth error:", error);
-
-    return NextResponse.redirect(new URL("/dashboard/gsync?error=calendar_connection_failed", process.env.NEXTAUTH_URL));
+    return NextResponse.redirect(
+      new URL(`${errorDest}?error=calendar_connection_failed`, process.env.NEXTAUTH_URL!)
+    );
   }
 }
