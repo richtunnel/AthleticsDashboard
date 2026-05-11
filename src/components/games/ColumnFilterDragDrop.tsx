@@ -56,12 +56,14 @@ const CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean;
 };
 
 // Operators that make sense for date fields (human-friendly labels)
-const DATE_CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean; requiresSecondValue?: boolean }> = {
-  equals:      { label: "On date",        requiresValue: true },
-  not_equals:  { label: "Not on date",    requiresValue: true },
-  less_than:   { label: "Before",         requiresValue: true },
-  greater_than:{ label: "After",          requiresValue: true },
-  between:     { label: "Between",        requiresValue: true, requiresSecondValue: true },
+const DATE_CONDITION_OPTIONS: Record<string, { label: string; requiresValue: boolean; requiresSecondValue?: boolean; inputType?: "date" | "month" | "year" }> = {
+  equals:      { label: "On date",        requiresValue: true,  inputType: "date" },
+  not_equals:  { label: "Not on date",    requiresValue: true,  inputType: "date" },
+  less_than:   { label: "Before",         requiresValue: true,  inputType: "date" },
+  greater_than:{ label: "After",          requiresValue: true,  inputType: "date" },
+  between:     { label: "Between",        requiresValue: true,  requiresSecondValue: true, inputType: "date" },
+  in_month:    { label: "In month",       requiresValue: true,  inputType: "month" },
+  in_year:     { label: "In year",        requiresValue: true,  inputType: "year" },
   is_empty:    { label: "Is empty",       requiresValue: false },
   is_not_empty:{ label: "Is not empty",   requiresValue: false },
 };
@@ -719,7 +721,18 @@ export function ColumnFilterDragDrop({
                   <InputLabel>Condition</InputLabel>
                   <Select
                     value={selectedCondition in activeOpts ? selectedCondition : Object.keys(activeOpts)[0]}
-                    onChange={(e) => setSelectedCondition(e.target.value as FilterCondition)}
+                    onChange={(e) => {
+                      const newCond = e.target.value as FilterCondition;
+                      // If the input type changes (e.g. date → month → year), clear the stored value
+                      // so stale incompatible values don't leak into the new input.
+                      const oldInputType = (activeOpts as any)[selectedCondition]?.inputType;
+                      const newInputType = (activeOpts as any)[newCond]?.inputType;
+                      if (oldInputType !== newInputType) {
+                        setConditionValue("");
+                        setConditionSecondValue("");
+                      }
+                      setSelectedCondition(newCond);
+                    }}
                     label="Condition"
                   >
                     {Object.entries(activeOpts).map(([key, { label }]) => (
@@ -728,18 +741,68 @@ export function ColumnFilterDragDrop({
                   </Select>
                 </FormControl>
 
-                {activeConditionConfig.requiresValue && (
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label={columnType === "date" ? "Date" : "Value"}
-                    value={conditionValue}
-                    onChange={(e) => setConditionValue(e.target.value)}
-                    sx={{ mb: 2 }}
-                    type={columnType === "number" ? "number" : columnType === "date" ? "date" : "text"}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                )}
+                {activeConditionConfig.requiresValue && (() => {
+                  // For date columns, pick the right input type based on the selected operator
+                  if (columnType === "date") {
+                    const dateInputType = (activeConditionConfig as any).inputType ?? "date";
+                    if (dateInputType === "year") {
+                      return (
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Year"
+                          value={conditionValue}
+                          onChange={(e) => setConditionValue(e.target.value)}
+                          sx={{ mb: 2 }}
+                          type="number"
+                          inputProps={{ min: 2000, max: 2100, step: 1 }}
+                          InputLabelProps={{ shrink: true }}
+                          placeholder="e.g. 2026"
+                        />
+                      );
+                    }
+                    if (dateInputType === "month") {
+                      return (
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="Month"
+                          value={conditionValue}
+                          onChange={(e) => setConditionValue(e.target.value)}
+                          sx={{ mb: 2 }}
+                          type="month"
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      );
+                    }
+                    // Default: exact date
+                    return (
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Date"
+                        value={conditionValue}
+                        onChange={(e) => setConditionValue(e.target.value)}
+                        sx={{ mb: 2 }}
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    );
+                  }
+                  // Non-date columns
+                  return (
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Value"
+                      value={conditionValue}
+                      onChange={(e) => setConditionValue(e.target.value)}
+                      sx={{ mb: 2 }}
+                      type={columnType === "number" ? "number" : "text"}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  );
+                })()}
 
                 {activeConditionConfig.requiresSecondValue && (
                   <TextField
@@ -756,7 +819,7 @@ export function ColumnFilterDragDrop({
 
                 <Typography variant="caption" color="text.secondary">
                   {columnType === "date"
-                    ? "Filter by a specific date or date range"
+                    ? "Filter by a specific date, month, year, or date range"
                     : "Apply a condition-based filter to this column"}
                 </Typography>
               </Box>

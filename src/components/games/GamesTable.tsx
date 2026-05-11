@@ -598,7 +598,10 @@ export function GamesTable() {
       .sort()
       .map((key) => {
         const filter = stableColumnFilters[key];
-        return `${key}:${filter.type}:${filter.condition || ""}:${filter.values ? JSON.stringify(filter.values.sort()) : ""}`;
+        if (filter.type === "condition") {
+          return `${key}:condition:${filter.condition || ""}:${filter.value || ""}:${filter.secondValue || ""}`;
+        }
+        return `${key}:values:${filter.values ? JSON.stringify([...(filter.values as string[])].sort()) : ""}`;
       })
       .join("|");
 

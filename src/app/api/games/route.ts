@@ -579,6 +579,28 @@ function applyConditionFilter(where: any, columnId: string, condition: string, v
         break;
       }
 
+      // Month-level filter: value is "YYYY-MM" (from <input type="month">)
+      if (condition === "in_month") {
+        const [yyyy, mm] = (value || "").split("-").map(Number);
+        if (yyyy && mm) {
+          const start = new Date(Date.UTC(yyyy, mm - 1, 1, 0, 0, 0, 0));
+          const end   = new Date(Date.UTC(yyyy, mm, 0, 23, 59, 59, 999)); // day 0 = last day of previous month
+          where.date = { gte: start, lte: end };
+        }
+        break;
+      }
+
+      // Year-level filter: value is "YYYY" (from <input type="number">)
+      if (condition === "in_year") {
+        const yyyy = Number(value);
+        if (yyyy) {
+          const start = new Date(Date.UTC(yyyy, 0, 1, 0, 0, 0, 0));
+          const end   = new Date(Date.UTC(yyyy, 11, 31, 23, 59, 59, 999));
+          where.date = { gte: start, lte: end };
+        }
+        break;
+      }
+
       const d1 = parseDate(value);
       if (!d1) break; // value is required but invalid/missing — skip filter
 

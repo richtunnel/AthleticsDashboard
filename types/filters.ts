@@ -1,4 +1,4 @@
-export type FilterCondition = "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with" | "is_empty" | "is_not_empty" | "greater_than" | "less_than" | "between";
+export type FilterCondition = "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with" | "is_empty" | "is_not_empty" | "greater_than" | "less_than" | "between" | "in_month" | "in_year";
 
 export interface ColumnFilterValue {
   type: "values" | "condition";
