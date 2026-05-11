@@ -28,13 +28,15 @@ import {
   Tooltip,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { Person, Sync, SyncDisabled, Delete, CalendarMonth } from "@mui/icons-material";
+import { Person, Sync, SyncDisabled, Delete, CalendarMonth, Search, Badge as BadgeIcon } from "@mui/icons-material";
+import InputAdornment from "@mui/material/InputAdornment";
 
 interface ConnectedParent {
   id: string;
   parentUserId: string;
   parentUserName: string | null;
   parentEmail: string;
+  parentCode: string | null;
   schoolName: string;
   sportName: string | null;
   sportLevel: string | null;
@@ -128,6 +130,7 @@ export function ConnectedParentsMenu() {
   const [syncTarget, setSyncTarget] = useState<ConnectedParent | null>(null);
   const [syncSport, setSyncSport] = useState("");
   const [syncLevel, setSyncLevel] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const showMessage = (message: string, severity: AlertColor = "success") =>
     setSnackbar({ open: true, message, severity });
@@ -213,7 +216,19 @@ export function ConnectedParentsMenu() {
     return <Alert severity="error">Failed to load connected parents</Alert>;
   }
 
-  const parents = data?.parents || [];
+  const allParents = data?.parents || [];
+
+  // Filter by search query — matches name, email, or parentCode
+  const q = searchQuery.trim().toLowerCase();
+  const parents = q
+    ? allParents.filter(
+        (p) =>
+          (p.parentUserName ?? "").toLowerCase().includes(q) ||
+          p.parentEmail.toLowerCase().includes(q) ||
+          (p.parentCode ?? "").toLowerCase().includes(q),
+      )
+    : allParents;
+
   const isBusy = syncMutation.isPending || unsyncMutation.isPending || removeMutation.isPending;
 
   return (
@@ -225,15 +240,34 @@ export function ConnectedParentsMenu() {
             <Typography variant="h6">Manage parent calendar connections</Typography>
           </Box>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Parents connected to your school. Use Sync to push your game schedule
             to a parent&apos;s Google Calendar.
           </Typography>
 
-          {parents.length === 0 ? (
+          {/* Search — by name, email, or parent code */}
+          <TextField
+            size="small"
+            placeholder="Search by name, email, or parent code…"
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 3 }}
+          />
+
+          {allParents.length === 0 ? (
             <Alert severity="info">
               No parents have connected to your school yet. Share the parent portal link to get started!
             </Alert>
+          ) : parents.length === 0 ? (
+            <Alert severity="info">No parents match &ldquo;{searchQuery}&rdquo;.</Alert>
           ) : (
             <Grid container spacing={2}>
               {parents.map((parent) => (
@@ -252,6 +286,21 @@ export function ConnectedParentsMenu() {
                           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
                             {parent.parentEmail}
                           </Typography>
+                          {parent.parentCode && (
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                display: "block",
+                                fontFamily: "monospace",
+                                color: "text.disabled",
+                                fontSize: "0.65rem",
+                                letterSpacing: 0.3,
+                              }}
+                            >
+                              {parent.parentCode}
+                            </Typography>
+                          )}
                         </Box>
                       </Box>
 
