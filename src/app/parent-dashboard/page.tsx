@@ -323,15 +323,8 @@ export default function ParentDashboardPage() {
                         <Typography variant="subtitle2" fontWeight={600} noWrap>
                           {game.homeTeam?.sport?.name || "Game"}
                         </Typography>
-                        {game.homeTeam?.level && (
-                          <Chip label={game.homeTeam.level} size="small" variant="outlined" />
-                        )}
-                        <Chip
-                          label={game.isHome ? "Home" : "Away"}
-                          size="small"
-                          color={game.isHome ? "success" : "warning"}
-                          variant="outlined"
-                        />
+                        {game.homeTeam?.level && <Chip label={game.homeTeam.level} size="small" variant="outlined" />}
+                        <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "success" : "warning"} variant="outlined" />
                       </Box>
                       <Typography variant="body2" color="text.secondary" noWrap>
                         {game.isHome ? `vs ${game.awayTeam?.name || "TBD"}` : `at ${game.awayTeam?.name || "TBD"}`}
