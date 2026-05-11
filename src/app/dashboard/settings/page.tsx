@@ -145,19 +145,25 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         checkoutStatus={checkoutStatus}
       />
 
-      <Typography sx={{ mb: 1, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
+      <Typography sx={{ mb: 1, mt: 3, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">
         Account Details
       </Typography>
-      <AccountDetailsForm
-        user={user}
-        googleCalendarEmail={user.googleCalendarEmail ?? null}
-        schoolEmail={user.schoolEmail ?? null}
-      />
+      <Box sx={{ mb: 3 }}>
+        <AccountDetailsForm
+          user={user}
+          googleCalendarEmail={user.googleCalendarEmail ?? null}
+          schoolEmail={user.schoolEmail ?? null}
+        />
+      </Box>
 
-      <SchoolDetailsForm user={user} />
+      <Box sx={{ mb: 3 }}>
+        <SchoolDetailsForm user={user} />
+      </Box>
 
       {!isMemberAccess && (
-        <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+        <Box sx={{ mb: 3 }}>
+          <PasswordChangeForm hasPassword={hasPassword} hasGoogleAccount={hasGoogleAccount} />
+        </Box>
       )}
 
       <SupportCard />
