@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 
+/** Map raw DB level values to human-readable display names */
+const LEVEL_DISPLAY: Record<string, string> = {
+  VARSITY: "Varsity",
+  JV: "Junior Varsity",
+  JUNIOR_VARSITY: "Junior Varsity",
+  FRESHMAN: "Freshman",
+  FROSH: "Frosh",
+  MIDDLE_SCHOOL: "Middle School",
+  YOUTH: "Youth",
+};
+
+const LEVEL_ORDER: Record<string, number> = {
+  Varsity: 0,
+  "Junior Varsity": 1,
+  Freshman: 2,
+  Frosh: 3,
+  "Middle School": 4,
+  Youth: 5,
+};
+
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /**
  * GET /api/parent/sport-levels
- * Returns available levels for a specific sport at a school
+ * Returns available levels for a specific sport at a school.
+ * Level names are normalized to proper case (Varsity, Junior Varsity, etc.).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -32,30 +60,29 @@ export async function GET(request: NextRequest) {
     const teams = await prisma.team.findMany({
       where: {
         organizationId,
-        sport: {
-          name: sport,
-        },
+        sport: { name: { equals: sport, mode: "insensitive" } },
       },
-      select: {
-        level: true,
-        gender: true,
-      },
-      distinct: ['level', 'gender'],
+      select: { level: true },
+      distinct: ["level"],
     });
 
-    // Format levels for display
-    const levels = teams.map(team => ({
-      id: `${team.level}-${team.gender || 'COED'}`,
-      name: team.gender 
-        ? `${team.level} ${team.gender}`
-        : team.level,
-    }));
+    // Normalize raw DB values to display names, deduplicate
+    const seen = new Set<string>();
+    const levels: { id: string; name: string }[] = [];
 
-    // Sort: Varsity first, then JV, then others
-    const levelOrder = { 'VARSITY': 0, 'JV': 1, 'FRESHMAN': 2, 'MIDDLE_SCHOOL': 3, 'YOUTH': 4 };
+    for (const team of teams) {
+      const raw = (team.level ?? "").trim().toUpperCase();
+      const display = LEVEL_DISPLAY[raw] ?? toTitleCase(team.level ?? "");
+      if (display && !seen.has(display)) {
+        seen.add(display);
+        levels.push({ id: display, name: display });
+      }
+    }
+
+    // Sort: Varsity → Junior Varsity → Freshman → Frosh → others
     levels.sort((a, b) => {
-      const orderA = levelOrder[a.name.split(' ')[0] as keyof typeof levelOrder] ?? 99;
-      const orderB = levelOrder[b.name.split(' ')[0] as keyof typeof levelOrder] ?? 99;
+      const orderA = LEVEL_ORDER[a.name] ?? 99;
+      const orderB = LEVEL_ORDER[b.name] ?? 99;
       return orderA - orderB;
     });
 
