@@ -288,6 +288,24 @@ function applyValueFilter(where: any, columnId: string, values: string[]) {
       where.status = { in: values };
       break;
 
+    case "time": {
+      // Values may be in 12-hour display format ("6:00 PM") or raw 24-hour
+      // format ("18:00") depending on when the filter was saved.  Normalise
+      // everything to HH:MM before comparing against the database.
+      const rawTimes = values.map((v) => {
+        const match = v.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return v; // Already "HH:MM" or unknown – pass through
+        let h = parseInt(match[1], 10);
+        const m = match[2];
+        const period = match[3].toUpperCase();
+        if (period === "PM" && h !== 12) h += 12;
+        if (period === "AM" && h === 12) h = 0;
+        return `${String(h).padStart(2, "0")}:${m}`;
+      });
+      where.time = { in: rawTimes };
+      break;
+    }
+
     case "location":
       // Handle location text field or venue names
       const locationValues = values.filter((v) => v !== "TBD");

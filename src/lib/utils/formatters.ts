@@ -59,6 +59,10 @@ export const extractDatePart = (dateValue: string): string => {
 export const formatTimeDisplay = (timeString: string | null): string => {
   if (!timeString || timeString.toUpperCase() === "TBD") return "TBD";
   try {
+    // If already in 12-hour format (e.g. "6:00 PM"), return as-is so this
+    // function is safe to call on already-formatted values.
+    if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(timeString.trim())) return timeString.trim();
+
     // Handle cases where it might already be in a readable format or include seconds
     const parts = timeString.split(":");
     if (parts.length < 2) return timeString;
