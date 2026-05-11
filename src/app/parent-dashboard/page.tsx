@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -12,7 +13,9 @@ import {
   Button,
   Alert,
   Divider,
+  Snackbar,
 } from "@mui/material";
+import type { AlertColor } from "@mui/material";
 import {
   CalendarMonth,
   Sync,
@@ -22,6 +25,8 @@ import {
   LocationOn,
   SportsScore,
   ArrowForward,
+  NotificationsActive,
+  Refresh,
 } from "@mui/icons-material";
 import Link from "next/link";
 
@@ -36,6 +41,18 @@ interface ParentLink {
   confirmed: boolean;
   active: boolean;
   syncedAt: string | null;
+}
+
+interface SyncRequest {
+  id: string;
+  sportName: string;
+  sportLevel: string;
+  schoolId: string;
+  schoolName: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejectionReason: string | null;
+  requestedAt: string;
+  reviewedAt: string | null;
 }
 
 interface ParentSubscription {
@@ -72,12 +89,28 @@ interface ParentOverviewData {
   subscription: ParentSubscription | null;
   upcomingGames: GameData[];
   calendarConnected: boolean;
+  calendarSynced: boolean;
+  syncRequests: SyncRequest[];
 }
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
   const res = await fetch("/api/parent/overview");
   if (!res.ok) throw new Error("Failed to fetch overview");
   return res.json();
+}
+
+async function requestReSync(payload: {
+  schoolId: string;
+  sportName: string;
+  sportLevel: string;
+}): Promise<void> {
+  const res = await fetch("/api/parent/calendar-sync-requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to send request");
 }
 
 function formatGameDate(dateStr: string): string {
@@ -99,7 +132,120 @@ function formatGameTime(dateStr: string, time: string | null): string {
   });
 }
 
+// ---------------------------------------------------------------------------
+// RevokedSyncBanners — shown at the top of the overview when the AD removed
+// the parent's calendar sync access. Allows sending a re-sync request.
+// ---------------------------------------------------------------------------
+interface RevokedSyncBannersProps {
+  syncRequests: SyncRequest[];
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}
+
+function RevokedSyncBanners({ syncRequests, onSuccess, onError }: RevokedSyncBannersProps) {
+  const queryClient = useQueryClient();
+
+  // Only show REJECTED requests where no PENDING re-request already exists
+  // for the same school + sport + level.
+  const pendingKeys = new Set(
+    syncRequests
+      .filter((r) => r.status === "PENDING")
+      .map((r) => `${r.schoolId}|${r.sportName}|${r.sportLevel}`)
+  );
+
+  const revokedRequests = syncRequests.filter(
+    (r) =>
+      r.status === "REJECTED" &&
+      !pendingKeys.has(`${r.schoolId}|${r.sportName}|${r.sportLevel}`)
+  );
+
+  const pendingRequests = syncRequests.filter((r) => r.status === "PENDING");
+
+  const reRequestMutation = useMutation({
+    mutationFn: requestReSync,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSuccess("Re-sync request sent! The athletic director will review it shortly.");
+    },
+    onError: (err: Error) => onError(err.message),
+  });
+
+  if (revokedRequests.length === 0 && pendingRequests.length === 0) return null;
+
+  return (
+    <Box sx={{ mb: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
+      {revokedRequests.map((req) => (
+        <Alert
+          key={req.id}
+          severity="warning"
+          icon={<Warning />}
+          action={
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              startIcon={
+                reRequestMutation.isPending ? (
+                  <CircularProgress size={12} color="inherit" />
+                ) : (
+                  <Refresh fontSize="small" />
+                )
+              }
+              disabled={reRequestMutation.isPending}
+              onClick={() =>
+                reRequestMutation.mutate({
+                  schoolId: req.schoolId,
+                  sportName: req.sportName,
+                  sportLevel: req.sportLevel,
+                })
+              }
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              {reRequestMutation.isPending ? "Sending…" : "Request Re-sync"}
+            </Button>
+          }
+          sx={{ alignItems: "center" }}
+        >
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600}>
+              Calendar sync removed — {req.sportName} / {req.sportLevel}
+            </Typography>
+            <Typography variant="body2">
+              The athletic director at <strong>{req.schoolName}</strong> removed your calendar sync
+              access. Send a re-sync request to restore it.
+              {req.rejectionReason && (
+                <> Reason: <em>{req.rejectionReason}</em></>
+              )}
+            </Typography>
+          </Box>
+        </Alert>
+      ))}
+
+      {pendingRequests.map((req) => (
+        <Alert key={req.id} severity="info" icon={<NotificationsActive />}>
+          <Typography variant="subtitle2" fontWeight={600}>
+            Re-sync request pending — {req.sportName} / {req.sportLevel}
+          </Typography>
+          <Typography variant="body2">
+            Your request to re-sync <strong>{req.schoolName}</strong> calendar access is waiting
+            for the athletic director to approve it.
+          </Typography>
+        </Alert>
+      ))}
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main overview page
+// ---------------------------------------------------------------------------
 export default function ParentDashboardPage() {
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: AlertColor }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
@@ -121,6 +267,7 @@ export default function ParentDashboardPage() {
   const isOnTrial = subscriptionStatus === "TRIALING";
   const trialEnd = data?.subscription?.trialEnd ? new Date(data.subscription.trialEnd).toLocaleDateString() : null;
   const upcomingGames = data?.upcomingGames || [];
+  const syncRequests = data?.syncRequests || [];
 
   return (
     <Box>
@@ -139,6 +286,13 @@ export default function ParentDashboardPage() {
           Your free trial ends on {trialEnd}. Continue with Parent Power for $2.25/month to keep calendar sync.
         </Alert>
       )}
+
+      {/* Revoked / Pending re-sync banners */}
+      <RevokedSyncBanners
+        syncRequests={syncRequests}
+        onSuccess={(msg) => setSnackbar({ open: true, message: msg, severity: "success" })}
+        onError={(msg) => setSnackbar({ open: true, message: msg, severity: "error" })}
+      />
 
       {/* Upcoming Schedule - Primary Section */}
       <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
@@ -313,6 +467,22 @@ export default function ParentDashboardPage() {
           Contact Athletic Director
         </Button>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

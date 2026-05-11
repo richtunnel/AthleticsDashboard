@@ -16,7 +16,7 @@ const requestSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -24,9 +24,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : await prisma.user.findFirst({
+          where: { email: { equals: session.user.email, mode: "insensitive" } },
+        });
 
     if (!user) {
       return NextResponse.json(
@@ -70,7 +73,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getParentSession();
-    
+
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Authentication required" },
@@ -78,9 +81,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const sessionUserId = (session.user as any).id as string | undefined;
+    const user = sessionUserId
+      ? await prisma.user.findUnique({ where: { id: sessionUserId } })
+      : await prisma.user.findFirst({
+          where: { email: { equals: session.user.email, mode: "insensitive" } },
+        });
 
     if (!user) {
       return NextResponse.json(

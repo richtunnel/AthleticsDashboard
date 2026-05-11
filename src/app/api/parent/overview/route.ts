@@ -69,6 +69,14 @@ export async function GET(request: NextRequest) {
       select: { lastSyncedAt: true, calendarSynced: true },
     });
 
+    // ── 4b. Calendar sync request statuses ──────────────────────────────────
+    // Include ALL requests so the parent can see revoked syncs and re-request.
+    const allSyncRequests = await prisma.calendarSyncRequest.findMany({
+      where: { parentUserId: user.id },
+      include: { school: { select: { name: true } } },
+      orderBy: { requestedAt: "desc" },
+    });
+
     // ── 5. Upcoming games ────────────────────────────────────────────────────
     // Strategy A: use approved CalendarSyncRequests (most precise — matches exact
     // sport + level that the AD approved).
@@ -210,6 +218,19 @@ export async function GET(request: NextRequest) {
       calendarConnected,
       calendarSynced: connectedParent?.calendarSynced ?? false,
       lastSyncedAt: syncedAt,
+      // Full sync request list so the frontend can show per-sport status and
+      // offer a "Request Re-sync" button when the AD has revoked access.
+      syncRequests: allSyncRequests.map((r) => ({
+        id: r.id,
+        sportName: r.sportName,
+        sportLevel: r.sportLevel,
+        schoolId: r.schoolId,
+        schoolName: r.school?.name || "",
+        status: r.status,
+        rejectionReason: r.rejectionReason,
+        requestedAt: r.requestedAt.toISOString(),
+        reviewedAt: r.reviewedAt?.toISOString() || null,
+      })),
     });
   } catch (error) {
     console.error("[API] Error fetching parent overview:", error);
