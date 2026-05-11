@@ -90,7 +90,7 @@ export const Parallax: React.FC = () => {
               lineHeight: 1.2,
             }}
           >
-            Spend more time on the move than at a desk.
+            Spend more time on the move <br /> than at a desk.
           </Typography>
           <Typography
             variant="h6"
