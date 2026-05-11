@@ -4518,7 +4518,7 @@ export function GamesTable() {
           const columnName = column.id.split(":")[1];
           const columnLabel = getColumnLabel(column.id);
           const importedColumnMapping = columnPreferencesData?.columnMapping as Record<string, string> | undefined;
-          const importedColumnType = importedColumnMapping?.[columnName] === "date" ? "date" : "text";
+          const importedColumnType = importedColumnMapping?.[columnName] === "date" ? "date" : importedColumnMapping?.[columnName] === "time" ? "time" : "text";
           return (
             <TableCell key={column.id} sx={cellSx}>
               <Box sx={{ display: "flex", alignItems: "center" }}>
