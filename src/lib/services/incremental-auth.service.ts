@@ -24,10 +24,14 @@ export interface CallbackResult {
 // Define available scope sets
 export const GOOGLE_SCOPES = {
   PROFILE: ["openid", "email", "profile"] as string[],
-  // calendar.events covers both read and write — calendar.readonly is redundant and
-  // can cause "insufficient scope" errors if the user previously granted a narrower
-  // scope and the token was issued with the wrong permission set.
-  CALENDAR: ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/userinfo.email"] as string[],
+  // calendar.events grants event CRUD but does NOT grant access to calendarList.list().
+  // calendar.readonly is required for listing calendars (calendarList resource).
+  // Both scopes are needed: calendar.events for event read/write, calendar.readonly for listing.
+  CALENDAR: [
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+  ] as string[],
   CONTACTS: ["https://www.googleapis.com/auth/contacts.readonly"] as string[],
 };
 
