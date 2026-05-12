@@ -2,7 +2,6 @@
 
 import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -60,7 +59,6 @@ interface AthleticDirectorInfo {
 function ParentSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adInfo, setAdInfo] = useState<AthleticDirectorInfo | null>(null);
@@ -90,15 +88,22 @@ function ParentSignupContent() {
     }
   }, [searchParams]);
 
-  // If user already has a parent session, redirect to parent onboarding.
-  // Note: With separate parent auth cookies, an AD logged in via the main
-  // cookie will NOT trigger this — only an existing parent session will.
-  // This allows parents to sign up on the same browser as a logged-in AD.
+  // If user already has a PARENT session, redirect to parent onboarding.
+  // We must query /api/auth/parent/session directly — useSession() / getSession()
+  // from next-auth/react only reads the main AD session cookie, so an AD who
+  // visits this page would incorrectly appear as "authenticated" and be
+  // redirected to /onboarding/parent. The parent session lives in a separate
+  // cookie and must be checked via the parent auth endpoint.
   useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      router.push("/onboarding/parent");
-    }
-  }, [status, session, router]);
+    fetch("/api/auth/parent/session")
+      .then(res => res.ok ? res.json() : null)
+      .then(session => {
+        if (session?.user?.email) {
+          router.push("/onboarding/parent");
+        }
+      })
+      .catch(() => {/* ignore — if we can't check, just show the signup page */});
+  }, [router]);
 
   // Fetch AD info if share code is present
   useEffect(() => {

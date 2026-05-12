@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { 
   Box, 
   Container, 
@@ -24,10 +24,15 @@ function ParentCallbackContent() {
 
   useEffect(() => {
     async function handleCallback() {
-      const session = await getSession();
-      
+      // Must query the PARENT session endpoint — getSession() / useSession() from
+      // next-auth/react only reads the main AD session cookie, so a parent who
+      // just authenticated via /api/auth/parent/... would always appear as logged
+      // out if we used the default getSession().
+      const sessionRes = await fetch("/api/auth/parent/session");
+      const session = sessionRes.ok ? await sessionRes.json() : null;
+
       if (!session?.user?.email) {
-        // Not signed in, redirect to signup
+        // Not signed in via parent auth, redirect to signup
         router.push("/onboarding/parent-signup");
         return;
       }
