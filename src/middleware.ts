@@ -99,6 +99,37 @@ export async function middleware(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname;
 
+  // ── Parent OAuth error safety net ─────────────────────────────────────────
+  // When the parent OAuth callback is processed by the MAIN NextAuth handler
+  // instead of the parent handler (state cookie mismatch), NextAuth redirects
+  // to /login?error=OAuthCallback because the main handler has pages.error="/login".
+  // Detect this by checking for any parent-auth cookie — if one exists, the
+  // user was in the middle of a parent OAuth flow, so redirect them to the
+  // parent sign-in page with the error intact.
+  if (pathname === "/login") {
+    const error = req.nextUrl.searchParams.get("error");
+    if (error) {
+      const isProd = process.env.NODE_ENV === "production";
+      const parentStateCookie = isProd ? "__Secure-parent-next-auth.state" : "parent-next-auth.state";
+      const parentCallbackCookie = isProd ? "__Secure-parent-next-auth.callback-url" : "parent-next-auth.callback-url";
+      const parentCsrfCookie = isProd ? "__Host-parent-next-auth.csrf-token" : "parent-next-auth.csrf-token";
+
+      const hasParentCookie =
+        req.cookies.has(parentStateCookie) ||
+        req.cookies.has(parentCallbackCookie) ||
+        req.cookies.has(parentCsrfCookie);
+
+      if (hasParentCookie) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/onboarding/parent-signup";
+        // Keep the error param so the parent signup page can surface the message
+        return NextResponse.redirect(url);
+      }
+    }
+    // No parent context — let ADs see the login page normally
+    return response;
+  }
+
   // Handle onboarding/details route with custom authentication logic
   if (pathname === "/onboarding/details") {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
@@ -255,5 +286,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/parent-dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
+  matcher: ["/login", "/dashboard/:path*", "/parent-dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
 };
