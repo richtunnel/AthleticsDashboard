@@ -480,7 +480,10 @@ function formatLocation(game: any): string {
 }
 
 function sanitize(str: string | null | undefined): string {
-  return (str || "").trim().replace(/[\x00-\x1F\x7F]/g, "");
+  // Preserve \n (0x0A) and \t (0x09) so multi-line event descriptions render
+  // as a block list in Google Calendar. Stripping them caused all fields to
+  // run together in a single inline string.
+  return (str || "").trim().replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 }
 
 export async function unsyncGameFromCalendar(gameId: string, userId: string) {
