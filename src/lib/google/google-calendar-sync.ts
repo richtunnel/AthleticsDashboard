@@ -142,7 +142,17 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
 
   // 3. DATE / TIME CONSTRUCTION
   // Extract the YYYY-MM-DD portion from the game date stored in the DB.
-  const isoDateOnly = game.date instanceof Date ? game.date.toISOString().split("T")[0] : String(game.date).split("T")[0];
+  // We use UTC year/month/day components rather than toISOString().split("T")[0]
+  // so that dates stored as midnight UTC (the Prisma/PostgreSQL default) are
+  // always read as the correct calendar day regardless of the server's local TZ.
+  let isoDateOnly: string;
+  if (game.date instanceof Date) {
+    const z = (n: number) => String(n).padStart(2, "0");
+    isoDateOnly = `${game.date.getUTCFullYear()}-${z(game.date.getUTCMonth() + 1)}-${z(game.date.getUTCDate())}`;
+  } else {
+    // Fallback: coerce to string and take the date portion
+    isoDateOnly = String(game.date).split("T")[0];
+  }
 
   // Parse game.time — stored as "HH:MM", "HH:MM:SS" (24-hr) or "H:MM AM/PM" (12-hr).
   let hours = 12;
