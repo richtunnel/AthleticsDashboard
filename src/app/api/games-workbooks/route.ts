@@ -5,7 +5,7 @@ import { prisma } from "@/lib/database/prisma";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { getWorksheetLimit } from "@/lib/security/plan-limits";
 
-// GET all workbooks for current user
+// GET all workbooks for current user (or the AD owner's workbooks for collaborators)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,9 +13,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Collaborators share an organization with the AD but have their own userId.
+    // GamesWorkbook is keyed on userId (the AD's), so we need to look up the
+    // owner's userId via the CollaborativeMember record when the caller is a collaborator.
+    let workbookOwnerId = session.user.id;
+
+    const userEmail = session.user.email?.toLowerCase();
+    if (userEmail) {
+      const collaboration = await prisma.collaborativeMember.findFirst({
+        where: { email: userEmail, status: "ACCEPTED", revokedAt: null },
+        select: { userId: true },
+      });
+      if (collaboration) {
+        workbookOwnerId = collaboration.userId;
+      }
+    }
+
     const workbooks = await prisma.gamesWorkbook.findMany({
       where: {
-        userId: session.user.id,
+        userId: workbookOwnerId,
       },
       orderBy: {
         sortOrder: "asc",

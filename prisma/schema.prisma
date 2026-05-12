@@ -734,20 +734,23 @@ model GoogleCalendarSyncTracker {
 }
 
 model CollaborativeMember {
-  id           String              @id @default(cuid())
-  userId       String
-  email        String
-  role         CollaborativeRole   @default(VIEWER)
-  status       CollaborativeStatus @default(PENDING)
-  invitedAt    DateTime            @default(now())
-  acceptedAt   DateTime?
-  revokedAt    DateTime?
-  revokeReason String?
-  token        String?             @unique
-  emailError   String?
-  emailSent    Boolean             @default(false)
-  emailSentAt  DateTime?
-  owner        User                @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
+  id                   String                       @id @default(cuid())
+  userId               String
+  email                String
+  role                 CollaborativeRole            @default(VIEWER)
+  status               CollaborativeStatus          @default(PENDING)
+  invitedAt            DateTime                     @default(now())
+  acceptedAt           DateTime?
+  revokedAt            DateTime?
+  revokeReason         String?
+  token                String?                      @unique
+  emailError           String?
+  emailSent            Boolean                      @default(false)
+  emailSentAt          DateTime?
+  chatAccess           CollaboratorChatAccess?
+  chatAccessRequestedAt DateTime?
+  chatAccessReviewedAt  DateTime?
+  owner                User                         @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, email])
   @@index([userId, status])
@@ -1047,4 +1050,10 @@ enum CalendarSyncStatus {
   APPROVED
   REJECTED
   REMOVED
+}
+
+enum CollaboratorChatAccess {
+  PENDING
+  APPROVED
+  REVOKED
 }

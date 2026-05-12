@@ -27,6 +27,8 @@ interface CollaborationMember {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   revokeReason: string | null;
+  chatAccess?: "PENDING" | "APPROVED" | "REVOKED" | null;
+  chatAccessRequestedAt?: string | null;
 }
 
 interface CollaboratorsSectionProps {
@@ -74,6 +76,21 @@ export function CollaboratorsSection({ readOnly = false }: CollaboratorsSectionP
 
   const handleRevoke = async (memberId: string) => {
     setRevokeConfirm({ open: true, memberId });
+  };
+
+  const handleChatAccessChange = async (memberId: string, action: "APPROVE" | "REVOKE") => {
+    try {
+      const res = await fetch("/api/collaboration/chat-access", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collaboratorId: memberId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update chat access");
+      fetchMembers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update chat access");
+    }
   };
 
   const confirmRevoke = async () => {
@@ -138,6 +155,7 @@ export function CollaboratorsSection({ readOnly = false }: CollaboratorsSectionP
           <CollaboratorsList
             members={members}
             onRevoke={handleRevoke}
+            onChatAccessChange={handleChatAccessChange}
             onRefresh={fetchMembers}
           />
         </CardContent>
