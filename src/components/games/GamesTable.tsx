@@ -6189,7 +6189,7 @@ export function GamesTable() {
                   <ContentCopy sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={isCalendarSynced ? "Unlink from Calendar" : "Sync to Calendar"}>
+              <Tooltip title={isCalendarSynced ? "Calendar synced" : "Sync to Calendar"}>
                 <IconButton
                   size="small"
                   sx={{ p: 0.5 }}
