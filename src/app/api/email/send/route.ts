@@ -372,12 +372,6 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error("Subject is required");
     }
 
-    const resend = getResendClientOptional();
-    if (!resend) {
-      console.error(`[EMAIL-API] ${requestId} - Resend not configured`);
-      return ApiResponse.error("Email service not configured. Please set RESEND_API_KEY.", 503);
-    }
-
     let toEmails: string[];
     let emailBody: string;
     let replyTo: string | undefined;
@@ -415,7 +409,7 @@ export async function POST(request: NextRequest) {
       emailBody = result.emailBody;
       replyTo = result.replyTo;
       campaign = result.campaign;
-      emailParams = { 
+      emailParams = {
         campaignId,
         visibleColumnIds: visibleColumnIds || [],
         selectedSchoolNames: selectedSchoolNames || [],
@@ -444,6 +438,32 @@ export async function POST(request: NextRequest) {
     if (validEmails.length === 0) {
       console.error(`[EMAIL-API] ${requestId} - No valid email addresses`);
       return ApiResponse.error("No valid email addresses provided", 400);
+    }
+
+    // Check Resend AFTER resolving email addresses so we can write a FAILED log
+    // that shows up in the email logs UI, telling the AD exactly what went wrong.
+    const resend = getResendClientOptional();
+    if (!resend) {
+      const errMsg = "Email service not configured. RESEND_API_KEY is missing or has an invalid format (must start with 're_').";
+      console.error(`[EMAIL-API] ${requestId} - ${errMsg}`);
+      // Write a FAILED email log so the failure is visible in the email logs UI
+      try {
+        await prisma.emailLog.create({
+          data: {
+            to: validEmails,
+            cc: [],
+            subject,
+            body: "Email failed to send — service misconfiguration. See error field for details.",
+            status: "FAILED",
+            sentById: session.user.id,
+            error: errMsg,
+            ...emailParams,
+          },
+        });
+      } catch (logErr) {
+        console.error(`[EMAIL-API] ${requestId} - Failed to write FAILED email log:`, logErr);
+      }
+      return ApiResponse.error(errMsg, 503);
     }
 
     console.log(`[EMAIL-API] ${requestId} - Validated ${validEmails.length} email addresses`);
