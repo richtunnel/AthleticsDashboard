@@ -13,8 +13,10 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  Button,
+  Alert,
 } from "@mui/material";
-import { Person, ChatBubbleOutline, Delete } from "@mui/icons-material";
+import { Person, ChatBubbleOutline, Delete, Lock } from "@mui/icons-material";
 import ConversationList from "@/components/chat/ConversationList";
 import MessageThread from "@/components/chat/MessageThread";
 import MessageInput from "@/components/chat/MessageInput";
@@ -49,8 +51,26 @@ interface ChatMessage {
   createdAt: string;
 }
 
-async function fetchConversations(): Promise<{ conversations: ConversationItem[] }> {
+interface ConversationsFetchResult {
+  conversations: ConversationItem[];
+  /** Set when the user is a collaborator without chat access */
+  chatAccessDenied?: boolean;
+  /** Current chat access status for collaborators */
+  chatAccess?: "PENDING" | "REVOKED" | null;
+}
+
+async function fetchConversations(): Promise<ConversationsFetchResult> {
   const res = await fetch("/api/chat/conversations");
+  if (res.status === 403) {
+    const data = await res.json();
+    if (data.error === "chat_access_denied") {
+      return {
+        conversations: [],
+        chatAccessDenied: true,
+        chatAccess: data.chatAccess ?? null,
+      };
+    }
+  }
   if (!res.ok) throw new Error("Failed to fetch conversations");
   return res.json();
 }
@@ -65,14 +85,36 @@ export default function ADMessagesPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<ConversationItem | null>(null);
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [accessRequestSent, setAccessRequestSent] = useState(false);
+  const [accessRequestError, setAccessRequestError] = useState<string | null>(null);
 
   const currentUserId = (session?.user as any)?.id || "";
 
-  // Fetch conversations
+  // Fetch conversations (403 → chatAccessDenied for collaborators)
   const { data: convData, isLoading: convLoading } = useQuery({
     queryKey: ["chatConversations"],
     queryFn: fetchConversations,
   });
+
+  const handleRequestChatAccess = async () => {
+    setRequestingAccess(true);
+    setAccessRequestError(null);
+    try {
+      const res = await fetch("/api/collaboration/chat-access", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setAccessRequestError(data.error || "Failed to send request");
+      } else {
+        setAccessRequestSent(true);
+        queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
+      }
+    } catch {
+      setAccessRequestError("Network error — please try again");
+    } finally {
+      setRequestingAccess(false);
+    }
+  };
 
   // Fetch messages for selected conversation
   const { data: msgData, isLoading: msgLoading } = useQuery({
@@ -149,6 +191,87 @@ export default function ADMessagesPage() {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Collaborator without approved chat access — show gate
+  if (convData?.chatAccessDenied) {
+    const isPending = convData.chatAccess === "PENDING";
+    const isRevoked = convData.chatAccess === "REVOKED";
+
+    return (
+      <Box>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Messages
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Chat with parents in real time
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 400,
+            gap: 2,
+            p: 4,
+          }}
+        >
+          <Lock sx={{ fontSize: 56, color: "text.disabled" }} />
+          <Typography variant="h6" fontWeight={600} textAlign="center">
+            Access Required
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ maxWidth: 400 }}>
+            {isPending
+              ? "Your access request has been sent and is pending approval from the Athletic Director."
+              : isRevoked
+              ? "Your access to parent messages has been revoked by the Athletic Director. Contact them to request access again."
+              : "You don't have permission to view parent messages. Request access from the Athletic Director."}
+          </Typography>
+
+          {accessRequestSent && (
+            <Alert severity="success" sx={{ mt: 1, maxWidth: 400 }}>
+              Access request sent! The Athletic Director will be notified by email.
+            </Alert>
+          )}
+
+          {accessRequestError && (
+            <Alert severity="error" sx={{ mt: 1, maxWidth: 400 }} onClose={() => setAccessRequestError(null)}>
+              {accessRequestError}
+            </Alert>
+          )}
+
+          {!isPending && !accessRequestSent && (
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleRequestChatAccess}
+              disabled={requestingAccess}
+              startIcon={requestingAccess ? <CircularProgress size={18} color="inherit" /> : undefined}
+              sx={{ mt: 1, px: 4, borderRadius: 2 }}
+            >
+              {requestingAccess ? "Sending Request…" : "Request Access"}
+            </Button>
+          )}
+
+          {isPending && !accessRequestSent && (
+            <Button
+              variant="outlined"
+              size="large"
+              onClick={handleRequestChatAccess}
+              disabled={requestingAccess}
+              startIcon={requestingAccess ? <CircularProgress size={18} color="inherit" /> : undefined}
+              sx={{ mt: 1, px: 4, borderRadius: 2 }}
+            >
+              {requestingAccess ? "Sending…" : "Re-send Request"}
+            </Button>
+          )}
+        </Box>
       </Box>
     );
   }

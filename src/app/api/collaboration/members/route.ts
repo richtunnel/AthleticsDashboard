@@ -52,6 +52,9 @@ export async function GET(request: NextRequest) {
         emailSent: true,
         emailSentAt: true,
         emailError: true,
+        chatAccess: true,
+        chatAccessRequestedAt: true,
+        chatAccessReviewedAt: true,
       },
       orderBy: [
         { status: "asc" }, // PENDING first
@@ -76,6 +79,9 @@ export async function GET(request: NextRequest) {
       emailSent: collab.emailSent,
       emailSentAt: collab.emailSentAt,
       emailError: collab.emailError,
+      chatAccess: collab.chatAccess,
+      chatAccessRequestedAt: collab.chatAccessRequestedAt,
+      chatAccessReviewedAt: collab.chatAccessReviewedAt,
     }));
 
     return NextResponse.json({

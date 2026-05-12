@@ -24,10 +24,12 @@ import {
   Schedule,
   PersonOff,
   Refresh,
-  MoreVert,
+  ChatBubbleOutline,
+  Lock,
+  LockOpen,
 } from "@mui/icons-material";
 import { ROLE_DISPLAY_NAMES, STATUS_DISPLAY_NAMES } from "@/types/collaboration";
-import { CollaborativeRole, CollaborativeStatus } from "@prisma/client";
+import { CollaborativeRole, CollaborativeStatus, CollaboratorChatAccess } from "@prisma/client";
 
 interface Collaborator {
   id: string;
@@ -38,32 +40,72 @@ interface Collaborator {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   revokeReason: string | null;
+  chatAccess?: CollaboratorChatAccess | null;
+  chatAccessRequestedAt?: Date | string | null;
 }
 
 interface CollaboratorsListProps {
   members: Collaborator[];
   isLoading?: boolean;
   onRevoke?: (collaboratorId: string) => Promise<void>;
+  onChatAccessChange?: (collaboratorId: string, action: "APPROVE" | "REVOKE") => Promise<void>;
   onRefresh?: () => void;
 }
 
-export function CollaboratorsList({ 
-  members, 
-  isLoading = false, 
+export function CollaboratorsList({
+  members,
+  isLoading = false,
   onRevoke,
-  onRefresh 
+  onChatAccessChange,
+  onRefresh
 }: CollaboratorsListProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [chatAccessProcessingId, setChatAccessProcessingId] = useState<string | null>(null);
 
   const handleRevoke = async (collaboratorId: string) => {
     if (!onRevoke) return;
-    
+
     setRevokingId(collaboratorId);
     try {
       await onRevoke(collaboratorId);
     } finally {
       setRevokingId(null);
     }
+  };
+
+  const handleChatAccess = async (collaboratorId: string, action: "APPROVE" | "REVOKE") => {
+    if (!onChatAccessChange) return;
+    setChatAccessProcessingId(collaboratorId);
+    try {
+      await onChatAccessChange(collaboratorId, action);
+    } finally {
+      setChatAccessProcessingId(null);
+    }
+  };
+
+  const getChatAccessChip = (member: Collaborator) => {
+    if (member.status !== "ACCEPTED") return null;
+    if (!member.chatAccess) {
+      // No request yet
+      return <Chip label="No Access" size="small" variant="outlined" color="default" icon={<Lock fontSize="inherit" />} />;
+    }
+    if (member.chatAccess === "PENDING") {
+      return (
+        <Chip
+          label="Requested"
+          size="small"
+          color="warning"
+          icon={<ChatBubbleOutline fontSize="inherit" />}
+        />
+      );
+    }
+    if (member.chatAccess === "APPROVED") {
+      return <Chip label="Approved" size="small" color="success" icon={<LockOpen fontSize="inherit" />} />;
+    }
+    if (member.chatAccess === "REVOKED") {
+      return <Chip label="Revoked" size="small" color="error" icon={<Lock fontSize="inherit" />} />;
+    }
+    return null;
   };
 
   const formatDate = (date: Date | null) => {
@@ -141,8 +183,8 @@ export function CollaboratorsList({
               <TableCell>Email</TableCell>
               <TableCell>Role</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Chat Access</TableCell>
               <TableCell>Invited</TableCell>
-              <TableCell>Accepted</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -155,7 +197,7 @@ export function CollaboratorsList({
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  <Chip 
+                  <Chip
                     label={ROLE_DISPLAY_NAMES[member.role]}
                     size="small"
                     color="primary"
@@ -165,7 +207,7 @@ export function CollaboratorsList({
                 <TableCell>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     {getStatusIcon(member.status)}
-                    <Chip 
+                    <Chip
                       label={STATUS_DISPLAY_NAMES[member.status]}
                       size="small"
                       color={getStatusColor(member.status) as any}
@@ -173,13 +215,49 @@ export function CollaboratorsList({
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2" color="text.secondary">
-                    {formatDate(member.invitedAt)}
-                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    {getChatAccessChip(member)}
+                    {member.status === "ACCEPTED" && onChatAccessChange && (
+                      <>
+                        {member.chatAccess !== "APPROVED" && (
+                          <Button
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            onClick={() => handleChatAccess(member.id, "APPROVE")}
+                            disabled={chatAccessProcessingId === member.id}
+                            sx={{ minWidth: 80 }}
+                          >
+                            {chatAccessProcessingId === member.id ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              "Approve"
+                            )}
+                          </Button>
+                        )}
+                        {member.chatAccess === "APPROVED" && (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            onClick={() => handleChatAccess(member.id, "REVOKE")}
+                            disabled={chatAccessProcessingId === member.id}
+                            sx={{ minWidth: 80 }}
+                          >
+                            {chatAccessProcessingId === member.id ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              "Revoke"
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">
-                    {formatDate(member.acceptedAt)}
+                    {formatDate(member.invitedAt)}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">

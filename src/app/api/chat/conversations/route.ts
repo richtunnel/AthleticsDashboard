@@ -8,6 +8,7 @@ import { UserRole } from "@prisma/client";
 /**
  * GET /api/chat/conversations
  * Lists all conversations for the AD's organization.
+ * Collaborators (ASSISTANT_AD / VENDOR_READ_ONLY) must have APPROVED chat access.
  */
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -23,6 +24,31 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check if the caller is a collaborator and verify their chat access level.
+    // Collaborators only see messages when the AD has explicitly APPROVED access.
+    if (user.role === UserRole.ASSISTANT_AD || user.role === UserRole.VENDOR_READ_ONLY) {
+      const collaboration = await prisma.collaborativeMember.findFirst({
+        where: {
+          email: user.email.toLowerCase(),
+          status: "ACCEPTED",
+          revokedAt: null,
+        },
+        select: { chatAccess: true },
+      });
+
+      const hasAccess = collaboration?.chatAccess === "APPROVED";
+      if (!hasAccess) {
+        // Return 403 so the front-end can show the "Request Access" gate
+        return NextResponse.json(
+          {
+            error: "chat_access_denied",
+            chatAccess: collaboration?.chatAccess ?? null,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // AD sees only conversations with PARENT-role users (excludes members/collaborators)
