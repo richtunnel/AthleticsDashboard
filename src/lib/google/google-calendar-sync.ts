@@ -111,13 +111,22 @@ async function resolveCalendarId(game: any, userId: string, calendar: any): Prom
 }
 
 export async function syncGameToCalendar(gameId: string, userId: string) {
-  // 1. Fetch user & game (Logic is correct)
+  // 1. Fetch user & game
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { organizationId: true, googleCalendarRefreshToken: true },
   });
 
   if (!user?.googleCalendarRefreshToken) return { success: false, skipped: true, message: "Google Calendar not connected" };
+
+  // Fetch the organization's configured timezone (e.g. "America/New_York").
+  // This is critical so that event times match the times shown on the worksheet
+  // rather than being interpreted in the server's UTC timezone.
+  const org = await prisma.organization.findUnique({
+    where: { id: user.organizationId },
+    select: { timezone: true },
+  });
+  const orgTimezone = org?.timezone || "America/New_York";
 
   const game = await prisma.game.findFirst({
     where: { id: gameId, homeTeam: { organizationId: user.organizationId } },
@@ -131,41 +140,68 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
   oauth2Client.setCredentials({ refresh_token: user.googleCalendarRefreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // 3. DATE CONSTRUCTION
+  // 3. DATE / TIME CONSTRUCTION
+  // Extract the YYYY-MM-DD portion from the game date stored in the DB.
   const isoDateOnly = game.date instanceof Date ? game.date.toISOString().split("T")[0] : String(game.date).split("T")[0];
 
-  let hours = 12,
-    minutes = 0;
+  // Parse game.time — stored as "HH:MM", "HH:MM:SS" (24-hr) or "H:MM AM/PM" (12-hr).
+  let hours = 12;
+  let minutes = 0;
   if (game.time && typeof game.time === "string") {
-    const [h, m] = game.time.split(":").map(Number);
-    if (!isNaN(h)) {
+    const timeStr = game.time.trim();
+    const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+    if (amPmMatch) {
+      // 12-hour format: "6:00 PM" → 18, "12:00 AM" → 0
+      let h = parseInt(amPmMatch[1], 10);
+      const m = parseInt(amPmMatch[2], 10);
+      const period = amPmMatch[4].toUpperCase();
+      if (period === "AM" && h === 12) h = 0;
+      if (period === "PM" && h !== 12) h += 12;
       hours = h;
-      minutes = m || 0;
+      minutes = m;
+    } else {
+      // 24-hour format: "18:00" or "18:00:00"
+      const parts = timeStr.split(":");
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1] ?? "0", 10);
+      if (!isNaN(h)) {
+        hours = h;
+        minutes = isNaN(m) ? 0 : m;
+      }
     }
   }
 
-  // We construct the date object.
-  // IMPORTANT: Ensure your server environment variable TZ is set to the user's local timezone
-  // or use a timezone-aware library if this is a multi-timezone app.
-  const startDate = new Date(`${isoDateOnly}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`);
-  const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+  // Build naive local datetime strings (no UTC offset).
+  // We pass orgTimezone to Google Calendar via start.timeZone / end.timeZone so
+  // Google interprets these times in the correct local zone — no server-side
+  // Date math needed, which avoids the server-UTC-offset problem.
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const endHours = hours + 2;
+  const endDay = endHours >= 24; // crosses midnight?
+  const endH = endHours % 24;
 
-  const toRFC3339 = (date: Date) => {
-    const offset = -date.getTimezoneOffset();
-    const absOffset = Math.abs(offset);
-    const z = (n: number) => String(n).padStart(2, "0");
-    const sign = offset >= 0 ? "+" : "-";
-    const offsetStr = `${sign}${z(Math.floor(absOffset / 60))}:${z(absOffset % 60)}`;
-    return `${date.getFullYear()}-${z(date.getMonth() + 1)}-${z(date.getDate())}T${z(date.getHours())}:${z(date.getMinutes())}:${z(date.getSeconds())}${offsetStr}`;
-  };
+  const naiveStart = `${isoDateOnly}T${pad(hours)}:${pad(minutes)}:00`;
+  let naiveEnd: string;
+  if (endDay) {
+    // Add one day to isoDateOnly
+    const d = new Date(`${isoDateOnly}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    const nextDay = d.toISOString().split("T")[0];
+    naiveEnd = `${nextDay}T${pad(endH)}:${pad(minutes)}:00`;
+  } else {
+    naiveEnd = `${isoDateOnly}T${pad(endH)}:${pad(minutes)}:00`;
+  }
 
   // 4. PAYLOAD
+  // description uses HTML so that line breaks render correctly in all Google
+  // Calendar clients. Plain \n is treated as whitespace-collapsible in HTML
+  // context and renders inline.
   const event: calendar_v3.Schema$Event = {
     summary: sanitize(buildEventSummary(game)),
-    description: sanitize(buildEventDescription(game)),
+    description: buildEventDescription(game), // HTML — do not run through sanitize()
     location: sanitize(formatLocation(game)),
-    start: { dateTime: toRFC3339(startDate) },
-    end: { dateTime: toRFC3339(endDate) },
+    start: { dateTime: naiveStart, timeZone: orgTimezone },
+    end: { dateTime: naiveEnd, timeZone: orgTimezone },
     status: "confirmed",
     reminders: {
       useDefault: false,
@@ -417,59 +453,73 @@ function getSportLevelInfo(game: any): string | null {
   return null;
 }
 
+/**
+ * Builds the Google Calendar event description as HTML.
+ *
+ * Google Calendar's description field is rendered as HTML — plain \n characters
+ * collapse as whitespace (just like in a web page). Using <div> or <br> tags
+ * ensures each field appears on its own line in every Google Calendar client
+ * (web, iOS, Android).
+ */
 function buildEventDescription(game: any): string {
-  // Helper to get value from custom fields or default columns
   const customFields = (game.customFields as Record<string, any>) || {};
 
-  // Helper function for case-insensitive field lookup
   const getField = (fieldNames: string[], defaultValue?: any): string => {
     for (const name of fieldNames) {
-      // Try exact match first
-      if (customFields[name]) return customFields[name];
-      // Try case-insensitive match
+      if (customFields[name]) return esc(String(customFields[name]));
       const key = Object.keys(customFields).find(k => k.toLowerCase() === name.toLowerCase());
-      if (key && customFields[key]) return customFields[key];
+      if (key && customFields[key]) return esc(String(customFields[key]));
     }
-    return defaultValue || "TBD";
+    return esc(defaultValue || "TBD");
   };
 
-  // Check custom fields first (case-insensitive), fall back to default columns
-  const sport = getField(["Sport"], game.homeTeam?.sport?.name);
-  const level = getField(["Level"], game.homeTeam?.level);
-  const team = getField(["Team", "Home"], game.homeTeam?.name);
-  const status = getField(["Status"], game.status);
+  const sport  = getField(["Sport"],        game.homeTeam?.sport?.name);
+  const level  = getField(["Level"],        game.homeTeam?.level);
+  const team   = getField(["Team", "Home"], game.homeTeam?.name);
+  const status = getField(["Status"],       game.status);
 
-  let description = `Sport: ${sport}\n`;
-  description += `Level: ${level}\n`;
-  description += `Team: ${team}\n`;
-  description += `Status: ${status}\n`;
+  const rows: string[] = [
+    `<div><b>Sport:</b> ${sport}</div>`,
+    `<div><b>Level:</b> ${level}</div>`,
+    `<div><b>Team:</b> ${team}</div>`,
+    `<div><b>Status:</b> ${status}</div>`,
+  ];
 
-  if (game.opponent) {
-    description += `Opponent: ${game.opponent.name}\n`;
+  if (game.opponent?.name) {
+    rows.push(`<div><b>Opponent:</b> ${esc(game.opponent.name)}</div>`);
   }
 
   if (game.travelRequired) {
-    description += `\nTravel Information:\n`;
-    description += `- Travel Required: Yes\n`;
+    rows.push(`<div>&nbsp;</div><div><b>Travel Information</b></div>`);
+    rows.push(`<div>• Travel Required: Yes</div>`);
     if (game.estimatedTravelTime) {
-      description += `- Travel Time: ${game.estimatedTravelTime} minutes\n`;
+      rows.push(`<div>• Travel Time: ${esc(String(game.estimatedTravelTime))} minutes</div>`);
     }
     if (game.busCount) {
-      description += `- Buses: ${game.busCount}\n`;
+      rows.push(`<div>• Buses: ${esc(String(game.busCount))}</div>`);
     }
     if (game.departureTime) {
-      description += `- Departure: ${new Date(game.departureTime).toLocaleTimeString()}\n`;
+      rows.push(`<div>• Departure: ${esc(new Date(game.departureTime).toLocaleTimeString())}</div>`);
     }
     if (game.travelCost) {
-      description += `- Travel Cost: ${game.travelCost}\n`;
+      rows.push(`<div>• Travel Cost: ${esc(String(game.travelCost))}</div>`);
     }
   }
 
   if (game.notes) {
-    description += `\nNotes: ${game.notes}`;
+    rows.push(`<div>&nbsp;</div><div><b>Notes:</b> ${esc(String(game.notes))}</div>`);
   }
 
-  return description;
+  return rows.join("");
+}
+
+/** HTML-escapes a plain-text string so it is safe inside HTML tags. */
+function esc(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // Helper to clean up location logic
@@ -479,10 +529,12 @@ function formatLocation(game: any): string {
   return [game.venue.name, game.venue.address, game.venue.city, game.venue.state].filter(Boolean).join(", ");
 }
 
+/**
+ * Strips C0/C1 control characters from plain-text fields (summary, location).
+ * Do NOT call this on the description — description is HTML and is handled
+ * separately via buildEventDescription() + esc().
+ */
 function sanitize(str: string | null | undefined): string {
-  // Preserve \n (0x0A) and \t (0x09) so multi-line event descriptions render
-  // as a block list in Google Calendar. Stripping them caused all fields to
-  // run together in a single inline string.
   return (str || "").trim().replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
 }
 
