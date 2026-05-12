@@ -11,7 +11,7 @@ import { validateBulkEmails } from "@/lib/utils/bulk-email";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
 import { formatLevelDisplay } from "@/lib/utils/formatters";
 import { getSiteUrl } from "@/lib/utils/siteUrl";
-import { emailQueueService } from "@/lib/services/email-queue.service";
+import { sendBulkEmail } from "@/lib/utils/bulk-email";
 
 interface Game {
   id: string;
@@ -467,18 +467,21 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[EMAIL-API] ${requestId} - Validated ${validEmails.length} email addresses`);
-    console.log(`[EMAIL-API] ${requestId} - Enqueueing bulk email...`);
+    console.log(`[EMAIL-API] ${requestId} - Sending bulk email directly...`);
 
-    const job = await emailQueueService.enqueueBulkEmail({
-      userId: session.user.id,
-      organizationId: session.user.organizationId,
+    // Send immediately — no queue. sendBulkEmail creates an EmailLog per recipient
+    // (status SENT or FAILED) so every outcome is always visible in email logs.
+    const sendResult = await sendBulkEmail({
       to: validEmails,
       subject,
-      body: emailBody,
+      html: emailBody,
+      sentById: session.user.id,
+      replyTo,
+      additionalMessage: additionalMessage || undefined,
       ...emailParams,
     });
 
-    console.log(`[EMAIL-API] ${requestId} - Email job enqueued: ${job.id}`);
+    console.log(`[EMAIL-API] ${requestId} - Send complete: ${sendResult.success} sent, ${sendResult.failed} failed`);
 
     if (campaignId) {
       try {
@@ -493,12 +496,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const message = `Successfully enqueued ${validEmails.length} email${validEmails.length > 1 ? "s" : ""} for sending`;
+    const { success: sentCount, failed: failedCount } = sendResult;
+    const message = sentCount > 0
+      ? `Successfully sent ${sentCount} email${sentCount !== 1 ? "s" : ""}${failedCount > 0 ? `, ${failedCount} failed (check email logs)` : ""}`
+      : `All ${failedCount} email${failedCount !== 1 ? "s" : ""} failed to send — check email logs for details`;
 
     return ApiResponse.success({
       message,
       result: {
-        jobId: job.id,
+        sent: sentCount,
+        failed: failedCount,
         totalCount: validEmails.length,
       },
     });
