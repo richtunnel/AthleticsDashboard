@@ -83,70 +83,70 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 5. Upcoming games ────────────────────────────────────────────────────
-    // Strategy A: use approved CalendarSyncRequests (most precise — matches exact
-    // sport + level that the AD approved).
+    // Primary path: match sport + level directly from each ParentAthleteLink.
+    // No CalendarSyncRequest approval is required — games appear automatically
+    // as soon as the AD imports or syncs their worksheet.
+    // gradeLevel on ParentAthleteLink stores the TEAM level (VARSITY, JV, …),
+    // not the child's school grade.
     let upcomingGames: any[] = [];
 
     if (links.length > 0) {
-      const schoolIds = [...new Set(links.map((l) => l.schoolId))];
+      const teamIdSet = new Set<string>();
 
-      // Fetch all approved requests for this parent
-      const approvedRequests = await prisma.calendarSyncRequest.findMany({
-        where: {
-          parentUserId: user.id,
-          status: "APPROVED",
-        },
-      });
+      // Primary: sport + level match per link
+      for (const link of links) {
+        if (!link.sport) continue;
 
-      const teamIds: string[] = [];
+        const teamWhere: any = {
+          organizationId: link.schoolId,
+          sport: { name: { equals: link.sport, mode: "insensitive" } },
+        };
 
-      if (approvedRequests.length > 0) {
-        // For each approved request, find the matching team(s)
-        for (const req of approvedRequests) {
-          // sportLevel may encode gender: "VARSITY MALE", "VARSITY FEMALE", "VARSITY"
-          const levelParts = req.sportLevel.trim().split(/\s+/);
-          const baseLevel = levelParts[0];
-          const gender = levelParts.length > 1 ? levelParts[1] : null;
-
-          const teamWhere: any = {
-            organizationId: req.schoolId,
-            sport: { name: { equals: req.sportName, mode: "insensitive" } },
-            level: { equals: baseLevel, mode: "insensitive" },
-          };
-          if (gender) {
-            teamWhere.gender = gender;
-          }
-
-          const teams = await prisma.team.findMany({
-            where: teamWhere,
-            select: { id: true },
-          });
-
-          teamIds.push(...teams.map((t) => t.id));
+        // Match level when available so a parent linked to "Varsity Basketball"
+        // sees only Varsity games, not every basketball team at that school.
+        if (link.gradeLevel) {
+          teamWhere.level = { equals: link.gradeLevel, mode: "insensitive" };
         }
-      } else {
-        // Strategy B: fall back to sport name from ParentAthleteLink
-        const sportNames = links.map((l) => l.sport).filter(Boolean) as string[];
 
-        if (sportNames.length > 0) {
-          const teams = await prisma.team.findMany({
-            where: {
-              organizationId: { in: schoolIds },
-              sport: { name: { in: sportNames } },
-            },
-            select: { id: true },
-            take: 20,
-          });
-          teamIds.push(...teams.map((t) => t.id));
-        }
+        const teams = await prisma.team.findMany({
+          where: teamWhere,
+          select: { id: true },
+        });
+
+        teams.forEach((t) => teamIdSet.add(t.id));
       }
 
-      // Deduplicate team IDs
-      const uniqueTeamIds = [...new Set(teamIds)];
+      // Supplementary: approved CalendarSyncRequests add any additional teams
+      // (covers the case where ADs approved access for a specific sport/level/gender
+      // combination that the direct link didn't pick up).
+      const approvedRequests = await prisma.calendarSyncRequest.findMany({
+        where: { parentUserId: user.id, status: "APPROVED" },
+      });
+
+      for (const req of approvedRequests) {
+        const levelParts = req.sportLevel.trim().split(/\s+/);
+        const baseLevel = levelParts[0];
+        const gender = levelParts.length > 1 ? levelParts[1] : null;
+
+        const teamWhere: any = {
+          organizationId: req.schoolId,
+          sport: { name: { equals: req.sportName, mode: "insensitive" } },
+          level: { equals: baseLevel, mode: "insensitive" },
+        };
+        if (gender) teamWhere.gender = gender;
+
+        const teams = await prisma.team.findMany({
+          where: teamWhere,
+          select: { id: true },
+        });
+        teams.forEach((t) => teamIdSet.add(t.id));
+      }
+
+      const uniqueTeamIds = [...teamIdSet];
 
       if (uniqueTeamIds.length > 0) {
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Start of today
+        today.setHours(0, 0, 0, 0);
 
         upcomingGames = await prisma.game.findMany({
           where: {
