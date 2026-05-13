@@ -4,9 +4,9 @@ import HomePageContent from "@/components/home/HomePageContent";
 import faqsData from "@/data/faq";
 
 export const metadata: Metadata = {
-  title: "Opletics | The Ultimate Athlete Management System & Sports Software",
+  title: "Opletics | Athlete Management Software",
   description:
-    "Opletics is the premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
+    "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
   keywords: [
     "Direct Athletics",
     "teamworks",
@@ -29,9 +29,8 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "Opletics | The Ultimate Athlete Management System & Sports Software",
-    description:
-      "The premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with Opletics.",
+    title: "Opletics |  Athlete Management Software",
+    description: "The premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with Opletics.",
     url: "/",
     images: [
       {
@@ -53,21 +52,22 @@ export default function HomePage() {
       name: item.q,
       acceptedAnswer: {
         "@type": "Answer",
-        text: typeof item.a === "string" ? item.a : "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.",
+        text:
+          typeof item.a === "string"
+            ? item.a
+            : "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.",
       },
     })),
   };
 
   // Manually fixing the text for the JSX ones if needed, or just hardcoding for now to be safe
-  faqJsonLd.mainEntity[0].acceptedAnswer.text = "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.";
+  faqJsonLd.mainEntity[0].acceptedAnswer.text =
+    "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.";
   faqJsonLd.mainEntity[3].acceptedAnswer.text = "We are happy to help! You can reach out to us at support@opletics.com";
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       <HomePageContent />
     </>
   );
