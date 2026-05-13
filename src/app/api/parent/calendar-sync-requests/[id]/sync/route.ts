@@ -86,19 +86,46 @@ export async function POST(
       data: { googleCalendarId },
     });
 
-    return NextResponse.json({ success: true, results });
-  } catch (error) {
+    const added  = results.filter((r) => r.ok).length;
+    const failed = results.filter((r) => !r.ok).length;
+
+    // Surface any auth-level errors so the frontend can prompt reconnect
+    const firstError = results.find((r) => !r.ok)?.error ?? null;
+    const needsReauth =
+      firstError != null &&
+      (firstError.includes("invalid_grant") ||
+        firstError.includes("Token has been expired") ||
+        firstError.includes("Google account not connected") ||
+        firstError.includes("Invalid Credentials"));
+
+    return NextResponse.json({
+      success: true,
+      results,
+      summary: { added, failed },
+      ...(needsReauth ? { needsReauth: true } : {}),
+      ...(firstError && failed > 0 ? { firstError } : {}),
+    });
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.issues[0].message },
         { status: 400 }
       );
     }
-    
+
+    // Top-level auth failure (e.g. token not found before any game is attempted)
+    const isAuthError =
+      error?.message?.includes("invalid_grant") ||
+      error?.message?.includes("Google account not connected") ||
+      error?.message?.includes("Invalid Credentials");
+
     console.error("[API] Error syncing calendar:", error);
     return NextResponse.json(
-      { error: "Failed to sync calendar" },
-      { status: 500 }
+      {
+        error: error.message || "Failed to sync calendar",
+        ...(isAuthError ? { needsReauth: true } : {}),
+      },
+      { status: isAuthError ? 403 : 500 }
     );
   }
 }

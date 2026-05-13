@@ -732,16 +732,18 @@ export class CalendarService {
     const baseLevel  = levelParts[0];
     const gender     = levelParts.length > 1 ? levelParts[1] : null;
 
+    const homeTeamWhere: any = {
+      organizationId,
+      sport: { name: { equals: sportName, mode: "insensitive" } },
+      level: { equals: baseLevel, mode: "insensitive" },
+    };
+    if (gender) {
+      homeTeamWhere.gender = { equals: gender, mode: "insensitive" };
+    }
+
     let games = await prisma.game.findMany({
-      where: {
-        homeTeam: {
-          organizationId,
-          sport: { name: { equals: sportName, mode: "insensitive" } },
-          level: { equals: baseLevel, mode: "insensitive" },
-          ...(gender ? { gender: { equals: gender as any, mode: "insensitive" } } : {}),
-        },
-      },
-      include: { homeTeam: { include: { sport: true } } },
+      where: { homeTeam: homeTeamWhere },
+      include: { homeTeam: { include: { sport: true, organization: true } }, opponent: true, awayTeam: true, venue: true },
     });
 
     // ── Strategy 2: keyword scan across all custom-field columns ──
@@ -756,7 +758,7 @@ export class CalendarService {
 
       const allOrgGames = await prisma.game.findMany({
         where: { homeTeam: { organizationId } },
-        include: { homeTeam: { include: { sport: true } } },
+        include: { homeTeam: { include: { sport: true, organization: true } }, opponent: true, awayTeam: true, venue: true },
       });
 
       games = allOrgGames.filter((g) =>
@@ -768,39 +770,48 @@ export class CalendarService {
       );
     }
 
-    const results = [];
-    for (const game of games) {
-      try {
-        // Ensure mapping exists for this parent
-        // We use the full sportName + sportLevel to ensure uniqueness
-        await prisma.calendarGroupMapping.upsert({
-          where: {
-            userId_columnName_columnValue: {
-              userId,
-              columnName: "Sport & Level",
-              columnValue: `${sportName} ${sportLevel}`,
-            }
-          },
-          update: {
-            googleCalendarId: targetGoogleCalendarId,
-            googleCalendarName: "Parent Sync", // Default name
-          },
-          create: {
+    // Persist the CalendarGroupMapping once (not per-game) so future trigger
+    // syncs can also resolve the correct target calendar for this parent.
+    if (games.length > 0) {
+      await prisma.calendarGroupMapping.upsert({
+        where: {
+          userId_columnName_columnValue: {
             userId,
             columnName: "Sport & Level",
             columnValue: `${sportName} ${sportLevel}`,
-            googleCalendarId: targetGoogleCalendarId,
-            googleCalendarName: "Parent Sync",
-          }
-        });
+          },
+        },
+        update: {
+          googleCalendarId: targetGoogleCalendarId,
+          googleCalendarName: "Parent Sync",
+        },
+        create: {
+          userId,
+          columnName: "Sport & Level",
+          columnValue: `${sportName} ${sportLevel}`,
+          googleCalendarId: targetGoogleCalendarId,
+          googleCalendarName: "Parent Sync",
+        },
+      });
+    }
 
-        const result = await this.syncGameToCalendar(game.id, userId);
+    const results = [];
+    for (const game of games) {
+      try {
+        // Pass targetGoogleCalendarId directly so syncGameToCalendar doesn't have
+        // to reverse-engineer it from game fields via resolveCalendarIdForGame.
+        // For CSV-imported games the sport/level columns live inside customFields,
+        // not in homeTeam.sport.name / homeTeam.level, so resolveCalendarIdForGame
+        // would fall back to "primary" and write to the wrong calendar.
+        const result = await this.syncGameToCalendar(game.id, userId, targetGoogleCalendarId);
         results.push({ id: game.id, ok: true, result });
       } catch (e) {
+        const errorMsg = e instanceof Error ? e.message : "Unknown error";
+        console.error(`[CalendarSync] Failed to sync game ${game.id}:`, errorMsg);
         results.push({
           id: game.id,
           ok: false,
-          error: e instanceof Error ? e.message : "Unknown error",
+          error: errorMsg,
         });
       }
     }
@@ -808,7 +819,7 @@ export class CalendarService {
     return results;
   }
 
-  async syncGameToCalendar(gameId: string, userId: string) {
+  async syncGameToCalendar(gameId: string, userId: string, forcedCalendarId?: string) {
     // 1. Acquire an atomic lock to prevent concurrent syncs for the same game
     try {
       const lockAcquired = await prisma.game.updateMany({
@@ -927,37 +938,50 @@ export class CalendarService {
       // Get calendar client
       const calendar = await this.getCalendarClient(userId);
 
-      // Prepare event data
-      const isoString = game.date instanceof Date ? game.date.toISOString() : game.date;
-      const dateStr = isoString.includes('T') ? isoString.split('T')[0] : isoString;
-      const [year, month, day] = dateStr.split('-').map(num => parseInt(num, 10));
-      
-      let hours = 12; 
+      // ── Datetime construction ──
+      // Use the org's IANA timezone (e.g. "America/New_York") and build a
+      // naïve datetime string (no UTC offset suffix) paired with start.timeZone.
+      // This mirrors the fix applied in google-calendar-sync.ts and avoids the
+      // server's local UTC offset being baked into the datetime string.
+      const orgTimezone: string =
+        game.homeTeam?.organization?.timezone || "America/New_York";
+
+      const pad = (n: number) => n.toString().padStart(2, "0");
+
+      // Extract the calendar date using explicit UTC components so the server's
+      // local timezone never shifts the date by a day.
+      const gameDate = game.date instanceof Date ? game.date : new Date(game.date);
+      const isoDateOnly = `${gameDate.getUTCFullYear()}-${pad(gameDate.getUTCMonth() + 1)}-${pad(gameDate.getUTCDate())}`;
+
+      // Parse 24-hour time stored as "HH:MM" in the database.
+      let hours = 12;
       let minutes = 0;
-      
-      if (game.time && typeof game.time === 'string' && game.time.trim()) {
+
+      if (game.time && typeof game.time === "string" && game.time.trim()) {
         const timeParts = game.time.trim().split(":");
         if (timeParts.length >= 2) {
           const parsedHours = parseInt(timeParts[0], 10);
           const parsedMinutes = parseInt(timeParts[1], 10);
-          if (!isNaN(parsedHours) && !isNaN(parsedMinutes) && parsedHours >= 0 && parsedHours <= 23 && parsedMinutes >= 0 && parsedMinutes <= 59) {
+          if (
+            !isNaN(parsedHours) && !isNaN(parsedMinutes) &&
+            parsedHours >= 0 && parsedHours <= 23 &&
+            parsedMinutes >= 0 && parsedMinutes <= 59
+          ) {
             hours = parsedHours;
             minutes = parsedMinutes;
           }
         }
       }
 
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const startDate = new Date(year, month - 1, day, hours, minutes, 0);
-      const timezoneOffset = startDate.getTimezoneOffset(); 
-      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60);
-      const offsetMinutes = Math.abs(timezoneOffset) % 60;
-      const offsetSign = timezoneOffset <= 0 ? '+' : '-'; 
-      const offsetString = `${offsetSign}${pad(offsetHours)}:${pad(offsetMinutes)}`;
-      
-      const startDateTime = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:00${offsetString}`;
-      const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
-      const endDateTime = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}:00${offsetString}`;
+      // Naïve datetime strings — Google Calendar interprets them in start.timeZone.
+      const naiveStart = `${isoDateOnly}T${pad(hours)}:${pad(minutes)}:00`;
+      const endHours   = hours + 2;
+      const naiveEnd   = endHours < 24
+        ? `${isoDateOnly}T${pad(endHours)}:${pad(minutes)}:00`
+        : `${isoDateOnly}T23:59:00`; // cap at midnight if event pushes past day
+
+      const startDateTime = naiveStart;
+      const endDateTime   = naiveEnd;
 
       let location = "TBD";
       if (game.isHome) {
@@ -972,8 +996,8 @@ export class CalendarService {
         summary: this.buildEventSummary(game),
         description: this.buildEventDescription(game),
         location,
-        start: { dateTime: startDateTime },
-        end: { dateTime: endDateTime },
+        start: { dateTime: startDateTime, timeZone: orgTimezone },
+        end: { dateTime: endDateTime, timeZone: orgTimezone },
         reminders: {
           useDefault: false,
           overrides: [
@@ -983,7 +1007,10 @@ export class CalendarService {
         },
       };
 
-      const targetCalendarId = await this.resolveCalendarIdForGame(game, userId, calendar);
+      // If the caller already knows the target calendar (e.g. syncGamesForSportLevel),
+      // skip resolveCalendarIdForGame entirely — it can't reverse-engineer the correct
+      // calendar ID from CSV-imported games where sport/level live in customFields.
+      const targetCalendarId = forcedCalendarId ?? await this.resolveCalendarIdForGame(game, userId, calendar);
 
       let response: any;
       if (game.googleCalendarEventId) {
