@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -47,7 +46,12 @@ const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
 export default function ParentOnboardingPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  // Use the parent session endpoint instead of next-auth/react useSession().
+  // Parent users authenticate via /api/auth/parent/... which sets a separate
+  // "parent-session-token" cookie. useSession() only reads the main
+  // "next-auth.session-token", so it always returns "unauthenticated" for
+  // pure parent users and creates an infinite redirect loop with parent-signup.
+  const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,15 +70,29 @@ export default function ParentOnboardingPage() {
   const [loadingLevels, setLoadingLevels] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check the PARENT session (not the main AD session) on mount.
   useEffect(() => {
-    if (status === "unauthenticated") {
+    fetch("/api/auth/parent/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session) => {
+        if (session?.user?.email) {
+          setAuthStatus("authenticated");
+        } else {
+          setAuthStatus("unauthenticated");
+        }
+      })
+      .catch(() => setAuthStatus("unauthenticated"));
+  }, []);
+
+  useEffect(() => {
+    if (authStatus === "unauthenticated") {
       router.push("/onboarding/parent-signup");
       return;
     }
-    if (status === "authenticated") {
+    if (authStatus === "authenticated") {
       fetchSchools();
     }
-  }, [status, router]);
+  }, [authStatus, router]);
 
   const fetchSchools = async () => {
     try {
@@ -239,7 +257,7 @@ export default function ParentOnboardingPage() {
     }
   };
 
-  if (status === "loading" || loading) {
+  if (authStatus === "loading" || loading) {
     return (
       <>
         <BaseHeader pt="20px" pl="20px" />

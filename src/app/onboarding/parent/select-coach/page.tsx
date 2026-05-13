@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -41,7 +40,9 @@ const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
 export default function SelectCoachPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  // Use parent session endpoint directly — parent users only have parent-session-token,
+  // not the main next-auth session token, so useSession() always returns "unauthenticated".
+  const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const [activeStep, setActiveStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,8 +52,22 @@ export default function SelectCoachPage() {
   const [parentPrefs, setParentPrefs] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Check the PARENT session on mount.
   useEffect(() => {
-    if (status === "unauthenticated") {
+    fetch("/api/auth/parent/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session) => {
+        if (session?.user?.email) {
+          setAuthStatus("authenticated");
+        } else {
+          setAuthStatus("unauthenticated");
+        }
+      })
+      .catch(() => setAuthStatus("unauthenticated"));
+  }, []);
+
+  useEffect(() => {
+    if (authStatus === "unauthenticated") {
       router.push("/onboarding/parent-signup");
       return;
     }
@@ -67,10 +82,10 @@ export default function SelectCoachPage() {
     const parsedPrefs = JSON.parse(prefs);
     setParentPrefs(parsedPrefs);
 
-    if (status === "authenticated") {
+    if (authStatus === "authenticated") {
       fetchCoaches(parsedPrefs.schoolName);
     }
-  }, [status, router]);
+  }, [authStatus, router]);
 
   const fetchCoaches = async (schoolName: string) => {
     try {
@@ -128,7 +143,7 @@ export default function SelectCoachPage() {
     router.push("/onboarding/parent");
   };
 
-  if (status === "loading" || loading) {
+  if (authStatus === "loading" || loading) {
     return (
       <>
         <BaseHeader pt="20px" pl="20px" />
