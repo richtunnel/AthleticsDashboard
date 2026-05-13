@@ -80,13 +80,7 @@ export default function HomePageContent() {
       >
         {/* Desktop image - hidden on mobile */}
         <div className="relative h-full lg:block hidden">
-          <Image
-            src="/assets/images/green-energy.jpg"
-            alt="Opletics Athlete Management System Dashboard showing sports schedule automation"
-            fill
-            className="object-cover"
-            unoptimized
-          />
+          <Image src="/assets/images/green-energy.jpg" alt="Opletics Athlete Management System Dashboard showing sports schedule automation" fill className="object-cover" unoptimized />
         </div>
 
         {/* Desktop content */}
@@ -356,7 +350,7 @@ export default function HomePageContent() {
         </div>
       </div>
       <HeroSection />
-      <Parallax />
+      {/* <Parallax /> */}
       <ArcCard />
       <SolutionSection />
       {/* <FeaturesSection /> */}
