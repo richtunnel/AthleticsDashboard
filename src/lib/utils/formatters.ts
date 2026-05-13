@@ -61,8 +61,15 @@ export const formatTimeDisplay = (timeString: string | null): string => {
 
   const trimmed = timeString.trim();
 
-  // If already in 12-hour format (e.g. "6:00 PM") return as-is — idempotent.
-  if (/^\d{1,2}:\d{2}\s*(AM|PM)$/i.test(trimmed)) return trimmed;
+  // If already in 12-hour format (e.g. "6:00 PM" or "6:00:00 PM") return
+  // canonical "H:MM AM/PM" form (seconds stripped if present).
+  const amPmInput = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (amPmInput) {
+    const h = parseInt(amPmInput[1], 10);
+    const m = amPmInput[2];
+    const period = amPmInput[3].toUpperCase();
+    return `${h}:${m} ${period}`;
+  }
 
   // Expect raw 24-hour "HH:MM" (with optional seconds appended)
   const parts = trimmed.split(":");
