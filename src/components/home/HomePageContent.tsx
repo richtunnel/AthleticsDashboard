@@ -98,7 +98,7 @@ export default function HomePageContent() {
                 color: "#0f172a",
               }}
             >
-              <CircularProjectIcon size={22} />
+              <CircularProjectIcon size={22} outerStrokeWidth={5} />
               <span className={styles.opleticsLogoText} style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>
                 opletics
               </span>
@@ -203,7 +203,7 @@ export default function HomePageContent() {
                 fontSize: "1.85rem",
               }}
             >
-              <CircularProjectIcon />
+              <CircularProjectIcon outerStrokeWidth={5} />
               <span style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>opletics</span>
             </Link>
             <BookDemoButton
