@@ -42,14 +42,14 @@ export async function GET() {
 
     // Get ADs for each school
     const schoolIds = [...new Set(conversations.map((c) => c.schoolId))];
-    // Exclude temporary member/test accounts (member-{sessionId}@opletics.com)
-    // from the AD lookup so a vip.opletics.com tester never shows as the AD.
-    // Only emails that BOTH start with "member-" AND end with "@opletics.com"
-    // are excluded — a real staff email like admin@opletics.com is unaffected.
+    // Primary guard: isMemberAccess=true flags every vip.opletics.com test account
+    // at creation time. Secondary guard: email pattern catches legacy rows created
+    // before the isMemberAccess field existed.
     const ads = await prisma.user.findMany({
       where: {
         organizationId: { in: schoolIds },
         role: "ATHLETIC_DIRECTOR",
+        isMemberAccess: false,
         NOT: { email: { startsWith: "member-", endsWith: "@opletics.com" } },
       },
       select: { id: true, name: true, image: true, organizationId: true },

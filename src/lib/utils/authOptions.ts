@@ -362,12 +362,16 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        // Upsert the member user to make session creation idempotent
-        // Placeholder school details ensure member access users bypass onboarding
+        // Upsert the member user to make session creation idempotent.
+        // isMemberAccess=true is the canonical DB flag that identifies this as a
+        // temporary product-testing account. It is the primary check used
+        // everywhere we need to exclude member sessions (e.g. conversation queries).
+        // Placeholder school details ensure member access users bypass onboarding.
         const user = await prisma.user.upsert({
           where: { email: memberEmail },
           update: {
             trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            isMemberAccess: true,
           },
           create: {
             email: memberEmail,
@@ -379,6 +383,7 @@ export const authOptions: NextAuthOptions = {
             schoolName: "Member Access",
             teamName: "Member Team",
             schoolAddress: "Member Location",
+            isMemberAccess: true,
           },
           include: {
             organization: {

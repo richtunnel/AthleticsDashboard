@@ -52,15 +52,16 @@ export async function GET() {
     }
 
     // AD sees only conversations with real PARENT-role users.
-    // Exclude temporary member/test accounts whose emails match the exact pattern
-    // "member-{sessionId}@opletics.com" (vip.opletics.com product-testing flow).
-    // Any user whose email only ends with @opletics.com but does NOT start with
-    // "member-" is a legitimate parent and is NOT affected by this filter.
+    // Primary guard: isMemberAccess=true is set at creation for every vip.opletics.com
+    // test account — this is the reliable DB-level check.
+    // Secondary guard: email pattern "member-{sessionId}@opletics.com" catches any
+    // legacy rows created before the isMemberAccess field existed.
     const conversations = await prisma.conversation.findMany({
       where: {
         schoolId: user.organizationId,
         parent: {
           role: UserRole.PARENT,
+          isMemberAccess: false,
           NOT: { email: { startsWith: "member-", endsWith: "@opletics.com" } },
         },
       },
