@@ -30,7 +30,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Opletics |  Athlete Management Software",
-    description: "The premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with Opletics.",
+    description:
+      "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
     url: "/",
     images: [
       {
