@@ -203,10 +203,11 @@ export function CostBudgetTab() {
             <AttachMoney sx={{ color: "text.secondary", mr: 1 }} /> Cost & Budget Analysis
           </Typography>
           {gamesWithCosts.length > 0 && (
-            <Chip 
-              label={`${totalGamesWithCosts} game${totalGamesWithCosts !== 1 ? "s" : ""}`} 
-              size="small" 
-              sx={{ ml: 2, bgcolor: "primary.light", color: "white" }}
+            <Chip
+              label={`${totalGamesWithCosts} game${totalGamesWithCosts !== 1 ? "s" : ""}`}
+              size="small"
+              color="primary"
+              sx={{ ml: 2 }}
             />
           )}
         </AccordionSummary>

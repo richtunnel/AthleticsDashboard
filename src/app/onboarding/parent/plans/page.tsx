@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -45,7 +44,11 @@ const donationTierFeatures = [
 
 export default function ParentPlansPage() {
   const router = useRouter();
-  const { data: session, status, update: updateSession } = useSession();
+  // Use parent session endpoint directly — parent users only have parent-session-token,
+  // not the main next-auth session token, so useSession() always returns "unauthenticated"
+  // for pure parents, causing an infinite redirect loop with /onboarding/parent-signup.
+  const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+  const [parentUserRole, setParentUserRole] = useState<string | null>(null);
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(2);
   const [loading, setLoading] = useState(true);
@@ -55,14 +58,27 @@ export default function ParentPlansPage() {
   const [donationBilling, setDonationBilling] = useState<"monthly" | "annual">("monthly");
   const [completedSubmission, setCompletedSubmission] = useState(false);
 
+  // Check the PARENT session on mount.
+  useEffect(() => {
+    fetch("/api/auth/parent/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session) => {
+        if (session?.user?.email) {
+          setAuthStatus("authenticated");
+          setParentUserRole(session.user.role ?? null);
+        } else {
+          setAuthStatus("unauthenticated");
+        }
+      })
+      .catch(() => setAuthStatus("unauthenticated"));
+  }, []);
+
   useEffect(() => {
     // Don't redirect after a successful plan submission — the user is already
-    // being navigated to /parent-dashboard. Without this guard, the session
-    // refresh from updateSession() re-triggers this effect, finds localStorage
-    // cleared, and redirects back to /onboarding/parent (the double-onboarding bug).
+    // being navigated to /parent-dashboard.
     if (completedSubmission) return;
 
-    if (status === "unauthenticated") {
+    if (authStatus === "unauthenticated") {
       router.push("/onboarding/parent-signup");
       return;
     }
@@ -74,10 +90,10 @@ export default function ParentPlansPage() {
       return;
     }
 
-    if (status === "authenticated") {
+    if (authStatus === "authenticated") {
       setLoading(false);
     }
-  }, [status, router, completedSubmission]);
+  }, [authStatus, router, completedSubmission]);
 
   const handleSelectPlan = async (plan: "free" | "donation" | "donation_annual") => {
     setSubmitting(true);
@@ -113,12 +129,12 @@ export default function ParentPlansPage() {
         throw new Error(linkData.error || "Failed to create parent link");
       }
 
-      // 2. Update user's plan selection — only for users whose primary role is PARENT.
-      // For ADs/coaches who are also parents, their plan (AD subscription) should not
-      // be overwritten. Their parent subscription is tracked via the ParentSubscription model.
-      const userRole = session?.user?.role;
-      if (userRole === "PARENT" || !userRole) {
-        const planRes = await fetch("/api/user/update", {
+      // 2. Update user's plan selection via the parent plan API.
+      // Only update for users whose primary role is PARENT — for ADs/coaches who are
+      // also parents their AD subscription should not be overwritten.
+      // parentUserRole comes from the parent session (not the main AD session).
+      if (parentUserRole === "PARENT" || !parentUserRole) {
+        const planRes = await fetch("/api/parent/update-plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -128,22 +144,18 @@ export default function ParentPlansPage() {
           }),
         });
 
+        // Non-fatal — the link was already created. Log the failure but proceed.
         if (!planRes.ok) {
-          throw new Error("Failed to save plan selection");
+          console.warn("[ParentPlans] Failed to save plan selection — continuing anyway");
         }
       }
 
       // Mark submission as complete BEFORE clearing localStorage to prevent
-      // the useEffect from redirecting back to onboarding when session refreshes.
+      // the useEffect from redirecting back to onboarding when the auth status re-checks.
       setCompletedSubmission(true);
 
       // Clear onboarding preferences now that data is persisted
       localStorage.removeItem("parentOnboardingPrefs");
-
-      // Refresh the session so the JWT reflects the new parent link.
-      // This ensures the user can access both AD and parent dashboards
-      // without needing to re-login.
-      await updateSession();
 
       // Redirect to parent dashboard
       router.push("/parent-dashboard");
@@ -158,7 +170,7 @@ export default function ParentPlansPage() {
     router.push("/onboarding/parent/select-coach");
   };
 
-  if (status === "loading" || loading) {
+  if (authStatus === "loading" || loading) {
     return (
       <>
         <BaseHeader pt="20px" pl="20px" />
