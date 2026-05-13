@@ -905,7 +905,13 @@ export default function ParentSettingsPage() {
       </Card>
 
       {/* Delete Account */}
-      <DeleteAccountSection />
+      <DeleteAccountSection
+        apiEndpoint="/api/parent/delete-account"
+        redirectPath="/parents?deleted=true"
+        onSignOut={async () => {
+          await fetch("/api/parent/signout", { method: "POST" });
+        }}
+      />
 
       <EditProfileDialog
         open={editProfileOpen}
