@@ -222,6 +222,48 @@ const customAdapter = {
     return newUser;
   },
 
+  // ✅ Detect and reset abandoned incomplete signups.
+  //
+  // Problem: a user who starts Google OAuth signup but never completes the
+  // onboarding form leaves behind a User + Account row with no school details
+  // and an active JWT cookie (30-day TTL).  Every subsequent visit hits the
+  // middleware isOnboarded guard → redirect to /onboarding/details, trapping
+  // that session — and any other user sharing the browser — in an infinite
+  // onboarding redirect.  Re-clicking "Sign in with Google" doesn't help
+  // because getUserByAccount finds the existing Account row and returns the
+  // same incomplete user, so NextAuth never adds ?newUser=true to the redirect.
+  //
+  // Fix: when getUserByAccount finds an ATHLETIC_DIRECTOR whose three required
+  // school-detail fields are all null, the signup was definitively abandoned.
+  // Delete the stale User + Account rows so NextAuth falls through to
+  // createUser, issues a fresh ?newUser=true redirect, and onboarding
+  // restarts from a clean state.  We intentionally skip SignupLog so the
+  // 90-day re-signup block is never triggered for a simple abandoned attempt.
+  async getUserByAccount({ provider, providerAccountId }: { provider: string; providerAccountId: string }) {
+    const user = await (adapter as any).getUserByAccount!({ provider, providerAccountId }) as any;
+
+    if (!user) return null;
+
+    const isAbandonedSignup =
+      user.role === "ATHLETIC_DIRECTOR" &&
+      !user.isMemberAccess &&
+      !user.schoolName &&
+      !user.teamName &&
+      !user.schoolAddress;
+
+    if (isAbandonedSignup) {
+      console.log(`[Auth] Abandoned signup for ${user.email} — deleting stale record and restarting onboarding.`);
+      // Accounts have no cascade-delete from User, so remove them first.
+      await prisma.account.deleteMany({ where: { userId: user.id } });
+      await prisma.user.delete({ where: { id: user.id } });
+      // null → NextAuth calls getUserByEmail (also null) → createUser →
+      // fresh ?newUser=true redirect → /onboarding/details clean slate.
+      return null;
+    }
+
+    return user;
+  },
+
   // ✅ Override linkAccount to remove unsupported fields and survive duplicate rows.
   //
   // Why upsert instead of create:
