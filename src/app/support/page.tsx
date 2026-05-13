@@ -11,8 +11,39 @@ import { getFirstName } from "@/lib/utils/name";
 import BookDemoButton from "@/components/buttons/BookDemoButton";
 
 export const metadata: Metadata = {
-  title: "Support",
-  description: "Contact Opletics support. We typically respond within 48 hours.",
+  title: "Opletics Support | Help for Athletic Directors, Coaches & Staff",
+  description:
+    "Get help with Opletics — the AMS for athletic directors, coaches, and staff. Support for calendar sync, game schedule, score tracker, ad chat, athletics chat, automate workflow, and all sports management tools.",
+  keywords: [
+    // ── Features ─────────────────────────────────────────────────────────
+    "ad chat",
+    "athletics chat",
+    "calendar sync",
+    "game schedule",
+    "score tracker",
+    "automate workflow",
+    "automate schedules",
+    "automate spreadsheet",
+    "easy game finder",
+    "schedule games",
+    "campaign manager",
+    "athlete management",
+    "centralized ams",
+    "athletes desk",
+    // ── Audience ─────────────────────────────────────────────────────────
+    "tools for athletic directors",
+    "tools for coaches",
+    "tools for staff",
+    "software for athletic directors",
+    "software for coaches",
+    "athletic directors",
+    // ── Core ─────────────────────────────────────────────────────────────
+    "opletics",
+    "AMS",
+    "athletic management system",
+    "sports management",
+    "league management",
+  ],
   alternates: {
     canonical: "/support",
   },
