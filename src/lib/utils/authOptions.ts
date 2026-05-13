@@ -222,13 +222,24 @@ const customAdapter = {
     return newUser;
   },
 
-  // ✅ Override linkAccount to remove unsupported fields
+  // ✅ Override linkAccount to remove unsupported fields and survive duplicate rows.
+  //
+  // Why upsert instead of create:
+  // NextAuth catches *any* error thrown by linkAccount and converts it to an
+  // OAuthAccountNotLinked redirect.  prisma.account.create() throws P2002
+  // (unique constraint) when an Account row for [provider, providerAccountId]
+  // already exists — which happens after account recreation or after a previous
+  // failed link attempt.  Using upsert means we update the existing row (e.g.
+  // freshen userId / tokens) instead of crashing, so sign-in always succeeds.
   async linkAccount(account: any) {
-    // Remove fields that aren't in the Prisma schema
     const { refresh_token_expires_in, ...accountData } = account;
+    const { provider, providerAccountId, userId, ...rest } = accountData;
 
-    // Call the original linkAccount with cleaned data
-    return adapter.linkAccount!(accountData);
+    return prisma.account.upsert({
+      where: { provider_providerAccountId: { provider, providerAccountId } },
+      create: accountData,
+      update: { userId, ...rest },
+    });
   },
 } as any;
 
