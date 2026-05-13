@@ -55,7 +55,7 @@ const softwareAppJsonLd = {
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Sports Management Software",
   description:
-    "The ultimate athlete management system (AMS), athletic management system, and sports software for athletic departments. Features include workout tracking, fitness monitoring, and centralized AMS capabilities.",
+    "The premier athletic management system (AMS) and sports software for athletic departments. The top alternative to Direct Athletics, Teamworks, Teambuilder, Kinduct, Athlete SR, and other AMS platforms. Centralize scheduling, calendars, and team management in one place.",
   featureList: [
     "AI-powered game scheduling",
     "Real-time Google Calendar synchronization",
@@ -64,11 +64,10 @@ const softwareAppJsonLd = {
     "League-wide conflict detection",
     "Direct Athletics & Teamworks alternative",
     "Athlete management system (AMS)",
-    "Teambuilder and workout integration",
-    "Kinduct and Athlete SR features",
-    "Smart athlete monitoring",
-    "Centralized AMS and athletes desk",
-    "Adhub and athletics hub",
+    "Alternative to Teambuilder and team builder platforms",
+    "Replaces Kinduct, Athlete SR, and legacy AMS tools",
+    "Smart athlete and team monitoring",
+    "Centralized AMS — athletes desk, adhub, and athletics hub",
   ],
   offers: {
     "@type": "AggregateOffer",

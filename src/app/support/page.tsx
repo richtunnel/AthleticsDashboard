@@ -13,6 +13,22 @@ import BookDemoButton from "@/components/buttons/BookDemoButton";
 export const metadata: Metadata = {
   title: "Support",
   description: "Contact Opletics support. We typically respond within 48 hours.",
+  keywords: [
+    "Direct Athletics",
+    "teamworks",
+    "Teambuilder",
+    "team builder",
+    "AMS",
+    "athletic management system",
+    "athlete monitoring",
+    "smart athlete",
+    "Kinduct",
+    "athlete SR",
+    "athletes desk",
+    "adhub",
+    "athletics hub",
+    "centralized ams",
+  ],
   alternates: {
     canonical: "/support",
   },
