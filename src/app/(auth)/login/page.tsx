@@ -81,7 +81,16 @@ function LoginForm() {
     }
   };
 
-  const displayError = error || (errorParam === "OAuthSignin" ? "No account found with this Google account. Please sign up first." : "");
+  const oauthErrorMessages: Record<string, string> = {
+    OAuthSignin: "No account found with this Google account. Please sign up first.",
+    OAuthCallback: "There was a problem completing Google sign-in. Please try again.",
+    OAuthCreateAccount: "Unable to create an account with this Google account. Your email may be temporarily unavailable for sign-up — please try again or contact support.",
+    OAuthAccountNotLinked: "This Google account is associated with a different sign-in method. Please use the same sign-in method you used when you first registered.",
+    AccessDenied: "Access was denied. Please try again or contact support.",
+    Callback: "There was an error during sign-in. Please try again.",
+    Default: "An error occurred during sign-in. Please try again.",
+  };
+  const displayError = error || (errorParam ? (oauthErrorMessages[errorParam] ?? oauthErrorMessages.Default) : "");
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>

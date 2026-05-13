@@ -253,12 +253,20 @@ const customAdapter = {
 
     if (isAbandonedSignup) {
       console.log(`[Auth] Abandoned signup for ${user.email} — deleting stale record and restarting onboarding.`);
-      // Accounts have no cascade-delete from User, so remove them first.
-      await prisma.account.deleteMany({ where: { userId: user.id } });
-      await prisma.user.delete({ where: { id: user.id } });
-      // null → NextAuth calls getUserByEmail (also null) → createUser →
-      // fresh ?newUser=true redirect → /onboarding/details clean slate.
-      return null;
+      try {
+        // Accounts have no cascade-delete from User, so remove them first.
+        await prisma.account.deleteMany({ where: { userId: user.id } });
+        await prisma.user.delete({ where: { id: user.id } });
+        // null → NextAuth calls getUserByEmail (also null) → createUser →
+        // fresh ?newUser=true redirect → /onboarding/details clean slate.
+        return null;
+      } catch (deleteError) {
+        // Deletion failed (e.g. unexpected FK constraint). Fall through and let
+        // the user sign in normally — worst case they land on /onboarding/details
+        // again, which is harmless compared to a hard auth failure.
+        console.error(`[Auth] Failed to clean up abandoned signup for ${user.email}:`, deleteError);
+        return user;
+      }
     }
 
     return user;
