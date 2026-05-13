@@ -4006,24 +4006,6 @@ export function GamesTable() {
     bulkSyncGamesMutation.mutate(gameIdsToSync);
   }, [selectedGames, bulkSyncGamesMutation, addNotification, isCalendarConnected]);
 
-  // Re-sync every previously-synced game so existing Google Calendar events
-  // pick up any server-side fixes (e.g. timezone correction). Does not require
-  // rows to be selected — finds all synced games automatically.
-  const handleResyncAllSynced = useCallback(() => {
-    if (!isCalendarConnected) {
-      router.push("/dashboard/gsync");
-      return;
-    }
-    const syncedIds = (games as Game[])
-      .filter((g) => g.calendarSynced && g.googleCalendarEventId)
-      .map((g) => g.id);
-    if (syncedIds.length === 0) {
-      addNotification("No synced games to re-sync", "info");
-      return;
-    }
-    bulkSyncGamesMutation.mutate(syncedIds);
-  }, [games, isCalendarConnected, bulkSyncGamesMutation, addNotification, router]);
-
   const handleAddColumnsClick = () => {
     trackEvent("Add Columns Clicked", {
       source: "games_table",
@@ -7413,26 +7395,6 @@ export function GamesTable() {
                   Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
                 </Button>
               </Tooltip>
-              {/* Re-sync all previously-synced games — updates time/description in Google Calendar */}
-              {isCalendarConnected && (games as Game[]).some((g) => g.calendarSynced && g.googleCalendarEventId) && (
-                <Tooltip title="Re-sync all calendar events to fix time or description">
-                  <Button
-                    variant="outlined"
-                    startIcon={bulkSyncGamesMutation.isPending ? <CircularProgress size={14} color="inherit" /> : <Sync />}
-                    onClick={handleResyncAllSynced}
-                    disabled={bulkSyncGamesMutation.isPending}
-                    size="small"
-                    sx={{
-                      borderColor: theme.palette.themeButtonText.subtle,
-                      color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
-                      textTransform: "none",
-                      display: { xs: "none", sm: "inline-flex" },
-                    }}
-                  >
-                    Re-sync All
-                  </Button>
-                </Tooltip>
-              )}
               {/* <Tooltip title={"Go to Calendar"}>
             <Button
               component={NextLink}
