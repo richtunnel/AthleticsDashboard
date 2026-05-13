@@ -3149,7 +3149,7 @@ export function GamesTable() {
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
           // Also invalidate games so deleted records disappear immediately
-          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+          queryClient.invalidateQueries({ queryKey: ["games"] });
           // Remove the stale per-workbook column preferences from the cache
           queryClient.removeQueries({ queryKey: ["tablePreferences", `games-${id}`] });
         })
@@ -3215,7 +3215,7 @@ export function GamesTable() {
       }
 
       // Refresh data
-      queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["games"] });
       queryClient.invalidateQueries({ queryKey: ["customColumns"] });
       queryClient.invalidateQueries({ queryKey: ["tablePreferences", activePreferencesKey] });
       queryClient.invalidateQueries({ queryKey: ["importedColumns"] });
@@ -3223,7 +3223,7 @@ export function GamesTable() {
       queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
 
       // ALSO TRY: Force a refetch instead of just invalidate
-      queryClient.refetchQueries({ queryKey: GAMES_QUERY_KEY });
+      queryClient.refetchQueries({ queryKey: ["games"] });
       queryClient.refetchQueries({ queryKey: ["tablePreferences", activePreferencesKey] });
       queryClient.refetchQueries({ queryKey: ["dashboard-upcoming-games"] });
     },
@@ -3777,7 +3777,7 @@ export function GamesTable() {
       }
 
       // Refresh games data
-      await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ["games"] });
       addNotification("Bus travel times saved successfully", "success");
     } catch (error: any) {
       addNotification(error.message || "Failed to save bus travel times", "error");
@@ -3815,7 +3815,7 @@ export function GamesTable() {
         }
 
         // Refresh games data
-        await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: ["games"] });
         addNotification("Travel time saved successfully", "success");
       } else {
         // Legacy behavior: use the save-travel-time API endpoint
@@ -3837,7 +3837,7 @@ export function GamesTable() {
         const result = await response.json();
 
         // Refresh games and custom columns data
-        await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: ["games"] });
         await queryClient.invalidateQueries({ queryKey: ["customColumns"] });
 
         let message = "Travel time saved successfully";
@@ -3869,7 +3869,7 @@ export function GamesTable() {
       }
 
       // Refresh games data and cost budget data
-      await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: ["games"] });
       await queryClient.invalidateQueries({ queryKey: ["costBudgetEnabled"] });
       addNotification("Cost saved successfully", "success");
     } catch (error: any) {
@@ -7910,7 +7910,7 @@ export function GamesTable() {
 
       <ImportUndoButton
         onUndo={() => {
-          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+          queryClient.invalidateQueries({ queryKey: ["games"] });
           queryClient.invalidateQueries({ queryKey: ["tablePreferences", TABLE_PREFERENCES_KEY] });
           addNotification("Import undone - all imported games have been deleted", "success");
         }}
@@ -7918,7 +7918,7 @@ export function GamesTable() {
 
       <UndoDeleteButton
         onUndo={() => {
-          queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+          queryClient.invalidateQueries({ queryKey: ["games"] });
           addNotification("Delete undone - games have been restored", "success");
         }}
       />
