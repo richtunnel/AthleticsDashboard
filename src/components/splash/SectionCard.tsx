@@ -33,7 +33,7 @@ export const ArcCard: React.FC = () => {
   }, []);
 
   return (
-    <>
+    <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
       <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
         <Box
           sx={{
@@ -103,6 +103,6 @@ export const ArcCard: React.FC = () => {
           </Stack>
         </Box>
       </Container>
-    </>
+    </Box>
   );
 };

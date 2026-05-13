@@ -10,7 +10,7 @@ import styles from "@/styles/hero.module.css";
 
 export const HeroSection: React.FC = () => {
   return (
-    <Box sx={{ position: "relative", overflow: "hidden", padding: "0" }}>
+    <Box sx={{ position: "relative", overflow: "hidden", padding: "0", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
       {/* <BackgroundGradient height="100%" zIndex="-1" /> */}
       <Container maxWidth="xl" sx={{ pt: { xs: 2, lg: 20 }, pb: { xs: 4, lg: 20 } }}>
         <Stack direction={{ xs: "column", lg: "row" }} alignItems="center">
