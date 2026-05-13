@@ -8227,6 +8227,17 @@ function deriveColumnState(previous: ColumnStateConfig[], preferences: TablePref
     finalOrder = defaultOrder;
   }
 
+  // ALWAYS enforce 'actions' as the last column, no matter how preferences were
+  // merged or which new columns were appended.  When the user saves preferences
+  // with 'actions' somewhere in the middle and a new custom column is added later,
+  // mergeWithDefaultOrder appends the new column AFTER 'actions' — breaking the
+  // invariant.  Moving 'actions' to the end here fixes every code path at once.
+  const actionsIdx = finalOrder.indexOf("actions" as ColumnId);
+  if (actionsIdx !== -1 && actionsIdx !== finalOrder.length - 1) {
+    finalOrder.splice(actionsIdx, 1);
+    finalOrder.push("actions" as ColumnId);
+  }
+
   // Determine visibility: respect saved hidden state, otherwise default to visible
   return finalOrder.map((id) => ({
     id,
@@ -8272,6 +8283,15 @@ function mergeWithDefaultOrder(order: ColumnId[], defaultOrder: ColumnId[]): Col
       merged.push(id);
     }
   });
+
+  // After appending new columns, re-pin 'actions' to the very end so that any
+  // column added since the last save (custom columns, AI features, etc.) always
+  // appears before the Actions column, not after it.
+  const actionsIdx = merged.indexOf("actions" as ColumnId);
+  if (actionsIdx !== -1 && actionsIdx !== merged.length - 1) {
+    merged.splice(actionsIdx, 1);
+    merged.push("actions" as ColumnId);
+  }
 
   return merged;
 }
