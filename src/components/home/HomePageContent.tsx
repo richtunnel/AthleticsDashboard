@@ -117,12 +117,9 @@ export default function HomePageContent() {
           <div className="flex flex-1 items-center justify-center px-4">
             <div className={styles.homePageContentContainer}>
               <h1
-                className="HomePageTitle mb-4"
+                className="HomePageTitle text-5xl font-bold mb-4 leading-tight"
                 style={{
                   color: "#0f172a",
-                  fontSize: "3.5rem",
-                  fontWeight: 800,
-                  lineHeight: 1.15,
                 }}
               >
                 Automate Your <br /> Sports Schedules
