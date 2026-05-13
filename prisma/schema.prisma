@@ -901,6 +901,25 @@ model CalendarSyncRequest {
   @@map("CalendarSyncRequest")
 }
 
+/**
+ * Stores per-parent Google Calendar event IDs for synced games.
+ * The Game model's googleCalendarEventId is AD-only; parent event IDs
+ * live here so the two sync paths never overwrite each other.
+ */
+model ParentGameCalendarEvent {
+  id                    String   @id @default(cuid())
+  parentUserId          String
+  gameId                String
+  googleCalendarEventId String
+  googleCalendarId      String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([parentUserId, gameId])
+  @@index([parentUserId])
+  @@index([gameId])
+}
+
 model ChatMessage {
   id             String       @id @default(cuid())
   conversationId String

@@ -1013,55 +1013,108 @@ export class CalendarService {
       const targetCalendarId = forcedCalendarId ?? await this.resolveCalendarIdForGame(game, userId, calendar);
 
       let response: any;
-      if (game.googleCalendarEventId) {
-        const candidateCalendarIds = await this.getCandidateCalendarIds(userId);
-        const calendarIdsToTry = [targetCalendarId, ...candidateCalendarIds.filter((id) => id !== targetCalendarId)];
 
-        let updateResponse: any | null = null;
-        for (const calendarId of calendarIdsToTry) {
-          try {
-            updateResponse = await calendar.events.update({
-              calendarId,
-              eventId: game.googleCalendarEventId,
-              requestBody: event,
-            });
-            break;
-          } catch (err: any) {
-            if ((err?.code ?? err?.status) === 404) continue;
-            throw err;
-          }
-        }
-
-        if (!updateResponse) {
-          response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
-        } else {
-          response = updateResponse;
-        }
-      } else {
-        response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
-      }
-
-      // Update game and tracker in a transaction
-      await prisma.$transaction(async (tx) => {
-        await tx.game.update({
-          where: { id: gameId },
-          data: {
-            googleCalendarEventId: response.data.id || null,
-            googleCalendarHtmlLink: response.data.htmlLink || null,
-            calendarSynced: true,
-            lastSyncedAt: new Date(),
-          },
+      if (user.role === "PARENT") {
+        // ── Parent path ──────────────────────────────────────────────────────
+        // Parent event IDs are stored in ParentGameCalendarEvent so they NEVER
+        // collide with the AD's game.googleCalendarEventId.
+        const existing = await prisma.parentGameCalendarEvent.findUnique({
+          where: { parentUserId_gameId: { parentUserId: userId, gameId } },
         });
 
-        if (isNewSyncUser) {
-          const tracker = await tx.googleCalendarSyncTracker.findFirst({ select: { id: true } });
-          if (tracker) {
-            await tx.googleCalendarSyncTracker.update({ where: { id: tracker.id }, data: { count: { increment: 1 } } });
-          } else {
-            await tx.googleCalendarSyncTracker.create({ data: { id: "default", count: 1, lastCountedAt: new Date() } });
+        let updated = false;
+        if (existing) {
+          // Try to update the existing parent event
+          try {
+            response = await calendar.events.update({
+              calendarId: existing.googleCalendarId,
+              eventId: existing.googleCalendarEventId,
+              requestBody: event,
+            });
+            updated = true;
+          } catch (err: any) {
+            // 404 means the event was deleted from the parent's calendar — fall through to insert
+            if ((err?.code ?? err?.status) !== 404) throw err;
           }
         }
-      });
+
+        if (!updated) {
+          response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
+          // Upsert the per-parent event record
+          await prisma.parentGameCalendarEvent.upsert({
+            where: { parentUserId_gameId: { parentUserId: userId, gameId } },
+            create: {
+              parentUserId: userId,
+              gameId,
+              googleCalendarEventId: response.data.id,
+              googleCalendarId: targetCalendarId,
+            },
+            update: {
+              googleCalendarEventId: response.data.id,
+              googleCalendarId: targetCalendarId,
+            },
+          });
+        } else {
+          // Update the stored calendar/event IDs in case the parent switched calendars
+          await prisma.parentGameCalendarEvent.update({
+            where: { parentUserId_gameId: { parentUserId: userId, gameId } },
+            data: {
+              googleCalendarEventId: response.data.id,
+              googleCalendarId: existing!.googleCalendarId,
+            },
+          });
+        }
+        // Parents never touch game.googleCalendarEventId — that field belongs to the AD.
+      } else {
+        // ── AD / Staff path ──────────────────────────────────────────────────
+        if (game.googleCalendarEventId) {
+          const candidateCalendarIds = await this.getCandidateCalendarIds(userId);
+          const calendarIdsToTry = [targetCalendarId, ...candidateCalendarIds.filter((id) => id !== targetCalendarId)];
+
+          let updateResponse: any | null = null;
+          for (const calendarId of calendarIdsToTry) {
+            try {
+              updateResponse = await calendar.events.update({
+                calendarId,
+                eventId: game.googleCalendarEventId,
+                requestBody: event,
+              });
+              break;
+            } catch (err: any) {
+              if ((err?.code ?? err?.status) === 404) continue;
+              throw err;
+            }
+          }
+
+          response = updateResponse
+            ? updateResponse
+            : await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
+        } else {
+          response = await calendar.events.insert({ calendarId: targetCalendarId, requestBody: event });
+        }
+
+        // Update game record — only for AD syncs
+        await prisma.$transaction(async (tx) => {
+          await tx.game.update({
+            where: { id: gameId },
+            data: {
+              googleCalendarEventId: response.data.id || null,
+              googleCalendarHtmlLink: response.data.htmlLink || null,
+              calendarSynced: true,
+              lastSyncedAt: new Date(),
+            },
+          });
+
+          if (isNewSyncUser) {
+            const tracker = await tx.googleCalendarSyncTracker.findFirst({ select: { id: true } });
+            if (tracker) {
+              await tx.googleCalendarSyncTracker.update({ where: { id: tracker.id }, data: { count: { increment: 1 } } });
+            } else {
+              await tx.googleCalendarSyncTracker.create({ data: { id: "default", count: 1, lastCountedAt: new Date() } });
+            }
+          }
+        });
+      }
 
       return response.data;
     } catch (error: any) {
