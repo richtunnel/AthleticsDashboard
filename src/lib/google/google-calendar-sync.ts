@@ -126,6 +126,12 @@ export async function syncGameToCalendar(gameId: string, userId: string) {
     where: { id: user.organizationId },
     select: { timezone: true },
   });
+  if (!org?.timezone) {
+    console.warn(
+      `[Calendar Sync] Organization ${user.organizationId} has no timezone configured — defaulting to America/New_York. ` +
+      "Event times may appear incorrect for organisations outside the Eastern timezone. Set Organization.timezone to fix this."
+    );
+  }
   const orgTimezone = org?.timezone || "America/New_York";
 
   const game = await prisma.game.findFirst({

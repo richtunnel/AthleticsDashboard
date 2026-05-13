@@ -1,6 +1,7 @@
 import { prisma } from "../database/prisma";
 import { format } from "date-fns";
 import { formatLevelDisplay } from "../utils/formatters";
+import { normalizeTimeFormat } from "../utils/timeValidation";
 import { jobQueueService } from "./job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
 
@@ -196,7 +197,11 @@ export class ImportExportService {
             await tx.game.create({
               data: {
                 date,
-                time: row["Time"] || null,
+                time: (() => {
+                  if (!row["Time"]) return null;
+                  try { return normalizeTimeFormat(row["Time"]); }
+                  catch { return row["Time"] as string; } // preserve original if format is unrecognised
+                })(),
                 status: (row["Status"] as any) || "SCHEDULED",
                 isHome: row["Location Type"]?.toLowerCase() === "home",
                 notes: row["Notes"] || null,

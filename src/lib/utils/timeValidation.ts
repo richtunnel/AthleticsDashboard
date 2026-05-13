@@ -31,7 +31,25 @@ export function normalizeTimeFormat(timeStr: string | null | undefined): string 
     return null;
   }
 
-  // Match HH:MM, H:MM, HH:M, or H:M format
+  // Handle 12-hour AM/PM format: "6:00 PM", "6:00:00 PM", "12:30 AM", etc.
+  const amPmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (amPmMatch) {
+    let hours = parseInt(amPmMatch[1], 10);
+    const minutes = parseInt(amPmMatch[2], 10);
+    const period = amPmMatch[3].toUpperCase();
+
+    // 12-hour → 24-hour conversion
+    if (period === "AM" && hours === 12) hours = 0;   // 12:xx AM → 00:xx
+    if (period === "PM" && hours !== 12) hours += 12; // 1–11 PM  → 13–23
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+      throw new Error(`Invalid time value: "${timeStr}"`);
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  // Match HH:MM, H:MM, HH:M, or H:M 24-hour format
   const timePattern = /^(\d{1,2}):(\d{1,2})$/;
   const match = trimmed.match(timePattern);
 
