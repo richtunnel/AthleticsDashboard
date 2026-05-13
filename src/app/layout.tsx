@@ -107,7 +107,7 @@ const softwareAppJsonLd = {
 export const metadata: Metadata = {
   metadataBase: getSiteUrlAsUrl(),
   title: {
-    default: "Opletics | Premier Athlete Management System & Sports Software",
+    default: "Opletics | Athlete Management System & Sports Software",
     template: "%s | Opletics",
   },
   description:
@@ -150,7 +150,7 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "Opletics",
-    title: "Opletics | Premier Athlete Management System & Sports Software",
+    title: "Opletics | Athlete Management System & Sports Software",
     description:
       "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync for athletic directors and coaches. The ultimate sports software solution.",
     images: [
@@ -167,7 +167,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@opletics",
     creator: "@opletics",
-    title: "Opletics | Premier Athlete Management System & Sports Software",
+    title: "Opletics | Athlete Management System & Sports Software",
     description: "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync. The best athlete management system.",
     images: ["/assets/images/opletic-dash-sample.png"],
   },
