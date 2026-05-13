@@ -2,30 +2,51 @@ import type { Metadata } from "next";
 import CareersClient from "./CareersClient";
 
 export const metadata: Metadata = {
-  title: "Careers at Opletics | Shaping the Future of Sports Technology",
+  title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
   description:
     "Join the Opletics team and help us build the next generation of sports software and athlete management systems. Explore open positions in design, sales, and athletics.",
   keywords: [
+    // ── Core ─────────────────────────────────────────────────────────────
+    "opletics",
+    "AMS",
+    "new ams",
+    "best ams",
+    "athletic management system",
+    "athletic management tool",
+    "athletic management ai",
+    "sports management",
+    "league management",
+    "sports software",
+    // ── Audience / tools ──────────────────────────────────────────────────
+    "tools for athletic directors",
+    "tools for coaches",
+    "tools for staff",
+    "best athletic director tools",
+    "software for athletic directors",
+    "software for coaches",
+    "athletic directors",
+    "college tools",
+    // ── Discovery ────────────────────────────────────────────────────────
+    "hidden gems",
+    "sports secrets",
+    "secret dashboards",
+    "product hunt",
+    "fundraising",
+    "sports agents",
+    "espn",
+    // ── Competitors ───────────────────────────────────────────────────────
     "Direct Athletics",
     "teamworks",
     "Teambuilder",
-    "team builder",
-    "AMS",
-    "athletic management system",
-    "athlete monitoring",
-    "smart athlete",
+    "hubletics",
     "Kinduct",
     "athlete SR",
-    "athletes desk",
-    "adhub",
-    "athletics hub",
-    "centralized ams",
   ],
   alternates: {
     canonical: "/careers",
   },
   openGraph: {
-    title: "Careers at Opletics | Shaping the Future of Sports Technology",
+    title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
     description:
       "Join the Opletics team and help us build the next generation of sports software and athlete management systems.",
     url: "/careers",
