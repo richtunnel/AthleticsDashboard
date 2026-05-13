@@ -51,9 +51,17 @@ export async function GET() {
       }
     }
 
-    // AD sees only conversations with PARENT-role users (excludes members/collaborators)
+    // AD sees only conversations with real PARENT-role users.
+    // Excludes member/test accounts (member-*@opletics.com) that may have been
+    // created via the vip.opletics.com product-testing flow.
     const conversations = await prisma.conversation.findMany({
-      where: { schoolId: user.organizationId, parent: { role: UserRole.PARENT } },
+      where: {
+        schoolId: user.organizationId,
+        parent: {
+          role: UserRole.PARENT,
+          NOT: { email: { endsWith: "@opletics.com" } },
+        },
+      },
       include: {
         parent: {
           select: { id: true, name: true, email: true, image: true },

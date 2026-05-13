@@ -94,6 +94,10 @@ export async function DELETE(req: NextRequest) {
       await Promise.all(Array.from(googleTokensToRevoke).map((token) => revokeGoogleToken(token)));
     }
 
+    // ConnectedParent.parentUserId is a plain String — no User FK, no cascade.
+    // Explicitly delete it before removing the User so no stale orphan row remains.
+    await prisma.connectedParent.deleteMany({ where: { parentUserId: userId } });
+
     // Delete user - Prisma will cascade delete related records:
     // - Accounts
     // - Sessions
@@ -107,6 +111,9 @@ export async function DELETE(req: NextRequest) {
     // - Subscription
     // - Referrals
     // - Reward points
+    // - Conversations (via ParentConversations relation)
+    // - CalendarSyncRequests
+    // - ParentAthleteLinks
     await prisma.user.delete({
       where: { id: userId },
     });
