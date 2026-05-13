@@ -953,22 +953,41 @@ export class CalendarService {
       const gameDate = game.date instanceof Date ? game.date : new Date(game.date);
       const isoDateOnly = `${gameDate.getUTCFullYear()}-${pad(gameDate.getUTCMonth() + 1)}-${pad(gameDate.getUTCDate())}`;
 
-      // Parse 24-hour time stored as "HH:MM" in the database.
+      // Parse game time — handles both 24-hour "HH:MM" and 12-hour "H:MM AM/PM" formats.
+      // Games imported before the CSV normalisation fix (PR #809) may still carry
+      // "H:MM AM/PM" strings, so we must parse both formats here.
       let hours = 12;
       let minutes = 0;
 
       if (game.time && typeof game.time === "string" && game.time.trim()) {
-        const timeParts = game.time.trim().split(":");
-        if (timeParts.length >= 2) {
-          const parsedHours = parseInt(timeParts[0], 10);
-          const parsedMinutes = parseInt(timeParts[1], 10);
-          if (
-            !isNaN(parsedHours) && !isNaN(parsedMinutes) &&
-            parsedHours >= 0 && parsedHours <= 23 &&
-            parsedMinutes >= 0 && parsedMinutes <= 59
-          ) {
-            hours = parsedHours;
-            minutes = parsedMinutes;
+        const timeStr = game.time.trim();
+
+        // Try 12-hour AM/PM format first: "H:MM AM", "H:MM PM", "H:MM:SS AM/PM"
+        const amPmMatch = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+        if (amPmMatch) {
+          let h = parseInt(amPmMatch[1], 10);
+          const m = parseInt(amPmMatch[2], 10);
+          const period = amPmMatch[3].toUpperCase();
+          if (period === "AM" && h === 12) h = 0;   // 12:xx AM → 0:xx
+          if (period === "PM" && h !== 12) h += 12; // 1–11 PM → 13–23
+          if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+            hours = h;
+            minutes = m;
+          }
+        } else {
+          // Fall back to 24-hour "HH:MM" (or "HH:MM:SS")
+          const timeParts = timeStr.split(":");
+          if (timeParts.length >= 2) {
+            const parsedHours = parseInt(timeParts[0], 10);
+            const parsedMinutes = parseInt(timeParts[1], 10);
+            if (
+              !isNaN(parsedHours) && !isNaN(parsedMinutes) &&
+              parsedHours >= 0 && parsedHours <= 23 &&
+              parsedMinutes >= 0 && parsedMinutes <= 59
+            ) {
+              hours = parsedHours;
+              minutes = parsedMinutes;
+            }
           }
         }
       }
