@@ -4,7 +4,7 @@ import HomePageContent from "@/components/home/HomePageContent";
 import faqsData from "@/data/faq";
 
 export const metadata: Metadata = {
-  title: "Opletics | #1 AMS & Athletic Management Software for Coaches & Directors",
+  title: "Opletics | Athletic Management Software for Coaches & Directors",
   description:
     "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
   keywords: [
@@ -74,7 +74,7 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "Opletics | #1 AMS & Athletic Management Software for Coaches & Directors",
+    title: "Opletics | Athletic Management Software for Coaches & Directors",
     description:
       "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
     url: "/",
