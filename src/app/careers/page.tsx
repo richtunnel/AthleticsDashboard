@@ -4,7 +4,7 @@ import CareersClient from "./CareersClient";
 export const metadata: Metadata = {
   title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
   description:
-    "Join Opletics and help build the best AMS for athletic directors, coaches, and staff. We're creating the next generation of sports management software — tools for athletic directors, tools for coaches, and tools for staff that automate schedules, manage leagues, and power game day.",
+    "Join the Opletics team and help us build the next generation of sports software and athlete management systems. Explore open positions in design, sales, and athletics.",
   keywords: [
     // ── Core ─────────────────────────────────────────────────────────────
     "opletics",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
     description:
-      "Join Opletics and help build the best AMS for athletic directors, coaches, and staff. Creating the next generation of sports management software and tools for athletic departments.",
+      "Join the Opletics team and help us build the next generation of sports software and athlete management systems.",
     url: "/careers",
   },
 };

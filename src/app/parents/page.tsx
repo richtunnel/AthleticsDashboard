@@ -4,7 +4,7 @@ import ParentsClient from "./ParentsClient";
 export const metadata: Metadata = {
   title: "Opletics Parents | Live Game Schedules for Football, Basketball, Soccer & More",
   description:
-    "Follow your athlete's game schedule in real time. Opletics parent portal delivers live score tracking, calendar sync, and instant game day updates for football, basketball, soccer, volleyball, baseball, tennis, and track and field.",
+    "Keep track of your child's sports schedule with the Opletics Parent Portal. Real-time updates, calendar integration, and a complete athlete management system for parents.",
   keywords: [
     // ── Sports ───────────────────────────────────────────────────────────
     "football",
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Opletics Parents | Live Game Schedules for Football, Basketball, Soccer & More",
     description:
-      "Follow your athlete's game schedule in real time. Live score tracking, calendar sync, and instant game day updates for every sport.",
+      "Keep track of your child's sports schedule with the Opletics Parent Portal. Real-time updates and calendar integration.",
     url: "/parents",
   },
 };

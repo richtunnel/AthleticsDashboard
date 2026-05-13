@@ -12,8 +12,7 @@ import BookDemoButton from "@/components/buttons/BookDemoButton";
 
 export const metadata: Metadata = {
   title: "Opletics Support | Help for Athletic Directors, Coaches & Staff",
-  description:
-    "Get help with Opletics — the AMS for athletic directors, coaches, and staff. Support for calendar sync, game schedule, score tracker, ad chat, athletics chat, automate workflow, and all sports management tools.",
+  description: "Contact Opletics support. We typically respond within 48 hours.",
   keywords: [
     // ── Features ─────────────────────────────────────────────────────────
     "ad chat",

@@ -6,7 +6,7 @@ import faqsData from "@/data/faq";
 export const metadata: Metadata = {
   title: "Opletics | #1 AMS & Athletic Management Software for Coaches & Directors",
   description:
-    "Opletics is the best new AMS (athletic management system) built for athletic directors, coaches, and staff. Automate game schedules, sync calendars, manage leagues, track scores, and run email campaigns. The top alternative to Direct Athletics, Teamworks, Teambuilder, Kinduct, Athlete SR, sportsyou, and adhub.",
+    "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
   keywords: [
     // ── Core product ──────────────────────────────────────────────────────
     "opletics",
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Opletics | #1 AMS & Athletic Management Software for Coaches & Directors",
     description:
-      "The best new AMS for athletic directors, coaches, and staff. Automate game schedules, sync calendars, manage leagues, and track scores. #1 alternative to Direct Athletics, Teamworks, Teambuilder, and Kinduct.",
+      "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
     url: "/",
     images: [
       {

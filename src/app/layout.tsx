@@ -55,7 +55,7 @@ const softwareAppJsonLd = {
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Sports Management Software",
   description:
-    "Opletics is the premier AMS (athletic management system) and sports management platform for athletic directors, coaches, and staff. The best new AMS — the #1 alternative to Direct Athletics, Teamworks, Teambuilder, Kinduct, Athlete SR, adhub, and hubletics. Trusted by NADC, NFHS, and NADIIIAA member programs.",
+    "The premier athletic management system (AMS) and sports software for athletic departments. The top alternative to Direct Athletics, Teamworks, Teambuilder, Kinduct, Athlete SR, and other AMS platforms. Centralize scheduling, calendars, and team management in one place.",
   featureList: [
     "AI-powered game scheduling and automate sports schedule",
     "Real-time Google Calendar sync — calendar sync for every game day",
@@ -114,7 +114,7 @@ export const metadata: Metadata = {
     template: "%s | Opletics",
   },
   description:
-    "Opletics — the best new AMS and athletic management software for athletic directors, coaches, and staff. Automate game schedules, sync calendars, track scores, and manage leagues. The #1 alternative to Direct Athletics, Teamworks, Teambuilder, Kinduct, and Athlete SR.",
+    "Opletics is the premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with our advanced athlete management system. The top-tier alternative to Direct Athletics and Teamworks.",
   applicationName: "Opletics",
   keywords: [
     // ── Core product ──────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ export const metadata: Metadata = {
     siteName: "Opletics",
     title: "Opletics | Best AMS for Athletic Directors, Coaches & League Management",
     description:
-      "The best new AMS for athletic directors and coaches. Automate game schedules, sync calendars, track scores, and manage leagues. Top alternative to Direct Athletics, Teamworks, Teambuilder, and Kinduct.",
+      "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync for athletic directors and coaches. The ultimate sports software solution.",
     images: [
       {
         url: "/assets/images/opletic-dash-sample.png",
@@ -235,7 +235,7 @@ export const metadata: Metadata = {
     site: "@opletics",
     creator: "@opletics",
     title: "Opletics | Best AMS for Athletic Directors & Coaches",
-    description: "The best new AMS for athletic directors, coaches, and staff. Automate schedules, sync calendars, and track scores. #1 alternative to Direct Athletics, Teamworks, and Kinduct.",
+    description: "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync. The best athlete management system.",
     images: ["/assets/images/opletic-dash-sample.png"],
   },
   robots: {
