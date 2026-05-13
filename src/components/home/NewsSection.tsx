@@ -217,7 +217,7 @@ const NewsSection = () => {
                     color: "white",
                   }}
                 >
-                  Opletics Plans to Launch a Public Parent Portal 2026
+                  Opletics has offically launched our Public Parent Portal.
                 </Typography>
 
                 <Button
