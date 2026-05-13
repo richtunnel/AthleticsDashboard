@@ -50,6 +50,7 @@ model User {
   isDisabled                 Boolean                   @default(false)
   disabledAt                 DateTime?
   disableReason              String?
+  isMemberAccess             Boolean                   @default(false)
   schoolAddress              String?
   signaturePhone             String?
   signatureWebsite           String?

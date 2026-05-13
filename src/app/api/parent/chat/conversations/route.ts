@@ -42,10 +42,15 @@ export async function GET() {
 
     // Get ADs for each school
     const schoolIds = [...new Set(conversations.map((c) => c.schoolId))];
+    // Primary guard: isMemberAccess=true flags every vip.opletics.com test account
+    // at creation time. Secondary guard: email pattern catches legacy rows created
+    // before the isMemberAccess field existed.
     const ads = await prisma.user.findMany({
       where: {
         organizationId: { in: schoolIds },
         role: "ATHLETIC_DIRECTOR",
+        isMemberAccess: false,
+        NOT: { email: { startsWith: "member-", endsWith: "@opletics.com" } },
       },
       select: { id: true, name: true, image: true, organizationId: true },
     });

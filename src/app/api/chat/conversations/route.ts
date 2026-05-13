@@ -51,9 +51,20 @@ export async function GET() {
       }
     }
 
-    // AD sees only conversations with PARENT-role users (excludes members/collaborators)
+    // AD sees only conversations with real PARENT-role users.
+    // Primary guard: isMemberAccess=true is set at creation for every vip.opletics.com
+    // test account — this is the reliable DB-level check.
+    // Secondary guard: email pattern "member-{sessionId}@opletics.com" catches any
+    // legacy rows created before the isMemberAccess field existed.
     const conversations = await prisma.conversation.findMany({
-      where: { schoolId: user.organizationId, parent: { role: UserRole.PARENT } },
+      where: {
+        schoolId: user.organizationId,
+        parent: {
+          role: UserRole.PARENT,
+          isMemberAccess: false,
+          NOT: { email: { startsWith: "member-", endsWith: "@opletics.com" } },
+        },
+      },
       include: {
         parent: {
           select: { id: true, name: true, email: true, image: true },
