@@ -84,9 +84,13 @@ export async function triggerParentCalendarSyncForGame(
 
       if (!matches) continue;
 
+      // Pass googleCalendarId so syncGameToCalendar writes to the correct
+      // parent calendar instead of falling back to resolveCalendarIdForGame.
+      const calendarId = req.googleCalendarId!;
+
       // Fire-and-forget per parent so one failure doesn't block others
       void runNonCritical(
-        () => calendarService.syncGameToCalendar(gameId, req.parentUserId),
+        () => calendarService.syncGameToCalendar(gameId, req.parentUserId, calendarId),
         `ParentCalendarTrigger:sync:game=${gameId}:parent=${req.parentUserId}`
       );
     }
