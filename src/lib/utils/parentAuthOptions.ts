@@ -92,10 +92,16 @@ const parentAdapter = {
     return newUser;
   },
 
-  // Override linkAccount to remove unsupported fields
+  // Override linkAccount to remove unsupported fields and upsert to prevent
+  // OAuthAccountNotLinked errors when the same Google account re-authenticates
   async linkAccount(account: any) {
     const { refresh_token_expires_in, ...accountData } = account;
-    return adapter.linkAccount!(accountData);
+    const { provider, providerAccountId, userId, ...rest } = accountData;
+    return prisma.account.upsert({
+      where: { provider_providerAccountId: { provider, providerAccountId } },
+      create: accountData,
+      update: { userId, ...rest },
+    });
   },
 } as any;
 

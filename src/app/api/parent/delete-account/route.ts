@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { revokeGoogleToken } from "@/lib/google/revoke";
+import { createSignupLog } from "@/lib/services/signup-log.service";
 
 /**
  * DELETE /api/parent/delete-account
@@ -63,6 +64,13 @@ export async function DELETE() {
     // ConnectedParent.parentUserId is a bare String — no User FK, no cascade.
     // Must be deleted explicitly before the User row is removed.
     await prisma.connectedParent.deleteMany({ where: { parentUserId: user.id } });
+
+    // Record the deleted email so re-registration is blocked for 90 days
+    await createSignupLog({
+      email: session.user.email,
+      deletedUserId: user.id,
+      reason: "account_deleted",
+    });
 
     // Delete the user — Prisma cascades:
     //   Conversation, ChatMessage, CalendarSyncRequest, ParentAthleteLink, ParentSubscription

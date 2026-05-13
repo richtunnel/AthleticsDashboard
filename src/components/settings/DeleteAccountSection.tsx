@@ -8,7 +8,20 @@ import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 
-export default function DeleteAccountSection() {
+interface DeleteAccountSectionProps {
+  /** API endpoint for the DELETE request. Defaults to "/api/user/delete-account". */
+  apiEndpoint?: string;
+  /** Path to redirect to after successful deletion. Defaults to "/?deleted=true". */
+  redirectPath?: string;
+  /** Optional custom sign-out function. Defaults to next-auth signOut. */
+  onSignOut?: () => Promise<void>;
+}
+
+export default function DeleteAccountSection({
+  apiEndpoint = "/api/user/delete-account",
+  redirectPath = "/?deleted=true",
+  onSignOut,
+}: DeleteAccountSectionProps = {}) {
   const [modalOpen, setModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +33,7 @@ export default function DeleteAccountSection() {
     setIsDeleting(true);
 
     try {
-      const response = await fetch("/api/user/delete-account", {
+      const response = await fetch(apiEndpoint, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -32,9 +45,13 @@ export default function DeleteAccountSection() {
         throw new Error(data.error || "Failed to delete account");
       }
 
-      // Sign out and redirect to home page
-      await signOut({ redirect: false });
-      router.push("/?deleted=true");
+      // Sign out and redirect
+      if (onSignOut) {
+        await onSignOut();
+      } else {
+        await signOut({ redirect: false });
+      }
+      router.push(redirectPath);
     } catch (err: any) {
       console.error("Error deleting account:", err);
       setError(err.message || "An error occurred while deleting your account");
