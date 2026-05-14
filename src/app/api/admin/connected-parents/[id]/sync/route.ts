@@ -112,6 +112,36 @@ export async function POST(
       );
     }
 
+    // Ensure an APPROVED CalendarSyncRequest exists for this sport/level.
+    // syncGameToCalendar runs a PARENT permission check that requires one —
+    // without it the sync fails even though the AD explicitly authorized it.
+    const existingRequest = await prisma.calendarSyncRequest.findFirst({
+      where: {
+        parentUserId: connectedParent.parentUserId,
+        schoolId: connectedParent.schoolId,
+        sportName,
+        sportLevel,
+      },
+    });
+    if (existingRequest) {
+      if (existingRequest.status !== "APPROVED") {
+        await prisma.calendarSyncRequest.update({
+          where: { id: existingRequest.id },
+          data: { status: "APPROVED" },
+        });
+      }
+    } else {
+      await prisma.calendarSyncRequest.create({
+        data: {
+          parentUserId: connectedParent.parentUserId,
+          schoolId: connectedParent.schoolId,
+          sportName,
+          sportLevel,
+          status: "APPROVED",
+        },
+      });
+    }
+
     // Run sync — uses the parent's own OAuth tokens
     const results = await calendarService.syncGamesForSportLevel(
       connectedParent.parentUserId,
