@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { Prisma } from "@prisma/client";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
@@ -27,7 +26,7 @@ function normalizeGroupName(name: string) {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -48,7 +47,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
@@ -19,7 +18,7 @@ const SYNC_THRESHOLD = 100;
  * - > SYNC_THRESHOLD emails: enqueues an EMAIL_IMPORT background job
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -140,7 +139,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
  * Poll for the status of an async import job.
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

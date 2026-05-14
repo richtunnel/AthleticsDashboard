@@ -1,14 +1,31 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 
+const AD_ROLES = new Set(["ATHLETIC_DIRECTOR", "ASSISTANT_AD", "COACH", "STAFF", "SUPER_ADMIN"]);
+
+async function getShareCodeSession() {
+  // Try parent session first (parents and ADs-who-are-also-parents)
+  const parentSession = await getParentSession();
+  if (parentSession?.user?.email) return parentSession;
+
+  // Fall back to the main AD/collaborator session for the Portal Setup tab
+  const mainSession = await getAnySession();
+  if (mainSession?.user?.email) return mainSession;
+
+  return null;
+}
+
 /**
  * GET /api/parent/share-code
- * Gets or creates the share code for the authenticated user
+ * Gets or creates the share code for the authenticated user.
+ * Accepts both parent sessions and main AD sessions so the Portal Setup
+ * tab in the AD dashboard works for all user types.
  */
 export async function GET(request: NextRequest) {
-  const session = await getParentSession();
+  const session = await getShareCodeSession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -74,7 +91,7 @@ export async function GET(request: NextRequest) {
  * Regenerates a new share code for the user
  */
 export async function POST(request: NextRequest) {
-  const session = await getParentSession();
+  const session = await getShareCodeSession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

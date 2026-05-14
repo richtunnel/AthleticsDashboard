@@ -1,10 +1,9 @@
-import { getServerSession } from "next-auth";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/utils/authOptions";
 import { getWorksheetLimit, getEmailLimit, getUserPlanInfo } from "@/lib/security/plan-limits";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { google } from "googleapis";
 import { prisma } from "@/lib/database/prisma";
@@ -9,7 +8,7 @@ import { hasScopes } from "@/lib/services/incremental-auth.service";
 export async function GET(request: NextRequest) {
   try {
     // Try main AD session first; fall back to parent session
-    let session = await getServerSession(authOptions);
+    let session = await getAnySession();
     if (!session?.user?.id) {
       session = await getParentSession();
     }

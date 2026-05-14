@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { getWorksheetLimit } from "@/lib/security/plan-limits";
@@ -8,7 +7,7 @@ import { getWorksheetLimit } from "@/lib/security/plan-limits";
 // GET all workbooks for current user (or the AD owner's workbooks for collaborators)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -62,7 +61,7 @@ export async function GET(request: NextRequest) {
 // POST - create a new workbook
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

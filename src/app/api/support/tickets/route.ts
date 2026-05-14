@@ -1,11 +1,10 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
 
     if (!session?.user) {
       return NextResponse.json(

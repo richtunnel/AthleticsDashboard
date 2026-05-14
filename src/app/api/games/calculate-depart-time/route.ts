@@ -1,12 +1,11 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/utils/authOptions";
 import { dismissDepartService } from "@/lib/services/dismiss-depart.service";
 import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

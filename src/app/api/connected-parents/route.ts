@@ -1,7 +1,6 @@
-import { getServerSession } from "next-auth";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 
 /**
  * GET /api/connected-parents
@@ -9,7 +8,7 @@ import { authOptions } from "@/lib/utils/authOptions";
  */
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     
     if (!session?.user?.email) {
       return Response.json(

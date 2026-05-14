@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   Box,
   Container,
@@ -31,7 +31,13 @@ interface InvitationDetails {
 function AcceptInvitationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // The main session (next-auth.session-token) covers legacy collaborators and ADs.
   const { data: session, status, update } = useSession();
+  // The collaborator session (collaborator-session-token) covers collaborators who
+  // signed in via the isolated flow to avoid overwriting an AD's session.
+  const [collaboratorSession, setCollaboratorSession] = useState<any>(null);
+  const [collaboratorSessionStatus, setCollaboratorSessionStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +49,22 @@ function AcceptInvitationContent() {
     !invitation.email.toLowerCase().endsWith("@googlemail.com");
 
   const token = searchParams.get("token") || "";
+
+  // Poll the collaborator session endpoint on mount so we can detect a successful
+  // sign-in through the isolated collaborator auth flow.
+  useEffect(() => {
+    fetch("/api/auth/collaborator/session")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user?.email) {
+          setCollaboratorSession(data);
+          setCollaboratorSessionStatus("authenticated");
+        } else {
+          setCollaboratorSessionStatus("unauthenticated");
+        }
+      })
+      .catch(() => setCollaboratorSessionStatus("unauthenticated"));
+  }, []);
 
   const acceptInvitation = useCallback(async () => {
     setAccepting(true);
@@ -100,22 +122,29 @@ function AcceptInvitationContent() {
     fetchInvitation();
   }, [token]);
 
-  // If user is signed in, auto-accept
+  // If user is signed in (main session OR collaborator session), auto-accept.
+  // The active user is whichever session resolves first — collaborator takes
+  // precedence since it was signed in specifically for this invitation flow.
   useEffect(() => {
-    if (status === "authenticated" && session?.user && invitation && !accepting && !error) {
-      if (session.user.email?.toLowerCase() !== invitation.email.toLowerCase()) {
-        setError(`You are signed in as ${session.user.email}, but this invitation was sent to ${invitation.email}.`);
-        setIsEmailMismatch(true);
-      } else {
-        acceptInvitation();
-      }
+    if (collaboratorSessionStatus === "loading" || status === "loading") return;
+    if (!invitation || accepting || error) return;
+
+    const activeUser = collaboratorSession?.user ?? (status === "authenticated" ? session?.user : null);
+    if (!activeUser) return;
+
+    if (activeUser.email?.toLowerCase() !== invitation.email.toLowerCase()) {
+      setError(`You are signed in as ${activeUser.email}, but this invitation was sent to ${invitation.email}.`);
+      setIsEmailMismatch(true);
+    } else {
+      acceptInvitation();
     }
-  }, [status, session, invitation, accepting, error, acceptInvitation]);
+  }, [status, session, collaboratorSession, collaboratorSessionStatus, invitation, accepting, error, acceptInvitation]);
 
   const handleSignIn = () => {
-    signIn("google", {
-      callbackUrl: `/accept-invitation?token=${encodeURIComponent(token)}`,
-    });
+    // Use the isolated collaborator auth route so the sign-in writes to the
+    // collaborator-session-token cookie and does not overwrite any active AD session.
+    const callbackUrl = `/accept-invitation?token=${encodeURIComponent(token)}`;
+    window.location.href = `/api/auth/collaborator/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   };
 
   if (loading || (status === "authenticated" && !error)) {

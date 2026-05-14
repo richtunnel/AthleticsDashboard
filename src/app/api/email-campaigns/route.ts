@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { prisma } from "@/lib/database/prisma";
 import { NextResponse } from "next/server";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
@@ -7,7 +6,7 @@ import { getResendClientOptional } from "@/lib/resend";
 import { emailQueueService } from "@/lib/services/email-queue.service";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -26,7 +25,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

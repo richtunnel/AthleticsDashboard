@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { emailGatewayService } from "@/lib/services/email-gateway.service";
 import { UserRole } from "@prisma/client";
@@ -10,7 +9,7 @@ import { UserRole } from "@prisma/client";
  * Returns the caller's chat access status (for collaborators).
  */
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -44,7 +43,7 @@ export async function GET() {
  * Notifies the AD via email and creates a dashboard notification.
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -110,7 +109,7 @@ export async function POST(request: NextRequest) {
  * Body: { collaboratorId: string; action: "APPROVE" | "REVOKE" }
  */
 export async function PATCH(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

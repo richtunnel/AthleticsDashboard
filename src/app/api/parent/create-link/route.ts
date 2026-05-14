@@ -74,12 +74,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if link already exists for this child at this school
+    // Check if this exact athlete+school+sport+level combination already exists.
+    // Sport and level are included so a parent can add the same child for multiple
+    // sports (e.g., both Basketball and Soccer) at the same school.
     const existingLink = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
         schoolId: organizationId,
         athleteName,
+        sport: sport || null,
+        gradeLevel: gradeLevel || null,
       },
     });
 

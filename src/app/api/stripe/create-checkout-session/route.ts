@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { createCheckoutSessionByPriceSchema } from "@/lib/validations/subscription";
@@ -37,7 +36,7 @@ const priceIdToPlanTypeMap: Record<string, "MONTHLY" | "ANNUAL"> = (() => {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

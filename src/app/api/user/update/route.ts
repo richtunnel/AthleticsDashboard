@@ -1,9 +1,8 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 
 type UpdateUserBody = {
   schoolName?: string;
@@ -31,7 +30,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // Verify user exists in database and get current role + org
