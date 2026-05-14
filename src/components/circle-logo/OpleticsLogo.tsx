@@ -1,4 +1,4 @@
-export const CircularProjectIcon = ({ size = 20, color = "currentColor", useGradient = false, outerStrokeWidth = 2.15 }) => {
+export const CircularProjectIcon = ({ size = 20, color = "currentColor", useGradient = false, outerStrokeWidth = 2.15, strokeWidth = 3 }) => {
   const gradientId = "opletics-footer-gradient";
 
   // Use the gradient for the big outer circle
@@ -24,9 +24,9 @@ export const CircularProjectIcon = ({ size = 20, color = "currentColor", useGrad
 
         {/* Inner Group - Explicitly using the light color */}
         <g transform="translate(4, 4)">
-          <circle cx="12" cy="12" r="10.5" stroke={innerStroke} strokeWidth="3" fill="none" />
-          <line x1="9.5" y1="1.5" x2="9.5" y2="22.5" stroke={innerStroke} strokeWidth="3" />
-          <line x1="1.5" y1="12" x2="22.5" y2="12" stroke={innerStroke} strokeWidth="3" />
+          <circle cx="12" cy="12" r="10.5" stroke={innerStroke} strokeWidth={strokeWidth} fill="none" />
+          <line x1="9.5" y1="1.5" x2="9.5" y2="22.5" stroke={innerStroke} strokeWidth={strokeWidth} />
+          <line x1="1.5" y1="12" x2="22.5" y2="12" stroke={innerStroke} strokeWidth={strokeWidth} />
         </g>
       </svg>
     </div>
