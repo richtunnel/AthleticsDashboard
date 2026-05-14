@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { prisma } from "@/lib/database/prisma";
 import { isInvitationExpired } from "@/lib/utils/collaboration";
 import { verifyInvitationToken } from "@/lib/utils/collaborationTokens";
@@ -159,8 +158,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Invitation not found or already accepted" }, { status: 404 });
     }
 
-    // Check if the user is authenticated
-    const session = await getServerSession(authOptions);
+    // Check if the user is authenticated (main session OR isolated collaborator session)
+    const session = await getAnySession();
     if (!session?.user) {
       return NextResponse.json({ success: false, message: "Please sign in to accept this invitation" }, { status: 401 });
     }

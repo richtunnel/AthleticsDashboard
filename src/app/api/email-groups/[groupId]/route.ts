@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 
 const emailGroupInclude = {
@@ -35,7 +34,7 @@ async function ensureGroupAccess(groupId: string, organizationId: string) {
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -89,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ groupId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.id || !session.user.organizationId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

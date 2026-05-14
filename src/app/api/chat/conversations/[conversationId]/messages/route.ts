@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
 import { encrypt, decrypt } from "@/lib/utils/encryption";
 
@@ -13,7 +12,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
@@ -90,7 +89,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }

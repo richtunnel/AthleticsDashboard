@@ -11,6 +11,15 @@ import { etagMiddleware } from "./middleware/etag-middleware";
 const PARENT_COOKIE_NAME = process.env.NODE_ENV === "production" ? "__Secure-parent-session-token" : "parent-session-token";
 
 /**
+ * Cookie name for the separate collaborator session.
+ * Must match the cookie name in collaboratorAuthOptions.ts.
+ */
+const COLLABORATOR_COOKIE_NAME =
+  process.env.NODE_ENV === "production"
+    ? "__Secure-collaborator-session-token"
+    : "collaborator-session-token";
+
+/**
  * Try to get a token for parent routes.
  * Checks the parent cookie first, then falls back to the main cookie.
  */
@@ -24,6 +33,24 @@ async function getParentOrMainToken(req: NextRequest) {
   // Fall back to main cookie (for AD-as-parent case)
   const mainToken = await getToken({ req, secret });
   if (mainToken?.sub) return mainToken;
+
+  return null;
+}
+
+/**
+ * Try to get a token for dashboard / API routes.
+ * Checks the main cookie first (covers ADs and legacy collaborators), then the
+ * dedicated collaborator cookie (covers collaborators who signed in via the
+ * isolated /api/auth/collaborator flow for same-browser session separation).
+ */
+async function getMainOrCollaboratorToken(req: NextRequest) {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  const mainToken = await getToken({ req, secret });
+  if (mainToken?.sub) return mainToken;
+
+  const collaboratorToken = await getToken({ req, secret, cookieName: COLLABORATOR_COOKIE_NAME });
+  if (collaboratorToken?.sub) return collaboratorToken;
 
   return null;
 }
@@ -168,7 +195,7 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/api/images/optimize") ||
     pathname.startsWith("/api/stripe/webhook") ||
-    pathname.startsWith("/api/auth/") || // NextAuth routes must be public (covers /api/auth/parent/* too)
+    pathname.startsWith("/api/auth/") || // NextAuth routes must be public (covers /api/auth/parent/* and /api/auth/collaborator/*)
     pathname.startsWith("/api/collaboration/accept-invitation") || // Invitation acceptance must be public
     pathname === "/api/schools" ||
     pathname === "/api/coaches"
@@ -180,9 +207,13 @@ export async function middleware(req: NextRequest) {
   const isParentRoute = pathname.startsWith("/parent-dashboard") || pathname.startsWith("/api/parent") || pathname === "/api/calendar/list-calendars";
   const unauthRedirect = isParentRoute ? "/onboarding/parent-signup" : "/login";
 
-  // For parent routes, check parent cookie first then fall back to main cookie
-  // For all other routes, use the standard main cookie
-  const token = isParentRoute ? await getParentOrMainToken(req) : await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  // Token resolution strategy:
+  //   parent routes → parent cookie first, then main cookie
+  //   all other routes → main cookie first, then collaborator cookie
+  //   (collaborator cookie enables same-browser session isolation for shared devices)
+  const token = isParentRoute
+    ? await getParentOrMainToken(req)
+    : await getMainOrCollaboratorToken(req);
 
   if (!token) {
     const redirectUrl = req.nextUrl.clone();

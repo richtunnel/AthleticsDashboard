@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -35,7 +34,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

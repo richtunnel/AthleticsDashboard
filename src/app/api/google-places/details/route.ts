@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 
 /**
  * Google Place Details API (Server-side)
@@ -18,7 +17,7 @@ import { authOptions } from "@/lib/utils/authOptions";
 export async function POST(req: NextRequest) {
   try {
     // Require authentication
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }

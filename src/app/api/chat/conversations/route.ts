@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 import { decrypt } from "@/lib/utils/encryption";
 import { UserRole } from "@prisma/client";
 
@@ -11,7 +10,7 @@ import { UserRole } from "@prisma/client";
  * Collaborators (ASSISTANT_AD / VENDOR_READ_ONLY) must have APPROVED chat access.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

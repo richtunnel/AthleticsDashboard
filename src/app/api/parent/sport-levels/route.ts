@@ -116,32 +116,35 @@ export async function GET(request: NextRequest) {
       teamWhere.gender = gender;
     }
 
+    // Use teamWhere so the gender filter is actually applied
     const teams = await prisma.team.findMany({
-      where: {
-        organizationId,
-        sport: { name: { equals: sport, mode: "insensitive" } },
-      },
+      where: teamWhere,
       select: { level: true },
       distinct: ["level"],
     });
 
-    // Normalize raw DB values to display names, deduplicate
-    const seen = new Set<string>();
+    // Build level options.
+    // id  = exact raw DB value (e.g. "JV", "VARSITY") — used as gradeLevel in
+    //       create-link so team lookups with mode:"insensitive" match correctly.
+    // name = human-readable display label.
+    // Deduplicate by display name so aliases like "JV"/"JUNIOR_VARSITY" collapse.
+    const seenDisplay = new Set<string>();
     const levels: { id: string; name: string }[] = [];
 
     for (const team of teams) {
-      const raw = (team.level ?? "").trim().toUpperCase();
-      const display = LEVEL_DISPLAY[raw] ?? toTitleCase(team.level ?? "");
-      if (display && !seen.has(display)) {
-        seen.add(display);
-        levels.push({ id: display, name: display });
+      if (!team.level) continue;
+      const raw = team.level.trim();
+      const display = formatLevel(raw);
+      if (!seenDisplay.has(display)) {
+        seenDisplay.add(display);
+        levels.push({ id: raw, name: display });
       }
     }
 
     // Sort: Varsity → Junior Varsity → Freshman → Frosh → others
     levels.sort((a, b) => {
-      const orderA = LEVEL_ORDER[a.name] ?? 99;
-      const orderB = LEVEL_ORDER[b.name] ?? 99;
+      const orderA = LEVEL_SORT_ORDER[a.id.trim().toUpperCase()] ?? 99;
+      const orderB = LEVEL_SORT_ORDER[b.id.trim().toUpperCase()] ?? 99;
       return orderA - orderB;
     });
 

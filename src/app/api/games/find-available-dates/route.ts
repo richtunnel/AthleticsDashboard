@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { availableDatesService } from "@/lib/services/available-dates.service";
 import { availableDatesAIService } from "@/lib/services/available-dates-ai.service";
 import { prisma } from "@/lib/database/prisma";
@@ -9,7 +8,7 @@ import { hasFeatureAccess, PlanFeature } from "@/lib/security/plan-limits";
 export async function POST(request: NextRequest) {
   try {
     // Auth check
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

@@ -1,6 +1,5 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { prisma } from "@/lib/database/prisma";
 import { getCollaboratorLimit, isInvitationExpired } from "@/lib/utils/collaboration";
 import { generateInvitationToken } from "@/lib/utils/collaborationTokens";
@@ -12,7 +11,7 @@ import { normalizeAppUrl } from "@/lib/utils/siteUrl";
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await getAnySession();
     if (!session?.user?.id) {
       return NextResponse.json({ success: false, message: "Authentication required" }, { status: 401 });
     }

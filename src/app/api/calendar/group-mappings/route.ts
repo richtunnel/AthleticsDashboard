@@ -1,12 +1,11 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/utils/authOptions";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { prisma } from "@/lib/database/prisma";
 
 /** Resolve userId from AD or parent session */
 async function resolveUserId(): Promise<string | null> {
-  const adSession = await getServerSession(authOptions);
+  const adSession = await getAnySession();
   if (adSession?.user?.id) return adSession.user.id;
   const parentSession = await getParentSession();
   return (parentSession?.user as any)?.id ?? null;

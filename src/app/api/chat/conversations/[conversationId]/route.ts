@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 
 /**
  * DELETE /api/chat/conversations/[conversationId]
@@ -11,7 +10,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> }
 ) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }

@@ -1,7 +1,6 @@
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
 import { prisma } from "@/lib/database/prisma";
-import { authOptions } from "@/lib/utils/authOptions";
 import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
 
 /**
@@ -12,7 +11,7 @@ import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
  * owns the conversation (parent by parentUserId, AD by schoolId matching org).
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
+  const session = await getAnySession();
 
   if (!session?.user?.email) {
     return new Response("Unauthorized", { status: 401 });
