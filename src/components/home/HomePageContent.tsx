@@ -98,8 +98,8 @@ export default function HomePageContent() {
                 color: "#0f172a",
               }}
             >
-              <CircularProjectIcon size={22} outerStrokeWidth={2} strokeWidth={4} color={"#262e3e"} />
-              <span className={styles.opleticsLogoText} style={{ marginLeft: "2px", letterSpacing: "-0.65px", color: "#262e3e" }}>
+              <CircularProjectIcon size={22} outerStrokeWidth={2} strokeWidth={4} color={"#313a4d"} />
+              <span className={styles.opleticsLogoText} style={{ marginLeft: "2px", letterSpacing: "-0.65px", color: "#313a4d" }}>
                 opletics
               </span>
             </Link>
