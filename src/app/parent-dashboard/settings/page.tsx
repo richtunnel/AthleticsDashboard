@@ -839,8 +839,8 @@ export default function ParentSettingsPage() {
                             </Typography>
                           </Box>
                           <Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
-                            <Chip label={link.sportName} size="small" variant="outlined" />
-                            <Chip label={link.sportLevel} size="small" variant="outlined" color="primary" />
+                            {link.sportName && <Chip label={link.sportName} size="small" variant="outlined" />}
+                            {link.sportLevel && <Chip label={link.sportLevel} size="small" variant="outlined" color="primary" />}
                             {link.status && link.status !== "ACTIVE" && (
                               <Chip
                                 label={link.status}
