@@ -190,7 +190,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             color: mode === "dark" ? "#fff" : "#0f172a",
           }}
         >
-          <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
+          <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} color={mode === "dark" ? "#fff" : "currentColor"} />
           <span style={{ marginLeft: "2.5px" }}>opletics</span>
         </Link>
       </Box>
@@ -343,7 +343,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   }}
                 >
                   <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
-                  <span style={{ marginLeft: "2.5px" }}>opletics</span>
+                  <span style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>opletics</span>
                 </Link>
               </Box>
             )}

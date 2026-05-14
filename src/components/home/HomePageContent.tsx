@@ -204,7 +204,7 @@ export default function HomePageContent() {
               }}
             >
               <CircularProjectIcon outerStrokeWidth={2} />
-              <span style={{ marginLeft: "2.5px", letterSpacing: "-0.35px" }}>opletics</span>
+              <span style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>opletics</span>
             </Link>
             <BookDemoButton
               calendlyUrl={CALENDLY_URL}

@@ -29,22 +29,7 @@ import {
   Chip,
   Button,
 } from "@mui/material";
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  Chat,
-  Settings,
-  Logout,
-  Notifications,
-  CalendarMonth,
-  Close,
-  CheckCircle,
-  Error as ErrorIcon,
-  Info,
-  Warning,
-  SupportAgent,
-  Sync,
-} from "@mui/icons-material";
+import { Menu as MenuIcon, Dashboard, Chat, Settings, Logout, Notifications, CalendarMonth, Close, CheckCircle, Error as ErrorIcon, Info, Warning, SupportAgent, Sync } from "@mui/icons-material";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
 import { useTheme as customTheme } from "@mui/material/styles";
@@ -82,12 +67,8 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
   const { notifications, removeNotification, clearNotifications, unreadCount } = useNotifications();
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
-  const calendarHref = calendarAccountEmail
-    ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}`
-    : "https://calendar.google.com/calendar/u/0/r";
-  const calendarTooltip = calendarAccountEmail
-    ? `Open Google Calendar for ${calendarAccountEmail}`
-    : "Open Google Calendar";
+  const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
+  const calendarTooltip = calendarAccountEmail ? `Open Google Calendar for ${calendarAccountEmail}` : "Open Google Calendar";
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -138,8 +119,8 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
             color: mode === "dark" ? "#fff" : "#0f172a",
           }}
         >
-          <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
-          <span style={{ marginLeft: "2.5px" }}>opletics</span>
+          <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} color={mode === "dark" ? "#fff" : "currentColor"} />
+          <span style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>opletics</span>
         </Link>
       </Box>
 
@@ -167,12 +148,15 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
                       color: mode === "dark" ? "#0f172a" : "#fff",
                     },
                   },
-                  "&:hover": mode === "dark" ? {
-                    bgcolor: "transparent",
-                    "& .MuiListItemText-primary": {
-                      fontWeight: 600,
-                    },
-                  } : {},
+                  "&:hover":
+                    mode === "dark"
+                      ? {
+                          bgcolor: "transparent",
+                          "& .MuiListItemText-primary": {
+                            fontWeight: 600,
+                          },
+                        }
+                      : {},
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
@@ -202,17 +186,11 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
           borderColor: "divider",
         }}
       >
-        <ListItemButton
-          onClick={() => signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true })}
-          sx={{ borderRadius: 1.5 }}
-        >
+        <ListItemButton onClick={() => signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true })} sx={{ borderRadius: 1.5 }}>
           <ListItemIcon sx={{ minWidth: 40 }}>
             <Logout sx={{ fontSize: 20 }} />
           </ListItemIcon>
-          <ListItemText
-            primary="Sign Out"
-            primaryTypographyProps={{ fontSize: 14 }}
-          />
+          <ListItemText primary="Sign Out" primaryTypographyProps={{ fontSize: 14 }} />
         </ListItemButton>
       </Box>
     </Box>
@@ -243,13 +221,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
         <Toolbar sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexGrow: 1, minWidth: 0 }}>
             {/* Drawer Toggle (Mobile) */}
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ display: { sm: "none" }, color: "text.primary", mr: 1 }}
-            >
+            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ display: { sm: "none" }, color: "text.primary", mr: 1 }}>
               <MenuIcon />
             </IconButton>
           </Box>
@@ -259,15 +231,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
 
           {/* Google Calendar Button */}
           <Tooltip title={calendarTooltip}>
-            <IconButton
-              component="a"
-              href={calendarHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ mr: { xs: 0.5, sm: 1 } }}
-              color="default"
-              aria-label="Open Google Calendar"
-            >
+            <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: { xs: 0.5, sm: 1 } }} color="default" aria-label="Open Google Calendar">
               <CalendarMonth />
             </IconButton>
           </Tooltip>
@@ -334,12 +298,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
                         <Box sx={{ flex: 1 }}>
                           <Box sx={{ display: "flex", alignItems: "center", mb: 0.5, gap: 1 }}>
                             {getNotificationIcon(notif.type)}
-                            <Chip
-                              label={notif.type}
-                              size="small"
-                              color={getTypeColor(notif.type) as any}
-                              sx={{ height: 20, fontSize: 11, textTransform: "capitalize" }}
-                            />
+                            <Chip label={notif.type} size="small" color={getTypeColor(notif.type) as any} sx={{ height: 20, fontSize: 11, textTransform: "capitalize" }} />
                             <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
                               {formatDistanceToNow(notif.timestamp, { addSuffix: true })}
                             </Typography>

@@ -33,8 +33,8 @@ export default function BaseHeaderWhite({ pt, pl, sx, fontSize, iconSize = 20, u
         {...props} // Spread remaining props
       >
         <Link style={{ color: "#fff" }} className={`${styles["ad-hub-logo"]}`} href="/">
-          <CircularProjectIcon size={iconSize} useGradient={useGradient} color="#fff" />
-          <span style={{ marginLeft: "2.5px", color: "#fff" }}>opletics</span>
+          <CircularProjectIcon size={iconSize} useGradient={useGradient} color="#fff" outerStrokeWidth={2} strokeWidth={4} />
+          <span style={{ marginLeft: "2px", letterSpacing: "-0.65px", color: "#fff" }}>opletics</span>
         </Link>
       </Box>
     </>

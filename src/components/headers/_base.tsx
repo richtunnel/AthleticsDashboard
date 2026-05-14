@@ -26,8 +26,8 @@ export default function BaseHeader({ pt, pl, children }: addPadding) {
       }}
     >
       <Link className={`${styles["ad-hub-logo"]} flex d-flex`} href="/">
-        <CircularProjectIcon />
-        <span style={{ marginLeft: "2.5px" }}>opletics</span>
+        <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} />
+        <span style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>opletics</span>
       </Link>
       {children}
     </Box>

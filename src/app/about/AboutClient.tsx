@@ -16,13 +16,7 @@ export default function AboutClient() {
       }}
     >
       <div style={{ height: "75%" }} className="relative lg:block hidden">
-        <Image
-          fill
-          src="/assets/images/opletics-team.jpg"
-          alt="Opletics team meeting to discuss athlete management system innovations"
-          className="object-contain w-full"
-          priority
-        />
+        <Image fill src="/assets/images/opletics-team.jpg" alt="Opletics team meeting to discuss athlete management system innovations" className="object-contain w-full" priority />
       </div>
 
       <div className="flex flex-col h-full">
@@ -39,8 +33,8 @@ export default function AboutClient() {
               color: "#0f172a",
             }}
           >
-            <CircularProjectIcon />
-            <span style={{ marginLeft: "2.5px" }}>opletics</span>
+            <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} />
+            <span style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>opletics</span>
           </Link>
         </div>
 
@@ -55,7 +49,7 @@ export default function AboutClient() {
               About Opletics
             </h1>
 
-            <h2 className="text-2xl font-semibold mb-6" style={{ color: "#475569" }}>
+            <h2 className="text-2xl font-semibold mb-6" style={{ color: "#1f2123" }}>
               Revolutionizing Athletic Department Management
             </h2>
 
