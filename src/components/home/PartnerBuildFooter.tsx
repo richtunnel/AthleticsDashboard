@@ -29,7 +29,7 @@ const PartnerBuildSectionFooter = () => {
           backgroundColor: "transparent",
         }}
       >
-        <Container className={styles.footerContainer} maxWidth="lg" style={{ margin: "0", padding: "0" }}>
+        <Container className={styles.footerContainer} maxWidth="lg" sx={{ mx: "auto", px: { xs: 2, md: 0 } }}>
           {/* Title */}
           <Typography
             className={styles.partnerFooterTitle}
@@ -39,7 +39,7 @@ const PartnerBuildSectionFooter = () => {
               fontSize: { xs: "2rem", md: "2.5rem" },
               lineHeight: 1.1,
               color: "#fff",
-              textAlign: "left",
+              textAlign: { xs: "center", md: "left" },
               maxWidth: 800,
               marginBottom: "12px",
             }}
@@ -208,7 +208,7 @@ const PartnerBuildSectionFooter = () => {
           </Box>
 
           <Box>
-            <Stack direction="row" justifyContent="flex-start" sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
+            <Stack direction="row" justifyContent={{ xs: "center", md: "flex-start" }} sx={{ marginTop: "18px!important", alignItems: "center", paddingLeft: "0!important" }}>
               <LayoutFooter />
             </Stack>
             <CopyRight />
