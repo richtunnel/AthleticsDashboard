@@ -81,6 +81,7 @@ const DreamSection = () => {
               lineHeight: 1.6,
               fontSize: { xs: "1rem", md: "1.125rem" },
               fontWeight: 400,
+              textAlign: "center",
               mb: 4,
             }}
           >
@@ -94,6 +95,7 @@ const DreamSection = () => {
               color: theme.palette.text.secondary,
               lineHeight: 1.7,
               fontSize: "1rem",
+              textAlign: "center",
             }}
           >
             We also have a very special feature for kids that can help amplify their grit and future. Feel free to book a demo to learn more.
