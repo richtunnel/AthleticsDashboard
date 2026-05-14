@@ -785,9 +785,7 @@ export function GamesTable() {
   const { data: customColumnsResponse } = useQuery({
     queryKey: ["customColumns", selectedWorkbookId],
     queryFn: async () => {
-      const url = selectedWorkbookId
-        ? `/api/organizations/custom-columns?workbookId=${selectedWorkbookId}`
-        : "/api/organizations/custom-columns";
+      const url = selectedWorkbookId ? `/api/organizations/custom-columns?workbookId=${selectedWorkbookId}` : "/api/organizations/custom-columns";
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch custom columns");
       return res.json();
@@ -3123,14 +3121,17 @@ export function GamesTable() {
     }
   }, [addNotification]);
 
-  const handleViewSelectWorkbook = useCallback((id: string) => {
-    // Clear selections and filters before switching worksheets so IDs and
-    // active filter conditions from the old worksheet don't bleed into the new one.
-    clearSelectedGameIds();
-    clearColumnFilters();
-    useGamesWorkbookStore.setState({ selectedWorkbookId: id });
-    setWorksheetTab("worksheet");
-  }, [clearSelectedGameIds, clearColumnFilters]);
+  const handleViewSelectWorkbook = useCallback(
+    (id: string) => {
+      // Clear selections and filters before switching worksheets so IDs and
+      // active filter conditions from the old worksheet don't bleed into the new one.
+      clearSelectedGameIds();
+      clearColumnFilters();
+      useGamesWorkbookStore.setState({ selectedWorkbookId: id });
+      setWorksheetTab("worksheet");
+    },
+    [clearSelectedGameIds, clearColumnFilters],
+  );
 
   const handleViewRenameWorkbook = useCallback(
     (id: string, name: string) => {
@@ -3966,9 +3967,7 @@ export function GamesTable() {
       const col = customColumns.find((c) => c.id === colIdPart);
       return !!(col?.name && /^(cost|expenses?)$/i.test(col.name.trim()));
     };
-    const emailVisibleColumns = includeCostInEmail
-      ? visibleColumnIds
-      : visibleColumnIds.filter((id) => !isCostCustomColumn(id));
+    const emailVisibleColumns = includeCostInEmail ? visibleColumnIds : visibleColumnIds.filter((id) => !isCostCustomColumn(id));
 
     // Persist the exact column config from the active worksheet so ComposeEmail
     // displays the same columns/mappings the user sees here, regardless of which
@@ -7023,7 +7022,7 @@ export function GamesTable() {
   if (isInitialLoading || isFilterLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-        <Typography color="text.secondary">Loading games...</Typography>
+        <Typography color="text.secondary">Loading schedule...</Typography>
       </Box>
     );
   }
@@ -8052,12 +8051,7 @@ export function GamesTable() {
       )}
 
       {/* Delete Workbook Confirmation Dialog */}
-      <Dialog
-        open={deleteWorkbookDialog?.open ?? false}
-        onClose={() => setDeleteWorkbookDialog(null)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={deleteWorkbookDialog?.open ?? false} onClose={() => setDeleteWorkbookDialog(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Delete &quot;{deleteWorkbookDialog?.workbookName}&quot;?</DialogTitle>
         <DialogContent>
           <DialogContentText>
