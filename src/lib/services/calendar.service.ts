@@ -720,58 +720,72 @@ export class CalendarService {
     sportLevel: string,
     targetGoogleCalendarId: string
   ) {
-    // Check if calendar is connected
-    const isConnected = await this.isCalendarConnected(userId);
-    if (!isConnected) {
+    const GAME_LIMIT = 15;
+    // Process up to 5 games concurrently — safe under 100 simultaneous callers
+    // because each batch hits the DB once and Google Calendar once per game.
+    const CONCURRENCY = 5;
+    const now = new Date();
+
+    if (!await this.isCalendarConnected(userId)) {
       throw new Error("Google Calendar not connected");
     }
 
-    // ── Strategy 1: match via homeTeam DB relations (fast, index-backed) ──
-    // Handle sportLevel that might already encode gender (e.g. "VARSITY MALE")
+    const gameInclude = {
+      homeTeam: { include: { sport: true, organization: true } },
+      opponent: true,
+      awayTeam: true,
+      venue: true,
+    } as const;
+
+    // ── Strategy 1: normalized DB relations (fast, index-backed) ──
+    // Only future games, sorted soonest-first, hard-capped at GAME_LIMIT.
     const levelParts = sportLevel.split(" ");
-    const baseLevel  = levelParts[0];
-    const gender     = levelParts.length > 1 ? levelParts[1] : null;
+    const baseLevel     = levelParts[0];
+    const encodedGender = levelParts.length > 1 ? levelParts[1] : null;
 
     const homeTeamWhere: any = {
       organizationId,
       sport: { name: { equals: sportName, mode: "insensitive" } },
       level: { equals: baseLevel, mode: "insensitive" },
     };
-    if (gender) {
-      homeTeamWhere.gender = { equals: gender, mode: "insensitive" };
+    if (encodedGender) {
+      homeTeamWhere.gender = { equals: encodedGender, mode: "insensitive" };
     }
 
     let games = await prisma.game.findMany({
-      where: { homeTeam: homeTeamWhere },
-      include: { homeTeam: { include: { sport: true, organization: true } }, opponent: true, awayTeam: true, venue: true },
+      where: { homeTeam: homeTeamWhere, date: { gte: now } },
+      orderBy: { date: "asc" },
+      take: GAME_LIMIT,
+      include: gameInclude,
     });
 
-    // ── Strategy 2: keyword scan across all custom-field columns ──
-    // Handles spreadsheet imports where sport/level/gender are embedded in a
-    // single column (e.g. "Team = Tigers Boys Varsity") rather than in the
-    // normalised DB relations.
+    // ── Strategy 2: scan customFields columns (spreadsheet imports) ──
+    // ADs upload CSV files where sport/level may live in any column with any
+    // header name. We load all future org games and scan every cell value in
+    // each row for sport + level tokens — order-independent similarity match.
     if (games.length === 0) {
       console.log(
-        `[CalendarSync] Relation query found 0 games for "${sportName} ${sportLevel}" — ` +
-          `falling back to keyword scan of custom fields`
+        `[CalendarSync] DB relations found 0 future games for "${sportName} ${sportLevel}" — ` +
+          `scanning spreadsheet columns`
       );
 
-      const allOrgGames = await prisma.game.findMany({
-        where: { homeTeam: { organizationId } },
-        include: { homeTeam: { include: { sport: true, organization: true } }, opponent: true, awayTeam: true, venue: true },
+      const futurOrgGames = await prisma.game.findMany({
+        where: { homeTeam: { organizationId }, date: { gte: now } },
+        orderBy: { date: "asc" },
+        include: gameInclude,
       });
 
-      games = allOrgGames.filter((g) =>
-        this.gameMatchesLeague(g, sportName, sportLevel)
-      );
+      games = futurOrgGames
+        .filter((g) => this.gameMatchesLeague(g, sportName, sportLevel))
+        .slice(0, GAME_LIMIT);
 
       console.log(
-        `[CalendarSync] Keyword scan matched ${games.length} game(s) for "${sportName} ${sportLevel}"`
+        `[CalendarSync] Column scan matched ${games.length} future game(s) for "${sportName} ${sportLevel}"`
       );
     }
 
-    // Persist the CalendarGroupMapping once (not per-game) so future trigger
-    // syncs can also resolve the correct target calendar for this parent.
+    // Persist CalendarGroupMapping once so future trigger syncs can resolve
+    // the correct target calendar without re-running the full match.
     if (games.length > 0) {
       await prisma.calendarGroupMapping.upsert({
         where: {
@@ -781,38 +795,28 @@ export class CalendarService {
             columnValue: `${sportName} ${sportLevel}`,
           },
         },
-        update: {
-          googleCalendarId: targetGoogleCalendarId,
-          googleCalendarName: "Parent Sync",
-        },
-        create: {
-          userId,
-          columnName: "Sport & Level",
-          columnValue: `${sportName} ${sportLevel}`,
-          googleCalendarId: targetGoogleCalendarId,
-          googleCalendarName: "Parent Sync",
-        },
+        update:  { googleCalendarId: targetGoogleCalendarId, googleCalendarName: "Parent Sync" },
+        create:  { userId, columnName: "Sport & Level", columnValue: `${sportName} ${sportLevel}`, googleCalendarId: targetGoogleCalendarId, googleCalendarName: "Parent Sync" },
       });
     }
 
-    const results = [];
-    for (const game of games) {
-      try {
-        // Pass targetGoogleCalendarId directly so syncGameToCalendar doesn't have
-        // to reverse-engineer it from game fields via resolveCalendarIdForGame.
-        // For CSV-imported games the sport/level columns live inside customFields,
-        // not in homeTeam.sport.name / homeTeam.level, so resolveCalendarIdForGame
-        // would fall back to "primary" and write to the wrong calendar.
-        const result = await this.syncGameToCalendar(game.id, userId, targetGoogleCalendarId);
-        results.push({ id: game.id, ok: true, result });
-      } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : "Unknown error";
-        console.error(`[CalendarSync] Failed to sync game ${game.id}:`, errorMsg);
-        results.push({
-          id: game.id,
-          ok: false,
-          error: errorMsg,
-        });
+    // Sync with bounded concurrency so 100 simultaneous parents don't exhaust
+    // the DB connection pool or Google Calendar API quota.
+    const results: { id: string; ok: boolean; result?: any; error?: string }[] = [];
+    for (let i = 0; i < games.length; i += CONCURRENCY) {
+      const batch = games.slice(i, i + CONCURRENCY);
+      const settled = await Promise.allSettled(
+        batch.map((game) => this.syncGameToCalendar(game.id, userId, targetGoogleCalendarId))
+      );
+      for (let j = 0; j < batch.length; j++) {
+        const r = settled[j];
+        if (r.status === "fulfilled") {
+          results.push({ id: batch[j].id, ok: r.value.success !== false, result: r.value });
+        } else {
+          const errorMsg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+          console.error(`[CalendarSync] Failed to sync game ${batch[j].id}:`, errorMsg);
+          results.push({ id: batch[j].id, ok: false, error: errorMsg });
+        }
       }
     }
 
