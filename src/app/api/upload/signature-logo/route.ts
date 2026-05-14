@@ -80,8 +80,8 @@ const s3Client = new S3Client({
   endpoint: SPACES_ENDPOINT,
   region: SPACES_REGION,
   credentials: {
-    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME,
-    secretAccessKey: process.env.DO_SPACES_SECRET_KEY,
+    accessKeyId: process.env.DO_SPACES_ACCESS_KEY || process.env.DO_SPACES_ACCESS_KEY_NAME || "",
+    secretAccessKey: process.env.DO_SPACES_SECRET_KEY || "",
   },
   forcePathStyle: FORCE_PATH_STYLE,
 });

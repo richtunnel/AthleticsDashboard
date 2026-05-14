@@ -3,8 +3,7 @@ import AboutClient from "./AboutClient";
 
 export const metadata: Metadata = {
   title: "About Opletics | AMS Trusted by NADC, NFHS & Athletic Directors Nationwide",
-  description:
-    "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments. Our mission is to streamline sports scheduling and team management.",
+  description: "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments. Our mission is to streamline sports scheduling and team management.",
   keywords: [
     // ── Brand ────────────────────────────────────────────────────────────
     "opletics",
@@ -19,6 +18,11 @@ export const metadata: Metadata = {
     "athletic management system",
     "athletic management tool",
     // ── Industry organisations ────────────────────────────────────────────
+    "sports source",
+    "sports-source",
+    "sport-source",
+    "sport source",
+    "sports spreadsheet",
     "NADC",
     "National Athletic Directors Conference",
     "NFHS",
@@ -55,8 +59,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "About Opletics | AMS Trusted by NADC, NFHS & Athletic Directors Nationwide",
-    description:
-      "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments.",
+    description: "Learn about Opletics, the premier athlete management system built by athletic directors for athletic departments.",
     url: "/about",
   },
 };

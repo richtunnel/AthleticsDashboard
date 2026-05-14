@@ -119,6 +119,11 @@ export const metadata: Metadata = {
   keywords: [
     // ── Core product ──────────────────────────────────────────────────────
     "opletics",
+    "sports source",
+    "sports-source",
+    "sport-source",
+    "sport source",
+    "sports spreadsheet",
     "AMS",
     "new ams",
     "best ams",

@@ -29,6 +29,11 @@ export const metadata: Metadata = {
     "athlete management",
     "centralized ams",
     "athletes desk",
+    "sports source",
+    "sports-source",
+    "sport-source",
+    "sport source",
+    "sports spreadsheet",
     // ── Audience ─────────────────────────────────────────────────────────
     "tools for athletic directors",
     "tools for coaches",
