@@ -89,7 +89,7 @@ const DreamSection = () => {
           </Typography>
 
           <Typography
-            variant="body1"
+            variant="h6"
             sx={{
               color: theme.palette.text.secondary,
               lineHeight: 1.7,
