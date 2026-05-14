@@ -96,6 +96,7 @@ export const NewsletterSubscription = () => {
           variant="contained"
           disabled={loading}
           sx={{
+            width: { xs: "100%", sm: "auto" },
             minWidth: 120,
             height: 52,
             alignContent: "center",
