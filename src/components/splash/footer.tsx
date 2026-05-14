@@ -44,10 +44,10 @@ export const Footer: React.FC<FooterProps> = (props) => {
           }}
         >
           <Grid container spacing={2}>
-            <Grid size={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <PartnerBuildSectionFooter />
             </Grid>
-            <Grid sx={{ display: "flex", justifyContent: "center", alignItems: "center" }} size={4}>
+            <Grid sx={{ display: "flex", justifyContent: "center", alignItems: "center" }} size={{ xs: 12, md: 4 }}>
               <Stack spacing={4} className={styles.bottomFooterContent}>
                 <Disclaimer />
               </Stack>
