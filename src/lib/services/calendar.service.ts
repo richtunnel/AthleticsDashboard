@@ -622,6 +622,7 @@ export class CalendarService {
    */
   private expandAbbreviations(text: string): string {
     const ABBR_MAP: [RegExp, string][] = [
+      // Concatenated abbreviations (e.g. "GV", "BV")
       [/\bgv\b/g,  "girls varsity"],
       [/\bbv\b/g,  "boys varsity"],
       [/\bgjv\b/g, "girls junior varsity"],
@@ -630,6 +631,11 @@ export class CalendarService {
       [/\bwv\b/g,  "womens varsity"],
       [/\bmsb\b/g, "middle school boys"],
       [/\bmsg\b/g, "middle school girls"],
+      // Space-separated abbreviations (e.g. "B V Basketball", "G JV Soccer")
+      [/\bb\s+v\b/gi, "boys varsity"],
+      [/\bg\s+v\b/gi, "girls varsity"],
+      [/\bb\s+jv\b/gi, "boys junior varsity"],
+      [/\bg\s+jv\b/gi, "girls junior varsity"],
     ];
     let result = text.toLowerCase();
     for (const [re, expansion] of ABBR_MAP) {
