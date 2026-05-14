@@ -2,6 +2,7 @@
 
 import { Box, Typography, Link } from "@mui/material";
 import BaseHeader from "@/components/headers/_base";
+import Footer from "@/components/layout/Footer";
 
 export default function CancellationPolicyPage() {
   return (
@@ -71,6 +72,7 @@ export default function CancellationPolicyPage() {
           </Link>.
         </Typography>
       </Box>
+      <Footer />
     </>
   );
 }

@@ -12,6 +12,7 @@ import {
   Link,
 } from "@mui/material";
 import BaseHeader from "@/components/headers/_base";
+import Footer from "@/components/layout/Footer";
 
 export default function RefundPolicyPage() {
   const [open, setOpen] = useState(false);
@@ -174,6 +175,7 @@ export default function RefundPolicyPage() {
           </Box>
         )}
       </Box>
+      <Footer />
     </>
   );
 }
