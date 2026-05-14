@@ -122,6 +122,38 @@ export default function Footer() {
           Privacy
         </Link>
         <Link
+          href="/refund"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          Refund Policy
+        </Link>
+        <Link
+          href="/cancellation"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          Cancellation Policy
+        </Link>
+        <Link
           href="/incident-response"
           target="_blank"
           rel="noopener noreferrer"
