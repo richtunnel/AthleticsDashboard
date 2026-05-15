@@ -110,7 +110,7 @@ const softwareAppJsonLd = {
 export const metadata: Metadata = {
   metadataBase: getSiteUrlAsUrl(),
   title: {
-    default: "Opletics | Best AMS for Athletic Directors, Coaches & League Management",
+    default: "Opletics | AMS for Athletic Directors, Coaches & League Management",
     template: "%s | Opletics",
   },
   description:
@@ -222,7 +222,7 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "Opletics",
-    title: "Opletics | Best AMS for Athletic Directors, Coaches & League Management",
+    title: "Opletics | AMS for Athletic Directors, Coaches & League Management",
     description:
       "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync for athletic directors and coaches. The ultimate sports software solution.",
     images: [
@@ -239,7 +239,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@opletics",
     creator: "@opletics",
-    title: "Opletics | Best AMS for Athletic Directors & Coaches",
+    title: "Opletics | AMS for Athletic Directors & Coaches",
     description: "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync. The best athlete management system.",
     images: ["/assets/images/opletic-dash-sample.png"],
   },

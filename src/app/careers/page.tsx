@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import CareersClient from "./CareersClient";
 
 export const metadata: Metadata = {
-  title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
+  title: "Careers at Opletics ",
   description: "Join the Opletics team and help us build the next generation of sports software and athlete management systems. Explore open positions in design, sales, and athletics.",
   keywords: [
     // ── Core ─────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     canonical: "/careers",
   },
   openGraph: {
-    title: "Careers at Opletics | Build the Best AMS & Sports Management Tools",
+    title: "Careers at Opletics",
     description: "Join the Opletics team and help us build the next generation of sports software and athlete management systems.",
     url: "/careers",
   },
