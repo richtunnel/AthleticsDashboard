@@ -12,29 +12,17 @@ interface SettingsTabsClientProps {
   otherContent: React.ReactNode;
 }
 
-export function SettingsTabsClient({
-  generalContent,
-  costBudgetContent,
-  aiFeaturesContent,
-  collaboratorContent,
-  otherContent,
-}: SettingsTabsClientProps) {
+export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeaturesContent, collaboratorContent, otherContent }: SettingsTabsClientProps) {
   const [tab, setTab] = useState(0);
 
   return (
     <Box>
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}
-        variant="scrollable"
-        scrollButtons="auto"
-      >
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }} variant="scrollable" scrollButtons="auto">
         <Tab icon={<Tune fontSize="small" />} iconPosition="start" label="General" />
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />
         <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Collaborator" />
-        <Tab icon={<MoreHoriz fontSize="small" />} iconPosition="start" label="Other" />
+        <Tab label="Other" />
       </Tabs>
 
       {tab === 0 && <Box>{generalContent}</Box>}
