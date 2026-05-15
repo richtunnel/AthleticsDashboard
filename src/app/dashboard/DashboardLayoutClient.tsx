@@ -110,16 +110,28 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to fetch score tracker setting");
       return res.json();
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch menu visibility preferences
+  const { data: menuVisibility } = useQuery({
+    queryKey: ["menuVisibility"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/menu-visibility");
+      if (!res.ok) throw new Error("Failed to fetch menu visibility");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
 
-  // Filter navigation based on feature toggles
+  // Filter navigation based on feature toggles and user preferences
   const navigation = baseNavigation.filter((item) => {
-    if (item.requiresScoreTracker && !isScoreTrackerEnabled) {
-      return false;
-    }
+    if (item.requiresScoreTracker && !isScoreTrackerEnabled) return false;
+    if (item.href === "/dashboard/messages" && menuVisibility?.hideChatMenu) return false;
+    if (item.href === "/dashboard/posts" && menuVisibility?.hidePostsMenu) return false;
+    if (item.href === "/dashboard/parents" && menuVisibility?.hideParentsMenu) return false;
     return true;
   });
   const pathname = usePathname();

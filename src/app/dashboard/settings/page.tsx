@@ -24,6 +24,7 @@ import { CostBudgetTab } from "@/components/settings/CostBudgetTab";
 import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
 import { CollaboratorsSection } from "@/components/settings/CollaboratorsSection";
 import { SettingsTabsClient } from "@/components/settings/SettingsTabsClient";
+import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggles";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import { AutoAwesome, AttachMoney } from "@mui/icons-material";
@@ -267,6 +268,20 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     </Box>
   );
 
+  const otherContent = (
+    <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+          Hide Menu Options
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+          Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
+        </Typography>
+        <MenuVisibilityToggles />
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
       <Typography sx={{ mb: 2, fontWeight: 700 }} variant="h4">
@@ -278,6 +293,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         costBudgetContent={costBudgetContent}
         aiFeaturesContent={aiFeaturesContent}
         collaboratorContent={collaboratorContent}
+        otherContent={otherContent}
       />
     </Box>
   );

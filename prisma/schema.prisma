@@ -59,6 +59,9 @@ model User {
   costBudgetEnabled          Boolean                   @default(false)
   monthlyBudget              Float?
   scoreTrackerEnabled        Boolean                   @default(false)
+  hideChatMenu               Boolean                   @default(false)
+  hidePostsMenu              Boolean                   @default(false)
+  hideParentsMenu            Boolean                   @default(false)
   schoolEmail                String?                   @unique
   shareCode                  String?                   @unique
   parentCode                 String?                   @unique

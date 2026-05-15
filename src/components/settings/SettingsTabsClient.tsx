@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
-import { Tune, AttachMoney, AutoAwesome, Group } from "@mui/icons-material";
+import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz } from "@mui/icons-material";
 
 interface SettingsTabsClientProps {
   generalContent: React.ReactNode;
   costBudgetContent: React.ReactNode;
   aiFeaturesContent: React.ReactNode;
   collaboratorContent: React.ReactNode;
+  otherContent: React.ReactNode;
 }
 
 export function SettingsTabsClient({
@@ -16,6 +17,7 @@ export function SettingsTabsClient({
   costBudgetContent,
   aiFeaturesContent,
   collaboratorContent,
+  otherContent,
 }: SettingsTabsClientProps) {
   const [tab, setTab] = useState(0);
 
@@ -32,12 +34,14 @@ export function SettingsTabsClient({
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />
         <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Collaborator" />
+        <Tab icon={<MoreHoriz fontSize="small" />} iconPosition="start" label="Other" />
       </Tabs>
 
       {tab === 0 && <Box>{generalContent}</Box>}
       {tab === 1 && <Box>{costBudgetContent}</Box>}
       {tab === 2 && <Box>{aiFeaturesContent}</Box>}
       {tab === 3 && <Box>{collaboratorContent}</Box>}
+      {tab === 4 && <Box>{otherContent}</Box>}
     </Box>
   );
 }
