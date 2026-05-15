@@ -56,6 +56,7 @@ import {
   Person,
   HelpOutline,
   SupportAgent,
+  Newspaper,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -88,6 +89,7 @@ const baseNavigation = [
   { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
   { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
   { name: "Chat", href: "/dashboard/messages", icon: Chat },
+  { name: "Posts", href: "/dashboard/posts", icon: Newspaper },
   { name: "Parents", href: "/dashboard/parents", icon: Person },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
