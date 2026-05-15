@@ -57,16 +57,20 @@ interface DebugInfo {
   excludedClusterDates?: string[];
   notes: string[];
   excludedDays?: string[];
+  weekdaysIncluded?: string[];
+  weekOfMonthFilter?: number;
   dateRange?: { start?: string; end?: string; month?: string; months?: string[] };
   minSpacing?: number;
   interpretation?: string;
   recommendation?: string;
+  parseMethod?: string;
 }
 
 interface AvailableDatesResult {
   recommendations: string[]; // ISO date strings
   debug: DebugInfo;
   aiQuotaExceeded?: boolean;
+  parseMethod?: string;
 }
 
 const formatDateDisplay = (dateStr: string): string => {
@@ -452,7 +456,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, py: 3 }}>
               <CircularProgress size={24} />
               <Typography variant="body2" color="text.secondary">
-                Using AI to analyze your schedule and finding available dates...
+                Analyzing your schedule and finding available dates...
               </Typography>
             </Box>
           )}
@@ -528,6 +532,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     Excluding: {result.debug.excludedDays.join(", ")}
                   </Typography>
+                </Alert>
+              )}
+
+              {/* Weekday Inclusion Filter Info */}
+              {result.debug.weekdaysIncluded && result.debug.weekdaysIncluded.length > 0 && (
+                <Alert severity="info" sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                    Showing only:
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {result.debug.weekdaysIncluded.map((day, idx) => (
+                      <Chip key={idx} label={day} size="small" color="primary" variant="outlined" />
+                    ))}
+                  </Stack>
                 </Alert>
               )}
 
