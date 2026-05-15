@@ -5641,7 +5641,6 @@ export function GamesTable() {
                     slotProps={{
                       textField: {
                         size: "small",
-                        autoFocus: true,
                         onKeyDown: (e: any) => handleInlineKeyDown(e, game),
                         sx: { width: "100%" },
                         InputProps: { sx: { fontSize: 13 } },
