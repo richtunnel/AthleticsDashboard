@@ -65,11 +65,13 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     monthlyPrice: 19,
     annualPrice: 125,
     features: [
-      "5 isolated spreadsheets",
-      "Email game schedules using campaign manager",
-      "200+ batch email campaigns",
+      "Sync schedule with your google calendars",
+      "Multiple Isolated spreadsheets",
+      "Mass email game schedules",
       "Travel Recommendations (Bus Departure)",
       "Table customization (filters, ordering)",
+      "1 Collaborator Account",
+      "Public posts",
       "Basic chat and email support",
       "2 weeks Free Trial",
     ],
@@ -82,12 +84,11 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     annualPrice: 250,
     mostPopular: true,
     features: [
-      "10 isolated spreadsheets",
-      "Sync schedule with your google calendars +groups",
+      "Multiple Isolated spreadsheets",
       "150,000 emails/mo. (Parents, Schools, etc.)",
-      "Use AI to scan for dates",
-      "Calendar Integration",
-      "Custom Email Signatures",
+      "AI scan for available game dates",
+      "Parent communication system",
+      "Score Tracker",
       "Premium chat and email support 24hrs.",
       "Everything in Standard plan.",
       "2 weeks Free Trial",
@@ -101,14 +102,11 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
     annualPrice: 350,
     features: [
       "Unlimited isolated spreadsheets",
+      "5 collaborators",
       "Everything in Team plan plus...",
       "250,000+ email/mo.",
-      "AI Email Generation",
-      "Email scheduler",
       "Schedule Conflict Detection",
-      "Score Tracker",
       "Budget Planner",
-      "School Theme Customization",
       "Priority chat and email support (Now)",
       "2 weeks Free Trial",
     ],
@@ -147,6 +145,7 @@ function PricingPlansContent() {
 
   const isBusy = loadingKey !== null;
   const checkoutStatus = searchParams.get("checkout");
+  const checkoutRequired = searchParams.get("checkout_required") === "true";
   const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
   const hasActiveSubscription = subscriptionStatus === "ACTIVE" || subscriptionStatus === "TRIALING";
   const hasIncompleteSubscription = subscriptionStatus === "INCOMPLETE" || subscriptionStatus === "INCOMPLETE_EXPIRED";
@@ -221,39 +220,25 @@ function PricingPlansContent() {
       price: billing === "monthly" ? plan.monthlyPrice : plan.annualPrice,
     });
 
-    if (plan.isFree) {
-      router.push("/onboarding/signup?plan=free_trial_plan");
-      return;
-    }
-
     if (hasActiveSubscription) {
-      router.push("/dashboard/settings");
+      router.push("/dashboard");
       return;
     }
 
     if (sessionStatus === "loading") {
-      console.log("Session status is loading, waiting...");
       setError("Please wait while we confirm your account. Try again in a moment.");
       return;
     }
 
     if (sessionStatus !== "authenticated" || !session?.user) {
-      // Instead of redirecting to login, redirect to signup to force school details flow
-      router.push("/onboarding/signup");
+      router.push("/login?callbackUrl=/onboarding/plans");
       return;
     }
 
     const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
 
-    // Log missing price ID but allow user to proceed
     if (!priceId || !isValidPriceId(priceId)) {
-      console.warn(`Stripe price ID not configured for ${plan.name} (${billing}). Allowing user to proceed to signup.`, {
-        planName: plan.name,
-        billing,
-        priceId,
-        isDevelopment,
-      });
-      router.push("/onboarding/signup");
+      setError("This plan is not available right now. Please try again or contact support.");
       return;
     }
 
@@ -261,9 +246,8 @@ function PricingPlansContent() {
 
     const timeoutId = window.setTimeout(() => {
       setLoadingKey(null);
-      console.warn("Plan selection timeout reached, redirecting to signup");
-      router.push("/onboarding/signup");
-    }, 10000);
+      setError("The request timed out. Please try again.");
+    }, 15000);
 
     try {
       const response = await fetch("/api/stripe/create-checkout-session", {
@@ -274,17 +258,10 @@ function PricingPlansContent() {
 
       const data = await response.json().catch(() => null);
 
-      if (!response.ok) {
-        // Log error but allow user to proceed
-        console.warn("Stripe checkout session creation failed, redirecting to signup:", data?.error);
-        router.push("/onboarding/signup");
-        return;
-      }
-
-      if (data?.error) {
-        // Log error but allow user to proceed
-        console.warn("Stripe checkout session returned error, redirecting to signup:", data.error);
-        router.push("/onboarding/signup");
+      if (!response.ok || data?.error) {
+        const msg = data?.error || "Unable to start checkout. Please try again.";
+        console.error("Stripe checkout session error:", msg);
+        setError(isDevelopment ? msg : "Unable to start checkout. Please try again or contact support.");
         return;
       }
 
@@ -293,12 +270,10 @@ function PricingPlansContent() {
         return;
       }
 
-      // No checkout URL returned, redirect to signup
-      console.warn("No checkout URL returned from Stripe, redirecting to signup");
-      router.push("/onboarding/signup");
+      setError("No checkout URL was returned. Please try again or contact support.");
     } catch (err: unknown) {
-      console.error("Checkout error, redirecting to signup:", err);
-      router.push("/onboarding/signup");
+      console.error("Checkout error:", err);
+      setError("Something went wrong. Please try again or contact support.");
     } finally {
       clearTimeout(timeoutId);
       setLoadingKey(null);
@@ -367,6 +342,17 @@ function PricingPlansContent() {
             </Box>
             <Typography variant="caption" color="text.secondary">
               See <code>docs/STRIPE_QUICK_START.md</code> for setup instructions.
+            </Typography>
+          </Alert>
+        )}
+
+        {checkoutRequired && !hasActiveSubscription && (
+          <Alert severity="info" sx={{ mt: 3, mb: 3, maxWidth: 640, mx: "auto" }}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              One more step — start your free trial
+            </Typography>
+            <Typography variant="body2">
+              Select a plan below to activate your 2-week free trial. You won&apos;t be charged until the trial ends, and you can cancel anytime.
             </Typography>
           </Alert>
         )}

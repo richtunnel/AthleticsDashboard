@@ -298,6 +298,15 @@ export async function middleware(req: NextRequest) {
           return NextResponse.redirect(url);
         }
 
+        // AD has never completed Stripe checkout — send to plans page
+        if (paymentStatus.needsCheckout) {
+          console.log("[Middleware] Checkout required, redirecting to plans:", token.sub);
+          const url = req.nextUrl.clone();
+          url.pathname = "/onboarding/plans";
+          url.searchParams.set("checkout_required", "true");
+          return NextResponse.redirect(url);
+        }
+
         // If payment is overdue / subscription expired, redirect to settings
         if (paymentStatus.shouldLockDashboard) {
           console.log("[Middleware] Dashboard locked, redirecting to settings:", token.sub);

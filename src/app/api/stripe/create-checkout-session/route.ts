@@ -255,7 +255,11 @@ export async function POST(req: NextRequest) {
     const rawBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || getSiteUrl()).replace(/\/$/, "");
     const baseUrl = normalizeBrowserUrl(rawBaseUrl);
     
-    const successUrl = `${baseUrl}/dashboard/settings?checkout=success`;
+    // Onboarding checkout lands on /dashboard so the middleware can route the user
+    // to /onboarding/details (if not yet filled) or straight to the dashboard.
+    const successUrl = isOnboarding
+      ? `${baseUrl}/dashboard`
+      : `${baseUrl}/dashboard/settings?checkout=success`;
     const cancelUrl = `${baseUrl}/onboarding/plans?checkout=cancelled`;
 
     const checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {

@@ -19,6 +19,8 @@ export interface PaymentStatusResult {
   disableReason?: string | null;
   isCanceled?: boolean;
   periodEndDate?: Date;
+  /** True when the AD has never completed Stripe checkout — redirect to /onboarding/plans */
+  needsCheckout?: boolean;
 }
 
 /**
@@ -26,12 +28,14 @@ export interface PaymentStatusResult {
  */
 export async function checkPaymentStatus(userId: string): Promise<PaymentStatusResult> {
   try {
-    // First check if account is disabled
+    // Fetch account status, role, and member-access flag in one query
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         isDisabled: true,
         disableReason: true,
+        role: true,
+        isMemberAccess: true,
       },
     });
 
@@ -49,11 +53,36 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       where: { userId },
     });
 
-    // No subscription = free user, no lock
+    // Athletic Directors must complete Stripe checkout before accessing the dashboard.
+    // Member-access (demo) sessions and non-AD roles (collaborators, parents) are exempt.
+    const isAD = user?.role === 'ATHLETIC_DIRECTOR';
+    const isMember = Boolean(user?.isMemberAccess);
+
+    if (!subscription && isAD && !isMember) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: true,
+        needsCheckout: true,
+        isDisabled: false,
+      };
+    }
+
+    // No subscription = non-AD role (collaborator, parent, etc.) — no lock
     if (!subscription) {
       return {
         isOverdue: false,
         shouldLockDashboard: false,
+        isDisabled: false,
+      };
+    }
+
+    // Expired incomplete checkout — AD must restart Stripe checkout
+    if (subscription.status === 'INCOMPLETE_EXPIRED' && isAD && !isMember) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: true,
+        needsCheckout: true,
+        status: subscription.status,
         isDisabled: false,
       };
     }
