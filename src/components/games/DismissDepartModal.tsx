@@ -16,7 +16,7 @@ import {
   Chip,
 } from "@mui/material";
 import { DirectionsBus, Schedule, TrendingUp, Cloud, LocationOn } from "@mui/icons-material";
-import { formatTimeDisplay } from "@/lib/utils/formatters";
+import { formatTimeDisplay, formatMinutes } from "@/lib/utils/formatters";
 
 interface DismissDepartModalProps {
   open: boolean;
@@ -201,7 +201,7 @@ export function DismissDepartModal({
                   />
                   <Chip
                     icon={<Schedule />}
-                    label={`${recommendation.travelTimeMinutes} min travel + ${recommendation.bufferMinutes} min buffer`}
+                    label={`${formatMinutes(recommendation.travelTimeMinutes)} travel + ${formatMinutes(recommendation.bufferMinutes)} buffer`}
                     size="small"
                     variant="outlined"
                   />
