@@ -153,32 +153,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
       <CalendarConnectionSection />
 
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            Score Tracker
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Enable score tracking to add game results and view team performance statistics. This adds score entry
-            functionality to teams menu options.
-          </Typography>
-          <ScoreTrackerToggle />
-        </CardContent>
-      </Card>
-
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            Spreadsheet Columns
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want
-            to return to the standard view.
-          </Typography>
-          <ResetColumnsButton />
-        </CardContent>
-      </Card>
-
       <EmailLimitsCard />
 
       <SubscriptionOverviewCard
@@ -269,17 +243,45 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   );
 
   const otherContent = (
-    <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-          Hide Menu Options
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-          Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
-        </Typography>
-        <MenuVisibilityToggles />
-      </CardContent>
-    </Card>
+    <>
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Score Tracker
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Enable score tracking to add game results and view team performance statistics. This adds score entry
+            functionality to teams menu options.
+          </Typography>
+          <ScoreTrackerToggle />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Spreadsheet Columns
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want
+            to return to the standard view.
+          </Typography>
+          <ResetColumnsButton />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Hide Menu Options
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
+          </Typography>
+          <MenuVisibilityToggles />
+        </CardContent>
+      </Card>
+    </>
   );
 
   return (
