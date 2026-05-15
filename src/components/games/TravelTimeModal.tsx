@@ -5,7 +5,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, B
 import { DirectionsBus, Schedule, LocationOn } from "@mui/icons-material";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 import { useTheme } from "@mui/material/styles";
-import { formatTimeDisplay } from "@/lib/utils/formatters";
+import { formatTimeDisplay, formatMinutes } from "@/lib/utils/formatters";
 interface TravelTimeModalProps {
   open: boolean;
   onClose: () => void;
@@ -205,7 +205,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Schedule fontSize="small" color="action" />
                       <Typography variant="body2">
-                        Travel Time: <strong>{calculation.travelTimeMinutes} minutes</strong>
+                        Travel Time: <strong>{formatMinutes(calculation.travelTimeMinutes)}</strong>
                       </Typography>
                     </Box>
                     {calculation.distance && (
@@ -219,7 +219,7 @@ export function TravelTimeModal({ open, onClose, gameId, gameName, columnName, o
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <DirectionsBus fontSize="small" color="action" />
                       <Typography variant="body2">
-                        Safety Buffer: <strong>{calculation.bufferMinutes} minutes</strong>
+                        Safety Buffer: <strong>{formatMinutes(calculation.bufferMinutes)}</strong>
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
