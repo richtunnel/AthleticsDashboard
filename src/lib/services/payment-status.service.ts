@@ -17,6 +17,8 @@ export interface PaymentStatusResult {
   shouldLockDashboard: boolean;
   isDisabled?: boolean;
   disableReason?: string | null;
+  isCanceled?: boolean;
+  periodEndDate?: Date;
 }
 
 /**
@@ -100,7 +102,21 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       };
     }
 
-    // Canceled or other statuses = no lock (they can still access settings to resubscribe)
+    // Canceled — allow access until the paid period ends, then lock to billing-only
+    if (subscription.status === 'CANCELED') {
+      const periodEnd = subscription.currentPeriodEnd;
+      const periodExpired = !periodEnd || periodEnd <= new Date();
+      return {
+        isOverdue: false,
+        shouldLockDashboard: periodExpired,
+        isCanceled: true,
+        periodEndDate: periodEnd ?? undefined,
+        status: subscription.status,
+        isDisabled: false,
+      };
+    }
+
+    // Other statuses = no lock
     return {
       isOverdue: false,
       shouldLockDashboard: false,

@@ -298,12 +298,16 @@ export async function middleware(req: NextRequest) {
           return NextResponse.redirect(url);
         }
 
-        // If payment is overdue and should lock dashboard, redirect to settings
+        // If payment is overdue / subscription expired, redirect to settings
         if (paymentStatus.shouldLockDashboard) {
-          console.log("[Middleware] Payment overdue, redirecting to settings:", token.sub);
+          console.log("[Middleware] Dashboard locked, redirecting to settings:", token.sub);
           const url = req.nextUrl.clone();
           url.pathname = "/dashboard/settings";
-          url.searchParams.set("payment_overdue", "true");
+          if (paymentStatus.isCanceled) {
+            url.searchParams.set("subscription_canceled", "true");
+          } else {
+            url.searchParams.set("payment_overdue", "true");
+          }
           return NextResponse.redirect(url);
         }
       } catch (error) {
