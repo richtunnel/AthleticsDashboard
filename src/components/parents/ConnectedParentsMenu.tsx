@@ -81,7 +81,7 @@ async function syncParent(payload: {
   id: string;
   sportName?: string;
   sportLevel?: string;
-}): Promise<{ message: string }> {
+}): Promise<{ message: string; synced: number; failed: number; errors?: string[] }> {
   const res = await fetch(`/api/admin/connected-parents/${payload.id}/sync`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -152,7 +152,9 @@ export function ConnectedParentsMenu() {
     mutationFn: syncParent,
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
-      showMessage(res.message || "Calendar synced successfully");
+      const hasErrors = (res.errors?.length ?? 0) > 0;
+      const detail = hasErrors ? ` — ${res.errors![0]}` : "";
+      showMessage((res.message || "Calendar synced successfully") + detail, hasErrors ? "warning" : "success");
       setSyncTarget(null);
       setSyncSport("");
       setSyncLevel("");

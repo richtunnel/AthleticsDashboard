@@ -112,6 +112,13 @@ export async function POST(
       );
     }
 
+    // Clear any stuck syncInProgress locks from previous failed attempts so
+    // games aren't silently skipped on retry.
+    await prisma.game.updateMany({
+      where: { homeTeam: { organizationId: connectedParent.schoolId }, syncInProgress: true },
+      data: { syncInProgress: false },
+    });
+
     // Ensure an APPROVED CalendarSyncRequest exists for this sport/level.
     // syncGameToCalendar runs a PARENT permission check that requires one —
     // without it the sync fails even though the AD explicitly authorized it.
@@ -158,13 +165,16 @@ export async function POST(
     });
 
     const synced = results.filter((r: any) => r.ok).length;
-    const failed = results.filter((r: any) => !r.ok).length;
+    const failedResults = results.filter((r: any) => !r.ok);
+    const failed = failedResults.length;
+    const errors = failedResults.map((r: any) => r.error).filter(Boolean);
 
     return NextResponse.json({
       success: true,
       message: `Sync complete — ${synced} game(s) added to calendar, ${failed} failed`,
       synced,
       failed,
+      ...(errors.length > 0 && { errors }),
     });
   } catch (error: any) {
     console.error("[API] Error syncing connected parent:", error);
