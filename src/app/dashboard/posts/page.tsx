@@ -23,7 +23,7 @@ export default function PostsPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 680, mx: "auto", px: { xs: 1, sm: 2 }, py: 3 }}>
+    <Box sx={{ maxWidth: 992, mx: "auto", px: { xs: 1, sm: 2 }, py: 3 }}>
       <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
         Posts
       </Typography>
@@ -35,7 +35,7 @@ export default function PostsPage() {
         <PostComposer currentUser={currentUser} onPostCreated={handlePostCreated} />
       )}
 
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
 
       <NewsFeed currentUserId={session?.user?.id} queryKey={FEED_KEY} />
     </Box>

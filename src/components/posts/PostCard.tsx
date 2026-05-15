@@ -178,7 +178,8 @@ export default function PostCard({ post, currentUserId, onDelete }: PostCardProp
             sx={{
               width: 44,
               height: 44,
-              bgcolor: "primary.main",
+              bgcolor: "#1e293b",
+              color: "#ffffff",
               fontSize: 15,
               fontWeight: 700,
               flexShrink: 0,

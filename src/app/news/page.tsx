@@ -29,7 +29,7 @@ export default function NewsPage() {
           boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
-        <Container maxWidth="md" sx={{ display: "flex", alignItems: "center", gap: 2, py: 1.5 }}>
+        <Container maxWidth="lg" sx={{ display: "flex", alignItems: "center", gap: 2, py: 1.5, maxWidth: 992 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexGrow: 1 }}>
             {/* <SportsScore sx={{ color: "primary.main", fontSize: 28 }} /> */}
             <Box>
@@ -51,8 +51,8 @@ export default function NewsPage() {
       </Box>
 
       {/* Feed */}
-      <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 } }}>
-        <Box sx={{ maxWidth: 680, mx: "auto" }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
+        <Box sx={{ maxWidth: 992, mx: "auto" }}>
           <NewsFeed queryKey="public-news-feed" />
         </Box>
       </Container>

@@ -18,6 +18,7 @@ import Link from "next/link";
 const MAX_IMAGES = 4;
 const MAX_FILE_SIZE_MB = 2;
 const MAX_DIMENSION = 1920;
+const SEPARATOR = "rgba(227,227,227,1)";
 
 async function compressImage(file: File): Promise<File> {
   return new Promise((resolve) => {
@@ -61,10 +62,10 @@ async function compressImage(file: File): Promise<File> {
   });
 }
 
-interface UploadedImage {
+interface PendingImage {
+  id: string;
+  file: File;
   preview: string;
-  url: string;
-  key: string;
 }
 
 interface PostComposerProps {
@@ -75,11 +76,9 @@ interface PostComposerProps {
 export default function PostComposer({ currentUser, onPostCreated }: PostComposerProps) {
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<UploadedImage[]>([]);
-  const [uploading, setUploading] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,67 +89,81 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
     .slice(0, 2)
     .toUpperCase();
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Stage images for preview without uploading yet
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    if (images.length + files.length > MAX_IMAGES) {
+    if (pendingImages.length + files.length > MAX_IMAGES) {
       setError(`Maximum ${MAX_IMAGES} images per post.`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
     setError(null);
-    setUploading(true);
+    const incoming: PendingImage[] = files.map((file) => ({
+      id: Math.random().toString(36).slice(2),
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setPendingImages((prev) => [...prev, ...incoming]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (id: string) => {
+    setPendingImages((prev) => {
+      const img = prev.find((i) => i.id === id);
+      if (img) URL.revokeObjectURL(img.preview);
+      return prev.filter((i) => i.id !== id);
+    });
+  };
+
+  // Compress → upload → create post, all on "Post" click
+  const handleSubmit = async () => {
+    if (!content.trim() && pendingImages.length === 0) return;
+    setSubmitting(true);
+    setError(null);
+
     try {
-      for (const rawFile of files) {
-        const compressed = await compressImage(rawFile);
-        const preview = URL.createObjectURL(compressed);
+      // Upload images sequentially (avoids hammering the endpoint)
+      const uploaded: { url: string; key: string }[] = [];
+      for (const pending of pendingImages) {
+        const compressed = await compressImage(pending.file);
         const fd = new FormData();
         fd.append("file", compressed);
         const res = await fetch("/api/posts/upload-image", { method: "POST", body: fd });
         const json = await res.json();
-        if (!json.success) throw new Error(json.error || "Upload failed");
-        setImages((prev) => [...prev, { preview, url: json.data.url, key: json.data.key }]);
+        if (!json.success) {
+          throw new Error(
+            json.error || "Image upload service is currently unavailable. Please try again later."
+          );
+        }
+        uploaded.push({ url: json.data.url, key: json.data.key });
       }
-    } catch (err: any) {
-      setError(err.message || "Image upload failed");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
 
-  const removeImage = (idx: number) => {
-    setImages((prev) => {
-      URL.revokeObjectURL(prev[idx].preview);
-      return prev.filter((_, i) => i !== idx);
-    });
-  };
-
-  const handleSubmit = async () => {
-    if (!content.trim() && images.length === 0) return;
-    setSubmitting(true);
-    setError(null);
-    try {
+      // Create the post
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: content.trim() || undefined,
-          images: images.map((i) => ({ url: i.url, key: i.key })),
+          images: uploaded,
         }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error || "Failed to post");
+      if (!json.success) throw new Error(json.error || "Failed to create post. Please try again.");
+
+      // Clean up previews and reset
+      pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));
       setContent("");
-      setImages([]);
+      setPendingImages([]);
       onPostCreated();
     } catch (err: any) {
-      setError(err.message || "Failed to create post");
+      setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const canPost = (content.trim().length > 0 || images.length > 0) && !submitting && !uploading;
+  const canPost = (content.trim().length > 0 || pendingImages.length > 0) && !submitting;
 
   return (
     <Paper
@@ -164,9 +177,18 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
       }}
     >
       <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+        {/* Avatar — fixed dark bg / white text */}
         <Avatar
           src={currentUser.image || undefined}
-          sx={{ width: 42, height: 42, bgcolor: "primary.main", fontSize: 14, fontWeight: 700, flexShrink: 0 }}
+          sx={{
+            width: 42,
+            height: 42,
+            bgcolor: "#1e293b",
+            color: "#ffffff",
+            fontSize: 14,
+            fontWeight: 700,
+            flexShrink: 0,
+          }}
         >
           {initials}
         </Avatar>
@@ -179,12 +201,14 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
               borderColor: "divider",
               borderRadius: 2,
               overflow: "hidden",
-              "&:focus-within": { borderColor: "primary.main", boxShadow: `0 0 0 2px ${theme.palette.primary.main}22` },
+              "&:focus-within": {
+                borderColor: "primary.main",
+                boxShadow: `0 0 0 2px ${theme.palette.primary.main}22`,
+              },
               transition: "border-color 0.15s, box-shadow 0.15s",
             }}
           >
             <textarea
-              ref={textRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Share an update, news, or moment with fellow ADs…"
@@ -211,19 +235,32 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
             />
           </Box>
 
-          {/* Image previews */}
-          {images.length > 0 && (
+          {/* Image previews — shown immediately after selection, before upload */}
+          {pendingImages.length > 0 && (
             <Box sx={{ display: "flex", gap: 1, mt: 1.5, flexWrap: "wrap" }}>
-              {images.map((img, idx) => (
+              {pendingImages.map((img) => (
                 <Box
-                  key={img.key}
-                  sx={{ position: "relative", width: 80, height: 80, borderRadius: 1.5, overflow: "hidden", border: "1px solid", borderColor: "divider" }}
+                  key={img.id}
+                  sx={{
+                    position: "relative",
+                    width: 80,
+                    height: 80,
+                    borderRadius: 1.5,
+                    overflow: "hidden",
+                    border: "1px solid",
+                    borderColor: "divider",
+                  }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img
+                    src={img.preview}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
                   <IconButton
                     size="small"
-                    onClick={() => removeImage(idx)}
+                    onClick={() => removeImage(img.id)}
+                    disabled={submitting}
                     sx={{
                       position: "absolute",
                       top: 2,
@@ -238,11 +275,6 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                   </IconButton>
                 </Box>
               ))}
-              {uploading && (
-                <Box sx={{ width: 80, height: 80, display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed", borderColor: "divider", borderRadius: 1.5 }}>
-                  <CircularProgress size={24} />
-                </Box>
-              )}
             </Box>
           )}
 
@@ -253,7 +285,17 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
           )}
 
           {/* Actions row */}
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mt: 1.5, pt: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mt: 1.5,
+              pt: 1.5,
+              borderTop: "1px solid",
+              borderColor: SEPARATOR,
+            }}
+          >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <input
                 ref={fileInputRef}
@@ -263,12 +305,18 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                 style={{ display: "none" }}
                 onChange={handleFileChange}
               />
-              <Tooltip title={images.length >= MAX_IMAGES ? "Max 4 images per post" : "Add photo"}>
+              <Tooltip
+                title={
+                  pendingImages.length >= MAX_IMAGES
+                    ? "Max 4 images per post"
+                    : "Add photo (preview shown before posting)"
+                }
+              >
                 <span>
                   <IconButton
                     size="small"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={images.length >= MAX_IMAGES || uploading}
+                    disabled={pendingImages.length >= MAX_IMAGES || submitting}
                     color="primary"
                   >
                     <AddPhotoAlternate />
@@ -276,7 +324,10 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                 </span>
               </Tooltip>
               {content.length > 200 && (
-                <Typography variant="caption" color={content.length > 2800 ? "error" : "text.secondary"}>
+                <Typography
+                  variant="caption"
+                  color={content.length > 2800 ? "error" : "text.secondary"}
+                >
                   {content.length}/3000
                 </Typography>
               )}
@@ -300,7 +351,11 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                 disabled={!canPost}
                 sx={{ borderRadius: 4, px: 2.5, fontWeight: 600, textTransform: "none" }}
               >
-                {submitting ? <CircularProgress size={16} color="inherit" /> : "Post"}
+                {submitting ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  "Post"
+                )}
               </Button>
             </Box>
           </Box>
