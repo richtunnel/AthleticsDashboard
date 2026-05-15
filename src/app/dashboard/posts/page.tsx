@@ -1,16 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
+import { Newspaper, Campaign } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import PostComposer from "@/components/posts/PostComposer";
 import NewsFeed from "@/components/posts/NewsFeed";
+import { AnnouncementComposer } from "@/components/announcements/AnnouncementComposer";
+import AnnouncementFeed from "@/components/announcements/AnnouncementFeed";
 
-const FEED_KEY = "dashboard-posts-feed";
+const POSTS_KEY = "dashboard-posts-feed";
+const ANNOUNCEMENTS_KEY = "dashboard-announcements-feed";
 
 export default function PostsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const [tab, setTab] = useState(0);
 
   const currentUser = {
     id: session?.user?.id ?? "",
@@ -18,24 +24,52 @@ export default function PostsPage() {
     image: session?.user?.image ?? null,
   };
 
-  const handlePostCreated = () => {
-    queryClient.invalidateQueries({ queryKey: [FEED_KEY] });
-  };
-
   return (
     <Box sx={{ maxWidth: 992, mx: "auto", px: { xs: 1, sm: 2 }, py: 3 }}>
       <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
         Posts
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Share updates, news, and moments with the Opletics community.
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Share updates with the community or send announcements directly to connected parents.
       </Typography>
 
-      {session?.user && <PostComposer currentUser={currentUser} onPostCreated={handlePostCreated} />}
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}
+      >
+        <Tab icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
+        <Tab icon={<Campaign fontSize="small" />} iconPosition="start" label="Announcements" />
+      </Tabs>
 
-      <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
+      {tab === 0 && (
+        <>
+          {session?.user && (
+            <PostComposer
+              currentUser={currentUser}
+              onPostCreated={() => queryClient.invalidateQueries({ queryKey: [POSTS_KEY] })}
+            />
+          )}
+          <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
+          <NewsFeed currentUserId={session?.user?.id} queryKey={POSTS_KEY} />
+        </>
+      )}
 
-      <NewsFeed currentUserId={session?.user?.id} queryKey={FEED_KEY} />
+      {tab === 1 && (
+        <>
+          {session?.user && (
+            <AnnouncementComposer
+              currentUser={currentUser}
+              onCreated={() => queryClient.invalidateQueries({ queryKey: [ANNOUNCEMENTS_KEY] })}
+            />
+          )}
+          <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
+          <AnnouncementFeed
+            currentUserId={session?.user?.id}
+            queryKey={ANNOUNCEMENTS_KEY}
+          />
+        </>
+      )}
     </Box>
   );
 }

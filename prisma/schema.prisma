@@ -92,6 +92,7 @@ model User {
   calendarSyncRequests       CalendarSyncRequest[]     @relation("ParentCalendarSyncRequests")
   emailJobs                  EmailJob[]
   posts                      Post[]                    @relation("UserPosts")
+  announcements              Announcement[]            @relation("UserAnnouncements")
 
   @@index([organizationId])
   @@map("User")
@@ -244,6 +245,7 @@ model Organization {
   users                  User[]
   venues                 Venue[]
   calendarSyncRequests   CalendarSyncRequest[] @relation("SchoolCalendarSyncRequests")
+  announcements          Announcement[]
 }
 
 model Sport {
@@ -1106,4 +1108,22 @@ model PostImage {
 
   @@index([postId])
   @@map("PostImage")
+}
+
+model Announcement {
+  id             String       @id @default(cuid())
+  title          String
+  content        String
+  authorId       String
+  author         User         @relation("UserAnnouncements", fields: [authorId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isPinned       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([organizationId])
+  @@index([authorId])
+  @@map("Announcement")
 }
