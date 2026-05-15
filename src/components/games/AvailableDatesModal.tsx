@@ -526,6 +526,15 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                 </Alert>
               )}
 
+              {/* Global scan info — no team was specified */}
+              {result.debug.matchedClusters.length === 0 && result.recommendations.length > 0 && (
+                <Alert severity="info" icon={<EventAvailable />} sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Showing dates with no games scheduled (all teams)
+                  </Typography>
+                </Alert>
+              )}
+
               {/* Excluded Days Info */}
               {result.debug.excludedDays && result.debug.excludedDays.length > 0 && (
                 <Alert severity="warning" sx={{ borderRadius: 2 }}>
@@ -648,7 +657,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                                 lineHeight: 1.3,
                               })}
                             >
-                              {matchedTeams[0]}
+                              {matchedTeams.length > 0 ? matchedTeams[0] : "No games scheduled"}
                               {matchedTeams.length > 1 && <span style={{ opacity: 0.7 }}> +{matchedTeams.length - 1} more</span>}
                             </Typography>
                             <Stack direction="row">
@@ -686,7 +695,11 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({ open, 
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                       No Available Dates Found
                     </Typography>
-                    <Typography variant="body2">Try narrowing your search by being more specific using fewer words.</Typography>
+                    {result.debug.notes.some((n) => n.startsWith("No team specified")) ? (
+                      <Typography variant="body2">No open dates found in the specified period. All dates in this range are occupied.</Typography>
+                    ) : (
+                      <Typography variant="body2">Try narrowing your search by being more specific using fewer words.</Typography>
+                    )}
                     {result.debug.notes.length > 0 && (
                       <Typography variant="body2" sx={{ mt: 1, opacity: 0.9 }}>
                         {result.debug.notes.join(" • ")}
