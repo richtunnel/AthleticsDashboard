@@ -5643,7 +5643,6 @@ export function GamesTable() {
                         size: "small",
                         autoFocus: true,
                         onKeyDown: (e: any) => handleInlineKeyDown(e, game),
-                        onBlur: () => handleInlineBlur(game),
                         sx: { width: "100%" },
                         InputProps: { sx: { fontSize: 13 } },
                       },
