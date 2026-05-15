@@ -31,7 +31,7 @@ export default function NewsPage() {
       >
         <Container maxWidth="md" sx={{ display: "flex", alignItems: "center", gap: 2, py: 1.5 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexGrow: 1 }}>
-            <SportsScore sx={{ color: "primary.main", fontSize: 28 }} />
+            {/* <SportsScore sx={{ color: "primary.main", fontSize: 28 }} /> */}
             <Box>
               <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
                 Opletics News
@@ -41,22 +41,10 @@ export default function NewsPage() {
               </Typography>
             </Box>
           </Box>
-          <Button
-            component={Link}
-            href="/dashboard/posts"
-            variant="contained"
-            size="small"
-            sx={{ borderRadius: 4, fontWeight: 600, textTransform: "none", display: { xs: "none", sm: "flex" } }}
-          >
+          <Button component={Link} href="/dashboard/posts" variant="contained" size="small" sx={{ borderRadius: 4, fontWeight: 600, textTransform: "none", display: { xs: "none", sm: "flex" } }}>
             Post an update
           </Button>
-          <Button
-            component={Link}
-            href="/dashboard"
-            size="small"
-            startIcon={<ArrowBack sx={{ fontSize: 16 }} />}
-            sx={{ textTransform: "none", color: "text.secondary", fontSize: 13 }}
-          >
+          <Button component={Link} href="/dashboard" size="small" startIcon={<ArrowBack sx={{ fontSize: 16 }} />} sx={{ textTransform: "none", color: "text.secondary", fontSize: 13 }}>
             Dashboard
           </Button>
         </Container>
