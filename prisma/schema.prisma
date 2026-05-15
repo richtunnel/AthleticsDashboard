@@ -88,6 +88,7 @@ model User {
   loginEvents                UserLoginEvent[]
   calendarSyncRequests       CalendarSyncRequest[]     @relation("ParentCalendarSyncRequests")
   emailJobs                  EmailJob[]
+  posts                      Post[]                    @relation("UserPosts")
 
   @@index([organizationId])
   @@map("User")
@@ -1076,4 +1077,30 @@ enum CollaboratorChatAccess {
   PENDING
   APPROVED
   REVOKED
+}
+
+model Post {
+  id        String      @id @default(cuid())
+  content   String?
+  authorId  String
+  author    User        @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  images    PostImage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([createdAt(sort: Desc)])
+  @@index([authorId])
+  @@map("Post")
+}
+
+model PostImage {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url       String
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@map("PostImage")
 }
