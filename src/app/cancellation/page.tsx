@@ -21,17 +21,17 @@ export default function CancellationPolicyPage() {
           Cancelling Your Subscription
         </Typography>
         <Typography variant="body1" paragraph>
-          After your trial period ends, subscriptions can be <strong>canceled at any time</strong>. You will retain access to your account until the end of your current billing period. We do not charge cancellation fees.
+          Subscriptions can be <strong>canceled at any time</strong>. You will retain access to your account until the end of your current billing period. We do not charge cancellation fees.
         </Typography>
 
         <Typography variant="h6" fontWeight={600} gutterBottom>
           How to Cancel
         </Typography>
         <Typography variant="body1" paragraph>
-          Please email our team with your cancellation request as soon as possible at{" "}
-          <Link href="mailto:support@opletics.com" underline="hover">
-            support@opletics.com
-          </Link>. Include the email address associated with your account and we will process your request promptly.
+          Visit your Settings page in the Dashboard and select your billing plan to cancel your subscription
+          <Link href="https://opletics.com/dashboard/settings" underline="hover">
+            Visit Settings
+          </Link>
         </Typography>
         <Typography variant="body1" paragraph>
           You will receive a confirmation email once your cancellation has been processed. If you do not receive a confirmation within 2 business days, please follow up with us.
@@ -62,14 +62,16 @@ export default function CancellationPolicyPage() {
           You can reactivate your subscription at any time by logging in and selecting a new plan, or by contacting us at{" "}
           <Link href="mailto:support@opletics.com" underline="hover">
             support@opletics.com
-          </Link>.
+          </Link>
+          .
         </Typography>
 
         <Typography variant="body1" paragraph>
           You can always contact us for any cancellation questions at{" "}
           <Link href="mailto:support@opletics.com" underline="hover">
             support@opletics.com
-          </Link>.
+          </Link>
+          .
         </Typography>
       </Box>
       <Footer />
