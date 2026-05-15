@@ -28,12 +28,10 @@ export default function PostsPage() {
         Posts
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Share updates, news, and moments with the AthleticsHub community.
+        Share updates, news, and moments with the Opletics community.
       </Typography>
 
-      {session?.user && (
-        <PostComposer currentUser={currentUser} onPostCreated={handlePostCreated} />
-      )}
+      {session?.user && <PostComposer currentUser={currentUser} onPostCreated={handlePostCreated} />}
 
       <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
 
