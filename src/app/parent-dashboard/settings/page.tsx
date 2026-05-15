@@ -719,7 +719,7 @@ export default function ParentSettingsPage() {
                 Account Details
               </Typography>
             </Box>
-            <IconButton size="small" onClick={() => setEditProfileOpen(true)} title="Edit profile">
+            <IconButton size="small" onClick={() => setEditProfileOpen(true)} aria-label="Edit profile">
               <Edit fontSize="small" />
             </IconButton>
           </Box>

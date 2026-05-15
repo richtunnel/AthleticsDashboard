@@ -52,7 +52,10 @@ export function PaymentOverdueWarning() {
     if (daysOverdue > 0) {
       return `Your payment is ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue.`;
     }
-    return `Your payment is ${hoursOverdue} hours overdue.`;
+    if (hoursOverdue > 0) {
+      return `Your payment is ${hoursOverdue} hour${hoursOverdue !== 1 ? 's' : ''} overdue.`;
+    }
+    return `Your payment is overdue.`;
   };
 
   return (

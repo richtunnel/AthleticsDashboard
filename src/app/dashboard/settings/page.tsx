@@ -27,7 +27,8 @@ import { SettingsTabsClient } from "@/components/settings/SettingsTabsClient";
 import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggles";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
-import { AutoAwesome, AttachMoney } from "@mui/icons-material";
+import { AutoAwesome, AttachMoney, MenuBook } from "@mui/icons-material";
+import Link from "next/link";
 
 interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -188,6 +189,38 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       )}
 
       <SupportCard />
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+            <MenuBook sx={{ color: "primary.main" }} />
+            <Typography variant="h6" sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Documentation
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Learn how to use every feature in Opletics — from scheduling games to managing teams, emails, and AI tools.
+          </Typography>
+          <Box
+            component="a"
+            href="/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.75,
+              color: "primary.main",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            View Documentation →
+          </Box>
+        </CardContent>
+      </Card>
 
       <DeleteAccountSection />
     </>

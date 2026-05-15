@@ -57,6 +57,7 @@ import {
   HelpOutline,
   SupportAgent,
   Newspaper,
+  MenuBook,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -543,8 +544,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" } }}>
               {getFirstName(session?.user?.name) ? `Hey ${getFirstName(session?.user?.name)}` : "loading..."}
             </Typography>
-            <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
+            <IconButton onClick={handleMenu} sx={{ p: 0 }} aria-label="Open profile menu" aria-haspopup="true" aria-expanded={Boolean(anchorEl)}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined} alt={session?.user?.name ? `${session.user.name}'s profile picture` : "Profile picture"}>
                 {session?.user?.name ? (getFirstName(session?.user?.name) || "")[0] : ""}
               </Avatar>
             </IconButton>
@@ -577,6 +578,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </Typography>
               </Box>
               <Divider />
+              <MenuItem component="a" href="/docs" target="_blank" rel="noopener noreferrer" onClick={handleClose}>
+                <ListItemIcon>
+                  <MenuBook fontSize="small" />
+                </ListItemIcon>
+                Documentation
+              </MenuItem>
               <MenuItem component={Link} href="/dashboard/support" onClick={handleClose}>
                 <ListItemIcon>
                   <SupportAgent fontSize="small" />
@@ -680,6 +687,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <Box
+        id="main-content"
         component="main"
         sx={{
           flexGrow: 1,

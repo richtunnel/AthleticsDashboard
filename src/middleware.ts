@@ -283,6 +283,11 @@ export async function middleware(req: NextRequest) {
       return response;
     }
 
+    // Skip all payment/subscription checks in development — allows free local testing
+    if (process.env.NODE_ENV !== "production") {
+      return response;
+    }
+
     // Check if user has overdue payment or disabled account
     if (token?.sub) {
       try {
@@ -298,8 +303,8 @@ export async function middleware(req: NextRequest) {
           return NextResponse.redirect(url);
         }
 
-        // AD has never completed Stripe checkout — send to plans page
-        if (paymentStatus.needsCheckout) {
+        // AD has never completed Stripe checkout — send to plans page (production only)
+        if (paymentStatus.needsCheckout && process.env.NODE_ENV === "production") {
           console.log("[Middleware] Checkout required, redirecting to plans:", token.sub);
           const url = req.nextUrl.clone();
           url.pathname = "/onboarding/plans";

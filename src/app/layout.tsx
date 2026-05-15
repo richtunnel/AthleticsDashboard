@@ -20,7 +20,14 @@ const organizationJsonLd = {
   url: siteUrl,
   logo: `${siteUrl}/favicon.ico`,
   email: "support@opletics.com",
-  sameAs: ["https://www.instagram.com/opletics", "https://facebook.com/opletics", "https://x.com/opletics", "https://www.linkedin.com/company/opletics"],
+  sameAs: [
+    "https://www.instagram.com/opletics",
+    "https://facebook.com/opletics",
+    "https://x.com/opletics",
+    "https://www.linkedin.com/company/opletics",
+    "https://www.crunchbase.com/organization/opletics",
+    "https://www.producthunt.com/products/opletics",
+  ],
   contactPoint: [
     {
       "@type": "ContactPoint",
@@ -269,6 +276,11 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
+        {/* SEO trust signals — not rendered as visible links */}
+        <link rel="me" href="https://www.crunchbase.com/organization/opletics" />
+        <link rel="me" href="https://www.producthunt.com/products/opletics" />
+        <link rel="me" href="https://www.linkedin.com/company/opletics/" />
+        <link rel="me" href="https://www.facebook.com/opletics" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F6F8FB" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="rgb(17 17 17)" />
         <script id="ld-org" type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
@@ -286,6 +298,9 @@ export default function RootLayout({
         </Script>
       </head>
       <body>
+        <a href="#main-content" className="skip-to-main">
+          Skip to main content
+        </a>
         <Providers>
           <MixpanelProvider />
           <Suspense fallback={null}>

@@ -62,13 +62,18 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
   const imgSlot = (img: PostImageData, extraStyle?: object) => (
     <Box
       key={img.id}
+      role="button"
+      tabIndex={0}
       onClick={() => setLightbox(img.url)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLightbox(img.url); } }}
+      aria-label="View full size image"
       sx={{
         position: "relative",
         overflow: "hidden",
         borderRadius: 1,
         cursor: "pointer",
         bgcolor: "action.hover",
+        "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
         ...extraStyle,
       }}
     >
@@ -96,7 +101,7 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
       >
         {images.length === 3
           ? [
-              <Box key={images[0].id} sx={{ gridRow: "1 / 3", position: "relative", overflow: "hidden", cursor: "pointer", bgcolor: "action.hover", borderRadius: 1 }} onClick={() => setLightbox(images[0].url)}>
+              <Box key={images[0].id} role="button" tabIndex={0} aria-label="View full size image" onClick={() => setLightbox(images[0].url)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLightbox(images[0].url); } }} sx={{ gridRow: "1 / 3", position: "relative", overflow: "hidden", cursor: "pointer", bgcolor: "action.hover", borderRadius: 1, "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 } }}>
                 <Image src={images[0].url} alt="Post image" fill sizes="50vw" style={{ objectFit: "cover" }} />
               </Box>,
               imgSlot(images[1]),
@@ -107,7 +112,12 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
 
       {lightbox && (
         <Box
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image lightbox — press Escape to close"
+          tabIndex={-1}
           onClick={() => setLightbox(null)}
+          onKeyDown={(e) => { if (e.key === "Escape") setLightbox(null); }}
           sx={{
             position: "fixed",
             inset: 0,

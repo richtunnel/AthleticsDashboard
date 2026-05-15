@@ -277,7 +277,7 @@ export default function EmailLogsPage() {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Email Logs ({pagination.total})
           </Typography>
-          <IconButton size="small">
+          <IconButton size="small" aria-label={isExpanded ? "Collapse email logs" : "Expand email logs"} aria-expanded={isExpanded}>
             {isExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Stack>

@@ -22,6 +22,7 @@ export default function TopFooter() {
           href="https://www.instagram.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Opletics on Instagram (opens in new tab)"
           style={{
             color: "var(--text-secondary)",
             fontSize: "1.25rem",
@@ -32,12 +33,13 @@ export default function TopFooter() {
           onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
-          <FaInstagram />
+          <FaInstagram aria-hidden="true" />
         </a>
         <a
           href="https://facebook.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Opletics on Facebook (opens in new tab)"
           style={{
             color: "var(--text-secondary)",
             fontSize: "1.25rem",
@@ -48,12 +50,13 @@ export default function TopFooter() {
           onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
-          <FaFacebook />
+          <FaFacebook aria-hidden="true" />
         </a>
         <a
           href="https://x.com/opletics"
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Opletics on X / Twitter (opens in new tab)"
           style={{
             color: "var(--text-secondary)",
             fontSize: "1.25rem",
@@ -64,7 +67,7 @@ export default function TopFooter() {
           onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
-          <FaXTwitter />
+          <FaXTwitter aria-hidden="true" />
         </a>
       </div>
       <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>

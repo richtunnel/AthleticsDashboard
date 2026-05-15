@@ -86,6 +86,7 @@ export default function DeleteAccountModal({
 
         <TextField
           fullWidth
+          label="Confirmation"
           placeholder="Type 'delete' to confirm"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}

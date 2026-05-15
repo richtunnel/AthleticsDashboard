@@ -49,6 +49,15 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
       };
     }
 
+    // Super admins are exempt from all billing checks
+    if (user?.role === 'SUPER_ADMIN') {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: false,
+        isDisabled: false,
+      };
+    }
+
     const subscription = await prisma.subscription.findUnique({
       where: { userId },
     });
@@ -201,5 +210,9 @@ export function getOverdueMessage(result: PaymentStatusResult): string {
     return `Your payment is ${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue. Please update your payment method in Settings to restore full access.`;
   }
 
-  return `Your payment is ${hoursOverdue} hours overdue. Please update your payment method in Settings to restore full access.`;
+  if (hoursOverdue > 0) {
+    return `Your payment is ${hoursOverdue} hour${hoursOverdue !== 1 ? 's' : ''} overdue. Please update your payment method in Settings to restore full access.`;
+  }
+
+  return `Your payment is overdue. Please update your payment method in Settings to restore full access.`;
 }

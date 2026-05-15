@@ -1,6 +1,31 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 
+/* Skip-to-main-content link — visually hidden until focused by keyboard */
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 9999;
+  color: #fff;
+  background: #1976d2;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-to-main:focus {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+}
+
 :root {
   color-scheme: light;
   --background: #fdfdfd;

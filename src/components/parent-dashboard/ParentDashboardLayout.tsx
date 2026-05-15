@@ -324,8 +324,8 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
             <Typography variant="body2" sx={{ color: "text.secondary", display: { xs: "none", sm: "block" } }}>
               {getFirstName(session?.user?.name) ? `Hey ${getFirstName(session?.user?.name)}` : ""}
             </Typography>
-            <IconButton onClick={handleMenu} sx={{ p: 0 }}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined}>
+            <IconButton onClick={handleMenu} sx={{ p: 0 }} aria-label="Open profile menu" aria-haspopup="true" aria-expanded={Boolean(anchorEl)}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined} alt={session?.user?.name ? `${session.user.name}'s profile picture` : "Profile picture"}>
                 {session?.user?.name ? (getFirstName(session?.user?.name) || "")[0] : ""}
               </Avatar>
             </IconButton>
@@ -409,6 +409,7 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
 
       {/* Main Content */}
       <Box
+        id="main-content"
         component="main"
         sx={{
           flexGrow: 1,
