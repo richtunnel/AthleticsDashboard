@@ -83,6 +83,20 @@ export function useChatNotifications(streamUrl: string) {
           return;
         }
 
+        // ── Calendar sync request notification ───────────────────────────
+        if (data.type === "sync_request") {
+          const label = `${data.sportName} ${data.sportLevel}`;
+          addNotification(
+            `${data.parentName} requested calendar sync for ${label}`,
+            "info"
+          );
+          showDesktopNotification(
+            "Calendar Sync Request",
+            `${data.parentName} requested calendar sync for ${label}`
+          );
+          return;
+        }
+
         // Skip notifications for messages sent by the current user
         if (data.senderUserId === currentUserIdRef.current) {
           return;
