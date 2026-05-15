@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { chatEventBus } from "@/lib/chat/eventBus";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -123,6 +124,15 @@ export async function POST(request: NextRequest) {
         sportName: validatedData.sportName,
         sportLevel: validatedData.sportLevel,
       }
+    });
+
+    // Notify connected ADs in real time via the existing SSE school channel
+    chatEventBus.emit(`school:${validatedData.schoolId}`, {
+      type: "sync_request",
+      parentName: user.name || user.email || "A parent",
+      sportName: validatedData.sportName,
+      sportLevel: validatedData.sportLevel,
+      requestId: syncRequest.id,
     });
 
     return NextResponse.json({
