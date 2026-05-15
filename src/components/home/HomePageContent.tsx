@@ -29,6 +29,8 @@ import SolutionSection from "../sections/SolutionSection";
 import TopFooter from "../footer/topFooter";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Parallax } from "../splash/parallax";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
 const CALENDLY_URL = process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min";
 
 export default function HomePageContent() {
@@ -127,6 +129,8 @@ export default function HomePageContent() {
               >
                 Automate Your <br /> Sports Schedules
               </h1>
+              {/* <Chip label="Athlete Management Software" sx={{ top: "-10px", position: "relative" }} /> */}
+
               <p
                 className="text-xl mb-8"
                 style={{

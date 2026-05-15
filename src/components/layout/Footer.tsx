@@ -17,12 +17,12 @@ export default function Footer() {
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
-        alignItems: "left",
+        alignItems: "center",
         marginTop: "0",
       }}
       className={styles.SplashFooterCTA}
     >
-      <div style={{ display: "flex", gap: "1rem", alignItems: "left" }}>
+      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
         <a
           href="https://www.instagram.com/opletics"
           target="_blank"
@@ -151,7 +151,7 @@ export default function Footer() {
           onMouseOver={(e) => (e.currentTarget.style.color = "var(--accent)")}
           onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
         >
-          Cancellation Policy
+          Cancellation
         </Link>
         <Link
           href="/incident-response"
@@ -234,7 +234,7 @@ export default function Footer() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Chat Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
+          Support <QuestionAnswerIcon sx={{ fontSize: "1rem", color: "inherit" }} />
         </a>
       </div>
       {/* <div>
