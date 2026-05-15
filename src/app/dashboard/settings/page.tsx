@@ -42,6 +42,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const params = await searchParams;
   const checkoutParam = params?.checkout;
   const checkoutStatus = Array.isArray(checkoutParam) ? checkoutParam[0] : (checkoutParam ?? null);
+  const subscriptionCanceledParam = params?.subscription_canceled === "true";
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -94,6 +95,51 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         <Typography variant="body1" color="text.secondary">
           {settingsAccess.reason}
         </Typography>
+      </Box>
+    );
+  }
+
+  // Billing-only view when subscription period has ended after cancellation
+  const subscription = userWithSubscription?.subscription;
+  const isCanceledAndExpired =
+    subscriptionCanceledParam ||
+    (subscription?.status === "CANCELED" &&
+      (!subscription.currentPeriodEnd || subscription.currentPeriodEnd <= new Date()));
+
+  if (isCanceledAndExpired && !checkoutStatus) {
+    const periodEnd = subscription?.currentPeriodEnd;
+    const dataRetentionEnd = periodEnd
+      ? new Date(periodEnd.getTime() + 30 * 24 * 60 * 60 * 1000)
+      : null;
+
+    return (
+      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 700 }}>
+        <Typography variant="h5" gutterBottom>
+          Subscription Ended
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
+          Your subscription has been canceled and your access period has ended. Resubscribe below to restore full
+          dashboard access.
+        </Typography>
+        {dataRetentionEnd && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Your data is retained until{" "}
+            <strong>
+              {dataRetentionEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </strong>
+            . Resubscribing before that date will restore everything.
+          </Typography>
+        )}
+        <SubscriptionOverviewCard
+          subscription={subscription || null}
+          recoveryEmail={userWithSubscription?.recoveryEmail || null}
+          lastLogin={userWithSubscription?.lastLogin || null}
+          todayLoginCount={userWithSubscription?.todayLoginCount || 0}
+          stripeCustomerId={userWithSubscription?.stripeCustomerId || null}
+          userRole={userWithSubscription?.role || user.role}
+          userPlan={user.plan}
+          checkoutStatus={checkoutStatus}
+        />
       </Box>
     );
   }
