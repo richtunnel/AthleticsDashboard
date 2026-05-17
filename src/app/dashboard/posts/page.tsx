@@ -32,9 +32,18 @@ export default function PostsPage() {
       <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
         Posts
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Share updates with the community or send announcements directly to connected parents.
-      </Typography>
+
+      {tab === 0 && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Post and share updates with the community our community and connected parents.
+        </Typography>
+      )}
+
+      {tab === 1 && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Share updates directly to connected parents.
+        </Typography>
+      )}
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}>
         <Tab icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
