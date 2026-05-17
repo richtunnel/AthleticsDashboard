@@ -254,13 +254,13 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.preview}
-                    alt={`Image preview ${images.indexOf(img) + 1}`}
+                    alt={`Image preview ${pendingImages.indexOf(img) + 1}`}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                   <IconButton
                     size="small"
                     onClick={() => removeImage(img.id)}
-                    aria-label={`Remove image ${images.indexOf(img) + 1}`}
+                    aria-label={`Remove image ${pendingImages.indexOf(img) + 1}`}
                     disabled={submitting}
                     sx={{
                       position: "absolute",

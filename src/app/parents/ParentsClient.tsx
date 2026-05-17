@@ -21,26 +21,44 @@ import { useRouter } from "next/navigation";
 async function signInAsParent(): Promise<void> {
   const callbackUrl = `${window.location.origin}/parent-dashboard`;
   const csrfRes = await fetch("/api/auth/parent/csrf");
-  if (!csrfRes.ok) return;
+  if (!csrfRes.ok) throw new Error("Could not start sign-in");
   const { csrfToken } = await csrfRes.json();
   const res = await fetch("/api/auth/parent/signin/google", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ csrfToken, callbackUrl, json: "true" }).toString(),
   });
-  if (!res.ok) return;
+  if (!res.ok) throw new Error("Sign-in request failed");
   const data = await res.json();
-  if (data.url) window.location.href = data.url;
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    throw new Error("No redirect URL returned");
+  }
 }
 
 const ParentsClient = () => {
   const theme = useTheme();
   const router = useRouter();
   const [waitlistModalOpen, setWaitlistModalOpen] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
   const handleWaitlistModal = () => setWaitlistModalOpen((prev) => !prev);
 
   const handleGetStarted = () => {
     router.push("/onboarding/parent-signup");
+  };
+
+  const handleSignIn = async () => {
+    setSigningIn(true);
+    setSignInError(null);
+    try {
+      await signInAsParent();
+    } catch {
+      setSignInError("Sign-in failed. Please try again.");
+    } finally {
+      setSigningIn(false);
+    }
   };
 
   const problems = [
@@ -164,7 +182,8 @@ const ParentsClient = () => {
                   Get Started&nbsp; <NavigateNextIcon />
                 </Button>
                 <Button
-                  onClick={() => signInAsParent()}
+                  onClick={handleSignIn}
+                  disabled={signingIn}
                   variant="outlined"
                   size="large"
                   sx={{
@@ -181,9 +200,16 @@ const ParentsClient = () => {
                     },
                   }}
                 >
-                  Sign in
+                  {signingIn ? "Signing in…" : "Sign in"}
                 </Button>
               </Box>
+              {signInError && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" sx={{ color: "#ff8080", fontWeight: 500 }}>
+                    {signInError}
+                  </Typography>
+                </Box>
+              )}
 
               <Grid container spacing={4} sx={{ mt: 6 }}>
                 {[
