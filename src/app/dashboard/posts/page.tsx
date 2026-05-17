@@ -33,26 +33,17 @@ export default function PostsPage() {
         Posts
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Share updates with the community or send announcements directly to connected parents.
+        Share updates directly with connected parents.
       </Typography>
 
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}
-      >
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}>
         <Tab icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
         <Tab icon={<Campaign fontSize="small" />} iconPosition="start" label="Announcements" />
       </Tabs>
 
       {tab === 0 && (
         <>
-          {session?.user && (
-            <PostComposer
-              currentUser={currentUser}
-              onPostCreated={() => queryClient.invalidateQueries({ queryKey: [POSTS_KEY] })}
-            />
-          )}
+          {session?.user && <PostComposer currentUser={currentUser} onPostCreated={() => queryClient.invalidateQueries({ queryKey: [POSTS_KEY] })} />}
           <Divider sx={{ mb: 3, borderColor: dividerColor, borderBottomWidth: "0.5px" }} />
           <NewsFeed currentUserId={session?.user?.id} queryKey={POSTS_KEY} />
         </>
@@ -60,17 +51,9 @@ export default function PostsPage() {
 
       {tab === 1 && (
         <>
-          {session?.user && (
-            <AnnouncementComposer
-              currentUser={currentUser}
-              onCreated={() => queryClient.invalidateQueries({ queryKey: [ANNOUNCEMENTS_KEY] })}
-            />
-          )}
+          {session?.user && <AnnouncementComposer currentUser={currentUser} onCreated={() => queryClient.invalidateQueries({ queryKey: [ANNOUNCEMENTS_KEY] })} />}
           <Divider sx={{ mb: 3, borderColor: dividerColor, borderBottomWidth: "0.5px" }} />
-          <AnnouncementFeed
-            currentUserId={session?.user?.id}
-            queryKey={ANNOUNCEMENTS_KEY}
-          />
+          <AnnouncementFeed currentUserId={session?.user?.id} queryKey={ANNOUNCEMENTS_KEY} />
         </>
       )}
     </Box>
