@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Box, Divider, Tab, Tabs, Typography } from "@mui/material";
+import { Box, Divider, Tab, Tabs, Typography, useTheme } from "@mui/material";
 import { Newspaper, Campaign } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import PostComposer from "@/components/posts/PostComposer";
@@ -16,6 +16,9 @@ const ANNOUNCEMENTS_KEY = "dashboard-announcements-feed";
 export default function PostsPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const dividerColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
   const [tab, setTab] = useState(0);
 
   const currentUser = {
@@ -50,7 +53,7 @@ export default function PostsPage() {
               onPostCreated={() => queryClient.invalidateQueries({ queryKey: [POSTS_KEY] })}
             />
           )}
-          <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
+          <Divider sx={{ mb: 3, borderColor: dividerColor, borderBottomWidth: "0.5px" }} />
           <NewsFeed currentUserId={session?.user?.id} queryKey={POSTS_KEY} />
         </>
       )}
@@ -63,7 +66,7 @@ export default function PostsPage() {
               onCreated={() => queryClient.invalidateQueries({ queryKey: [ANNOUNCEMENTS_KEY] })}
             />
           )}
-          <Divider sx={{ mb: 3, borderColor: "rgba(227,227,227,1)" }} />
+          <Divider sx={{ mb: 3, borderColor: dividerColor, borderBottomWidth: "0.5px" }} />
           <AnnouncementFeed
             currentUserId={session?.user?.id}
             queryKey={ANNOUNCEMENTS_KEY}

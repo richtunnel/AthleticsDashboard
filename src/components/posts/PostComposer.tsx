@@ -292,9 +292,6 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
               alignItems: "center",
               justifyContent: "space-between",
               mt: 1.5,
-              pt: 1.5,
-              borderTop: "1px solid",
-              borderColor: SEPARATOR,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
