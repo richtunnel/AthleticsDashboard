@@ -33,7 +33,7 @@ export default function PostsPage() {
         Posts
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Share updates directly with connected parents.
+        Share updates with the community or send announcements directly to connected parents.
       </Typography>
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}>
