@@ -15,6 +15,7 @@ model User {
   phone                      String?                   @unique
   role                       UserRole                  @default(ATHLETIC_DIRECTOR)
   image                      String?
+  avatarKey                  String?
   emailVerified              DateTime?
   hashedPassword             String?
   resetToken                 String?

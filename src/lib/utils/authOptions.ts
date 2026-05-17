@@ -672,6 +672,7 @@ export const authOptions: NextAuthOptions = {
             teamName: true,
             schoolAddress: true,
             city: true,
+            image: true,
           },
         } as any)) as any;
 
@@ -687,6 +688,7 @@ export const authOptions: NextAuthOptions = {
           token.teamName = dbUser.teamName ?? undefined;
           token.schoolAddress = dbUser.schoolAddress ?? undefined;
           token.city = dbUser.city ?? undefined;
+          if (dbUser.image) token.picture = dbUser.image;
         }
       } else if (user) {
         // Fallback: populate token from user object when DB lookup was skipped

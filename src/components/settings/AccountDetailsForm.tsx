@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert, Snackbar, Avatar, Box, Chip } from "@mui/material";
-import { Google, Email } from "@mui/icons-material";
+import React, { useState, useMemo, useRef } from "react";
+import { Card, CardContent, Typography, TextField, Button, Stack, CircularProgress, Alert, Snackbar, Avatar, Box, Chip, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Google, Email, CameraAlt } from "@mui/icons-material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { updateUserDetails } from "@/app/dashboard/settings/actions";
 import { ALLOWED_SETTINGS_ROLES, ROLE_OPTIONS, AllowedSettingsRole } from "@/lib/constants/role";
 import { getFirstName } from "@/lib/utils/name";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useTheme as customTheme } from "@mui/material/styles";
+import { useSession } from "next-auth/react";
 
 type OrgOption = { id: string; name: string };
 
@@ -31,14 +32,21 @@ type Props = {
 export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEmail }: Props) {
   const theme = customTheme();
   const { mode } = useTheme();
+  const { update: updateSession } = useSession();
 
   const [form, setForm] = useState({
     name: user.name ?? "",
     email: user.email ?? "",
     phone: user.phone ?? "",
     role: (user.role ?? "") as AllowedSettingsRole | "",
-    image: user.image ?? "",
   });
+
+  const [avatarUrl, setAvatarUrl] = useState(user.image ?? "");
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [orgInputValue, setOrgInputValue] = useState<string>(() => {
     if (!user.organization) return "";
@@ -65,11 +73,47 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
       name: user.name ?? "",
       phone: user.phone ?? "",
       role: user.role ?? "",
-      image: user.image ?? "",
       organization: typeof user.organization === "string" ? user.organization : (user.organization?.name ?? ""),
     }),
     [user]
   );
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setAvatarError(null);
+    setPreviewFile(file);
+    setPreviewSrc(URL.createObjectURL(file));
+  };
+
+  const handlePreviewCancel = () => {
+    if (previewSrc) URL.revokeObjectURL(previewSrc);
+    setPreviewSrc(null);
+    setPreviewFile(null);
+  };
+
+  const handleAvatarConfirm = async () => {
+    if (!previewFile) return;
+    const file = previewFile;
+    if (previewSrc) URL.revokeObjectURL(previewSrc);
+    setPreviewSrc(null);
+    setPreviewFile(null);
+    setAvatarUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/user/avatar", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Upload failed");
+      setAvatarUrl(json.data.url);
+      await updateSession();
+    } catch (err: any) {
+      setAvatarError(err.message || "Failed to upload photo. Please try again.");
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
 
   //  Detect if user made changes
   const isDirty = useMemo(() => {
@@ -77,7 +121,6 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
       form.name.trim() !== initialData.name.trim() ||
       form.phone.trim() !== (initialData.phone ?? "").trim() ||
       form.role.trim() !== (initialData.role ?? "").trim() ||
-      form.image.trim() !== (initialData.image ?? "").trim() ||
       orgInputValue.trim() !== (initialData.organization ?? "").trim()
     );
   }, [form, orgInputValue, initialData]);
@@ -112,7 +155,6 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
     const payload: any = {
       name: form.name.trim(),
       phone: form.phone?.trim() || null,
-      image: form.image?.trim() || null,
     };
 
     // Only include role in payload if the role field is visible and changed
@@ -141,15 +183,60 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
   return (
     <Card sx={{ border: "none", boxShadow: "none" }}>
       <CardContent>
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
-          <Avatar src={form.image || undefined} alt={form.name || ""} />
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 3 }}>
+          <Tooltip title="Change profile photo">
+            <Box
+              sx={{ position: "relative", width: 64, height: 64, cursor: "pointer", flexShrink: 0 }}
+              onClick={() => !avatarUploading && fileInputRef.current?.click()}
+              role="button"
+              aria-label="Change profile photo"
+            >
+              <Avatar
+                src={avatarUrl || undefined}
+                alt={form.name || "Profile photo"}
+                sx={{ width: 64, height: 64, bgcolor: "primary.main", color: "#fff", fontSize: "1.5rem" }}
+              >
+                {(getFirstName(form.name) || "U")[0].toUpperCase()}
+              </Avatar>
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "50%",
+                  bgcolor: "rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: avatarUploading ? 1 : 0,
+                  transition: "opacity 0.18s",
+                  "&:hover": { opacity: 1 },
+                }}
+              >
+                {avatarUploading
+                  ? <CircularProgress size={24} sx={{ color: "#fff" }} />
+                  : <CameraAlt sx={{ color: "#fff", fontSize: 22 }} />}
+              </Box>
+            </Box>
+          </Tooltip>
           <Box>
             <Typography variant="subtitle1">{getFirstName(form.name) || "Unnamed"}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {form.email}
-            </Typography>
+            <Typography variant="body2" color="text.secondary">{form.email}</Typography>
+            <Typography variant="caption" color="text.disabled">Click photo to change</Typography>
           </Box>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            style={{ display: "none" }}
+            onChange={handleAvatarChange}
+            aria-hidden="true"
+          />
         </Box>
+        {avatarError && (
+          <Alert severity="error" onClose={() => setAvatarError(null)} sx={{ mb: 2, maxWidth: 768 }}>
+            {avatarError}
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Stack sx={{ maxWidth: "768px" }} spacing={2}>
@@ -250,7 +337,6 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
                 Your role ({user.role}) cannot be changed from this page. Contact support for assistance.
               </Typography>
             )} */}
-            <TextField size="small" label="Profile Image URL" name="image" value={form.image} onChange={handleChange} fullWidth />
             <Autocomplete
               freeSolo
               options={orgOptions}
@@ -317,6 +403,39 @@ export default function AccountDetailsForm({ user, googleCalendarEmail, schoolEm
         </form>
 
         <Snackbar open={!!alert} autoHideDuration={4000} onClose={() => setAlert(null)} anchorOrigin={{ vertical: "bottom", horizontal: "center" }} />
+
+        {/* Photo preview modal */}
+        <Dialog open={Boolean(previewSrc)} onClose={handlePreviewCancel} maxWidth="xs" fullWidth>
+          <DialogTitle sx={{ fontWeight: 600 }}>Preview photo</DialogTitle>
+          <DialogContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, pb: 1 }}>
+            {previewSrc && (
+              <Box
+                component="img"
+                src={previewSrc}
+                alt="Photo preview"
+                sx={{
+                  width: 200,
+                  height: 200,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "3px solid",
+                  borderColor: "primary.main",
+                }}
+              />
+            )}
+            <Typography variant="body2" color="text.secondary" textAlign="center">
+              Does this look good? Click &ldquo;Update photo&rdquo; to save.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+            <Button onClick={handlePreviewCancel} color="inherit" size="small">
+              Cancel
+            </Button>
+            <Button onClick={handleAvatarConfirm} variant="contained" size="small">
+              Update photo
+            </Button>
+          </DialogActions>
+        </Dialog>
       </CardContent>
     </Card>
   );
