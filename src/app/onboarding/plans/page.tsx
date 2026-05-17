@@ -138,12 +138,13 @@ function PricingPlansContent() {
   const [hasDismissedCheckoutAlert, setHasDismissedCheckoutAlert] = useState(false);
   const [priceIds, setPriceIds] = useState<StripePriceIds>(() => getStripePriceIds());
   const [hasCheckedPriceConfig, setHasCheckedPriceConfig] = useState(false);
+  const [loadingPriceIds, setLoadingPriceIds] = useState(true);
   const router = useRouter();
   const theme = useTheme();
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
 
-  const isBusy = loadingKey !== null;
+  const isBusy = loadingKey !== null || loadingPriceIds;
   const checkoutStatus = searchParams.get("checkout");
   const checkoutRequired = searchParams.get("checkout_required") === "true";
   const showCancelledAlert = !hasDismissedCheckoutAlert && checkoutStatus === "cancelled";
@@ -154,8 +155,28 @@ function PricingPlansContent() {
   const plans = useMemo(() => buildPlans(priceIds), [priceIds]);
 
   useEffect(() => {
-    setPriceIds(getStripePriceIds());
-    setHasCheckedPriceConfig(true);
+    // Fetch price IDs from server at runtime so they don't need to be baked
+    // into the client bundle as NEXT_PUBLIC_ vars.
+    fetch("/api/stripe/config")
+      .then((r) => r.json())
+      .then((data) => {
+        // Merge server values over any build-time values — server wins if set
+        setPriceIds((prev) => ({
+          standardMonthly: data.standardMonthly || prev.standardMonthly,
+          standardAnnual:  data.standardAnnual  || prev.standardAnnual,
+          teamMonthly:     data.teamMonthly      || prev.teamMonthly,
+          teamAnnual:      data.teamAnnual       || prev.teamAnnual,
+          plusMonthly:     data.plusMonthly      || prev.plusMonthly,
+          plusAnnual:      data.plusAnnual       || prev.plusAnnual,
+        }));
+      })
+      .catch(() => {
+        // Fall back silently to whatever build-time values we have
+      })
+      .finally(() => {
+        setHasCheckedPriceConfig(true);
+        setLoadingPriceIds(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -238,7 +259,11 @@ function PricingPlansContent() {
     const priceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
 
     if (!priceId || !isValidPriceId(priceId)) {
-      setError("This plan is not available right now. Please try again or contact support.");
+      if (loadingPriceIds) {
+        setError("Loading plan details — please try again in a moment.");
+      } else {
+        setError("This plan is not available right now. Please try again or contact support.");
+      }
       return;
     }
 
