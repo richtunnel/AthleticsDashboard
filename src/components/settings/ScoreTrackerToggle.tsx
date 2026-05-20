@@ -33,21 +33,35 @@ export function ScoreTrackerToggle() {
   });
 
   const mutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      await updateScoreTrackerSetting(enabled);
-      return { enabled };
+    mutationFn: updateScoreTrackerSetting,
+    // Optimistic update: flip the cache immediately so the switch doesn't snap back
+    // while the PATCH is in flight (especially noticeable when toggling OFF).
+    onMutate: async (enabled: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ["scoreTrackerEnabled"] });
+      const previous = queryClient.getQueryData(["scoreTrackerEnabled"]);
+      queryClient.setQueryData(["scoreTrackerEnabled"], (old: any) => ({
+        ...old,
+        scoreTrackerEnabled: enabled,
+      }));
+      return { previous };
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["scoreTrackerEnabled"] });
+    onError: (err: Error, _enabled, context) => {
+      // Revert on failure
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(["scoreTrackerEnabled"], context.previous);
+      }
+      setError(err.message);
+    },
+    onSuccess: (_data, enabled) => {
       setError(null);
       trackEvent("Score Tracker Toggled", {
         source: "settings_page",
         feature: "score_tracker",
-        enabled: variables,
+        enabled,
       });
     },
-    onError: (err: Error) => {
-      setError(err.message);
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["scoreTrackerEnabled"] });
     },
   });
 

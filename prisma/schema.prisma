@@ -1086,17 +1086,64 @@ enum CollaboratorChatAccess {
 }
 
 model Post {
-  id        String      @id @default(cuid())
-  content   String?
-  authorId  String
-  author    User        @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
-  images    PostImage[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id           String        @id @default(cuid())
+  content      String?
+  authorId     String
+  author       User          @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  images       PostImage[]
+  likes        PostLike[]
+  saves        PostSave[]
+  comments     PostComment[]
+  likeCount    Int           @default(0)
+  saveCount    Int           @default(0)
+  commentCount Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([createdAt(sort: Desc)])
   @@index([authorId])
   @@map("Post")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId  String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, parentId])
+  @@index([postId])
+  @@index([parentId])
+  @@map("PostLike")
+}
+
+model PostSave {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId  String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, parentId])
+  @@index([postId])
+  @@index([parentId])
+  @@map("PostSave")
+}
+
+model PostComment {
+  id          String   @id @default(cuid())
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId    String
+  parentName  String?
+  content     String   @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([parentId])
+  @@map("PostComment")
 }
 
 model PostImage {

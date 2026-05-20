@@ -29,7 +29,7 @@ import {
   Chip,
   Button,
 } from "@mui/material";
-import { Menu as MenuIcon, Dashboard, Chat, Settings, Logout, Notifications, CalendarMonth, Close, CheckCircle, Error as ErrorIcon, Info, Warning, SupportAgent, Sync, Campaign } from "@mui/icons-material";
+import { Menu as MenuIcon, Dashboard, Chat, Settings, Logout, Notifications, CalendarMonth, Close, CheckCircle, Error as ErrorIcon, Info, Warning, SupportAgent, Sync, Campaign, DynamicFeed } from "@mui/icons-material";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
 import { useTheme as customTheme } from "@mui/material/styles";
@@ -44,6 +44,7 @@ const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Overview", href: "/parent-dashboard", icon: Dashboard },
+  { name: "Feed", href: "/parent-dashboard/feed", icon: DynamicFeed },
   { name: "Calendar", href: "/parent-dashboard/calendar", icon: Sync },
   { name: "Announcements", href: "/parent-dashboard/announcements", icon: Campaign },
   { name: "Chat", href: "/parent-dashboard/chat", icon: Chat },

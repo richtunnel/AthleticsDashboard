@@ -147,7 +147,7 @@ export function AnnouncementComposer({ currentUser, onCreated, editData, onEditD
 
               <Box sx={{ display: "flex", gap: 1 }}>
                 {isEdit && (
-                  <Button size="small" onClick={onEditDone} disabled={submitting} color="inherit">
+                  <Button size="small" onClick={() => onEditDone?.()} disabled={submitting} color="inherit">
                     Cancel
                   </Button>
                 )}
