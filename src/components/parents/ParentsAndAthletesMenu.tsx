@@ -112,8 +112,8 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
   };
 
   return (
-    <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
-      <Typography sx={{ mb: 2, fontWeight: 700 }} variant="h4">
+    <Box sx={{ px: { xs: "10px", sm: 2 }, pb: 3, pt: 0 }}>
+      <Typography sx={{ mb: 2, fontWeight: 700, fontSize: { xs: "1.35rem", sm: "2.125rem" } }} variant="h4">
         Parents Connect
       </Typography>
 

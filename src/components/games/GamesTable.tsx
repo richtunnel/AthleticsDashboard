@@ -201,6 +201,7 @@ interface Game {
     name: string;
     level: string;
     location: string;
+    gender?: string | null;
     sport: {
       name: string;
     };
@@ -6778,15 +6779,29 @@ export function GamesTable() {
     setExpandedCard(expandedCard === gameId ? null : gameId);
   };
 
+  // Build a human-readable team title: [Girls/Boys] [Level] [Sport]
+  // Falls back gracefully when fields are missing.
+  const buildTeamTitle = (homeTeam: Game["homeTeam"]): string => {
+    const parts: string[] = [];
+    if (homeTeam?.gender === "FEMALE") parts.push("Girls");
+    else if (homeTeam?.gender === "MALE") parts.push("Boys");
+    // COED or null → no gender prefix
+    const level = homeTeam?.level ? formatLevelDisplay(homeTeam.level) : "";
+    if (level) parts.push(level);
+    const sport = homeTeam?.sport?.name;
+    if (sport) parts.push(sport);
+    return parts.join(" ") || "—";
+  };
+
   const renderMobileCard = (game: Game) => {
     const isSelected = selectedGames.has(game.id);
     const isExpanded = expandedCard === game.id;
 
-    // Format date
-    const formattedDate = format(new Date(game.date), "MMM d, yyyy");
-
-    // Get opponent name
-    const opponentName = game.opponent?.name || "—";
+    // Format date as MM/dd/yyyy (extract the local date part to avoid TZ shift)
+    const datePart = extractDatePart(game.date);
+    const formattedDate = datePart
+      ? format(new Date(datePart + "T12:00:00"), "MM/dd/yyyy")
+      : "—";
 
     // Get time
     const timeDisplay = formatTimeDisplay(game.time);
@@ -6794,11 +6809,11 @@ export function GamesTable() {
     // Get status
     const statusConfig = getConfirmedStatus(game.status);
 
-    // Get team info
-    const teamInfo = game.homeTeam ? `${game.homeTeam.sport?.name || "—"} ${formatLevelDisplay(game.homeTeam.level) || ""}` : "—";
+    // Smart team title
+    const teamTitle = buildTeamTitle(game.homeTeam);
 
     // Get location
-    const locationName = game.venue?.name || "—";
+    const locationName = game.venue?.name || "";
 
     // Home/Away
     const homeAway = game.isHome ? "Home" : "Away";
@@ -6823,15 +6838,10 @@ export function GamesTable() {
             {game.googleCalendarEventId && <Chip size="small" icon={<Sync sx={{ fontSize: 14 }} />} label="Synced" sx={{ height: 20, fontSize: "0.7rem", mr: 1 }} />}
           </Box>
 
-          {/* Team and Sport */}
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            {teamInfo}
-          </Typography>
-
-          {/* Opponent and Home/Away */}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-            <Typography variant="body1" sx={{ fontWeight: 500 }}>
-              vs. {opponentName}
+          {/* Team title + Home/Away chip */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
+            <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+              {teamTitle}
             </Typography>
             <Chip label={homeAway} size="small" sx={{ height: 20, fontSize: "0.7rem" }} />
           </Box>
@@ -6850,12 +6860,14 @@ export function GamesTable() {
             <Divider sx={{ my: 1 }} />
 
             {/* Location */}
-            <Box sx={{ mb: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                Location
-              </Typography>
-              <Typography variant="body2">{locationName}</Typography>
-            </Box>
+            {locationName && (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Location
+                </Typography>
+                <Typography variant="body2">{locationName}</Typography>
+              </Box>
+            )}
 
             {/* Notes */}
             {game.notes && (
@@ -6888,11 +6900,25 @@ export function GamesTable() {
             {/* CSV imported fields */}
             {game.customFields && Object.keys(game.customFields).length > 0 && (
               <Box>
-                {Object.entries(game.customFields).map(([key, value]) => (
-                  <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem", mb: 0.5 }}>
-                    <strong>{key}:</strong> {(columnPreferencesData?.columnMapping as Record<string, string>)?.[key] === "time" ? formatTimeDisplay(String(value)) : String(value)}
-                  </Typography>
-                ))}
+                {Object.entries(game.customFields).map(([key, value]) => {
+                  if (value === null || value === undefined) return null;
+                  const colMapping = (columnPreferencesData?.columnMapping as Record<string, string>)?.[key];
+                  let displayValue: string;
+                  if (colMapping === "time") {
+                    displayValue = formatTimeDisplay(String(value));
+                  } else if (colMapping === "date" || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value))) {
+                    const dp = extractDatePart(String(value));
+                    displayValue = dp ? format(new Date(dp + "T12:00:00"), "MM/dd/yyyy") : String(value);
+                  } else {
+                    displayValue = String(value);
+                  }
+                  if (!displayValue) return null;
+                  return (
+                    <Typography key={key} variant="body2" sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                      <strong>{key}:</strong> {displayValue}
+                    </Typography>
+                  );
+                })}
               </Box>
             )}
           </Collapse>

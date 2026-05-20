@@ -28,19 +28,19 @@ export default function PostsPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 992, mx: "auto", px: { xs: 1, sm: 2 }, py: 3 }}>
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+    <Box sx={{ maxWidth: 992, mx: "auto", px: { xs: "10px", sm: 2 }, py: 3 }}>
+      <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: "1.15rem", sm: "1.5rem" } }}>
         Posts
       </Typography>
 
       {tab === 0 && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Post and share updates with the community our community and connected parents.
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
+          Post and share updates with the community and connected parents.
         </Typography>
       )}
 
       {tab === 1 && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.8rem", sm: "0.875rem" } }}>
           Share updates directly to connected parents.
         </Typography>
       )}

@@ -81,6 +81,8 @@ export const Footer: React.FC<FooterProps> = (props) => {
           transform: { xs: "translateX(50%)", sm: "none" },
           opacity: 0.1,
           zIndex: 0,
+          pointerEvents: "none",
+          userSelect: "none",
         }}
       >
         <Box

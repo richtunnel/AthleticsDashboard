@@ -169,23 +169,24 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
     <Paper
       elevation={0}
       sx={{
-        p: 2.5,
+        p: { xs: 1.5, sm: 2.5 },
         mb: 3,
         borderRadius: 3,
         border: "1px solid",
         borderColor: "divider",
       }}
     >
-      <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-        {/* Avatar — fixed dark bg / white text */}
+      {/* On mobile: avatar sits above the textarea. On sm+: side-by-side. */}
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 }, alignItems: "flex-start" }}>
+        {/* Avatar */}
         <Avatar
           src={currentUser.image || undefined}
           sx={{
-            width: 42,
-            height: 42,
+            width: { xs: 36, sm: 42 },
+            height: { xs: 36, sm: 42 },
             bgcolor: "#1e293b",
             color: "#ffffff",
-            fontSize: 14,
+            fontSize: { xs: 12, sm: 14 },
             fontWeight: 700,
             flexShrink: 0,
           }}
@@ -193,7 +194,7 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
           {initials}
         </Avatar>
 
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, width: "100%" }}>
           {/* Textarea */}
           <Box
             sx={{
@@ -219,10 +220,10 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
                 border: "none",
                 outline: "none",
                 resize: "none",
-                padding: "12px 14px",
+                padding: "10px 12px",
                 fontFamily: "inherit",
-                fontSize: "0.9rem",
-                lineHeight: 1.6,
+                fontSize: "0.875rem",
+                lineHeight: 1.55,
                 background: "transparent",
                 color: theme.palette.text.primary,
                 boxSizing: "border-box",
