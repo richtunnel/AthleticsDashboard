@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
-import { getParentSession } from "@/lib/utils/parentSession";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getParentSession();
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -15,32 +15,32 @@ export async function POST(
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const existing = await tx.postSave.findUnique({
+      const existing = await tx.postLike.findUnique({
         where: { postId_userId: { postId, userId } },
         select: { id: true },
       });
 
       if (existing) {
-        await tx.postSave.delete({ where: { id: existing.id } });
+        await tx.postLike.delete({ where: { id: existing.id } });
         const updated = await tx.post.update({
           where: { id: postId },
-          data: { saveCount: { decrement: 1 } },
-          select: { saveCount: true },
+          data: { likeCount: { decrement: 1 } },
+          select: { likeCount: true },
         });
-        return { saved: false, saveCount: Math.max(0, updated.saveCount) };
+        return { liked: false, likeCount: Math.max(0, updated.likeCount) };
       } else {
-        await tx.postSave.create({ data: { postId, userId } });
+        await tx.postLike.create({ data: { postId, userId } });
         const updated = await tx.post.update({
           where: { id: postId },
-          data: { saveCount: { increment: 1 } },
-          select: { saveCount: true },
+          data: { likeCount: { increment: 1 } },
+          select: { likeCount: true },
         });
-        return { saved: true, saveCount: updated.saveCount };
+        return { liked: true, likeCount: updated.likeCount };
       }
     });
 
     return NextResponse.json({ success: true, data: result });
   } catch {
-    return NextResponse.json({ error: "Failed to toggle save" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to toggle like" }, { status: 500 });
   }
 }

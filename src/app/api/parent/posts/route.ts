@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
         },
         // Single-row existence checks — no extra round trips
         likes: {
-          where: { parentId },
+          where: { userId: parentId },
           select: { id: true },
           take: 1,
         },
         saves: {
-          where: { parentId },
+          where: { userId: parentId },
           select: { id: true },
           take: 1,
         },

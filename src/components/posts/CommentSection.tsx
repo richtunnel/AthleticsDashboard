@@ -17,8 +17,8 @@ import { formatDistanceToNow } from "date-fns";
 interface PostComment {
   id: string;
   content: string;
-  parentId: string;
-  parentName: string | null;
+  userId: string;
+  userName: string | null;
   createdAt: string;
 }
 
@@ -208,13 +208,13 @@ export default function CommentSection({ postId, currentParentId, onCountChange 
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {allComments.map((comment) => {
-            const initials = (comment.parentName || "P")
+            const initials = (comment.userName || "P")
               .split(" ")
               .map((w) => w[0])
               .join("")
               .slice(0, 2)
               .toUpperCase();
-            const isOwn = comment.parentId === currentParentId;
+            const isOwn = comment.userId === currentParentId;
             return (
               <Box key={comment.id} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
                 <Avatar
@@ -242,7 +242,7 @@ export default function CommentSection({ postId, currentParentId, onCountChange 
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.25 }}>
                     <Typography variant="caption" fontWeight={700} color="text.primary">
-                      {comment.parentName || "Parent"}
+                      {comment.userName || "Parent"}
                     </Typography>
                     <Typography variant="caption" color="text.disabled" sx={{ fontSize: "0.7rem" }}>
                       {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}

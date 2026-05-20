@@ -1109,12 +1109,12 @@ model PostLike {
   id        String   @id @default(cuid())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parentId  String
+  userId    String
   createdAt DateTime @default(now())
 
-  @@unique([postId, parentId])
+  @@unique([postId, userId])
   @@index([postId])
-  @@index([parentId])
+  @@index([userId])
   @@map("PostLike")
 }
 
@@ -1122,27 +1122,27 @@ model PostSave {
   id        String   @id @default(cuid())
   postId    String
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parentId  String
+  userId    String
   createdAt DateTime @default(now())
 
-  @@unique([postId, parentId])
+  @@unique([postId, userId])
   @@index([postId])
-  @@index([parentId])
+  @@index([userId])
   @@map("PostSave")
 }
 
 model PostComment {
-  id          String   @id @default(cuid())
-  postId      String
-  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  parentId    String
-  parentName  String?
-  content     String   @db.VarChar(1000)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  userName  String?
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([postId, createdAt(sort: Desc)])
-  @@index([parentId])
+  @@index([userId])
   @@map("PostComment")
 }
 

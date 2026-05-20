@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Box, CircularProgress, Skeleton, Typography } from "@mui/material";
 import PostCard, { type PostData } from "./PostCard";
@@ -42,6 +43,8 @@ interface NewsFeedProps {
 }
 
 export default function NewsFeed({ currentUserId, queryKey = "posts-feed" }: NewsFeedProps) {
+  const { data: session } = useSession();
+  const resolvedUserId = currentUserId ?? session?.user?.id;
   const queryClient = useQueryClient();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -128,7 +131,7 @@ export default function NewsFeed({ currentUserId, queryKey = "posts-feed" }: New
         <PostCard
           key={post.id}
           post={post}
-          currentUserId={currentUserId}
+          currentUserId={resolvedUserId}
           onDelete={handleDelete}
         />
       ))}

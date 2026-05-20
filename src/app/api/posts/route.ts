@@ -6,28 +6,37 @@ import { getAnySession } from "@/lib/utils/collaboratorSession";
 
 const PAGE_SIZE = 12;
 
-const postSelect = {
-  id: true,
-  content: true,
-  createdAt: true,
-  author: {
-    select: {
-      id: true,
-      name: true,
-      image: true,
-      schoolName: true,
-      role: true,
+function buildPostSelect(userId?: string) {
+  return {
+    id: true,
+    content: true,
+    likeCount: true,
+    saveCount: true,
+    commentCount: true,
+    createdAt: true,
+    author: {
+      select: { id: true, name: true, image: true, schoolName: true, role: true },
     },
-  },
-  images: {
-    select: { id: true, url: true, key: true },
-    orderBy: { createdAt: "asc" as const },
-  },
-};
+    images: {
+      select: { id: true, url: true, key: true },
+      orderBy: { createdAt: "asc" as const },
+    },
+    // Scoped subqueries: O(1) per post, no extra round trips
+    ...(userId
+      ? {
+          likes: { where: { userId }, select: { id: true }, take: 1 },
+          saves: { where: { userId }, select: { id: true }, take: 1 },
+        }
+      : {}),
+  };
+}
 
-// GET /api/posts — public, cursor-based paginated feed
+// GET /api/posts — cursor-based paginated feed with per-user engagement state
 export async function GET(request: NextRequest) {
   try {
+    const session = await getAnySession();
+    const userId = session?.user?.id;
+
     const cursor = request.nextUrl.searchParams.get("cursor");
     const limit = Math.min(
       parseInt(request.nextUrl.searchParams.get("limit") || String(PAGE_SIZE), 10),
@@ -35,19 +44,22 @@ export async function GET(request: NextRequest) {
     );
 
     const posts = await prisma.post.findMany({
-      select: postSelect,
+      select: buildPostSelect(userId),
       orderBy: { createdAt: "desc" },
-      take: limit + 1, // fetch one extra to know if there's a next page
-      ...(cursor
-        ? { skip: 1, cursor: { id: cursor } }
-        : {}),
+      take: limit + 1,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
     const hasMore = posts.length > limit;
-    const data = hasMore ? posts.slice(0, limit) : posts;
-    const nextCursor = hasMore ? data[data.length - 1].id : null;
+    const raw = hasMore ? posts.slice(0, limit) : posts;
 
-    return NextResponse.json({ success: true, data, nextCursor });
+    const data = raw.map(({ likes, saves, ...post }: any) => ({
+      ...post,
+      isLiked: Array.isArray(likes) ? likes.length > 0 : false,
+      isSaved: Array.isArray(saves) ? saves.length > 0 : false,
+    }));
+
+    return NextResponse.json({ success: true, data, nextCursor: hasMore ? data[data.length - 1].id : null });
   } catch (error: any) {
     logger.error("[Posts GET] Error", { error: error.message });
     return ApiResponse.error("Failed to load posts", 500);
@@ -81,7 +93,7 @@ export async function POST(request: NextRequest) {
           ? { create: imagePayload.map((img) => ({ url: img.url, key: img.key })) }
           : undefined,
       },
-      select: postSelect,
+      select: buildPostSelect(session.user.id),
     });
 
     logger.info("[Posts POST] Created post", { postId: post.id, authorId: session.user.id });

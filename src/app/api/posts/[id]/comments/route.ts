@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
-import { getParentSession } from "@/lib/utils/parentSession";
+import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { logger } from "@/lib/utils/logger";
 
-const COMMENT_PAGE_SIZE = 20;
-const MAX_COMMENT_LENGTH = 1000;
+const PAGE_SIZE = 20;
+const MAX_LENGTH = 1000;
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getParentSession();
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -23,16 +23,15 @@ export async function GET(
       where: { postId },
       select: { id: true, content: true, userId: true, userName: true, createdAt: true },
       orderBy: { createdAt: "asc" },
-      take: COMMENT_PAGE_SIZE + 1,
+      take: PAGE_SIZE + 1,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
 
-    const hasMore = comments.length > COMMENT_PAGE_SIZE;
-    const data = hasMore ? comments.slice(0, COMMENT_PAGE_SIZE) : comments;
-
+    const hasMore = comments.length > PAGE_SIZE;
+    const data = hasMore ? comments.slice(0, PAGE_SIZE) : comments;
     return NextResponse.json({ success: true, data, nextCursor: hasMore ? data[data.length - 1].id : null });
   } catch (error: any) {
-    logger.error("[Parent Comments GET]", { error: error.message });
+    logger.error("[Posts Comments GET]", { error: error.message });
     return NextResponse.json({ error: "Failed to load comments" }, { status: 500 });
   }
 }
@@ -41,7 +40,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getParentSession();
+  const session = await getAnySession();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -52,11 +51,8 @@ export async function POST(
   try {
     const body = await request.json();
     const content = (body.content ?? "").trim();
-
     if (!content) return NextResponse.json({ error: "Comment cannot be empty." }, { status: 400 });
-    if (content.length > MAX_COMMENT_LENGTH) {
-      return NextResponse.json({ error: `Comment cannot exceed ${MAX_COMMENT_LENGTH} characters.` }, { status: 400 });
-    }
+    if (content.length > MAX_LENGTH) return NextResponse.json({ error: `Max ${MAX_LENGTH} characters.` }, { status: 400 });
 
     const comment = await prisma.$transaction(async (tx) => {
       const created = await tx.postComment.create({
@@ -69,7 +65,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, data: comment }, { status: 201 });
   } catch (error: any) {
-    logger.error("[Parent Comments POST]", { error: error.message });
+    logger.error("[Posts Comments POST]", { error: error.message });
     return NextResponse.json({ error: "Failed to post comment" }, { status: 500 });
   }
 }
@@ -78,25 +74,20 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getParentSession();
+  const session = await getAnySession();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
   const { id: postId } = await params;
   const commentId = request.nextUrl.searchParams.get("commentId");
-
-  if (!commentId) return NextResponse.json({ error: "commentId is required" }, { status: 400 });
+  if (!commentId) return NextResponse.json({ error: "commentId required" }, { status: 400 });
 
   try {
     await prisma.$transaction(async (tx) => {
-      const comment = await tx.postComment.findUnique({
-        where: { id: commentId },
-        select: { userId: true, postId: true },
-      });
+      const comment = await tx.postComment.findUnique({ where: { id: commentId }, select: { userId: true, postId: true } });
       if (!comment || comment.postId !== postId || comment.userId !== userId) throw new Error("Not found");
       await tx.postComment.delete({ where: { id: commentId } });
       await tx.post.update({ where: { id: postId }, data: { commentCount: { decrement: 1 } } });
     });
-
     return NextResponse.json({ success: true });
   } catch (error: any) {
     if (error.message === "Not found") return NextResponse.json({ error: "Comment not found" }, { status: 404 });
