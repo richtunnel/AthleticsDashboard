@@ -29,7 +29,7 @@ import {
   Chip,
   Button,
 } from "@mui/material";
-import { Menu as MenuIcon, Dashboard, Chat, Settings, Logout, Notifications, CalendarMonth, Close, CheckCircle, Error as ErrorIcon, Info, Warning, SupportAgent, Sync, Campaign, DynamicFeed } from "@mui/icons-material";
+import { Menu as MenuIcon, Dashboard, Chat, Settings, Logout, Notifications, CalendarMonth, Close, CheckCircle, Error as ErrorIcon, Info, Warning, SupportAgent, Sync, Campaign, DynamicFeed, Feedback } from "@mui/icons-material";
 import { CircularProjectIcon } from "../circle-logo/OpleticsLogo";
 import DarkModeToggle from "@/components/layout/DarkModeToggle";
 import { useTheme as customTheme } from "@mui/material/styles";
@@ -49,6 +49,7 @@ const navigation = [
   { name: "Announcements", href: "/parent-dashboard/announcements", icon: Campaign },
   { name: "Chat", href: "/parent-dashboard/chat", icon: Chat },
   { name: "Settings", href: "/parent-dashboard/settings", icon: Settings },
+  { name: "Feedback", href: "/parent-dashboard/feedback", icon: Feedback },
 ];
 
 interface ParentDashboardLayoutClientProps {

@@ -19,7 +19,7 @@ export default async function FeedbackPage() {
 
   return (
     <>
-      <Box sx={{ px: 3, py: 3 }}>
+      <Box sx={{ px: 3, py: 3, display: "flex", flexDirection: "column", minHeight: "calc(100vh - 130px)" }}>
         {/* Breadcrumbs */}
         <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} sx={{ mb: 2 }}>
           <MuiLink component={Link} href="/dashboard" underline="hover" color="inherit">
