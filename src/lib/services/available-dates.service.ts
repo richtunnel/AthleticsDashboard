@@ -550,6 +550,20 @@ export class AvailableDatesService {
         }
       }
 
+      // Secondary: gender-null/empty fallback — if a game has no gender recorded,
+      // treat it as a conflict for any cluster that matches on sport + level.
+      // This prevents games with missing gender data from appearing as "available" dates.
+      if (!qualifies && !row.gender) {
+        for (const cluster of clusters) {
+          const sportMatch = (row.sport || "").toLowerCase() === cluster.sport.toLowerCase();
+          const levelMatch = (row.level || "").toLowerCase() === cluster.level.toLowerCase();
+          if (sportMatch && levelMatch) {
+            qualifies = true;
+            break;
+          }
+        }
+      }
+
       if (!qualifies) continue;
 
       // Extract date if present
