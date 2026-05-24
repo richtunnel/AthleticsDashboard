@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/utils/auth";
 import { ApiResponse } from "@/lib/utils/api-response";
 import { logger } from "@/lib/utils/logger";
@@ -6,6 +6,9 @@ import { s3Client, SPACES_BUCKET, SPACES_CDN_URL, PutObjectCommand } from "@/lib
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+
+// Ensure this route always runs in Node.js (uses fs, S3 SDK, and Prisma)
+export const runtime = "nodejs";
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = [
@@ -26,7 +29,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".heif": "image/heif",
 };
 
-export async function POST(request: NextRequest) {
+async function handleUpload(request: NextRequest): Promise<NextResponse> {
   const isDev = process.env.NODE_ENV !== "production";
 
   try {
@@ -126,6 +129,19 @@ export async function POST(request: NextRequest) {
     return ApiResponse.error(
       "Image upload service is currently unavailable. Please try again later.",
       500
+    );
+  }
+}
+
+// Top-level wrapper guarantees JSON response even if Next.js internals throw
+export async function POST(request: NextRequest) {
+  try {
+    return await handleUpload(request);
+  } catch (err: any) {
+    logger.error("[PostImageUpload] Top-level uncaught error", { error: err?.message });
+    return NextResponse.json(
+      { success: false, error: "Image upload failed. Please try again." },
+      { status: 500 }
     );
   }
 }

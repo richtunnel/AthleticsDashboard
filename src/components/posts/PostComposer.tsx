@@ -116,6 +116,20 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
     });
   };
 
+  /** Safely parse a fetch response as JSON; throws a clean message on any failure. */
+  async function safeJson(res: Response, fallback: string): Promise<any> {
+    let json: any;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(fallback);
+    }
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.error || fallback);
+    }
+    return json;
+  }
+
   // Compress → upload → create post, all on "Post" click
   const handleSubmit = async () => {
     if (!content.trim() && pendingImages.length === 0) return;
@@ -130,12 +144,7 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
         const fd = new FormData();
         fd.append("file", compressed);
         const res = await fetch("/api/posts/upload-image", { method: "POST", body: fd });
-        const json = await res.json();
-        if (!json.success) {
-          throw new Error(
-            json.error || "Image upload service is currently unavailable. Please try again later."
-          );
-        }
+        const json = await safeJson(res, "Image upload failed. Please try again.");
         uploaded.push({ url: json.data.url, key: json.data.key });
       }
 
@@ -148,8 +157,7 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
           images: uploaded,
         }),
       });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "Failed to create post. Please try again.");
+      await safeJson(res, "Failed to create post. Please try again.");
 
       // Clean up previews and reset
       pendingImages.forEach((img) => URL.revokeObjectURL(img.preview));

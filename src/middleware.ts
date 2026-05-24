@@ -198,7 +198,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/auth/") || // NextAuth routes must be public (covers /api/auth/parent/* and /api/auth/collaborator/*)
     pathname.startsWith("/api/collaboration/accept-invitation") || // Invitation acceptance must be public
     pathname === "/api/schools" ||
-    pathname === "/api/coaches"
+    pathname === "/api/coaches" ||
+    pathname === "/api/posts" || // Public news feed — GET handler works without auth; write ops are guarded at handler level
+    pathname === "/api/meta/conversions" // CAPI proxy — public, no user data required
   ) {
     return response;
   }

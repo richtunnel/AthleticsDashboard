@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { slackService } from "@/lib/services/slack.service";
+import { sendCapiEvent } from "@/lib/analytics/meta-capi";
+import { extractRequestMetadataFromHeaders } from "@/lib/utils/requestMetadata";
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,6 +40,23 @@ export async function POST(request: NextRequest) {
       data: {
         email: normalizedEmail,
       },
+    });
+
+    // Meta CAPI — Subscribe + Lead (fire-and-forget, non-blocking)
+    const { ip, userAgent } = extractRequestMetadataFromHeaders(request.headers);
+    const capiUserData = { email: normalizedEmail, ip, userAgent };
+    void sendCapiEvent({
+      eventName: "Subscribe",
+      eventId: `newsletter_sub_${normalizedEmail}`,
+      sourceUrl: request.headers.get("referer") ?? undefined,
+      userData: capiUserData,
+    });
+    void sendCapiEvent({
+      eventName: "Lead",
+      eventId: `newsletter_lead_${normalizedEmail}`,
+      sourceUrl: request.headers.get("referer") ?? undefined,
+      userData: capiUserData,
+      customData: { content_name: "Newsletter" },
     });
 
     // Send Slack notification (non-blocking)

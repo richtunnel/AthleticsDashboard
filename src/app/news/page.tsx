@@ -2,12 +2,14 @@
 
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { SportsScore, ArrowBack } from "@mui/icons-material";
+import { ArrowBack } from "@mui/icons-material";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import NewsFeed from "@/components/posts/NewsFeed";
 
 export default function NewsPage() {
   const theme = useTheme();
+  const { data: session } = useSession();
 
   return (
     <Box
@@ -31,7 +33,6 @@ export default function NewsPage() {
       >
         <Container maxWidth="lg" sx={{ display: "flex", alignItems: "center", gap: 2, py: 1.5, maxWidth: 992 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexGrow: 1 }}>
-            {/* <SportsScore sx={{ color: "primary.main", fontSize: 28 }} /> */}
             <Box>
               <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
                 Opletics News
@@ -41,12 +42,16 @@ export default function NewsPage() {
               </Typography>
             </Box>
           </Box>
-          <Button component={Link} href="/dashboard/posts" variant="contained" size="small" sx={{ borderRadius: 4, fontWeight: 600, textTransform: "none", display: { xs: "none", sm: "flex" } }}>
-            Post an update
-          </Button>
-          <Button component={Link} href="/dashboard" size="small" startIcon={<ArrowBack sx={{ fontSize: 16 }} />} sx={{ textTransform: "none", color: "text.secondary", fontSize: 13 }}>
-            Dashboard
-          </Button>
+          {session && (
+            <>
+              <Button component={Link} href="/dashboard/posts" variant="contained" size="small" sx={{ borderRadius: 4, fontWeight: 600, textTransform: "none", display: { xs: "none", sm: "flex" } }}>
+                Post an update
+              </Button>
+              <Button component={Link} href="/dashboard" size="small" startIcon={<ArrowBack sx={{ fontSize: 16 }} />} sx={{ textTransform: "none", color: "text.secondary", fontSize: 13 }}>
+                Dashboard
+              </Button>
+            </>
+          )}
         </Container>
       </Box>
 

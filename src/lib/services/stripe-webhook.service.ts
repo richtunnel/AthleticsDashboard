@@ -5,6 +5,9 @@ import { slackService } from "./slack.service";
 import { calculateDeletionDeadline, getAccountCleanupConfig } from "../utils/accountCleanup";
 import { runNonCritical } from "../utils/nonCritical";
 import { PlanType, SubscriptionStatus, Prisma } from "@prisma/client";
+import { sendCapiEvent } from "../analytics/meta-capi";
+
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://opletics.com").replace(/\/$/, "");
 
 const userSelect = {
   id: true,
@@ -178,6 +181,25 @@ export class StripeWebhookService {
       await prisma.user.update({ where: { id: user.id }, data: userUpdate });
     }
 
+    // Meta CAPI — StartTrial fires once when a new trialing subscription is created
+    const isNewTrial =
+      eventType === "customer.subscription.created" &&
+      stripeSubscription.status === "trialing" &&
+      trialStart != null;
+
+    if (isNewTrial && user.email) {
+      void runNonCritical(
+        () => sendCapiEvent({
+          eventName: "StartTrial",
+          eventId: `trial_${stripeSubscription.id}`,
+          sourceUrl: `${SITE_URL}/onboarding/plans`,
+          userData: { email: user.email },
+          customData: { content_name: planNickname ?? planLookupKey ?? "Opletics Trial" },
+        }),
+        `[Meta CAPI] StartTrial for user ${user.id}`,
+      );
+    }
+
     return {
       subscription: updatedSubscription,
       previousStatus,
@@ -210,7 +232,25 @@ export class StripeWebhookService {
     }
 
     const planName = this.derivePlanName(null, invoice);
-    
+
+    // Meta CAPI — Purchase (server-side, most reliable signal)
+    // Use the Stripe invoice ID as the event_id; the browser pixel on the success
+    // page should fire with the same ID for deduplication.
+    void runNonCritical(
+      () => sendCapiEvent({
+        eventName: "Purchase",
+        eventId: invoice.id,
+        sourceUrl: `${SITE_URL}/onboarding/plans`,
+        userData: { email: user.email },
+        customData: {
+          value: invoice.amount_paid / 100,
+          currency: (invoice.currency ?? "usd").toUpperCase(),
+          content_name: planName ?? "Opletics Subscription",
+        },
+      }),
+      `[Meta CAPI] Purchase for user ${user.id}`,
+    );
+
     void runNonCritical(
       async () => {
         await emailService.sendSubscriptionEmail({
