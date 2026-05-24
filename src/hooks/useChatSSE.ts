@@ -49,8 +49,12 @@ export function useChatSSE(conversationId: string | null) {
       try {
         const data = JSON.parse(event.data);
 
-        // Skip control messages (e.g. the initial "connected" handshake)
-        // They don't have an `id` or `content` field and must not be stored.
+        // On (re)connect, refetch messages to catch anything missed while disconnected
+        if (data.type === "connected") {
+          queryClient.invalidateQueries({ queryKey: ["chatMessages", conversationId] });
+          return;
+        }
+
         if (!data.id || !data.content) return;
 
         const message: ChatMessage = data;

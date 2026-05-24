@@ -38,8 +38,8 @@ interface ParentLink {
   id: string;
   childName: string;
   childGrade: string | null;
-  sportName: string;
-  sportLevel: string;
+  sportName: string | null;
+  sportLevel: string | null;
   schoolId: string;
   schoolName: string;
   confirmed: boolean;
@@ -156,7 +156,6 @@ function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
 
   const showRequestButton =
     (calendarSyncStatus === "REJECTED" || calendarSyncStatus === "NONE") &&
-    !!link.sportName &&
     !!link.schoolId;
 
   return (
@@ -242,7 +241,11 @@ export default function ParentDashboardPage() {
 
   const handleRequest = (link: ParentLink) => {
     setRequestingId(link.id);
-    syncMutation.mutate({ schoolId: link.schoolId, sportName: link.sportName, sportLevel: link.sportLevel });
+    syncMutation.mutate({
+      schoolId: link.schoolId,
+      sportName: link.sportName || "General",
+      sportLevel: link.sportLevel || "All",
+    });
   };
 
   if (isLoading) {

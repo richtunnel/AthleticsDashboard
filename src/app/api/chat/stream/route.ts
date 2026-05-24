@@ -1,4 +1,5 @@
 import { getAnySession } from "@/lib/utils/collaboratorSession";
+import { getParentSession } from "@/lib/utils/parentSession";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
@@ -11,7 +12,8 @@ import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
  * owns the conversation (parent by parentUserId, AD by schoolId matching org).
  */
 export async function GET(request: NextRequest) {
-  const session = await getAnySession();
+  // Try AD/collaborator session first, fall back to parent session
+  const session = (await getAnySession()) ?? (await getParentSession());
 
   if (!session?.user?.email) {
     return new Response("Unauthorized", { status: 401 });

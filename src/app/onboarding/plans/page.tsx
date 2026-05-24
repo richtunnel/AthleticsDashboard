@@ -62,8 +62,8 @@ type Plan = {
 const buildPlans = (priceIds: StripePriceIds): Plan[] => [
   {
     name: "Free Trial (Standard)",
-    monthlyPrice: 19,
-    annualPrice: 125,
+    monthlyPrice: 29.99,
+    annualPrice: 250,
     features: [
       "Sync schedule with your google calendars",
       "Multiple Isolated spreadsheets",
@@ -80,8 +80,8 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
   },
   {
     name: "Team",
-    monthlyPrice: 37,
-    annualPrice: 250,
+    monthlyPrice: 42,
+    annualPrice: 350,
     mostPopular: true,
     features: [
       "Multiple Isolated spreadsheets",
@@ -98,8 +98,8 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
   },
   {
     name: "Team+ (Plus)",
-    monthlyPrice: 60,
-    annualPrice: 350,
+    monthlyPrice: 69.99,
+    annualPrice: 589,
     features: [
       "Unlimited isolated spreadsheets",
       "5 collaborators",

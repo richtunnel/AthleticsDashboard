@@ -115,7 +115,7 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
             }}
           >
             <Typography variant="h4" fontWeight={700}>
-              $60
+              $69.99
               <Typography component="span" variant="body2" sx={{ opacity: 0.8 }}>
                 /month
               </Typography>
@@ -152,7 +152,7 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
             }}
           >
             <Chip
-              label="Save 48%"
+              label="Save 30%"
               size="small"
               sx={{
                 position: "absolute",
@@ -164,13 +164,13 @@ export default function UpgradePlanCard({ userPlan }: UpgradePlanCardProps) {
               }}
             />
             <Typography variant="h4" fontWeight={700}>
-              $350
+              $589
               <Typography component="span" variant="body2" sx={{ opacity: 0.8 }}>
                 /year
               </Typography>
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5, mb: 2 }}>
-              ~$29/month - Best value
+              ~$49/month - Best value
             </Typography>
             <Button
               variant="contained"

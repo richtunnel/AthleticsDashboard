@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        schoolEmail: true,
         role: true,
       },
       orderBy: {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     const formattedCoaches = coaches.map((coach) => ({
       id: coach.id,
       name: coach.name || "Unknown",
-      email: coach.email,
+      email: coach.schoolEmail || coach.email,
       role: coach.role.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase()),
       schoolName: organization.name,
     }));
