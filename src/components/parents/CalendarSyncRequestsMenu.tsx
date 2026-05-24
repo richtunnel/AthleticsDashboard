@@ -20,6 +20,11 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
   CircularProgress,
   Alert,
   Tooltip,
@@ -49,6 +54,9 @@ export function CalendarSyncRequestsMenu() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CalendarSyncRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  // Approve-dialog fields
+  const [approveGender, setApproveGender] = useState("");
+  const [approveSheetUrl, setApproveSheetUrl] = useState("");
 
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["adminCalendarSyncRequests"],
@@ -60,11 +68,14 @@ export function CalendarSyncRequestsMenu() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, gender, spreadsheetId }: { id: string; gender?: string; spreadsheetId?: string }) => {
       const res = await fetch(`/api/admin/calendar-sync-requests/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          gender: gender || null,
+          spreadsheetId: spreadsheetId || null,
+        }),
       });
       if (!res.ok) throw new Error("Failed to approve request");
       return res.json();
@@ -74,6 +85,8 @@ export function CalendarSyncRequestsMenu() {
       addNotification("Request approved — the parent can now sync their calendar", "success");
       setApproveDialogOpen(false);
       setSelectedRequest(null);
+      setApproveGender("");
+      setApproveSheetUrl("");
     },
     onError: (error: Error) => {
       addNotification(error.message, "error");
@@ -104,6 +117,8 @@ export function CalendarSyncRequestsMenu() {
 
   const handleApproveClick = (request: CalendarSyncRequest) => {
     setSelectedRequest(request);
+    setApproveGender("");
+    setApproveSheetUrl("");
     setApproveDialogOpen(true);
   };
 
@@ -205,24 +220,67 @@ export function CalendarSyncRequestsMenu() {
       )}
 
       {/* Approve Dialog */}
-      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)}>
+      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Approve Calendar Sync Request</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
             Approve <strong>{selectedRequest?.parent.name || selectedRequest?.parent.email}</strong>&apos;s
-            request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games.
+            request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games to their Google Calendar.
           </Typography>
-          <Alert severity="info" sx={{ mt: 1 }} icon={<Info />}>
-            Once approved, the parent will be able to sync matching games directly to their own Google Calendar.
+
+          {/* Gender — clarifies which team games to sync */}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="approve-gender-label">Gender</InputLabel>
+            <Select
+              labelId="approve-gender-label"
+              value={approveGender}
+              label="Gender"
+              onChange={(e) => setApproveGender(e.target.value)}
+              displayEmpty
+            >
+              <MenuItem value=""><em>Auto-detect from sport name</em></MenuItem>
+              <MenuItem value="boys">Boys / Male</MenuItem>
+              <MenuItem value="girls">Girls / Female</MenuItem>
+              <MenuItem value="mixed">Mixed / Co-ed</MenuItem>
+            </Select>
+            <FormHelperText>
+              Setting this ensures the correct team is matched even when ADs use abbreviations
+              like &quot;G Basketball&quot;, &quot;F&quot;, or &quot;Womens Tennis&quot;.
+            </FormHelperText>
+          </FormControl>
+
+          {/* Schedule spreadsheet — scope the sync to a specific Google Sheet */}
+          <TextField
+            fullWidth
+            label="Schedule Spreadsheet (optional)"
+            placeholder="Paste Google Sheets URL or spreadsheet ID"
+            value={approveSheetUrl}
+            onChange={(e) => setApproveSheetUrl(e.target.value)}
+            helperText="If you manage schedules in a specific Google Sheet, paste the link here. This tells the system which spreadsheet to use when matching games for this parent."
+            sx={{ mb: 2 }}
+          />
+
+          <Alert severity="info" icon={<Info />}>
+            Once approved, the parent can sync matching games directly to their own Google Calendar.
+            The gender and spreadsheet selections help identify the right games even when your
+            schedule uses shorthand like &quot;Var&quot;, &quot;G&quot;, or &quot;B Soccer JV&quot;.
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => { setApproveDialogOpen(false); setApproveGender(""); setApproveSheetUrl(""); }}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
             color="success"
             disabled={approveMutation.isPending}
-            onClick={() => approveMutation.mutate(selectedRequest!.id)}
+            onClick={() =>
+              approveMutation.mutate({
+                id: selectedRequest!.id,
+                gender: approveGender || undefined,
+                spreadsheetId: approveSheetUrl || undefined,
+              })
+            }
           >
             {approveMutation.isPending ? <CircularProgress size={24} /> : "Approve"}
           </Button>

@@ -66,6 +66,7 @@ export async function triggerParentCalendarSyncForGame(
         parentUserId: true,
         sportName: true,
         sportLevel: true,
+        gender: true,
         googleCalendarId: true,
       },
     });
@@ -79,7 +80,8 @@ export async function triggerParentCalendarSyncForGame(
       const matches = calendarService.gameMatchesLeague(
         game,
         req.sportName,
-        req.sportLevel
+        req.sportLevel,
+        req.gender  // Explicit gender set by AD overrides embedded gender in sportName
       );
 
       if (!matches) continue;

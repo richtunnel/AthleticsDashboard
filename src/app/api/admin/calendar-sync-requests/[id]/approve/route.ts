@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { z } from "zod";
 
-// googleCalendarId is optional — the parent picks their own calendar at sync time.
-// Storing the AD's calendar here served no purpose (it was never read by the sync route).
 const approveSchema = z.object({
   googleCalendarId: z.string().optional(),
+  // AD can override / confirm the gender ("boys", "girls", "mixed") and point
+  // to a specific Google Sheet that holds this sport's schedule.
+  gender: z.string().max(20).optional().nullable(),
+  spreadsheetId: z.string().max(200).optional().nullable(),
 });
 
 /**
@@ -34,7 +36,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { googleCalendarId } = approveSchema.parse(body);
+    const { googleCalendarId, gender, spreadsheetId } = approveSchema.parse(body);
 
     const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
@@ -48,15 +50,26 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Normalise gender to canonical form so matching works regardless of how the
+    // AD typed it ("F", "female", "Girls" all become "girls").
+    const { CalendarService } = await import("@/lib/services/calendar.service");
+    const normalisedGender = gender
+      ? CalendarService.normaliseGender(gender)
+      : undefined;
+
+    // Extract sheet ID from a full Google Sheets URL if the AD pasted one
+    const normalisedSheetId = spreadsheetId
+      ? (spreadsheetId.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] ?? spreadsheetId.trim()) || null
+      : null;
+
     const updatedRequest = await prisma.calendarSyncRequest.update({
       where: { id },
       data: {
         status: "APPROVED",
-        // googleCalendarId is intentionally omitted — the parent selects their
-        // own calendar when they click "Sync Now". Storing the AD's calendar ID
-        // here served no purpose since the sync route reads from the request body.
         reviewedAt: new Date(),
         reviewedById: user.id,
+        ...(normalisedGender !== undefined ? { gender: normalisedGender } : {}),
+        ...(normalisedSheetId !== undefined ? { spreadsheetId: normalisedSheetId } : {}),
       },
     });
 

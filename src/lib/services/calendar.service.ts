@@ -581,62 +581,154 @@ export class CalendarService {
    * e.g. sportName="Soccer", sportLevel="JV"
    *   → { gender: null, sportCore: "soccer", levelTokens: ["jv","junior varsity","jr varsity"] }
    */
-  private parseLeagueTokens(sportName: string, sportLevel: string) {
-    const GENDER_WORDS = ["boys", "girls", "men", "women", "male", "female"];
-    const LEVEL_ALIASES: Record<string, string[]> = {
-      varsity:         ["varsity", "var"],
-      jv:              ["jv", "j.v.", "junior varsity", "jr varsity", "jr. varsity", "junior v"],
-      freshman:        ["freshman", "frosh", "fresh"],
-      "middle school": ["middle school", "ms", "middle"],
-    };
+  // ─── Gender / Level normalisation tables ────────────────────────────────────
 
+  /**
+   * All tokens that unambiguously indicate female athletes.
+   * Checked against raw text AND abbreviation-expanded text.
+   */
+  private static readonly GIRLS_TOKENS = [
+    "girls", "girl", "g", "f", "female", "women", "woman", "womens", "w",
+  ];
+
+  /**
+   * All tokens that unambiguously indicate male athletes.
+   */
+  private static readonly BOYS_TOKENS = [
+    "boys", "boy", "b", "m", "male", "men", "man", "mens",
+  ];
+
+  /**
+   * Canonical level key → every alias an AD might type (case-insensitive).
+   * Add rows here as you encounter new shorthands in real spreadsheets.
+   */
+  private static readonly LEVEL_ALIASES: Record<string, string[]> = {
+    varsity: [
+      "varsity", "var", "v", "vars",
+    ],
+    jv: [
+      "jv", "j.v.", "j v", "junior varsity", "jr varsity", "jr. varsity",
+      "junior v", "jv varsity",
+    ],
+    sophomore: [
+      "sophomore", "soph", "sophy", "sophs", "10th", "so",
+    ],
+    freshman: [
+      "freshman", "frosh", "fresh", "fr", "9th",
+    ],
+    "middle school": [
+      "middle school", "ms", "middle", "7th", "8th", "jr high", "junior high",
+    ],
+    "c team": [
+      "c team", "c-team", "c squad",
+    ],
+  };
+
+  /**
+   * Normalise a raw gender token from the request (e.g. "F", "female", "Girls")
+   * to one of the canonical values used in GIRLS_TOKENS / BOYS_TOKENS.
+   */
+  static normaliseGender(raw: string): "girls" | "boys" | "mixed" | null {
+    const lc = raw.trim().toLowerCase();
+    if (CalendarService.GIRLS_TOKENS.includes(lc)) return "girls";
+    if (CalendarService.BOYS_TOKENS.includes(lc)) return "boys";
+    if (["mixed", "co-ed", "coed", "both", "all"].includes(lc)) return "mixed";
+    return null;
+  }
+
+  private parseLeagueTokens(sportName: string, sportLevel: string, explicitGender?: string | null) {
     const nameLower  = sportName.toLowerCase();
     const levelLower = sportLevel.toLowerCase();
 
-    // Gender — look for it in the sport name string
-    const gender = GENDER_WORDS.find((g) => nameLower.includes(g)) ?? null;
+    // ── Gender ──────────────────────────────────────────────────────────────
+    // Prefer the AD-supplied explicit gender; fall back to scanning sportName.
+    let gender: string | null = null;
+    if (explicitGender) {
+      gender = CalendarService.normaliseGender(explicitGender);
+    }
+    if (!gender) {
+      // Scan sport name for any gender token (longest-match first to avoid
+      // "women" matching "men" inside it)
+      const sortedGirls = [...CalendarService.GIRLS_TOKENS].sort((a, b) => b.length - a.length);
+      const sortedBoys  = [...CalendarService.BOYS_TOKENS].sort((a, b) => b.length - a.length);
+      if (sortedGirls.some((g) => new RegExp(`\\b${g}\\b`).test(nameLower))) {
+        gender = "girls";
+      } else if (sortedBoys.some((b) => new RegExp(`\\b${b}\\b`).test(nameLower))) {
+        gender = "boys";
+      }
+    }
 
-    // Core sport keyword — strip gender prefix/suffix, keep meaningful word(s)
+    // ── Sport core ──────────────────────────────────────────────────────────
+    // Strip gender tokens so "Boys Basketball" → "basketball"
     let sportCore = nameLower;
-    if (gender) sportCore = sportCore.replace(gender, "").trim();
-    sportCore = sportCore.trim(); // e.g. "basketball", "flag football", "cross country"
+    const allGenderTokens = [...CalendarService.GIRLS_TOKENS, ...CalendarService.BOYS_TOKENS];
+    for (const t of allGenderTokens) {
+      sportCore = sportCore.replace(new RegExp(`\\b${t}\\b`, "gi"), "").trim();
+    }
+    sportCore = sportCore.replace(/\s+/g, " ").trim();
 
-    // Level — expand the level value into all aliases so "VARSITY" matches "varsity" in text
-    const matchedLevel = Object.entries(LEVEL_ALIASES).find(([key, aliases]) =>
-      levelLower === key || aliases.some((a) => levelLower.includes(a))
+    // ── Level aliases ───────────────────────────────────────────────────────
+    const matchedLevel = Object.entries(CalendarService.LEVEL_ALIASES).find(
+      ([key, aliases]) => levelLower === key || aliases.some((a) => levelLower === a || levelLower.includes(a))
     );
+    // Include raw value + ALL aliases so we maximise recall across spreadsheets
     const levelTokens = matchedLevel
-      ? matchedLevel[1]
-      : [levelLower]; // fall back to the raw value
+      ? Array.from(new Set([matchedLevel[0], ...matchedLevel[1]]))
+      : [levelLower];
 
     return { gender, sportCore, levelTokens };
   }
 
   /**
-   * Expand common sport/level abbreviations so that a custom-field value like
-   * "GV Basketball" also contributes "girls varsity basketball" to the search
-   * text, enabling it to match a parent subscribed to "Girls Basketball / VARSITY".
+   * Expand common sport/gender/level abbreviations that ADs use in spreadsheet
+   * column values so keyword matching can find them regardless of notation.
    *
-   * Returns a lowercased string with abbreviations replaced; if nothing changed
-   * the return value equals `text.toLowerCase()`.
+   * Returns the lowercased, abbreviation-expanded form of `text`.
    */
   private expandAbbreviations(text: string): string {
     const ABBR_MAP: [RegExp, string][] = [
-      // Concatenated abbreviations (e.g. "GV", "BV")
-      [/\bgv\b/g,  "girls varsity"],
-      [/\bbv\b/g,  "boys varsity"],
-      [/\bgjv\b/g, "girls junior varsity"],
-      [/\bbjv\b/g, "boys junior varsity"],
-      [/\bmv\b/g,  "mens varsity"],
-      [/\bwv\b/g,  "womens varsity"],
-      [/\bmsb\b/g, "middle school boys"],
-      [/\bmsg\b/g, "middle school girls"],
-      // Space-separated abbreviations (e.g. "B V Basketball", "G JV Soccer")
-      [/\bb\s+v\b/gi, "boys varsity"],
-      [/\bg\s+v\b/gi, "girls varsity"],
-      [/\bb\s+jv\b/gi, "boys junior varsity"],
-      [/\bg\s+jv\b/gi, "girls junior varsity"],
+      // ── Gender + Level concatenated (GV, BJV, …) ────────────────────────
+      [/\bgv\b/gi,   "girls varsity"],
+      [/\bbv\b/gi,   "boys varsity"],
+      [/\bwv\b/gi,   "womens varsity"],
+      [/\bmv\b/gi,   "mens varsity"],
+      [/\bgjv\b/gi,  "girls junior varsity"],
+      [/\bbjv\b/gi,  "boys junior varsity"],
+      [/\bgsoph\b/gi,"girls sophomore"],
+      [/\bbsoph\b/gi,"boys sophomore"],
+      [/\bgfr\b/gi,  "girls freshman"],
+      [/\bbfr\b/gi,  "boys freshman"],
+      [/\bmsb\b/gi,  "middle school boys"],
+      [/\bmsg\b/gi,  "middle school girls"],
+
+      // ── Space-separated: "G V", "B JV", "W Varsity", etc. ──────────────
+      [/\bg\s+v\b/gi,   "girls varsity"],
+      [/\bb\s+v\b/gi,   "boys varsity"],
+      [/\bw\s+v\b/gi,   "womens varsity"],
+      [/\bm\s+v\b/gi,   "mens varsity"],
+      [/\bg\s+jv\b/gi,  "girls junior varsity"],
+      [/\bb\s+jv\b/gi,  "boys junior varsity"],
+      [/\bf\s+v\b/gi,   "female varsity"],
+      [/\bf\s+jv\b/gi,  "female junior varsity"],
+
+      // ── Standalone gender abbreviations → canonical form ────────────────
+      // Only expand when clearly standalone so we don't corrupt sport names.
+      [/\bwomens\b/gi, "girls"],
+      [/\bwomen\b/gi,  "girls"],
+      [/\bfemale\b/gi, "girls"],
+      [/\bmens\b/gi,   "boys"],
+      [/\bmale\b/gi,   "boys"],
+
+      // ── Level abbreviations ──────────────────────────────────────────────
+      [/\bjr\.?\s*varsity\b/gi, "junior varsity"],
+      [/\bjr\.?\s*var\b/gi,     "junior varsity"],
+      [/\bj\.?v\.?\b/gi,        "jv"],
+      [/\bvars\b/gi,             "varsity"],
+      [/\bsoph\b/gi,             "sophomore"],
+      [/\bfrosh\b/gi,            "freshman"],
+      [/\bfr\b/gi,               "freshman"],
     ];
+
     let result = text.toLowerCase();
     for (const [re, expansion] of ABBR_MAP) {
       result = result.replace(re, expansion);
@@ -692,24 +784,45 @@ export class CalendarService {
    *               when the sport name is a single-word catch-all that might
    *               produce false positives — we still require it)
    */
-  /** Public so trigger services can check matches without re-implementing logic. */
+  /**
+   * Returns true if the game's combined text matches the given sport + level.
+   *
+   * @param explicitGender  When the AD has explicitly set a gender on the
+   *   CalendarSyncRequest, pass it here so it overrides the gender embedded
+   *   in sportName. E.g. "g", "girls", "F", "female" all normalise to "girls".
+   */
   gameMatchesLeague(
     game: any,
     sportName: string,
-    sportLevel: string
+    sportLevel: string,
+    explicitGender?: string | null
   ): boolean {
-    const { gender, sportCore, levelTokens } = this.parseLeagueTokens(sportName, sportLevel);
+    const { gender, sportCore, levelTokens } = this.parseLeagueTokens(
+      sportName,
+      sportLevel,
+      explicitGender
+    );
     const text = this.buildGameSearchText(game);
 
-    // 1. Level must be present
+    // 1. Level must be present (any alias)
     if (!levelTokens.some((t) => text.includes(t))) return false;
 
-    // 2. Gender must be present (if specified)
-    if (gender && !text.includes(gender)) return false;
+    // 2. Gender must be present — check both the canonical word AND single-letter
+    //    abbreviations that ADs commonly use (e.g. "G Basketball", "B Soccer")
+    if (gender) {
+      const genderTokens =
+        gender === "girls"
+          ? CalendarService.GIRLS_TOKENS
+          : CalendarService.BOYS_TOKENS;
+      // Require at least one gender token to appear as a word boundary in text
+      const hasGender = genderTokens.some((g) =>
+        new RegExp(`(?<![a-z])${g}(?![a-z])`, "i").test(text)
+      );
+      if (!hasGender) return false;
+    }
 
-    // 3. Sport core must be present (if we have a meaningful keyword)
+    // 3. Sport core keyword(s) must appear in text
     if (sportCore && sportCore.length > 2) {
-      // Multi-word sports like "cross country" — try each word
       const sportWords = sportCore.split(" ").filter((w) => w.length > 2);
       if (sportWords.length > 0 && !sportWords.some((w) => text.includes(w))) return false;
     }

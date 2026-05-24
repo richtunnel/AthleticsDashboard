@@ -893,6 +893,8 @@ model CalendarSyncRequest {
   schoolId         String // Organization ID
   sportName        String // e.g., "Soccer"
   sportLevel       String // e.g., "VARSITY"
+  gender           String? // Normalised gender: "boys" | "girls" | "mixed" — set by AD on approval
+  spreadsheetId    String? // Google Sheet ID the AD picks to scope this sync to a specific schedule
   status           CalendarSyncStatus @default(PENDING)
   googleCalendarId String? // Set when approved
   rejectionReason  String?

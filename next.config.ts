@@ -27,7 +27,16 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        // Matches bucket.region.digitaloceanspaces.com (two subdomain levels — * only covers one)
+        hostname: "*.*.digitaloceanspaces.com",
+      },
+      {
+        protocol: "https",
         hostname: "*.cdn.digitaloceanspaces.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.*.cdn.digitaloceanspaces.com",
       },
     ],
   },
