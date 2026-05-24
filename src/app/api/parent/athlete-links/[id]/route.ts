@@ -142,3 +142,54 @@ export async function PUT(
     );
   }
 }
+
+/**
+ * DELETE /api/parent/athlete-links/[id]
+ * Removes a child/sport link entirely.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getParentSession();
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const { id } = await params;
+
+    const existing = await prisma.parentAthleteLink.findUnique({
+      where: { id },
+      select: { id: true, parentUserId: true, schoolId: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Child link not found" }, { status: 404 });
+    }
+
+    if (existing.parentUserId !== user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    await prisma.parentAthleteLink.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("[API] Error deleting athlete link:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to remove child link" },
+      { status: 500 }
+    );
+  }
+}

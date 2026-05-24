@@ -25,7 +25,7 @@ import {
 import type { AlertColor } from "@mui/material";
 import {
   CreditCard, ChildCare, Add, School, Edit, AccountCircle,
-  Sync, CheckCircle, HourglassTop, BlockOutlined, Warning,
+  Sync, CheckCircle, HourglassTop, BlockOutlined, Warning, Delete,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
@@ -632,6 +632,7 @@ function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCard
 export default function ParentSettingsPage() {
   const queryClient = useQueryClient();
   const [editLink, setEditLink] = useState<ParentLink | null>(null);
+  const [deleteLink, setDeleteLink] = useState<ParentLink | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
 
@@ -677,6 +678,21 @@ export default function ParentSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
       showMessage("Re-sync request submitted! The Athletic Director will review it.");
+    },
+    onError: (err: Error) => showMessage(err.message, "error"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (link: ParentLink) =>
+      fetch(`/api/parent/athlete-links/${link.id}`, { method: "DELETE" }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to remove child link");
+        return data;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setDeleteLink(null);
+      showMessage("Child removed successfully.");
     },
     onError: (err: Error) => showMessage(err.message, "error"),
   });
@@ -869,14 +885,23 @@ export default function ParentSettingsPage() {
                           )}
                         </Box>
 
-                        <IconButton
-                          size="small"
-                          onClick={() => setEditLink(link)}
-                          sx={{ ml: 1, mt: -0.5 }}
-                          title="Edit child info"
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
+                        <Box sx={{ display: "flex", gap: 0.5, ml: 1, mt: -0.5 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => setEditLink(link)}
+                            title="Edit child info"
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setDeleteLink(link)}
+                            title="Remove child"
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </Box>
                     </CardContent>
                   </Card>
@@ -912,6 +937,32 @@ export default function ParentSettingsPage() {
           await fetch("/api/parent/signout", { method: "POST" });
         }}
       />
+
+      {/* Delete child confirmation dialog */}
+      <Dialog open={Boolean(deleteLink)} onClose={() => !deleteMutation.isPending && setDeleteLink(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Remove Child?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Are you sure you want to remove <strong>{deleteLink?.childName}</strong>
+            {deleteLink?.sportName ? ` (${deleteLink.sportName}${deleteLink.sportLevel ? ` · ${deleteLink.sportLevel}` : ""})` : ""}?
+            This will also cancel any active calendar sync for this sport.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteLink(null)} disabled={deleteMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleteMutation.isPending}
+            startIcon={deleteMutation.isPending ? <CircularProgress size={14} /> : <Delete />}
+            onClick={() => deleteLink && deleteMutation.mutate(deleteLink)}
+          >
+            {deleteMutation.isPending ? "Removing…" : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <EditProfileDialog
         open={editProfileOpen}

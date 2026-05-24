@@ -154,7 +154,10 @@ function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
     }
   };
 
-  const showRequestButton = calendarSyncStatus === "REJECTED" || calendarSyncStatus === "NONE";
+  const showRequestButton =
+    (calendarSyncStatus === "REJECTED" || calendarSyncStatus === "NONE") &&
+    !!link.sportName &&
+    !!link.schoolId;
 
   return (
     <Card
@@ -238,7 +241,6 @@ export default function ParentDashboardPage() {
   });
 
   const handleRequest = (link: ParentLink) => {
-    if (!link.sportName || !link.schoolId) return;
     setRequestingId(link.id);
     syncMutation.mutate({ schoolId: link.schoolId, sportName: link.sportName, sportLevel: link.sportLevel });
   };
