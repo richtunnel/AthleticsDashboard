@@ -98,7 +98,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
       if (!res.ok) throw new Error("Failed to dismiss tip");
       return res.json();
     },
-    [apiBase]
+    [apiBase],
   );
 
   const postReset = useCallback(async (): Promise<TipsApiResponse> => {
@@ -118,10 +118,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
     refetchOnReconnect: false,
   });
 
-  const dismissedSet = useMemo(
-    () => new Set<string>(data?.dismissed ?? []),
-    [data?.dismissed]
-  );
+  const dismissedSet = useMemo(() => new Set<string>(data?.dismissed ?? []), [data?.dismissed]);
 
   const dismissMutation = useMutation({
     mutationFn: postDismiss,
@@ -154,7 +151,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
       if (isLoading) return true;
       return dismissedSet.has(tipId);
     },
-    [dismissedSet, isLoading]
+    [dismissedSet, isLoading],
   );
 
   const dismiss = useCallback(
@@ -162,7 +159,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
       if (dismissedSet.has(tipId)) return;
       dismissMutation.mutate(tipId);
     },
-    [dismissMutation, dismissedSet]
+    [dismissMutation, dismissedSet],
   );
 
   const reset = useCallback(async () => {
@@ -210,10 +207,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
     });
   }, []);
 
-  const isSessionHidden = useCallback(
-    (tipId: string) => sessionHiddenSet.has(tipId),
-    [sessionHiddenSet]
-  );
+  const isSessionHidden = useCallback((tipId: string) => sessionHiddenSet.has(tipId), [sessionHiddenSet]);
 
   const value = useMemo<TipsContextValue>(
     () => ({
@@ -227,17 +221,7 @@ export function TipsProvider({ children, apiBase = "/api/user/tips" }: TipsProvi
       sessionHide,
       isSessionHidden,
     }),
-    [
-      isDismissed,
-      isLoading,
-      dismiss,
-      reset,
-      requestSlot,
-      releaseSlot,
-      activeTipId,
-      sessionHide,
-      isSessionHidden,
-    ]
+    [isDismissed, isLoading, dismiss, reset, requestSlot, releaseSlot, activeTipId, sessionHide, isSessionHidden],
   );
 
   return <TipsContext.Provider value={value}>{children}</TipsContext.Provider>;
@@ -256,6 +240,8 @@ export function useTips(): TipsContextValue {
       requestSlot: () => {},
       releaseSlot: () => {},
       activeTipId: null,
+      sessionHide: () => {},
+      isSessionHidden: () => true, // Default to true outside context to prevent accidental renders
     };
   }
   return ctx;
