@@ -4,6 +4,7 @@ import { getParentSession } from "@/lib/utils/parentSession";
 import { calendarService } from "@/lib/services/calendar.service";
 import { ensureParentCode } from "@/lib/utils/parentCode";
 import { invalidate } from "@/lib/cache/redisCache";
+import { publishChatEvent } from "@/lib/chat/eventBus";
 
 /**
  * POST /api/parent/create-link
@@ -156,35 +157,43 @@ export async function POST(request: NextRequest) {
       console.warn("[API] Failed to create ConnectedParent entry:", err);
     }
 
-    // Auto-create an approved CalendarSyncRequest so the AD's calendar panel
-    // immediately shows this parent without requiring manual approval.
+    // Auto-create a PENDING CalendarSyncRequest so the AD sees it immediately
+    // in the sync-requests panel and can approve it. The parent dashboard will
+    // show "Pending Approval" until the AD acts.
     if (sport && gradeLevel) {
       try {
         const existingRequest = await prisma.calendarSyncRequest.findFirst({
           where: {
             parentUserId: user.id,
             schoolId: organizationId,
-            sportName: sport,
-            sportLevel: gradeLevel,
+            sportName: { equals: sport, mode: "insensitive" },
+            sportLevel: { equals: gradeLevel, mode: "insensitive" },
           },
         });
 
-        if (existingRequest) {
-          await prisma.calendarSyncRequest.update({
-            where: { id: existingRequest.id },
-            data: { status: "APPROVED" },
-          });
-        } else {
-          await prisma.calendarSyncRequest.create({
+        if (!existingRequest) {
+          const syncRequest = await prisma.calendarSyncRequest.create({
             data: {
               parentUserId: user.id,
               schoolId: organizationId,
               sportName: sport,
               sportLevel: gradeLevel,
-              status: "APPROVED",
+              status: "PENDING",
             },
           });
+
+          // Notify ADs in real time via the sync Redis channel
+          void publishChatEvent(`sync:${organizationId}`, {
+            type: "sync_request",
+            requestId: syncRequest.id,
+            parentName: user.name || user.email || "A parent",
+            sportName: sport,
+            sportLevel: gradeLevel,
+            requestedAt: syncRequest.requestedAt.toISOString(),
+          });
         }
+        // If a request already exists (any status), leave it as-is.
+        // A PENDING one is already waiting; APPROVED means they're already set up.
       } catch (err) {
         console.warn("[API] Failed to auto-create CalendarSyncRequest:", err);
       }

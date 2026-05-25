@@ -15,6 +15,14 @@ import {
   Divider,
   Snackbar,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import {
@@ -102,6 +110,12 @@ interface ApprovedRequestRef {
   googleCalendarId: string | null;
 }
 
+interface GoogleCalendarOption {
+  id: string;
+  name: string;
+  primary: boolean;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
@@ -183,6 +197,12 @@ function ChildCard({
 }: ChildCardProps) {
   const queryClient = useQueryClient();
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  // Calendar picker state — shown when an approved request has no target calendar yet
+  const [calPickerOpen, setCalPickerOpen] = useState(false);
+  const [calPickerCalendars, setCalPickerCalendars] = useState<GoogleCalendarOption[]>([]);
+  const [calPickerLoading, setCalPickerLoading] = useState(false);
+  const [calPickerSelected, setCalPickerSelected] = useState("");
+  const [calPickerSyncing, setCalPickerSyncing] = useState(false);
 
   const { snapshot } = useJobStatus(activeJobId);
   const isBusy = snapshot?.status === "PENDING" || snapshot?.status === "PROCESSING";
@@ -194,11 +214,65 @@ function ChildCard({
     }
   }, [snapshot?.status, queryClient]);
 
+  /** Open the inline calendar picker and fetch the parent's Google Calendars. */
+  const openCalendarPicker = useCallback(async () => {
+    setCalPickerOpen(true);
+    setCalPickerLoading(true);
+    setCalPickerSelected("");
+    try {
+      const res = await fetch("/api/parent/calendar/list");
+      if (res.ok) {
+        const data = await res.json();
+        setCalPickerCalendars(data.calendars || []);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        onSnack(data.error || "Could not load calendars. Please reconnect Google Calendar.", "error");
+        setCalPickerOpen(false);
+      }
+    } catch {
+      onSnack("Network error loading calendars. Please try again.", "error");
+      setCalPickerOpen(false);
+    } finally {
+      setCalPickerLoading(false);
+    }
+  }, [onSnack]);
+
+  /** Kick off a sync with the chosen Google Calendar and persist the selection. */
+  const handleCalPickerSync = useCallback(async () => {
+    if (!approvedRequest || !calPickerSelected) return;
+    setCalPickerSyncing(true);
+    const token = crypto.randomUUID();
+    try {
+      const res = await fetch(
+        `/api/parent/calendar-sync-requests/${approvedRequest.id}/sync`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ googleCalendarId: calPickerSelected, idempotencyToken: token }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        onSnack(data.error || "Failed to start sync", "error");
+        return;
+      }
+      setActiveJobId(data.jobId);
+      setCalPickerOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+    } catch (err: any) {
+      onSnack(err.message || "Network error", "error");
+    } finally {
+      setCalPickerSyncing(false);
+    }
+  }, [approvedRequest, calPickerSelected, onSnack, queryClient]);
+
   const handleSyncNow = useCallback(async () => {
     if (!approvedRequest) return;
 
+    // No calendar selected yet — open the inline picker instead of navigating
+    // away to the "New Sync Request" form on the calendar-sync page.
     if (!approvedRequest.googleCalendarId) {
-      window.location.href = "/parent-dashboard/calendar-sync";
+      await openCalendarPicker();
       return;
     }
 
@@ -423,6 +497,53 @@ function ChildCard({
           </Typography>
         )}
       </CardContent>
+
+      {/* Inline calendar picker — shown when Update Sync has no target calendar yet */}
+      <Dialog open={calPickerOpen} onClose={() => setCalPickerOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Choose your Google Calendar</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select which of your Google Calendars to push{" "}
+            <strong>{link.sportName} {link.sportLevel}</strong> games to.
+          </Typography>
+
+          {calPickerLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : calPickerCalendars.length > 0 ? (
+            <FormControl fullWidth size="small">
+              <InputLabel>Your Calendar</InputLabel>
+              <Select
+                value={calPickerSelected}
+                label="Your Calendar"
+                onChange={(e) => setCalPickerSelected(e.target.value)}
+              >
+                {calPickerCalendars.map((cal) => (
+                  <MenuItem key={cal.id} value={cal.id}>
+                    {cal.name} {cal.primary && "(Primary)"}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <Alert severity="warning">
+              Could not load your Google Calendars. Please reconnect in{" "}
+              <strong>Calendar Sync</strong>.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCalPickerOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={!calPickerSelected || calPickerSyncing}
+            onClick={handleCalPickerSync}
+          >
+            {calPickerSyncing ? <CircularProgress size={20} /> : "Start Sync"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

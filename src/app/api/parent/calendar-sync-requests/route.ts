@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { publishChatEvent } from "@/lib/chat/eventBus";
+import { parseSportLabel } from "@/lib/utils/sportMatch";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -86,11 +87,23 @@ export async function POST(request: NextRequest) {
     // Verify parent is linked to this school AND that the link's sport/level
     // match what's being requested. This prevents creating a sync request for
     // a sport the parent hasn't actually told us their child plays.
+    //
+    // Try exact match first, then fall back to base-sport matching so display
+    // names ("Boys Basketball") and raw API names ("Basketball") both resolve
+    // correctly against whatever was stored in the ParentAthleteLink.
+    const { baseSport } = parseSportLabel(validatedData.sportName);
+    const sportClauses = [
+      { sport: { equals: validatedData.sportName, mode: "insensitive" as const } },
+      ...(baseSport && baseSport.toLowerCase() !== validatedData.sportName.toLowerCase()
+        ? [{ sport: { equals: baseSport, mode: "insensitive" as const } }]
+        : []),
+    ];
+
     const link = await prisma.parentAthleteLink.findFirst({
       where: {
         parentUserId: user.id,
         schoolId: validatedData.schoolId,
-        sport: { equals: validatedData.sportName, mode: "insensitive" },
+        OR: sportClauses,
         gradeLevel: { equals: validatedData.sportLevel, mode: "insensitive" },
       },
     });

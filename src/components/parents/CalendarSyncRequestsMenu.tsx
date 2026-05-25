@@ -29,7 +29,7 @@ import {
   Alert,
   Tooltip,
 } from "@mui/material";
-import { Check, CheckCircle, Close, Info, Refresh } from "@mui/icons-material";
+import { Check, CheckCircle, Close, Info, Refresh, DoneAll } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarSyncRequest {
@@ -47,6 +47,12 @@ interface CalendarSyncRequest {
   };
 }
 
+// ── Approve-All result tracking ───────────────────────────────────────────────
+interface ApproveAllResult {
+  succeeded: string[]; // request IDs that approved successfully
+  failed: Array<{ id: string; parentName: string; sport: string; level: string }>;
+}
+
 export function CalendarSyncRequestsMenu() {
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
@@ -58,10 +64,27 @@ export function CalendarSyncRequestsMenu() {
   const [approveGender, setApproveGender] = useState("");
   const [approveWorkbookId, setApproveWorkbookId] = useState("");
 
-  // Success-transition state
+  // Success-transition state (single approve)
   const [approveSucceeded, setApproveSucceeded] = useState(false);
   const [approveFadingOut, setApproveFadingOut] = useState(false);
   const approveTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // ── Approve-All state ──────────────────────────────────────────────────────
+  const [approveAllDialogOpen, setApproveAllDialogOpen] = useState(false);
+  const [approveAllGender, setApproveAllGender] = useState("");
+  const [approveAllWorkbookId, setApproveAllWorkbookId] = useState("");
+  // Running count while the bulk approve is in flight
+  const [approveAllProgress, setApproveAllProgress] = useState<{ done: number; total: number } | null>(null);
+  // Final result — null until the run finishes
+  const [approveAllResult, setApproveAllResult] = useState<ApproveAllResult | null>(null);
+
+  const closeApproveAllDialog = () => {
+    setApproveAllDialogOpen(false);
+    setApproveAllGender("");
+    setApproveAllWorkbookId("");
+    setApproveAllProgress(null);
+    setApproveAllResult(null);
+  };
 
   const closeApproveDialog = () => {
     approveTimers.current.forEach(clearTimeout);
@@ -164,6 +187,71 @@ export function CalendarSyncRequestsMenu() {
     },
   });
 
+  /**
+   * Approve All — fires the single-approve endpoint for every pending request.
+   * Each request is attempted independently: failures are collected and left in
+   * the queue so the AD can handle them one-by-one. Successes are invalidated
+   * from the React Query cache immediately so they disappear from the table.
+   */
+  const handleApproveAllConfirm = async (requests: CalendarSyncRequest[]) => {
+    const total = requests.length;
+    setApproveAllProgress({ done: 0, total });
+
+    const succeeded: string[] = [];
+    const failed: ApproveAllResult["failed"] = [];
+
+    for (const req of requests) {
+      try {
+        const res = await fetch(`/api/admin/calendar-sync-requests/${req.id}/approve`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            gender: approveAllGender || null,
+            workbookId: approveAllWorkbookId || null,
+          }),
+        });
+
+        if (res.ok) {
+          succeeded.push(req.id);
+        } else {
+          failed.push({
+            id: req.id,
+            parentName: req.parent.name || req.parent.email,
+            sport: req.sportName,
+            level: req.sportLevel,
+          });
+        }
+      } catch {
+        failed.push({
+          id: req.id,
+          parentName: req.parent.name || req.parent.email,
+          sport: req.sportName,
+          level: req.sportLevel,
+        });
+      }
+
+      setApproveAllProgress((prev) => prev && { ...prev, done: prev.done + 1 });
+    }
+
+    // Refresh both sync-requests and connected-parents caches
+    queryClient.invalidateQueries({ queryKey: ["adminCalendarSyncRequests"] });
+    queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
+
+    setApproveAllProgress(null);
+    setApproveAllResult({ succeeded, failed });
+
+    if (failed.length === 0) {
+      addNotification(`All ${succeeded.length} request${succeeded.length !== 1 ? "s" : ""} approved.`, "success");
+    } else if (succeeded.length > 0) {
+      addNotification(
+        `${succeeded.length} approved, ${failed.length} failed — check the list below.`,
+        "warning"
+      );
+    } else {
+      addNotification("All approvals failed. Please try them individually.", "error");
+    }
+  };
+
   const handleApproveClick = (request: CalendarSyncRequest) => {
     setSelectedRequest(request);
     setApproveGender("");
@@ -205,6 +293,22 @@ export function CalendarSyncRequestsMenu() {
       {pendingRequests.length === 0 ? (
         <Alert severity="info">No pending calendar sync requests.</Alert>
       ) : (
+        <>
+          {/* Approve All — only shown when there are 2+ pending requests */}
+          {pendingRequests.length > 1 && (
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1.5 }}>
+              <Button
+                variant="contained"
+                color="success"
+                size="small"
+                startIcon={<DoneAll />}
+                onClick={() => setApproveAllDialogOpen(true)}
+              >
+                Approve All ({pendingRequests.length})
+              </Button>
+            </Box>
+          )}
+
         <TableContainer component={Paper} variant="outlined">
           <Table>
             <TableHead>
@@ -266,7 +370,153 @@ export function CalendarSyncRequestsMenu() {
             </TableBody>
           </Table>
         </TableContainer>
+        </>
       )}
+
+      {/* ── Approve All Dialog ─────────────────────────────────────────────── */}
+      <Dialog
+        open={approveAllDialogOpen}
+        onClose={approveAllProgress ? undefined : closeApproveAllDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Approve All Pending Requests</DialogTitle>
+
+        <DialogContent sx={{ minHeight: 260 }}>
+          {/* In-progress */}
+          {approveAllProgress && (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 4, gap: 2 }}>
+              <CircularProgress size={48} />
+              <Typography variant="body1" fontWeight={600}>
+                Approving {approveAllProgress.done} of {approveAllProgress.total}…
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Please keep this window open.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Result summary */}
+          {!approveAllProgress && approveAllResult && (
+            <Box sx={{ pt: 1 }}>
+              {approveAllResult.succeeded.length > 0 && (
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  <strong>{approveAllResult.succeeded.length}</strong> request
+                  {approveAllResult.succeeded.length !== 1 ? "s" : ""} approved successfully.
+                </Alert>
+              )}
+              {approveAllResult.failed.length > 0 && (
+                <>
+                  <Alert severity="warning" sx={{ mb: 1.5 }}>
+                    <strong>{approveAllResult.failed.length}</strong> request
+                    {approveAllResult.failed.length !== 1 ? "s" : ""} could not be approved — they
+                    remain in the queue for individual review.
+                  </Alert>
+                  <Box sx={{ pl: 1 }}>
+                    {approveAllResult.failed.map((f) => (
+                      <Typography key={f.id} variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        • {f.parentName} — {f.sport} {f.level}
+                      </Typography>
+                    ))}
+                  </Box>
+                </>
+              )}
+            </Box>
+          )}
+
+          {/* Form */}
+          {!approveAllProgress && !approveAllResult && (
+            <Box>
+              <Alert severity="info" icon={<Info />} sx={{ mb: 2.5 }}>
+                This will approve <strong>all {pendingRequests.length} pending requests</strong> using
+                the same worksheet and gender setting. Any request that fails will stay in the queue
+                for individual review.
+              </Alert>
+
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="approve-all-gender-label" shrink>
+                  Gender
+                </InputLabel>
+                <Select
+                  labelId="approve-all-gender-label"
+                  value={approveAllGender}
+                  label="Gender"
+                  notched
+                  displayEmpty
+                  onChange={(e) => setApproveAllGender(e.target.value)}
+                >
+                  <MenuItem value=""><em>Auto-detect from sport name</em></MenuItem>
+                  <MenuItem value="boys">Boys / Male</MenuItem>
+                  <MenuItem value="girls">Girls / Female</MenuItem>
+                  <MenuItem value="mixed">Mixed / Co-ed</MenuItem>
+                </Select>
+                <FormHelperText>
+                  Applied to every request. Leave on Auto-detect if parents follow different sports.
+                </FormHelperText>
+              </FormControl>
+
+              {/* Workbook required for Approve All */}
+              <FormControl fullWidth sx={{ mb: 2 }} disabled={workbooksLoading} required>
+                <InputLabel id="approve-all-workbook-label" shrink>
+                  Schedule Workbook *
+                </InputLabel>
+                <Select
+                  labelId="approve-all-workbook-label"
+                  value={approveAllWorkbookId}
+                  label="Schedule Workbook *"
+                  notched
+                  displayEmpty
+                  onChange={(e) => setApproveAllWorkbookId(e.target.value)}
+                >
+                  <MenuItem value="" disabled>
+                    <em>Select a workbook…</em>
+                  </MenuItem>
+                  {(workbooksData ?? []).map((wb) => {
+                    const gameCount = wb._count?.games;
+                    const label =
+                      gameCount !== undefined ? `${wb.name}  (${gameCount} games)` : wb.name;
+                    return (
+                      <MenuItem key={wb.id} value={wb.id}>
+                        {label}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+                <FormHelperText error={!approveAllWorkbookId && !workbooksLoading}>
+                  {workbooksLoading
+                    ? "Loading workbooks…"
+                    : (workbooksData ?? []).length === 0
+                    ? "No workbooks yet — import one in Game Center first."
+                    : !approveAllWorkbookId
+                    ? "Required — every parent will receive games from this workbook."
+                    : "All parents will receive games from this workbook."}
+                </FormHelperText>
+              </FormControl>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          {!approveAllProgress && approveAllResult ? (
+            <Button variant="contained" onClick={closeApproveAllDialog}>
+              Done
+            </Button>
+          ) : !approveAllProgress ? (
+            <>
+              <Button onClick={closeApproveAllDialog}>Cancel</Button>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<DoneAll />}
+                disabled={!approveAllWorkbookId || workbooksLoading}
+                onClick={() => handleApproveAllConfirm(pendingRequests)}
+              >
+                Approve All ({pendingRequests.length})
+              </Button>
+            </>
+          ) : null}
+        </DialogActions>
+      </Dialog>
 
       {/* Approve Dialog */}
       <Dialog

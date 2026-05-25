@@ -34,7 +34,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { Delete, CalendarMonth, CheckCircle, Warning, Info, Sync } from "@mui/icons-material";
+import { Delete, CalendarMonth, CheckCircle, Warning, Info, Sync, LinkOff } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface LinkedSchool {
@@ -126,7 +126,9 @@ function CalendarSyncPageContent() {
   const { data: calendarsData, isLoading: calendarsLoading } = useQuery({
     queryKey: ["parentGoogleCalendars"],
     queryFn: async () => {
-      const res = await fetch("/api/calendar/list-calendars");
+      // Use the parent-specific endpoint so the AD's Google account tokens
+      // (from getAnySession) never bleed into the parent calendar picker.
+      const res = await fetch("/api/parent/calendar/list");
       if (!res.ok) return { calendars: [] };
       return res.json() as Promise<{ calendars: GoogleCalendar[] }>;
     },
@@ -147,6 +149,19 @@ function CalendarSyncPageContent() {
       addNotification("Failed to start Google Calendar connection", "error");
     }
   };
+
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/parent/calendar/disconnect", { method: "POST" });
+      if (!res.ok) throw new Error("Failed to disconnect calendar");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentCalendarStatus"] });
+      queryClient.invalidateQueries({ queryKey: ["parentGoogleCalendars"] });
+      addNotification("Google Calendar disconnected", "success");
+    },
+    onError: (err: Error) => addNotification(err.message, "error"),
+  });
 
   const createRequestMutation = useMutation({
     mutationFn: async () => {
@@ -227,16 +242,88 @@ function CalendarSyncPageContent() {
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} gutterBottom>
-        Calendar Sync Approval
+        Calendar Sync
       </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Request approval from the Athletic Director to sync specific team schedules to your Google Calendar.
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+        Manage your Google Calendar connection and sync request status. A new sync request is automatically submitted when you add a child — use the form below only if you need to request access to a different sport or level.
       </Typography>
 
+      {/* ── Google Calendar connection status ─────────────────────────────── */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Google Calendar
+          </Typography>
+          {calendarStatusLoading ? (
+            <CircularProgress size={20} />
+          ) : calendarStatus?.isConnected ? (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <CheckCircle color="success" fontSize="small" />
+              <Box>
+                <Typography variant="body2" fontWeight={600}>
+                  Connected
+                </Typography>
+                {calendarStatus.connectedEmail && (
+                  <Typography variant="caption" color="text.secondary">
+                    {calendarStatus.connectedEmail}
+                  </Typography>
+                )}
+              </Box>
+              <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<CalendarMonth />}
+                  onClick={handleConnectCalendar}
+                >
+                  Reconnect
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={
+                    disconnectMutation.isPending ? (
+                      <CircularProgress size={14} color="inherit" />
+                    ) : (
+                      <LinkOff />
+                    )
+                  }
+                  disabled={disconnectMutation.isPending}
+                  onClick={() => disconnectMutation.mutate()}
+                >
+                  Disconnect
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+              <Warning color="warning" fontSize="small" />
+              <Typography variant="body2" color="text.secondary">
+                Not connected — connect to push game schedules to your Google Calendar.
+              </Typography>
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<CalendarMonth />}
+                onClick={handleConnectCalendar}
+                sx={{ ml: "auto" }}
+              >
+                Connect Google Calendar
+              </Button>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Manual new sync request (use only for additional sports/levels) ── */}
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             New Sync Request
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            A sync request is automatically submitted when you add a child. Use this only to request access to an additional sport or level.
           </Typography>
           <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
             {steps.map((label) => (
