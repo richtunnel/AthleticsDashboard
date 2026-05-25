@@ -61,262 +61,243 @@ export async function GET(request: NextRequest) {
 // Extracted so the cache wrapper above can be a single one-liner.
 // ──────────────────────────────────────────────────────────────────────────────
 async function buildOverviewResponse(user: { id: string; googleCalendarRefreshToken: string | null }) {
-    // ── 1. Parent links ──────────────────────────────────────────────────────
-    const links = await prisma.parentAthleteLink.findMany({
-      where: { parentUserId: user.id },
-      include: { school: true },
-      orderBy: { createdAt: "desc" },
-    });
+  // ── 1. Parent links ──────────────────────────────────────────────────────
+  const links = await prisma.parentAthleteLink.findMany({
+    where: { parentUserId: user.id },
+    include: { school: true },
+    orderBy: { createdAt: "desc" },
+  });
 
-    // ── 2. Subscription ──────────────────────────────────────────────────────
-    const subscription = await prisma.parentSubscription.findFirst({
-      where: {
-        parentUserId: user.id,
-        status: { in: ["ACTIVE", "TRIALING"] },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+  // ── 2. Subscription ──────────────────────────────────────────────────────
+  const subscription = await prisma.parentSubscription.findFirst({
+    where: {
+      parentUserId: user.id,
+      status: { in: ["ACTIVE", "TRIALING"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
 
-    // ── 3. Calendar connection status ────────────────────────────────────────
-    const calendarConnected = !!user.googleCalendarRefreshToken;
+  // ── 3. Calendar connection status ────────────────────────────────────────
+  const calendarConnected = !!user.googleCalendarRefreshToken;
 
-    // ── 4. ConnectedParent for syncedAt lookup ───────────────────────────────
-    const connectedParent = await prisma.connectedParent.findFirst({
-      where: { parentUserId: user.id },
-      select: { lastSyncedAt: true, calendarSynced: true },
-    });
+  // ── 4. ConnectedParent for syncedAt lookup ───────────────────────────────
+  const connectedParent = await prisma.connectedParent.findFirst({
+    where: { parentUserId: user.id },
+    select: { lastSyncedAt: true, calendarSynced: true },
+  });
 
-    // ── 4b. All CalendarSyncRequests — for per-sport status on child cards ───
-    // Ordered newest-first so we take the latest status for each slot.
-    const allSyncRequests = await prisma.calendarSyncRequest.findMany({
-      where: { parentUserId: user.id },
-      include: { school: { select: { name: true } } },
-      orderBy: { requestedAt: "desc" },
-    });
+  // ── 4b. All CalendarSyncRequests — for per-sport status on child cards ───
+  // Ordered newest-first so we take the latest status for each slot.
+  const allSyncRequests = await prisma.calendarSyncRequest.findMany({
+    where: { parentUserId: user.id },
+    include: { school: { select: { name: true } } },
+    orderBy: { requestedAt: "desc" },
+  });
 
-    // Map: "schoolId|sportName|sportLevel" (lowercased) → most-recent request
-    // Used to decorate each ParentAthleteLink card with its sync status.
-    const syncStatusBySlot = new Map<
-      string,
-      { status: string; requestId: string }
-    >();
-    for (const req of allSyncRequests) {
-      const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
-      if (!syncStatusBySlot.has(key)) {
-        syncStatusBySlot.set(key, { status: req.status, requestId: req.id });
-      }
+  // Map: "schoolId|sportName|sportLevel" (lowercased) → most-recent request
+  // Used to decorate each ParentAthleteLink card with its sync status.
+  const syncStatusBySlot = new Map<string, { status: string; requestId: string }>();
+  for (const req of allSyncRequests) {
+    const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+    if (!syncStatusBySlot.has(key)) {
+      syncStatusBySlot.set(key, { status: req.status, requestId: req.id });
     }
+  }
 
-    // ── 5. Upcoming games ────────────────────────────────────────────────────
-    // Primary path: match sport + level directly from each ParentAthleteLink.
-    // No CalendarSyncRequest approval is required — games appear automatically
-    // as soon as the AD imports or syncs their worksheet.
-    // gradeLevel on ParentAthleteLink stores the TEAM level (VARSITY, JV, …),
-    // not the child's school grade.
-    let upcomingGames: any[] = [];
+  // ── 5. Upcoming games ────────────────────────────────────────────────────
+  // Primary path: match sport + level directly from each ParentAthleteLink.
+  // No CalendarSyncRequest approval is required — games appear automatically
+  // as soon as the AD imports or syncs their worksheet.
+  // gradeLevel on ParentAthleteLink stores the TEAM level (VARSITY, JV, …),
+  // not the child's school grade.
+  let upcomingGames: any[] = [];
 
-    if (links.length > 0) {
-      const teamIdSet = new Set<string>();
+  if (links.length > 0) {
+    const teamIdSet = new Set<string>();
 
-      // Build a team-where that handles every realistic naming combo:
-      //   • Sport.name = "Boys Basketball"   ← exact match (legacy)
-      //   • Sport.name = "Basketball" AND Team.gender = MALE   ← normalised
-      //   • Sport.name = "Basketball" AND no gender info       ← loose fallback
-      // Level is normalised so "VARSITY", "Varsity", "Junior Varsity" / "JV"
-      // all line up.
-      const buildTeamWhere = (
-        schoolId: string,
-        sportInput: string,
-        levelInput: string | null
-      ): Prisma.TeamWhereInput => {
-        const { baseSport, gender } = parseSportLabel(sportInput);
-        const level = normaliseLevel(levelInput);
+    // Build a team-where that handles every realistic naming combo:
+    //   • Sport.name = "Boys Basketball"   ← exact match (legacy)
+    //   • Sport.name = "Basketball" AND Team.gender = MALE   ← normalised
+    //   • Sport.name = "Basketball" AND no gender info       ← loose fallback
+    // Level is normalised so "VARSITY", "Varsity", "Junior Varsity" / "JV"
+    // all line up.
+    const buildTeamWhere = (schoolId: string, sportInput: string, levelInput: string | null): Prisma.TeamWhereInput => {
+      const { baseSport, gender } = parseSportLabel(sportInput);
+      const level = normaliseLevel(levelInput);
 
-        const sportClauses: Prisma.TeamWhereInput[] = [
-          // exact match of whatever the parent typed
-          { sport: { name: { equals: sportInput, mode: "insensitive" } } },
-        ];
-        if (baseSport && baseSport.toLowerCase() !== sportInput.toLowerCase()) {
-          // base sport + (optional) gender — covers "Boys Basketball" → "Basketball" + MALE
-          sportClauses.push({
-            sport: { name: { equals: baseSport, mode: "insensitive" } },
-            ...(gender ? { gender } : {}),
-          });
-        }
+      const sportClauses: Prisma.TeamWhereInput[] = [
+        // exact match of whatever the parent typed
+        { sport: { name: { equals: sportInput, mode: "insensitive" } } },
+      ];
+      if (baseSport && baseSport.toLowerCase() !== sportInput.toLowerCase()) {
+        // base sport + (optional) gender — covers "Boys Basketball" → "Basketball" + MALE
+        sportClauses.push({
+          sport: { name: { equals: baseSport, mode: "insensitive" } },
+          ...(gender ? { gender } : {}),
+        });
+      }
 
-        const where: Prisma.TeamWhereInput = {
-          organizationId: schoolId,
-          OR: sportClauses,
-        };
-
-        if (level) {
-          // Accept exact level OR "junior varsity" ↔ "jv"
-          where.AND = [
-            {
-              OR: [
-                { level: { equals: level, mode: "insensitive" } },
-                ...(level === "jv"
-                  ? [{ level: { equals: "Junior Varsity", mode: "insensitive" as const } }]
-                  : []),
-                ...(level === "junior varsity"
-                  ? [{ level: { equals: "JV", mode: "insensitive" as const } }]
-                  : []),
-              ],
-            },
-          ];
-        }
-
-        return where;
+      const where: Prisma.TeamWhereInput = {
+        organizationId: schoolId,
+        OR: sportClauses,
       };
 
-      // Primary: sport + level match per link
-      for (const link of links) {
-        if (!link.sport) continue;
-        const teams = await prisma.team.findMany({
-          where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel),
-          select: { id: true },
-        });
-        teams.forEach((t) => teamIdSet.add(t.id));
+      if (level) {
+        // Accept exact level OR "junior varsity" ↔ "jv"
+        where.AND = [
+          {
+            OR: [
+              { level: { equals: level, mode: "insensitive" } },
+              ...(level === "jv" ? [{ level: { equals: "Junior Varsity", mode: "insensitive" as const } }] : []),
+              ...(level === "junior varsity" ? [{ level: { equals: "JV", mode: "insensitive" as const } }] : []),
+            ],
+          },
+        ];
       }
 
-      // Supplementary: approved CalendarSyncRequests add additional teams when
-      // the AD approved a slightly different sport/level/gender combo than
-      // what's on the link.
-      const approvedRequests = await prisma.calendarSyncRequest.findMany({
-        where: { parentUserId: user.id, status: "APPROVED" },
-        select: { schoolId: true, sportName: true, sportLevel: true, workbookId: true },
+      return where;
+    };
+
+    // Primary: sport + level match per link
+    for (const link of links) {
+      if (!link.sport) continue;
+      const teams = await prisma.team.findMany({
+        where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel),
+        select: { id: true },
       });
-
-      // Collect workbook IDs the AD pinned during approval — we'll include
-      // EVERY game from those workbooks below (regardless of Team matching).
-      // This is the killer fix for cases where imported games never produced
-      // properly normalised Team rows.
-      const approvedWorkbookIds = new Set<string>();
-
-      for (const req of approvedRequests) {
-        const teams = await prisma.team.findMany({
-          where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel),
-          select: { id: true },
-        });
-        teams.forEach((t) => teamIdSet.add(t.id));
-
-        if (req.workbookId) approvedWorkbookIds.add(req.workbookId);
-      }
-
-      const uniqueTeamIds = [...teamIdSet];
-      const uniqueWorkbookIds = [...approvedWorkbookIds];
-
-      if (uniqueTeamIds.length > 0 || uniqueWorkbookIds.length > 0) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        // Match a game when EITHER:
-        //   • it belongs to one of the matched teams, OR
-        //   • it's in a workbook the AD pinned during sync approval
-        const gameMatchers: Prisma.GameWhereInput[] = [];
-        if (uniqueTeamIds.length > 0) {
-          gameMatchers.push({ homeTeamId: { in: uniqueTeamIds } });
-          gameMatchers.push({ awayTeamId: { in: uniqueTeamIds } });
-        }
-        if (uniqueWorkbookIds.length > 0) {
-          gameMatchers.push({ workbookId: { in: uniqueWorkbookIds } });
-        }
-
-        upcomingGames = await prisma.game.findMany({
-          where: {
-            OR: gameMatchers,
-            date: { gte: today },
-            status: { in: ["SCHEDULED", "CONFIRMED"] },
-          },
-          include: {
-            homeTeam: { include: { sport: true } },
-            awayTeam: true,
-            venue: true,
-          },
-          orderBy: { date: "asc" },
-          take: 10,
-        });
-      }
+      teams.forEach((t) => teamIdSet.add(t.id));
     }
 
-    // ── 7. Build response ────────────────────────────────────────────────────
-    const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
+    // Supplementary: approved CalendarSyncRequests add additional teams when
+    // the AD approved a slightly different sport/level/gender combo than
+    // what's on the link.
+    const approvedRequests = await prisma.calendarSyncRequest.findMany({
+      where: { parentUserId: user.id, status: "APPROVED" },
+      select: { schoolId: true, sportName: true, sportLevel: true, workbookId: true },
+    });
 
-    return {
-      links: links.map((link) => {
-        const slotKey = `${link.schoolId}|${(link.sport || "").toLowerCase()}|${(link.gradeLevel || "").toLowerCase()}`;
-        const slotStatus = syncStatusBySlot.get(slotKey);
-        return {
-          id: link.id,
-          childName: link.athleteName,
-          childGrade: link.gradeLevel,
-          sportName: link.sport,
-          // gradeLevel stores the team level (VARSITY, JV…), not the child's grade
-          sportLevel: link.gradeLevel,
-          schoolId: link.schoolId,
-          schoolName: link.school?.name || "",
-          confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
-          active: link.status === "ACTIVE",
-          syncedAt,
-          status: link.status,
-          // Per-sport calendar sync status so each child card knows its state.
-          // Exposed under TWO names because different pages read either —
-          // keep both in sync.
-          calendarSyncStatus: (slotStatus?.status ?? "NONE") as
-            | "APPROVED"
-            | "PENDING"
-            | "REJECTED"
-            | "NONE",
-          syncStatus: (slotStatus?.status ?? "NONE") as
-            | "APPROVED"
-            | "PENDING"
-            | "REJECTED"
-            | "NONE",
-          createdAt: link.createdAt.toISOString(),
-          updatedAt: link.updatedAt.toISOString(),
-        };
-      }),
-      subscription: subscription
+    // Collect workbook IDs the AD pinned during approval — we'll include
+    // EVERY game from those workbooks below (regardless of Team matching).
+    // This is the killer fix for cases where imported games never produced
+    // properly normalised Team rows.
+    const approvedWorkbookIds = new Set<string>();
+
+    for (const req of approvedRequests) {
+      const teams = await prisma.team.findMany({
+        where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel),
+        select: { id: true },
+      });
+      teams.forEach((t) => teamIdSet.add(t.id));
+
+      if (req.workbookId) approvedWorkbookIds.add(req.workbookId);
+    }
+
+    const uniqueTeamIds = [...teamIdSet];
+    const uniqueWorkbookIds = [...approvedWorkbookIds];
+
+    if (uniqueTeamIds.length > 0 || uniqueWorkbookIds.length > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Match a game when EITHER:
+      //   • it belongs to one of the matched teams, OR
+      //   • it's in a workbook the AD pinned during sync approval
+      const gameMatchers: Prisma.GameWhereInput[] = [];
+      if (uniqueTeamIds.length > 0) {
+        gameMatchers.push({ homeTeamId: { in: uniqueTeamIds } });
+        gameMatchers.push({ awayTeamId: { in: uniqueTeamIds } });
+      }
+      if (uniqueWorkbookIds.length > 0) {
+        gameMatchers.push({ workbookId: { in: uniqueWorkbookIds } });
+      }
+
+      upcomingGames = await prisma.game.findMany({
+        where: {
+          OR: gameMatchers,
+          date: { gte: today },
+          status: { in: ["SCHEDULED", "CONFIRMED"] },
+        },
+        include: {
+          homeTeam: { include: { sport: true } },
+          awayTeam: true,
+          venue: true,
+        },
+        orderBy: { date: "asc" },
+        take: 10,
+      });
+    }
+  }
+
+  // ── 7. Build response ────────────────────────────────────────────────────
+  const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
+
+  return {
+    links: links.map((link) => {
+      const slotKey = `${link.schoolId}|${(link.sport || "").toLowerCase()}|${(link.gradeLevel || "").toLowerCase()}`;
+      const slotStatus = syncStatusBySlot.get(slotKey);
+      return {
+        id: link.id,
+        childName: link.athleteName,
+        childGrade: link.gradeLevel,
+        sportName: link.sport,
+        // gradeLevel stores the team level (VARSITY, JV…), not the child's grade
+        sportLevel: link.gradeLevel,
+        schoolId: link.schoolId,
+        schoolName: link.school?.name || "",
+        confirmed: link.status === "ACTIVE" || link.status === "APPROVED",
+        active: link.status === "ACTIVE",
+        syncedAt,
+        status: link.status,
+        // Per-sport calendar sync status so each child card knows its state.
+        // Exposed under TWO names because different pages read either —
+        // keep both in sync.
+        calendarSyncStatus: (slotStatus?.status ?? "NONE") as "APPROVED" | "PENDING" | "REJECTED" | "NONE",
+        syncStatus: (slotStatus?.status ?? "NONE") as "APPROVED" | "PENDING" | "REJECTED" | "NONE",
+        createdAt: link.createdAt.toISOString(),
+        updatedAt: link.updatedAt.toISOString(),
+      };
+    }),
+    subscription: subscription
+      ? {
+          status: subscription.status,
+          trialEnd: subscription.expiresAt?.toISOString() || null,
+          plan: subscription.subscriptionType,
+        }
+      : null,
+    upcomingGames: upcomingGames.map((game) => ({
+      id: game.id,
+      date: game.date.toISOString(),
+      time: game.time,
+      isHome: game.isHome,
+      location: game.location,
+      status: game.status,
+      homeTeam: game.homeTeam
         ? {
-            status: subscription.status,
-            trialEnd: subscription.expiresAt?.toISOString() || null,
-            plan: subscription.subscriptionType,
+            id: game.homeTeam.id,
+            name: game.homeTeam.name,
+            sport: game.homeTeam.sport ? { name: game.homeTeam.sport.name } : null,
+            level: game.homeTeam.level,
           }
         : null,
-      upcomingGames: upcomingGames.map((game) => ({
-        id: game.id,
-        date: game.date.toISOString(),
-        time: game.time,
-        isHome: game.isHome,
-        location: game.location,
-        status: game.status,
-        homeTeam: game.homeTeam
-          ? {
-              id: game.homeTeam.id,
-              name: game.homeTeam.name,
-              sport: game.homeTeam.sport ? { name: game.homeTeam.sport.name } : null,
-              level: game.homeTeam.level,
-            }
-          : null,
-        awayTeam: game.awayTeam ? { id: game.awayTeam.id, name: game.awayTeam.name } : null,
-        venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
-      })),
-      calendarConnected,
-      calendarSynced: connectedParent?.calendarSynced ?? false,
-      lastSyncedAt: syncedAt,
-      // Full request list — used by settings page to show status per sport/level
-      // and offer re-sync when AD has revoked access.
-      syncRequests: allSyncRequests.map((r) => ({
-        id: r.id,
-        sportName: r.sportName,
-        sportLevel: r.sportLevel,
-        schoolId: r.schoolId,
-        schoolName: r.school?.name ?? "",
-        status: r.status as "PENDING" | "APPROVED" | "REJECTED",
-        rejectionReason: r.rejectionReason ?? null,
-        requestedAt: r.requestedAt.toISOString(),
-        reviewedAt: r.reviewedAt?.toISOString() ?? null,
-        googleCalendarId: r.googleCalendarId ?? null,
-      })),
-    };
+      awayTeam: game.awayTeam ? { id: game.awayTeam.id, name: game.awayTeam.name } : null,
+      venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
+    })),
+    calendarConnected,
+    calendarSynced: connectedParent?.calendarSynced ?? false,
+    lastSyncedAt: syncedAt,
+    // Full request list — used by settings page to show status per sport/level
+    // and offer re-sync when AD has revoked access.
+    syncRequests: allSyncRequests.map((r) => ({
+      id: r.id,
+      sportName: r.sportName,
+      sportLevel: r.sportLevel,
+      schoolId: r.schoolId,
+      schoolName: r.school?.name ?? "",
+      status: r.status as "PENDING" | "APPROVED" | "REJECTED",
+      rejectionReason: r.rejectionReason ?? null,
+      requestedAt: r.requestedAt.toISOString(),
+      reviewedAt: r.reviewedAt?.toISOString() ?? null,
+      googleCalendarId: r.googleCalendarId ?? null,
+    })),
+  };
 }

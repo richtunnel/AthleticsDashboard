@@ -23,23 +23,19 @@ const QUEUE_PREFIX = process.env.BULLMQ_PREFIX || "opletics";
 export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
   `${QUEUE_PREFIX}-parent-calendar-sync`,
   async (job: Job<ParentCalendarSyncPayload>) => {
-    const {
-      backgroundJobId,
-      parentUserId,
-      syncRequestId,
-      schoolId,
-      sportName,
-      sportLevel,
-      googleCalendarId,
-    } = job.data;
+    const { backgroundJobId, parentUserId, syncRequestId, schoolId, sportName, sportLevel, googleCalendarId } = job.data;
 
     const channel = `syncjob:${backgroundJobId}`;
 
     // ── Mark RUNNING ──────────────────────────────────────────────────────
-    await prisma.backgroundJob.update({
-      where: { id: backgroundJobId },
-      data: { status: JobStatus.PROCESSING, lastAttemptAt: new Date() },
-    }).catch(() => { /* row may have been GC'd; carry on */ });
+    await prisma.backgroundJob
+      .update({
+        where: { id: backgroundJobId },
+        data: { status: JobStatus.PROCESSING, lastAttemptAt: new Date() },
+      })
+      .catch(() => {
+        /* row may have been GC'd; carry on */
+      });
 
     publishChatEvent(channel, {
       type: "job_running",
@@ -49,13 +45,7 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
     });
 
     // ── Do the work ───────────────────────────────────────────────────────
-    const results = await calendarService.syncGamesForSportLevel(
-      parentUserId,
-      schoolId,
-      sportName,
-      sportLevel,
-      googleCalendarId
-    );
+    const results = await calendarService.syncGamesForSportLevel(parentUserId, schoolId, sportName, sportLevel, googleCalendarId);
 
     const added = results.filter((r) => r.ok).length;
     const failed = results.filter((r) => !r.ok).length;
@@ -70,26 +60,32 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
     // ── Mark COMPLETED ────────────────────────────────────────────────────
     const result = { added, failed, firstError };
 
-    await prisma.backgroundJob.update({
-      where: { id: backgroundJobId },
-      data: {
-        status: JobStatus.COMPLETED,
-        completedAt: new Date(),
-        result,
-      },
-    }).catch(() => {});
+    await prisma.backgroundJob
+      .update({
+        where: { id: backgroundJobId },
+        data: {
+          status: JobStatus.COMPLETED,
+          completedAt: new Date(),
+          result,
+        },
+      })
+      .catch(() => {});
 
     // Mirror the success on ConnectedParent so the AD's view shows it
-    await prisma.connectedParent.updateMany({
-      where: { parentUserId, schoolId },
-      data: { calendarSynced: true, lastSyncedAt: new Date() },
-    }).catch(() => {});
+    await prisma.connectedParent
+      .updateMany({
+        where: { parentUserId, schoolId },
+        data: { calendarSynced: true, lastSyncedAt: new Date() },
+      })
+      .catch(() => {});
 
     // Persist the chosen calendar so future syncs know where to push
-    await prisma.calendarSyncRequest.update({
-      where: { id: syncRequestId },
-      data: { googleCalendarId },
-    }).catch(() => {});
+    await prisma.calendarSyncRequest
+      .update({
+        where: { id: syncRequestId },
+        data: { googleCalendarId },
+      })
+      .catch(() => {});
 
     publishChatEvent(channel, {
       type: "job_completed",
@@ -110,7 +106,7 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
     connection: bullConnection,
     concurrency: 5,
     limiter: { max: 30, duration: 60_000 }, // 30 jobs / min global ceiling
-  }
+  },
 );
 
 // Final-failure handler — after BullMQ exhausts retries
@@ -125,14 +121,16 @@ parentCalendarSyncWorker.on("failed", async (job, err) => {
   const { backgroundJobId } = job.data;
   const channel = `syncjob:${backgroundJobId}`;
 
-  await prisma.backgroundJob.update({
-    where: { id: backgroundJobId },
-    data: {
-      status: JobStatus.FAILED,
-      failedAt: new Date(),
-      error: err.message.slice(0, 500),
-    },
-  }).catch(() => {});
+  await prisma.backgroundJob
+    .update({
+      where: { id: backgroundJobId },
+      data: {
+        status: JobStatus.FAILED,
+        failedAt: new Date(),
+        error: err.message.slice(0, 500),
+      },
+    })
+    .catch(() => {});
 
   publishChatEvent(channel, {
     type: "job_failed",
@@ -142,9 +140,3 @@ parentCalendarSyncWorker.on("failed", async (job, err) => {
 
   console.error(`[parentCalendarSyncWorker] job ${backgroundJobId} failed after ${job.attemptsMade} attempts:`, err.message);
 });
-/home/engine/.bashrc: line 1: syntax error near unexpected token `('
-/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
-/home/engine/.bashrc: line 1: syntax error near unexpected token `('
-/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
-/home/engine/.bashrc: line 1: syntax error near unexpected token `('
-/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
