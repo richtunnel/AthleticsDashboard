@@ -105,8 +105,8 @@ export default function ParentPlansPage() {
       const prefsStr = localStorage.getItem("parentOnboardingPrefs");
       const prefs = prefsStr ? JSON.parse(prefsStr) : null;
 
-      if (!prefs?.schoolId || !prefs?.childName) {
-        setError("Missing onboarding data. Please start over.");
+      if (!prefs?.schoolId || !prefs?.childName || !prefs?.sportName) {
+        setError("Missing onboarding data (Sport selection was lost). Please start over.");
         setSubmitting(false);
         router.push("/onboarding/parent");
         return;
@@ -309,13 +309,7 @@ export default function ParentPlansPage() {
                   <Box sx={{ textAlign: "center", mb: 3 }}>
                     <Chip icon={<VolunteerActivism />} label="Donation" color="primary" size="small" sx={{ mb: 1 }} />
 
-                    <ToggleButtonGroup
-                      value={donationBilling}
-                      exclusive
-                      onChange={(_, val) => val && setDonationBilling(val)}
-                      size="small"
-                      sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}
-                    >
+                    <ToggleButtonGroup value={donationBilling} exclusive onChange={(_, val) => val && setDonationBilling(val)} size="small" sx={{ mb: 1.5, display: "flex", justifyContent: "center" }}>
                       <ToggleButton value="monthly" sx={{ px: 2, textTransform: "none", fontSize: "0.75rem" }}>
                         Monthly
                       </ToggleButton>
