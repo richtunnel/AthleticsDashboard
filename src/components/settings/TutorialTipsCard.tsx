@@ -62,32 +62,16 @@ export function TutorialTipsCard({ apiBase = "/api/user/tips" }: TutorialTipsCar
             Tutorial Tips
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Show the onboarding hint bubbles again (Import, Calendar Connect, Email Groups, and more). They appear once on first use and disappear after you click &quot;Got it&quot;.
+            Show the onboarding hints again (Learn about Adding a Child, Calendar Connect, Email Groups, and more).
           </Typography>
-          <Button
-            variant="outlined"
-            onClick={handleReset}
-            disabled={busy}
-            startIcon={busy ? <CircularProgress size={14} color="inherit" /> : <TipsAndUpdates />}
-            sx={{ textTransform: "none" }}
-          >
+          <Button variant="outlined" onClick={handleReset} disabled={busy} startIcon={busy ? <CircularProgress size={14} color="inherit" /> : <TipsAndUpdates />} sx={{ textTransform: "none" }}>
             {busy ? "Resetting…" : "Show tutorial tips again"}
           </Button>
         </CardContent>
       </Card>
 
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={4000}
-        onClose={() => setSnack((s) => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert
-          severity={snack.sev}
-          variant="filled"
-          onClose={() => setSnack((s) => ({ ...s, open: false }))}
-          sx={{ width: "100%" }}
-        >
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack((s) => ({ ...s, open: false }))} anchorOrigin={{ vertical: "bottom", horizontal: "right" }}>
+        <Alert severity={snack.sev} variant="filled" onClose={() => setSnack((s) => ({ ...s, open: false }))} sx={{ width: "100%" }}>
           {snack.msg}
         </Alert>
       </Snackbar>
