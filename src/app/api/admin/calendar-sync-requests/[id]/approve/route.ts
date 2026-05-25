@@ -5,9 +5,12 @@ import { z } from "zod";
 
 const approveSchema = z.object({
   googleCalendarId: z.string().optional(),
-  // AD can override / confirm the gender ("boys", "girls", "mixed") and point
-  // to a specific Google Sheet that holds this sport's schedule.
+  // AD can override / confirm the gender ("boys", "girls", "mixed") and scope
+  // the sync to a specific imported workbook from Game Center.
   gender: z.string().max(20).optional().nullable(),
+  workbookId: z.string().cuid().optional().nullable(),
+  // Legacy: external Google Sheet URL/ID. Still accepted for backward compat
+  // but the workbookId field is preferred (it points to an imported workbook).
   spreadsheetId: z.string().max(200).optional().nullable(),
 });
 
@@ -36,7 +39,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { googleCalendarId, gender, spreadsheetId } = approveSchema.parse(body);
+    const { gender, workbookId, spreadsheetId } = approveSchema.parse(body);
 
     const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
@@ -50,6 +53,26 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // If a workbookId was supplied, verify it belongs to an AD/coach of this
+    // organization. Resolves collaborators back to the AD owner so coaches /
+    // assistant ADs can pick from the AD's workbooks.
+    let resolvedWorkbookId: string | null | undefined = undefined;
+    if (workbookId) {
+      const workbook = await prisma.gamesWorkbook.findUnique({
+        where: { id: workbookId },
+        select: { id: true, user: { select: { organizationId: true } } },
+      });
+      if (!workbook || workbook.user.organizationId !== user.organizationId) {
+        return NextResponse.json(
+          { error: "Selected workbook does not belong to your organization" },
+          { status: 400 }
+        );
+      }
+      resolvedWorkbookId = workbook.id;
+    } else if (workbookId === null) {
+      resolvedWorkbookId = null; // explicit clear
+    }
+
     // Normalise gender to canonical form so matching works regardless of how the
     // AD typed it ("F", "female", "Girls" all become "girls").
     const { CalendarService } = await import("@/lib/services/calendar.service");
@@ -57,10 +80,12 @@ export async function POST(
       ? CalendarService.normaliseGender(gender)
       : undefined;
 
-    // Extract sheet ID from a full Google Sheets URL if the AD pasted one
+    // Legacy: extract sheet ID from a full Google Sheets URL if the AD pasted one
     const normalisedSheetId = spreadsheetId
       ? (spreadsheetId.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] ?? spreadsheetId.trim()) || null
-      : null;
+      : spreadsheetId === null
+      ? null
+      : undefined;
 
     const updatedRequest = await prisma.calendarSyncRequest.update({
       where: { id },
@@ -69,27 +94,105 @@ export async function POST(
         reviewedAt: new Date(),
         reviewedById: user.id,
         ...(normalisedGender !== undefined ? { gender: normalisedGender } : {}),
+        ...(resolvedWorkbookId !== undefined ? { workbookId: resolvedWorkbookId } : {}),
         ...(normalisedSheetId !== undefined ? { spreadsheetId: normalisedSheetId } : {}),
       },
     });
 
-    // Also update ConnectedParent if it exists for this parent/school
-    const connectedParent = await prisma.connectedParent.findFirst({
+    // ── Reset the parentAthleteLink to ACTIVE ─────────────────────────────
+    // The link's own `status` column can be left in "PENDING" after a school
+    // change (the parent edited their school). Approval here is the implicit
+    // green-light, so flip the matching link back to ACTIVE — otherwise the
+    // parent's dashboard shows a misleading PENDING badge next to an
+    // APPROVED calendar sync.
+    try {
+      await prisma.parentAthleteLink.updateMany({
         where: {
-            parentUserId: syncRequest.parentUserId,
-            schoolId: syncRequest.schoolId,
-        }
+          parentUserId: syncRequest.parentUserId,
+          schoolId: syncRequest.schoolId,
+          sport: { equals: syncRequest.sportName, mode: "insensitive" },
+          gradeLevel: { equals: syncRequest.sportLevel, mode: "insensitive" },
+          status: { not: "ACTIVE" },
+        },
+        data: { status: "ACTIVE" },
+      });
+    } catch (err) {
+      console.warn("[approve] failed to reset link.status to ACTIVE:", err);
+    }
+
+    // ── Upsert ConnectedParent so AD's tab actually shows this parent ─────
+    // This is wrapped in its own try so a ConnectedParent failure can never
+    // mask the successful sync-request approval (which is the user-visible
+    // outcome). Log loudly if anything goes wrong so we can diagnose.
+    const parentRecord = await prisma.user.findUnique({
+      where: { id: syncRequest.parentUserId },
+      select: { email: true, name: true, organizationId: true },
     });
 
-    if (connectedParent) {
-        await prisma.connectedParent.update({
-            where: { id: connectedParent.id },
-            data: {
-                calendarSynced: true,
-                sportName: syncRequest.sportName,
-                sportLevel: syncRequest.sportLevel,
-            }
+    if (!parentRecord) {
+      console.error(
+        `[approve] parent User row missing for id=${syncRequest.parentUserId} — cannot create ConnectedParent`
+      );
+    } else if (!parentRecord.email) {
+      console.error(
+        `[approve] parent has no email (id=${syncRequest.parentUserId}) — ConnectedParent.email is @unique, cannot upsert`
+      );
+    } else {
+      try {
+        const normalisedEmail = parentRecord.email.toLowerCase().trim();
+        const upserted = await prisma.connectedParent.upsert({
+          where: { email: normalisedEmail },
+          create: {
+            email: normalisedEmail,
+            fullName: parentRecord.name || normalisedEmail,
+            parentUserName: parentRecord.name || null,
+            parentUserId: syncRequest.parentUserId,
+            schoolId: syncRequest.schoolId,
+            sportName: syncRequest.sportName,
+            sportLevel: syncRequest.sportLevel,
+            calendarSynced: true,
+            membershipStatus: "ACTIVE",
+          },
+          update: {
+            // Critical: force schoolId to match the approving AD's org, in
+            // case an old ConnectedParent row points at a different school.
+            schoolId: syncRequest.schoolId,
+            parentUserId: syncRequest.parentUserId,
+            fullName: parentRecord.name || normalisedEmail,
+            parentUserName: parentRecord.name || null,
+            sportName: syncRequest.sportName,
+            sportLevel: syncRequest.sportLevel,
+            calendarSynced: true,
+            membershipStatus: "ACTIVE",
+          },
         });
+        console.log(
+          `[approve] ConnectedParent ${upserted.id} ready: schoolId=${upserted.schoolId} email=${upserted.email}`
+        );
+      } catch (err) {
+        console.error("[approve] ConnectedParent upsert FAILED:", err);
+        // Don't fail the whole approval — the sync request is already updated
+      }
+    }
+
+    // ── Bust the AD's cached Connected Parents query (Redis layer) ─────────
+    try {
+      const { invalidatePattern } = await import("@/lib/cache/redisCache");
+      void invalidatePattern(`connectedParents:${syncRequest.schoolId}:*`);
+    } catch { /* ignore */ }
+
+    // Publish a real-time event so every connected AD tab refreshes
+    // (no polling). The `useChatNotifications` hook listens on this channel
+    // and invalidates the sync-requests + connected-parents queries.
+    try {
+      const { publishChatEvent } = await import("@/lib/chat/eventBus");
+      void publishChatEvent(`sync:${syncRequest.schoolId}`, {
+        type: "sync_request_updated",
+        requestId: syncRequest.id,
+        status: "APPROVED",
+      });
+    } catch (err) {
+      console.warn("[approve] failed to publish sync event:", err);
     }
 
     return NextResponse.json({

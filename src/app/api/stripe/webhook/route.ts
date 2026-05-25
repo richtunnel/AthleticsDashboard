@@ -61,13 +61,21 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 2. Queue the processing of the event with idempotency check
+    // 2. Queue the processing of the event with idempotency check (DB audit)
     const jobResult = await jobQueueService.enqueue({
       type: JobType.STRIPE_WEBHOOK,
       payload: { event, rawBody: rawBody.slice(0, 1000) }, // Store truncated raw body for debugging
       idempotencyKey,
       maxAttempts: 5,
     });
+
+    // 3. Push to BullMQ for instant processing — uses Stripe event ID for dedup
+    const { stripeWebhookQueue } = await import("@/lib/queue/queues");
+    await stripeWebhookQueue.add(
+      "process",
+      { eventId: event.id, event: event as any },
+      { jobId: event.id } // Stripe IDs are unique → BullMQ dedups duplicate deliveries
+    );
 
     console.log(`[StripeWebhook] Event ${event.id} queued as job ${jobResult.id}, status: ${jobResult.status}`);
 

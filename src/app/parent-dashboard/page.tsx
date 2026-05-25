@@ -29,6 +29,7 @@ import {
   BlockOutlined,
 } from "@mui/icons-material";
 import Link from "next/link";
+import { formatOrgName } from "@/lib/utils/format";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -110,6 +111,14 @@ async function postSyncRequest(payload: {
   if (!res.ok) throw new Error(data.error || "Failed to send request");
 }
 
+async function deleteSyncRequest(id: string): Promise<void> {
+  const res = await fetch(`/api/parent/calendar-sync-requests/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || "Failed to cancel request");
+  }
+}
+
 function formatGameDate(dateStr: string): string {
   const d = new Date(dateStr);
   return isNaN(d.getTime())
@@ -124,18 +133,51 @@ const CLOSED_SNACK: Snack = { open: false, message: "", severity: "success" };
 
 interface ChildCardProps {
   link: ParentLink;
+  pendingRequestId: string | null;
+  approvedRequestId: string | null;
+  /** True when this parent has Google Calendar OAuth connected */
+  calendarConnected: boolean;
   onRequest: (link: ParentLink) => void;
+  onCancel: (requestId: string) => void;
+  onUnsync: (requestId: string) => void;
+  onSyncNow: () => void;
   requesting: boolean;
+  cancelling: boolean;
+  unsyncing: boolean;
 }
 
-function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
+function ChildCard({
+  link,
+  pendingRequestId,
+  approvedRequestId,
+  calendarConnected,
+  onRequest,
+  onCancel,
+  onUnsync,
+  onSyncNow,
+  requesting,
+  cancelling,
+  unsyncing,
+}: ChildCardProps) {
   const { calendarSyncStatus } = link;
 
   const syncChip = () => {
     switch (calendarSyncStatus) {
       case "APPROVED":
+        // "APPROVED" only means the AD allowed sync — it does NOT mean games
+        // are actually in the parent's Google Calendar. The actual sync
+        // requires the parent to connect Google Calendar and trigger it.
+        // Label this accurately so parents aren't misled.
         return (
-          <Chip icon={<CheckCircle />} label="Calendar Synced" size="small" color="success" variant="outlined" />
+          <Tooltip title="The athletic director approved your request. Connect Google Calendar to push games to your calendar.">
+            <Chip
+              icon={<CheckCircle />}
+              label="Sync Approved"
+              size="small"
+              color="success"
+              variant="outlined"
+            />
+          </Tooltip>
         );
       case "PENDING":
         return (
@@ -154,6 +196,7 @@ function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
     }
   };
 
+  const canRequest = !!link.sportName && !!link.sportLevel;
   const showRequestButton =
     (calendarSyncStatus === "REJECTED" || calendarSyncStatus === "NONE") &&
     !!link.schoolId;
@@ -174,30 +217,110 @@ function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
         </Box>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-          {link.schoolName}
+          {formatOrgName(link.schoolName)}
         </Typography>
 
         <Typography variant="body2" sx={{ mb: 1.5 }}>
           <strong>Athlete:</strong> {link.childName}
-          {link.childGrade && ` · Grade ${link.childGrade}`}
         </Typography>
 
         <Divider sx={{ mb: 1.5 }} />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           {syncChip()}
+
+          {/* State: NONE or REJECTED — let the parent issue a request */}
           {showRequestButton && (
-            <Button
-              size="small"
-              variant={calendarSyncStatus === "REJECTED" ? "contained" : "outlined"}
-              color="primary"
-              startIcon={requesting ? <CircularProgress size={12} color="inherit" /> : <Sync />}
-              disabled={requesting}
-              onClick={() => onRequest(link)}
-              sx={{ ml: "auto", fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+            <Tooltip
+              title={
+                canRequest
+                  ? ""
+                  : "Add a sport and level for this child in Settings before requesting sync."
+              }
             >
-              {requesting ? "Sending…" : calendarSyncStatus === "REJECTED" ? "Request Re-sync" : "Request Sync"}
-            </Button>
+              <span style={{ marginLeft: "auto" }}>
+                <Button
+                  size="small"
+                  variant={calendarSyncStatus === "REJECTED" ? "contained" : "outlined"}
+                  color="primary"
+                  startIcon={requesting ? <CircularProgress size={12} color="inherit" /> : <Sync />}
+                  disabled={requesting || !canRequest}
+                  onClick={() => onRequest(link)}
+                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                >
+                  {requesting ? "Sending…" : calendarSyncStatus === "REJECTED" ? "Request Re-sync" : "Request Sync"}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+
+          {/* State: PENDING — let the parent cancel and try again */}
+          {calendarSyncStatus === "PENDING" && pendingRequestId && (
+            <Tooltip title="Cancel this pending request so you can send a fresh one">
+              <span style={{ marginLeft: "auto" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  disabled={cancelling}
+                  onClick={() => onCancel(pendingRequestId)}
+                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                >
+                  {cancelling ? "Cancelling…" : "Cancel Request"}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+
+          {/* State: APPROVED — show actual sync controls.
+              The AD said yes; the parent still needs to (a) connect Google
+              Calendar if they haven't, then (b) push the games. They can
+              also Unsync to drop the approval and start over. */}
+          {calendarSyncStatus === "APPROVED" && approvedRequestId && (
+            <Box sx={{ display: "flex", gap: 1, ml: "auto", flexWrap: "wrap" }}>
+              {!calendarConnected ? (
+                <Tooltip title="Connect your Google Calendar so games can be pushed to it">
+                  <Button
+                    component={Link}
+                    href="/parent-dashboard/calendar-sync"
+                    size="small"
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Sync />}
+                    sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                  >
+                    Connect Calendar
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Push the latest games for this sport to your Google Calendar. Use this any time the schedule changes.">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Sync />}
+                    onClick={onSyncNow}
+                    sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                  >
+                    Update Sync
+                  </Button>
+                </Tooltip>
+              )}
+              <Tooltip title="Stop syncing this sport and remove the approval so you can re-request later">
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    disabled={unsyncing}
+                    onClick={() => onUnsync(approvedRequestId)}
+                    sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                  >
+                    {unsyncing ? "Unsyncing…" : "Unsync"}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
           )}
         </Box>
 
@@ -216,6 +339,7 @@ function ChildCard({ link, onRequest, requesting }: ChildCardProps) {
 export default function ParentDashboardPage() {
   const queryClient = useQueryClient();
   const [requestingId, setRequestingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack>(CLOSED_SNACK);
 
   const { data, isLoading, error } = useQuery({
@@ -240,12 +364,73 @@ export default function ParentDashboardPage() {
   });
 
   const handleRequest = (link: ParentLink) => {
+    // Defensive guard — UI also disables the button when these are missing,
+    // but never trust the UI alone.
+    if (!link.sportName || !link.sportLevel) {
+      setSnack({
+        open: true,
+        message: "Please add a sport and level for this child in Settings before requesting sync.",
+        severity: "warning",
+      });
+      return;
+    }
     setRequestingId(link.id);
     syncMutation.mutate({
       schoolId: link.schoolId,
-      sportName: link.sportName || "General",
-      sportLevel: link.sportLevel || "All",
+      sportName: link.sportName,
+      sportLevel: link.sportLevel,
     });
+  };
+
+  const cancelMutation = useMutation({
+    mutationFn: deleteSyncRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setSnack({
+        open: true,
+        message: "Pending request cancelled. You can now send a fresh one.",
+        severity: "success",
+      });
+    },
+    onError: (err: Error) => {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    },
+    onSettled: () => setCancellingId(null),
+  });
+
+  const handleCancel = (requestId: string) => {
+    setCancellingId(requestId);
+    cancelMutation.mutate(requestId);
+  };
+
+  // Unsync = same DELETE endpoint but used against an APPROVED request.
+  // Drops the approval row + flips connectedParent.calendarSynced=false,
+  // so the parent can re-request from scratch.
+  const [unsyncingId, setUnsyncingId] = useState<string | null>(null);
+  const unsyncMutation = useMutation({
+    mutationFn: deleteSyncRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setSnack({
+        open: true,
+        message: "Unsynced. You can request a new sync any time from this card.",
+        severity: "success",
+      });
+    },
+    onError: (err: Error) => {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    },
+    onSettled: () => setUnsyncingId(null),
+  });
+  const handleUnsync = (requestId: string) => {
+    setUnsyncingId(requestId);
+    unsyncMutation.mutate(requestId);
+  };
+  const handleSyncNow = () => {
+    // Deep-link to the dedicated calendar-sync page where the parent picks
+    // a Google calendar and we run the actual push. Doing it from here would
+    // require duplicating the calendar-picker UI.
+    window.location.href = "/parent-dashboard/calendar-sync";
   };
 
   if (isLoading) {
@@ -260,10 +445,32 @@ export default function ParentDashboardPage() {
     return <Alert severity="error">Failed to load dashboard. Please try again.</Alert>;
   }
 
-  const { subscription, upcomingGames = [], links = [], calendarConnected } = data!;
+  const { subscription, upcomingGames = [], links = [], calendarConnected, syncRequests = [] } = data!;
   const isOnTrial = subscription?.status === "TRIALING";
   const trialEnd = subscription?.trialEnd ? new Date(subscription.trialEnd).toLocaleDateString() : null;
   const revokedLinks = links.filter((l) => l.calendarSyncStatus === "REJECTED");
+
+  // Map each link's slot key → IDs of its current PENDING / APPROVED requests.
+  // Used by ChildCard to render the right buttons for each state.
+  const pendingIdBySlot = new Map<string, string>();
+  const approvedIdBySlot = new Map<string, string>();
+  for (const req of syncRequests) {
+    const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+    if (req.status === "PENDING" && !pendingIdBySlot.has(key)) pendingIdBySlot.set(key, req.id);
+    if (req.status === "APPROVED" && !approvedIdBySlot.has(key)) approvedIdBySlot.set(key, req.id);
+  }
+  const slotKeyForLink = (link: ParentLink): string | null => {
+    if (!link.sportName || !link.sportLevel) return null;
+    return `${link.schoolId}|${link.sportName.toLowerCase()}|${link.sportLevel.toLowerCase()}`;
+  };
+  const pendingIdForLink = (link: ParentLink): string | null => {
+    const k = slotKeyForLink(link);
+    return k ? pendingIdBySlot.get(k) ?? null : null;
+  };
+  const approvedIdForLink = (link: ParentLink): string | null => {
+    const k = slotKeyForLink(link);
+    return k ? approvedIdBySlot.get(k) ?? null : null;
+  };
 
   return (
     <Box>
@@ -366,8 +573,12 @@ export default function ParentDashboardPage() {
         {[
           { icon: <CalendarMonth sx={{ fontSize: 40, color: "primary.main" }} />, value: links.length, label: "Connected Sports" },
           {
+            // Reflects whether Google Calendar OAuth is connected — NOT whether
+            // any games have been pushed. Worded so parents don't mistake
+            // "Connected" for "Synced". Per-sport sync state lives on the
+            // child cards below.
             icon: <Sync sx={{ fontSize: 40, color: calendarConnected ? "success.main" : "text.secondary" }} />,
-            value: calendarConnected ? "Active" : "None",
+            value: calendarConnected ? "Connected" : "Not Connected",
             label: "Google Calendar",
           },
           { icon: <Schedule sx={{ fontSize: 40, color: "primary.main" }} />, value: upcomingGames.length, label: "Upcoming Games" },
@@ -409,7 +620,19 @@ export default function ParentDashboardPage() {
         <Grid container spacing={2} sx={{ mb: 4 }}>
           {links.map((link) => (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={link.id}>
-              <ChildCard link={link} onRequest={handleRequest} requesting={requestingId === link.id} />
+              <ChildCard
+                link={link}
+                pendingRequestId={pendingIdForLink(link)}
+                approvedRequestId={approvedIdForLink(link)}
+                calendarConnected={calendarConnected}
+                onRequest={handleRequest}
+                onCancel={handleCancel}
+                onUnsync={handleUnsync}
+                onSyncNow={handleSyncNow}
+                requesting={requestingId === link.id}
+                cancelling={cancellingId === pendingIdForLink(link)}
+                unsyncing={unsyncingId === approvedIdForLink(link)}
+              />
             </Grid>
           ))}
         </Grid>

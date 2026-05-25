@@ -56,6 +56,18 @@ export async function POST(
       },
     });
 
+    // Real-time push to all AD tabs so the rejected row disappears immediately
+    try {
+      const { publishChatEvent } = await import("@/lib/chat/eventBus");
+      void publishChatEvent(`sync:${syncRequest.schoolId}`, {
+        type: "sync_request_updated",
+        requestId: syncRequest.id,
+        status: "REJECTED",
+      });
+    } catch (err) {
+      console.warn("[reject] failed to publish sync event:", err);
+    }
+
     return NextResponse.json({
       request: {
         ...updatedRequest,

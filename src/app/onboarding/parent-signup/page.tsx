@@ -100,21 +100,9 @@ function ParentSignupContent() {
       .then(async (session) => {
         if (!session?.user?.email) return;
         // Check whether this parent already has linked students
-        try {
-          const linkRes = await fetch("/api/parent/linked-schools");
-          if (linkRes.ok) {
-            const linkData = await linkRes.json();
-            if (linkData.schools && linkData.schools.length > 0) {
-              // Returning parent with existing connections → go straight to dashboard
-              router.push("/parent-dashboard");
-              return;
-            }
-          }
-        } catch {
-          // If the check fails just fall through to onboarding
-        }
-        // Authenticated but no linked students yet → first-time onboarding
-        router.push("/onboarding/parent");
+        // Already authenticated — always go to dashboard.
+        // Parents can add children from there; no need to check for links.
+        router.push("/parent-dashboard");
       })
       .catch(() => {/* ignore — if we can't check, just show the signup page */});
   }, [router]);

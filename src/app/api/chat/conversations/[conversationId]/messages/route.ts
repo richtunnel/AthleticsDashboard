@@ -1,7 +1,7 @@
 import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
-import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
+import { publishChatEvent, ChatMessageEvent } from "@/lib/chat/eventBus";
 import { encrypt, decrypt } from "@/lib/utils/encryption";
 
 /**
@@ -155,10 +155,11 @@ export async function POST(
       createdAt: message.createdAt.toISOString(),
     };
 
-    chatEventBus.emit(`conversation:${conversationId}`, event);
-
-    // Notify the parent user for header notifications
-    chatEventBus.emit(`user:${conversation.parentUserId}`, event);
+    // Fire-and-forget: publish to Redis (cross-process) + local bus
+    // conversation channel → parent's open chat window
+    // user channel         → parent's header bell notification
+    void publishChatEvent(`conversation:${conversationId}`, event);
+    void publishChatEvent(`user:${conversation.parentUserId}`, event);
 
     return NextResponse.json({
       id: message.id,

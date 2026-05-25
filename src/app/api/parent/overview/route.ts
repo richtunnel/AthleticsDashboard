@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
+import { cached } from "@/lib/cache/redisCache";
+import { parseSportLabel, normaliseLevel } from "@/lib/utils/sportMatch";
+import type { Prisma } from "@prisma/client";
 
 /**
  * GET /api/parent/overview
@@ -36,6 +39,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    // ── Cache the whole overview for 30s per user ───────────────────────────
+    // Cuts repeat dashboard loads from ~6 DB queries to 0. Invalidate on:
+    //   • New child added / removed   (call invalidate(`parent:overview:${userId}`))
+    //   • New sync request submitted
+    //   • Sync request approved/rejected
+    const cacheKey = `parent:overview:${user.id}`;
+    const responseData = await cached(cacheKey, 30, async () => {
+      return await buildOverviewResponse(user);
+    });
+
+    return NextResponse.json(responseData);
+  } catch (error) {
+    console.error("[API] Error fetching parent overview:", error);
+    return NextResponse.json({ error: "Failed to fetch overview" }, { status: 500 });
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Internal helper — produces the full overview payload from the DB.
+// Extracted so the cache wrapper above can be a single one-liner.
+// ──────────────────────────────────────────────────────────────────────────────
+async function buildOverviewResponse(user: { id: string; googleCalendarRefreshToken: string | null }) {
     // ── 1. Parent links ──────────────────────────────────────────────────────
     const links = await prisma.parentAthleteLink.findMany({
       where: { parentUserId: user.id },
@@ -93,64 +118,113 @@ export async function GET(request: NextRequest) {
     if (links.length > 0) {
       const teamIdSet = new Set<string>();
 
+      // Build a team-where that handles every realistic naming combo:
+      //   • Sport.name = "Boys Basketball"   ← exact match (legacy)
+      //   • Sport.name = "Basketball" AND Team.gender = MALE   ← normalised
+      //   • Sport.name = "Basketball" AND no gender info       ← loose fallback
+      // Level is normalised so "VARSITY", "Varsity", "Junior Varsity" / "JV"
+      // all line up.
+      const buildTeamWhere = (
+        schoolId: string,
+        sportInput: string,
+        levelInput: string | null
+      ): Prisma.TeamWhereInput => {
+        const { baseSport, gender } = parseSportLabel(sportInput);
+        const level = normaliseLevel(levelInput);
+
+        const sportClauses: Prisma.TeamWhereInput[] = [
+          // exact match of whatever the parent typed
+          { sport: { name: { equals: sportInput, mode: "insensitive" } } },
+        ];
+        if (baseSport && baseSport.toLowerCase() !== sportInput.toLowerCase()) {
+          // base sport + (optional) gender — covers "Boys Basketball" → "Basketball" + MALE
+          sportClauses.push({
+            sport: { name: { equals: baseSport, mode: "insensitive" } },
+            ...(gender ? { gender } : {}),
+          });
+        }
+
+        const where: Prisma.TeamWhereInput = {
+          organizationId: schoolId,
+          OR: sportClauses,
+        };
+
+        if (level) {
+          // Accept exact level OR "junior varsity" ↔ "jv"
+          where.AND = [
+            {
+              OR: [
+                { level: { equals: level, mode: "insensitive" } },
+                ...(level === "jv"
+                  ? [{ level: { equals: "Junior Varsity", mode: "insensitive" as const } }]
+                  : []),
+                ...(level === "junior varsity"
+                  ? [{ level: { equals: "JV", mode: "insensitive" as const } }]
+                  : []),
+              ],
+            },
+          ];
+        }
+
+        return where;
+      };
+
       // Primary: sport + level match per link
       for (const link of links) {
         if (!link.sport) continue;
-
-        const teamWhere: any = {
-          organizationId: link.schoolId,
-          sport: { name: { equals: link.sport, mode: "insensitive" } },
-        };
-
-        // Match level when available so a parent linked to "Varsity Basketball"
-        // sees only Varsity games, not every basketball team at that school.
-        if (link.gradeLevel) {
-          teamWhere.level = { equals: link.gradeLevel, mode: "insensitive" };
-        }
-
         const teams = await prisma.team.findMany({
-          where: teamWhere,
+          where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel),
           select: { id: true },
         });
-
         teams.forEach((t) => teamIdSet.add(t.id));
       }
 
-      // Supplementary: approved CalendarSyncRequests add any additional teams
-      // (covers the case where ADs approved access for a specific sport/level/gender
-      // combination that the direct link didn't pick up).
+      // Supplementary: approved CalendarSyncRequests add additional teams when
+      // the AD approved a slightly different sport/level/gender combo than
+      // what's on the link.
       const approvedRequests = await prisma.calendarSyncRequest.findMany({
         where: { parentUserId: user.id, status: "APPROVED" },
+        select: { schoolId: true, sportName: true, sportLevel: true, workbookId: true },
       });
 
+      // Collect workbook IDs the AD pinned during approval — we'll include
+      // EVERY game from those workbooks below (regardless of Team matching).
+      // This is the killer fix for cases where imported games never produced
+      // properly normalised Team rows.
+      const approvedWorkbookIds = new Set<string>();
+
       for (const req of approvedRequests) {
-        const levelParts = req.sportLevel.trim().split(/\s+/);
-        const baseLevel = levelParts[0];
-        const gender = levelParts.length > 1 ? levelParts[1] : null;
-
-        const teamWhere: any = {
-          organizationId: req.schoolId,
-          sport: { name: { equals: req.sportName, mode: "insensitive" } },
-          level: { equals: baseLevel, mode: "insensitive" },
-        };
-        if (gender) teamWhere.gender = gender;
-
         const teams = await prisma.team.findMany({
-          where: teamWhere,
+          where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel),
           select: { id: true },
         });
         teams.forEach((t) => teamIdSet.add(t.id));
+
+        if (req.workbookId) approvedWorkbookIds.add(req.workbookId);
       }
 
       const uniqueTeamIds = [...teamIdSet];
+      const uniqueWorkbookIds = [...approvedWorkbookIds];
 
-      if (uniqueTeamIds.length > 0) {
+      if (uniqueTeamIds.length > 0 || uniqueWorkbookIds.length > 0) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // Match a game when EITHER:
+        //   • it belongs to one of the matched teams, OR
+        //   • it's in a workbook the AD pinned during sync approval
+        const gameMatchers: Prisma.GameWhereInput[] = [];
+        if (uniqueTeamIds.length > 0) {
+          gameMatchers.push({ homeTeamId: { in: uniqueTeamIds } });
+          gameMatchers.push({ awayTeamId: { in: uniqueTeamIds } });
+        }
+        if (uniqueWorkbookIds.length > 0) {
+          gameMatchers.push({ workbookId: { in: uniqueWorkbookIds } });
+        }
+
         upcomingGames = await prisma.game.findMany({
           where: {
-            OR: [{ homeTeamId: { in: uniqueTeamIds } }, { awayTeamId: { in: uniqueTeamIds } }],
+            OR: gameMatchers,
             date: { gte: today },
             status: { in: ["SCHEDULED", "CONFIRMED"] },
           },
@@ -168,7 +242,7 @@ export async function GET(request: NextRequest) {
     // ── 7. Build response ────────────────────────────────────────────────────
     const syncedAt = connectedParent?.lastSyncedAt?.toISOString() || null;
 
-    return NextResponse.json({
+    return {
       links: links.map((link) => {
         const slotKey = `${link.schoolId}|${(link.sport || "").toLowerCase()}|${(link.gradeLevel || "").toLowerCase()}`;
         const slotStatus = syncStatusBySlot.get(slotKey);
@@ -185,8 +259,15 @@ export async function GET(request: NextRequest) {
           active: link.status === "ACTIVE",
           syncedAt,
           status: link.status,
-          // Per-sport calendar sync status so each child card knows its state
+          // Per-sport calendar sync status so each child card knows its state.
+          // Exposed under TWO names because different pages read either —
+          // keep both in sync.
           calendarSyncStatus: (slotStatus?.status ?? "NONE") as
+            | "APPROVED"
+            | "PENDING"
+            | "REJECTED"
+            | "NONE",
+          syncStatus: (slotStatus?.status ?? "NONE") as
             | "APPROVED"
             | "PENDING"
             | "REJECTED"
@@ -236,9 +317,5 @@ export async function GET(request: NextRequest) {
         requestedAt: r.requestedAt.toISOString(),
         reviewedAt: r.reviewedAt?.toISOString() ?? null,
       })),
-    });
-  } catch (error) {
-    console.error("[API] Error fetching parent overview:", error);
-    return NextResponse.json({ error: "Failed to fetch overview" }, { status: 500 });
-  }
+    };
 }

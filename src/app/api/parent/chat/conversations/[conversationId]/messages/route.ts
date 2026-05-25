@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
-import { chatEventBus, ChatMessageEvent } from "@/lib/chat/eventBus";
+import { publishChatEvent, ChatMessageEvent } from "@/lib/chat/eventBus";
 import { encrypt, decrypt } from "@/lib/utils/encryption";
 
 /**
@@ -156,10 +156,9 @@ export async function POST(
       createdAt: message.createdAt.toISOString(),
     };
 
-    chatEventBus.emit(`conversation:${conversationId}`, event);
-
-    // Notify all ADs in the school's org for header notifications
-    chatEventBus.emit(`school:${conversation.schoolId}`, event);
+    // Fire-and-forget: publish to Redis (cross-process) + local bus
+    void publishChatEvent(`conversation:${conversationId}`, event);
+    void publishChatEvent(`school:${conversation.schoolId}`, event);
 
     return NextResponse.json({
       id: message.id,

@@ -90,21 +90,7 @@ export default function ParentOnboardingPage() {
       return;
     }
     if (authStatus === "authenticated") {
-      // Guard: if this parent already has linked students, skip onboarding
-      // and send them straight to the dashboard.
-      fetch("/api/parent/linked-schools")
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
-          if (data?.schools && data.schools.length > 0) {
-            router.push("/parent-dashboard");
-          } else {
-            fetchSchools();
-          }
-        })
-        .catch(() => {
-          // If the check fails, just show the onboarding form
-          fetchSchools();
-        });
+      fetchSchools();
     }
   }, [authStatus, router]);
 
@@ -444,6 +430,19 @@ export default function ParentOnboardingPage() {
             </Box>
           </CardContent>
         </Card>
+
+        {/* Skip link — outside the card, bottom-left aligned */}
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-start" }}>
+          <Button
+            variant="text"
+            size="small"
+            color="inherit"
+            onClick={() => router.push("/parent-dashboard")}
+            sx={{ color: "text.disabled", fontSize: "0.8rem", textTransform: "none" }}
+          >
+            Skip for now
+          </Button>
+        </Box>
       </Container>
     </>
   );

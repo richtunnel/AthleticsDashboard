@@ -24,11 +24,25 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET}
+      # S3 / DigitalOcean Spaces — exposed under BOTH naming conventions so
+      # any code path (legacy DO_SPACES_* or short SPACES_*) resolves them.
       SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
       SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
       SPACES_BUCKET: ${SPACES_BUCKET}
       SPACES_REGION: ${SPACES_REGION}
+      SPACES_ENDPOINT: ${SPACES_ENDPOINT}
+      SPACES_CDN_URL: ${SPACES_CDN_URL}
+      DO_SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
+      DO_SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
+      DO_SPACES_BUCKET: ${SPACES_BUCKET}
+      DO_SPACES_REGION: ${SPACES_REGION}
+      DO_SPACES_ENDPOINT: ${SPACES_ENDPOINT}
+      DO_SPACES_CDN_URL: ${SPACES_CDN_URL}
       NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "3000:3000"
     extra_hosts:
@@ -43,6 +57,66 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  worker:
+    # Same image as the app, but runs the BullMQ worker process instead of Next.
+    # Scale horizontally with: docker compose up -d --scale worker=3
+    image: rickstokes/athletics-app:latest
+    container_name: athletics-worker
+    restart: unless-stopped
+    env_file:
+      - ./.athletics.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+      SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
+      SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
+      SPACES_BUCKET: ${SPACES_BUCKET}
+      SPACES_REGION: ${SPACES_REGION}
+      SPACES_ENDPOINT: ${SPACES_ENDPOINT}
+      SPACES_CDN_URL: ${SPACES_CDN_URL}
+      DO_SPACES_ACCESS_KEY: ${SPACES_ACCESS_KEY}
+      DO_SPACES_SECRET_KEY: ${SPACES_SECRET_KEY}
+      DO_SPACES_BUCKET: ${SPACES_BUCKET}
+      DO_SPACES_REGION: ${SPACES_REGION}
+      DO_SPACES_ENDPOINT: ${SPACES_ENDPOINT}
+      DO_SPACES_CDN_URL: ${SPACES_CDN_URL}
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+    command: ["yarn", "worker"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
+    networks:
+      - athletics-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  redis:
+    image: redis:7-alpine
+    container_name: athletics-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    networks:
+      - athletics-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   adminer:
     image: adminer:latest

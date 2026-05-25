@@ -209,15 +209,16 @@ model TablePreference {
 }
 
 model GamesWorkbook {
-  id            String         @id @default(cuid())
-  name          String
-  sortOrder     Int            @default(0)
-  userId        String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  games         Game[]
-  customColumns CustomColumn[]
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String                @id @default(cuid())
+  name                  String
+  sortOrder             Int                   @default(0)
+  userId                String
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  games                 Game[]
+  customColumns         CustomColumn[]
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarSyncRequests  CalendarSyncRequest[]
 
   @@unique([userId, sortOrder])
   @@index([userId])
@@ -894,7 +895,8 @@ model CalendarSyncRequest {
   sportName        String // e.g., "Soccer"
   sportLevel       String // e.g., "VARSITY"
   gender           String? // Normalised gender: "boys" | "girls" | "mixed" — set by AD on approval
-  spreadsheetId    String? // Google Sheet ID the AD picks to scope this sync to a specific schedule
+  spreadsheetId    String? // Legacy / external Google Sheet ID (kept for backward compat)
+  workbookId       String? // GamesWorkbook the AD picked to scope this sync — preferred over spreadsheetId
   status           CalendarSyncStatus @default(PENDING)
   googleCalendarId String? // Set when approved
   rejectionReason  String?
@@ -903,10 +905,12 @@ model CalendarSyncRequest {
   reviewedById     String?
   parent           User               @relation("ParentCalendarSyncRequests", fields: [parentUserId], references: [id], onDelete: Cascade)
   school           Organization       @relation("SchoolCalendarSyncRequests", fields: [schoolId], references: [id], onDelete: Cascade)
+  workbook         GamesWorkbook?     @relation(fields: [workbookId], references: [id], onDelete: SetNull)
 
   @@index([parentUserId])
   @@index([schoolId])
   @@index([status])
+  @@index([workbookId])
   @@map("CalendarSyncRequest")
 }
 

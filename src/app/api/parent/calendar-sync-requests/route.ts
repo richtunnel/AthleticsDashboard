@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
-import { chatEventBus } from "@/lib/chat/eventBus";
+import { publishChatEvent } from "@/lib/chat/eventBus";
 import { z } from "zod";
 
 const requestSchema = z.object({
@@ -83,13 +83,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = requestSchema.parse(body);
 
-    // Verify parent is linked to this school
+    // Verify parent is linked to this school AND that the link's sport/level
+    // match what's being requested. This prevents creating a sync request for
+    // a sport the parent hasn't actually told us their child plays.
     const link = await prisma.parentAthleteLink.findFirst({
-      where: { parentUserId: user.id, schoolId: validatedData.schoolId },
+      where: {
+        parentUserId: user.id,
+        schoolId: validatedData.schoolId,
+        sport: { equals: validatedData.sportName, mode: "insensitive" },
+        gradeLevel: { equals: validatedData.sportLevel, mode: "insensitive" },
+      },
     });
 
     if (!link) {
-      return NextResponse.json({ error: "You are not linked to this school" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error:
+            "No matching child found. Make sure you've added your child with this exact sport and level in Settings first.",
+        },
+        { status: 400 }
+      );
     }
 
     // Enforce single-pending rule: block if an active (PENDING or APPROVED) request
@@ -126,13 +139,19 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Notify connected ADs in real time via the existing SSE school channel
-    chatEventBus.emit(`school:${validatedData.schoolId}`, {
+    // Invalidate the parent's dashboard cache so the new request shows immediately
+    const { invalidate } = await import("@/lib/cache/redisCache");
+    void invalidate(`parent:overview:${user.id}`);
+
+    // Notify ADs via Redis Pub/Sub — uses dedicated sync channel so the
+    // notifications SSE can distinguish sync requests from chat messages
+    void publishChatEvent(`sync:${validatedData.schoolId}`, {
       type: "sync_request",
+      requestId: syncRequest.id,
       parentName: user.name || user.email || "A parent",
       sportName: validatedData.sportName,
       sportLevel: validatedData.sportLevel,
-      requestId: syncRequest.id,
+      requestedAt: syncRequest.requestedAt.toISOString(),
     });
 
     return NextResponse.json({

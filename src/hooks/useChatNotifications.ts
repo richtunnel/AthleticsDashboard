@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 /**
@@ -19,6 +20,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
  */
 export function useChatNotifications(streamUrl: string) {
   const { addNotification } = useNotifications();
+  const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentUserIdRef = useRef<string | null>(null);
 
@@ -84,17 +86,38 @@ export function useChatNotifications(streamUrl: string) {
         }
 
         // ── Calendar sync request notification ───────────────────────────
-        if (data.type === "sync_request") {
-          const label = `${data.sportName} ${data.sportLevel}`;
-          addNotification(
-            `${data.parentName} requested calendar sync for ${label}`,
-            "info"
-          );
-          showDesktopNotification(
-            "Calendar Sync Request",
-            `${data.parentName} requested calendar sync for ${label}`
-          );
+        // Two event shapes flow through here:
+        //   • type === "sync_request"          → a NEW pending request arrived
+        //   • type === "sync_request_updated"  → an existing request was
+        //                                         approved/rejected by another tab
+        // Both invalidate the same queries so every AD tab refreshes in
+        // real-time without polling. The toast + desktop notification only
+        // fires for new requests.
+        if (data.type === "sync_request" || data.type === "sync_request_updated") {
+          queryClient.invalidateQueries({ queryKey: ["adminCalendarSyncRequests"] });
+          queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
+          queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
+
+          if (data.type === "sync_request") {
+            const label = `${data.sportName} ${data.sportLevel}`;
+            addNotification(
+              `${data.parentName} requested calendar sync for ${label}`,
+              "info"
+            );
+            showDesktopNotification(
+              "Calendar Sync Request",
+              `${data.parentName} requested calendar sync for ${label}`
+            );
+          }
           return;
+        }
+
+        // Any new chat message — even one we sent ourselves — should refresh
+        // the conversation-list preview so the "last message" snippet stays
+        // current. Without this the card on the left keeps showing whatever
+        // message was there when the page first loaded.
+        if (data.id && data.content) {
+          queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
         }
 
         // Skip notifications for messages sent by the current user
@@ -135,7 +158,7 @@ export function useChatNotifications(streamUrl: string) {
     return () => {
       closeConnection();
     };
-  }, [streamUrl, addNotification, closeConnection, showDesktopNotification]);
+  }, [streamUrl, addNotification, closeConnection, showDesktopNotification, queryClient]);
 
   return { closeConnection };
 }

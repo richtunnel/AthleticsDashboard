@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { Person, School } from "@mui/icons-material";
 import { formatDistanceToNow } from "date-fns";
+import { formatOrgName } from "@/lib/utils/format";
 
 interface ConversationItem {
   id: string;
@@ -78,8 +79,8 @@ export default function ConversationList({
         const displayImage = variant === "parent" ? conv.adImage : conv.parentImage;
         const subtitle =
           variant === "parent"
-            ? conv.schoolName
-            : [conv.athleteName, conv.sport].filter(Boolean).join(" · ") || conv.schoolName;
+            ? formatOrgName(conv.schoolName)
+            : [conv.athleteName, conv.sport].filter(Boolean).join(" · ") || formatOrgName(conv.schoolName);
 
         return (
           <Paper

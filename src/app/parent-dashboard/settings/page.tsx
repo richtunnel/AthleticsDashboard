@@ -31,6 +31,7 @@ import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { mergeSports, mergeLevels } from "@/lib/utils/parentSportsData";
+import { formatOrgName } from "@/lib/utils/format";
 
 interface SchoolOption {
   id: string;
@@ -495,11 +496,13 @@ function EditChildDialog({ link, onClose, onSaved }: EditChildDialogProps) {
 // ---------------------------------------------------------------------------
 interface CalendarSyncCardProps {
   syncRequests: SyncRequest[];
+  /** Parent's current child links — used to hide stale orphan sync rows. */
+  links: ParentLink[];
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
 }
 
-function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCardProps) {
+function CalendarSyncCard({ syncRequests, links, onSuccess, onError }: CalendarSyncCardProps) {
   const queryClient = useQueryClient();
   const [requestingKey, setRequestingKey] = useState<string | null>(null);
 
@@ -522,10 +525,37 @@ function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCard
     onSettled: () => setRequestingKey(null),
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to cancel request");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSuccess("Pending request cancelled. You can send a fresh one now.");
+    },
+    onError: (err: Error) => onError(err.message),
+  });
+
+  // Only show sync requests that still correspond to a current child link.
+  // Otherwise old orphan rows (e.g. legacy "General / Varsity / Removed" entries
+  // from before sport became required) keep cluttering the UI and the re-sync
+  // button on them fails validation server-side.
+  const validSlots = new Set(
+    links
+      .filter((l) => l.schoolId && l.sportName && l.sportLevel)
+      .map((l) => `${l.schoolId}|${l.sportName!.toLowerCase()}|${l.sportLevel!.toLowerCase()}`)
+  );
+
   // Deduplicate: keep only the most-recent request per school+sport+level slot
   const slotMap = new Map<string, SyncRequest>();
   for (const req of syncRequests) {
     const key = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+    if (!validSlots.has(key)) continue; // skip orphans
     if (!slotMap.has(key)) slotMap.set(key, req);
   }
   const latestRequests = Array.from(slotMap.values());
@@ -589,7 +619,7 @@ function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCard
                       {statusChip(req.status)}
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      {req.schoolName}
+                      {formatOrgName(req.schoolName)}
                       {req.status === "REJECTED" && req.rejectionReason && (
                         <> · Reason: <em>{req.rejectionReason}</em></>
                       )}
@@ -614,6 +644,21 @@ function CalendarSyncCard({ syncRequests, onSuccess, onError }: CalendarSyncCard
                       sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
                     >
                       {isRequesting ? "Sending…" : "Request Re-sync"}
+                    </Button>
+                  )}
+
+                  {req.status === "PENDING" && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      disabled={cancelMutation.isPending && cancelMutation.variables === req.id}
+                      onClick={() => cancelMutation.mutate(req.id)}
+                      sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+                    >
+                      {cancelMutation.isPending && cancelMutation.variables === req.id
+                        ? "Cancelling…"
+                        : "Cancel Request"}
                     </Button>
                   )}
                 </Box>
@@ -842,29 +887,20 @@ export default function ParentSettingsPage() {
                         <Box>
                           <Typography variant="subtitle2" fontWeight={600}>
                             {link.childName}
-                            {link.childGrade && (
-                              <Typography component="span" variant="body2" color="text.secondary">
-                                {" "}(Grade {link.childGrade})
-                              </Typography>
-                            )}
                           </Typography>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
                             <School fontSize="small" color="action" />
                             <Typography variant="body2" color="text.secondary">
-                              {link.schoolName}
+                              {formatOrgName(link.schoolName)}
                             </Typography>
                           </Box>
                           <Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
                             {link.sportName && <Chip label={link.sportName} size="small" variant="outlined" />}
                             {link.sportLevel && <Chip label={link.sportLevel} size="small" variant="outlined" color="primary" />}
-                            {link.status && link.status !== "ACTIVE" && (
-                              <Chip
-                                label={link.status}
-                                size="small"
-                                color={link.status === "PENDING" ? "warning" : "default"}
-                                variant="outlined"
-                              />
-                            )}
+                            {/* The Calendar Sync Status section below this card
+                                is the single source of truth for sync state.
+                                Showing link.status here caused contradictory
+                                "PENDING" badges next to an APPROVED sync. */}
                           </Box>
                           {(link.syncStatus === "REMOVED" || link.syncStatus === "REJECTED" || link.syncStatus === "NONE") && link.sportName && (
                             <Button
@@ -915,6 +951,7 @@ export default function ParentSettingsPage() {
       {/* Calendar Sync Status */}
       <CalendarSyncCard
         syncRequests={data?.syncRequests ?? []}
+        links={data?.links ?? []}
         onSuccess={(msg) => showMessage(msg)}
         onError={(msg) => showMessage(msg, "error")}
       />

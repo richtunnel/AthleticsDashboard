@@ -130,23 +130,62 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
     return json;
   }
 
-  // Compress → upload → create post, all on "Post" click
+  /**
+   * Upload one image via presigned URL flow:
+   *   1. POST metadata to /api/posts/upload-image/presign
+   *   2. PUT the file bytes directly to the returned S3/Spaces URL
+   *   3. Return { url, key } for inclusion in the post payload
+   *
+   * Bytes never touch our Node server — scales horizontally on S3.
+   */
+  async function uploadViaPresign(file: File): Promise<{ url: string; key: string }> {
+    // Step 1: ask the server for a presigned URL
+    const presignRes = await fetch("/api/posts/upload-image/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+        size: file.size,
+      }),
+    });
+    const presignJson = await safeJson(presignRes, "Could not prepare upload. Please try again.");
+    const { uploadUrl, publicUrl, key, requiredHeaders } = presignJson.data as {
+      uploadUrl: string;
+      publicUrl: string;
+      key: string;
+      requiredHeaders: Record<string, string>;
+    };
+
+    // Step 2: PUT the bytes directly to S3 with the exact headers that were signed.
+    // Any mismatch (content-type, acl) → S3 returns 403 SignatureDoesNotMatch.
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: requiredHeaders,
+      body: file,
+    });
+    if (!putRes.ok) {
+      throw new Error(`Upload failed (${putRes.status}). Please try again.`);
+    }
+
+    return { url: publicUrl, key };
+  }
+
+  // Compress → presign + direct-upload (in parallel) → create post
   const handleSubmit = async () => {
     if (!content.trim() && pendingImages.length === 0) return;
     setSubmitting(true);
     setError(null);
 
     try {
-      // Upload images sequentially (avoids hammering the endpoint)
-      const uploaded: { url: string; key: string }[] = [];
-      for (const pending of pendingImages) {
-        const compressed = await compressImage(pending.file);
-        const fd = new FormData();
-        fd.append("file", compressed);
-        const res = await fetch("/api/posts/upload-image", { method: "POST", body: fd });
-        const json = await safeJson(res, "Image upload failed. Please try again.");
-        uploaded.push({ url: json.data.url, key: json.data.key });
-      }
+      // Compress all images in parallel (CPU-bound on the client)
+      const compressed = await Promise.all(
+        pendingImages.map((p) => compressImage(p.file))
+      );
+
+      // Upload all images in parallel directly to S3 via presigned URLs.
+      // Server only ever sees small JSON requests — never the file bytes.
+      const uploaded = await Promise.all(compressed.map((file) => uploadViaPresign(file)));
 
       // Create the post
       const res = await fetch("/api/posts", {

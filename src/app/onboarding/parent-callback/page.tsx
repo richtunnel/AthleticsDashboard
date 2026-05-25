@@ -76,24 +76,12 @@ function ParentCallbackContent() {
         }
       }
 
-      // No onboarding data — could be a returning parent or a fresh signup.
-      // Check if they already have parent links before forcing onboarding.
+      // No onboarding data — returning parent signing back in.
+      // Always go straight to the dashboard. Parents can add children
+      // from the dashboard; they should never be forced through onboarding
+      // just because they signed out and back in.
       if (!storedData && !referralData) {
-        try {
-          const linkRes = await fetch("/api/parent/linked-schools");
-          if (linkRes.ok) {
-            const linkData = await linkRes.json();
-            if (linkData.schools && linkData.schools.length > 0) {
-              // Returning parent — skip onboarding
-              router.push("/parent-dashboard");
-              return;
-            }
-          }
-        } catch {
-          // If the check fails, fall through to onboarding
-        }
-        // Truly new parent with no links — start onboarding
-        router.push("/onboarding/parent");
+        router.push("/parent-dashboard");
         return;
       }
 

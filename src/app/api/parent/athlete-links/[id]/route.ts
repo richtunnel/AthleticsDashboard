@@ -102,6 +102,57 @@ export async function PUT(
       data: updateData,
     });
 
+    // ── Clean up now-stale PENDING sync requests ─────────────────────────────
+    // If the parent edited sport / level / school on this link, any PENDING
+    // CalendarSyncRequest tied to the OLD values is no longer accurate. Delete
+    // it so they can issue a fresh request with the corrected info.
+    // APPROVED requests are LEFT IN PLACE — those represent the AD's decision
+    // and shouldn't disappear behind their back.
+    const sportChanged = sport !== undefined && (sport || null) !== existing.sport;
+    const levelChanged = gradeLevel !== undefined && (gradeLevel || null) !== existing.gradeLevel;
+
+    if (sportChanged || levelChanged || schoolChanged) {
+      try {
+        // Delete any sync request rows (PENDING or REJECTED) that no longer
+        // correspond to a current link. APPROVED rows are kept — they
+        // represent the AD's deliberate decision.
+        //
+        // We compute the slot keys of the parent's links AFTER this edit
+        // and delete any sync requests at the old school whose sport/level
+        // don't match any current link.
+        const remainingLinks = await prisma.parentAthleteLink.findMany({
+          where: { parentUserId: user.id, schoolId: existing.schoolId },
+          select: { sport: true, gradeLevel: true },
+        });
+        const validKeys = new Set(
+          remainingLinks
+            .filter((l) => l.sport && l.gradeLevel)
+            .map((l) => `${l.sport!.toLowerCase()}|${l.gradeLevel!.toLowerCase()}`)
+        );
+
+        const candidates = await prisma.calendarSyncRequest.findMany({
+          where: {
+            parentUserId: user.id,
+            schoolId: existing.schoolId,
+            status: { in: ["PENDING", "REJECTED"] },
+          },
+          select: { id: true, sportName: true, sportLevel: true },
+        });
+
+        const orphanIds = candidates
+          .filter((c) => !validKeys.has(`${c.sportName.toLowerCase()}|${c.sportLevel.toLowerCase()}`))
+          .map((c) => c.id);
+
+        if (orphanIds.length > 0) {
+          await prisma.calendarSyncRequest.deleteMany({
+            where: { id: { in: orphanIds } },
+          });
+        }
+      } catch (err) {
+        console.warn("[API] Failed to delete stale sync requests:", err);
+      }
+    }
+
     // Keep ConnectedParent in sync
     try {
       await prisma.connectedParent.updateMany({
@@ -118,6 +169,12 @@ export async function PUT(
     } catch (err) {
       console.warn("[API] Failed to sync ConnectedParent update:", err);
     }
+
+    // Bust the parent's dashboard cache so the new values show immediately
+    try {
+      const { invalidate } = await import("@/lib/cache/redisCache");
+      void invalidate(`parent:overview:${user.id}`);
+    } catch { /* ignore */ }
 
     return NextResponse.json({
       success: true,
@@ -171,7 +228,7 @@ export async function DELETE(
 
     const existing = await prisma.parentAthleteLink.findUnique({
       where: { id },
-      select: { id: true, parentUserId: true, schoolId: true },
+      select: { id: true, parentUserId: true, schoolId: true, sport: true, gradeLevel: true },
     });
 
     if (!existing) {
@@ -182,7 +239,25 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    await prisma.parentAthleteLink.delete({ where: { id } });
+    // Delete the link AND any sync requests tied to it (so the AD's table
+    // doesn't keep ghost rows for children that no longer exist).
+    await prisma.$transaction([
+      prisma.calendarSyncRequest.deleteMany({
+        where: {
+          parentUserId: user.id,
+          schoolId: existing.schoolId,
+          // Only delete requests matching THIS link's sport+level — a parent may
+          // have multiple links at the same school for different sports.
+          sportName: existing.sport ?? undefined,
+          sportLevel: existing.gradeLevel ?? undefined,
+        },
+      }),
+      prisma.parentAthleteLink.delete({ where: { id } }),
+    ]);
+
+    // Invalidate the parent's cached dashboard so the removed child disappears immediately
+    const { invalidate } = await import("@/lib/cache/redisCache");
+    void invalidate(`parent:overview:${user.id}`);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

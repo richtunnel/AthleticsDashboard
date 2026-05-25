@@ -4,6 +4,13 @@ import { prisma } from "@/lib/database/prisma";
 import { decrypt } from "@/lib/utils/encryption";
 import { UserRole } from "@prisma/client";
 
+// Email pattern used by test / member-access accounts; always excluded from
+// the AD's parent chat list.
+const MEMBER_EMAIL_FILTER = {
+  startsWith: "member-",
+  endsWith: "@opletics.com",
+} as const;
+
 /**
  * GET /api/chat/conversations
  * Lists all conversations for the AD's organization.
@@ -50,18 +57,24 @@ export async function GET() {
       }
     }
 
-    // AD sees only conversations with real PARENT-role users.
-    // Primary guard: isMemberAccess=true is set at creation for every vip.opletics.com
-    // test account — this is the reliable DB-level check.
-    // Secondary guard: email pattern "member-{sessionId}@opletics.com" catches any
-    // legacy rows created before the isMemberAccess field existed.
+    // AD sees every conversation whose parent has a parentAthleteLink to this
+    // organization. We deliberately DO NOT filter by `parent.role === PARENT`
+    // because a user can simultaneously be a coach/AD at school A and a parent
+    // at school B — their `role` reflects their primary role only.
+    //
+    // The presence of a parentAthleteLink for THIS school is the real gate.
+    //
+    // Primary guard: isMemberAccess=true flags every vip.opletics.com test
+    // account at creation. Secondary guard: legacy email pattern.
     const conversations = await prisma.conversation.findMany({
       where: {
         schoolId: user.organizationId,
         parent: {
-          role: UserRole.PARENT,
           isMemberAccess: false,
-          NOT: { email: { startsWith: "member-", endsWith: "@opletics.com" } },
+          NOT: { email: MEMBER_EMAIL_FILTER },
+          parentAthleteLinks: {
+            some: { schoolId: user.organizationId },
+          },
         },
       },
       include: {

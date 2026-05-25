@@ -3,6 +3,7 @@ import { prisma } from "@/lib/database/prisma";
 import { getParentSession } from "@/lib/utils/parentSession";
 import { calendarService } from "@/lib/services/calendar.service";
 import { ensureParentCode } from "@/lib/utils/parentCode";
+import { invalidate } from "@/lib/cache/redisCache";
 
 /**
  * POST /api/parent/create-link
@@ -43,11 +44,22 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!schoolId || typeof schoolId !== "string") {
-      return NextResponse.json({ error: "School ID is required" }, { status: 400 });
+      return NextResponse.json({ error: "School is required" }, { status: 400 });
     }
 
     if (!athleteName || typeof athleteName !== "string") {
       return NextResponse.json({ error: "Child's name is required" }, { status: 400 });
+    }
+
+    // Sport + level are now required at creation time. A link without them is
+    // useless — the parent can't request calendar sync or see filtered games.
+    // (We accept either `sport`/`gradeLevel` or `sportName`/`level` from the
+    // various callers; both name variants flow through `sport` and `gradeLevel`.)
+    if (!sport || typeof sport !== "string" || !sport.trim()) {
+      return NextResponse.json({ error: "Sport is required" }, { status: 400 });
+    }
+    if (!gradeLevel || typeof gradeLevel !== "string" || !gradeLevel.trim()) {
+      return NextResponse.json({ error: "Sport level is required" }, { status: 400 });
     }
 
     // Resolve schoolId: could be a School entity ID or an Organization ID.
@@ -220,6 +232,9 @@ export async function POST(request: NextRequest) {
       // Non-critical — don't fail if subscription creation fails
       console.warn("[API] Failed to create ParentSubscription:", err);
     }
+
+    // Invalidate the parent's cached dashboard so the new child shows immediately
+    void invalidate(`parent:overview:${user.id}`);
 
     return NextResponse.json({
       success: true,

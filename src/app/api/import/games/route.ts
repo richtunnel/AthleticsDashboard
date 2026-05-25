@@ -29,6 +29,15 @@ export async function POST(request: NextRequest) {
       organizationId: session.user.organizationId,
     });
 
+    // Dispatch to BullMQ for instant pickup
+    const { gameImportQueue } = await import("@/lib/queue/queues");
+    await gameImportQueue.add("import", {
+      backgroundJobId: job.id,
+      userId: session.user.id,
+      organizationId: session.user.organizationId,
+      csvContent,
+    });
+
     return ApiResponse.success({ jobId: job.id });
   } catch (error) {
     return await handleApiError(error);

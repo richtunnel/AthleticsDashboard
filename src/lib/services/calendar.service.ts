@@ -65,6 +65,7 @@ export class CalendarService {
       gameIds?: string[];
     }
   ): Promise<{ jobId: string }> {
+    // 1. Create BackgroundJob row for progress tracking + audit
     const job = await jobQueueService.enqueue({
       type: JobType.CALENDAR_SYNC,
       payload: {
@@ -76,6 +77,14 @@ export class CalendarService {
       userId,
       organizationId,
       maxAttempts: 3,
+    });
+
+    // 2. Dispatch to BullMQ for instant pickup by the worker
+    const { calendarSyncQueue } = await import("../queue/queues");
+    await calendarSyncQueue.add("sync", {
+      userId,
+      organizationId,
+      backgroundJobId: job.id,
     });
 
     return { jobId: job.id };

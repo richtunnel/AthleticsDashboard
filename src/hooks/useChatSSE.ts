@@ -17,9 +17,12 @@ interface ChatMessage {
  * React hook that opens a Server-Sent Events connection to receive
  * real-time chat messages for a specific conversation.
  *
- * - Appends new messages to the React Query cache (no refetch needed)
- * - Auto-reconnects on connection loss (EventSource does this natively)
- * - Closes the connection on unmount or conversation change
+ * The server side polls the database every 2 s, so this works in production
+ * regardless of Nginx buffering, multiple processes, or container restarts.
+ *
+ * On (re)connect the hook passes `since` — the createdAt of the last cached
+ * message — so the server starts its cursor at the right point and no
+ * messages are missed or duplicated across reconnections.
  */
 export function useChatSSE(conversationId: string | null) {
   const queryClient = useQueryClient();
@@ -41,7 +44,18 @@ export function useChatSSE(conversationId: string | null) {
     // Close any existing connection before opening a new one
     closeConnection();
 
-    const url = `/api/chat/stream?conversationId=${encodeURIComponent(conversationId)}`;
+    // Pass the createdAt of the last known message as the polling cursor.
+    // The server will only deliver messages strictly after this timestamp,
+    // preventing duplicates and ensuring no gaps on reconnect.
+    const cached = queryClient.getQueryData<{ messages: ChatMessage[] }>(
+      ["chatMessages", conversationId]
+    );
+    const lastKnownAt = cached?.messages?.at(-1)?.createdAt;
+
+    const params = new URLSearchParams({ conversationId });
+    if (lastKnownAt) params.set("since", lastKnownAt);
+
+    const url = `/api/chat/stream?${params.toString()}`;
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
@@ -49,12 +63,7 @@ export function useChatSSE(conversationId: string | null) {
       try {
         const data = JSON.parse(event.data);
 
-        // On (re)connect, refetch messages to catch anything missed while disconnected
-        if (data.type === "connected") {
-          queryClient.invalidateQueries({ queryKey: ["chatMessages", conversationId] });
-          return;
-        }
-
+        // Skip control messages (connected handshake, etc.)
         if (!data.id || !data.content) return;
 
         const message: ChatMessage = data;
@@ -64,13 +73,13 @@ export function useChatSSE(conversationId: string | null) {
           ["chatMessages", conversationId],
           (old) => {
             const msgs = old?.messages || [];
-            // Prevent duplicates (optimistic update may already have it)
+            // Deduplicate: optimistic updates may already have this message
             if (msgs.some((m) => m.id === message.id)) return old!;
             return { ...old, messages: [...msgs, message] };
           }
         );
 
-        // Also invalidate the conversations list to update last message preview
+        // Refresh the conversations list so the last-message preview updates
         queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
       } catch (err) {
         console.error("[SSE] Failed to parse message:", err);
@@ -78,14 +87,17 @@ export function useChatSSE(conversationId: string | null) {
     };
 
     eventSource.onerror = () => {
-      // EventSource automatically reconnects on error.
-      // We just log it for debugging; no manual reconnection needed.
+      // EventSource auto-reconnects on error. When it reconnects, this effect
+      // will NOT re-run (conversationId hasn't changed), so the existing
+      // EventSource with its original `since` cursor continues.
+      // The server-side 2-second DB poll ensures no messages are lost.
       console.warn("[SSE] Connection error, will auto-reconnect...");
     };
 
     return () => {
       closeConnection();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, queryClient, closeConnection]);
 
   return { closeConnection };

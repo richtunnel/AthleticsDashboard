@@ -31,6 +31,7 @@ import {
 import type { AlertColor } from "@mui/material";
 import { Person, Sync, SyncDisabled, Delete, CalendarMonth, Search, Badge as BadgeIcon } from "@mui/icons-material";
 import InputAdornment from "@mui/material/InputAdornment";
+import { formatOrgName } from "@/lib/utils/format";
 
 interface ConnectedParent {
   id: string;
@@ -323,7 +324,7 @@ export function ConnectedParentsMenu() {
 
                       {/* School */}
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
-                        {parent.schoolName}
+                        {formatOrgName(parent.schoolName)}
                       </Typography>
 
                       {/* Calendar status */}

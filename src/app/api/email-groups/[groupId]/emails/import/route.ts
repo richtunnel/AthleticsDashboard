@@ -123,6 +123,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   });
 
+  // Dispatch to BullMQ for instant pickup
+  const { emailImportQueue } = await import("@/lib/queue/queues");
+  await emailImportQueue.add("import", {
+    backgroundJobId: job.id,
+    userId: session.user.id,
+    organizationId: session.user.organizationId,
+    groupId,
+    emails: normalized,
+  });
+
   return NextResponse.json(
     {
       mode: "async",

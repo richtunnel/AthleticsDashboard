@@ -56,7 +56,7 @@ export function CalendarSyncRequestsMenu() {
   const [rejectionReason, setRejectionReason] = useState("");
   // Approve-dialog fields
   const [approveGender, setApproveGender] = useState("");
-  const [approveSheetUrl, setApproveSheetUrl] = useState("");
+  const [approveWorkbookId, setApproveWorkbookId] = useState("");
 
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["adminCalendarSyncRequests"],
@@ -67,14 +67,40 @@ export function CalendarSyncRequestsMenu() {
     },
   });
 
+  // AD's imported Game Center workbooks — populates the picker so they
+  // never have to copy/paste Google Sheets URLs.
+  //
+  // NOTE: distinct query key from GamesTable's `["gamesWorkbooks"]` cache,
+  // which stores the full envelope `{ data: [...] }`. Sharing the key would
+  // let either component overwrite the other's shape and crash the consumer.
+  //
+  // We fetch eagerly (no `enabled` gate) so the dropdown is fully populated
+  // the moment the dialog opens — no race condition where the user clicks
+  // the Select before workbooks land.
+  const { data: workbooksData, isLoading: workbooksLoading } = useQuery({
+    queryKey: ["gamesWorkbooks", "sync-picker"],
+    queryFn: async () => {
+      const res = await fetch("/api/games-workbooks");
+      if (!res.ok) throw new Error("Failed to fetch workbooks");
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : json?.data;
+      return (Array.isArray(arr) ? arr : []) as Array<{
+        id: string;
+        name: string;
+        _count?: { games: number };
+      }>;
+    },
+    staleTime: 30_000, // cache for 30s — these don't change often
+  });
+
   const approveMutation = useMutation({
-    mutationFn: async ({ id, gender, spreadsheetId }: { id: string; gender?: string; spreadsheetId?: string }) => {
+    mutationFn: async ({ id, gender, workbookId }: { id: string; gender?: string; workbookId?: string }) => {
       const res = await fetch(`/api/admin/calendar-sync-requests/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           gender: gender || null,
-          spreadsheetId: spreadsheetId || null,
+          workbookId: workbookId || null,
         }),
       });
       if (!res.ok) throw new Error("Failed to approve request");
@@ -82,11 +108,14 @@ export function CalendarSyncRequestsMenu() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["adminCalendarSyncRequests"] });
+      // Connected Parents tab pulls from a separate endpoint — also refresh it
+      // so the just-approved parent shows up there immediately.
+      queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
       addNotification("Request approved — the parent can now sync their calendar", "success");
       setApproveDialogOpen(false);
       setSelectedRequest(null);
       setApproveGender("");
-      setApproveSheetUrl("");
+      setApproveWorkbookId("");
     },
     onError: (error: Error) => {
       addNotification(error.message, "error");
@@ -118,7 +147,7 @@ export function CalendarSyncRequestsMenu() {
   const handleApproveClick = (request: CalendarSyncRequest) => {
     setSelectedRequest(request);
     setApproveGender("");
-    setApproveSheetUrl("");
+    setApproveWorkbookId("");
     setApproveDialogOpen(true);
   };
 
@@ -228,15 +257,20 @@ export function CalendarSyncRequestsMenu() {
             request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games to their Google Calendar.
           </Typography>
 
-          {/* Gender — clarifies which team games to sync */}
+          {/* Gender — clarifies which team games to sync.
+              `shrink` + `notched` keeps the label floating above the field
+              instead of overlapping the "Auto-detect…" placeholder text. */}
           <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="approve-gender-label">Gender</InputLabel>
+            <InputLabel id="approve-gender-label" shrink>
+              Gender
+            </InputLabel>
             <Select
               labelId="approve-gender-label"
               value={approveGender}
               label="Gender"
-              onChange={(e) => setApproveGender(e.target.value)}
+              notched
               displayEmpty
+              onChange={(e) => setApproveGender(e.target.value)}
             >
               <MenuItem value=""><em>Auto-detect from sport name</em></MenuItem>
               <MenuItem value="boys">Boys / Male</MenuItem>
@@ -249,25 +283,54 @@ export function CalendarSyncRequestsMenu() {
             </FormHelperText>
           </FormControl>
 
-          {/* Schedule spreadsheet — scope the sync to a specific Google Sheet */}
-          <TextField
-            fullWidth
-            label="Schedule Spreadsheet (optional)"
-            placeholder="Paste Google Sheets URL or spreadsheet ID"
-            value={approveSheetUrl}
-            onChange={(e) => setApproveSheetUrl(e.target.value)}
-            helperText="If you manage schedules in a specific Google Sheet, paste the link here. This tells the system which spreadsheet to use when matching games for this parent."
-            sx={{ mb: 2 }}
-          />
+          {/* Workbook — pick from imported Game Center workbooks.
+              MenuItem children are kept as plain strings — MUI's Select
+              renders the selected MenuItem's children inside the closed
+              input, and nesting <Typography> there breaks click handling
+              on the rendered options. */}
+          <FormControl fullWidth sx={{ mb: 2 }} disabled={workbooksLoading}>
+            <InputLabel id="approve-workbook-label" shrink>
+              Schedule Workbook (optional)
+            </InputLabel>
+            <Select
+              labelId="approve-workbook-label"
+              value={approveWorkbookId}
+              label="Schedule Workbook (optional)"
+              notched
+              displayEmpty
+              onChange={(e) => setApproveWorkbookId(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>All workbooks (auto-match)</em>
+              </MenuItem>
+              {(workbooksData ?? []).map((wb) => {
+                const gameCount = wb._count?.games;
+                const label =
+                  gameCount !== undefined ? `${wb.name}  (${gameCount} games)` : wb.name;
+                return (
+                  <MenuItem key={wb.id} value={wb.id}>
+                    {label}
+                  </MenuItem>
+                );
+              })}
+            </Select>
+            <FormHelperText>
+              {workbooksLoading
+                ? "Loading workbooks…"
+                : (workbooksData ?? []).length === 0
+                ? "No imported workbooks yet — import one in Game Center, or leave this on All workbooks."
+                : "Pick the imported workbook that holds this sport's schedule. If unset, the parent gets matching games from every workbook for this sport & level."}
+            </FormHelperText>
+          </FormControl>
 
           <Alert severity="info" icon={<Info />}>
             Once approved, the parent can sync matching games directly to their own Google Calendar.
-            The gender and spreadsheet selections help identify the right games even when your
+            The gender and workbook selections help identify the right games even when your
             schedule uses shorthand like &quot;Var&quot;, &quot;G&quot;, or &quot;B Soccer JV&quot;.
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setApproveDialogOpen(false); setApproveGender(""); setApproveSheetUrl(""); }}>
+          <Button onClick={() => { setApproveDialogOpen(false); setApproveGender(""); setApproveWorkbookId(""); }}>
             Cancel
           </Button>
           <Button
@@ -278,7 +341,7 @@ export function CalendarSyncRequestsMenu() {
               approveMutation.mutate({
                 id: selectedRequest!.id,
                 gender: approveGender || undefined,
-                spreadsheetId: approveSheetUrl || undefined,
+                workbookId: approveWorkbookId || undefined,
               })
             }
           >
