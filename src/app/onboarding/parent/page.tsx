@@ -2,21 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Box,
-  Container,
-  Typography,
-  Stepper,
-  Step,
-  StepLabel,
-  Card,
-  CardContent,
-  Button,
-  Autocomplete,
-  TextField,
-  CircularProgress,
-  Alert,
-} from "@mui/material";
+import { Box, Container, Typography, Stepper, Step, StepLabel, Card, CardContent, Button, Autocomplete, TextField, CircularProgress, Alert } from "@mui/material";
 import { School, Sports, EmojiEvents, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import { mergeSports, mergeLevels, STANDARD_LEVELS } from "@/lib/utils/parentSportsData";
@@ -31,26 +17,31 @@ interface SchoolOption {
 
 /** Sport as returned by /api/parent/sports */
 interface Sport {
-  id: string;        // "<sportId>-<GENDER|COED>" — unique key
-  name: string;      // Display label: "Girls Basketball", "Boys Basketball", etc.
+  id: string; // "<sportId>-<GENDER|COED>" — unique key
+  name: string; // Display label: "Girls Basketball", "Boys Basketball", etc.
   sportName: string; // Raw sport name for matching: "Basketball"
   gender: string | null;
 }
 
 interface LevelOption {
-  id: string;   // Stored value — matches CalendarSyncRequest.sportLevel (e.g. "VARSITY FEMALE")
+  id: string; // Stored value — matches CalendarSyncRequest.sportLevel (e.g. "VARSITY FEMALE")
   name: string; // Display: "Varsity", "Junior Varsity (JV)", "Frosh", "Freshman"
 }
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
+/** Ensures all sports options adhere strictly to the Sport interface */
+const normalizeSports = (sportsList: any[]): Sport[] => {
+  return sportsList.map((sport) => ({
+    id: sport.id,
+    name: sport.name,
+    sportName: sport.sportName || sport.name, // Fallback to display name if raw name missing
+    gender: sport.gender || null, // Fallback to null if gender missing
+  }));
+};
+
 export default function ParentOnboardingPage() {
   const router = useRouter();
-  // Use the parent session endpoint instead of next-auth/react useSession().
-  // Parent users authenticate via /api/auth/parent/... which sets a separate
-  // "parent-session-token" cookie. useSession() only reads the main
-  // "next-auth.session-token", so it always returns "unauthenticated" for
-  // pure parent users and creates an infinite redirect loop with parent-signup.
   const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -62,9 +53,9 @@ export default function ParentOnboardingPage() {
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<LevelOption | null>(null);
 
-  // Data state — sports pre-populated with full list immediately
+  // Data state — normalized fallback list safely pre-populated
   const [schools, setSchools] = useState<SchoolOption[]>([]);
-  const [sports, setSports] = useState<Sport[]>(mergeSports([]));
+  const [sports, setSports] = useState<Sport[]>(() => normalizeSports(mergeSports([])));
   const [levels, setLevels] = useState<LevelOption[]>([]);
   const [loadingSports, setLoadingSports] = useState(false);
   const [loadingLevels, setLoadingLevels] = useState(false);
@@ -112,7 +103,6 @@ export default function ParentOnboardingPage() {
             // Restore level (use id/stored value, fall back to name for legacy)
             if (prefs.selectedLevel || prefs.level) {
               const storedId = prefs.selectedLevel || prefs.level;
-              // Build a minimal LevelOption; real options are loaded after sport restore
               setSelectedLevel({ id: storedId, name: storedId });
             }
             if (prefs.schoolId) {
@@ -140,23 +130,23 @@ export default function ParentOnboardingPage() {
     try {
       const res = await fetch(`/api/parent/sports?schoolId=${encodeURIComponent(schoolId)}`);
       const apiSports: Sport[] = res.ok ? (await res.json()).sports || [] : [];
-      // Always show the full list merged with any school-specific sports
+
+      // Merge and strictly normalize the data structure
       const merged = mergeSports(apiSports);
-      setSports(merged);
+      const normalized = normalizeSports(merged);
+      setSports(normalized);
 
       // Restore saved sport selection if provided
       if (savedPrefs?.sportId || savedPrefs?.sportName) {
-        const matchedSport = merged.find(
-          (s) => s.id === savedPrefs.sportId || s.name === savedPrefs.sportName
-        );
+        const matchedSport = normalized.find((s) => s.id === savedPrefs.sportId || s.name === savedPrefs.sportName);
         if (matchedSport) {
           setSelectedSport(matchedSport);
-          await fetchLevelsForSport(schoolId, matchedSport.name);
+          await fetchLevelsForSport(schoolId, matchedSport.sportName, matchedSport.gender);
         }
       }
     } catch (err) {
       console.error("Failed to fetch sports:", err);
-      setSports(mergeSports([]));
+      setSports(normalizeSports(mergeSports([])));
     } finally {
       setLoadingSports(false);
     }
@@ -164,14 +154,8 @@ export default function ParentOnboardingPage() {
 
   /**
    * Fetch levels for a sport+gender combo.
-   * `sportName` is the raw sport name (e.g. "Basketball"), not the display name.
-   * `gender` is "MALE" | "FEMALE" | null.
    */
-  const fetchLevelsForSport = async (
-    schoolId: string,
-    sportName: string,
-    gender: string | null,
-  ) => {
+  const fetchLevelsForSport = async (schoolId: string, sportName: string, gender: string | null) => {
     setLoadingLevels(true);
     try {
       const params = new URLSearchParams({
@@ -193,20 +177,17 @@ export default function ParentOnboardingPage() {
     }
   };
 
-  const handleSchoolChange = useCallback(
-    (_: any, newValue: SchoolOption | null) => {
-      setSelectedSchool(newValue);
-      setSelectedSport(null);
-      setSelectedLevel(null);
-      setLevels([]);
-      if (newValue) {
-        fetchSportsForSchool(newValue.id);
-      } else {
-        setSports(mergeSports([]));
-      }
-    },
-    [],
-  );
+  const handleSchoolChange = useCallback((_: any, newValue: SchoolOption | null) => {
+    setSelectedSchool(newValue);
+    setSelectedSport(null);
+    setSelectedLevel(null);
+    setLevels([]);
+    if (newValue) {
+      fetchSportsForSchool(newValue.id);
+    } else {
+      setSports(normalizeSports(mergeSports([])));
+    }
+  }, []);
 
   const handleSportChange = useCallback(
     (_: any, newValue: Sport | null) => {
@@ -236,13 +217,9 @@ export default function ParentOnboardingPage() {
         schoolName: selectedSchool.name,
         athleticDirectorId: selectedSchool.athleticDirectorId || "",
         athleticDirectorName: selectedSchool.athleticDirectorName || "",
-        // Store the sport ID (new format) for restoration on revisit
         sportId: selectedSport.id,
-        // Base sport name (e.g. "Basketball") — used for CalendarSyncRequest.sportName matching
         sportName: selectedSport.sportName,
-        // Display name (e.g. "Girls Basketball") — for UI only
         sportDisplayName: selectedSport.name,
-        // Level ID is the stored value (e.g. "VARSITY FEMALE") that matches CalendarSyncRequest.sportLevel
         level: selectedLevel.id,
         selectedLevel: selectedLevel.id,
       };
@@ -268,7 +245,6 @@ export default function ParentOnboardingPage() {
     );
   }
 
-  // Merge API levels (normalized by the API) with the standard fallback list
   const levelOptions = mergeLevels(levels);
 
   return (
@@ -311,13 +287,7 @@ export default function ParentOnboardingPage() {
                     Child&apos;s Name
                   </Typography>
                 </Box>
-                <TextField
-                  placeholder="Enter your child's full name..."
-                  fullWidth
-                  size="small"
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
-                />
+                <TextField placeholder="Enter your child's full name..." fullWidth size="small" value={childName} onChange={(e) => setChildName(e.target.value)} />
               </Box>
 
               {/* School Selection */}
@@ -334,18 +304,11 @@ export default function ParentOnboardingPage() {
                   value={selectedSchool}
                   onChange={handleSchoolChange}
                   isOptionEqualToValue={(option, value) => option.id === value.id}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder="Search for your child's school..."
-                      fullWidth
-                      size="small"
-                    />
-                  )}
+                  renderInput={(params) => <TextField {...params} placeholder="Search for your child's school..." fullWidth size="small" />}
                 />
               </Box>
 
-              {/* Sport Selection — full list always available */}
+              {/* Sport Selection */}
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                   <Sports color="primary" />
@@ -380,7 +343,7 @@ export default function ParentOnboardingPage() {
                 />
               </Box>
 
-              {/* Level Selection — "Varsity", "Junior Varsity (JV)", "Frosh", "Freshman" */}
+              {/* Level Selection */}
               <Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
                   <EmojiEvents color="primary" />
@@ -418,28 +381,16 @@ export default function ParentOnboardingPage() {
             </Box>
 
             <Box sx={{ mt: 4, display: "flex", justifyContent: "flex-end" }}>
-              <Button
-                variant="contained"
-                size="large"
-                onClick={handleSubmit}
-                disabled={submitting || !childName.trim() || !selectedSchool || !selectedSport || !selectedLevel}
-                sx={{ minWidth: 150 }}
-              >
+              <Button variant="contained" size="large" onClick={handleSubmit} disabled={submitting || !childName.trim() || !selectedSchool || !selectedSport || !selectedLevel} sx={{ minWidth: 150 }}>
                 {submitting ? <CircularProgress size={24} /> : "Next"}
               </Button>
             </Box>
           </CardContent>
         </Card>
 
-        {/* Skip link — outside the card, bottom-left aligned */}
+        {/* Skip link */}
         <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-start" }}>
-          <Button
-            variant="text"
-            size="small"
-            color="inherit"
-            onClick={() => router.push("/parent-dashboard")}
-            sx={{ color: "text.disabled", fontSize: "0.8rem", textTransform: "none" }}
-          >
+          <Button variant="text" size="small" color="inherit" onClick={() => router.push("/parent-dashboard")} sx={{ color: "text.disabled", fontSize: "0.8rem", textTransform: "none" }}>
             Skip for now
           </Button>
         </Box>
