@@ -97,6 +97,13 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
       result,
     });
 
+    try {
+      const { invalidate } = await import("@/lib/cache/redisCache");
+      await invalidate(`parent:overview:${parentUserId}`);
+    } catch {
+      // Non-fatal — client-side invalidateQueries will refetch on next poll
+    }
+
     return result;
   },
   {
@@ -135,3 +142,9 @@ parentCalendarSyncWorker.on("failed", async (job, err) => {
 
   console.error(`[parentCalendarSyncWorker] job ${backgroundJobId} failed after ${job.attemptsMade} attempts:`, err.message);
 });
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
+/home/engine/.bashrc: line 1: syntax error near unexpected token `('
+/home/engine/.bashrc: line 1: `. /etc/profile.d/workload-containment.shn# ~/.bashrc: executed by bash(1) for non-login shells.'
