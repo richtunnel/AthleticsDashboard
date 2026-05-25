@@ -6,6 +6,11 @@ import { Box, Container, Typography, Stepper, Step, StepLabel, Card, CardContent
 import { School, Sports, EmojiEvents, Person } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
 import { mergeSports, mergeLevels, STANDARD_LEVELS } from "@/lib/utils/parentSportsData";
+import {
+  loadOnboardingPrefs,
+  saveOnboardingPrefs,
+  clearOnboardingPrefs,
+} from "@/lib/utils/parentOnboardingPrefs";
 
 interface SchoolOption {
   id: string;
@@ -93,27 +98,17 @@ export default function ParentOnboardingPage() {
         const schoolsList: SchoolOption[] = data.schools || [];
         setSchools(schoolsList);
 
-        // Restore saved preferences from localStorage
-        const saved = localStorage.getItem("parentOnboardingPrefs");
-        if (saved) {
-          try {
-            const prefs = JSON.parse(saved);
-            if (prefs.childName) setChildName(prefs.childName);
-
-            // Restore level (use id/stored value, fall back to name for legacy)
-            if (prefs.selectedLevel || prefs.level) {
-              const storedId = prefs.selectedLevel || prefs.level;
-              setSelectedLevel({ id: storedId, name: storedId });
-            }
-            if (prefs.schoolId) {
-              const matchedSchool = schoolsList.find((s) => s.id === prefs.schoolId);
-              if (matchedSchool) {
-                setSelectedSchool(matchedSchool);
-                await fetchSportsForSchool(matchedSchool.id, prefs);
-              }
-            }
-          } catch {
-            // Ignore parse errors
+        // Restore validated prefs from localStorage (returns null if data is bad)
+        const prefs = loadOnboardingPrefs();
+        if (prefs) {
+          setChildName(prefs.childName);
+          // Restore level — use the stored id as both id and display name;
+          // the Autocomplete will match against the fetched options on render.
+          setSelectedLevel({ id: prefs.level, name: prefs.level });
+          const matchedSchool = schoolsList.find((s) => s.id === prefs.schoolId);
+          if (matchedSchool) {
+            setSelectedSchool(matchedSchool);
+            await fetchSportsForSchool(matchedSchool.id, prefs);
           }
         }
       }
@@ -211,20 +206,23 @@ export default function ParentOnboardingPage() {
     setError("");
 
     try {
-      const parentPreferences = {
+      // saveOnboardingPrefs validates all fields and throws if any required
+      // field is still empty — impossible here because the submit button is
+      // disabled until all four fields are filled, but the guard is free.
+      saveOnboardingPrefs({
         childName,
         schoolId: selectedSchool.id,
         schoolName: selectedSchool.name,
         athleticDirectorId: selectedSchool.athleticDirectorId || "",
         athleticDirectorName: selectedSchool.athleticDirectorName || "",
         sportId: selectedSport.id,
-        sportName: selectedSport.sportName,
+        // sportName comes from the API for school-specific sports and may be
+        // undefined for fallback sports (ALL_HS_SPORTS). The helper coerces it
+        // to sportDisplayName / sportId so the API call never gets an empty value.
+        sportName: selectedSport.sportName || selectedSport.name,
         sportDisplayName: selectedSport.name,
         level: selectedLevel.id,
-        selectedLevel: selectedLevel.id,
-      };
-
-      localStorage.setItem("parentOnboardingPrefs", JSON.stringify(parentPreferences));
+      });
       router.push("/onboarding/parent/select-coach");
     } catch (err) {
       console.error("Failed to save preferences:", err);

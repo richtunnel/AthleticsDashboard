@@ -27,6 +27,11 @@ import {
 } from "@mui/material";
 import { School, Person, Sports, EmojiEvents } from "@mui/icons-material";
 import BaseHeader from "@/components/headers/_base";
+import {
+  loadOnboardingPrefs,
+  mergeOnboardingPrefs,
+  type ParentOnboardingPrefs,
+} from "@/lib/utils/parentOnboardingPrefs";
 
 interface Coach {
   id: string;
@@ -49,7 +54,7 @@ export default function SelectCoachPage() {
 
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
-  const [parentPrefs, setParentPrefs] = useState<any>(null);
+  const [parentPrefs, setParentPrefs] = useState<ParentOnboardingPrefs | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Check the PARENT session on mount.
@@ -72,18 +77,17 @@ export default function SelectCoachPage() {
       return;
     }
 
-    // Load parent preferences from localStorage
-    const prefs = localStorage.getItem("parentOnboardingPrefs");
+    // Load and validate prefs — returns null if data is missing or malformed
+    const prefs = loadOnboardingPrefs();
     if (!prefs) {
       router.push("/onboarding/parent");
       return;
     }
 
-    const parsedPrefs = JSON.parse(prefs);
-    setParentPrefs(parsedPrefs);
+    setParentPrefs(prefs);
 
     if (authStatus === "authenticated") {
-      fetchCoaches(parsedPrefs.schoolName);
+      fetchCoaches(prefs.schoolName);
     }
   }, [authStatus, router]);
 
@@ -119,17 +123,11 @@ export default function SelectCoachPage() {
     setError("");
 
     try {
-      // Save selected coach to localStorage preferences.
+      // Merge selectedCoachId into the existing validated prefs and re-save.
       // Note: Do NOT set role to "PARENT" here — existing users (ADs, coaches, etc.)
       // should keep their primary role. Parent dashboard access is granted via
       // parentAthleteLink records, so no role change is needed.
-      const updatedPrefs = {
-        ...parentPrefs,
-        selectedCoachId,
-      };
-      localStorage.setItem("parentOnboardingPrefs", JSON.stringify(updatedPrefs));
-
-      // Navigate to pricing selection
+      mergeOnboardingPrefs({ selectedCoachId });
       router.push("/onboarding/parent/plans");
     } catch (err) {
       console.error("Failed to save coach:", err);

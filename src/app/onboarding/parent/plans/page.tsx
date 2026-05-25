@@ -28,6 +28,10 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import ToggleButton from "@mui/material/ToggleButton";
 import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
+import {
+  loadOnboardingPrefs,
+  clearOnboardingPrefs,
+} from "@/lib/utils/parentOnboardingPrefs";
 
 const steps = ["Child's Information", "Select Coach", "Choose Plan"];
 
@@ -83,9 +87,8 @@ export default function ParentPlansPage() {
       return;
     }
 
-    // Check if user has completed previous steps
-    const prefs = localStorage.getItem("parentOnboardingPrefs");
-    if (!prefs) {
+    // Check if user has completed previous steps with valid, non-empty data
+    if (!loadOnboardingPrefs()) {
       router.push("/onboarding/parent");
       return;
     }
@@ -101,12 +104,12 @@ export default function ParentPlansPage() {
     setSelectedPlan(plan);
 
     try {
-      // Get onboarding preferences stored during previous steps
-      const prefsStr = localStorage.getItem("parentOnboardingPrefs");
-      const prefs = prefsStr ? JSON.parse(prefsStr) : null;
-
-      if (!prefs?.schoolId || !prefs?.childName || !prefs?.sportName) {
-        setError("Missing onboarding data (Sport selection was lost). Please start over.");
+      // Load and validate prefs — returns null if any required field is missing
+      // or the data is malformed. sportName is always non-empty after a validated
+      // load (the helper coerces it from sportDisplayName / sportId if needed).
+      const prefs = loadOnboardingPrefs();
+      if (!prefs) {
+        setError("Onboarding data was lost. Please start over.");
         setSubmitting(false);
         router.push("/onboarding/parent");
         return;
@@ -119,8 +122,8 @@ export default function ParentPlansPage() {
         body: JSON.stringify({
           schoolId: prefs.schoolId,
           athleteName: prefs.childName,
-          sport: prefs.sportName || "",
-          gradeLevel: prefs.level || "",
+          sport: prefs.sportName,
+          gradeLevel: prefs.level,
         }),
       });
 
@@ -155,7 +158,7 @@ export default function ParentPlansPage() {
       setCompletedSubmission(true);
 
       // Clear onboarding preferences now that data is persisted
-      localStorage.removeItem("parentOnboardingPrefs");
+      clearOnboardingPrefs();
 
       // Redirect to parent dashboard
       router.push("/parent-dashboard");

@@ -85,12 +85,31 @@ function ParentCallbackContent() {
         return;
       }
 
+      // Map onboarding field names to the create-link API's expected field names.
+      // sportName / sportDisplayName / sportId are all tried in cascade order so
+      // fallback sports (from ALL_HS_SPORTS, which lack a dedicated sportName field)
+      // still produce a non-empty value.
+      const resolvedSport =
+        onboardingData.sport ||
+        onboardingData.sportName ||
+        onboardingData.sportDisplayName ||
+        onboardingData.sportId ||
+        "";
+
+      // If critical fields are missing the session-storage data came from a
+      // share-link that only carried school info (no child/sport). Redirect the
+      // parent to complete onboarding rather than hitting the API with empty
+      // fields and showing a confusing "Sport is required" error.
+      if (!onboardingData.schoolId || !resolvedSport || !(onboardingData.childName || onboardingData.athleteName)) {
+        router.push("/onboarding/parent");
+        return;
+      }
+
       try {
-        // Map onboarding field names to the create-link API's expected field names
         const createLinkPayload: Record<string, string> = {
-          schoolId: onboardingData.schoolId || "",
+          schoolId: onboardingData.schoolId,
           athleteName: onboardingData.childName || onboardingData.athleteName || "",
-          sport: onboardingData.sport || onboardingData.sportName || "",
+          sport: resolvedSport,
           gradeLevel: onboardingData.level || onboardingData.childGrade || onboardingData.gradeLevel || "",
         };
 
