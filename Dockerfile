@@ -22,6 +22,11 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
+# Prevent BullMQ/IORedis from attempting a Redis connection during `next build`.
+# At build time there is no Redis service, so any module that imports queues.ts
+# must not trigger a TCP dial. Runtime containers supply the real REDIS_URL via
+# their environment / secrets.
+ENV REDIS_URL=disabled
 
 RUN yarn prisma generate
 # Mount the Next.js cache so fonts (next/font/google) and webpack modules are

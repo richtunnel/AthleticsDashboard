@@ -218,9 +218,12 @@ export const stripeWebhookQueue = new Queue<StripeWebhookPayload>(
 );
 
 // ── QueueEvents (optional, for real-time UI updates if needed) ────────────────
-export const emailQueueEvents = new QueueEvents(`${QUEUE_PREFIX}-email`, {
-  connection: bullConnection,
-});
+// QueueEvents opens a Redis subscription in its constructor, unlike Queue which
+// is truly lazy. Gate it behind REDIS_ENABLED so `next build` and Redis-disabled
+// environments never trigger a connection attempt.
+export const emailQueueEvents = REDIS_ENABLED
+  ? new QueueEvents(`${QUEUE_PREFIX}-email`, { connection: bullConnection })
+  : null;
 
 // ── Convenience: a typed map for monitoring/inspection ────────────────────────
 export const allQueues = {
