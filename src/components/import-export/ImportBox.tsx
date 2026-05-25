@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 import Papa from "papaparse";
 import {
   Box,
@@ -81,6 +83,8 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
   const theme = customTheme();
   const { mode } = useTheme();
   const [step, setStep] = useState(0); // 0: upload, 1: mapping, 2: preview, 3: importing
+  // Anchor for the first-login dropzone TipBubble (top-right marker)
+  const [dropzoneTipAnchor, setDropzoneTipAnchor] = useState<HTMLDivElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
@@ -441,34 +445,58 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
           {/* Step 0: Upload */}
           {step === 0 && (
             <Stack spacing={3}>
-              <Paper
-                {...getRootProps()}
-                sx={{
-                  p: 6,
-                  border: "2px dashed",
-                  borderColor: isDragActive ? (mode === "dark" ? "divider" : "primary.main") : mode === "dark" ? "transparent" : "primary.main",
-                  bgcolor: isDragActive ? "action.hover" : "background.paper",
-                  cursor: "pointer",
-                  textAlign: "center",
-                  transition: "all 0.3s",
-                  "&:hover": {
-                    borderColor: "primary.main",
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <input {...getInputProps()} />
-                <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  or click to browse files
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Maximum file size: 10MB • Supported format: CSV
-                </Typography>
-              </Paper>
+              <Box sx={{ position: "relative" }}>
+                {/* Invisible 1×1 anchor at the top-right corner of the dropzone.
+                    Using a positioned marker (not the Paper itself) so the
+                    TipBubble's arrow lands on the corner instead of the
+                    centre, and so the bubble doesn't intercept drops. */}
+                <Box
+                  ref={setDropzoneTipAnchor}
+                  sx={{
+                    position: "absolute",
+                    top: 8,
+                    right: 12,
+                    width: 1,
+                    height: 1,
+                    pointerEvents: "none",
+                  }}
+                />
+                <Paper
+                  {...getRootProps()}
+                  sx={{
+                    p: 6,
+                    border: "2px dashed",
+                    borderColor: isDragActive ? (mode === "dark" ? "divider" : "primary.main") : mode === "dark" ? "transparent" : "primary.main",
+                    bgcolor: isDragActive ? "action.hover" : "background.paper",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.3s",
+                    "&:hover": {
+                      borderColor: "primary.main",
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
+                  <input {...getInputProps()} />
+                  <CloudUpload sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    {isDragActive ? "Drop your CSV file here" : "Drag & drop CSV file here"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    or click to browse files
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Maximum file size: 10MB • Supported format: CSV
+                  </Typography>
+                </Paper>
+              </Box>
+              <TipBubble
+                tipId={TIP_IDS.OVERVIEW_DROPZONE}
+                anchorEl={dropzoneTipAnchor}
+                placement="bottom-end"
+                title="Start by uploading your schedule"
+                body="Drop in your Sport Schedule CSV here to get started. Opletics will map the columns and load your games automatically."
+              />
 
               <Box textAlign="center">
                 <Button

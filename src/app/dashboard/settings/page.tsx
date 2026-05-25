@@ -25,6 +25,7 @@ import { ScoreTrackerToggle } from "@/components/settings/ScoreTrackerToggle";
 import { CollaboratorsSection } from "@/components/settings/CollaboratorsSection";
 import { SettingsTabsClient } from "@/components/settings/SettingsTabsClient";
 import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggles";
+import { TutorialTipsCard } from "@/components/settings/TutorialTipsCard";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import { AutoAwesome, AttachMoney, MenuBook } from "@mui/icons-material";
@@ -314,6 +315,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           <MenuVisibilityToggles />
         </CardContent>
       </Card>
+
+      <TutorialTipsCard />
     </>
   );
 

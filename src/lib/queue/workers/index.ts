@@ -11,6 +11,7 @@ import { calendarSyncWorker } from "./calendar.worker";
 import { parentCalendarSyncWorker } from "./parent-calendar-sync.worker";
 import { gameImportWorker, emailImportWorker } from "./import.worker";
 import { stripeWebhookWorker } from "./stripe.worker";
+import { gameCancelNotifyWorker } from "./game-cancel-notify.worker";
 
 export const workers = [
   emailWorker,
@@ -19,6 +20,7 @@ export const workers = [
   parentCalendarSyncWorker,
   gameImportWorker,
   emailImportWorker,
+  gameCancelNotifyWorker,
   stripeWebhookWorker,
 ] as const;
 

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz } from "@mui/icons-material";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 interface SettingsTabsClientProps {
   generalContent: React.ReactNode;
@@ -14,6 +16,9 @@ interface SettingsTabsClientProps {
 
 export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeaturesContent, collaboratorContent, otherContent }: SettingsTabsClientProps) {
   const [tab, setTab] = useState(0);
+  // Anchor for the first-login "Other" tab tip. Bubble is suppressed while the
+  // user is on any other tab so it doesn't follow them around.
+  const [otherTabEl, setOtherTabEl] = useState<HTMLElement | null>(null);
 
   return (
     <Box>
@@ -22,8 +27,16 @@ export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeatur
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />
         <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Collaborator" />
-        <Tab label="Other" />
+        <Tab ref={setOtherTabEl} label="Other" />
       </Tabs>
+
+      <TipBubble
+        tipId={TIP_IDS.SETTINGS_OTHER}
+        anchorEl={tab === 4 ? otherTabEl : null}
+        placement="bottom-end"
+        title="Customize your workspace"
+        body="Enable the Score Tracker to log game results and team stats, hide menu items you don't use to keep your sidebar clean, and reset your spreadsheet columns to defaults."
+      />
 
       {tab === 0 && <Box>{generalContent}</Box>}
       {tab === 1 && <Box>{costBudgetContent}</Box>}

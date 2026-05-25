@@ -57,6 +57,28 @@ export async function GET(request: NextRequest) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Case-insensitive lookup of a value from a game's customFields JSON blob.
+ * Worksheet-imported games store opponent, sport, level, etc. as JSON keys
+ * that may vary in capitalisation ("Away", "away", "AWAY" …).
+ */
+function getCustomField(customFields: unknown, names: string[]): string | null {
+  if (!customFields || typeof customFields !== "object" || Array.isArray(customFields)) return null;
+  const cf = customFields as Record<string, unknown>;
+  for (const name of names) {
+    const exact = cf[name];
+    if (exact && typeof exact === "string" && exact.trim()) return exact.trim();
+    const key = Object.keys(cf).find((k) => k.toLowerCase() === name.toLowerCase());
+    if (key && typeof cf[key] === "string" && (cf[key] as string).trim())
+      return (cf[key] as string).trim();
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Internal helper — produces the full overview payload from the DB.
 // Extracted so the cache wrapper above can be a single one-liner.
 // ──────────────────────────────────────────────────────────────────────────────
@@ -215,15 +237,16 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
         where: {
           OR: gameMatchers,
           date: { gte: today },
-          status: { in: ["SCHEDULED", "CONFIRMED"] },
+          status: { in: ["SCHEDULED", "CONFIRMED", "CANCELLED"] },
         },
         include: {
           homeTeam: { include: { sport: true } },
           awayTeam: true,
+          opponent: true,
           venue: true,
         },
         orderBy: { date: "asc" },
-        take: 10,
+        take: 20,
       });
     }
   }
@@ -264,24 +287,44 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
           plan: subscription.subscriptionType,
         }
       : null,
-    upcomingGames: upcomingGames.map((game) => ({
-      id: game.id,
-      date: game.date.toISOString(),
-      time: game.time,
-      isHome: game.isHome,
-      location: game.location,
-      status: game.status,
-      homeTeam: game.homeTeam
-        ? {
-            id: game.homeTeam.id,
-            name: game.homeTeam.name,
-            sport: game.homeTeam.sport ? { name: game.homeTeam.sport.name } : null,
-            level: game.homeTeam.level,
-          }
-        : null,
-      awayTeam: game.awayTeam ? { id: game.awayTeam.id, name: game.awayTeam.name } : null,
-      venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
-    })),
+    upcomingGames: upcomingGames.map((game) => {
+      // Worksheet-imported games store sport, level, and opponent in customFields
+      // rather than DB relations. Resolve from all sources so the parent dashboard
+      // always shows real names instead of "General" / "TBD".
+      const cf = game.customFields;
+      const resolvedSport =
+        getCustomField(cf, ["Sport"]) || game.homeTeam?.sport?.name?.trim() || null;
+      const resolvedLevel =
+        getCustomField(cf, ["Level"]) || game.homeTeam?.level?.trim() || null;
+      const resolvedOpponent =
+        getCustomField(cf, ["Away", "Opponent", "Enemy", "Visiting Team", "Visitor"]) ||
+        game.opponent?.name?.trim() ||
+        game.awayTeam?.name?.trim() ||
+        null;
+
+      return {
+        id: game.id,
+        date: game.date.toISOString(),
+        time: game.time,
+        isHome: game.isHome,
+        location: game.location,
+        status: game.status,
+        homeTeam: game.homeTeam
+          ? {
+              id: game.homeTeam.id,
+              name: game.homeTeam.name,
+              sport: resolvedSport ? { name: resolvedSport } : null,
+              level: resolvedLevel,
+            }
+          : null,
+        // Merge all opponent sources into awayTeam so the frontend needs only one check
+        awayTeam: resolvedOpponent
+          ? { id: game.awayTeam?.id ?? game.opponent?.id ?? "ext", name: resolvedOpponent }
+          : null,
+        opponent: game.opponent ? { id: game.opponent.id, name: game.opponent.name } : null,
+        venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
+      };
+    }),
     calendarConnected,
     calendarSynced: connectedParent?.calendarSynced ?? false,
     lastSyncedAt: syncedAt,

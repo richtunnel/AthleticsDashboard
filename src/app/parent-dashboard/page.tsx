@@ -27,10 +27,14 @@ import {
   SportsScore,
   HourglassTop,
   BlockOutlined,
+  ExpandMore,
+  ExpandLess,
 } from "@mui/icons-material";
 import Link from "next/link";
 import { formatOrgName } from "@/lib/utils/format";
 import { useJobStatus } from "@/hooks/useJobStatus";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,8 +81,10 @@ interface GameData {
   isHome: boolean;
   location: string | null;
   status: string;
-  homeTeam: { id: string; name: string; sport: { name: string } | null; level: string | null };
+  homeTeam: { id: string; name: string; sport: { name: string } | null; level: string | null } | null;
   awayTeam: { id: string; name: string } | null;
+  /** Opponent record — populated for most workbook-imported games instead of awayTeam */
+  opponent: { id: string; name: string } | null;
   venue: { name: string; address: string | null } | null;
 }
 
@@ -131,6 +137,16 @@ function formatGameDate(dateStr: string): string {
   return isNaN(d.getTime())
     ? dateStr
     : d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatGameTime(timeStr: string | null | undefined): string | null {
+  if (!timeStr) return null;
+  const parts = timeStr.split(":");
+  const hour = parseInt(parts[0], 10);
+  if (isNaN(hour)) return timeStr;
+  const period = hour >= 12 ? "PM" : "AM";
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12}:${(parts[1] || "00").padStart(2, "0")} ${period}`;
 }
 
 type Snack = { open: boolean; message: string; severity: AlertColor };
@@ -418,10 +434,17 @@ export default function ParentDashboardPage() {
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack>(CLOSED_SNACK);
+  const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [scheduleSyncing, setScheduleSyncing] = useState(false);
+  // Anchors for first-login parent tips on this page
+  const [scheduleHeaderEl, setScheduleHeaderEl] = useState<HTMLElement | null>(null);
+  const [syncBtnEl, setSyncBtnEl] = useState<HTMLButtonElement | null>(null);
+  const [addAthleteBtnEl, setAddAthleteBtnEl] = useState<HTMLButtonElement | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
     queryFn: fetchParentOverview,
+    refetchOnMount: "always",
   });
 
   const syncMutation = useMutation({
@@ -500,6 +523,49 @@ export default function ParentDashboardPage() {
     unsyncMutation.mutate(requestId);
   };
 
+  // ── Schedule-level calendar sync ─────────────────────────────────────────
+  // Fires a sync job for every approved request that already has a linked
+  // Google Calendar. If nothing is connected yet, redirect to the setup page.
+  const handleScheduleSync = async (syncRequests: SyncRequest[], calendarConnected: boolean) => {
+    const syncable = syncRequests.filter((r) => r.status === "APPROVED" && r.googleCalendarId);
+
+    if (!calendarConnected || syncable.length === 0) {
+      window.location.href = "/parent-dashboard/calendar-sync";
+      return;
+    }
+
+    setScheduleSyncing(true);
+    setSnack({ open: true, message: "Starting calendar sync…", severity: "info" });
+
+    let triggered = 0;
+    for (const req of syncable) {
+      try {
+        const res = await fetch(`/api/parent/calendar-sync-requests/${req.id}/sync`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            googleCalendarId: req.googleCalendarId,
+            idempotencyToken: crypto.randomUUID(),
+          }),
+        });
+        if (res.ok) triggered++;
+      } catch {
+        /* continue with remaining requests */
+      }
+    }
+
+    setScheduleSyncing(false);
+    setSnack({
+      open: true,
+      message:
+        triggered > 0
+          ? `Sync started for ${triggered} sport${triggered > 1 ? "s" : ""}. Your calendar will update shortly.`
+          : "Couldn't start sync. Check your calendar connection in Settings.",
+      severity: triggered > 0 ? "success" : "error",
+    });
+    queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+  };
+
   if (isLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 400 }}>
@@ -516,6 +582,26 @@ export default function ParentDashboardPage() {
   const isOnTrial = subscription?.status === "TRIALING";
   const trialEnd = subscription?.trialEnd ? new Date(subscription.trialEnd).toLocaleDateString() : null;
   const revokedLinks = links.filter((l) => l.calendarSyncStatus === "REJECTED");
+
+  // ── Schedule box title ────────────────────────────────────────────────────
+  // Build "Emma · Varsity Basketball Schedule²⁰²⁵" from the primary link.
+  // If multiple children share the same name the first entry is used; if
+  // multiple sports exist for the same child we surface just the first one
+  // so the label stays readable on mobile.
+  const currentYear = new Date().getFullYear();
+  const primaryLink = links.find((l) => l.sportName && l.sportLevel) ?? links[0] ?? null;
+  const uniqueChildren = new Set(links.map((l) => l.childName));
+  const scheduleLabel = (() => {
+    if (!primaryLink) return null;
+    const namePart = primaryLink.childName;
+    const sportPart =
+      primaryLink.sportLevel && primaryLink.sportName
+        ? `${primaryLink.sportLevel} ${primaryLink.sportName}`
+        : primaryLink.sportName ?? primaryLink.sportLevel ?? null;
+    // If there are multiple children, drop the sport/level to keep it concise
+    if (uniqueChildren.size > 1) return { name: namePart, sport: null };
+    return { name: namePart, sport: sportPart };
+  })();
 
   const pendingIdBySlot = new Map<string, string>();
   const approvedRefBySlot = new Map<string, ApprovedRequestRef>();
@@ -575,46 +661,198 @@ export default function ParentDashboardPage() {
       )}
 
       {/* Upcoming Schedule */}
-      <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
-        <Schedule sx={{ verticalAlign: "middle", mr: 1 }} />
-        Upcoming Schedule
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+        <Typography ref={setScheduleHeaderEl} variant="h5" fontWeight={600}>
+          <Schedule sx={{ verticalAlign: "middle", mr: 1 }} />
+          Upcoming Schedule
+        </Typography>
+        <Tooltip
+          title={
+            !calendarConnected
+              ? "Connect your Google Calendar to enable syncing"
+              : syncRequests.some((r) => r.status === "APPROVED" && r.googleCalendarId)
+              ? "Push all approved sport schedules to your Google Calendar"
+              : "Set up calendar sync to push games automatically"
+          }
+        >
+          <span>
+            <Button
+              ref={setSyncBtnEl}
+              size="small"
+              variant="outlined"
+              startIcon={scheduleSyncing ? <CircularProgress size={13} color="inherit" /> : <Sync />}
+              disabled={scheduleSyncing}
+              onClick={() => handleScheduleSync(syncRequests, calendarConnected)}
+              sx={{ fontSize: "0.75rem", py: 0.5, px: 1.5, textTransform: "none" }}
+            >
+              {scheduleSyncing ? "Syncing…" : "Sync to Calendar"}
+            </Button>
+          </span>
+        </Tooltip>
+        <TipBubble
+          tipId={TIP_IDS.PARENT_UPCOMING_SCHEDULE}
+          anchorEl={scheduleHeaderEl}
+          placement="bottom-start"
+          title="Your athlete's upcoming games"
+          body="Every game from the sports you've connected appears here — date, time, opponent, and venue — so you always know where to be and when."
+        />
+        <TipBubble
+          tipId={TIP_IDS.PARENT_SYNC_TO_CALENDAR}
+          anchorEl={syncBtnEl}
+          placement="bottom-end"
+          title="Sync to your Google Calendar"
+          body="Click here to push every upcoming game directly to your Google Calendar — including any schedule changes — so it lives alongside the rest of your appointments."
+        />
+      </Box>
 
       {upcomingGames.length > 0 ? (
-        <Box sx={{ mb: 4 }}>
-          {upcomingGames.map((game) => (
-            <Card key={game.id} variant="outlined" sx={{ mb: 1.5 }}>
-              <CardContent sx={{ py: 2, "&:last-child": { pb: 2 } }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
-                    <Box sx={{ textAlign: "center", minWidth: 60 }}>
-                      <Typography variant="body2" fontWeight={700} color="primary.main">
+        <>
+        {/* Scrollable list — collapses to 400 px, expands on demand */}
+        <Box
+          sx={{
+            mb: 0.5,
+            maxHeight: scheduleExpanded ? 1000 : 400,
+            transition: "max-height 0.35s ease",
+            overflowY: "auto",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
+            p: 1.5,
+            "&::-webkit-scrollbar": { width: 5 },
+            "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+            "&::-webkit-scrollbar-thumb": { bgcolor: "action.selected", borderRadius: 3 },
+          }}
+        >
+          {/* ── Title chip ────────────────────────────────────────────────── */}
+          {scheduleLabel && (
+            <Chip
+              label={
+                [
+                  scheduleLabel.name,
+                  scheduleLabel.sport ? `· ${scheduleLabel.sport}` : null,
+                  `Schedule ${currentYear}`,
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+              sx={{
+                mb: 1.5,
+                fontWeight: 700,
+                fontSize: { xs: "0.8rem", sm: "0.95rem" },
+                height: "auto",
+                py: 0.5,
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark" ? "#2e3478" : "#181B38",
+                color: "#fff",
+                border: "none",
+                "& .MuiChip-label": { px: 1.5, whiteSpace: "normal" },
+                "&:hover": {
+                  bgcolor: (theme) =>
+                    theme.palette.mode === "dark" ? "#2e3478" : "#181B38",
+                },
+              }}
+            />
+          )}
+
+          {upcomingGames.map((game) => {
+            const cancelled = game.status === "CANCELLED";
+            return (
+            <Card
+              key={game.id}
+              variant="outlined"
+              elevation={0}
+              sx={{
+                mb: 0.75,
+                boxShadow: "none",
+                ...(cancelled && { borderColor: "error.light", opacity: 0.85 }),
+              }}
+            >
+              <CardContent sx={{ py: 1, px: 1.5, "&:last-child": { pb: 1 } }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 0.75 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                    <Box sx={{ textAlign: "center", minWidth: 52 }}>
+                      <Typography
+                        variant="caption"
+                        fontWeight={700}
+                        display="block"
+                        sx={{
+                          color: cancelled ? "error.main" : "primary.main",
+                          textDecoration: cancelled ? "line-through" : "none",
+                        }}
+                      >
                         {formatGameDate(game.date)}
                       </Typography>
                       {game.time && (
-                        <Typography variant="caption" color="text.secondary">
-                          {game.time}
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontSize: "0.65rem", textDecoration: cancelled ? "line-through" : "none" }}
+                        >
+                          {formatGameTime(game.time)}
                         </Typography>
                       )}
                     </Box>
                     <Divider orientation="vertical" flexItem />
                     <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                        <Typography variant="subtitle2" fontWeight={600} noWrap>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+                        <Typography
+                          variant="caption"
+                          fontWeight={600}
+                          noWrap
+                          sx={{ textDecoration: cancelled ? "line-through" : "none", color: cancelled ? "text.disabled" : "inherit" }}
+                        >
                           {game.homeTeam?.sport?.name || "Game"}
                         </Typography>
-                        {game.homeTeam?.level && <Chip label={game.homeTeam.level} size="small" variant="outlined" />}
-                        <Chip label={game.isHome ? "Home" : "Away"} size="small" color={game.isHome ? "success" : "warning"} variant="outlined" />
+                        {game.homeTeam?.level && (
+                          <Chip
+                            label={game.homeTeam.level}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: "0.65rem", height: 18, opacity: cancelled ? 0.5 : 1 }}
+                          />
+                        )}
+                        {cancelled ? (
+                          <Chip
+                            label="Cancelled"
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            sx={{ fontSize: "0.65rem", height: 18 }}
+                          />
+                        ) : (
+                          <Chip
+                            label={game.isHome ? "Home" : "Away"}
+                            size="small"
+                            color={game.isHome ? "success" : "warning"}
+                            variant="outlined"
+                            sx={{ fontSize: "0.65rem", height: 18 }}
+                          />
+                        )}
                       </Box>
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {game.isHome ? `vs ${game.awayTeam?.name || "TBD"}` : `at ${game.awayTeam?.name || "TBD"}`}
+                      <Typography
+                        variant="caption"
+                        noWrap
+                        sx={{
+                          fontSize: "0.7rem",
+                          color: cancelled ? "text.disabled" : "text.secondary",
+                          textDecoration: cancelled ? "line-through" : "none",
+                        }}
+                      >
+                        {game.isHome
+                          ? `vs ${game.awayTeam?.name || game.opponent?.name || "TBD"}`
+                          : `at ${game.awayTeam?.name || game.opponent?.name || "TBD"}`}
                       </Typography>
                     </Box>
                   </Box>
                   {(game.venue?.name || game.location) && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <LocationOn fontSize="small" color="action" />
-                      <Typography variant="body2" color="text.secondary" noWrap>
+                      <LocationOn sx={{ fontSize: 13 }} color="action" />
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        noWrap
+                        sx={{ fontSize: "0.7rem", textDecoration: cancelled ? "line-through" : "none" }}
+                      >
                         {game.venue?.name || game.location}
                       </Typography>
                     </Box>
@@ -622,12 +860,31 @@ export default function ParentDashboardPage() {
                 </Box>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </Box>
+
+        {/* Expand / collapse toggle */}
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 3.5 }}>
+          <Button
+            size="small"
+            variant="text"
+            onClick={() => setScheduleExpanded((v) => !v)}
+            endIcon={scheduleExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            sx={{ fontSize: "0.72rem", color: "text.secondary", textTransform: "none", px: 1.5 }}
+          >
+            {scheduleExpanded ? "Collapse schedule" : "Expand schedule"}
+          </Button>
+        </Box>
+        </>
       ) : (
-        <Card variant="outlined" sx={{ mb: 4 }}>
-          <CardContent sx={{ textAlign: "center", py: 4 }}>
-            <SportsScore sx={{ fontSize: 48, color: "text.disabled", mb: 1 }} />
+        /* Empty state — same fixed height as the collapsed scrollable list */
+        <Card
+          variant="outlined"
+          sx={{ mb: 4, height: 500, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <CardContent sx={{ textAlign: "center" }}>
+            <SportsScore sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
             <Typography variant="body1" color="text.secondary">No upcoming games scheduled</Typography>
             <Typography variant="body2" color="text.secondary">
               Games will appear here once they are added to the schedule

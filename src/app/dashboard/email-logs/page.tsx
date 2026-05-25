@@ -42,6 +42,8 @@ import {
   ExpandLess,
 } from "@mui/icons-material";
 import { format } from "date-fns";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 interface EmailLog {
   id: string;
@@ -95,6 +97,8 @@ export default function EmailLogsPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [statusFilter, setStatusFilter] = useState("all");
+  // Anchor for first-login Email Logs tip
+  const [headerAnchor, setHeaderAnchor] = useState<HTMLElement | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [logToDelete, setLogToDelete] = useState<string | null>(null);
@@ -258,12 +262,19 @@ export default function EmailLogsPage() {
   return (
     <Box>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+        <Typography ref={setHeaderAnchor} variant="h4" sx={{ fontWeight: 700, mb: 1, display: "inline-block" }}>
           Email Logs
         </Typography>
         <Typography variant="body2" color="text.secondary">
           View and manage your sent emails, including the ability to re-open, edit, and resend
         </Typography>
+        <TipBubble
+          tipId={TIP_IDS.EMAIL_LOGS}
+          anchorEl={headerAnchor}
+          placement="bottom-start"
+          title="Track every email you've sent"
+          body="See the delivery status of each campaign — delivered, pending, or failed — and re-open any message to edit and resend it without recreating the email."
+        />
       </Box>
 
       <Paper sx={{ p: 3, mb: 3 }}>

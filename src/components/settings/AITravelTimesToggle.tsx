@@ -6,6 +6,8 @@ import { Box, Typography, Switch, FormControlLabel, Alert, CircularProgress, Too
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Link from "next/link";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 async function fetchAITravelTimesSetting() {
   const res = await fetch("/api/user/ai-travel-times");
@@ -26,6 +28,8 @@ async function updateAITravelTimesSetting(enabled: boolean) {
 export function AITravelTimesToggle() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // Anchor for the first-login "arrival time only" tip.
+  const [rowAnchor, setRowAnchor] = useState<HTMLDivElement | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["aiTravelTimesEnabled"],
@@ -94,7 +98,14 @@ export function AITravelTimesToggle() {
   const isEnabled = data?.aiTravelTimesEnabled ?? false;
 
   return (
-    <Box>
+    <Box ref={setRowAnchor}>
+      <TipBubble
+        tipId={TIP_IDS.AI_TRAVEL_TIMES}
+        anchorEl={rowAnchor}
+        placement="top-start"
+        title="Just enter the arrival time"
+        body="No need to calculate departure times yourself. Enter when your team needs to arrive and Opletics figures out exactly when the bus should leave — accounting for live traffic and weather."
+      />
       <FormControlLabel
         control={
           <Switch

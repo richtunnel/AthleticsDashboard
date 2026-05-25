@@ -20,7 +20,7 @@ import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
 import { CostModal } from "./CostModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon, DoNotDisturbOn } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -37,6 +37,8 @@ import { WorksheetToggle } from "./WorksheetToggle";
 import { WorksheetView } from "./WorksheetView";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 import { GameStatus } from "@prisma/client";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
@@ -436,6 +438,10 @@ export function GamesTable() {
   const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
   const [viewImportWorkbookId, setViewImportWorkbookId] = useState<string | null>(null);
   const [deletingWorkbookId, setDeletingWorkbookId] = useState<string | null>(null);
+
+  // Anchor element for the first-login Import TipBubble. Using state (not a
+  // ref) so the bubble repositions when the toolbar mounts/re-mounts.
+  const [importBtnEl, setImportBtnEl] = useState<HTMLButtonElement | null>(null);
 
   const columnFilters = useGamesFiltersStore((state) => state.columnFilters);
   const setColumnFilters = useGamesFiltersStore((state) => state.setColumnFilters);
@@ -881,6 +887,72 @@ export function GamesTable() {
       if (!res.ok) throw new Error("Failed to fetch workbooks");
       return res.json();
     },
+  });
+
+  // ── Parent-synced sports (for cancel button visibility) ──────────────────
+  // Fetches APPROVED CalendarSyncRequests so we know which sport+level combos
+  // have parents watching them. The cancel button only appears on matching rows.
+  const { data: approvedSyncRequests = [] } = useQuery({
+    queryKey: ["adminCalendarSyncRequests", "approved"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/calendar-sync-requests");
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.requests as Array<{ sportName: string; sportLevel: string }> || [])
+        .filter((r: any) => r.status === "APPROVED")
+        .map((r) => ({
+          sportName: r.sportName.toLowerCase(),
+          sportLevel: r.sportLevel.toLowerCase(),
+        }));
+    },
+    staleTime: 60_000,
+  });
+
+  const syncedSportSet = new Set(
+    approvedSyncRequests.map((r) => `${r.sportName}|${r.sportLevel}`)
+  );
+
+  const gameHasSyncedParents = (game: Game): boolean =>
+    syncedSportSet.has(
+      `${game.homeTeam?.sport?.name?.toLowerCase() ?? ""}|${game.homeTeam?.level?.toLowerCase() ?? ""}`
+    );
+
+  // ── Cancel game mutation ──────────────────────────────────────────────────
+  const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
+
+  const cancelGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
+      const res = await fetch(`/api/games/${gameId}/cancel`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to cancel game");
+      }
+      return res.json();
+    },
+    onMutate: async (gameId) => {
+      setCancellingGameId(gameId);
+      // Optimistic update: flip the row to CANCELLED immediately
+      await queryClient.cancelQueries({ queryKey: GAMES_QUERY_KEY });
+      const previous = queryClient.getQueryData(GAMES_QUERY_KEY);
+      queryClient.setQueryData(GAMES_QUERY_KEY, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          games: old.games?.map((g: Game) =>
+            g.id === gameId ? { ...g, status: "CANCELLED" as GameStatus } : g
+          ),
+        };
+      });
+      return { previous };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+    },
+    onError: (_err, _gameId, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(GAMES_QUERY_KEY, ctx.previous);
+      addNotification("Failed to cancel game. Please try again.", "error");
+    },
+    onSettled: () => setCancellingGameId(null),
   });
 
   // Track whether we've already auto-created a default workbook
@@ -6204,6 +6276,20 @@ export function GamesTable() {
                   {isSyncingThisGame || isUnsyncingThisGame ? <CircularProgress size={16} /> : isCalendarSynced ? <SyncLock sx={{ fontSize: 18, color: "#babfb3" }} /> : <Sync sx={{ fontSize: 18 }} />}
                 </IconButton>
               </Tooltip>
+              {gameHasSyncedParents(game) && game.status !== "CANCELLED" && (
+                <Tooltip title="Cancel game — notifies all synced parents">
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.5, color: "text.secondary" }}
+                    disabled={cancellingGameId === game.id}
+                    onClick={() => cancelGameMutation.mutate(game.id)}
+                  >
+                    {cancellingGameId === game.id
+                      ? <CircularProgress size={16} />
+                      : <DoNotDisturbOn sx={{ fontSize: 18 }} />}
+                  </IconButton>
+                </Tooltip>
+              )}
               <Tooltip title="Delete">
                 <IconButton size="small" color="error" onClick={() => handleDeleteGame(game)} sx={{ p: 0.5 }}>
                   <Delete sx={{ fontSize: 18 }} />
@@ -6973,6 +7059,7 @@ export function GamesTable() {
       );
     }
 
+    const isCancelled = game.status === "CANCELLED";
     return (
       <TableRow
         key={game.id}
@@ -6990,6 +7077,11 @@ export function GamesTable() {
           // Dark mode: dim the row borders (using alpha to make them more subtle)
           borderTop: (theme) => (theme.palette.mode === "dark" ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.action.hover : theme.palette.divider}` : "none"),
           borderBottom: (theme) => (theme.palette.mode === "dark" ? `1px solid ${theme.palette.mode === "dark" ? theme.palette.action.hover : theme.palette.divider}` : "none"),
+          // CANCELLED: cross-out the entire row
+          ...(isCancelled && {
+            opacity: 0.65,
+            "& td": { textDecoration: "line-through", color: "text.disabled" },
+          }),
         }}
       >
         <TableCell padding="checkbox">
@@ -7392,6 +7484,7 @@ export function GamesTable() {
               {/* Import Button */}
               <Tooltip title="Import games from CSV">
                 <Button
+                  ref={setImportBtnEl}
                   variant="outlined"
                   startIcon={<Upload />}
                   onClick={handleImportClick}
@@ -7401,6 +7494,13 @@ export function GamesTable() {
                   Import
                 </Button>
               </Tooltip>
+              <TipBubble
+                tipId={TIP_IDS.GAMES_IMPORT}
+                anchorEl={importBtnEl}
+                placement="bottom-end"
+                title="Upload your Sport Schedule CSV"
+                body="Click Import to drop in your CSV — this is how you load your full schedule into Opletics."
+              />
               <Tooltip title={selectedGames.size > 0 ? "Export selected games to CSV" : "Export all games to CSV"}>
                 <Button
                   variant="outlined"

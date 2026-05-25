@@ -21,6 +21,7 @@ import {
   Autocomplete,
   Snackbar,
   IconButton,
+  Tooltip,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import {
@@ -29,9 +30,13 @@ import {
 } from "@mui/icons-material";
 import Link from "next/link";
 import { SupportFormWithDropdown } from "@/components/support/SupportFormWithDropdown";
+import { useJobStatus } from "@/hooks/useJobStatus";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { mergeSports, mergeLevels } from "@/lib/utils/parentSportsData";
 import { formatOrgName } from "@/lib/utils/format";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
+import { TutorialTipsCard } from "@/components/settings/TutorialTipsCard";
 
 interface SchoolOption {
   id: string;
@@ -79,12 +84,14 @@ interface SyncRequest {
   rejectionReason: string | null;
   requestedAt: string;
   reviewedAt: string | null;
+  googleCalendarId: string | null;
 }
 
 interface ParentOverviewData {
   links: ParentLink[];
   subscription: ParentSubscription | null;
   syncRequests?: SyncRequest[];
+  calendarConnected?: boolean;
 }
 
 type SnackbarState = { open: boolean; message: string; severity: AlertColor };
@@ -672,6 +679,409 @@ function CalendarSyncCard({ syncRequests, links, onSuccess, onError }: CalendarS
 }
 
 // ---------------------------------------------------------------------------
+// SettingsChildCard — per-child card with full sync feature parity to Overview
+// ---------------------------------------------------------------------------
+interface SettingsChildCardProps {
+  link: ParentLink;
+  syncRequests: SyncRequest[];
+  calendarConnected: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSnack: (msg: string, severity: AlertColor) => void;
+}
+
+function SettingsChildCard({
+  link,
+  syncRequests,
+  calendarConnected,
+  onEdit,
+  onDelete,
+  onSnack,
+}: SettingsChildCardProps) {
+  const queryClient = useQueryClient();
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+
+  const { snapshot } = useJobStatus(activeJobId);
+  const isBusy = snapshot?.status === "PENDING" || snapshot?.status === "PROCESSING";
+
+  useEffect(() => {
+    if (snapshot?.status === "COMPLETED") {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      setActiveJobId(null);
+    }
+  }, [snapshot?.status, queryClient]);
+
+  // Locate pending / approved sync request for this child's slot
+  const slotKey =
+    link.schoolId && link.sportName && link.sportLevel
+      ? `${link.schoolId}|${link.sportName.toLowerCase()}|${link.sportLevel.toLowerCase()}`
+      : null;
+
+  let pendingRequest: SyncRequest | null = null;
+  let approvedRequest: SyncRequest | null = null;
+  if (slotKey) {
+    for (const req of syncRequests) {
+      const k = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+      if (k !== slotKey) continue;
+      if (req.status === "PENDING" && !pendingRequest) pendingRequest = req;
+      if (req.status === "APPROVED" && !approvedRequest) approvedRequest = req;
+    }
+  }
+
+  // ── Mutations ──────────────────────────────────────────────────────────────
+  const requestMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/parent/calendar-sync-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schoolId: link.schoolId,
+          sportName: link.sportName,
+          sportLevel: link.sportLevel,
+        }),
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to submit request");
+        return data;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSnack(
+        `Sync request sent for ${link.sportName}. The athletic director will review it shortly.`,
+        "success"
+      );
+    },
+    onError: (err: Error) => onSnack(err.message, "error"),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (requestId: string) =>
+      fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" }).then(
+        async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || "Failed to cancel request");
+          }
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSnack("Pending request cancelled. You can send a fresh one now.", "success");
+    },
+    onError: (err: Error) => onSnack(err.message, "error"),
+  });
+
+  const unsyncMutation = useMutation({
+    mutationFn: (requestId: string) =>
+      fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" }).then(
+        async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || "Failed to unsync");
+          }
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
+      onSnack("Unsynced. You can request a new sync any time from this card.", "success");
+    },
+    onError: (err: Error) => onSnack(err.message, "error"),
+  });
+
+  const handleSyncNow = useCallback(async () => {
+    if (!approvedRequest) return;
+    if (!approvedRequest.googleCalendarId) {
+      window.location.href = "/parent-dashboard/calendar-sync";
+      return;
+    }
+    const token = crypto.randomUUID();
+    try {
+      const res = await fetch(
+        `/api/parent/calendar-sync-requests/${approvedRequest.id}/sync`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            googleCalendarId: approvedRequest.googleCalendarId,
+            idempotencyToken: token,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        onSnack(data.error || "Failed to start sync", "error");
+        return;
+      }
+      setActiveJobId(data.jobId);
+    } catch (err: any) {
+      onSnack(err.message || "Network error", "error");
+    }
+  }, [approvedRequest, onSnack]);
+
+  const handleRetry = useCallback(async () => {
+    setActiveJobId(null);
+    await handleSyncNow();
+  }, [handleSyncNow]);
+
+  const { syncStatus } = link;
+
+  const syncChip = () => {
+    switch (syncStatus) {
+      case "APPROVED":
+        return (
+          <Tooltip title="The athletic director approved your request. Connect Google Calendar to push games to your calendar.">
+            <Chip
+              icon={<CheckCircle />}
+              label="Sync Approved"
+              size="small"
+              color="success"
+              variant="outlined"
+            />
+          </Tooltip>
+        );
+      case "PENDING":
+        return (
+          <Tooltip title="Waiting for the athletic director to approve your sync request">
+            <Chip
+              icon={<HourglassTop />}
+              label="Pending Approval"
+              size="small"
+              color="warning"
+              variant="outlined"
+            />
+          </Tooltip>
+        );
+      case "REJECTED":
+      case "REMOVED":
+        return (
+          <Chip
+            icon={<BlockOutlined />}
+            label="Sync Removed"
+            size="small"
+            color="error"
+            variant="outlined"
+          />
+        );
+      default:
+        return (
+          <Chip
+            icon={<Warning />}
+            label="Not Synced"
+            size="small"
+            color="default"
+            variant="outlined"
+          />
+        );
+    }
+  };
+
+  const canRequest = !!link.sportName && !!link.sportLevel;
+  const showRequestButton =
+    (syncStatus === "REJECTED" || syncStatus === "REMOVED" || syncStatus === "NONE") &&
+    !!link.schoolId;
+
+  return (
+    <Card
+      variant="outlined"
+      sx={{
+        height: "100%",
+        borderColor:
+          syncStatus === "REJECTED" || syncStatus === "REMOVED" ? "error.light" : undefined,
+      }}
+    >
+      <CardContent sx={{ pb: "12px !important" }}>
+        {/* Header: child name + edit / delete */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            mb: 0.5,
+          }}
+        >
+          <Typography variant="subtitle2" fontWeight={600}>
+            {link.childName}
+          </Typography>
+          <Box sx={{ display: "flex", gap: 0.25, ml: 1, mt: -0.75 }}>
+            <IconButton size="small" onClick={onEdit} title="Edit child info">
+              <Edit fontSize="small" />
+            </IconButton>
+            <IconButton size="small" color="error" onClick={onDelete} title="Remove child">
+              <Delete fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+
+        {/* School */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+          <School fontSize="small" color="action" sx={{ fontSize: 14 }} />
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+            {formatOrgName(link.schoolName)}
+          </Typography>
+        </Box>
+
+        {/* Sport / level chips */}
+        <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1.5 }}>
+          {link.sportName && (
+            <Chip label={link.sportName} size="small" variant="outlined" />
+          )}
+          {link.sportLevel && (
+            <Chip label={link.sportLevel} size="small" variant="outlined" color="primary" />
+          )}
+        </Box>
+
+        <Divider sx={{ mb: 1.5 }} />
+
+        {/* Sync status chip + action buttons */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          {syncChip()}
+
+          {showRequestButton && (
+            <Tooltip
+              title={
+                canRequest
+                  ? ""
+                  : "Add a sport and level for this child in Settings before requesting sync."
+              }
+            >
+              <span style={{ marginLeft: "auto" }}>
+                <Button
+                  size="small"
+                  variant={
+                    syncStatus === "REJECTED" || syncStatus === "REMOVED"
+                      ? "contained"
+                      : "outlined"
+                  }
+                  color="primary"
+                  startIcon={
+                    requestMutation.isPending ? (
+                      <CircularProgress size={12} color="inherit" />
+                    ) : (
+                      <Sync />
+                    )
+                  }
+                  disabled={requestMutation.isPending || !canRequest}
+                  onClick={() => requestMutation.mutate()}
+                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                >
+                  {requestMutation.isPending
+                    ? "Sending…"
+                    : syncStatus === "REJECTED" || syncStatus === "REMOVED"
+                    ? "Request Re-sync"
+                    : "Request Sync"}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+
+          {syncStatus === "PENDING" && pendingRequest && (
+            <Tooltip title="Cancel this pending request so you can send a fresh one">
+              <span style={{ marginLeft: "auto" }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => cancelMutation.mutate(pendingRequest!.id)}
+                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                >
+                  {cancelMutation.isPending ? "Cancelling…" : "Cancel Request"}
+                </Button>
+              </span>
+            </Tooltip>
+          )}
+
+          {syncStatus === "APPROVED" && approvedRequest && (
+            <Box sx={{ display: "flex", gap: 1, ml: "auto", flexWrap: "wrap" }}>
+              {!calendarConnected ? (
+                <Tooltip title="Connect your Google Calendar so games can be pushed to it">
+                  <Button
+                    component={Link}
+                    href="/parent-dashboard/calendar-sync"
+                    size="small"
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Sync />}
+                    sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                  >
+                    Connect Calendar
+                  </Button>
+                </Tooltip>
+              ) : snapshot?.status === "COMPLETED" ? (
+                <Chip
+                  icon={<CheckCircle />}
+                  label={`${(snapshot.result as any)?.added ?? 0} games synced`}
+                  color="success"
+                  size="small"
+                />
+              ) : snapshot?.status === "FAILED" ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography variant="caption" color="error">
+                    {snapshot.error || "Sync failed"}
+                  </Typography>
+                  <Tooltip title="Retry sync with a fresh attempt">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<Warning />}
+                      onClick={handleRetry}
+                      sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                    >
+                      Retry
+                    </Button>
+                  </Tooltip>
+                </Box>
+              ) : (
+                <Tooltip title="Push the latest games for this sport to your Google Calendar. Use this any time the schedule changes.">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      startIcon={
+                        isBusy ? <CircularProgress size={12} color="inherit" /> : <Sync />
+                      }
+                      disabled={isBusy}
+                      onClick={handleSyncNow}
+                      sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                    >
+                      {isBusy
+                        ? `Syncing… attempt ${(snapshot as any)?.attempts ?? 1}`
+                        : "Update Sync"}
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+              <Tooltip title="Stop syncing this sport and remove the approval so you can re-request later">
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="error"
+                    disabled={unsyncMutation.isPending || isBusy}
+                    onClick={() => unsyncMutation.mutate(approvedRequest!.id)}
+                    sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
+                  >
+                    {unsyncMutation.isPending ? "Unsyncing…" : "Unsync"}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
+          )}
+        </Box>
+
+        {(syncStatus === "REJECTED" || syncStatus === "REMOVED") && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+            The athletic director removed your calendar access. Send a request to restore it.
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main settings page
 // ---------------------------------------------------------------------------
 export default function ParentSettingsPage() {
@@ -680,6 +1090,11 @@ export default function ParentSettingsPage() {
   const [deleteLink, setDeleteLink] = useState<ParentLink | null>(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
+  // Anchor for the first-login "Add Child" tip. Captures whichever Add Child
+  // button is currently rendered (empty state vs header) — only one shows at
+  // a time so a single anchor is enough. Uses HTMLElement because the Button
+  // renders as an <a> (component={Link}), not a native <button>.
+  const [addChildAnchor, setAddChildAnchor] = useState<HTMLElement | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["parentOverview"],
@@ -704,28 +1119,6 @@ export default function ParentSettingsPage() {
 
   const showMessage = (message: string, severity: AlertColor = "success") =>
     setSnackbar({ open: true, message, severity });
-
-  const resyncMutation = useMutation({
-    mutationFn: (link: ParentLink) =>
-      fetch("/api/parent/calendar-sync-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schoolId: link.schoolId,
-          sportName: link.sportName,
-          sportLevel: link.sportLevel,
-        }),
-      }).then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to submit request");
-        return data;
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      showMessage("Re-sync request submitted! The Athletic Director will review it.");
-    },
-    onError: (err: Error) => showMessage(err.message, "error"),
-  });
 
   const deleteMutation = useMutation({
     mutationFn: (link: ParentLink) =>
@@ -861,11 +1254,19 @@ export default function ParentSettingsPage() {
               </Typography>
             </Box>
             {links.length > 0 && (
-              <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
+              <Button ref={setAddChildAnchor} variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
                 Add Child
               </Button>
             )}
           </Box>
+
+          <TipBubble
+            tipId={TIP_IDS.PARENT_ADD_CHILD}
+            anchorEl={addChildAnchor}
+            placement="bottom-end"
+            title="Link your athlete"
+            body="Click Add Child to connect another athlete to your account. You can link as many children as you need — each one with their own school, sport, and level."
+          />
 
           {links.length === 0 ? (
             <>
@@ -873,7 +1274,7 @@ export default function ParentSettingsPage() {
                 No children linked yet. Add a child to get started.
               </Typography>
               <br />
-              <Button variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
+              <Button ref={setAddChildAnchor} variant="contained" size="small" startIcon={<Add />} component={Link} href="/onboarding/parent">
                 Add Child
               </Button>
             </>
@@ -881,66 +1282,16 @@ export default function ParentSettingsPage() {
             <Grid container spacing={2}>
               {links.map((link) => (
                 <Grid size={{ xs: 12, sm: 6 }} key={link.id}>
-                  <Card variant="outlined">
-                    <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight={600}>
-                            {link.childName}
-                          </Typography>
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-                            <School fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
-                              {formatOrgName(link.schoolName)}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: "flex", gap: 1, mt: 1, flexWrap: "wrap" }}>
-                            {link.sportName && <Chip label={link.sportName} size="small" variant="outlined" />}
-                            {link.sportLevel && <Chip label={link.sportLevel} size="small" variant="outlined" color="primary" />}
-                            {/* The Calendar Sync Status section below this card
-                                is the single source of truth for sync state.
-                                Showing link.status here caused contradictory
-                                "PENDING" badges next to an APPROVED sync. */}
-                          </Box>
-                          {(link.syncStatus === "REMOVED" || link.syncStatus === "REJECTED" || link.syncStatus === "NONE") && link.sportName && (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              color="primary"
-                              startIcon={
-                                resyncMutation.isPending && (resyncMutation.variables as ParentLink)?.id === link.id
-                                  ? <CircularProgress size={12} />
-                                  : <Sync fontSize="small" />
-                              }
-                              disabled={resyncMutation.isPending}
-                              onClick={() => resyncMutation.mutate(link)}
-                              sx={{ mt: 1, py: 0.25, px: 1, fontSize: "0.7rem" }}
-                            >
-                              Request Re-sync
-                            </Button>
-                          )}
-                        </Box>
-
-                        <Box sx={{ display: "flex", gap: 0.5, ml: 1, mt: -0.5 }}>
-                          <IconButton
-                            size="small"
-                            onClick={() => setEditLink(link)}
-                            title="Edit child info"
-                          >
-                            <Edit fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setDeleteLink(link)}
-                            title="Remove child"
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
+                  <SettingsChildCard
+                    link={link}
+                    syncRequests={data?.syncRequests ?? []}
+                    calendarConnected={
+                      data?.calendarConnected ?? !!calendarStatus?.connectedEmail
+                    }
+                    onEdit={() => setEditLink(link)}
+                    onDelete={() => setDeleteLink(link)}
+                    onSnack={(msg, sev) => showMessage(msg, sev)}
+                  />
                 </Grid>
               ))}
             </Grid>
@@ -965,6 +1316,9 @@ export default function ParentSettingsPage() {
           <SupportFormWithDropdown />
         </CardContent>
       </Card>
+
+      {/* Re-show onboarding tip bubbles (parent-session-scoped endpoint) */}
+      <TutorialTipsCard apiBase="/api/parent/tips" />
 
       {/* Delete Account */}
       <DeleteAccountSection

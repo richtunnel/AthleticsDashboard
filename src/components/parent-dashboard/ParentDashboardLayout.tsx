@@ -36,6 +36,7 @@ import { useTheme as customTheme } from "@mui/material/styles";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { MUIThemeProvider } from "@/app/theme-provider";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import { TipsProvider } from "@/contexts/TipsContext";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { formatDistanceToNow } from "date-fns";
 import styles from "../../styles/logo.module.css";
@@ -44,9 +45,9 @@ const DRAWER_WIDTH = 240;
 
 const navigation = [
   { name: "Overview", href: "/parent-dashboard", icon: Dashboard },
-  { name: "Feed", href: "/parent-dashboard/feed", icon: DynamicFeed },
   { name: "Calendar", href: "/parent-dashboard/calendar", icon: Sync },
   { name: "Announcements", href: "/parent-dashboard/announcements", icon: Campaign },
+  { name: "Feed", href: "/parent-dashboard/feed", icon: DynamicFeed },
   { name: "Chat", href: "/parent-dashboard/chat", icon: Chat },
   { name: "Settings", href: "/parent-dashboard/settings", icon: Settings },
   { name: "Feedback", href: "/parent-dashboard/feedback", icon: Feedback },
@@ -451,7 +452,12 @@ function ParentDashboardLayoutWithTheme({ children }: ParentDashboardLayoutClien
   return (
     <MUIThemeProvider mode={mode}>
       <NotificationProvider>
-        <ParentDashboardLayoutContent>{children}</ParentDashboardLayoutContent>
+        {/* Parent session uses a separate cookie, so tip state goes through
+            the parent-scoped API base. The User row's dismissedTips is shared
+            across both dashboards if the same person is also an AD. */}
+        <TipsProvider apiBase="/api/parent/tips">
+          <ParentDashboardLayoutContent>{children}</ParentDashboardLayoutContent>
+        </TipsProvider>
       </NotificationProvider>
     </MUIThemeProvider>
   );

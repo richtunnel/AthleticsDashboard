@@ -63,6 +63,7 @@ model User {
   hideChatMenu               Boolean                   @default(false)
   hidePostsMenu              Boolean                   @default(false)
   hideParentsMenu            Boolean                   @default(false)
+  dismissedTips              Json                      @default("[]")
   schoolEmail                String?                   @unique
   shareCode                  String?                   @unique
   parentCode                 String?                   @unique

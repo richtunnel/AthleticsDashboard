@@ -14,6 +14,8 @@ import { CalendarGroupMappings } from "@/components/calendar/CalendarGroupMappin
 import { useTheme as customTheme } from "@mui/material/styles";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 // Utility function to fetch connection status
 const fetchConnectionStatus = async () => {
@@ -55,6 +57,10 @@ function GoogleCalendarSyncMenuContent() {
   const router = useRouter();
   const theme = customTheme();
   const [connectError, setConnectError] = useState<string | null>(null);
+  // Anchor for the first-login Connect-Calendar TipBubble. Only used while
+  // `isConnected === false`, so it auto-disappears once the user finishes the
+  // OAuth flow.
+  const [connectBtnEl, setConnectBtnEl] = useState<HTMLButtonElement | null>(null);
 
   // Fetch the user's current connection status
   const { data, isLoading, refetch } = useQuery({
@@ -170,6 +176,7 @@ function GoogleCalendarSyncMenuContent() {
             </Alert>
           )}
           <Button
+            ref={setConnectBtnEl}
             variant="contained"
             color="primary"
             startIcon={isConnecting ? <CircularProgress size={16} color="inherit" /> : <FaGoogle />}
@@ -179,6 +186,13 @@ function GoogleCalendarSyncMenuContent() {
           >
             {isConnecting ? "Connecting..." : "Connect Google Calendar"}
           </Button>
+          <TipBubble
+            tipId={TIP_IDS.CALENDAR_CONNECT}
+            anchorEl={connectBtnEl}
+            placement="bottom-start"
+            title="Connect your Google Calendar"
+            body="Link your Google Calendar to sync your imported spreadsheet so every game lands on your calendar automatically."
+          />
         </Stack>
       )}
     </Box>

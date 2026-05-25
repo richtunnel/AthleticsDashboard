@@ -68,6 +68,7 @@ import HistoryIcon from "@mui/icons-material/History";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
+import { TipsProvider } from "@/contexts/TipsContext";
 import { useChatNotifications } from "@/hooks/useChatNotifications";
 import { useNavigationStore } from "@/lib/stores/navigationStore";
 import ReferralShareButton from "@/components/layout/ReferralShareButton";
@@ -737,7 +738,9 @@ function DashboardLayoutContentWithTheme({ children }: { children: React.ReactNo
   return (
     <MUIThemeProvider mode={mode}>
       <NotificationProvider>
-        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        <TipsProvider>
+          <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        </TipsProvider>
       </NotificationProvider>
     </MUIThemeProvider>
   );

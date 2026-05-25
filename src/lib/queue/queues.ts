@@ -98,6 +98,14 @@ export interface EmailImportPayload {
   [key: string]: unknown;
 }
 
+// ── Game cancellation parent-notification payload ─────────────────────────────
+export interface GameCancelNotifyPayload {
+  /** The game that was cancelled */
+  gameId: string;
+  /** AD's organisation — used to scope the approved-request lookup */
+  organizationId: string;
+}
+
 // ── Stripe webhook payload ────────────────────────────────────────────────────
 export interface StripeWebhookPayload {
   eventId: string;
@@ -185,6 +193,19 @@ export const emailImportQueue = new Queue<EmailImportPayload>(
 );
 
 /**
+ * Notifies affected parents when an AD cancels a game.
+ * Invalidates their overview caches so the cancelled game surfaces immediately
+ * on next dashboard load.
+ */
+export const gameCancelNotifyQueue = new Queue<GameCancelNotifyPayload>(
+  `${QUEUE_PREFIX}-game-cancel-notify`,
+  {
+    connection: bullConnection,
+    defaultJobOptions: { ...baseJobOptions, priority: Priority.HIGH },
+  }
+);
+
+/**
  * Stripe webhooks — process asynchronously so the webhook endpoint can ack
  * within Stripe's 5s timeout even when DB writes are slow.
  */
@@ -209,5 +230,6 @@ export const allQueues = {
   parentCalendarSync: parentCalendarSyncQueue,
   gameImport: gameImportQueue,
   emailImport: emailImportQueue,
+  gameCancelNotify: gameCancelNotifyQueue,
   stripeWebhook: stripeWebhookQueue,
 } as const;

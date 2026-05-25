@@ -28,6 +28,8 @@ import { ExpandLess, ExpandMore, Person, CalendarMonth, Share, ContentCopy, Refr
 import Badge from "@mui/material/Badge";
 import { ConnectedParentsMenu } from "../parents/ConnectedParentsMenu";
 import { CalendarSyncRequestsMenu } from "./CalendarSyncRequestsMenu";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 interface ParentsAndAthletesMenuProps {
   defaultOpen?: boolean;
@@ -58,6 +60,11 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  // Anchors for the three per-tab onboarding tips. Each bubble only renders
+  // while its own tab is active so they never overlap each other.
+  const [syncTabEl, setSyncTabEl] = useState<HTMLElement | null>(null);
+  const [connectedTabEl, setConnectedTabEl] = useState<HTMLElement | null>(null);
+  const [portalTabEl, setPortalTabEl] = useState<HTMLElement | null>(null);
 
   const {
     data: shareData,
@@ -128,6 +135,7 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
               scrollButtons="auto"
             >
               <Tab
+                ref={setSyncTabEl}
                 icon={
                   <Badge badgeContent={pendingCount} color="error" max={99}>
                     <HowToReg fontSize="small" />
@@ -136,9 +144,31 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
                 iconPosition="start"
                 label="Sync Requests"
               />
-              <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Connected Parents" />
-              <Tab icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Portal Setup" />
+              <Tab ref={setConnectedTabEl} icon={<Group fontSize="small" />} iconPosition="start" label="Connected Parents" />
+              <Tab ref={setPortalTabEl} icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Portal Setup" />
             </Tabs>
+
+            <TipBubble
+              tipId={TIP_IDS.PARENTS_SYNC_REQUESTS}
+              anchorEl={tabValue === 0 ? syncTabEl : null}
+              placement="bottom-start"
+              title="Approve calendar sync requests"
+              body="Parents request access here so they can sync their child's game schedule to their personal Google Calendar. Review each request and approve the sport and level they should see."
+            />
+            <TipBubble
+              tipId={TIP_IDS.PARENTS_CONNECTED}
+              anchorEl={tabValue === 1 ? connectedTabEl : null}
+              placement="bottom-start"
+              title="Manage connected parents"
+              body="Every parent currently syncing to your schedule appears here. Remove a parent at any time to immediately revoke their calendar access."
+            />
+            <TipBubble
+              tipId={TIP_IDS.PARENTS_PORTAL_SETUP}
+              anchorEl={tabValue === 2 ? portalTabEl : null}
+              placement="bottom-end"
+              title="Invite parents with one link"
+              body="Share your unique portal URL with parents — they'll be able to create an account, link their athlete, and request calendar sync in just a few clicks."
+            />
 
             {tabValue === 0 && <CalendarSyncRequestsMenu />}
             

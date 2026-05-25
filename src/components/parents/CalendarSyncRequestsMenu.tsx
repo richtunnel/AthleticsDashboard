@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Box,
@@ -29,7 +29,7 @@ import {
   Alert,
   Tooltip,
 } from "@mui/material";
-import { Check, Close, Info, Refresh } from "@mui/icons-material";
+import { Check, CheckCircle, Close, Info, Refresh } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 
 interface CalendarSyncRequest {
@@ -57,6 +57,22 @@ export function CalendarSyncRequestsMenu() {
   // Approve-dialog fields
   const [approveGender, setApproveGender] = useState("");
   const [approveWorkbookId, setApproveWorkbookId] = useState("");
+
+  // Success-transition state
+  const [approveSucceeded, setApproveSucceeded] = useState(false);
+  const [approveFadingOut, setApproveFadingOut] = useState(false);
+  const approveTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const closeApproveDialog = () => {
+    approveTimers.current.forEach(clearTimeout);
+    approveTimers.current = [];
+    setApproveDialogOpen(false);
+    setApproveSucceeded(false);
+    setApproveFadingOut(false);
+    setSelectedRequest(null);
+    setApproveGender("");
+    setApproveWorkbookId("");
+  };
 
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["adminCalendarSyncRequests"],
@@ -111,11 +127,15 @@ export function CalendarSyncRequestsMenu() {
       // Connected Parents tab pulls from a separate endpoint — also refresh it
       // so the just-approved parent shows up there immediately.
       queryClient.invalidateQueries({ queryKey: ["connectedParents"] });
-      addNotification("Request approved — the parent can now sync their calendar", "success");
-      setApproveDialogOpen(false);
-      setSelectedRequest(null);
-      setApproveGender("");
-      setApproveWorkbookId("");
+
+      // Show success state, then fade out and close
+      setApproveSucceeded(true);
+      const t1 = setTimeout(() => setApproveFadingOut(true), 900);
+      const t2 = setTimeout(() => {
+        closeApproveDialog();
+        addNotification("Request approved — the parent can now sync their calendar", "success");
+      }, 1250);
+      approveTimers.current = [t1, t2];
     },
     onError: (error: Error) => {
       addNotification(error.message, "error");
@@ -249,105 +269,140 @@ export function CalendarSyncRequestsMenu() {
       )}
 
       {/* Approve Dialog */}
-      <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={approveDialogOpen}
+        onClose={approveSucceeded ? undefined : closeApproveDialog}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Approve Calendar Sync Request</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Approve <strong>{selectedRequest?.parent.name || selectedRequest?.parent.email}</strong>&apos;s
-            request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games to their Google Calendar.
-          </Typography>
 
-          {/* Gender — clarifies which team games to sync.
-              `shrink` + `notched` keeps the label floating above the field
-              instead of overlapping the "Auto-detect…" placeholder text. */}
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel id="approve-gender-label" shrink>
-              Gender
-            </InputLabel>
-            <Select
-              labelId="approve-gender-label"
-              value={approveGender}
-              label="Gender"
-              notched
-              displayEmpty
-              onChange={(e) => setApproveGender(e.target.value)}
+        <DialogContent sx={{ minHeight: 240 }}>
+          {/* ── Success state ─────────────────────────────────────────────── */}
+          {approveSucceeded ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                py: 3,
+                transition: "opacity 0.3s ease-out",
+                opacity: approveFadingOut ? 0 : 1,
+              }}
             >
-              <MenuItem value=""><em>Auto-detect from sport name</em></MenuItem>
-              <MenuItem value="boys">Boys / Male</MenuItem>
-              <MenuItem value="girls">Girls / Female</MenuItem>
-              <MenuItem value="mixed">Mixed / Co-ed</MenuItem>
-            </Select>
-            <FormHelperText>
-              Setting this ensures the correct team is matched even when ADs use abbreviations
-              like &quot;G Basketball&quot;, &quot;F&quot;, or &quot;Womens Tennis&quot;.
-            </FormHelperText>
-          </FormControl>
+              <CheckCircle sx={{ fontSize: 58, color: "success.main", mb: 1.5 }} />
+              <Typography variant="h6" fontWeight={700} color="success.main">
+                Connected Successfully
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: "center" }}>
+                {selectedRequest?.parent.name || selectedRequest?.parent.email} can now sync their calendar.
+              </Typography>
+            </Box>
+          ) : (
+            /* ── Form ──────────────────────────────────────────────────── */
+            <Box>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Approve <strong>{selectedRequest?.parent.name || selectedRequest?.parent.email}</strong>&apos;s
+                request to sync <strong>{selectedRequest?.sportName} {selectedRequest?.sportLevel}</strong> games to their Google Calendar.
+              </Typography>
 
-          {/* Workbook — pick from imported Game Center workbooks.
-              MenuItem children are kept as plain strings — MUI's Select
-              renders the selected MenuItem's children inside the closed
-              input, and nesting <Typography> there breaks click handling
-              on the rendered options. */}
-          <FormControl fullWidth sx={{ mb: 2 }} disabled={workbooksLoading}>
-            <InputLabel id="approve-workbook-label" shrink>
-              Schedule Workbook (optional)
-            </InputLabel>
-            <Select
-              labelId="approve-workbook-label"
-              value={approveWorkbookId}
-              label="Schedule Workbook (optional)"
-              notched
-              displayEmpty
-              onChange={(e) => setApproveWorkbookId(e.target.value)}
-            >
-              <MenuItem value="">
-                <em>All workbooks (auto-match)</em>
-              </MenuItem>
-              {(workbooksData ?? []).map((wb) => {
-                const gameCount = wb._count?.games;
-                const label =
-                  gameCount !== undefined ? `${wb.name}  (${gameCount} games)` : wb.name;
-                return (
-                  <MenuItem key={wb.id} value={wb.id}>
-                    {label}
+              {/* Gender — clarifies which team games to sync.
+                  `shrink` + `notched` keeps the label floating above the field
+                  instead of overlapping the "Auto-detect…" placeholder text. */}
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="approve-gender-label" shrink>
+                  Gender
+                </InputLabel>
+                <Select
+                  labelId="approve-gender-label"
+                  value={approveGender}
+                  label="Gender"
+                  notched
+                  displayEmpty
+                  onChange={(e) => setApproveGender(e.target.value)}
+                >
+                  <MenuItem value=""><em>Auto-detect from sport name</em></MenuItem>
+                  <MenuItem value="boys">Boys / Male</MenuItem>
+                  <MenuItem value="girls">Girls / Female</MenuItem>
+                  <MenuItem value="mixed">Mixed / Co-ed</MenuItem>
+                </Select>
+                <FormHelperText>
+                  Setting this ensures the correct team is matched even when ADs use abbreviations
+                  like &quot;G Basketball&quot;, &quot;F&quot;, or &quot;Womens Tennis&quot;.
+                </FormHelperText>
+              </FormControl>
+
+              {/* Workbook — pick from imported Game Center workbooks.
+                  MenuItem children are kept as plain strings — MUI's Select
+                  renders the selected MenuItem's children inside the closed
+                  input, and nesting <Typography> there breaks click handling
+                  on the rendered options. */}
+              <FormControl fullWidth sx={{ mb: 2 }} disabled={workbooksLoading}>
+                <InputLabel id="approve-workbook-label" shrink>
+                  Schedule Workbook (optional)
+                </InputLabel>
+                <Select
+                  labelId="approve-workbook-label"
+                  value={approveWorkbookId}
+                  label="Schedule Workbook (optional)"
+                  notched
+                  displayEmpty
+                  onChange={(e) => setApproveWorkbookId(e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>All workbooks (auto-match)</em>
                   </MenuItem>
-                );
-              })}
-            </Select>
-            <FormHelperText>
-              {workbooksLoading
-                ? "Loading workbooks…"
-                : (workbooksData ?? []).length === 0
-                ? "No imported workbooks yet — import one in Game Center, or leave this on All workbooks."
-                : "Pick the imported workbook that holds this sport's schedule. If unset, the parent gets matching games from every workbook for this sport & level."}
-            </FormHelperText>
-          </FormControl>
+                  {(workbooksData ?? []).map((wb) => {
+                    const gameCount = wb._count?.games;
+                    const label =
+                      gameCount !== undefined ? `${wb.name}  (${gameCount} games)` : wb.name;
+                    return (
+                      <MenuItem key={wb.id} value={wb.id}>
+                        {label}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+                <FormHelperText>
+                  {workbooksLoading
+                    ? "Loading workbooks…"
+                    : (workbooksData ?? []).length === 0
+                    ? "No imported workbooks yet — import one in Game Center, or leave this on All workbooks."
+                    : "Pick the imported workbook that holds this sport's schedule. If unset, the parent gets matching games from every workbook for this sport & level."}
+                </FormHelperText>
+              </FormControl>
 
-          <Alert severity="info" icon={<Info />}>
-            Once approved, the parent can sync matching games directly to their own Google Calendar.
-            The gender and workbook selections help identify the right games even when your
-            schedule uses shorthand like &quot;Var&quot;, &quot;G&quot;, or &quot;B Soccer JV&quot;.
-          </Alert>
+              <Alert severity="info" icon={<Info />}>
+                Once approved, the parent can sync matching games directly to their own Google Calendar.
+                The gender and workbook selections help identify the right games even when your
+                schedule uses shorthand like &quot;Var&quot;, &quot;G&quot;, or &quot;B Soccer JV&quot;.
+              </Alert>
+            </Box>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setApproveDialogOpen(false); setApproveGender(""); setApproveWorkbookId(""); }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            disabled={approveMutation.isPending}
-            onClick={() =>
-              approveMutation.mutate({
-                id: selectedRequest!.id,
-                gender: approveGender || undefined,
-                workbookId: approveWorkbookId || undefined,
-              })
-            }
-          >
-            {approveMutation.isPending ? <CircularProgress size={24} /> : "Approve"}
-          </Button>
-        </DialogActions>
+
+        {!approveSucceeded && (
+          <DialogActions>
+            <Button onClick={closeApproveDialog}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={approveMutation.isPending}
+              onClick={() =>
+                approveMutation.mutate({
+                  id: selectedRequest!.id,
+                  gender: approveGender || undefined,
+                  workbookId: approveWorkbookId || undefined,
+                })
+              }
+            >
+              {approveMutation.isPending ? <CircularProgress size={24} /> : "Approve"}
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
 
       {/* Reject Dialog */}

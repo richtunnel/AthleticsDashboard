@@ -9,6 +9,8 @@ import PostComposer from "@/components/posts/PostComposer";
 import NewsFeed from "@/components/posts/NewsFeed";
 import { AnnouncementComposer } from "@/components/announcements/AnnouncementComposer";
 import AnnouncementFeed from "@/components/announcements/AnnouncementFeed";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 const POSTS_KEY = "dashboard-posts-feed";
 const ANNOUNCEMENTS_KEY = "dashboard-announcements-feed";
@@ -20,6 +22,10 @@ export default function PostsPage() {
   const isDark = theme.palette.mode === "dark";
   const dividerColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
   const [tab, setTab] = useState(0);
+  // Anchors per tab — each tip stays anchored to its own tab button, and only
+  // renders while that tab is active so the two bubbles never compete.
+  const [postsTabEl, setPostsTabEl] = useState<HTMLElement | null>(null);
+  const [annTabEl, setAnnTabEl] = useState<HTMLElement | null>(null);
 
   const currentUser = {
     id: session?.user?.id ?? "",
@@ -46,9 +52,24 @@ export default function PostsPage() {
       )}
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}>
-        <Tab icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
-        <Tab icon={<Campaign fontSize="small" />} iconPosition="start" label="Announcements" />
+        <Tab ref={setPostsTabEl} icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
+        <Tab ref={setAnnTabEl} icon={<Campaign fontSize="small" />} iconPosition="start" label="Announcements" />
       </Tabs>
+
+      <TipBubble
+        tipId={TIP_IDS.POSTS_TAB}
+        anchorEl={tab === 0 ? postsTabEl : null}
+        placement="bottom-start"
+        title="Share community updates"
+        body="Posts appear in the community news feed for athletes, coaches, and parents who follow your program — the place for general updates, photos, and news."
+      />
+      <TipBubble
+        tipId={TIP_IDS.ANNOUNCEMENTS_TAB}
+        anchorEl={tab === 1 ? annTabEl : null}
+        placement="bottom-start"
+        title="Send direct announcements"
+        body="Announcements go straight to connected parents' dashboards — use them for time-sensitive updates like cancellations, location changes, or weather delays."
+      />
 
       {tab === 0 && (
         <>

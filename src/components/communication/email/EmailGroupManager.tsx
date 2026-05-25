@@ -12,6 +12,8 @@ import type { EmailGroup } from "./types";
 import { addEmailsToGroup, createEmailGroup, deleteEmailGroup, fetchEmailGroups, removeEmailFromGroup, updateEmailGroupName, updateEmailInGroup } from "@/lib/api/emailGroups";
 import { useTheme as customTheme } from "@mui/material/styles";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 type SnackbarState = {
   open: boolean;
@@ -28,6 +30,8 @@ const DEFAULT_SNACKBAR: SnackbarState = {
 export function EmailGroupManager() {
   const queryClient = useQueryClient();
   const [newGroupName, setNewGroupName] = useState("");
+  // Anchor for the first-login "create your first group" TipBubble.
+  const [groupNameAnchor, setGroupNameAnchor] = useState<HTMLDivElement | null>(null);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
@@ -177,7 +181,22 @@ export function EmailGroupManager() {
         </Box>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }} sx={{ flexWrap: "wrap" }}>
-          <TextField label="Name your group" placeholder="e.g. Varsity Parents" value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} fullWidth sx={{ flex: { md: 1 } }} />
+          <Box sx={{ position: "relative", flex: { md: 1 }, width: "100%" }}>
+            {/* 1×1 anchor at the top-right corner so the bubble's arrow lands
+                on the corner of the input, not its centre. */}
+            <Box
+              ref={setGroupNameAnchor}
+              sx={{ position: "absolute", top: 0, right: 0, width: 1, height: 1, pointerEvents: "none" }}
+            />
+            <TextField label="Name your group" placeholder="e.g. Varsity Parents" value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} fullWidth />
+          </Box>
+          <TipBubble
+            tipId={TIP_IDS.EMAIL_GROUP_NAME}
+            anchorEl={groupNameAnchor}
+            placement="bottom-end"
+            title="Bulk-email your user groups"
+            body='Name a group like "Varsity Parents", add recipients, and send one email to everyone at once.'
+          />
           <LoadingButton
             startIcon={<AddCircleOutlineIcon />}
             loading={createGroupMutation.isPending}

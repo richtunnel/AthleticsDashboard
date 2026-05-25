@@ -20,6 +20,8 @@ import ConversationList from "@/components/chat/ConversationList";
 import MessageThread from "@/components/chat/MessageThread";
 import MessageInput from "@/components/chat/MessageInput";
 import { useChatSSE } from "@/hooks/useChatSSE";
+import { TipBubble } from "@/components/tips/TipBubble";
+import { TIP_IDS } from "@/components/tips/tipIds";
 
 interface ConversationItem {
   id: string;
@@ -74,6 +76,8 @@ export default function ParentChatPage() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [selectedConversation, setSelectedConversation] = useState<ConversationItem | null>(null);
+  // Anchor for first-login Chat tip
+  const [headerAnchor, setHeaderAnchor] = useState<HTMLElement | null>(null);
 
   const currentUserId = (session?.user as any)?.id || "";
 
@@ -203,12 +207,19 @@ export default function ParentChatPage() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+        <Typography ref={setHeaderAnchor} variant="h4" fontWeight={700} gutterBottom sx={{ display: "inline-block" }}>
           Chat
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Message your school&apos;s athletic director in real time
         </Typography>
+        <TipBubble
+          tipId={TIP_IDS.PARENT_CHAT}
+          anchorEl={headerAnchor}
+          placement="bottom-start"
+          title="Direct line to the athletic department"
+          body="Send messages straight to your school's athletic director and get a real-time response — no email back-and-forth needed."
+        />
       </Box>
 
       <Grid container spacing={2} sx={{ height: "calc(100vh - 240px)", minHeight: 500 }}>
