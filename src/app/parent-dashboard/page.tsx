@@ -23,6 +23,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import {
@@ -556,6 +558,7 @@ export default function ParentDashboardPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack>(CLOSED_SNACK);
   const [scheduleExpanded, setScheduleExpanded] = useState(false);
+  const [activeChildTab, setActiveChildTab] = useState(0);
   const [scheduleSyncing, setScheduleSyncing] = useState(false);
   // Anchors for first-login parent tips on this page
   const [scheduleHeaderEl, setScheduleHeaderEl] = useState<HTMLElement | null>(null);
@@ -711,17 +714,53 @@ export default function ParentDashboardPage() {
   // so the label stays readable on mobile.
   const currentYear = new Date().getFullYear();
   const primaryLink = links.find((l) => l.sportName && l.sportLevel) ?? links[0] ?? null;
-  const uniqueChildren = new Set(links.map((l) => l.childName));
+  // Ordered list of unique child names (insertion order = most-recently-added first).
+  const uniqueChildNames = [...new Set(links.map((l) => l.childName))];
+
+  // Schedule chip label — tab-aware when multiple children are linked.
   const scheduleLabel = (() => {
     if (!primaryLink) return null;
+    if (uniqueChildNames.length > 1) {
+      const activeName = uniqueChildNames[activeChildTab] ?? uniqueChildNames[0];
+      const activeChildLinks = links.filter((l) => l.childName === activeName);
+      const activeLink =
+        activeChildLinks.find((l) => l.sportName && l.sportLevel) ?? activeChildLinks[0];
+      const sportPart =
+        activeLink?.sportLevel && activeLink?.sportName
+          ? `${activeLink.sportLevel} ${activeLink.sportName}`
+          : activeLink?.sportName ?? activeLink?.sportLevel ?? null;
+      // Multiple sports for one child → omit sport from chip to keep it readable.
+      return { name: activeName, sport: activeChildLinks.length > 1 ? null : sportPart };
+    }
     const namePart = primaryLink.childName;
     const sportPart =
       primaryLink.sportLevel && primaryLink.sportName
         ? `${primaryLink.sportLevel} ${primaryLink.sportName}`
         : primaryLink.sportName ?? primaryLink.sportLevel ?? null;
-    // If there are multiple children, drop the sport/level to keep it concise
-    if (uniqueChildren.size > 1) return { name: namePart, sport: null };
     return { name: namePart, sport: sportPart };
+  })();
+
+  // Games shown in the active tab — filtered to the selected child's sport/level combos.
+  // When there is only one child the full list is shown unfiltered.
+  const gamesForActiveTab = (() => {
+    if (uniqueChildNames.length <= 1) return upcomingGames;
+    const activeName = uniqueChildNames[activeChildTab] ?? uniqueChildNames[0];
+    const activeChildLinks = links.filter((l) => l.childName === activeName);
+    return upcomingGames.filter((game) => {
+      const gameSport = (game.homeTeam?.sport?.name || "").toLowerCase().trim();
+      const gameLevel = (game.homeTeam?.level || "").toLowerCase().trim();
+      return activeChildLinks.some((link) => {
+        const linkSport = (link.sportName || "").toLowerCase().trim();
+        const linkLevel = (link.sportLevel || "").toLowerCase().trim();
+        // Partial containment handles slight name variations:
+        // "Boys Basketball" ↔ "Basketball", "Junior Varsity" ↔ "JV"
+        const sportMatches =
+          !linkSport || gameSport.includes(linkSport) || linkSport.includes(gameSport);
+        const levelMatches =
+          !linkLevel || gameLevel.includes(linkLevel) || linkLevel.includes(gameLevel);
+        return sportMatches && levelMatches;
+      });
+    });
   })();
 
   const pendingIdBySlot = new Map<string, string>();
@@ -826,7 +865,29 @@ export default function ParentDashboardPage() {
         />
       </Box>
 
-      {upcomingGames.length > 0 ? (
+      {/* Per-child schedule tabs — only rendered when the parent has more than one child */}
+      {uniqueChildNames.length > 1 && (
+        <Tabs
+          value={activeChildTab}
+          onChange={(_, newVal) => {
+            setActiveChildTab(newVal as number);
+            setScheduleExpanded(false);
+          }}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 1.5, borderBottom: 1, borderColor: "divider" }}
+        >
+          {uniqueChildNames.map((name, i) => (
+            <Tab
+              key={i}
+              label={name}
+              sx={{ textTransform: "none", fontWeight: 600, fontSize: "0.85rem" }}
+            />
+          ))}
+        </Tabs>
+      )}
+
+      {gamesForActiveTab.length > 0 ? (
         <>
         {/* Scrollable list — collapses to 400 px, expands on demand */}
         <Box
@@ -875,7 +936,7 @@ export default function ParentDashboardPage() {
             />
           )}
 
-          {upcomingGames.map((game) => {
+          {gamesForActiveTab.map((game) => {
             const cancelled = game.status === "CANCELLED";
             return (
             <Card
