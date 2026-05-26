@@ -61,6 +61,7 @@ export default function ParentPlansPage() {
   const [selectedPlan, setSelectedPlan] = useState<"free" | "donation" | "donation_annual" | null>(null);
   const [donationBilling, setDonationBilling] = useState<"monthly" | "annual">("monthly");
   const [completedSubmission, setCompletedSubmission] = useState(false);
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
 
   // Check the PARENT session on mount.
   useEffect(() => {
@@ -94,11 +95,25 @@ export default function ParentPlansPage() {
     }
 
     if (authStatus === "authenticated") {
-      setLoading(false);
+      // Check if this parent already has linked athletes — if so they're adding
+      // a second child and don't need to see the plan selection screen again.
+      fetch("/api/parent/overview")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.links?.length > 0) {
+            // Returning parent — auto-create the link and head straight to dashboard.
+            // We skip the plan-update step so an existing donor plan isn't overwritten.
+            setAutoSubmitting(true);
+            handleSelectPlan("free", /* skipPlanUpdate */ true);
+          } else {
+            setLoading(false);
+          }
+        })
+        .catch(() => setLoading(false));
     }
-  }, [authStatus, router, completedSubmission]);
+  }, [authStatus, router, completedSubmission]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectPlan = async (plan: "free" | "donation" | "donation_annual") => {
+  const handleSelectPlan = async (plan: "free" | "donation" | "donation_annual", skipPlanUpdate = false) => {
     setSubmitting(true);
     setError("");
     setSelectedPlan(plan);
@@ -136,7 +151,9 @@ export default function ParentPlansPage() {
       // Only update for users whose primary role is PARENT — for ADs/coaches who are
       // also parents their AD subscription should not be overwritten.
       // parentUserRole comes from the parent session (not the main AD session).
-      if (parentUserRole === "PARENT" || !parentUserRole) {
+      // skipPlanUpdate is set for returning parents adding a second child — their
+      // existing plan should not be overwritten (e.g. don't downgrade a donor to free).
+      if (!skipPlanUpdate && (parentUserRole === "PARENT" || !parentUserRole)) {
         const planRes = await fetch("/api/parent/update-plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -173,12 +190,26 @@ export default function ParentPlansPage() {
     router.push("/onboarding/parent/select-coach");
   };
 
-  if (authStatus === "loading" || loading) {
+  if (authStatus === "loading" || loading || autoSubmitting) {
     return (
       <>
         <BaseHeader pt="20px" pl="20px" />
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "60vh",
+            gap: 2,
+          }}
+        >
           <CircularProgress />
+          {autoSubmitting && (
+            <Typography variant="body2" color="text.secondary">
+              Adding your athlete…
+            </Typography>
+          )}
         </Box>
       </>
     );

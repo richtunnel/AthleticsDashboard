@@ -156,14 +156,22 @@ export async function POST(request: NextRequest) {
       const level = (rawLevel && LEVEL_MAP[rawLevel]) || rawLevel || "";
       const sport = game.homeTeam.sport.name;
       return {
+        // Spread custom fields FIRST so they never overwrite our canonical fields.
+        // (Some spreadsheets have a "team" column, e.g. "Tigers Boys Varsity", which
+        // would otherwise clobber the canonical "Boys Varsity Basketball" value and
+        // break pattern matching in the availability service.)
+        ...(customFields || {}),
         date: game.date,
         sport,
         level,
         gender,
-        team: `${gender} ${level} ${sport}`,
+        // Canonical "Boys Varsity Basketball" form — always present for phrase matching.
+        team: `${gender} ${level} ${sport}`.trim(),
+        // Raw home-team name (e.g. "Tigers Boys Varsity") kept for cross-field gender
+        // detection when gender is stored in the team name rather than its own column.
+        homeTeamName: game.homeTeam.name || null,
         description: game.notes,
         title: game.opponent?.name || null,
-        ...(customFields || {}),
       };
     });
 

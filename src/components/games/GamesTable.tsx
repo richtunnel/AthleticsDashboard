@@ -123,22 +123,76 @@ const CSVImport = dynamic(() => import("./CSVImport").then((mod) => ({ default: 
 const dateStringToUTCISOString = (dateValue: string): string => {
   if (!dateValue) return "";
 
-  // If it's already in YYYY-MM-DD format (date-only), preserve it as-is
-  if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    // Create date in UTC to avoid timezone shifts
+  // If it's a full ISO timestamp from the DB (e.g. "2025-07-03T00:00:00.000Z"),
+  // extract the date portion directly from the UTC string WITHOUT going through
+  // new Date() + getDate(), which would return the LOCAL calendar day and shift
+  // the date back by 1 day for any timezone behind UTC.
+  const isoMatch = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return new Date(Date.UTC(+y, +m - 1, +d)).toISOString();
+  }
+
+  // If it's already in YYYY-MM-DD format (date-only), create a UTC date directly
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
     const parts = dateValue.split("-");
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
     const day = parseInt(parts[2], 10);
-
-    // Create date in UTC to prevent timezone conversion
-    const utcDate = new Date(Date.UTC(year, month, day));
-    return utcDate.toISOString();
+    return new Date(Date.UTC(year, month, day)).toISOString();
   }
 
-  // For other formats, use your existing parseAndConvertDate function
+  // For other human-readable formats (user input, CSV etc.)
   return parseAndConvertDate(dateValue);
 };
+
+// ── Inline date-picker sub-component ─────────────────────────────────────────
+//
+// Extracted into its own component so `useMemo` can stabilise the `value` prop.
+// Without this, `parse(inlineEditValue, ...)` creates a NEW Date object on every
+// parent render → MUI DatePicker sees `value` as changed → resets the calendar
+// view to the selected month, making month navigation snap back immediately.
+
+interface InlineDatePickerProps {
+  inlineEditValue: string;
+  isInlineSaving: boolean;
+  onClose: () => void;
+  onDateChange: (formatted: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}
+
+function InlineDatePicker({ inlineEditValue, isInlineSaving, onClose, onDateChange, onKeyDown }: InlineDatePickerProps) {
+  // Stable Date reference: only recreated when the date string actually changes
+  const dateValue = useMemo(
+    () => (inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null),
+    [inlineEditValue],
+  );
+
+  return (
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <DatePicker
+        open
+        onClose={onClose}
+        value={dateValue}
+        onChange={(newValue) => {
+          if (newValue) {
+            onDateChange(format(newValue, "yyyy-MM-dd"));
+          }
+        }}
+        disabled={isInlineSaving}
+        slotProps={{
+          textField: {
+            size: "small",
+            onKeyDown,
+            sx: { width: "100%" },
+            InputProps: { sx: { fontSize: 13 } },
+          },
+          popper: { placement: "bottom-start" },
+        }}
+      />
+    </LocalizationProvider>
+  );
+}
 
 const toTimeInputValue = (dateTime: string | null): string => {
   if (!dateTime) return "";
@@ -5693,37 +5747,17 @@ export function GamesTable() {
           >
             {isEditing ? (
               <Box sx={{ py: 1, width: "100%" }}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DatePicker
-                    open={isEditing}
-                    onClose={() => {
-                      console.log("📅 DatePicker closed");
-                      handleInlineBlur(game);
-                    }}
-                    value={inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null}
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        const formattedDate = format(newValue, "yyyy-MM-dd");
-                        console.log("📅 Date changed to:", formattedDate);
-                        // Store in ref immediately to avoid race condition with onClose
-                        latestDatePickerValueRef.current = formattedDate;
-                        handleInlineChange(formattedDate, game);
-                      }
-                    }}
-                    disabled={isInlineSaving}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        onKeyDown: (e: any) => handleInlineKeyDown(e, game),
-                        sx: { width: "100%" },
-                        InputProps: { sx: { fontSize: 13 } },
-                      },
-                      popper: {
-                        placement: "bottom-start",
-                      },
-                    }}
-                  />
-                </LocalizationProvider>
+                <InlineDatePicker
+                  inlineEditValue={inlineEditValue}
+                  isInlineSaving={isInlineSaving}
+                  onClose={() => handleInlineBlur(game)}
+                  onDateChange={(formatted) => {
+                    // Store in ref immediately to avoid race condition with onClose
+                    latestDatePickerValueRef.current = formatted;
+                    handleInlineChange(formatted, game);
+                  }}
+                  onKeyDown={(e) => handleInlineKeyDown(e as React.KeyboardEvent<HTMLInputElement>, game)}
+                />
               </Box>
             ) : (
               <Box
@@ -8132,7 +8166,9 @@ export function GamesTable() {
         onClose={() => setAvailableDatesModalOpen(false)}
         sport={newGameData.sport || undefined}
         level={newGameData.level || undefined}
+        workbookId={selectedWorkbookId}
         onDateSelect={handleDateSelect}
+        onGameCreated={() => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY })}
       />
 
       {/* Dismiss/Depart Modal for Bus Info/Travel columns */}

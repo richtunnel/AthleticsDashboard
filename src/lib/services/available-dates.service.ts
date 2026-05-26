@@ -1,34 +1,16 @@
 import canonicalSportsData from "../data/canonical-sports.json";
+import {
+  buildTeamPatterns,
+  genderInText,
+  levelInText,
+  sportInText,
+  deriveAbbreviationMap,
+} from "../availability/sportTokens";
 
-// Abbreviation map for prompt parsing
-const ABBREVIATION_MAP: Record<string, string[]> = {
-  // Genders
-  'b': ['boys'],
-  'g': ['girls'],
-  'coed': ['coed'],
-  
-  // Levels
-  'v': ['varsity'],
-  'var': ['varsity'],
-  'varsity': ['varsity'],
-  'jv': ['junior', 'varsity'],
-  'jr': ['junior', 'varsity'],
-  'junior': ['junior', 'varsity'],
-  'fs': ['frosh', 'soph'],
-  'frosh': ['freshmen'],
-  'freshman': ['freshmen'],
-  'freshmen': ['freshmen'],
-  
-  // Combined
-  'bv': ['boys', 'varsity'],
-  'gv': ['girls', 'varsity'],
-  
-  // Sports
-  'bb': ['basketball'],
-  'bball': ['basketball'],
-  'fb': ['football'],
-  'sb': ['softball'],
-};
+// Abbreviation map derived from the shared sportTokens tables.
+// Covers every known alias across all genders, levels, and sports — no need
+// to maintain this list by hand.  To add a new abbreviation, update sportTokens.ts.
+const ABBREVIATION_MAP: Record<string, string[]> = deriveAbbreviationMap();
 
 interface CanonicalTeam {
   sport: string;
@@ -50,6 +32,8 @@ interface GameRow {
   level?: string | null;
   gender?: string | null;
   team?: string | null;
+  /** Raw home-team display name, e.g. "Tigers Boys Varsity" — used for cross-field gender detection */
+  homeTeamName?: string | null;
   description?: string | null;
   title?: string | null;
   [key: string]: any;
@@ -442,13 +426,29 @@ export class AvailableDatesService {
     let hasSport = false;
     let hasGender = false;
     let hasLevel = false;
-    
+
     // Track which input tokens have been matched
     const matchedTokens = new Set<string>();
 
+    // ── Level completeness guard ────────────────────────────────────────────
+    // For multi-word levels (e.g. "Junior Varsity"), ALL canonical level tokens
+    // must appear in the user's tokens before any level-match credit is awarded.
+    //
+    // Without this, searching "varsity basketball" would match BOTH
+    // "Varsity" AND "Junior Varsity" (because "varsity" is a token of both),
+    // causing JV games to appear as conflicts when the AD searched for Varsity.
+    //
+    // With the guard:
+    //   tokens=["varsity","basketball"]  level="Varsity"        → allowed  ✓
+    //   tokens=["varsity","basketball"]  level="Junior Varsity" → blocked  ✓
+    //   tokens=["junior","varsity","basketball"] level="Junior Varsity" → allowed ✓
+    const levelCompletelyRepresented = levelTokens.every(lt =>
+      tokens.some(t => t === lt || lt.includes(t) || t.includes(lt))
+    );
+
     for (const token of tokens) {
       let tokenMatched = false;
-      
+
       // Exact match with sport
       if (sportTokens.some(s => s === token)) {
         score += 2;
@@ -476,17 +476,20 @@ export class AvailableDatesService {
         tokenMatched = true;
       }
 
-      // Exact match with level
-      if (levelTokens.some(l => l === token)) {
-        score += 2;
-        hasLevel = true;
-        tokenMatched = true;
-      } else if (levelTokens.some(l => l.includes(token) || token.includes(l))) {
-        score += 1;
-        hasLevel = true;
-        tokenMatched = true;
+      // Level matching — only when ALL level tokens are present in the user's query.
+      // This is the key guard that prevents "varsity" from matching "Junior Varsity".
+      if (levelCompletelyRepresented) {
+        if (levelTokens.some(l => l === token)) {
+          score += 2;
+          hasLevel = true;
+          tokenMatched = true;
+        } else if (levelTokens.some(l => l.includes(token) || token.includes(l))) {
+          score += 1;
+          hasLevel = true;
+          tokenMatched = true;
+        }
       }
-      
+
       if (tokenMatched) {
         matchedTokens.add(token);
       }
@@ -515,16 +518,12 @@ export class AvailableDatesService {
     const clusterDates = new Set<string>();
     let rowsWithoutDates = 0;
 
-    // Build exact team patterns to match (e.g., "Girls Varsity Basketball")
-    const teamPatterns = clusters.map(cluster => {
-      const patterns = [
-        `${cluster.gender} ${cluster.level} ${cluster.sport}`.toLowerCase(),
-        `${cluster.gender}${cluster.level}${cluster.sport}`.toLowerCase().replace(/\s+/g, ''),
-        `${cluster.gender.charAt(0)}${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "GV Basketball"
-        `${cluster.gender.charAt(0)} ${cluster.level.charAt(0)} ${cluster.sport}`.toLowerCase(), // "G V Basketball"
-      ];
-      return patterns;
-    });
+    // Build all phrase patterns for each cluster using the shared alias tables.
+    // Covers full forms ("Boys Varsity Basketball"), abbreviations ("BV Basketball",
+    // "B Var Bball"), and compact forms ("bv bb") — derived from sportTokens.ts.
+    const teamPatterns = clusters.map((cluster) =>
+      buildTeamPatterns(cluster.gender, cluster.level, cluster.sport)
+    );
 
     for (const row of gamesTable) {
       // Build searchable string from row - include all possible data fields
@@ -533,6 +532,7 @@ export class AvailableDatesService {
         row.level,
         row.gender,
         row.team,
+        row.homeTeamName, // raw team display name, e.g. "Tigers Boys Varsity"
         row.description,
         row.title,
         JSON.stringify(row),
@@ -558,6 +558,29 @@ export class AvailableDatesService {
           const sportMatch = (row.sport || "").toLowerCase() === cluster.sport.toLowerCase();
           const levelMatch = (row.level || "").toLowerCase() === cluster.level.toLowerCase();
           if (sportMatch && levelMatch) {
+            qualifies = true;
+            break;
+          }
+        }
+      }
+
+      // Tertiary: alias-aware cross-field token matching.
+      // Handles ADs whose schedule spreadsheets put gender in a team-name column
+      // (e.g. sport="Basketball", homeTeamName="Tigers Boys Varsity") rather than
+      // in a dedicated gender column.
+      //
+      // Uses sportTokens helpers so ALL known synonyms are recognised:
+      //   "male"/"men"/"b" → Boys,  "female"/"ladies"/"f" → Girls
+      //   "var"/"v" → Varsity,  "bball"/"bb" → Basketball, etc.
+      //
+      // Only qualifies when gender + sport + level ALL appear in the row.
+      if (!qualifies) {
+        for (const cluster of clusters) {
+          if (
+            genderInText(cluster.gender, searchableText) &&
+            sportInText(cluster.sport, searchableText)  &&
+            levelInText(cluster.level, searchableText)
+          ) {
             qualifies = true;
             break;
           }

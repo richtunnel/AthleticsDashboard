@@ -1,6 +1,15 @@
 import { AvailabilityQuery, ParseMethod } from "./types";
 import { resolveRelativeDates } from "./resolveRelativeDates";
 import { canonicalizeMonths, monthNameToIndex, monthIndexToName } from "./normalizeDates";
+import {
+  GENDER_ALIASES,
+  LEVEL_ALIASES,
+  COMPOUND_ABBREVIATIONS,
+  buildSportDetectionRules,
+} from "./sportTokens";
+
+// Build once at module load — no need to rebuild per call.
+const SPORT_DETECTION_RULES = buildSportDetectionRules();
 
 const MONTH_RE =
   /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi;
@@ -195,51 +204,54 @@ export function fallbackParse(
     lower.match(/(\d+)\s*day\s*minimum/i);
   const minSpacing = spacingMatch ? parseInt(spacingMatch[1], 10) : undefined;
 
-  // Stage 8: Team extraction
+  // Stage 8: Team extraction — derived from shared sportTokens alias tables.
+  // Adding a new sport/gender/level/abbreviation only requires updating sportTokens.ts.
   let detectedGender: string | undefined;
   let detectedLevel: string | undefined;
 
-  if (/\bbjv\b/i.test(lower)) { detectedGender = "Boys"; detectedLevel = "Junior Varsity"; }
-  else if (/\bgjv\b/i.test(lower)) { detectedGender = "Girls"; detectedLevel = "Junior Varsity"; }
-  else if (/\bbv\b/i.test(lower)) { detectedGender = "Boys"; detectedLevel = "Varsity"; }
-  else if (/\bgv\b/i.test(lower)) { detectedGender = "Girls"; detectedLevel = "Varsity"; }
-
-  if (!detectedGender) {
-    if (/\b(boys?|mens?|b)\b/i.test(lower)) detectedGender = "Boys";
-    else if (/\b(girls?|womens?|g)\b/i.test(lower)) detectedGender = "Girls";
-  }
-  if (!detectedLevel) {
-    if (/\bjunior\s+varsity\b/i.test(lower)) detectedLevel = "Junior Varsity";
-    else if (/\b(jv|j\.v\.)\b/i.test(lower)) detectedLevel = "Junior Varsity";
-    else if (/\b(varsity|var|v)\b/i.test(lower)) detectedLevel = "Varsity";
-    else if (/\b(frosh|freshman|freshmen|fs)\b/i.test(lower)) detectedLevel = "Freshmen";
-  }
-
-  let detectedSport: string | undefined;
-  if (/\bcross\s+country\b/i.test(lower)) detectedSport = "Cross Country";
-  else if (/\bfield\s+hockey\b/i.test(lower)) detectedSport = "Field Hockey";
-  else if (/\bwater\s+polo\b/i.test(lower)) detectedSport = "Water Polo";
-  else {
-    const SPORT_KW: [RegExp, string][] = [
-      [/\b(basketball|bball|bb)\b/i, "Basketball"],
-      [/\b(football|fb)\b/i, "Football"],
-      [/\bsoccer\b/i, "Soccer"],
-      [/\b(volleyball|vball|vb)\b/i, "Volleyball"],
-      [/\bbaseball\b/i, "Baseball"],
-      [/\b(softball|sb)\b/i, "Softball"],
-      [/\btennis\b/i, "Tennis"],
-      [/\bgolf\b/i, "Golf"],
-      [/\b(swimming|swim)\b/i, "Swimming"],
-      [/\btrack\b/i, "Track"],
-      [/\blacrosse\b/i, "Lacrosse"],
-      [/\bwrestling\b/i, "Wrestling"],
-      [/\bgymnastics\b/i, "Gymnastics"],
-      [/\bbadminton\b/i, "Badminton"],
-      [/\b(cheer(?:leading)?)\b/i, "Cheerleading"],
-    ];
-    for (const [re, name] of SPORT_KW) {
-      if (re.test(lower)) { detectedSport = name; break; }
+  // Compound abbreviations set BOTH gender and level simultaneously and must
+  // be checked before individual gender/level detection.
+  for (const [abbrev, [g, l]] of Object.entries(COMPOUND_ABBREVIATIONS)) {
+    if (new RegExp(`\\b${abbrev}\\b`, "i").test(lower)) {
+      detectedGender = g;
+      detectedLevel  = l;
+      break;
     }
+  }
+
+  // Individual gender detection (runs only if not already set by a compound abbrev).
+  // Iterates GENDER_ALIASES in insertion order; first match wins.
+  if (!detectedGender) {
+    for (const [canonical, aliases] of Object.entries(GENDER_ALIASES)) {
+      const pattern = new RegExp(
+        `\\b(${(aliases as string[]).map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+        "i"
+      );
+      if (pattern.test(lower)) { detectedGender = canonical; break; }
+    }
+  }
+
+  // Individual level detection.  LEVEL_ALIASES is ordered most-specific first
+  // (e.g. "Junior Varsity" before "Varsity") to prevent short aliases matching
+  // inside longer ones.
+  if (!detectedLevel) {
+    for (const [canonical, aliases] of Object.entries(LEVEL_ALIASES)) {
+      // Sort aliases longest-first within each level for the same reason.
+      const sorted = [...(aliases as string[])].sort((a, b) => b.length - a.length);
+      const pattern = new RegExp(
+        `\\b(${sorted.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
+        "i"
+      );
+      if (pattern.test(lower)) { detectedLevel = canonical; break; }
+    }
+  }
+
+  // Sport detection — SPORT_DETECTION_RULES is built once from SPORT_ALIASES at
+  // module load.  Multi-word sports ("Cross Country", "Field Hockey") are handled
+  // automatically because their aliases are sorted longest-first.
+  let detectedSport: string | undefined;
+  for (const [re, name] of SPORT_DETECTION_RULES) {
+    if (re.test(lower)) { detectedSport = name; break; }
   }
 
   const targetTeams =

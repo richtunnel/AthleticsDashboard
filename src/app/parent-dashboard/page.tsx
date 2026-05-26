@@ -174,8 +174,8 @@ interface ChildCardProps {
   approvedRequest: ApprovedRequestRef | null;
   calendarConnected: boolean;
   onRequest: (link: ParentLink) => void;
-  onCancel: (requestId: string) => void;
-  onUnsync: (requestId: string) => void;
+  onCancel: (linkId: string, requestId: string) => void;
+  onUnsync: (linkId: string, requestId: string) => void;
   requesting: boolean;
   cancelling: boolean;
   unsyncing: boolean;
@@ -404,7 +404,7 @@ function ChildCard({
                   variant="outlined"
                   color="warning"
                   disabled={cancelling}
-                  onClick={() => onCancel(pendingRequestId)}
+                  onClick={() => onCancel(link.id, pendingRequestId)}
                   sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
                 >
                   {cancelling ? "Cancelling…" : "Cancel Request"}
@@ -480,7 +480,7 @@ function ChildCard({
                     variant="outlined"
                     color="error"
                     disabled={unsyncing || isBusy}
-                    onClick={() => onUnsync(approvedRequest.id)}
+                    onClick={() => onUnsync(link.id, approvedRequest.id)}
                     sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
                   >
                     {unsyncing ? "Unsyncing…" : "Unsync"}
@@ -617,8 +617,8 @@ export default function ParentDashboardPage() {
     onSettled: () => setCancellingId(null),
   });
 
-  const handleCancel = (requestId: string) => {
-    setCancellingId(requestId);
+  const handleCancel = (linkId: string, requestId: string) => {
+    setCancellingId(linkId);
     cancelMutation.mutate(requestId);
   };
 
@@ -639,8 +639,8 @@ export default function ParentDashboardPage() {
     onSettled: () => setUnsyncingId(null),
   });
 
-  const handleUnsync = (requestId: string) => {
-    setUnsyncingId(requestId);
+  const handleUnsync = (linkId: string, requestId: string) => {
+    setUnsyncingId(linkId);
     unsyncMutation.mutate(requestId);
   };
 
@@ -1071,8 +1071,8 @@ export default function ParentDashboardPage() {
                 onCancel={handleCancel}
                 onUnsync={handleUnsync}
                 requesting={requestingId === link.id}
-                cancelling={cancellingId === pendingIdForLink(link)}
-                unsyncing={unsyncingId === approvedRefForLink(link)?.id}
+                cancelling={cancellingId === link.id}
+                unsyncing={unsyncingId === link.id}
                 onSnack={(msg, sev) => setSnack({ open: true, message: msg, severity: sev })}
               />
             </Grid>
