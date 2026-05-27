@@ -54,7 +54,7 @@ interface AvailableDatesModalProps {
   level?: string;
   workbookId?: string | null;
   onDateSelect?: (date: Date, sport?: string, level?: string) => void;
-  onGameCreated?: () => void;
+  onGameCreated?: (game: any) => void;
 }
 
 interface ClusterMatch {
@@ -515,8 +515,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         throw new Error(e.error || "Failed to create game");
       }
 
+      const createdData = await gameRes.json();
       setFormSuccess(true);
-      onGameCreated?.();
+      onGameCreated?.(createdData?.data ?? createdData);
 
       trackEvent("Available Dates - Game Created", {
         dateStr,

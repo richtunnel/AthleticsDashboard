@@ -8168,7 +8168,33 @@ export function GamesTable() {
         level={newGameData.level || undefined}
         workbookId={selectedWorkbookId}
         onDateSelect={handleDateSelect}
-        onGameCreated={() => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY })}
+        onGameCreated={(newGame) => {
+          if (newGame) {
+            // Optimistically insert the new row into the existing cache
+            queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
+              if (!oldData) return oldData;
+              if (Array.isArray(oldData)) {
+                return [...oldData, newGame];
+              } else if (oldData.data && Array.isArray(oldData.data.games)) {
+                return {
+                  ...oldData,
+                  data: {
+                    ...oldData.data,
+                    games: [...oldData.data.games, newGame],
+                    pagination: oldData.data.pagination
+                      ? { ...oldData.data.pagination, total: oldData.data.pagination.total + 1 }
+                      : oldData.data.pagination,
+                  },
+                };
+              }
+              return oldData;
+            });
+            // Pin the new row at the bottom (bypasses sort/filter removal)
+            setPreservedGameIds((prev) => new Set(prev).add(newGame.id));
+          }
+          // Server sync — ensures the row survives the next full refetch
+          refetch();
+        }}
       />
 
       {/* Dismiss/Depart Modal for Bus Info/Travel columns */}
