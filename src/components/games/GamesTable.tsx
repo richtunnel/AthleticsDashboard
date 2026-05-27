@@ -20,7 +20,7 @@ import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
 import { CostModal } from "./CostModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon, DoNotDisturbOn } from "@mui/icons-material";
+import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon, DoNotDisturbOn, ChevronLeft, ChevronRight, Settings as SettingsMenuIcon } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -575,6 +575,12 @@ export function GamesTable() {
 
   // Available Dates Modal state
   const [availableDatesModalOpen, setAvailableDatesModalOpen] = useState(false);
+  // Toolbar menu visibility — persists in localStorage
+  const [toolbarMenuVisible, setToolbarMenuVisible] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("gamesTableToolbarVisible");
+    return stored === null ? true : stored !== "false";
+  });
   // Plan limits state
   const [planLimits, setPlanLimits] = useState<{ worksheetLimit: number } | null>(null);
 
@@ -3145,6 +3151,13 @@ export function GamesTable() {
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
+  };
+
+  const toggleToolbarMenu = (visible: boolean) => {
+    setToolbarMenuVisible(visible);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gamesTableToolbarVisible", String(visible));
+    }
   };
 
   const handleFindAvailableDates = () => {
@@ -7261,7 +7274,32 @@ export function GamesTable() {
                 )}
               </Typography>
 
-              {!showWorkbookSelector && (
+              {!showWorkbookSelector && !toolbarMenuVisible && (
+                <Tooltip title="Show menu">
+                  <Box
+                    onClick={() => toggleToolbarMenu(true)}
+                    sx={{
+                      mt: 2,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      cursor: "pointer",
+                      color: "text.disabled",
+                      opacity: 0.45,
+                      userSelect: "none",
+                      "&:hover": { opacity: 0.85 },
+                      transition: "opacity 0.18s ease",
+                    }}
+                  >
+                    <SettingsMenuIcon sx={{ fontSize: 15 }} />
+                    <Typography variant="caption" sx={{ lineHeight: 1, fontSize: "0.72rem" }}>
+                      Show menu
+                    </Typography>
+                    <ChevronRight sx={{ fontSize: 16 }} />
+                  </Box>
+                </Tooltip>
+              )}
+              {!showWorkbookSelector && toolbarMenuVisible && (
                 <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
                   {selectedGames.size > 0 && games.length > 0 && (
                     <Button
@@ -7488,6 +7526,24 @@ export function GamesTable() {
                       {hiddenColumnCount} hidden
                     </Button>
                   )}
+
+                  {/* Hide menu toggle — subtle arrow at the far end */}
+                  <Tooltip title="Hide menu">
+                    <IconButton
+                      size="small"
+                      onClick={() => toggleToolbarMenu(false)}
+                      sx={{
+                        color: "text.disabled",
+                        opacity: 0.35,
+                        "&:hover": { opacity: 0.75, bgcolor: "transparent" },
+                        transition: "opacity 0.18s ease",
+                        ml: 0.5,
+                      }}
+                      disableRipple
+                    >
+                      <ChevronLeft fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               )}
             </Box>
@@ -8166,6 +8222,7 @@ export function GamesTable() {
         onClose={() => setAvailableDatesModalOpen(false)}
         sport={newGameData.sport || undefined}
         level={newGameData.level || undefined}
+        homeTeamId={newGameData.homeTeamId || undefined}
         workbookId={selectedWorkbookId}
         onDateSelect={handleDateSelect}
         onGameCreated={(newGame) => {

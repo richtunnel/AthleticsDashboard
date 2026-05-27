@@ -846,9 +846,18 @@ export class CalendarService {
     organizationId: string,
     sportName: string,
     sportLevel: string,
-    targetGoogleCalendarId: string
+    targetGoogleCalendarId: string,
+    /** GamesWorkbook ID set by the AD when approving the sync request. When
+     *  provided, the query is scoped to that workbook — much faster and more
+     *  accurate than a broad org-level scan. */
+    workbookId?: string | null,
+    /** Normalised gender (boys | girls | mixed) set by the AD on approval. */
+    explicitGender?: string | null
   ) {
-    const GAME_LIMIT = 15;
+    // Cap per-rescan: generous enough to catch any real school schedule (200
+    // games per sport is well above any real-world season) while preventing
+    // runaway reads on orgs with huge datasets.
+    const GAME_LIMIT = 200;
     // Process up to 5 games concurrently — safe under 100 simultaneous callers
     // because each batch hits the DB once and Google Calendar once per game.
     const CONCURRENCY = 5;
@@ -866,46 +875,84 @@ export class CalendarService {
     } as const;
 
     // ── Strategy 1: normalized DB relations (fast, index-backed) ──
-    // Only future games, sorted soonest-first, hard-capped at GAME_LIMIT.
+    // Prefer the workbookId scope when available — it hits a single index and
+    // avoids scanning every team row in the org.
     const levelParts = sportLevel.split(" ");
     const baseLevel     = levelParts[0];
-    const encodedGender = levelParts.length > 1 ? levelParts[1] : null;
+    const encodedGender = levelParts.length > 1 ? levelParts[1] : (explicitGender ?? null);
 
-    const homeTeamWhere: any = {
-      organizationId,
-      sport: { name: { equals: sportName, mode: "insensitive" } },
-      level: { equals: baseLevel, mode: "insensitive" },
-    };
-    if (encodedGender) {
-      homeTeamWhere.gender = { equals: encodedGender, mode: "insensitive" };
+    let games: any[] = [];
+
+    if (workbookId) {
+      // Fast path: workbook-scoped query + in-JS sport/level filter.
+      // `workbookId` is indexed on the Game table so this is a single index
+      // lookup — no joins needed for the initial fetch.
+      const workbookGames = await prisma.game.findMany({
+        where: { workbookId, date: { gte: now } },
+        orderBy: { date: "asc" },
+        take: GAME_LIMIT,
+        include: gameInclude,
+      });
+      // Filter by sport+level using the same fuzzy matcher used elsewhere
+      games = workbookGames.filter((g) =>
+        this.gameMatchesLeague(g, sportName, sportLevel, explicitGender)
+      );
+      console.log(
+        `[CalendarSync] Workbook-scoped scan (id=${workbookId}) matched ${games.length} future game(s) for "${sportName} ${sportLevel}"`
+      );
+    } else {
+      // No workbook hint — fall back to team-relation Strategy 1
+      const homeTeamWhere: any = {
+        organizationId,
+        sport: { name: { equals: sportName, mode: "insensitive" } },
+        level: { equals: baseLevel, mode: "insensitive" },
+      };
+      if (encodedGender) {
+        homeTeamWhere.gender = { equals: encodedGender, mode: "insensitive" };
+      }
+
+      games = await prisma.game.findMany({
+        where: { homeTeam: homeTeamWhere, date: { gte: now } },
+        orderBy: { date: "asc" },
+        take: GAME_LIMIT,
+        include: gameInclude,
+      });
     }
-
-    let games = await prisma.game.findMany({
-      where: { homeTeam: homeTeamWhere, date: { gte: now } },
-      orderBy: { date: "asc" },
-      take: GAME_LIMIT,
-      include: gameInclude,
-    });
 
     // ── Strategy 2: scan customFields columns (spreadsheet imports) ──
     // ADs upload CSV files where sport/level may live in any column with any
-    // header name. We load all future org games and scan every cell value in
-    // each row for sport + level tokens — order-independent similarity match.
+    // header name. Use a two-step approach: fetch only IDs + customFields
+    // first (tiny payload), filter in JS, then fetch full includes only for
+    // the matched subset — avoids loading thousands of joined rows.
     if (games.length === 0) {
       console.log(
-        `[CalendarSync] DB relations found 0 future games for "${sportName} ${sportLevel}" — ` +
+        `[CalendarSync] Strategy 1 found 0 future games for "${sportName} ${sportLevel}" — ` +
           `scanning spreadsheet columns`
       );
 
-      const futurOrgGames = await prisma.game.findMany({
-        where: { homeTeam: { organizationId }, date: { gte: now } },
+      // Step 1: lightweight fetch — IDs + customFields only
+      const candidates = await prisma.game.findMany({
+        where: workbookId
+          ? { workbookId, date: { gte: now } }
+          : { homeTeam: { organizationId }, date: { gte: now } },
         orderBy: { date: "asc" },
-        include: gameInclude,
+        select: { id: true, customFields: true },
+        take: 1_000, // safety ceiling; real schedules are <200 games/sport
       });
 
-      games = futurOrgGames
-        .filter((g) => this.gameMatchesLeague(g, sportName, sportLevel))
+      const matchedIds = candidates
+        .filter((g) => this.gameMatchesLeague(g as any, sportName, sportLevel, explicitGender))
+        .map((g) => g.id)
         .slice(0, GAME_LIMIT);
+
+      if (matchedIds.length > 0) {
+        // Step 2: fetch full data only for the matched games
+        games = await prisma.game.findMany({
+          where: { id: { in: matchedIds } },
+          orderBy: { date: "asc" },
+          include: gameInclude,
+        });
+      }
 
       console.log(
         `[CalendarSync] Column scan matched ${games.length} future game(s) for "${sportName} ${sportLevel}"`

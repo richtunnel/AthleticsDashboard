@@ -45,6 +45,7 @@ import { formatOrgName } from "@/lib/utils/format";
 import { useJobStatus } from "@/hooks/useJobStatus";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -561,6 +562,7 @@ function ChildCard({
 
 export default function ParentDashboardPage() {
   const queryClient = useQueryClient();
+  const { addNotification } = useNotifications();
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack>(CLOSED_SNACK);
@@ -582,14 +584,13 @@ export default function ParentDashboardPage() {
     mutationFn: postSyncRequest,
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      setSnack({
-        open: true,
-        message: `Re-sync request sent for ${vars.sportName}. The athletic director will review it shortly.`,
-        severity: "success",
-      });
+      const msg = `Sync request sent for ${vars.sportName}. The athletic director will review it shortly.`;
+      setSnack({ open: true, message: msg, severity: "success" });
+      addNotification(msg, "success");
     },
     onError: (err: Error) => {
       setSnack({ open: true, message: err.message, severity: "error" });
+      addNotification(err.message, "error");
     },
     onSettled: () => setRequestingId(null),
   });
@@ -615,14 +616,13 @@ export default function ParentDashboardPage() {
     mutationFn: deleteSyncRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      setSnack({
-        open: true,
-        message: "Pending request cancelled. You can now send a fresh one.",
-        severity: "success",
-      });
+      const msg = "Pending request cancelled. You can now send a fresh one.";
+      setSnack({ open: true, message: msg, severity: "success" });
+      addNotification(msg, "info");
     },
     onError: (err: Error) => {
       setSnack({ open: true, message: err.message, severity: "error" });
+      addNotification(err.message, "error");
     },
     onSettled: () => setCancellingId(null),
   });
@@ -637,14 +637,13 @@ export default function ParentDashboardPage() {
     mutationFn: deleteSyncRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      setSnack({
-        open: true,
-        message: "Unsynced. You can request a new sync any time from this card.",
-        severity: "success",
-      });
+      const msg = "Unsynced. You can request a new sync any time from this card.";
+      setSnack({ open: true, message: msg, severity: "success" });
+      addNotification(msg, "info");
     },
     onError: (err: Error) => {
       setSnack({ open: true, message: err.message, severity: "error" });
+      addNotification(err.message, "error");
     },
     onSettled: () => setUnsyncingId(null),
   });
@@ -686,14 +685,13 @@ export default function ParentDashboardPage() {
     }
 
     setScheduleSyncing(false);
-    setSnack({
-      open: true,
-      message:
-        triggered > 0
-          ? `Sync started for ${triggered} sport${triggered > 1 ? "s" : ""}. Your calendar will update shortly.`
-          : "Couldn't start sync. Check your calendar connection in Settings.",
-      severity: triggered > 0 ? "success" : "error",
-    });
+    const syncMsg =
+      triggered > 0
+        ? `Sync started for ${triggered} sport${triggered > 1 ? "s" : ""}. Your calendar will update shortly.`
+        : "Couldn't start sync. Check your calendar connection in Settings.";
+    const syncSeverity = triggered > 0 ? "success" : "error";
+    setSnack({ open: true, message: syncMsg, severity: syncSeverity });
+    addNotification(syncMsg, syncSeverity);
     queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
   };
 
@@ -1144,7 +1142,10 @@ export default function ParentDashboardPage() {
                 requesting={requestingId === link.id}
                 cancelling={cancellingId === link.id}
                 unsyncing={unsyncingId === link.id}
-                onSnack={(msg, sev) => setSnack({ open: true, message: msg, severity: sev })}
+                onSnack={(msg, sev) => {
+                  setSnack({ open: true, message: msg, severity: sev });
+                  addNotification(msg, sev === "success" || sev === "error" || sev === "warning" ? sev : "info");
+                }}
               />
             </Grid>
           ))}

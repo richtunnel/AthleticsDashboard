@@ -120,6 +120,8 @@ export async function POST(
           sportName: syncRequest.sportName,
           sportLevel: syncRequest.sportLevel,
           googleCalendarId,
+          workbookId: syncRequest.workbookId ?? null,
+          gender: syncRequest.gender ?? null,
         },
       },
     });
@@ -138,6 +140,8 @@ export async function POST(
           sportName: syncRequest.sportName,
           sportLevel: syncRequest.sportLevel,
           googleCalendarId,
+          workbookId: syncRequest.workbookId ?? null,
+          gender: syncRequest.gender ?? null,
         },
         {
           // Make BullMQ dedupe within the same minute as belt-and-suspenders

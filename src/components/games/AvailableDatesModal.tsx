@@ -52,6 +52,9 @@ interface AvailableDatesModalProps {
   onClose: () => void;
   sport?: string;
   level?: string;
+  /** Already-resolved homeTeamId from the parent table. When provided the form
+   *  skips the client-side team lookup entirely and uses this value directly. */
+  homeTeamId?: string;
   workbookId?: string | null;
   onDateSelect?: (date: Date, sport?: string, level?: string) => void;
   onGameCreated?: (game: any) => void;
@@ -175,6 +178,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   onClose,
   sport,
   level,
+  homeTeamId: homeTeamIdProp,
   workbookId,
   onDateSelect,
   onGameCreated,
@@ -363,7 +367,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     setFieldValues((prev) => ({ ...prev, [col]: value }));
   };
 
-  /** Submit the Add Date form — resolves team then creates the game */
+  /** Submit the Add Date form — resolves team then POSTs to /api/games */
   const handleFormSubmit = async () => {
     if (!addDateCtx) return;
     setFormSubmitting(true);
@@ -372,81 +376,60 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     try {
       const { dateStr, sport: sportName, level: levelName } = addDateCtx;
 
-      // ── 1. Resolve homeTeamId ──────────────────────────────────────────
-      // Normalise level aliases so "JV" matches "Junior Varsity" and vice versa,
-      // while "Varsity" never accidentally matches "Junior Varsity".
-      const normLevel = (l: string): string => {
-        const s = l.toLowerCase().trim();
-        if (s === "jv" || s === "j.v." || s === "junior var" || s === "jr varsity") return "junior varsity";
-        if (s === "v" || s === "var") return "varsity";
-        return s;
-      };
+      // ── 1. homeTeamId ─────────────────────────────────────────────────
+      // Fast path: the parent table passes down the already-resolved team ID.
+      // When that isn't available we do a single GET /api/teams lookup.
+      // We never create teams/sports here — that would produce wrong data.
+      let resolvedHomeTeamId: string | null = homeTeamIdProp || null;
 
-      let homeTeamId: string | null = null;
-      const teamsRes = await fetch("/api/teams");
-      if (teamsRes.ok) {
-        const teamsData = await teamsRes.json();
-        const targetSport = sportName.toLowerCase();
-        const targetLevel = normLevel(levelName);
-        const existingTeam = (teamsData.data || teamsData || []).find((t: any) => {
-          // Flexible sport match: "Basketball" ↔ "Boys Basketball", exact or containment
-          const tSport = (t.sport?.name || "").toLowerCase();
-          const sportMatches =
-            tSport === targetSport ||
-            tSport.includes(targetSport) ||
-            targetSport.includes(tSport);
-          // Normalised exact level match: "JV" ↔ "Junior Varsity", "Varsity" ≠ "Junior Varsity"
-          const levelMatches = normLevel(t.level || "") === targetLevel;
-          return sportMatches && levelMatches;
-        });
-        if (existingTeam) homeTeamId = existingTeam.id;
+      if (!resolvedHomeTeamId) {
+        if (!sportName || !levelName) {
+          throw new Error(
+            "Sport and level are required. Select a sport in the Game Center row first, then use Find Dates."
+          );
+        }
+
+        const normLevel = (l: string): string => {
+          const s = l.toLowerCase().trim();
+          if (["jv", "j.v.", "junior var", "jr varsity"].includes(s)) return "junior varsity";
+          if (["v", "var"].includes(s)) return "varsity";
+          return s;
+        };
+
+        const teamsRes = await fetch("/api/teams");
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          const targetSport = sportName.toLowerCase();
+          const targetLevel = normLevel(levelName);
+          const match = (teamsData.data || teamsData || []).find((t: any) => {
+            const tSport = (t.sport?.name || "").toLowerCase();
+            const sportMatches =
+              tSport === targetSport ||
+              tSport.includes(targetSport) ||
+              targetSport.includes(tSport);
+            const levelMatches = normLevel(t.level || "") === targetLevel;
+            return sportMatches && levelMatches;
+          });
+          if (match) resolvedHomeTeamId = match.id;
+        }
+
+        if (!resolvedHomeTeamId) {
+          throw new Error(
+            `No team found for "${sportName} – ${levelName}". ` +
+              "Create a game from the main form first to register that team, then try again."
+          );
+        }
       }
 
-      if (!homeTeamId) {
-        // Create sport
-        let sportId: string | null = null;
-        const sportRes = await fetch("/api/sports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: sportName, season: "FALL" }),
-        });
-        if (sportRes.ok) {
-          const sd = await sportRes.json();
-          sportId = sd.data?.id || sd.id;
-        } else {
-          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(sportName)}`);
-          if (existingSportRes.ok) {
-            const sd = await existingSportRes.json();
-            sportId = sd.data?.id || sd.id;
-          }
-        }
-        if (!sportId) throw new Error(`Could not find or create sport: ${sportName}`);
-
-        // Create team
-        const teamRes = await fetch("/api/teams", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: `${sportName} ${levelName}`, sportId, level: levelName }),
-        });
-        if (!teamRes.ok) {
-          const e = await teamRes.json();
-          throw new Error(e.error || "Failed to create team");
-        }
-        const td = await teamRes.json();
-        homeTeamId = td.data?.id || td.id;
-      }
-
-      if (!homeTeamId) throw new Error("Could not resolve team");
-
-      // ── 2. Resolve opponentId ──────────────────────────────────────────
+      // ── 2. opponentId (optional) ──────────────────────────────────────
       let opponentId: string | null = null;
-      const opponentName = fieldValues["opponent"]?.trim() || fieldValues["Opponent"]?.trim() || "";
+      const opponentName = (fieldValues["opponent"] || "").trim();
       if (opponentName) {
         const oppRes = await fetch("/api/opponents");
         if (oppRes.ok) {
           const oppData = await oppRes.json();
           const existing = (oppData.data || oppData || []).find(
-            (o: any) => o.name.toLowerCase() === opponentName.toLowerCase(),
+            (o: any) => o.name.toLowerCase() === opponentName.toLowerCase()
           );
           if (existing) {
             opponentId = existing.id;
@@ -464,8 +447,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         }
       }
 
-      // ── 3. Build game payload ──────────────────────────────────────────
-      // Walk through every field value and map to standard game fields or customFields
+      // ── 3. Map fieldValues → game fields ─────────────────────────────
       const customFields: Record<string, string> = {};
       let time: string | null = null;
       let location: string | null = null;
@@ -481,33 +463,29 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         if (stdField === "notes") { notes = val.trim(); continue; }
         if (stdField === "status") { status = val.trim(); continue; }
         if (stdField === "isHome") { isHome = val !== "away"; continue; }
-        if (stdField === "opponent") continue; // already handled above
-        // Unknown / custom worksheet column
+        if (stdField === "opponent") continue; // handled above
         if (!STANDARD_FIELD_KEYS.has(normalizeColName(col))) {
           customFields[col] = val.trim();
         }
       }
 
-      const gameData = {
-        date: dateStrToUTC(dateStr),
-        time,
-        homeTeamId,
-        isHome,
-        opponentId,
-        status,
-        location,
-        notes,
-        customData: {},
-        customFields,
-        workbookId: workbookId || null,
-      };
-
-      // POST the flat game object — the API reads top-level fields directly
-      // from the request body (body.homeTeamId, body.date, etc.).
+      // ── 4. POST to /api/games ─────────────────────────────────────────
       const gameRes = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(gameData),
+        body: JSON.stringify({
+          date: dateStrToUTC(dateStr),
+          time,
+          homeTeamId: resolvedHomeTeamId,
+          isHome,
+          opponentId,
+          status,
+          location,
+          notes,
+          customData: {},
+          customFields,
+          workbookId: workbookId || null,
+        }),
       });
 
       if (!gameRes.ok) {
@@ -526,7 +504,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         source: "find_dates_modal",
       });
 
-      // Return to search results after a short success flash
       setTimeout(() => {
         setView("search");
         setFormSuccess(false);

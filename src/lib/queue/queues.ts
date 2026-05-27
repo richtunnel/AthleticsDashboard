@@ -77,6 +77,17 @@ export interface ParentCalendarSyncPayload {
   sportName: string;
   sportLevel: string;
   googleCalendarId: string;
+  /**
+   * GamesWorkbook ID the AD scoped this request to.
+   * When set, the worker queries by workbookId instead of a broad org scan —
+   * much faster and avoids cross-sport false positives.
+   */
+  workbookId?: string | null;
+  /**
+   * Normalised gender (boys | girls | mixed) set by the AD on approval.
+   * Passed to syncGamesForSportLevel to tighten the team-match filter.
+   */
+  gender?: string | null;
 }
 
 // ── Game import payload ───────────────────────────────────────────────────────
