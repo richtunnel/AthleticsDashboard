@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
@@ -36,6 +36,7 @@ import {
   Info,
   SyncLock,
   Warning,
+  LinkOff,
 } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme as customTheme } from "@mui/material/styles";
@@ -243,6 +244,71 @@ export function CalendarGroupMappings({
       addNotification(error.message || "Failed to delete mapping", "error");
     },
   });
+
+  // Bulk-disconnect every mapping that routes to a given Google Calendar.
+  // Useful when an AD/parent connected a shared calendar (e.g. another
+  // gmail account they have access to) and wants to stop routing games
+  // there without hunting down each mapping row individually.
+  const disconnectCalendarMutation = useMutation({
+    mutationFn: async (calendarId: string) => {
+      const res = await fetch(
+        `/api/calendar/group-mappings?calendarId=${encodeURIComponent(calendarId)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to disconnect calendar");
+      }
+      return res.json() as Promise<{ success: true; deleted: number }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
+      addNotification(
+        `Disconnected calendar — removed ${data.deleted} mapping${data.deleted === 1 ? "" : "s"}.`,
+        "success"
+      );
+    },
+    onError: (error: Error) => {
+      addNotification(error.message || "Failed to disconnect calendar", "error");
+    },
+  });
+
+  // ── Derived: distinct calendars currently used in mappings ───────────────
+  //
+  // The Google OAuth grant gives access to every calendar the user is subscribed
+  // to — including secondary accounts they've added in their Google Calendar UI
+  // (a shared "visualembassy@gmail.com" calendar, "Holidays in US", etc.). The
+  // user might pick any of those when creating a mapping, so we surface the
+  // distinct destinations actually in use so they can be disconnected one-by-one
+  // without combing through every mapping row.
+  const connectedCalendarsInUse = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; count: number; isPrimary: boolean }
+    >();
+    for (const m of mappingsData?.mappings ?? []) {
+      const existing = map.get(m.googleCalendarId);
+      if (existing) {
+        existing.count++;
+      } else {
+        const isPrimary =
+          (calendarsData?.calendars ?? []).find(
+            (c) => c.id === m.googleCalendarId
+          )?.primary ?? false;
+        map.set(m.googleCalendarId, {
+          id: m.googleCalendarId,
+          name: m.googleCalendarName,
+          count: 1,
+          isPrimary,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      // Primary first, then alphabetical by name
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [mappingsData?.mappings, calendarsData?.calendars]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -454,6 +520,109 @@ export function CalendarGroupMappings({
             with no matching mapping fall back to your primary calendar.
           </Typography>
         </Alert>
+      )}
+
+      {/* Connected calendars in use — derived from current mappings */}
+      {connectedCalendarsInUse.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Connected Calendars
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+            Calendars (and the Google accounts that own them) currently receiving
+            games from your mappings. Disconnect to stop routing games to a
+            calendar — every mapping pointing to it will be removed.
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {connectedCalendarsInUse.map((cal) => {
+              const pending =
+                disconnectCalendarMutation.isPending &&
+                (disconnectCalendarMutation.variables as string) === cal.id;
+              return (
+                <Box
+                  key={cal.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    p: 1,
+                    borderRadius: 1,
+                    bgcolor: "action.hover",
+                  }}
+                >
+                  <SyncLock sx={{ fontSize: 18, color: "success.main", flexShrink: 0 }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                        {cal.name}
+                      </Typography>
+                      {cal.isPrimary && (
+                        <Chip
+                          label="Primary"
+                          size="small"
+                          color="primary"
+                          sx={{ height: 18, fontSize: "0.65rem" }}
+                        />
+                      )}
+                      <Chip
+                        label={`${cal.count} mapping${cal.count === 1 ? "" : "s"}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: "0.65rem" }}
+                      />
+                    </Box>
+                    {/* Calendar IDs are often emails for shared calendars — surface that */}
+                    {cal.id !== cal.name && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontFamily: "monospace", display: "block", mt: 0.25 }}
+                        noWrap
+                      >
+                        {cal.id}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Tooltip
+                    title={
+                      cal.isPrimary
+                        ? "This is your primary Google Calendar — disconnecting only removes its mappings, not the calendar itself."
+                        : "Remove every mapping that routes to this calendar"
+                    }
+                  >
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={
+                          pending ? (
+                            <CircularProgress size={12} color="inherit" />
+                          ) : (
+                            <LinkOff sx={{ fontSize: 14 }} />
+                          )
+                        }
+                        disabled={disconnectCalendarMutation.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Disconnect "${cal.name}"? This will remove ${cal.count} mapping${cal.count === 1 ? "" : "s"} that route games to this calendar.`
+                            )
+                          ) {
+                            disconnectCalendarMutation.mutate(cal.id);
+                          }
+                        }}
+                        sx={{ fontSize: "0.7rem", py: 0.4, px: 1, flexShrink: 0 }}
+                      >
+                        {pending ? "Disconnecting…" : "Disconnect"}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Box>
+              );
+            })}
+          </Box>
+        </Paper>
       )}
 
       {/* Mappings table */}
