@@ -104,6 +104,22 @@ export async function POST(
       });
     }
 
+    // ── Persist the chosen calendar on the CalendarSyncRequest IMMEDIATELY ─
+    // The worker also does this on completion, but persisting up front means
+    // a follow-up "Update Sync" click (before the first job finishes) won't
+    // re-prompt the parent to pick a calendar. Only write when the value
+    // actually changed to avoid no-op updates.
+    if (syncRequest.googleCalendarId !== googleCalendarId) {
+      await prisma.calendarSyncRequest
+        .update({
+          where: { id: syncRequest.id },
+          data: { googleCalendarId },
+        })
+        .catch((err) => {
+          console.error("[parent-sync] failed to persist googleCalendarId early:", err);
+        });
+    }
+
     // ── Create the BackgroundJob row (canonical record) ───────────────────
     const backgroundJob = await prisma.backgroundJob.create({
       data: {

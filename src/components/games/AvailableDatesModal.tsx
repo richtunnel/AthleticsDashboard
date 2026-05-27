@@ -56,8 +56,21 @@ interface AvailableDatesModalProps {
    *  skips the client-side team lookup entirely and uses this value directly. */
   homeTeamId?: string;
   workbookId?: string | null;
+  /** Display name of the active worksheet — shown in the Add form's context row
+   *  so the user can verify which worksheet they're writing into. */
+  workbookName?: string | null;
   onDateSelect?: (date: Date, sport?: string, level?: string) => void;
   onGameCreated?: (game: any) => void;
+  /**
+   * Optional parent-owned submit hook. When provided, the modal hands the
+   * fully-built gameData to the parent and lets the parent's existing
+   * createGameMutation handle the POST + cache insertion. This guarantees the
+   * new row uses the SAME code path as CSV-imported games (which already
+   * appear correctly), instead of the modal duplicating that logic.
+   *
+   * Must return the created game row (or null on failure).
+   */
+  onSubmitGameData?: (gameData: any) => Promise<any>;
 }
 
 interface ClusterMatch {
@@ -180,8 +193,10 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   level,
   homeTeamId: homeTeamIdProp,
   workbookId,
+  workbookName,
   onDateSelect,
   onGameCreated,
+  onSubmitGameData,
 }) => {
   // ── Search view state ────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState("");
@@ -409,6 +424,18 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     try {
       const { dateStr, sport: sportName, level: levelName } = addDateCtx;
 
+      // ── 0. workbookId guard ───────────────────────────────────────────
+      // The GamesTable query filters by workbookId — a row created without
+      // one (or against the wrong worksheet) would never appear in the active
+      // view. Snapshot the prop at submit time so a worksheet switch mid-flow
+      // can't redirect the write to a different worksheet.
+      const targetWorkbookId = workbookId || null;
+      if (!targetWorkbookId) {
+        throw new Error(
+          "No worksheet is currently selected. Open the worksheet you want to add this game to, then try again."
+        );
+      }
+
       // ── 1. homeTeamId ─────────────────────────────────────────────────
       // Fast path: the parent table passes down the already-resolved team ID.
       // When that isn't available we do a single GET /api/teams lookup.
@@ -516,37 +543,48 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         }
       }
 
-      // ── 4. POST to /api/games ─────────────────────────────────────────
-      const gameRes = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: dateStrToUTC(dateStr),
-          time,
-          homeTeamId: resolvedHomeTeamId,
-          isHome,
-          opponentId,
-          status,
-          location,
-          notes,
-          customData,
-          customFields,
-          workbookId: workbookId || null,
-        }),
-      });
+      // ── 4. Build gameData payload ─────────────────────────────────────
+      const gameData = {
+        date: dateStrToUTC(dateStr),
+        time,
+        homeTeamId: resolvedHomeTeamId,
+        isHome,
+        opponentId,
+        status,
+        location,
+        notes,
+        customData,
+        customFields,
+        // Pinned to the worksheet that was active when the user clicked Submit.
+        workbookId: targetWorkbookId,
+      };
 
-      if (!gameRes.ok) {
-        const e = await gameRes.json();
-        throw new Error(e.error || "Failed to create game");
+      // ── 5. Submit via parent's mutation (preferred) or direct POST ────
+      //
+      // The parent (GamesTable) supplies `onSubmitGameData` so the same
+      // createGameMutation that handles CSV imports also handles this. That
+      // mutation already does the optimistic cache insert + preservedGameIds
+      // bookkeeping correctly — duplicating it here led to rows that never
+      // appeared. If no parent hook is wired up we fall back to a direct
+      // POST so the modal still works in isolation.
+      let createdGame: any = null;
+      if (onSubmitGameData) {
+        createdGame = await onSubmitGameData(gameData);
+      } else {
+        const gameRes = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gameData),
+        });
+        if (!gameRes.ok) {
+          const e = await gameRes.json();
+          throw new Error(e.error || "Failed to create game");
+        }
+        const createdData = await gameRes.json();
+        createdGame = createdData?.data ?? createdData;
       }
 
-      const createdData = await gameRes.json();
-      const createdGame = createdData?.data ?? createdData;
-
-      // Guard: confirm the API actually returned a game row before we treat
-      // this as a success. Without an id, the row didn't land in the DB and
-      // we shouldn't tell the parent table to insert it (or strip the date
-      // from the available list).
+      // Guard: confirm a real game row came back before declaring success.
       if (!createdGame?.id) {
         throw new Error("Game was not created. Please try again.");
       }
@@ -1094,7 +1132,31 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                       {addDateCtx?.level || "—"}
                     </Typography>
                   </Box>
+                  {(workbookName || workbookId) && (
+                    <>
+                      <Divider orientation="vertical" flexItem />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.25 }}>
+                          Worksheet
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {workbookName || "—"}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
                 </Box>
+
+                {!workbookId && (
+                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      No worksheet selected
+                    </Typography>
+                    <Typography variant="body2">
+                      Open the worksheet you want to add this game to before submitting — the new row needs a worksheet to appear in the table.
+                    </Typography>
+                  </Alert>
+                )}
 
                 {/* Standard game fields */}
                 <Box

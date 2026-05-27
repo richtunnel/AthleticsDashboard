@@ -120,12 +120,6 @@ interface ApprovedRequestRef {
   googleCalendarId: string | null;
 }
 
-interface GoogleCalendarOption {
-  id: string;
-  name: string;
-  primary: boolean;
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function fetchParentOverview(): Promise<ParentOverviewData> {
@@ -184,10 +178,8 @@ interface ChildCardProps {
   approvedRequest: ApprovedRequestRef | null;
   calendarConnected: boolean;
   onRequest: (link: ParentLink) => void;
-  onCancel: (linkId: string, requestId: string) => void;
   onUnsync: (linkId: string, requestId: string) => void;
   requesting: boolean;
-  cancelling: boolean;
   unsyncing: boolean;
   onSnack: (msg: string, severity: AlertColor) => void;
 }
@@ -198,21 +190,13 @@ function ChildCard({
   approvedRequest,
   calendarConnected,
   onRequest,
-  onCancel,
   onUnsync,
   requesting,
-  cancelling,
   unsyncing,
   onSnack,
 }: ChildCardProps) {
   const queryClient = useQueryClient();
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  // Calendar picker state — shown when an approved request has no target calendar yet
-  const [calPickerOpen, setCalPickerOpen] = useState(false);
-  const [calPickerCalendars, setCalPickerCalendars] = useState<GoogleCalendarOption[]>([]);
-  const [calPickerLoading, setCalPickerLoading] = useState(false);
-  const [calPickerSelected, setCalPickerSelected] = useState("");
-  const [calPickerSyncing, setCalPickerSyncing] = useState(false);
 
   const { snapshot } = useJobStatus(activeJobId);
   const isBusy = snapshot?.status === "PENDING" || snapshot?.status === "PROCESSING";
@@ -224,92 +208,35 @@ function ChildCard({
     }
   }, [snapshot?.status, queryClient]);
 
-  /** Open the inline calendar picker and fetch the parent's Google Calendars. */
-  const openCalendarPicker = useCallback(async () => {
-    setCalPickerOpen(true);
-    setCalPickerLoading(true);
-    setCalPickerSelected("");
-    try {
-      const res = await fetch("/api/parent/calendar/list");
-      if (res.ok) {
-        const data = await res.json();
-        setCalPickerCalendars(data.calendars || []);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        onSnack(data.error || "Could not load calendars. Please reconnect Google Calendar.", "error");
-        setCalPickerOpen(false);
-      }
-    } catch {
-      onSnack("Network error loading calendars. Please try again.", "error");
-      setCalPickerOpen(false);
-    } finally {
-      setCalPickerLoading(false);
-    }
-  }, [onSnack]);
-
-  /** Kick off a sync with the chosen Google Calendar and persist the selection. */
-  const handleCalPickerSync = useCallback(async () => {
-    if (!approvedRequest || !calPickerSelected) return;
-    setCalPickerSyncing(true);
-    const token = crypto.randomUUID();
-    try {
-      const res = await fetch(
-        `/api/parent/calendar-sync-requests/${approvedRequest.id}/sync`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ googleCalendarId: calPickerSelected, idempotencyToken: token }),
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        onSnack(data.error || "Failed to start sync", "error");
-        return;
-      }
-      setActiveJobId(data.jobId);
-      setCalPickerOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-    } catch (err: any) {
-      onSnack(err.message || "Network error", "error");
-    } finally {
-      setCalPickerSyncing(false);
-    }
-  }, [approvedRequest, calPickerSelected, onSnack, queryClient]);
-
   const handleSyncNow = useCallback(async () => {
     if (!approvedRequest) return;
 
-    // No calendar selected yet — open the inline picker instead of navigating
-    // away to the "New Sync Request" form on the calendar-sync page.
-    if (!approvedRequest.googleCalendarId) {
-      await openCalendarPicker();
-      return;
-    }
-
-    const token = crypto.randomUUID();
-
+    // "Update Sync" = rescan the AD's worksheet for new games matching this
+    // child. NOT a Google Calendar operation. Hit a dedicated rescan endpoint
+    // that refreshes the parent's overview cache and returns updated counts.
+    // No calendar picker, no calendar API calls — just a worksheet refresh.
     try {
       const res = await fetch(
-        `/api/parent/calendar-sync-requests/${approvedRequest.id}/sync`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            googleCalendarId: approvedRequest.googleCalendarId,
-            idempotencyToken: token,
-          }),
-        }
+        `/api/parent/calendar-sync-requests/${approvedRequest.id}/rescan`,
+        { method: "POST" }
       );
       const data = await res.json();
       if (!res.ok) {
-        onSnack(data.error || "Failed to start sync", "error");
+        onSnack(data.error || "Failed to refresh schedule", "error");
         return;
       }
-      setActiveJobId(data.jobId);
+      const added = data?.result?.added ?? 0;
+      onSnack(
+        added > 0
+          ? `Schedule refreshed — ${added} new game${added === 1 ? "" : "s"} found.`
+          : "Schedule is up to date.",
+        "success"
+      );
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
     } catch (err: any) {
       onSnack(err.message || "Network error", "error");
     }
-  }, [approvedRequest, onSnack]);
+  }, [approvedRequest, onSnack, queryClient]);
 
   const handleRetry = useCallback(async () => {
     setActiveJobId(null);
@@ -406,23 +333,6 @@ function ChildCard({
             </Tooltip>
           )}
 
-          {calendarSyncStatus === "PENDING" && pendingRequestId && (
-            <Tooltip title="Cancel this pending request so you can send a fresh one">
-              <span style={{ marginLeft: "auto" }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  disabled={cancelling}
-                  onClick={() => onCancel(link.id, pendingRequestId)}
-                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
-                >
-                  {cancelling ? "Cancelling…" : "Cancel Request"}
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-
           {calendarSyncStatus === "APPROVED" && approvedRequest && (
             <Box sx={{ display: "flex", gap: 1, ml: "auto", flexWrap: "wrap" }}>
               {!calendarConnected ? (
@@ -508,52 +418,6 @@ function ChildCard({
         )}
       </CardContent>
 
-      {/* Inline calendar picker — shown when Update Sync has no target calendar yet */}
-      <Dialog open={calPickerOpen} onClose={() => setCalPickerOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Choose your Google Calendar</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select which of your Google Calendars to push{" "}
-            <strong>{link.sportName} {link.sportLevel}</strong> games to.
-          </Typography>
-
-          {calPickerLoading ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-              <CircularProgress size={28} />
-            </Box>
-          ) : calPickerCalendars.length > 0 ? (
-            <FormControl fullWidth size="small">
-              <InputLabel>Your Calendar</InputLabel>
-              <Select
-                value={calPickerSelected}
-                label="Your Calendar"
-                onChange={(e) => setCalPickerSelected(e.target.value)}
-              >
-                {calPickerCalendars.map((cal) => (
-                  <MenuItem key={cal.id} value={cal.id}>
-                    {cal.name} {cal.primary && "(Primary)"}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          ) : (
-            <Alert severity="warning">
-              Could not load your Google Calendars. Please reconnect in{" "}
-              <strong>Calendar Sync</strong>.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCalPickerOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={!calPickerSelected || calPickerSyncing}
-            onClick={handleCalPickerSync}
-          >
-            {calPickerSyncing ? <CircularProgress size={20} /> : "Start Sync"}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Card>
   );
 }
@@ -564,7 +428,6 @@ export default function ParentDashboardPage() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotifications();
   const [requestingId, setRequestingId] = useState<string | null>(null);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [snack, setSnack] = useState<Snack>(CLOSED_SNACK);
   const [scheduleExpanded, setScheduleExpanded] = useState(false);
   const [activeChildTab, setActiveChildTab] = useState(0);
@@ -610,26 +473,6 @@ export default function ParentDashboardPage() {
       sportName: link.sportName,
       sportLevel: link.sportLevel,
     });
-  };
-
-  const cancelMutation = useMutation({
-    mutationFn: deleteSyncRequest,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      const msg = "Pending request cancelled. You can now send a fresh one.";
-      setSnack({ open: true, message: msg, severity: "success" });
-      addNotification(msg, "info");
-    },
-    onError: (err: Error) => {
-      setSnack({ open: true, message: err.message, severity: "error" });
-      addNotification(err.message, "error");
-    },
-    onSettled: () => setCancellingId(null),
-  });
-
-  const handleCancel = (linkId: string, requestId: string) => {
-    setCancellingId(linkId);
-    cancelMutation.mutate(requestId);
   };
 
   const [unsyncingId, setUnsyncingId] = useState<string | null>(null);
@@ -1137,10 +980,8 @@ export default function ParentDashboardPage() {
                 approvedRequest={approvedRefForLink(link)}
                 calendarConnected={calendarConnected}
                 onRequest={handleRequest}
-                onCancel={handleCancel}
                 onUnsync={handleUnsync}
                 requesting={requestingId === link.id}
-                cancelling={cancellingId === link.id}
                 unsyncing={unsyncingId === link.id}
                 onSnack={(msg, sev) => {
                   setSnack({ open: true, message: msg, severity: sev });

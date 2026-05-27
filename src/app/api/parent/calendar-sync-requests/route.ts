@@ -118,53 +118,90 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enforce single-pending rule: block if an active (PENDING or APPROVED) request
-    // already exists for this exact school + sport + level combination.
-    // REJECTED requests are allowed to be re-requested — that's the re-sync flow.
+    // Look up any prior request for this exact slot. The status decides what
+    // happens next:
+    //   PENDING  → block, the AD already has it in their queue
+    //   APPROVED → block, sync is already active
+    //   REMOVED  → resurrect (parent previously unsynced; restore approval)
+    //   REJECTED → fall through (clear it and create a fresh PENDING)
     const existing = await prisma.calendarSyncRequest.findFirst({
       where: {
         parentUserId: user.id,
         schoolId: validatedData.schoolId,
         sportName: { equals: validatedData.sportName, mode: "insensitive" },
         sportLevel: { equals: validatedData.sportLevel, mode: "insensitive" },
-        status: { in: ["PENDING", "APPROVED"] },
+        status: { in: ["PENDING", "APPROVED", "REMOVED"] },
       },
     });
 
-    if (existing) {
+    if (existing && existing.status === "APPROVED") {
+      return NextResponse.json(
+        { error: "Calendar sync is already active for this sport and level" },
+        { status: 400 }
+      );
+    }
+
+    if (existing && existing.status === "PENDING") {
       return NextResponse.json(
         {
           error:
-            existing.status === "APPROVED"
-              ? "Calendar sync is already active for this sport and level"
-              : "You already have a pending request for this sport and level. Please wait for the athletic director to review it.",
+            "You already have a pending request for this sport and level. Please wait for the athletic director to review it.",
         },
         { status: 400 }
       );
     }
 
-    const syncRequest = await prisma.calendarSyncRequest.create({
-      data: {
-        parentUserId: user.id,
-        schoolId: validatedData.schoolId,
-        sportName: validatedData.sportName,
-        sportLevel: validatedData.sportLevel,
-      }
-    });
+    // ── Resurrect a previously-unsynced row ──────────────────────────────
+    // The AD already approved this slot once; the parent shouldn't have to
+    // wait for a fresh approval. Bump it straight back to APPROVED and we're
+    // done — googleCalendarId / workbookId / gender are still on the row
+    // from the original approval.
+    let syncRequest;
+    if (existing && existing.status === "REMOVED") {
+      syncRequest = await prisma.calendarSyncRequest.update({
+        where: { id: existing.id },
+        data: {
+          status: "APPROVED",
+          // Reset rejection trail just in case it was reused
+          rejectionReason: null,
+        },
+      });
+
+      // Mirror on ConnectedParent so the AD's view shows the parent as synced again.
+      await prisma.connectedParent
+        .updateMany({
+          where: { parentUserId: user.id, schoolId: validatedData.schoolId },
+          data: { calendarSynced: true },
+        })
+        .catch((err) => {
+          console.warn("[resync] failed to mirror ConnectedParent.calendarSynced:", err);
+        });
+    } else {
+      syncRequest = await prisma.calendarSyncRequest.create({
+        data: {
+          parentUserId: user.id,
+          schoolId: validatedData.schoolId,
+          sportName: validatedData.sportName,
+          sportLevel: validatedData.sportLevel,
+        },
+      });
+    }
 
     // Invalidate the parent's dashboard cache so the new request shows immediately
     const { invalidate } = await import("@/lib/cache/redisCache");
     void invalidate(`parent:overview:${user.id}`);
 
-    // Notify ADs via Redis Pub/Sub — uses dedicated sync channel so the
-    // notifications SSE can distinguish sync requests from chat messages
+    // Notify ADs via Redis Pub/Sub. Distinguish a brand-new approval request
+    // (needs AD attention) from a resumed sync (already approved — informational).
+    const isResume = existing?.status === "REMOVED";
     void publishChatEvent(`sync:${validatedData.schoolId}`, {
-      type: "sync_request",
+      type: isResume ? "sync_request_updated" : "sync_request",
       requestId: syncRequest.id,
       parentName: user.name || user.email || "A parent",
       sportName: validatedData.sportName,
       sportLevel: validatedData.sportLevel,
       requestedAt: syncRequest.requestedAt.toISOString(),
+      ...(isResume ? { status: "APPROVED" as const } : {}),
     });
 
     return NextResponse.json({

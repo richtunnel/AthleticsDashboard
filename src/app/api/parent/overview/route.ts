@@ -110,8 +110,11 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
 
   // ── 4b. All CalendarSyncRequests — for per-sport status on child cards ───
   // Ordered newest-first so we take the latest status for each slot.
+  // Exclude REMOVED rows from the dashboard view. They're kept in the DB so
+  // a re-request can resurrect the approval, but to the parent they should
+  // look like there's no active request (the "Request Sync" button shows).
   const allSyncRequests = await prisma.calendarSyncRequest.findMany({
-    where: { parentUserId: user.id },
+    where: { parentUserId: user.id, status: { not: "REMOVED" } },
     include: { school: { select: { name: true } } },
     orderBy: { requestedAt: "desc" },
   });

@@ -8221,30 +8221,26 @@ export function GamesTable() {
         level={newGameData.level || undefined}
         homeTeamId={newGameData.homeTeamId || undefined}
         workbookId={selectedWorkbookId}
+        workbookName={workbooks.find((w: any) => w.id === selectedWorkbookId)?.name || null}
         onDateSelect={handleDateSelect}
-        onGameCreated={(newGame) => {
-          if (newGame) {
-            // Optimistically insert the new row into the existing cache
-            queryClient.setQueryData(GAMES_QUERY_KEY, (oldData: any) => {
-              if (!oldData) return oldData;
-              if (Array.isArray(oldData)) {
-                return [...oldData, newGame];
-              } else if (oldData.data && Array.isArray(oldData.data.games)) {
-                return {
-                  ...oldData,
-                  data: {
-                    ...oldData.data,
-                    games: [...oldData.data.games, newGame],
-                    pagination: oldData.data.pagination ? { ...oldData.data.pagination, total: oldData.data.pagination.total + 1 } : oldData.data.pagination,
-                  },
-                };
-              }
-              return oldData;
-            });
-            // Pin the new row at the bottom (bypasses sort/filter removal)
-            setPreservedGameIds((prev) => new Set(prev).add(newGame.id));
-          }
-          // Server sync — ensures the row survives the next full refetch
+        /**
+         * Route the form's gameData through the SAME createGameMutation that
+         * handles CSV-imported games. That mutation already does optimistic
+         * cache insertion + preservedGameIds tracking. Anything else duplicates
+         * that wiring and risks the row not showing up — which is exactly the
+         * bug we kept hitting.
+         */
+        onSubmitGameData={async (gameData) => {
+          const res = await createGameMutation.mutateAsync({
+            gameData,
+            // The mutation auto-syncs to calendar; that's fine for form-created games too.
+            skipCalendarSync: false,
+          });
+          return res?.data ?? res;
+        }}
+        onGameCreated={() => {
+          // createGameMutation.onSuccess already handled cache + preservedGameIds.
+          // Just refetch as a safety net so the row survives the next full pull.
           refetch();
         }}
       />
