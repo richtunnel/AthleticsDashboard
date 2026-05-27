@@ -373,15 +373,32 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       const { dateStr, sport: sportName, level: levelName } = addDateCtx;
 
       // ── 1. Resolve homeTeamId ──────────────────────────────────────────
+      // Normalise level aliases so "JV" matches "Junior Varsity" and vice versa,
+      // while "Varsity" never accidentally matches "Junior Varsity".
+      const normLevel = (l: string): string => {
+        const s = l.toLowerCase().trim();
+        if (s === "jv" || s === "j.v." || s === "junior var" || s === "jr varsity") return "junior varsity";
+        if (s === "v" || s === "var") return "varsity";
+        return s;
+      };
+
       let homeTeamId: string | null = null;
       const teamsRes = await fetch("/api/teams");
       if (teamsRes.ok) {
         const teamsData = await teamsRes.json();
-        const existingTeam = (teamsData.data || teamsData || []).find(
-          (t: any) =>
-            t.sport?.name?.toLowerCase() === sportName.toLowerCase() &&
-            t.level?.toLowerCase() === levelName.toLowerCase(),
-        );
+        const targetSport = sportName.toLowerCase();
+        const targetLevel = normLevel(levelName);
+        const existingTeam = (teamsData.data || teamsData || []).find((t: any) => {
+          // Flexible sport match: "Basketball" ↔ "Boys Basketball", exact or containment
+          const tSport = (t.sport?.name || "").toLowerCase();
+          const sportMatches =
+            tSport === targetSport ||
+            tSport.includes(targetSport) ||
+            targetSport.includes(tSport);
+          // Normalised exact level match: "JV" ↔ "Junior Varsity", "Varsity" ≠ "Junior Varsity"
+          const levelMatches = normLevel(t.level || "") === targetLevel;
+          return sportMatches && levelMatches;
+        });
         if (existingTeam) homeTeamId = existingTeam.id;
       }
 
@@ -485,10 +502,12 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         workbookId: workbookId || null,
       };
 
+      // POST the flat game object — the API reads top-level fields directly
+      // from the request body (body.homeTeamId, body.date, etc.).
       const gameRes = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameData }),
+        body: JSON.stringify(gameData),
       });
 
       if (!gameRes.ok) {
@@ -919,13 +938,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                                     e.stopPropagation();
                                     handleOpenAddForm(dateStr, result.debug.matchedClusters);
                                   }}
-                                  sx={{
+                                  sx={(theme) => ({
                                     fontSize: "0.7rem",
                                     py: 0.4,
                                     px: 1,
                                     textTransform: "none",
                                     fontWeight: 600,
-                                  }}
+                                    ...(theme.palette.mode === "dark" && {
+                                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                      color: "#fff",
+                                      "&:hover": {
+                                        background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                                      },
+                                    }),
+                                  })}
                                 >
                                   Add Date
                                 </Button>
@@ -1045,8 +1071,8 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     fullWidth
                     value={fieldValues["time"] || ""}
                     onChange={(e) => setField("time", e.target.value)}
-                    placeholder="e.g. 15:00"
-                    helperText="24-hour format (HH:MM)"
+                    placeholder="e.g. 7:00 PM"
+                    helperText="e.g. 7:00 PM or 3:30 PM"
                   />
 
                   {/* Home / Away */}
@@ -1157,11 +1183,10 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               variant="contained"
               startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Search />}
               disabled={loading || !prompt.trim()}
-              sx={(theme) => ({
-                color: theme.palette.mode === "dark" ? theme.palette.text.primary : "",
+              sx={{
                 textTransform: "none",
                 borderRadius: 2,
-              })}
+              }}
             >
               {loading ? "Searching..." : "Find Dates"}
             </Button>
