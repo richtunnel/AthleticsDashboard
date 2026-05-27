@@ -202,9 +202,19 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
-  /** Worksheet columns fetched from the API */
+  /** Worksheet columns fetched from the API (union of CustomColumn names + imported CSV keys) */
   const [worksheetColumns, setWorksheetColumns] = useState<string[]>([]);
   const [columnsLoading, setColumnsLoading] = useState(false);
+  /**
+   * Map of CustomColumn.name → CustomColumn.id for this workbook.
+   *
+   * The GamesTable reads user-defined worksheet columns from `customData[col.id]`
+   * (keyed by ID) and imported CSV columns from `customFields[col.name]` (keyed by name).
+   * We need this map so on submit we can route each value to the correct location —
+   * otherwise CustomColumn values get saved to `customFields` and never display in the
+   * table (because the table looks them up by ID, not name).
+   */
+  const [customColumnIdByName, setCustomColumnIdByName] = useState<Record<string, string>>({});
 
   // ── Pre-fill prompt ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -221,19 +231,42 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       setFieldValues({});
       setFormError(null);
       setFormSuccess(false);
+      setCustomColumnIdByName({});
+      setWorksheetColumns([]);
     }
   }, [open]);
 
-  // Fetch worksheet columns whenever we enter the add-form view
+  // Fetch worksheet columns whenever we enter the add-form view.
+  //
+  // We fetch from TWO endpoints in parallel:
+  //   1. /api/calendar/workbook-columns → union of column NAMES (CustomColumn.name + customFields keys)
+  //   2. /api/organizations/custom-columns → CustomColumn records with { id, name }
+  //
+  // The second is what lets us know which displayed columns are CustomColumn-defined
+  // (and therefore need to be saved into `customData[col.id]` not `customFields[col.name]`).
   useEffect(() => {
     if (view !== "addForm" || !workbookId) return;
     setColumnsLoading(true);
-    fetch(`/api/calendar/workbook-columns?workbookId=${workbookId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.columns) setWorksheetColumns(data.columns as string[]);
+
+    Promise.all([
+      fetch(`/api/calendar/workbook-columns?workbookId=${workbookId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/organizations/custom-columns?workbookId=${workbookId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ])
+      .then(([colsRes, customColsRes]) => {
+        if (colsRes?.columns) setWorksheetColumns(colsRes.columns as string[]);
+
+        // Build name → id map for CustomColumn rows (scoped to this workbook or global)
+        const map: Record<string, string> = {};
+        const records: any[] = customColsRes?.data || [];
+        for (const c of records) {
+          if (c?.name && c?.id) map[c.name] = c.id;
+        }
+        setCustomColumnIdByName(map);
       })
-      .catch(() => {})
       .finally(() => setColumnsLoading(false));
   }, [view, workbookId]);
 
@@ -448,7 +481,14 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       }
 
       // ── 3. Map fieldValues → game fields ─────────────────────────────
+      //
+      // Worksheet columns split into TWO storage locations:
+      //   • customData[colId]   ← for CustomColumn-defined columns (UI keys them by ID)
+      //   • customFields[name]  ← for imported CSV columns (UI keys them by name)
+      // Routing by the customColumnIdByName map ensures values land where the
+      // GamesTable will actually read them back.
       const customFields: Record<string, string> = {};
+      const customData: Record<string, string> = {};
       let time: string | null = null;
       let location: string | null = null;
       let notes: string | null = null;
@@ -465,7 +505,14 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         if (stdField === "isHome") { isHome = val !== "away"; continue; }
         if (stdField === "opponent") continue; // handled above
         if (!STANDARD_FIELD_KEYS.has(normalizeColName(col))) {
-          customFields[col] = val.trim();
+          const customColId = customColumnIdByName[col];
+          if (customColId) {
+            // User-defined CustomColumn → stored by ID in customData
+            customData[customColId] = val.trim();
+          } else {
+            // Imported CSV column → stored by name in customFields
+            customFields[col] = val.trim();
+          }
         }
       }
 
@@ -482,7 +529,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           status,
           location,
           notes,
-          customData: {},
+          customData,
           customFields,
           workbookId: workbookId || null,
         }),
@@ -494,8 +541,33 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       }
 
       const createdData = await gameRes.json();
+      const createdGame = createdData?.data ?? createdData;
+
+      // Guard: confirm the API actually returned a game row before we treat
+      // this as a success. Without an id, the row didn't land in the DB and
+      // we shouldn't tell the parent table to insert it (or strip the date
+      // from the available list).
+      if (!createdGame?.id) {
+        throw new Error("Game was not created. Please try again.");
+      }
+
       setFormSuccess(true);
-      onGameCreated?.(createdData?.data ?? createdData);
+      onGameCreated?.(createdGame);
+
+      // Mark this date as taken — drop it from the available list so the user
+      // can't re-add it from the same search results panel. The "Available
+      // Dates (N)" counter updates automatically since it reads .length.
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recommendations: prev.recommendations.filter((d) => d !== dateStr),
+          debug: {
+            ...prev.debug,
+            clusterDates: prev.debug.clusterDates?.filter((d) => d !== dateStr) ?? prev.debug.clusterDates,
+          },
+        };
+      });
 
       trackEvent("Available Dates - Game Created", {
         dateStr,

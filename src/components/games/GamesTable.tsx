@@ -20,7 +20,23 @@ import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
 import { CostModal } from "./CostModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon, DoNotDisturbOn, ChevronLeft, ChevronRight, Settings as SettingsMenuIcon } from "@mui/icons-material";
+import {
+  Sync,
+  ViewColumn,
+  Download,
+  Upload,
+  Tune,
+  AutoAwesome,
+  SyncLock,
+  AttachMoney,
+  TableChart,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  DoNotDisturbOn,
+  ChevronLeft,
+  ChevronRight,
+  Settings as SettingsMenuIcon,
+} from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -163,10 +179,7 @@ interface InlineDatePickerProps {
 
 function InlineDatePicker({ inlineEditValue, isInlineSaving, onClose, onDateChange, onKeyDown }: InlineDatePickerProps) {
   // Stable Date reference: only recreated when the date string actually changes
-  const dateValue = useMemo(
-    () => (inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null),
-    [inlineEditValue],
-  );
+  const dateValue = useMemo(() => (inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null), [inlineEditValue]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -958,7 +971,7 @@ export function GamesTable() {
       const res = await fetch("/api/admin/calendar-sync-requests");
       if (!res.ok) return [];
       const json = await res.json();
-      return (json.requests as Array<{ sportName: string; sportLevel: string }> || [])
+      return ((json.requests as Array<{ sportName: string; sportLevel: string }>) || [])
         .filter((r: any) => r.status === "APPROVED")
         .map((r) => ({
           sportName: r.sportName.toLowerCase(),
@@ -968,14 +981,9 @@ export function GamesTable() {
     staleTime: 60_000,
   });
 
-  const syncedSportSet = new Set(
-    approvedSyncRequests.map((r) => `${r.sportName}|${r.sportLevel}`)
-  );
+  const syncedSportSet = new Set(approvedSyncRequests.map((r) => `${r.sportName}|${r.sportLevel}`));
 
-  const gameHasSyncedParents = (game: Game): boolean =>
-    syncedSportSet.has(
-      `${game.homeTeam?.sport?.name?.toLowerCase() ?? ""}|${game.homeTeam?.level?.toLowerCase() ?? ""}`
-    );
+  const gameHasSyncedParents = (game: Game): boolean => syncedSportSet.has(`${game.homeTeam?.sport?.name?.toLowerCase() ?? ""}|${game.homeTeam?.level?.toLowerCase() ?? ""}`);
 
   // ── Cancel game mutation ──────────────────────────────────────────────────
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
@@ -998,9 +1006,7 @@ export function GamesTable() {
         if (!old) return old;
         return {
           ...old,
-          games: old.games?.map((g: Game) =>
-            g.id === gameId ? { ...g, status: "CANCELLED" as GameStatus } : g
-          ),
+          games: old.games?.map((g: Game) => (g.id === gameId ? { ...g, status: "CANCELLED" as GameStatus } : g)),
         };
       });
       return { previous };
@@ -6325,15 +6331,8 @@ export function GamesTable() {
               </Tooltip>
               {gameHasSyncedParents(game) && game.status !== "CANCELLED" && (
                 <Tooltip title="Cancel game — notifies all synced parents">
-                  <IconButton
-                    size="small"
-                    sx={{ p: 0.5, color: "text.secondary" }}
-                    disabled={cancellingGameId === game.id}
-                    onClick={() => cancelGameMutation.mutate(game.id)}
-                  >
-                    {cancellingGameId === game.id
-                      ? <CircularProgress size={16} />
-                      : <DoNotDisturbOn sx={{ fontSize: 18 }} />}
+                  <IconButton size="small" sx={{ p: 0.5, color: "text.secondary" }} disabled={cancellingGameId === game.id} onClick={() => cancelGameMutation.mutate(game.id)}>
+                    {cancellingGameId === game.id ? <CircularProgress size={16} /> : <DoNotDisturbOn sx={{ fontSize: 18 }} />}
                   </IconButton>
                 </Tooltip>
               )}
@@ -6932,9 +6931,7 @@ export function GamesTable() {
 
     // Format date as MM/dd/yyyy (extract the local date part to avoid TZ shift)
     const datePart = extractDatePart(game.date);
-    const formattedDate = datePart
-      ? format(new Date(datePart + "T12:00:00"), "MM/dd/yyyy")
-      : "—";
+    const formattedDate = datePart ? format(new Date(datePart + "T12:00:00"), "MM/dd/yyyy") : "—";
 
     // Get time
     const timeDisplay = formatTimeDisplay(game.time);
@@ -7239,7 +7236,7 @@ export function GamesTable() {
 
               <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
                 {/* Manage your athletic schedules and create your own customized columns. */}
-                Import your CSV or image game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
+                Import your CSV game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
                 <span>
                   <Tooltip
                     title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
@@ -8238,9 +8235,7 @@ export function GamesTable() {
                   data: {
                     ...oldData.data,
                     games: [...oldData.data.games, newGame],
-                    pagination: oldData.data.pagination
-                      ? { ...oldData.data.pagination, total: oldData.data.pagination.total + 1 }
-                      : oldData.data.pagination,
+                    pagination: oldData.data.pagination ? { ...oldData.data.pagination, total: oldData.data.pagination.total + 1 } : oldData.data.pagination,
                   },
                 };
               }
