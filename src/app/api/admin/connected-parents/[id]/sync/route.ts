@@ -39,22 +39,36 @@ export async function POST(
 
     const { id } = await params;
 
-    const connectedParent = await prisma.connectedParent.findUnique({
+    // The /api/connected-parents endpoint uses CalendarSyncRequest.id as the
+    // row identifier (it's the canonical source of truth for "who's connected").
+    // Look up by that ID — NOT by ConnectedParent.id — so the IDs the frontend
+    // sees actually resolve.
+    const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
+      select: {
+        id: true,
+        parentUserId: true,
+        schoolId: true,
+        sportName: true,
+        sportLevel: true,
+        workbookId: true,
+        gender: true,
+        status: true,
+      },
     });
 
-    if (!connectedParent) {
-      return NextResponse.json({ error: "Connected parent not found" }, { status: 404 });
+    if (!syncRequest) {
+      return NextResponse.json({ error: "Sync request not found" }, { status: 404 });
     }
 
-    if (connectedParent.schoolId !== adUser.organizationId) {
+    if (syncRequest.schoolId !== adUser.organizationId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Body may supply sport/level overrides from the sync dialog
     const body = await req.json().catch(() => ({}));
-    const sportName: string | null = body.sportName || connectedParent.sportName || null;
-    const sportLevel: string | null = body.sportLevel || connectedParent.sportLevel || null;
+    const sportName: string | null = body.sportName || syncRequest.sportName || null;
+    const sportLevel: string | null = body.sportLevel || syncRequest.sportLevel || null;
 
     if (!sportName || !sportLevel) {
       return NextResponse.json(
@@ -66,14 +80,24 @@ export async function POST(
       );
     }
 
-    // Persist the chosen sport/level on the ConnectedParent record so future
-    // syncs can default to the same values.
-    if (sportName !== connectedParent.sportName || sportLevel !== connectedParent.sportLevel) {
-      await prisma.connectedParent.update({
-        where: { id },
+    // If the AD edited sport/level in the dialog, persist that on the sync request
+    // so subsequent rescans use the corrected values.
+    if (
+      sportName !== syncRequest.sportName ||
+      sportLevel !== syncRequest.sportLevel
+    ) {
+      await prisma.calendarSyncRequest.update({
+        where: { id: syncRequest.id },
         data: { sportName, sportLevel },
       });
     }
+
+    // Shim object so the rest of this route can keep using the prior var names.
+    const connectedParent = {
+      id: syncRequest.id,
+      parentUserId: syncRequest.parentUserId,
+      schoolId: syncRequest.schoolId,
+    };
 
     // Verify the parent has connected their Google Calendar.
     // Check both the Account record (incremental OAuth) and the legacy
@@ -149,18 +173,27 @@ export async function POST(
       });
     }
 
-    // Run sync — uses the parent's own OAuth tokens
+    // Run sync — uses the parent's own OAuth tokens.
+    // Pass workbookId + gender from the SyncRequest so the team-match query
+    // can distinguish Boys vs Girls of the same sport, and so we scan only
+    // the worksheet the AD pinned during approval (no cross-sport bleed).
     const results = await calendarService.syncGamesForSportLevel(
       connectedParent.parentUserId,
       connectedParent.schoolId,
       sportName,
       sportLevel,
-      "primary"
+      "primary",
+      syncRequest.workbookId ?? null,
+      syncRequest.gender ?? null
     );
 
-    // Mark as synced
-    await prisma.connectedParent.update({
-      where: { id },
+    // Mark as synced — keyed by parentUserId since the route's `id` is a
+    // CalendarSyncRequest.id, not a ConnectedParent.id.
+    await prisma.connectedParent.updateMany({
+      where: {
+        parentUserId: connectedParent.parentUserId,
+        schoolId: connectedParent.schoolId,
+      },
       data: { calendarSynced: true, lastSyncedAt: new Date() },
     });
 

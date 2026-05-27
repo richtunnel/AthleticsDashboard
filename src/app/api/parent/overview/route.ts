@@ -346,14 +346,70 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
         game.awayTeam?.name?.trim() ||
         null;
 
-      // Collect every link ID that caused this game to be included.
-      // Deduplication via Set so a team that appears in both the primary
-      // link loop and the approved-request loop doesn't double-count.
-      const linkIdSet = new Set<string>([
+      // Build per-link attribution. PRECEDENCE MATTERS — see below.
+      //
+      // 1. Team-based attribution is precise (buildTeamWhere is gender-aware,
+      //    sport-aware, level-aware). If a game's team matches a link's team
+      //    set, that link owns the game. Period.
+      //
+      // 2. Workbook-based attribution is a FALLBACK for imported games whose
+      //    team rows never got normalised. It's per-workbook, so when one
+      //    workbook holds BOTH boys and girls games (very common in test
+      //    data), naively merging it with team-based attribution causes the
+      //    girls child's tab to show boys games and vice versa.
+      //
+      // Rule: workbook attribution only contributes link IDs when team
+      // attribution found NONE for this game. Even then, we constrain it to
+      // links whose sport/level matches the game's resolved sport/level so
+      // a shared-workbook scenario can't cross-pollinate.
+      const teamLinkIds = new Set<string>([
         ...(teamIdToLinkIds.get(game.homeTeamId) ?? []),
         ...(game.awayTeamId ? (teamIdToLinkIds.get(game.awayTeamId) ?? []) : []),
-        ...(game.workbookId ? (workbookIdToLinkIds.get(game.workbookId) ?? []) : []),
       ]);
+      const linkIdSet = new Set<string>(teamLinkIds);
+
+      if (teamLinkIds.size === 0 && game.workbookId) {
+        const candidateLinkIds = workbookIdToLinkIds.get(game.workbookId) ?? [];
+
+        // Resolve the game's effective sport/level from any source we trust:
+        //   • homeTeam relation (if present and populated)
+        //   • customFields["Sport"] / ["Level"]
+        const gSportRaw = (resolvedSport ?? "").toLowerCase().trim();
+        const gLevelRaw = (resolvedLevel ?? "").toLowerCase().trim();
+        const { baseSport: gBaseSport, gender: gGender } = gSportRaw
+          ? parseSportLabel(gSportRaw)
+          : { baseSport: "", gender: null as null };
+
+        for (const lid of candidateLinkIds) {
+          const link = links.find((l) => l.id === lid);
+          if (!link) continue;
+
+          const lSportRaw = (link.sport ?? "").toLowerCase().trim();
+          const lLevelRaw = normaliseLevel(link.gradeLevel) ?? "";
+          const { baseSport: lBaseSport, gender: lGender } = lSportRaw
+            ? parseSportLabel(lSportRaw)
+            : { baseSport: "", gender: null as null };
+
+          // Sport must match either as a raw label or via base+gender pair.
+          const sportMatches =
+            (gSportRaw && lSportRaw && gSportRaw === lSportRaw) ||
+            (gBaseSport && lBaseSport &&
+              gBaseSport.toLowerCase() === lBaseSport.toLowerCase() &&
+              (!lGender || !gGender || lGender === gGender));
+
+          // Level must match when both sides provide one. If either side is
+          // empty, accept (don't reject on missing data).
+          const levelMatches =
+            !lLevelRaw || !gLevelRaw ||
+            lLevelRaw === gLevelRaw ||
+            (lLevelRaw === "jv" && gLevelRaw === "junior varsity") ||
+            (lLevelRaw === "junior varsity" && gLevelRaw === "jv");
+
+          if (sportMatches && levelMatches) {
+            linkIdSet.add(lid);
+          }
+        }
+      }
 
       return {
         id: game.id,

@@ -42,6 +42,8 @@ interface ConnectedParent {
   schoolName: string;
   sportName: string | null;
   sportLevel: string | null;
+  /** Child this sync approval is for — derived from ParentAthleteLink. */
+  athleteName: string | null;
   calendarSynced: boolean;
   lastSyncedAt: string | null;
   membershipStatus: string;
@@ -222,14 +224,15 @@ export function ConnectedParentsMenu() {
 
   const allParents = data?.parents || [];
 
-  // Filter by search query — matches name, email, or parentCode
+  // Filter by search query — matches parent name, email, parent code, or athlete name.
   const q = searchQuery.trim().toLowerCase();
   const parents = q
     ? allParents.filter(
         (p) =>
           (p.parentUserName ?? "").toLowerCase().includes(q) ||
           p.parentEmail.toLowerCase().includes(q) ||
-          (p.parentCode ?? "").toLowerCase().includes(q),
+          (p.parentCode ?? "").toLowerCase().includes(q) ||
+          (p.athleteName ?? "").toLowerCase().includes(q),
       )
     : allParents;
 
@@ -252,7 +255,7 @@ export function ConnectedParentsMenu() {
           {/* Search — by name, email, or parent code */}
           <TextField
             size="small"
-            placeholder="Search by name, email, or parent code…"
+            placeholder="Search by parent name, athlete name, email, or parent code…"
             fullWidth
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -309,6 +312,18 @@ export function ConnectedParentsMenu() {
                       </Box>
 
                       <Divider sx={{ mb: 1.5 }} />
+
+                      {/* Athlete name — which child this approval is for */}
+                      {parent.athleteName && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            Athlete:
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                            {parent.athleteName}
+                          </Typography>
+                        </Box>
+                      )}
 
                       {/* Sport & Level */}
                       <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1 }}>

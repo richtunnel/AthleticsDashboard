@@ -29,31 +29,44 @@ export async function POST(
 
     const { id } = await params;
 
-    const connectedParent = await prisma.connectedParent.findUnique({
+    // The frontend identifies rows by CalendarSyncRequest.id (the canonical
+    // source — see /api/connected-parents). Look up by that.
+    const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
+      select: {
+        id: true,
+        parentUserId: true,
+        schoolId: true,
+        sportName: true,
+        sportLevel: true,
+        status: true,
+      },
     });
 
-    if (!connectedParent) {
-      return NextResponse.json({ error: "Connected parent not found" }, { status: 404 });
+    if (!syncRequest) {
+      return NextResponse.json({ error: "Sync request not found" }, { status: 404 });
     }
 
-    if (connectedParent.schoolId !== adUser.organizationId) {
+    if (syncRequest.schoolId !== adUser.organizationId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Mark CalendarSyncRequests for this parent as rejected so they stop syncing
-    await prisma.calendarSyncRequest.updateMany({
-      where: {
-        parentUserId: connectedParent.parentUserId,
-        schoolId: connectedParent.schoolId,
-        status: "APPROVED",
-      },
-      data: { status: "REJECTED" },
-    });
+    // Unsync THIS specific sport/level. Earlier code was nuking every approved
+    // request for the parent at this school, which kills sibling approvals
+    // (boys + girls basketball would both get unsynced if either was clicked).
+    if (syncRequest.status === "APPROVED") {
+      await prisma.calendarSyncRequest.update({
+        where: { id: syncRequest.id },
+        data: { status: "REMOVED" },
+      });
+    }
 
-    // Update ConnectedParent to reflect un-synced state
-    await prisma.connectedParent.update({
-      where: { id },
+    // Reflect un-synced state on ConnectedParent (keyed by parentUserId, not id).
+    await prisma.connectedParent.updateMany({
+      where: {
+        parentUserId: syncRequest.parentUserId,
+        schoolId: syncRequest.schoolId,
+      },
       data: { calendarSynced: false },
     });
 
