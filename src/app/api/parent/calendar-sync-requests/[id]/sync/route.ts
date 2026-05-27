@@ -143,44 +143,134 @@ export async function POST(
     });
 
     // ── Enqueue on the parent-scoped BullMQ queue ─────────────────────────
-    try {
-      const { parentCalendarSyncQueue } = await import("@/lib/queue/queues");
-      await parentCalendarSyncQueue.add(
-        "sync",
-        {
-          backgroundJobId: backgroundJob.id,
-          token,
-          parentUserId: user.id,
-          syncRequestId: syncRequest.id,
-          schoolId: syncRequest.schoolId,
-          sportName: syncRequest.sportName,
-          sportLevel: syncRequest.sportLevel,
+    // When Redis is up: enqueue and let the worker push games asynchronously.
+    // When Redis is down: fall back to running the work inline. The parent
+    // gets a slightly slower response but the sync still happens — beats the
+    // old behaviour where the route 503'd and nothing synced at all.
+    const { REDIS_ENABLED } = await import("@/lib/queue/connection");
+    let enqueued = false;
+
+    if (REDIS_ENABLED) {
+      try {
+        const { parentCalendarSyncQueue } = await import("@/lib/queue/queues");
+        await parentCalendarSyncQueue.add(
+          "sync",
+          {
+            backgroundJobId: backgroundJob.id,
+            token,
+            parentUserId: user.id,
+            syncRequestId: syncRequest.id,
+            schoolId: syncRequest.schoolId,
+            sportName: syncRequest.sportName,
+            sportLevel: syncRequest.sportLevel,
+            googleCalendarId,
+            workbookId: syncRequest.workbookId ?? null,
+            gender: syncRequest.gender ?? null,
+          },
+          {
+            // Make BullMQ dedupe within the same minute as belt-and-suspenders
+            // on top of our DB-level check above.
+            jobId: `parent-sync:${token}`,
+          }
+        );
+        enqueued = true;
+      } catch (err) {
+        console.error("[parent-sync] enqueue failed, falling back to inline run:", err);
+      }
+    }
+
+    if (!enqueued) {
+      // ── Inline fallback path ────────────────────────────────────────────
+      // Run the same work the worker does, but synchronously in this request.
+      // Mirrors workers/parent-calendar-sync.worker.ts so the BackgroundJob
+      // row + ConnectedParent + sync request stay consistent with the
+      // queued path.
+      try {
+        await prisma.backgroundJob
+          .update({
+            where: { id: backgroundJob.id },
+            data: { status: JobStatus.PROCESSING, lastAttemptAt: new Date() },
+          })
+          .catch(() => {});
+
+        const { calendarService } = await import("@/lib/services/calendar.service");
+        const results = await calendarService.syncGamesForSportLevel(
+          user.id,
+          syncRequest.schoolId,
+          syncRequest.sportName,
+          syncRequest.sportLevel,
           googleCalendarId,
-          workbookId: syncRequest.workbookId ?? null,
-          gender: syncRequest.gender ?? null,
-        },
-        {
-          // Make BullMQ dedupe within the same minute as belt-and-suspenders
-          // on top of our DB-level check above.
-          jobId: `parent-sync:${token}`,
+          syncRequest.workbookId ?? null,
+          syncRequest.gender ?? null
+        );
+
+        const added = results.filter((r: any) => r.ok).length;
+        const failed = results.filter((r: any) => !r.ok).length;
+        const firstError = results.find((r: any) => !r.ok)?.error ?? null;
+        const result = { added, failed, firstError };
+
+        if (added === 0 && failed > 0) {
+          await prisma.backgroundJob
+            .update({
+              where: { id: backgroundJob.id },
+              data: {
+                status: JobStatus.FAILED,
+                failedAt: new Date(),
+                error: (firstError ?? "All game pushes failed").slice(0, 500),
+              },
+            })
+            .catch(() => {});
+          return NextResponse.json(
+            { error: firstError ?? "Failed to sync games to your calendar" },
+            { status: 500 }
+          );
         }
-      );
-    } catch (err) {
-      // If the queue is unavailable (Redis down, etc.), mark the BackgroundJob
-      // failed immediately so the client doesn't poll forever.
-      console.error("[parent-sync] failed to enqueue:", err);
-      await prisma.backgroundJob.update({
-        where: { id: backgroundJob.id },
-        data: {
-          status: JobStatus.FAILED,
-          failedAt: new Date(),
-          error: "Queue unavailable. Please try again in a moment.",
-        },
-      });
-      return NextResponse.json(
-        { error: "Sync queue is temporarily unavailable. Please try again." },
-        { status: 503 }
-      );
+
+        await prisma.backgroundJob
+          .update({
+            where: { id: backgroundJob.id },
+            data: { status: JobStatus.COMPLETED, completedAt: new Date(), result },
+          })
+          .catch(() => {});
+
+        await prisma.connectedParent
+          .updateMany({
+            where: { parentUserId: user.id, schoolId: syncRequest.schoolId },
+            data: { calendarSynced: true, lastSyncedAt: new Date() },
+          })
+          .catch(() => {});
+
+        // Persist the chosen calendar (matches what the worker does on success)
+        if (syncRequest.googleCalendarId !== googleCalendarId) {
+          await prisma.calendarSyncRequest
+            .update({ where: { id: syncRequest.id }, data: { googleCalendarId } })
+            .catch(() => {});
+        }
+
+        return NextResponse.json({
+          jobId: backgroundJob.id,
+          status: JobStatus.COMPLETED,
+          idempotencyToken: token,
+          deduped: false,
+          result,
+        });
+      } catch (err: any) {
+        console.error("[parent-sync] inline run failed:", err);
+        await prisma.backgroundJob
+          .update({
+            where: { id: backgroundJob.id },
+            data: {
+              status: JobStatus.FAILED,
+              failedAt: new Date(),
+              error: (err?.message || "Sync failed").slice(0, 500),
+            },
+          })
+          .catch(() => {});
+        return NextResponse.json(
+          { error: err?.message || "Failed to sync games to your calendar" },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({
