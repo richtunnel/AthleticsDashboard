@@ -50,7 +50,7 @@
   margin: 0 auto;
   position: relative;
   align-items: center;
-  padding: 20px;
+  padding: 35px 20px;
   width: 100%;
 }
 
@@ -111,6 +111,12 @@
 .newSectionTitle {
   max-width: 600px;
   font-weight: 700;
+}
+
+@media all and (min-width: 1040px) {
+  .homePageContentContainer {
+    transform: translateX(-30px);
+  }
 }
 
 /* iPhone 12 Pro Max, 11 Pro Max, XS Max - Max screens */

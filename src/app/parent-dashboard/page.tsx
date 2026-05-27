@@ -96,6 +96,13 @@ interface GameData {
   /** Opponent record — populated for most workbook-imported games instead of awayTeam */
   opponent: { id: string; name: string } | null;
   venue: { name: string; address: string | null } | null;
+  /**
+   * IDs of the ParentAthleteLinks that caused this game to appear.
+   * Set by the API during team/workbook resolution — used for exact-match
+   * tab isolation so the client never has to do fuzzy sport/level matching.
+   * Empty array means the game has no attributed child (orphan workbook path).
+   */
+  linkIds: string[];
 }
 
 interface ParentOverviewData {
@@ -717,11 +724,14 @@ export default function ParentDashboardPage() {
   // Ordered list of unique child names (insertion order = most-recently-added first).
   const uniqueChildNames = [...new Set(links.map((l) => l.childName))];
 
+  // Guard against stale tab index after a child is removed (data refresh).
+  const safeActiveTab = Math.min(activeChildTab, Math.max(0, uniqueChildNames.length - 1));
+
   // Schedule chip label — tab-aware when multiple children are linked.
   const scheduleLabel = (() => {
     if (!primaryLink) return null;
     if (uniqueChildNames.length > 1) {
-      const activeName = uniqueChildNames[activeChildTab] ?? uniqueChildNames[0];
+      const activeName = uniqueChildNames[safeActiveTab] ?? uniqueChildNames[0];
       const activeChildLinks = links.filter((l) => l.childName === activeName);
       const activeLink =
         activeChildLinks.find((l) => l.sportName && l.sportLevel) ?? activeChildLinks[0];
@@ -740,26 +750,26 @@ export default function ParentDashboardPage() {
     return { name: namePart, sport: sportPart };
   })();
 
-  // Games shown in the active tab — filtered to the selected child's sport/level combos.
-  // When there is only one child the full list is shown unfiltered.
+  // ── Per-child game isolation ──────────────────────────────────────────────
+  // The API tags every game with the ParentAthleteLink IDs that caused it to
+  // be fetched (via team match OR workbook match).  We do an exact Set lookup
+  // here — no fuzzy string matching, no risk of cross-child contamination.
+  //
+  // Fast paths:
+  //  • Single child  → return full list (no filtering, includes orphan games)
+  //  • No linkIds    → fall back gracefully (older cached responses)
   const gamesForActiveTab = (() => {
     if (uniqueChildNames.length <= 1) return upcomingGames;
-    const activeName = uniqueChildNames[activeChildTab] ?? uniqueChildNames[0];
-    const activeChildLinks = links.filter((l) => l.childName === activeName);
+
+    const activeName = uniqueChildNames[safeActiveTab] ?? uniqueChildNames[0];
+    const activeLinkIds = new Set(
+      links.filter((l) => l.childName === activeName).map((l) => l.id)
+    );
+
     return upcomingGames.filter((game) => {
-      const gameSport = (game.homeTeam?.sport?.name || "").toLowerCase().trim();
-      const gameLevel = (game.homeTeam?.level || "").toLowerCase().trim();
-      return activeChildLinks.some((link) => {
-        const linkSport = (link.sportName || "").toLowerCase().trim();
-        const linkLevel = (link.sportLevel || "").toLowerCase().trim();
-        // Partial containment handles slight name variations:
-        // "Boys Basketball" ↔ "Basketball", "Junior Varsity" ↔ "JV"
-        const sportMatches =
-          !linkSport || gameSport.includes(linkSport) || linkSport.includes(gameSport);
-        const levelMatches =
-          !linkLevel || gameLevel.includes(linkLevel) || linkLevel.includes(gameLevel);
-        return sportMatches && levelMatches;
-      });
+      // Graceful fallback for cached responses that pre-date the linkIds field.
+      if (!game.linkIds || game.linkIds.length === 0) return false;
+      return game.linkIds.some((id) => activeLinkIds.has(id));
     });
   })();
 
@@ -868,7 +878,7 @@ export default function ParentDashboardPage() {
       {/* Per-child schedule tabs — only rendered when the parent has more than one child */}
       {uniqueChildNames.length > 1 && (
         <Tabs
-          value={activeChildTab}
+          value={safeActiveTab}
           onChange={(_, newVal) => {
             setActiveChildTab(newVal as number);
             setScheduleExpanded(false);
