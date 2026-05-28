@@ -199,7 +199,24 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   }
 
   if (signaturePhone?.trim()) {
-    textContent.push(`<div style="margin-bottom: 2px; font-size: 13px; color: ${secondaryColor}; line-height: 1.3;">${escapeHtml(signaturePhone)}</div>`);
+    // Format as (xxx)xxx-xxxx when it's a standard 10-digit US number; otherwise
+    // keep whatever the user typed. The href uses RFC 3966 tel: with digits
+    // only (plus optional leading +) so dialers parse it reliably.
+    const rawPhone = signaturePhone.trim();
+    const digits = rawPhone.replace(/\D/g, "");
+    const formattedPhone =
+      digits.length === 10
+        ? `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6)}`
+        : digits.length === 11 && digits.startsWith("1")
+        ? `(${digits.slice(1, 4)})${digits.slice(4, 7)}-${digits.slice(7)}`
+        : rawPhone;
+    const telHref =
+      digits.length >= 10
+        ? `tel:+${digits.startsWith("1") ? digits : `1${digits}`}`
+        : `tel:${digits}`;
+    textContent.push(
+      `<div style="margin-bottom: 2px; font-size: 13px; line-height: 1.3;"><a href="${escapeHtml(telHref)}" style="color: ${secondaryColor}; text-decoration: none;">${escapeHtml(formattedPhone)}</a></div>`
+    );
   }
 
   if (signatureWebsite?.trim()) {

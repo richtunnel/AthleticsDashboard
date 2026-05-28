@@ -7281,18 +7281,22 @@ export function GamesTable() {
                       alignItems: "center",
                       gap: 0.5,
                       cursor: "pointer",
-                      color: "text.disabled",
-                      opacity: 0.45,
+                      // Match the body-text colour so the toggle reads as part
+                      // of the intro copy rather than disabled-looking ghost text.
+                      color: "text.secondary",
                       userSelect: "none",
-                      "&:hover": { opacity: 0.85 },
-                      transition: "opacity 0.18s ease",
+                      "&:hover": { color: "text.primary" },
+                      transition: "color 0.18s ease",
                     }}
                   >
-                    <SettingsMenuIcon sx={{ fontSize: 15 }} />
-                    <Typography variant="caption" sx={{ lineHeight: 1, fontSize: "0.72rem" }}>
+                    <SettingsMenuIcon sx={{ fontSize: "1rem" }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ lineHeight: 1.2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}
+                    >
                       Show menu
                     </Typography>
-                    <ChevronRight sx={{ fontSize: 16 }} />
+                    <ChevronRight sx={{ fontSize: "1.05rem" }} />
                   </Box>
                 </Tooltip>
               )}

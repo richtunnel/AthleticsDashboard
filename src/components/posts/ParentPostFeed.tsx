@@ -62,12 +62,25 @@ export default function ParentPostFeed({ currentParentId, queryKey }: ParentPost
 
   if (posts.length === 0) {
     return (
-      <Box sx={{ textAlign: "center", py: 8 }}>
+      // Centered both horizontally and vertically within the viewport.
+      // minHeight uses dvh-with-fallback-to-vh so phones with dynamic UI
+      // chrome don't squash the centering.
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          minHeight: { xs: "60vh", md: "70vh" },
+          px: 2,
+        }}
+      >
         <Typography variant="h6" fontWeight={600} gutterBottom>
           No posts yet
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Posts from your school's athletic director will appear here.
+          Posts from your school&apos;s athletic director will appear here.
         </Typography>
       </Box>
     );

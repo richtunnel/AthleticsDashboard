@@ -168,11 +168,30 @@ export function generateCandidateDates(
     }
   }
 
-  // Default: next 12 months rolling
+  // Year-only query (no month / start / end): return every date in that year.
+  // Without this branch we used to fall through to the "rolling 12 months"
+  // default and ignore dr.year entirely — that's why a `year: 2026` filter
+  // was producing 2027 dates.
+  if (dr?.year) {
+    const start = new Date(dr.year, 0, 1);
+    const end = new Date(dr.year, 11, 31);
+    return datesInRange(start, end);
+  }
+
+  // Default: next 12 months rolling, but clamp the upper bound so we never
+  // overshoot the worksheet's data. If the AD's sheet only has games through
+  // 2026, suggesting January-2027 open dates is noise — the user wouldn't be
+  // scheduling against a year they don't have data for.
   const twelveMonthsLater = new Date(ref);
   twelveMonthsLater.setMonth(ref.getMonth() + 12);
+  let endDate = twelveMonthsLater;
+  if (worksheetYears && worksheetYears.size > 0) {
+    const maxWSYear = Math.max(...worksheetYears);
+    const endOfMaxWSYear = new Date(maxWSYear, 11, 31);
+    if (endOfMaxWSYear < endDate) endDate = endOfMaxWSYear;
+  }
   const start = new Date(today + "T00:00:00");
-  return datesInRange(start, twelveMonthsLater);
+  return datesInRange(start, endDate);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -192,12 +211,21 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       ? opts.candidateDates
       : generateCandidateDates(query, referenceDate, worksheetYears);
 
-  // Constrain to worksheet years when no explicit year / start / end was given.
-  // This prevents the scanner from returning 2027 dates when the worksheet only
-  // contains games through 2026.
-  if (
+  // ── Year/range hard filters ─────────────────────────────────────────────
+  //
+  // 1. If the user picked a specific year, HARD-FILTER to that year. No
+  //    fudging — they clicked "2026" so they don't want 2027 dates.
+  // 2. Otherwise, if no explicit start/end either, fall back to the years
+  //    actually represented on the worksheet (don't suggest dates from
+  //    years the AD has no data for).
+  if (query.dateRange?.year) {
+    const targetYear = query.dateRange.year;
+    candidateDates = candidateDates.filter((d) => {
+      const yr = parseInt(d.substring(0, 4), 10);
+      return yr === targetYear;
+    });
+  } else if (
     worksheetYears.size > 0 &&
-    !query.dateRange?.year &&
     !query.dateRange?.start &&
     !query.dateRange?.end
   ) {

@@ -29,7 +29,7 @@ import {
   TextField,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { Person, Sync, SyncDisabled, Delete, CalendarMonth, Search, Badge as BadgeIcon } from "@mui/icons-material";
+import { Person, Sync, SyncDisabled, Delete, Search, Badge as BadgeIcon } from "@mui/icons-material";
 import InputAdornment from "@mui/material/InputAdornment";
 import { formatOrgName } from "@/lib/utils/format";
 
@@ -281,52 +281,60 @@ export function ConnectedParentsMenu() {
                 <Grid size={{ xs: 12, sm: 6, md: 4 }} key={parent.id}>
                   <Card variant="outlined" sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
                     <CardContent sx={{ flex: 1, pb: 1 }}>
-                      {/* Parent identity */}
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-                        <Avatar sx={{ width: 36, height: 36, fontSize: 15, bgcolor: "primary.main" }}>
+                      {/* Top row: parent identity + Synced chip in top-right */}
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
+                        <Avatar sx={{ width: 36, height: 36, fontSize: 15, bgcolor: "primary.main", flexShrink: 0 }}>
                           {(parent.parentUserName || parent.parentEmail).charAt(0).toUpperCase()}
                         </Avatar>
-                        <Box sx={{ minWidth: 0 }}>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Typography variant="subtitle2" fontWeight={600} noWrap>
                             {parent.parentUserName || "Unknown"}
                           </Typography>
                           <Typography variant="caption" color="text.secondary" noWrap sx={{ display: "block" }}>
                             {parent.parentEmail}
                           </Typography>
-                          {parent.parentCode && (
-                            <Typography
-                              variant="caption"
-                              noWrap
-                              sx={{
-                                display: "block",
-                                fontFamily: "monospace",
-                                color: "text.disabled",
-                                fontSize: "0.65rem",
-                                letterSpacing: 0.3,
-                              }}
-                            >
-                              {parent.parentCode}
-                            </Typography>
-                          )}
                         </Box>
+                        {/* Sync status — pinned top-right */}
+                        <Tooltip
+                          title={
+                            parent.calendarSynced
+                              ? parent.lastSyncedAt
+                                ? `Last synced: ${new Date(parent.lastSyncedAt).toLocaleString()}`
+                                : "Synced"
+                              : "Not synced yet"
+                          }
+                        >
+                          <Chip
+                            label={parent.calendarSynced ? "Synced" : "Not Synced"}
+                            size="small"
+                            color={parent.calendarSynced ? "success" : "default"}
+                            variant="outlined"
+                            sx={{ height: 20, fontSize: "0.65rem", flexShrink: 0 }}
+                          />
+                        </Tooltip>
                       </Box>
 
                       <Divider sx={{ mb: 1.5 }} />
 
-                      {/* Athlete name — which child this approval is for */}
+                      {/* Athlete name — matches parent name styling */}
                       {parent.athleteName && (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, mb: 0.5 }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
                             Athlete:
                           </Typography>
-                          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {parent.athleteName}
                           </Typography>
                         </Box>
                       )}
 
+                      {/* School — directly under the athlete name */}
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                        {formatOrgName(parent.schoolName)}
+                      </Typography>
+
                       {/* Sport & Level */}
-                      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mb: 1 }}>
+                      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
                         {parent.sportName ? (
                           <Chip label={parent.sportName} size="small" variant="outlined" />
                         ) : (
@@ -336,37 +344,6 @@ export function ConnectedParentsMenu() {
                           <Chip label={parent.sportLevel} size="small" variant="outlined" color="primary" />
                         )}
                       </Box>
-
-                      {/* School */}
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
-                        {formatOrgName(parent.schoolName)}
-                      </Typography>
-
-                      {/* Calendar status */}
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.5 }}>
-                        <CalendarMonth sx={{ fontSize: 14, color: parent.calendarSynced ? "success.main" : "text.disabled" }} />
-                        {parent.calendarSynced ? (
-                          <Tooltip
-                            title={
-                              parent.lastSyncedAt
-                                ? `Last synced: ${new Date(parent.lastSyncedAt).toLocaleString()}`
-                                : "Synced"
-                            }
-                          >
-                            <Chip label="Synced" size="small" color="success" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
-                          </Tooltip>
-                        ) : (
-                          <Chip label="Not Synced" size="small" color="default" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
-                        )}
-                      </Box>
-
-                      {/* Membership status */}
-                      <Chip
-                        label={parent.membershipStatus}
-                        size="small"
-                        color={getMembershipColor(parent.membershipStatus)}
-                        sx={{ height: 18, fontSize: "0.65rem" }}
-                      />
                     </CardContent>
 
                     <CardActions sx={{ pt: 0, px: 1.5, pb: 1.5, gap: 0.5 }}>

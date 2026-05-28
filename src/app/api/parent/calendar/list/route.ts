@@ -93,16 +93,23 @@ export async function GET() {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
     const response = await calendar.calendarList.list();
 
+    // accessRole distinguishes the parent's own calendars from calendars
+    // shared with them (e.g. an AD calendar they subscribed to). Surfaced
+    // so the UI can avoid showing a "you own this" treatment for shared ones.
     const calendars =
       response.data.items?.map((cal) => ({
         id: cal.id,
         name: cal.summary,
         description: cal.description,
         primary: cal.primary || false,
+        accessRole: cal.accessRole || null,
         backgroundColor: cal.backgroundColor,
       })) || [];
 
-    return NextResponse.json({ calendars });
+    return NextResponse.json({
+      calendars,
+      grantEmail: session.user?.email ?? null,
+    });
   } catch (error: any) {
     console.error("[parent/calendar/list] error:", error);
     if (error?.code === 401 || error?.status === 401) {

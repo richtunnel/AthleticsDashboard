@@ -12,6 +12,10 @@ export type ImportGoogleEmailGroupsResult = {
   error?: string;
   requiresAuth?: boolean;
   authUrl?: string;
+  /** Number of contact groups actually written to the DB. 0 when the user has
+   *  no Google contact groups (still a "success" outcome, but the UI should
+   *  not show the green confirmation). Undefined for auth/error responses. */
+  importedGroups?: number;
 };
 
 const DEFAULT_RETURN_TO = "/dashboard/email-groups";
@@ -103,7 +107,13 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
     const contactGroups = await googleGroupsService.fetchContactGroups(refreshToken);
 
     if (contactGroups.length === 0) {
-      return { success: true, message: "No Google contact groups found." };
+      // Resolved cleanly but nothing to import — surface importedGroups=0 so
+      // the button can suppress the "✓ imported" message in this case.
+      return {
+        success: true,
+        message: "No Google contact groups found.",
+        importedGroups: 0,
+      };
     }
 
     let processedGroups = 0;
@@ -152,6 +162,7 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
     return {
       success: true,
       message: `Successfully imported ${processedGroups} groups from Google Contacts.`,
+      importedGroups: processedGroups,
     };
   } catch (error) {
     console.error("Error importing Google email groups:", error);

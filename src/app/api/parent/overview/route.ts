@@ -371,14 +371,18 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       if (teamLinkIds.size === 0 && game.workbookId) {
         const candidateLinkIds = workbookIdToLinkIds.get(game.workbookId) ?? [];
 
-        // Resolve the game's effective sport/level from any source we trust:
-        //   • homeTeam relation (if present and populated)
-        //   • customFields["Sport"] / ["Level"]
+        // Resolve the game's effective sport/level/gender from any source we
+        // trust, in priority order:
+        //   • team.gender (most reliable when set)
+        //   • parsed prefix on the sport label ("Girls Basketball" → FEMALE)
+        //   • customFields["Sport"] / ["Level"] (already merged into resolvedSport/Level)
         const gSportRaw = (resolvedSport ?? "").toLowerCase().trim();
         const gLevelRaw = (resolvedLevel ?? "").toLowerCase().trim();
-        const { baseSport: gBaseSport, gender: gGender } = gSportRaw
+        const { baseSport: gBaseSport, gender: gGenderFromLabel } = gSportRaw
           ? parseSportLabel(gSportRaw)
           : { baseSport: "", gender: null as null };
+        const gTeamGender = (game.homeTeam as any)?.gender ?? null;
+        const gGender: string | null = gTeamGender ?? gGenderFromLabel ?? null;
 
         for (const lid of candidateLinkIds) {
           const link = links.find((l) => l.id === lid);
@@ -390,22 +394,33 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
             ? parseSportLabel(lSportRaw)
             : { baseSport: "", gender: null as null };
 
-          // Sport must match either as a raw label or via base+gender pair.
+          // Sport: accept exact-label match or a base-sport match.
           const sportMatches =
             (gSportRaw && lSportRaw && gSportRaw === lSportRaw) ||
-            (gBaseSport && lBaseSport &&
-              gBaseSport.toLowerCase() === lBaseSport.toLowerCase() &&
-              (!lGender || !gGender || lGender === gGender));
+            (gBaseSport &&
+              lBaseSport &&
+              gBaseSport.toLowerCase() === lBaseSport.toLowerCase());
 
-          // Level must match when both sides provide one. If either side is
-          // empty, accept (don't reject on missing data).
+          // Gender: STRICT. If the link specifies one (Girls / Boys), the
+          // game MUST also specify the same one. Genderless games (sport
+          // label "Basketball" with no team.gender) are rejected from
+          // gendered links — otherwise a generic "Basketball" row leaks
+          // into the Girls tab, which is the bug the user just reported.
+          // When the link has no gender (rare), accept any gender.
+          const genderMatches = !lGender || (gGender && gGender === lGender);
+
+          // Level: match when both sides provide one. JV ↔ "Junior Varsity"
+          // treated as equivalent. Missing-on-either-side is accepted (we
+          // don't want to lose a Varsity link just because the import
+          // omitted the level on the game row).
           const levelMatches =
-            !lLevelRaw || !gLevelRaw ||
+            !lLevelRaw ||
+            !gLevelRaw ||
             lLevelRaw === gLevelRaw ||
             (lLevelRaw === "jv" && gLevelRaw === "junior varsity") ||
             (lLevelRaw === "junior varsity" && gLevelRaw === "jv");
 
-          if (sportMatches && levelMatches) {
+          if (sportMatches && genderMatches && levelMatches) {
             linkIdSet.add(lid);
           }
         }

@@ -458,9 +458,36 @@ function PricingPlansContent() {
                       {plan.name}
                     </Typography>
 
-                    <Typography variant="h3" fontWeight={700} sx={{ mb: 1 }}>
-                      ${billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
-                    </Typography>
+                    {/* Price with cents as a superscript top-right of the main amount.
+                        Split into whole and fractional parts so we can style them
+                        independently. */}
+                    {(() => {
+                      const rawPrice = billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
+                      const [dollars, cents] = rawPrice.toFixed(2).split(".");
+                      const hasCents = cents !== "00";
+                      return (
+                        <Box sx={{ display: "inline-flex", alignItems: "flex-start", mb: 1 }}>
+                          <Typography component="span" variant="h3" fontWeight={700} sx={{ lineHeight: 1 }}>
+                            ${dollars}
+                          </Typography>
+                          {hasCents && (
+                            <Typography
+                              component="span"
+                              fontWeight={700}
+                              sx={{
+                                ml: 0.25,
+                                mt: "0.25em",
+                                fontSize: "0.95rem",
+                                lineHeight: 1,
+                                color: "text.primary",
+                              }}
+                            >
+                              .{cents}
+                            </Typography>
+                          )}
+                        </Box>
+                      );
+                    })()}
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                       {billing !== "monthly" ? "per year" : "per month"}
                     </Typography>

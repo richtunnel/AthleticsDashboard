@@ -242,8 +242,11 @@ function ParentCalendarPageContent() {
           }}
         >
           {/* Pass verified calendar email so CalendarGroupMappings never
-              falls back to the sign-in email from useSession */}
-          <CalendarGroupMappings connectedEmailOverride={connectedEmail} />
+              falls back to the sign-in email from useSession. parentMode
+              routes the Google Calendar list fetch through the parent-scoped
+              endpoint — without it, an AD session in the same browser would
+              bleed in and the parent would see the AD's calendars. */}
+          <CalendarGroupMappings connectedEmailOverride={connectedEmail} parentMode />
         </Box>
       )}
     </Box>

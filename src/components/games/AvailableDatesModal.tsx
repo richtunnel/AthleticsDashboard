@@ -543,6 +543,66 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         }
       }
 
+      // ── 3b. Backfill the canonical worksheet columns ────────────────────
+      //
+      // The form filters Sport / Level / Gender / Date / Team out of the
+      // editable inputs (they're shown read-only in the context row at the
+      // top). But the GamesTable RENDERS those columns by reading
+      // `customFields[colName]` — so unless we write them here, the new row
+      // appears with blank Sport/Level/Gender/Date cells even though we have
+      // the values right there in addDateCtx.
+      //
+      // We use the exact column-name spelling from the worksheet (worksheet
+      // column "Sport" vs custom column "sport" matter because the table
+      // looks up by name). For each match we route to the right storage
+      // (customData by ID for CustomColumns, customFields by name otherwise).
+      const writeWorksheetValue = (col: string, value: string) => {
+        if (!value) return;
+        // Skip if the user already typed something for this column.
+        const existing = fieldValues[col]?.trim();
+        if (existing) return;
+        const customColId = customColumnIdByName[col];
+        if (customColId) {
+          customData[customColId] = value;
+        } else {
+          customFields[col] = value;
+        }
+      };
+
+      // Format date for worksheet "Date" column — match the most common
+      // imported style (YYYY-MM-DD). The table's date column reads from
+      // game.date directly, but the imported "Date" column (if it exists)
+      // reads from customFields["Date"], so we backfill both.
+      const dateForWorksheet = dateStr; // already YYYY-MM-DD
+
+      for (const col of worksheetColumns) {
+        const norm = normalizeColName(col);
+        if (norm === "sport" && sportName) writeWorksheetValue(col, sportName);
+        else if (norm === "level" && levelName) writeWorksheetValue(col, levelName);
+        else if (norm === "gender" && addDateCtx.gender) writeWorksheetValue(col, addDateCtx.gender);
+        else if (norm === "date") writeWorksheetValue(col, dateForWorksheet);
+        else if (norm === "team" && sportName && levelName) {
+          // Best-effort team label: "<Gender> <Level> <Sport>" trimmed.
+          const teamLabel = [addDateCtx.gender, levelName, sportName].filter(Boolean).join(" ").trim();
+          if (teamLabel) writeWorksheetValue(col, teamLabel);
+        } else if (norm === "opponent" && opponentName) {
+          // Make sure the worksheet's "Opponent" / "Vs" / etc. column actually
+          // reflects what the user typed (they entered it once, but the standard
+          // field resolver pulled it into the relation rather than the import column).
+          writeWorksheetValue(col, opponentName);
+        } else if (norm === "time" && time) {
+          writeWorksheetValue(col, time);
+        } else if (norm === "location" && location) {
+          writeWorksheetValue(col, location);
+        } else if (norm === "status" && status) {
+          writeWorksheetValue(col, status);
+        } else if ((norm === "home" || norm === "homeaway" || norm === "ishome")) {
+          writeWorksheetValue(col, isHome ? "Home" : "Away");
+        } else if (norm === "notes" && notes) {
+          writeWorksheetValue(col, notes);
+        }
+      }
+
       // ── 4. Build gameData payload ─────────────────────────────────────
       const gameData = {
         date: dateStrToUTC(dateStr),

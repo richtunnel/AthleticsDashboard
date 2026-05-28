@@ -59,6 +59,14 @@ interface GoogleCalendar {
   name: string;
   description?: string;
   primary: boolean;
+  /**
+   * Google's accessRole on this calendar:
+   *   "owner"   → user owns it (their primary + own secondaries)
+   *   "writer"  → shared with edit access
+   *   "reader"  → shared read-only
+   *   "freeBusyReader" → free/busy only
+   */
+  accessRole?: string | null;
   backgroundColor?: string;
 }
 
@@ -79,10 +87,22 @@ const fetchCalendarGroupMappings = async (): Promise<{
   return res.json();
 };
 
-const fetchGoogleCalendars = async (): Promise<{
+const fetchGoogleCalendars = async (
+  /**
+   * When `true`, hits the parent-scoped endpoint that uses the parent session
+   * cookie. Without this, the AD-side endpoint runs and — if the user happens
+   * to also be logged in as an AD in this browser — returns the AD's calendars
+   * instead of the parent's (a real session-bleed bug).
+   */
+  parentMode: boolean
+): Promise<{
   calendars: GoogleCalendar[];
+  grantEmail?: string | null;
 }> => {
-  const res = await fetch("/api/calendar/list-calendars");
+  const url = parentMode
+    ? "/api/parent/calendar/list"
+    : "/api/calendar/list-calendars";
+  const res = await fetch(url);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Failed to fetch Google Calendars");
@@ -102,12 +122,19 @@ const fetchWorkbooks = async (): Promise<Workbook[]> => {
 interface CalendarGroupMappingsProps {
   /** Override the connected-account email shown in the header. */
   connectedEmailOverride?: string | null;
+  /**
+   * When mounted on the parent dashboard, set this so the Google Calendar list
+   * is fetched via the parent-scoped endpoint (parent cookie → parent OAuth
+   * tokens). Prevents AD/parent session bleed when the same browser holds both.
+   */
+  parentMode?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CalendarGroupMappings({
   connectedEmailOverride,
+  parentMode = false,
 }: CalendarGroupMappingsProps = {}) {
   const { addNotification } = useNotifications();
   const theme = customTheme();
@@ -149,8 +176,10 @@ export function CalendarGroupMappings({
     isLoading: calendarsLoading,
     error: calendarsError,
   } = useQuery({
-    queryKey: ["googleCalendars"],
-    queryFn: fetchGoogleCalendars,
+    // Key includes parentMode so an AD-then-parent navigation doesn't reuse
+    // the wrong cache entry.
+    queryKey: ["googleCalendars", parentMode ? "parent" : "ad"],
+    queryFn: () => fetchGoogleCalendars(parentMode),
     retry: false,
   });
 
@@ -284,22 +313,28 @@ export function CalendarGroupMappings({
   const connectedCalendarsInUse = useMemo(() => {
     const map = new Map<
       string,
-      { id: string; name: string; count: number; isPrimary: boolean }
+      {
+        id: string;
+        name: string;
+        count: number;
+        isPrimary: boolean;
+        accessRole: string | null;
+      }
     >();
     for (const m of mappingsData?.mappings ?? []) {
       const existing = map.get(m.googleCalendarId);
       if (existing) {
         existing.count++;
       } else {
-        const isPrimary =
-          (calendarsData?.calendars ?? []).find(
-            (c) => c.id === m.googleCalendarId
-          )?.primary ?? false;
+        const cal = (calendarsData?.calendars ?? []).find(
+          (c) => c.id === m.googleCalendarId
+        );
         map.set(m.googleCalendarId, {
           id: m.googleCalendarId,
           name: m.googleCalendarName,
           count: 1,
-          isPrimary,
+          isPrimary: cal?.primary ?? false,
+          accessRole: cal?.accessRole ?? null,
         });
       }
     }
@@ -309,6 +344,16 @@ export function CalendarGroupMappings({
       return a.name.localeCompare(b.name);
     });
   }, [mappingsData?.mappings, calendarsData?.calendars]);
+
+  /** Friendly label for Google's accessRole. */
+  const accessRoleLabel = (role: string | null): string | null => {
+    if (!role) return null;
+    if (role === "owner") return "Owned";
+    if (role === "writer") return "Shared · edit";
+    if (role === "reader") return "Shared · read";
+    if (role === "freeBusyReader") return "Shared · free/busy";
+    return null;
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -491,6 +536,23 @@ export function CalendarGroupMappings({
               Connected as: {connectedEmail}
             </Typography>
           )}
+          {/* When the Google grant email differs from connectedEmail it's a
+              strong hint of session bleed (e.g. AD cookie active on parent
+              page). Show it so the user can spot the mismatch. */}
+          {calendarsData?.grantEmail &&
+            connectedEmail &&
+            calendarsData.grantEmail.toLowerCase() !==
+              connectedEmail.toLowerCase() && (
+              <Typography
+                variant="caption"
+                color="warning.main"
+                sx={{ mt: 0.5, display: "block", fontWeight: 600 }}
+              >
+                ⚠ Calendars are being read from {calendarsData.grantEmail}, not{" "}
+                {connectedEmail}. Sign out of the other account or reconnect
+                this one to fix.
+              </Typography>
+            )}
         </Box>
         <Button
           variant="contained"
@@ -563,6 +625,23 @@ export function CalendarGroupMappings({
                           color="primary"
                           sx={{ height: 18, fontSize: "0.65rem" }}
                         />
+                      )}
+                      {accessRoleLabel(cal.accessRole) && (
+                        <Tooltip
+                          title={
+                            cal.accessRole === "owner"
+                              ? "You own this calendar."
+                              : "This calendar is shared with you from another Google account. It still lives in their account — you're just routing games to it through your access."
+                          }
+                        >
+                          <Chip
+                            label={accessRoleLabel(cal.accessRole)!}
+                            size="small"
+                            color={cal.accessRole === "owner" ? "default" : "warning"}
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.65rem" }}
+                          />
+                        </Tooltip>
                       )}
                       <Chip
                         label={`${cal.count} mapping${cal.count === 1 ? "" : "s"}`}
