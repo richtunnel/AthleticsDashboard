@@ -109,10 +109,29 @@ export async function POST(request: NextRequest) {
     // Apply the user-selected maxResults override
     parsedQuery.maxResults = maxResults ?? parsedQuery.maxResults ?? 10;
 
-    // Apply year override from UI
+    // Apply year override from UI.
+    //
+    // The user's UI year selection is authoritative. The AI parser might have
+    // already inferred a start/end in a DIFFERENT year for prompts like
+    // "in February" (it picks the next-occurring February). If we only set
+    // `dateRange.year` but leave the AI's start/end alone, the candidate
+    // generator uses the start/end branch (in the wrong year) and the
+    // downstream year filter then strips every candidate → zero results.
+    //
+    // Fix: retarget start/end to the chosen year so the whole pipeline agrees.
     if (year !== undefined) {
       if (!parsedQuery.dateRange) parsedQuery.dateRange = {};
       parsedQuery.dateRange.year = year;
+
+      const retargetYear = (iso: string | undefined | null): string | undefined => {
+        if (!iso) return iso ?? undefined;
+        if (!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso;
+        const curYr = parseInt(iso.substring(0, 4), 10);
+        if (curYr === year) return iso;
+        return `${year}${iso.substring(4)}`;
+      };
+      parsedQuery.dateRange.start = retargetYear(parsedQuery.dateRange.start);
+      parsedQuery.dateRange.end = retargetYear(parsedQuery.dateRange.end);
     }
 
     // Fetch all games for the organization

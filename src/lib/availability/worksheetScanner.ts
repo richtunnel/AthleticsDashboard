@@ -215,15 +215,35 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
   //
   // 1. If the user picked a specific year, HARD-FILTER to that year. No
   //    fudging — they clicked "2026" so they don't want 2027 dates.
+  //    Safety net: if the filter wipes out every candidate (because the
+  //    upstream candidate generator used a stale start/end from a different
+  //    year), regenerate fresh from the target year so we never return
+  //    "0 candidates" when the user has data in that year.
   // 2. Otherwise, if no explicit start/end either, fall back to the years
   //    actually represented on the worksheet (don't suggest dates from
   //    years the AD has no data for).
   if (query.dateRange?.year) {
     const targetYear = query.dateRange.year;
-    candidateDates = candidateDates.filter((d) => {
+    const filtered = candidateDates.filter((d) => {
       const yr = parseInt(d.substring(0, 4), 10);
       return yr === targetYear;
     });
+
+    if (filtered.length === 0) {
+      // Rebuild from scratch using just the year + (optional) month.
+      // Pass a stripped query so start/end can't pull us back to a wrong year.
+      const fallbackQuery = {
+        ...query,
+        dateRange: {
+          year: targetYear,
+          month: query.dateRange.month,
+          months: query.dateRange.months,
+        },
+      };
+      candidateDates = generateCandidateDates(fallbackQuery, referenceDate, worksheetYears);
+    } else {
+      candidateDates = filtered;
+    }
   } else if (
     worksheetYears.size > 0 &&
     !query.dateRange?.start &&
