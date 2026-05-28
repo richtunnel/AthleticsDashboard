@@ -126,26 +126,83 @@ const formatDateDisplay = (dateStr: string): string => {
 const normalizeColName = (s: string) =>
   s.toLowerCase().replace(/[\s_\-\/\.]+/g, "");
 
+/**
+ * Aliases for the "opponent" / "away team" worksheet column.
+ * Anything in this set is treated as the opponent column when backfilling.
+ * Add new spellings here, not in the resolver — keeps both call sites in sync.
+ */
+const OPPONENT_ALIASES = new Set([
+  "opponent",
+  "opponents",
+  "vs",
+  "vsteam",
+  "awayteam",
+  "away",
+  "otherteam",
+  "otherteams",
+  "challenger",
+  "visitor",
+  "visitors",
+  "visitingteam",
+  "enemy",
+  "theirteam",
+  "competitor",
+  "opposing",
+  "opposingteam",
+]);
+
+/**
+ * Aliases for the HOME TEAM column (column whose value is the AD's own
+ * school/team name). Distinct from the home/away INDICATOR — see
+ * HOME_AWAY_ALIASES below.
+ */
+const HOME_TEAM_ALIASES = new Set([
+  "hometeam",
+  "mainteam",
+  "ourteam",
+  "ourteams",
+  "ourschool",
+  "myteam",
+  "myschool",
+  "school",
+  "schoolname",
+  "team1",
+  "host",
+  "hostteam",
+]);
+
+/**
+ * Aliases for the home/away INDICATOR column (value is "Home"/"Away").
+ * Note: bare "home" is intentionally listed here, not in HOME_TEAM_ALIASES.
+ * A column literally named "Home" in the wild is overwhelmingly the indicator
+ * (paired with an "Away" column) rather than the team name. Users who want
+ * auto-fill of the home team's name should label the column "Home Team",
+ * "Main Team", "Our Team", etc.
+ */
+const HOME_AWAY_ALIASES = new Set(["home", "homeaway", "ishome"]);
+
 /** Column names (normalized) that map to core game fields — not shown as extra custom fields */
 const STANDARD_FIELD_KEYS = new Set([
   "date", "time", "gametime", "starttime",
   "sport", "level", "gender", "team",
-  "opponent", "vs", "awayteam", "away",
+  ...OPPONENT_ALIASES,
   "location", "venue", "site", "fieldsite",
   "notes", "note", "comments", "info",
   "status", "gamestatus",
-  "home", "homeaway", "ishome",
+  ...HOME_AWAY_ALIASES,
+  ...HOME_TEAM_ALIASES,
 ]);
 
 /** Map a normalized column name to the standard game form field it represents */
 function resolveStandardField(col: string): string | null {
   const key = normalizeColName(col);
   if (["time", "gametime", "starttime"].includes(key)) return "time";
-  if (["opponent", "vs", "awayteam"].includes(key)) return "opponent";
+  if (OPPONENT_ALIASES.has(key)) return "opponent";
   if (["location", "venue", "site", "fieldsite"].includes(key)) return "location";
   if (["notes", "note", "comments", "info"].includes(key)) return "notes";
   if (["status", "gamestatus"].includes(key)) return "status";
-  if (["home", "homeaway", "ishome"].includes(key)) return "isHome";
+  if (HOME_AWAY_ALIASES.has(key)) return "isHome";
+  if (HOME_TEAM_ALIASES.has(key)) return "homeTeam";
   return null;
 }
 
@@ -230,6 +287,30 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
    * table (because the table looks them up by ID, not name).
    */
   const [customColumnIdByName, setCustomColumnIdByName] = useState<Record<string, string>>({});
+
+  /**
+   * The AD's own school name — used to auto-fill the "Home Team" / "Main Team"
+   * worksheet column on submit so the user doesn't have to type their own
+   * school's name into every game. Fetched on form open. Mascot/team name is
+   * deliberately NOT included; if the user wants the mascot they edit before
+   * submitting.
+   */
+  const [homeSchoolName, setHomeSchoolName] = useState<string>("");
+
+  useEffect(() => {
+    if (view !== "addForm") return;
+    if (homeSchoolName) return;
+    fetch("/api/user/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.schoolName && typeof data.schoolName === "string") {
+          setHomeSchoolName(data.schoolName.trim());
+        }
+      })
+      .catch(() => {
+        /* non-fatal — the column just stays empty if profile fetch fails */
+      });
+  }, [view, homeSchoolName]);
 
   // ── Pre-fill prompt ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -585,18 +666,25 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           // Best-effort team label: "<Gender> <Level> <Sport>" trimmed.
           const teamLabel = [addDateCtx.gender, levelName, sportName].filter(Boolean).join(" ").trim();
           if (teamLabel) writeWorksheetValue(col, teamLabel);
-        } else if (norm === "opponent" && opponentName) {
-          // Make sure the worksheet's "Opponent" / "Vs" / etc. column actually
-          // reflects what the user typed (they entered it once, but the standard
-          // field resolver pulled it into the relation rather than the import column).
+        } else if (OPPONENT_ALIASES.has(norm) && opponentName) {
+          // Route the typed opponent into ANY column the worksheet considers
+          // the "opponent" — opponent / vs / away team / challenger / visitor /
+          // other team / etc. The standard-field resolver pulled the value into
+          // the canonical opponent relation; this mirrors it into the imported
+          // column so the table cell isn't empty.
           writeWorksheetValue(col, opponentName);
+        } else if (HOME_TEAM_ALIASES.has(norm) && homeSchoolName) {
+          // Auto-fill the home-team column with the AD's school name. The
+          // mascot/team-nickname is intentionally NOT appended — the user
+          // asked for the school name only.
+          writeWorksheetValue(col, homeSchoolName);
         } else if (norm === "time" && time) {
           writeWorksheetValue(col, time);
         } else if (norm === "location" && location) {
           writeWorksheetValue(col, location);
         } else if (norm === "status" && status) {
           writeWorksheetValue(col, status);
-        } else if ((norm === "home" || norm === "homeaway" || norm === "ishome")) {
+        } else if (HOME_AWAY_ALIASES.has(norm)) {
           writeWorksheetValue(col, isHome ? "Home" : "Away");
         } else if (norm === "notes" && notes) {
           writeWorksheetValue(col, notes);
