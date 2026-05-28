@@ -206,9 +206,9 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
     const digits = rawPhone.replace(/\D/g, "");
     const formattedPhone =
       digits.length === 10
-        ? `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6)}`
+        ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} - ${digits.slice(6)}`
         : digits.length === 11 && digits.startsWith("1")
-        ? `(${digits.slice(1, 4)})${digits.slice(4, 7)}-${digits.slice(7)}`
+        ? `(${digits.slice(1, 4)}) ${digits.slice(4, 7)} - ${digits.slice(7)}`
         : rawPhone;
     const telHref =
       digits.length >= 10

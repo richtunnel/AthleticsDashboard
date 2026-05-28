@@ -29,10 +29,15 @@ export function ImportGroupsButton() {
 
       setLastError(null);
 
-      if (result.success) {
+      // Refresh the Email Manager list whenever the action actually wrote
+      // something. "no_groups" / "no_contacts" are success outcomes that
+      // didn't touch the DB — no need to refetch.
+      if (result.success && result.status === "imported") {
         queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
         queryClient.invalidateQueries({ queryKey: ["user-data"] });
-      } else {
+      }
+
+      if (!result.success) {
         setLastError(result.error || "Import failed due to an internal error.");
       }
     },
@@ -73,31 +78,38 @@ export function ImportGroupsButton() {
     importMutation.mutate({ returnTo: returnToWithAutoImport });
   }, [searchParams, buildReturnTo, router, importMutation]);
 
-  // Only treat as a real import-success when the server returned success=true
-  // AND actually wrote at least one group. The OAuth-redirect path also flips
-  // isSuccess=true momentarily before navigation, and "No groups found" is
-  // technically a success too — neither should show the green confirmation.
-  const importedCount = (importMutation.data as { importedGroups?: number } | undefined)?.importedGroups ?? 0;
-  const trulyImported =
-    importMutation.isSuccess &&
-    !lastError &&
-    importMutation.data?.success === true &&
-    !importMutation.data?.requiresAuth &&
-    importedCount > 0;
+  // Pick which Alert to show based on the discriminator the server returned.
+  // The OAuth-redirect path navigates away — we never render its "success".
+  const result = importMutation.data;
+  const status = result?.status;
+  const isInfoStatus = status === "no_groups" || status === "no_contacts";
+  const isSuccessStatus = status === "imported";
+  const showError = !!lastError;
 
   return (
     <Stack spacing={1} direction="column" alignItems="flex-start" sx={{ width: "100%" }}>
       {/* Status slot — fixed above the button. Reserves vertical space so the
           button itself never shifts when a message appears/disappears. */}
-      <Box sx={{ width: "100%", minHeight: lastError || trulyImported ? undefined : 0 }}>
-        <Collapse in={trulyImported} unmountOnExit>
+      <Box sx={{ width: "100%" }}>
+        {/* ✓ Imported N contacts into "Google Contact" group */}
+        <Collapse in={isSuccessStatus && !showError} unmountOnExit>
           <Alert severity="success" sx={{ width: "100%" }}>
-            {importMutation.data?.message || "Email groups imported successfully."}
+            {result?.message || "Email groups imported successfully."}
           </Alert>
         </Collapse>
-        <Collapse in={!!lastError} unmountOnExit>
+
+        {/* ℹ No contact groups / no contacts found — distinct from failure. */}
+        <Collapse in={isInfoStatus && !showError} unmountOnExit>
+          <Alert severity="info" sx={{ width: "100%" }}>
+            {result?.message ||
+              "Nothing to import from your Google contact groups."}
+          </Alert>
+        </Collapse>
+
+        {/* ✗ Import failed */}
+        <Collapse in={showError} unmountOnExit>
           <Alert severity="error" onClose={() => setLastError(null)} sx={{ width: "100%" }}>
-            Import Error: {lastError}
+            Import failed: {lastError}
           </Alert>
         </Collapse>
       </Box>

@@ -16,6 +16,21 @@ export type ImportGoogleEmailGroupsResult = {
    *  no Google contact groups (still a "success" outcome, but the UI should
    *  not show the green confirmation). Undefined for auth/error responses. */
   importedGroups?: number;
+  /** Total number of unique email addresses pulled in across every Google
+   *  contact group. Used by the UI to decide between "imported N contacts"
+   *  vs "no contacts found" messaging. */
+  importedEmails?: number;
+  /** Name of the consolidated EmailGroup the import auto-creates. */
+  campaignGroupName?: string;
+  /**
+   * Discriminator the UI uses to pick the right notification severity:
+   *   "imported"    → success with green Alert
+   *   "no_groups"   → info, "your Google account has no contact groups"
+   *   "no_contacts" → info, "contact groups exist but have no emails"
+   *   "needs_auth"  → handled separately (silent — we redirect)
+   *   "failed"      → red Alert
+   */
+  status?: "imported" | "no_groups" | "no_contacts" | "needs_auth" | "failed";
 };
 
 const DEFAULT_RETURN_TO = "/dashboard/email-groups";
@@ -64,7 +79,7 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: "Unauthorized", status: "failed" };
   }
 
   const returnTo = options.returnTo || DEFAULT_RETURN_TO;
@@ -80,7 +95,7 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
     });
 
     if (!user?.organizationId) {
-      return { success: false, error: "Organization not found for user" };
+      return { success: false, error: "Organization not found for user", status: "failed" };
     }
 
     const account = await prisma.account.findFirst({
@@ -101,24 +116,53 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
         requiresAuth: true,
         authUrl: buildReconnectUrl(returnTo),
         error: "Google is not connected. Connect Google Calendar to import Gmail contact groups.",
+        status: "needs_auth",
       };
     }
 
     const contactGroups = await googleGroupsService.fetchContactGroups(refreshToken);
 
     if (contactGroups.length === 0) {
-      // Resolved cleanly but nothing to import — surface importedGroups=0 so
-      // the button can suppress the "✓ imported" message in this case.
       return {
         success: true,
-        message: "No Google contact groups found.",
+        message: "We didn't find any contact groups in your Google account.",
         importedGroups: 0,
+        importedEmails: 0,
+        status: "no_groups",
       };
     }
 
+    // ── Collect every unique email across every group ─────────────────────
+    // The user asked for ONE consolidated campaign-group called "Google Contact"
+    // containing all imported emails. We still write per-group rows below so
+    // the original Google contact-group structure is preserved (useful for
+    // sending to "Family" vs "Work" specifically) — but the consolidated
+    // group is the headline result.
+    const allEmails = new Set<string>();
+    for (const group of contactGroups) {
+      for (const email of group.memberEmails) {
+        const clean = email.trim().toLowerCase();
+        if (clean) allEmails.add(clean);
+      }
+    }
+
+    if (allEmails.size === 0) {
+      return {
+        success: true,
+        message:
+          "We found your Google contact groups but they don't contain any email addresses.",
+        importedGroups: 0,
+        importedEmails: 0,
+        status: "no_contacts",
+      };
+    }
+
+    const CAMPAIGN_GROUP_NAME = "Google Contact";
     let processedGroups = 0;
 
     await prisma.$transaction(async (tx) => {
+      // 1. Preserve per-group structure (Family, Work, etc.) for users who
+      //    want to send to a specific subset later.
       for (const group of contactGroups) {
         const dbGroup = await tx.emailGroup.upsert({
           where: {
@@ -127,9 +171,7 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
               name: group.name,
             },
           },
-          update: {
-            name: group.name,
-          },
+          update: { name: group.name },
           create: {
             name: group.name,
             userId: user.id,
@@ -139,30 +181,56 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
 
         processedGroups += 1;
 
-        await tx.emailAddress.deleteMany({
-          where: { groupId: dbGroup.id },
-        });
+        await tx.emailAddress.deleteMany({ where: { groupId: dbGroup.id } });
 
-        const memberEmails = Array.from(new Set(group.memberEmails.map((email) => email.trim().toLowerCase()).filter(Boolean)));
+        const memberEmails = Array.from(
+          new Set(
+            group.memberEmails.map((e) => e.trim().toLowerCase()).filter(Boolean)
+          )
+        );
 
-        if (memberEmails.length === 0) {
-          continue;
-        }
+        if (memberEmails.length === 0) continue;
 
         await tx.emailAddress.createMany({
-          data: memberEmails.map((email) => ({
-            email,
-            groupId: dbGroup.id,
-          })),
+          data: memberEmails.map((email) => ({ email, groupId: dbGroup.id })),
           skipDuplicates: true,
         });
       }
+
+      // 2. Upsert the consolidated "Google Contact" group with EVERY unique
+      //    email. This is what the success notification points the user at.
+      const consolidated = await tx.emailGroup.upsert({
+        where: {
+          organizationId_name: {
+            organizationId: user.organizationId,
+            name: CAMPAIGN_GROUP_NAME,
+          },
+        },
+        update: { name: CAMPAIGN_GROUP_NAME },
+        create: {
+          name: CAMPAIGN_GROUP_NAME,
+          userId: user.id,
+          organizationId: user.organizationId,
+        },
+      });
+
+      await tx.emailAddress.deleteMany({ where: { groupId: consolidated.id } });
+      await tx.emailAddress.createMany({
+        data: Array.from(allEmails).map((email) => ({
+          email,
+          groupId: consolidated.id,
+        })),
+        skipDuplicates: true,
+      });
     });
 
     return {
       success: true,
-      message: `Successfully imported ${processedGroups} groups from Google Contacts.`,
+      message: `Imported ${allEmails.size} contact${allEmails.size === 1 ? "" : "s"} into the "${CAMPAIGN_GROUP_NAME}" group.`,
       importedGroups: processedGroups,
+      importedEmails: allEmails.size,
+      campaignGroupName: CAMPAIGN_GROUP_NAME,
+      status: "imported",
     };
   } catch (error) {
     console.error("Error importing Google email groups:", error);
@@ -173,12 +241,14 @@ export async function importGoogleEmailGroups(options: { returnTo?: string } = {
         requiresAuth: true,
         authUrl: buildReconnectUrl(returnTo),
         error: "Your Google connection needs additional permissions to import Gmail contact groups. Please reconnect.",
+        status: "needs_auth",
       };
     }
 
     return {
       success: false,
       error: getGoogleErrorMessage(error) || (error instanceof Error ? error.message : "An unknown error occurred during import."),
+      status: "failed",
     };
   }
 }
