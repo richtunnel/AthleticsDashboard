@@ -84,6 +84,14 @@ export const s3Client = new S3Client({
     secretAccessKey: SECRET_KEY,
   },
   forcePathStyle: FORCE_PATH_STYLE,
+  // AWS SDK v3's default of "WHEN_SUPPORTED" injects an
+  // `x-amz-checksum-crc32` query parameter into presigned URLs. DigitalOcean
+  // Spaces (and other S3-compatible providers) reject the upload because the
+  // client never sends that header, and the parameter is included in the
+  // signature scope. Setting "WHEN_REQUIRED" disables the auto-injection so
+  // presigned PUTs work cleanly against Spaces.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 // Log once at module load so misconfiguration is obvious in startup logs

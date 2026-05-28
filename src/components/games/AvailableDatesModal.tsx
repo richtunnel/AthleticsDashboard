@@ -44,6 +44,7 @@ import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
 import { alpha } from "@mui/material/styles";
+import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1364,16 +1365,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     </Select>
                   </FormControl>
 
-                  {/* Location — full width */}
-                  <TextField
-                    label="Location"
-                    size="small"
-                    fullWidth
-                    sx={{ gridColumn: { sm: "1 / -1" } }}
-                    value={fieldValues["location"] || ""}
-                    onChange={(e) => setField("location", e.target.value)}
-                    placeholder="e.g. Main Gym, Field 2"
-                  />
+                  {/* Location — full width. Google Places autocomplete with
+                      manual-entry fallback (the underlying component already
+                      gracefully degrades to free text when the Places API is
+                      unavailable). freeSolo mode means whatever the user types
+                      is preserved even if no prediction matches. */}
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <SchoolAddressAutocomplete
+                      value={fieldValues["location"] || ""}
+                      onChange={(value) => setField("location", value)}
+                      label="Location"
+                      placeholder="e.g. Main Gym, 123 Main St, or pick from suggestions"
+                      size="small"
+                    />
+                  </Box>
 
                   {/* Notes — full width */}
                   <TextField

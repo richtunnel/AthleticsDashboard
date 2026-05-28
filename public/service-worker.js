@@ -61,6 +61,13 @@ self.addEventListener("activate", (event) => {
 // Fetch — stale-while-revalidate image cache (unchanged from v1)
 // ---------------------------------------------------------------------------
 self.addEventListener("fetch", (event) => {
+  // Only handle simple GET image fetches. PUT/POST/DELETE/HEAD etc. (e.g. the
+  // presigned PUT we use to upload posts to DigitalOcean Spaces) must pass
+  // through untouched — running them through `_handleImageRequest` produces
+  // an invalid Response and breaks uploads with
+  // "TypeError: Failed to convert value to 'Response'".
+  if (event.request.method !== "GET") return;
+
   const url = new URL(event.request.url);
   if (_isImageRequest(url)) {
     event.respondWith(

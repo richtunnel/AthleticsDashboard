@@ -18,7 +18,12 @@ import crypto from "crypto";
 // Ensure this route always runs in Node.js (uses fs, S3 SDK, and Prisma)
 export const runtime = "nodejs";
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024;
+// 5 MB upload ceiling — matches the presign route. The PostComposer client
+// compresses every image down to ~2 MB before uploading, so almost every real
+// upload lands well below this. The ceiling exists so a fallback upload (when
+// presign fails and we route through this proxy) doesn't reject a slightly
+// stubborn image that only got to ~2.3 MB after compression.
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -59,7 +64,7 @@ async function handleUpload(request: NextRequest): Promise<NextResponse> {
 
   if (file.size > MAX_FILE_SIZE) {
     return ApiResponse.error(
-      `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max 2MB.`
+      `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max ${MAX_FILE_SIZE / 1024 / 1024} MB.`
     );
   }
 

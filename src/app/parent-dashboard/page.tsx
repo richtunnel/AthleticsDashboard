@@ -497,42 +497,130 @@ export default function ParentDashboardPage() {
   };
 
   // ── Schedule-level calendar sync ─────────────────────────────────────────
-  // Fires a sync job for every approved request that already has a linked
-  // Google Calendar. If nothing is connected yet, redirect to the setup page.
-  const handleScheduleSync = async (syncRequests: SyncRequest[], calendarConnected: boolean) => {
-    const syncable = syncRequests.filter((r) => r.status === "APPROVED" && r.googleCalendarId);
-
-    if (!calendarConnected || syncable.length === 0) {
+  //
+  // "Sync to Calendar" pushes the games for the CURRENTLY-VIEWED child tab to
+  // the parent's Google Calendar. Logic mirrors how the AD's Connected Parents
+  // sync works:
+  //
+  //   1. Identify which sync requests belong to the active child (matched by
+  //      childName → schoolId + sport + level on each ParentAthleteLink).
+  //   2. For each one, resolve a target Google Calendar:
+  //        a. Use the calendar already persisted on the sync request.
+  //        b. If none, auto-fetch the parent's calendar list and pick "primary".
+  //   3. POST /api/parent/calendar-sync-requests/{id}/sync per matched request.
+  //      That route runs syncGamesForSportLevel (the same service the AD uses).
+  //
+  // If the parent hasn't connected Google Calendar at all → redirect to setup.
+  const handleScheduleSync = async (
+    syncRequests: SyncRequest[],
+    calendarConnected: boolean,
+    activeChildName: string | null,
+    childLinks: ParentLink[]
+  ) => {
+    if (!calendarConnected) {
       window.location.href = "/parent-dashboard/calendar-sync";
+      return;
+    }
+
+    // Scope to the active child's sport/level slots. With a single child the
+    // filter is a no-op (every request belongs to them anyway).
+    const activeChildLinks = activeChildName
+      ? childLinks.filter((l) => l.childName === activeChildName)
+      : childLinks;
+    const activeSlots = new Set(
+      activeChildLinks
+        .filter((l) => l.sportName && l.sportLevel)
+        .map((l) =>
+          `${l.schoolId}|${(l.sportName ?? "").toLowerCase()}|${(l.sportLevel ?? "").toLowerCase()}`
+        )
+    );
+
+    const childRequests = syncRequests.filter((r) => {
+      if (r.status !== "APPROVED") return false;
+      if (activeSlots.size === 0) return false;
+      const slot = `${r.schoolId}|${r.sportName.toLowerCase()}|${r.sportLevel.toLowerCase()}`;
+      return activeSlots.has(slot);
+    });
+
+    if (childRequests.length === 0) {
+      const msg = activeChildName
+        ? `No approved sync for ${activeChildName} yet. Request sync on the child card first.`
+        : "No approved sync requests yet. Request sync on a child card first.";
+      setSnack({ open: true, message: msg, severity: "warning" });
+      addNotification(msg, "warning");
       return;
     }
 
     setScheduleSyncing(true);
     setSnack({ open: true, message: "Starting calendar sync…", severity: "info" });
 
+    // Resolve target calendar lazily — we only need the calendar list when at
+    // least one request lacks a persisted googleCalendarId.
+    let cachedPrimaryCalendarId: string | null | undefined = undefined;
+    const resolveCalendarId = async (req: SyncRequest): Promise<string | null> => {
+      if (req.googleCalendarId) return req.googleCalendarId;
+      if (cachedPrimaryCalendarId !== undefined) return cachedPrimaryCalendarId;
+      try {
+        const listRes = await fetch("/api/parent/calendar/list");
+        if (listRes.ok) {
+          const data = await listRes.json();
+          const calendars: Array<{ id: string; primary?: boolean }> = data.calendars || [];
+          const primary = calendars.find((c) => c.primary);
+          if (primary) {
+            cachedPrimaryCalendarId = primary.id;
+          } else if (calendars.length === 1) {
+            cachedPrimaryCalendarId = calendars[0].id;
+          } else {
+            cachedPrimaryCalendarId = null;
+          }
+        } else {
+          cachedPrimaryCalendarId = null;
+        }
+      } catch {
+        cachedPrimaryCalendarId = null;
+      }
+      return cachedPrimaryCalendarId;
+    };
+
     let triggered = 0;
-    for (const req of syncable) {
+    let skipped = 0;
+    for (const req of childRequests) {
+      const targetCalendarId = await resolveCalendarId(req);
+      if (!targetCalendarId) {
+        skipped++;
+        continue;
+      }
       try {
         const res = await fetch(`/api/parent/calendar-sync-requests/${req.id}/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            googleCalendarId: req.googleCalendarId,
+            googleCalendarId: targetCalendarId,
             idempotencyToken: crypto.randomUUID(),
           }),
         });
         if (res.ok) triggered++;
+        else skipped++;
       } catch {
-        /* continue with remaining requests */
+        skipped++;
       }
     }
 
     setScheduleSyncing(false);
-    const syncMsg =
-      triggered > 0
-        ? `Sync started for ${triggered} sport${triggered > 1 ? "s" : ""}. Your calendar will update shortly.`
-        : "Couldn't start sync. Check your calendar connection in Settings.";
-    const syncSeverity = triggered > 0 ? "success" : "error";
+
+    const who = activeChildName ? ` for ${activeChildName}` : "";
+    let syncMsg: string;
+    let syncSeverity: AlertColor;
+    if (triggered > 0) {
+      syncMsg = `Calendar sync started${who} (${triggered} sport${triggered > 1 ? "s" : ""}). Your Google Calendar will update shortly.`;
+      syncSeverity = "success";
+    } else if (skipped > 0 && cachedPrimaryCalendarId === null) {
+      syncMsg = "Could not find a Google Calendar to sync to. Connect your calendar in Settings.";
+      syncSeverity = "error";
+    } else {
+      syncMsg = "Couldn't start sync. Check your calendar connection in Settings.";
+      syncSeverity = "error";
+    }
     setSnack({ open: true, message: syncMsg, severity: syncSeverity });
     addNotification(syncMsg, syncSeverity);
     queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
@@ -693,7 +781,17 @@ export default function ParentDashboardPage() {
               variant="outlined"
               startIcon={scheduleSyncing ? <CircularProgress size={13} color="inherit" /> : <Sync />}
               disabled={scheduleSyncing}
-              onClick={() => handleScheduleSync(syncRequests, calendarConnected)}
+              onClick={() =>
+                handleScheduleSync(
+                  syncRequests,
+                  calendarConnected,
+                  // null when there's only one child — every request is "theirs"
+                  uniqueChildNames.length > 1
+                    ? uniqueChildNames[safeActiveTab] ?? null
+                    : null,
+                  links
+                )
+              }
               sx={{ fontSize: "0.75rem", py: 0.5, px: 1.5, textTransform: "none" }}
             >
               {scheduleSyncing ? "Syncing…" : "Sync to Calendar"}

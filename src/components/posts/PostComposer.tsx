@@ -16,7 +16,13 @@ import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 
 const MAX_IMAGES = 4;
-const MAX_FILE_SIZE_MB = 2;
+// Hard upload ceiling — must match the server-side MAX_FILE_SIZE in both
+// /api/posts/upload-image and /api/posts/upload-image/presign. Files larger
+// than this are rejected at selection time (clearer than failing later).
+const MAX_UPLOAD_SIZE_MB = 5;
+// Target size for the compressed output. The iterative quality reducer below
+// drops JPEG quality in 0.12 steps until the encoded blob fits.
+const COMPRESSED_TARGET_SIZE_MB = 2;
 const MAX_DIMENSION = 1920;
 const SEPARATOR = "rgba(227,227,227,1)";
 
@@ -35,7 +41,7 @@ async function compressImage(file: File): Promise<File> {
       canvas.width = w;
       canvas.height = h;
       canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-      const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+      const maxBytes = COMPRESSED_TARGET_SIZE_MB * 1024 * 1024;
       const isTransparent = file.type === "image/png";
       let quality = 0.88;
       const attempt = () => {
@@ -98,6 +104,21 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
+
+    // Reject files larger than the upload ceiling at selection time so the
+    // user gets immediate feedback rather than waiting for the server to
+    // reject the request after compression. The server still enforces the
+    // same limit as a defense-in-depth check.
+    const maxBytes = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    const oversized = files.find((f) => f.size > maxBytes);
+    if (oversized) {
+      setError(
+        `"${oversized.name}" is ${(oversized.size / 1024 / 1024).toFixed(1)} MB — max ${MAX_UPLOAD_SIZE_MB} MB per image.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setError(null);
     const incoming: PendingImage[] = files.map((file) => ({
       id: Math.random().toString(36).slice(2),
@@ -131,44 +152,79 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
   }
 
   /**
-   * Upload one image via presigned URL flow:
-   *   1. POST metadata to /api/posts/upload-image/presign
-   *   2. PUT the file bytes directly to the returned S3/Spaces URL
-   *   3. Return { url, key } for inclusion in the post payload
+   * Upload one image. Tries the presigned-URL fast path first (direct
+   * browser → S3, no Node bandwidth) and falls back to the server-proxy
+   * route when that fails for ANY reason.
    *
-   * Bytes never touch our Node server — scales horizontally on S3.
+   * Why the fallback matters: the direct-PUT path requires the Spaces bucket
+   * to have CORS configured for the site's origin AND the service worker to
+   * not intercept the cross-origin request. Either misconfiguration causes a
+   * hard "Failed to fetch" with no usable status code — the user just sees
+   * "Image upload failed" with no way out. The proxy route is same-origin
+   * (no CORS) and goes through our Node server, so it always works.
    */
   async function uploadViaPresign(file: File): Promise<{ url: string; key: string }> {
-    // Step 1: ask the server for a presigned URL
-    const presignRes = await fetch("/api/posts/upload-image/presign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-      }),
-    });
-    const presignJson = await safeJson(presignRes, "Could not prepare upload. Please try again.");
-    const { uploadUrl, publicUrl, key, requiredHeaders } = presignJson.data as {
-      uploadUrl: string;
-      publicUrl: string;
-      key: string;
-      requiredHeaders: Record<string, string>;
-    };
+    // ── Fast path: presigned direct-to-S3 PUT ─────────────────────────────
+    try {
+      const presignRes = await fetch("/api/posts/upload-image/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
 
-    // Step 2: PUT the bytes directly to S3 with the exact headers that were signed.
-    // Any mismatch (content-type, acl) → S3 returns 403 SignatureDoesNotMatch.
-    const putRes = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: requiredHeaders,
-      body: file,
-    });
-    if (!putRes.ok) {
-      throw new Error(`Upload failed (${putRes.status}). Please try again.`);
+      if (presignRes.ok) {
+        const presignJson = await presignRes.json();
+        const { uploadUrl, publicUrl, key, requiredHeaders } = (presignJson.data ?? {}) as {
+          uploadUrl?: string;
+          publicUrl?: string;
+          key?: string;
+          requiredHeaders?: Record<string, string>;
+        };
+
+        if (uploadUrl && publicUrl && key) {
+          // Direct PUT to S3/Spaces. Any of these failure modes throws and
+          // drops us into the proxy fallback below:
+          //   • CORS preflight rejection (no Access-Control-Allow-Origin)
+          //   • Service worker intercepting and returning a bad Response
+          //   • Signature mismatch (wrong Content-Type, missing ACL header)
+          //   • Network error
+          const putRes = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: requiredHeaders ?? { "Content-Type": file.type },
+            body: file,
+          });
+          if (putRes.ok) {
+            return { url: publicUrl, key };
+          }
+          // Non-OK status → fall through to proxy upload below.
+        }
+      }
+    } catch (presignErr) {
+      // Network-level failure (CORS, SW, DNS, etc.) — swallow and try proxy.
+      // We only log so a real underlying bug is debuggable in dev tools.
+      console.warn("[PostComposer] Presigned upload failed, falling back to proxy:", presignErr);
     }
 
-    return { url: publicUrl, key };
+    // ── Fallback: server-proxy upload (same-origin, no CORS) ──────────────
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    const proxyRes = await fetch("/api/posts/upload-image", {
+      method: "POST",
+      body: fd,
+    });
+    const proxyJson = await safeJson(
+      proxyRes,
+      "Image upload failed. Please try again."
+    );
+    const data = proxyJson.data as { url: string; key: string } | undefined;
+    if (!data?.url || !data?.key) {
+      throw new Error("Image upload returned no URL. Please try again.");
+    }
+    return { url: data.url, key: data.key };
   }
 
   // Compress → presign + direct-upload (in parallel) → create post
