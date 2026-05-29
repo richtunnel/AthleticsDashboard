@@ -152,64 +152,16 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
   }
 
   /**
-   * Upload one image. Tries the presigned-URL fast path first (direct
-   * browser → S3, no Node bandwidth) and falls back to the server-proxy
-   * route when that fails for ANY reason.
+   * Upload one image through the server-proxy route. ALWAYS same-origin POST,
+   * no presigned URLs, no direct-to-S3 PUT.
    *
-   * Why the fallback matters: the direct-PUT path requires the Spaces bucket
-   * to have CORS configured for the site's origin AND the service worker to
-   * not intercept the cross-origin request. Either misconfiguration causes a
-   * hard "Failed to fetch" with no usable status code — the user just sees
-   * "Image upload failed" with no way out. The proxy route is same-origin
-   * (no CORS) and goes through our Node server, so it always works.
+   * We previously tried a presigned-URL fast path (browser → S3 directly) but
+   * that requires bucket-level CORS to be configured for the site origin, and
+   * even then is intercepted by the service worker on browsers that have a
+   * stale SW cached. The proxy is slower (file goes through Node) but it's
+   * the only reliable path — no CORS, no SW interference, no checksum drama.
    */
-  async function uploadViaPresign(file: File): Promise<{ url: string; key: string }> {
-    // ── Fast path: presigned direct-to-S3 PUT ─────────────────────────────
-    try {
-      const presignRes = await fetch("/api/posts/upload-image/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-          size: file.size,
-        }),
-      });
-
-      if (presignRes.ok) {
-        const presignJson = await presignRes.json();
-        const { uploadUrl, publicUrl, key, requiredHeaders } = (presignJson.data ?? {}) as {
-          uploadUrl?: string;
-          publicUrl?: string;
-          key?: string;
-          requiredHeaders?: Record<string, string>;
-        };
-
-        if (uploadUrl && publicUrl && key) {
-          // Direct PUT to S3/Spaces. Any of these failure modes throws and
-          // drops us into the proxy fallback below:
-          //   • CORS preflight rejection (no Access-Control-Allow-Origin)
-          //   • Service worker intercepting and returning a bad Response
-          //   • Signature mismatch (wrong Content-Type, missing ACL header)
-          //   • Network error
-          const putRes = await fetch(uploadUrl, {
-            method: "PUT",
-            headers: requiredHeaders ?? { "Content-Type": file.type },
-            body: file,
-          });
-          if (putRes.ok) {
-            return { url: publicUrl, key };
-          }
-          // Non-OK status → fall through to proxy upload below.
-        }
-      }
-    } catch (presignErr) {
-      // Network-level failure (CORS, SW, DNS, etc.) — swallow and try proxy.
-      // We only log so a real underlying bug is debuggable in dev tools.
-      console.warn("[PostComposer] Presigned upload failed, falling back to proxy:", presignErr);
-    }
-
-    // ── Fallback: server-proxy upload (same-origin, no CORS) ──────────────
+  async function uploadImage(file: File): Promise<{ url: string; key: string }> {
     const fd = new FormData();
     fd.append("file", file, file.name);
     const proxyRes = await fetch("/api/posts/upload-image", {
@@ -227,7 +179,7 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
     return { url: data.url, key: data.key };
   }
 
-  // Compress → presign + direct-upload (in parallel) → create post
+  // Compress → upload via Node proxy (in parallel) → create post
   const handleSubmit = async () => {
     if (!content.trim() && pendingImages.length === 0) return;
     setSubmitting(true);
@@ -239,9 +191,8 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
         pendingImages.map((p) => compressImage(p.file))
       );
 
-      // Upload all images in parallel directly to S3 via presigned URLs.
-      // Server only ever sees small JSON requests — never the file bytes.
-      const uploaded = await Promise.all(compressed.map((file) => uploadViaPresign(file)));
+      // Upload all compressed images in parallel through the same-origin proxy.
+      const uploaded = await Promise.all(compressed.map((file) => uploadImage(file)));
 
       // Create the post
       const res = await fetch("/api/posts", {
