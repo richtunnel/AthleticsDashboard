@@ -152,58 +152,11 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
   }
 
   /**
-   * Upload one image. Fast path: presigned URL → direct PUT to Spaces.
-   * Fallback: same-origin proxy through Node when presign fails for any
-   * reason (CORS misconfigured, signature mismatch, network blip, etc).
-   *
-   * Why both paths:
-   *   • Presigned PUT is faster and doesn't burn Node bandwidth or memory.
-   *   • Proxy is bulletproof — same-origin so CORS never enters the picture.
-   *
-   * The fallback is silent on success — users never see a "fast path failed"
-   * error. We only console.warn so the underlying cause stays debuggable.
+   * Upload one image through the server-proxy route only. Same-origin POST,
+   * no presigned URLs, no direct-to-S3 PUT. Slower (bytes go through Node)
+   * but bulletproof — no CORS, no SW interference, no signature drama.
    */
   async function uploadImage(file: File): Promise<{ url: string; key: string }> {
-    // ── Fast path: presigned direct-to-S3 PUT ─────────────────────────────
-    try {
-      const presignRes = await fetch("/api/posts/upload-image/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-          size: file.size,
-        }),
-      });
-
-      if (presignRes.ok) {
-        const presignJson = await presignRes.json();
-        const { uploadUrl, publicUrl, key, requiredHeaders } = (presignJson.data ?? {}) as {
-          uploadUrl?: string;
-          publicUrl?: string;
-          key?: string;
-          requiredHeaders?: Record<string, string>;
-        };
-
-        if (uploadUrl && publicUrl && key) {
-          const putRes = await fetch(uploadUrl, {
-            method: "PUT",
-            headers: requiredHeaders ?? { "Content-Type": file.type },
-            body: file,
-          });
-          if (putRes.ok) {
-            return { url: publicUrl, key };
-          }
-          // Non-OK status → fall through to proxy.
-        }
-      }
-      // Non-OK presign response (e.g. route disabled / 410) → fall through.
-    } catch (presignErr) {
-      // CORS, network, SW — anything throws → fall through to proxy.
-      console.warn("[PostComposer] Presigned upload failed, falling back to proxy:", presignErr);
-    }
-
-    // ── Fallback: server-proxy upload (same-origin, no CORS) ──────────────
     const fd = new FormData();
     fd.append("file", file, file.name);
     const proxyRes = await fetch("/api/posts/upload-image", {
