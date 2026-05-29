@@ -124,6 +124,31 @@ export interface StripeWebhookPayload {
   event: Record<string, unknown>;
 }
 
+// ── Slack notification payload ────────────────────────────────────────────────
+/**
+ * One job per Slack notification. Lands the user's action on a dedicated
+ * BullMQ queue so the originating API route returns immediately while the
+ * worker hits the Slack webhook with retries + exponential backoff.
+ */
+export type SlackChannel =
+  | "ad-signups"
+  | "ticket-support"
+  | "parent-signup"
+  | "homepage-feedback"
+  | "parent-feedback"
+  | "ad-feedback"
+  | "critical-errors";
+
+export interface SlackNotifyPayload {
+  channel: SlackChannel;
+  /** Top-line summary — also used as the Slack fallback text. */
+  title: string;
+  /** Optional body text rendered as a Markdown section. */
+  message?: string;
+  /** Rich context displayed as a Slack fields list (key → value pairs). */
+  context?: Record<string, string | number | boolean | null | undefined>;
+}
+
 // ── Default job options ───────────────────────────────────────────────────────
 const baseJobOptions: JobsOptions = {
   // Exponential backoff on failure: 2s, 4s, 8s…
@@ -228,6 +253,25 @@ export const stripeWebhookQueue = new Queue<StripeWebhookPayload>(
   }
 );
 
+/**
+ * Slack notifications. CRITICAL priority because the user-facing API route
+ * has already returned by the time we enqueue — Slack delivery latency only
+ * matters for staff visibility, not user wait time. Capped attempts so we
+ * don't retry-storm a flapping webhook.
+ */
+export const slackNotifyQueue = new Queue<SlackNotifyPayload>(
+  `${QUEUE_PREFIX}-slack-notify`,
+  {
+    connection: bullConnection,
+    defaultJobOptions: {
+      ...baseJobOptions,
+      attempts: 4,
+      backoff: { type: "exponential", delay: 1_000 }, // 1s, 2s, 4s, 8s
+      priority: Priority.CRITICAL,
+    },
+  }
+);
+
 // ── QueueEvents (optional, for real-time UI updates if needed) ────────────────
 // QueueEvents opens a Redis subscription in its constructor, unlike Queue which
 // is truly lazy. Gate it behind REDIS_ENABLED so `next build` and Redis-disabled
@@ -246,4 +290,5 @@ export const allQueues = {
   emailImport: emailImportQueue,
   gameCancelNotify: gameCancelNotifyQueue,
   stripeWebhook: stripeWebhookQueue,
+  slackNotify: slackNotifyQueue,
 } as const;

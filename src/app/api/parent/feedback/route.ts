@@ -2,7 +2,9 @@ import { getParentSession } from "@/lib/utils/parentSession";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { emailService } from "@/lib/services/email.service";
-import { slackService } from "@/lib/services/slack.service";
+import { notifySlack } from "@/lib/services/slack.service";
+import { buildSlackContext, toSlackContextRecord } from "@/lib/utils/slackContext";
+import { rateLimit } from "@/lib/middleware/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +13,9 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = await rateLimit({ key: `parent-feedback:${session.user.id}`, limit: 5, windowSec: 3600 });
+    if (rl.response) return rl.response;
 
     const body = await request.json();
     const { subject, message } = body;
@@ -36,7 +41,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send email notification (non-blocking)
     emailService
       .sendSupportNotificationEmail({
         type: "feedback",
@@ -49,15 +53,17 @@ export async function POST(request: NextRequest) {
       })
       .catch((err) => console.error("Failed to send support email:", err));
 
-    // Send Slack notification (non-blocking)
-    slackService
-      .sendFeedbackNotification({
-        time: new Date().toISOString(),
-        endpoint: "/api/parent/feedback",
-        customer: `${submitterName} (${submitterEmail}) [parent]`,
-        body: `Subject: ${subject}\n\n${message}`,
-      })
-      .catch((err) => console.error("Failed to send Slack notification:", err));
+    try {
+      const ctx = buildSlackContext(request, { user: { ...session.user, role: "PARENT" } });
+      await notifySlack({
+        channel: "parent-feedback",
+        title: "New Parent Feedback",
+        message: `*Subject:* ${subject}\n\n${message}`,
+        context: toSlackContextRecord(ctx),
+      });
+    } catch (slackErr) {
+      console.error("Slack notification failed", slackErr);
+    }
 
     return NextResponse.json({ success: true, data: feedback }, { status: 201 });
   } catch (error) {

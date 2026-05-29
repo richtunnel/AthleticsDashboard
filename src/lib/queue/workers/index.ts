@@ -12,6 +12,7 @@ import { parentCalendarSyncWorker } from "./parent-calendar-sync.worker";
 import { gameImportWorker, emailImportWorker } from "./import.worker";
 import { stripeWebhookWorker } from "./stripe.worker";
 import { gameCancelNotifyWorker } from "./game-cancel-notify.worker";
+import { slackNotifyWorker } from "./slack-notify.worker";
 
 export const workers = [
   emailWorker,
@@ -22,6 +23,7 @@ export const workers = [
   emailImportWorker,
   gameCancelNotifyWorker,
   stripeWebhookWorker,
+  slackNotifyWorker,
 ] as const;
 
 export async function shutdownWorkers(): Promise<void> {

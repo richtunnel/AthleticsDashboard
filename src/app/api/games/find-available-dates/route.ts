@@ -266,6 +266,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Find available dates API error:", error);
+    // Find Dates is a flagship AD feature — every failure goes to critical-errors.
+    const { reportCriticalError } = await import("@/lib/utils/reportCriticalError");
+    await reportCriticalError(request, error, { source: "/api/games/find-available-dates" });
+
     return NextResponse.json(
       { error: "Failed to find available dates" },
       { status: 500 }

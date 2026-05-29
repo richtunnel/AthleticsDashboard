@@ -6,6 +6,7 @@ import { getStripe } from "@/lib/stripe";
 import { logTestModeInfo } from "@/lib/stripe-config";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType } from "@prisma/client";
+import { slackService } from "@/lib/services/slack.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

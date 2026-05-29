@@ -63,16 +63,14 @@ export function EmailLimitsCard() {
         </Typography>
 
         {isLoading ? (
+          // Loading skeleton mirrors the loaded view — only the Daily Limit
+          // row is rendered when data arrives, so the skeleton must match.
+          // Showing a "Monthly Limit (System-wide)" skeleton here flashes a
+          // row that never materialises, which is what the user was seeing.
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <Box>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Daily Limit
-              </Typography>
-              <LinearProgress sx={{ backgroundColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "" }} />
-            </Box>
-            <Box>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                Monthly Limit (System-wide)
               </Typography>
               <LinearProgress sx={{ backgroundColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "" }} />
             </Box>

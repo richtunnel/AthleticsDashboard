@@ -544,7 +544,22 @@ export class EmailService {
     });
   }
 
-  async sendSupportNotificationEmail(params: { type: "feedback" | "ticket"; submitter: { name: string; email: string }; subject: string; message: string; ticketNumber?: string }): Promise<void> {
+  /**
+   * Sends a support/feedback notification email to support@opletics.com.
+   *
+   * RETURNS instead of swallowing. The previous version caught its own errors
+   * and only logged — that's why failures were invisible. Now the caller gets
+   * { ok: true } or { ok: false, error } so it can log the actual reason and
+   * fire a critical-errors Slack notification on failure.
+   *
+   * Common reasons this fails:
+   *   • RESEND_API_KEY missing in env
+   *   • opletics.com not verified in Resend (rejected at API)
+   *   • EMAIL_FROM env points to an unverified sender
+   *   • Resend rate limit / quota
+   *   • Reply-to of submitter.email is malformed
+   */
+  async sendSupportNotificationEmail(params: { type: "feedback" | "ticket"; submitter: { name: string; email: string }; subject: string; message: string; ticketNumber?: string }): Promise<{ ok: true } | { ok: false; error: string }> {
     const { type, submitter, subject, message, ticketNumber } = params;
     const typeLabel = type === "feedback" ? "Feedback" : "Support Ticket";
     const ticketInfo = ticketNumber ? ` (${ticketNumber})` : "";
@@ -567,12 +582,22 @@ export class EmailService {
         to: ["support@opletics.com"],
         subject: `New ${typeLabel}: ${subject}`,
         body,
+        // Bypass the bulk queue and go straight to the gateway so we get a
+        // synchronous result and a real error from Resend if it rejects.
         immediate: true,
+        // Let support reply directly to the submitter from their inbox.
+        replyTo: submitter.email,
       });
-      console.log("Support notification email sent successfully");
-    } catch (error) {
-      console.error("Failed to send support notification email:", error);
-      // Don't throw - this is a non-critical feature
+      console.log("[support-email] Support notification email sent successfully", { ticketNumber, to: "support@opletics.com" });
+      return { ok: true };
+    } catch (error: any) {
+      const errMsg = error?.message ?? String(error);
+      console.error("[support-email] Failed to send support notification email:", {
+        ticketNumber,
+        to: "support@opletics.com",
+        error: errMsg,
+      });
+      return { ok: false, error: errMsg };
     }
   }
 
