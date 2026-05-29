@@ -260,12 +260,18 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
   }
 
   // ── Choose scan path ────────────────────────────────────────────────────────
-  let serviceResult: AvailableDatesResult;
-
-  if (query.targetTeams.length === 0) {
-    // ── GLOBAL SCAN ──────────────────────────────────────────────────────────
-    // No team was specified → treat every game on the worksheet as an occupied
-    // date and return candidate dates that have nothing scheduled.
+  /**
+   * Build a "scan all games for open dates" result. Used in two places:
+   *   1. When the user prompt mentions no team (query.targetTeams empty).
+   *   2. As an automatic fallback when the team-specific path matches no
+   *      games at all — the user typed e.g. "find open dates in february"
+   *      and the AI hallucinated a team that doesn't exist on the sheet.
+   *      Better to show "here are all open dates" than a confusing
+   *      "no teams matched the prompt" error with zero results.
+   */
+  const runGlobalScan = (
+    extraNote: string | null
+  ): AvailableDatesResult => {
     const occupiedDates = extractAllOccupiedDates(gamesTable);
     const excludeDays = query.excludeDays ?? [];
     const minSpacing = query.minSpacing;
@@ -277,7 +283,6 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
 
     let available = validCandidates.filter((d) => !occupiedDates.has(d));
 
-    // Apply excludeDays filter
     const excludedDayNames: string[] = [];
     if (excludeDays.length > 0) {
       excludedDayNames.push(...excludeDays.map((d) => WEEKDAY_NAMES_FULL[d]));
@@ -286,7 +291,6 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       );
     }
 
-    // Apply minSpacing filter
     if (minSpacing && minSpacing > 0) {
       const spaced: string[] = [];
       let last: Date | null = null;
@@ -311,9 +315,8 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       return day !== 0 && day !== 6;
     }).length;
 
-    const notes: string[] = [
-      "No team specified — scanning all games for open dates",
-    ];
+    const notes: string[] = [];
+    if (extraNote) notes.push(extraNote);
     if (excludedDayNames.length > 0)
       notes.push(`Excluded days: ${excludedDayNames.join(", ")}`);
     if (minSpacing && minSpacing > 0)
@@ -322,7 +325,7 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       `Found ${recommendations.length} available dates (${weekdayCount} weekdays, ${recommendations.length - weekdayCount} weekends)`
     );
 
-    serviceResult = {
+    return {
       recommendations,
       debug: {
         parsedTokens: [],
@@ -335,6 +338,15 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
         minSpacing: minSpacing ?? undefined,
       },
     };
+  };
+
+  let serviceResult: AvailableDatesResult;
+
+  if (query.targetTeams.length === 0) {
+    // No team prompt → straight global scan.
+    serviceResult = runGlobalScan(
+      "No team specified — showing all open dates. Add a sport or level to narrow the results."
+    );
   } else {
     // ── TEAM-SPECIFIC (existing path) ─────────────────────────────────────────
     const cleanPrompt = query.targetTeams
@@ -371,6 +383,25 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
         minSpacing: query.minSpacing,
       }
     );
+
+    // ── Automatic fallback to global scan ────────────────────────────────
+    //
+    // When the prompt parsed to teams but NONE of those teams matched any
+    // games on the worksheet (e.g. the user typed "find open dates in
+    // february" and the AI hallucinated "BV Basketball" as a team), we used
+    // to return zero results with "No teams matched the prompt". That's the
+    // wrong UX — the user asked for open dates, so show open dates.
+    //
+    // We DON'T fall back when teams matched but happened to be fully booked.
+    // That case is a real answer ("no openings for this team") that global
+    // scan would obscure by showing dates conflicting with the actual team.
+    const noMatchedTeams =
+      (serviceResult.debug.matchedClusters?.length ?? 0) === 0;
+    if (noMatchedTeams) {
+      serviceResult = runGlobalScan(
+        "No matching teams found for your prompt — showing all open dates in the requested range. Add a sport or level (e.g. \"Boys Varsity Basketball\") to narrow the results."
+      );
+    }
   }
 
   // ── Shared post-filter chain (applies to both paths) ─────────────────────

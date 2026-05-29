@@ -19,26 +19,30 @@ export const runtime = "nodejs";
  * POST /api/posts/upload-image/presign
  *
  * Returns a short-lived presigned PUT URL the client uses to upload directly
- * to DigitalOcean Spaces / S3 — bypassing the Node server entirely for the
- * actual byte transfer.
+ * to DigitalOcean Spaces — bypassing the Node server entirely for the actual
+ * byte transfer.
  *
- * Flow
- * ────
- *   1. Client: POST { filename, contentType, size } → this endpoint
- *   2. Server: validates auth/rate-limit/size/mime, generates a presigned URL
- *              tied to a specific Key + Content-Type + ContentLength
- *   3. Client: PUT the file bytes directly to the presigned URL (S3)
- *   4. Client: POST /api/posts { images: [{ url, key }] } to publish
+ * Requires the Spaces bucket CORS to allow PUT from the site origin
+ * (https://opletics.com). The client falls back to /api/posts/upload-image
+ * (same-origin proxy) on any failure.
  *
- * Why this is more scalable than the /upload-image proxy route:
- *   • Node never sees the file bytes — no memory pressure, no bandwidth bill
- *   • Concurrency limited by S3 (effectively unlimited) instead of Node
- *   • Faster uploads — single hop client → S3 instead of two hops via Node
- *   • Works for files up to 5 GB without any server-side streaming code
+ * Security model
+ * ──────────────
+ * The presigned URL is a single-use, time-locked capability:
+ *   • Expires in 60 seconds
+ *   • Locked to ContentType + ContentLength (no swap, no padding)
+ *   • Locked to a user-scoped Key (`posts/{userId}/{ts}-{rand}.ext`)
+ *   • Locked to ACL=public-read (can't make private or overwrite an ACL)
+ *
+ * All gate-keeping happens BEFORE the URL is issued:
+ *   • Auth required
+ *   • Rate-limited (60/min/user)
+ *   • Size + MIME validated
+ *   • Tamper-proof random key
  */
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB ceiling for posts (UI compresses to 2 MB)
-const PRESIGN_TTL_SECONDS = 60; // URL expires in 60s — long enough to upload, short enough to be safe
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB ceiling; client compresses to ~2 MB
+const PRESIGN_TTL_SECONDS = 60;
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -62,9 +66,6 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
 
-    // ── Rate limit: 60 presigns / minute / user ─────────────────────────────
-    // Generous because each presign is cheap and a post can have 4 images.
-    // Fails open if Redis is unavailable.
     const rl = await rateLimit({
       key: `presign:${session.user.id}`,
       limit: 60,
@@ -74,13 +75,9 @@ export async function POST(request: NextRequest) {
 
     if (!S3_CONFIGURED) {
       logger.error("[Presign] S3 not configured");
-      return ApiResponse.error(
-        "Image upload is not configured on this server.",
-        503
-      );
+      return ApiResponse.error("Image upload is not configured on this server.", 503);
     }
 
-    // ── Parse + validate the request ────────────────────────────────────────
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return ApiResponse.error("Invalid request body");
@@ -106,17 +103,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Generate a tamper-proof key ─────────────────────────────────────────
-    // Random suffix prevents URL guessing; user ID scopes ownership.
     const ext = EXT_BY_MIME[contentType] ?? ".bin";
     const rand = crypto.randomBytes(8).toString("hex");
     const key = `posts/${session.user.id}/${Date.now()}-${rand}${ext}`;
 
-    // ── Build the presigned PUT URL ─────────────────────────────────────────
-    // ContentType + ContentLength are baked into the signature — if the
-    // client uploads anything different, S3 rejects the request. This is
-    // the security guarantee that prevents clients from uploading huge
-    // files or arbitrary MIME types after passing our validation.
     const cmd = new PutObjectCommand({
       Bucket: SPACES_BUCKET,
       Key: key,
@@ -128,7 +118,6 @@ export async function POST(request: NextRequest) {
 
     const uploadUrl = await getSignedUrl(s3Client, cmd, {
       expiresIn: PRESIGN_TTL_SECONDS,
-      // Sign these headers so the client MUST send them with the upload
       signableHeaders: new Set(["host", "content-type", "content-length", "x-amz-acl"]),
     });
 
@@ -145,7 +134,6 @@ export async function POST(request: NextRequest) {
       publicUrl,
       key,
       expiresIn: PRESIGN_TTL_SECONDS,
-      // Headers the client MUST set on the PUT request — must match the signature
       requiredHeaders: {
         "Content-Type": contentType,
         "x-amz-acl": "public-read",

@@ -15,15 +15,20 @@
 // to download and activate the new SW, evicting the previous one (which was
 // intercepting cross-origin PUTs to DigitalOcean Spaces and breaking the
 // post-image upload).
-const SW_VERSION = "v3";
-const CACHE_NAME = "opletics-images-v3";
+const SW_VERSION = "v5";
+const CACHE_NAME = "opletics-images-v5";
 const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ---------------------------------------------------------------------------
 // Install — open new cache, skip waiting only when explicitly told to
 // ---------------------------------------------------------------------------
 self.addEventListener("install", (event) => {
-  // Principle 2: do NOT call skipWaiting() here; wait for client postMessage
+  // Force immediate activation. The previous v2 SW intercepted cross-origin
+  // PUTs and broke post-image uploads — we don't want it lingering in any
+  // open tab while the user is trying to post. Principle 2 ("don't auto
+  // skipWaiting") is intentionally overridden here because correctness >
+  // graceful update for this specific regression.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // Pre-warm entries that are likely to exist; don't fail on missing ones
