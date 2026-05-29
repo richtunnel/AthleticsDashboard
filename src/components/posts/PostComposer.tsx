@@ -152,11 +152,57 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
   }
 
   /**
-   * Upload one image through the server-proxy route only. Same-origin POST,
-   * no presigned URLs, no direct-to-S3 PUT. Slower (bytes go through Node)
-   * but bulletproof — no CORS, no SW interference, no signature drama.
+   * Upload one image. Fast path: presigned PUT directly to Spaces.
+   * Fallback: same-origin proxy through Node when presign fails for any
+   * reason (CORS rule incomplete, signature mismatch, network blip, SW).
+   *
+   * The fallback runs silently — user only sees an error if BOTH paths fail.
    */
   async function uploadImage(file: File): Promise<{ url: string; key: string }> {
+    // ── Fast path: presigned direct-to-S3 PUT ─────────────────────────────
+    try {
+      const presignRes = await fetch("/api/posts/upload-image/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+
+      if (presignRes.ok) {
+        const presignJson = await presignRes.json();
+        const { uploadUrl, publicUrl, key, requiredHeaders } = (presignJson.data ?? {}) as {
+          uploadUrl?: string;
+          publicUrl?: string;
+          key?: string;
+          requiredHeaders?: Record<string, string>;
+        };
+
+        if (uploadUrl && publicUrl && key && requiredHeaders) {
+          // The headers MUST match what was signed on the server. The
+          // requiredHeaders object is the contract: send exactly these and
+          // nothing else (browser adds Host / Content-Length automatically).
+          const putRes = await fetch(uploadUrl, {
+            method: "PUT",
+            headers: requiredHeaders,
+            body: file,
+          });
+          if (putRes.ok) {
+            return { url: publicUrl, key };
+          }
+          // Non-OK PUT → fall through to proxy. Most likely cause:
+          // bucket CORS missing PUT or x-amz-acl header.
+        }
+      }
+      // Non-OK presign response (auth / rate-limit / disabled) → fall through.
+    } catch (presignErr) {
+      // Network / CORS / SW → fall through to proxy.
+      console.warn("[PostComposer] Presigned upload failed, falling back to proxy:", presignErr);
+    }
+
+    // ── Fallback: server-proxy upload (same-origin, no CORS) ──────────────
     const fd = new FormData();
     fd.append("file", file, file.name);
     const proxyRes = await fetch("/api/posts/upload-image", {

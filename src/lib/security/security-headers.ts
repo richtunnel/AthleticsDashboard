@@ -29,13 +29,17 @@ export const defaultSecurityHeaders = {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
-    "script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.stripe.com",
+    // Google Ads + conversion tracking lives across several hostnames:
+    //   googleads.g.doubleclick.net, googletagmanager.com, google-analytics.com,
+    //   googleadservices.com, googlesyndication.com. Add them so AW-* conversion
+    //   pings stop getting blocked by CSP.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.googleadservices.com https://*.googlesyndication.com https://*.google-analytics.com https://*.doubleclick.net https://*.stripe.com",
+    "script-src-elem 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://*.googletagmanager.com https://*.googleadservices.com https://*.googlesyndication.com https://*.google-analytics.com https://*.doubleclick.net https://*.stripe.com",
     "style-src 'self' 'unsafe-inline' https://*.google.com https://*.gstatic.com https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: *.googleusercontent.com",
     "font-src 'self' data: https://*.gstatic.com https://fonts.gstatic.com",
-    "connect-src 'self' https: wss: *.google.com *.gstatic.com *.googletagmanager.com *.stripe.com",
-    "frame-src 'self' https://*.google.com https://*.stripe.com",
+    "connect-src 'self' https: wss: *.google.com *.gstatic.com *.googletagmanager.com *.googleadservices.com *.googlesyndication.com *.google-analytics.com *.doubleclick.net *.stripe.com",
+    "frame-src 'self' https://*.google.com https://*.doubleclick.net https://*.stripe.com",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "upgrade-insecure-requests",
