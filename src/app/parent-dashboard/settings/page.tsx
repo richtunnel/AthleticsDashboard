@@ -532,22 +532,6 @@ function CalendarSyncCard({ syncRequests, links, onSuccess, onError }: CalendarS
     onSettled: () => setRequestingKey(null),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const res = await fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to cancel request");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      onSuccess("Pending request cancelled. You can send a fresh one now.");
-    },
-    onError: (err: Error) => onError(err.message),
-  });
-
   // Only show sync requests that still correspond to a current child link.
   // Otherwise old orphan rows (e.g. legacy "General / Varsity / Removed" entries
   // from before sport became required) keep cluttering the UI and the re-sync
@@ -654,20 +638,6 @@ function CalendarSyncCard({ syncRequests, links, onSuccess, onError }: CalendarS
                     </Button>
                   )}
 
-                  {req.status === "PENDING" && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="warning"
-                      disabled={cancelMutation.isPending && cancelMutation.variables === req.id}
-                      onClick={() => cancelMutation.mutate(req.id)}
-                      sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
-                    >
-                      {cancelMutation.isPending && cancelMutation.variables === req.id
-                        ? "Cancelling…"
-                        : "Cancel Request"}
-                    </Button>
-                  )}
                 </Box>
               );
             })}
@@ -754,23 +724,6 @@ function SettingsChildCard({
     onError: (err: Error) => onSnack(err.message, "error"),
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: (requestId: string) =>
-      fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" }).then(
-        async (res) => {
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            throw new Error(data?.error || "Failed to cancel request");
-          }
-        }
-      ),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
-      onSnack("Pending request cancelled. You can send a fresh one now.", "success");
-    },
-    onError: (err: Error) => onSnack(err.message, "error"),
-  });
-
   const unsyncMutation = useMutation({
     mutationFn: (requestId: string) =>
       fetch(`/api/parent/calendar-sync-requests/${requestId}`, { method: "DELETE" }).then(
@@ -790,33 +743,30 @@ function SettingsChildCard({
 
   const handleSyncNow = useCallback(async () => {
     if (!approvedRequest) return;
-    if (!approvedRequest.googleCalendarId) {
-      window.location.href = "/parent-dashboard/calendar-sync";
-      return;
-    }
-    const token = crypto.randomUUID();
+
+    // "Update Sync" = rescan the AD's worksheet, not a Google Calendar op.
     try {
       const res = await fetch(
-        `/api/parent/calendar-sync-requests/${approvedRequest.id}/sync`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            googleCalendarId: approvedRequest.googleCalendarId,
-            idempotencyToken: token,
-          }),
-        }
+        `/api/parent/calendar-sync-requests/${approvedRequest.id}/rescan`,
+        { method: "POST" }
       );
       const data = await res.json();
       if (!res.ok) {
-        onSnack(data.error || "Failed to start sync", "error");
+        onSnack(data.error || "Failed to refresh schedule", "error");
         return;
       }
-      setActiveJobId(data.jobId);
+      const added = data?.result?.added ?? 0;
+      onSnack(
+        added > 0
+          ? `Schedule refreshed — ${added} new game${added === 1 ? "" : "s"} found.`
+          : "Schedule is up to date.",
+        "success"
+      );
+      queryClient.invalidateQueries({ queryKey: ["parentOverview"] });
     } catch (err: any) {
       onSnack(err.message || "Network error", "error");
     }
-  }, [approvedRequest, onSnack]);
+  }, [approvedRequest, onSnack, queryClient]);
 
   const handleRetry = useCallback(async () => {
     setActiveJobId(null);
@@ -969,23 +919,6 @@ function SettingsChildCard({
                     : syncStatus === "REJECTED" || syncStatus === "REMOVED"
                     ? "Request Re-sync"
                     : "Request Sync"}
-                </Button>
-              </span>
-            </Tooltip>
-          )}
-
-          {syncStatus === "PENDING" && pendingRequest && (
-            <Tooltip title="Cancel this pending request so you can send a fresh one">
-              <span style={{ marginLeft: "auto" }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  disabled={cancelMutation.isPending}
-                  onClick={() => cancelMutation.mutate(pendingRequest!.id)}
-                  sx={{ fontSize: "0.75rem", py: 0.4, px: 1.25 }}
-                >
-                  {cancelMutation.isPending ? "Cancelling…" : "Cancel Request"}
                 </Button>
               </span>
             </Tooltip>

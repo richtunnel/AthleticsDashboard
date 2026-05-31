@@ -168,11 +168,30 @@ export function generateCandidateDates(
     }
   }
 
-  // Default: next 12 months rolling
+  // Year-only query (no month / start / end): return every date in that year.
+  // Without this branch we used to fall through to the "rolling 12 months"
+  // default and ignore dr.year entirely — that's why a `year: 2026` filter
+  // was producing 2027 dates.
+  if (dr?.year) {
+    const start = new Date(dr.year, 0, 1);
+    const end = new Date(dr.year, 11, 31);
+    return datesInRange(start, end);
+  }
+
+  // Default: next 12 months rolling, but clamp the upper bound so we never
+  // overshoot the worksheet's data. If the AD's sheet only has games through
+  // 2026, suggesting January-2027 open dates is noise — the user wouldn't be
+  // scheduling against a year they don't have data for.
   const twelveMonthsLater = new Date(ref);
   twelveMonthsLater.setMonth(ref.getMonth() + 12);
+  let endDate = twelveMonthsLater;
+  if (worksheetYears && worksheetYears.size > 0) {
+    const maxWSYear = Math.max(...worksheetYears);
+    const endOfMaxWSYear = new Date(maxWSYear, 11, 31);
+    if (endOfMaxWSYear < endDate) endDate = endOfMaxWSYear;
+  }
   const start = new Date(today + "T00:00:00");
-  return datesInRange(start, twelveMonthsLater);
+  return datesInRange(start, endDate);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -192,12 +211,41 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       ? opts.candidateDates
       : generateCandidateDates(query, referenceDate, worksheetYears);
 
-  // Constrain to worksheet years when no explicit year / start / end was given.
-  // This prevents the scanner from returning 2027 dates when the worksheet only
-  // contains games through 2026.
-  if (
+  // ── Year/range hard filters ─────────────────────────────────────────────
+  //
+  // 1. If the user picked a specific year, HARD-FILTER to that year. No
+  //    fudging — they clicked "2026" so they don't want 2027 dates.
+  //    Safety net: if the filter wipes out every candidate (because the
+  //    upstream candidate generator used a stale start/end from a different
+  //    year), regenerate fresh from the target year so we never return
+  //    "0 candidates" when the user has data in that year.
+  // 2. Otherwise, if no explicit start/end either, fall back to the years
+  //    actually represented on the worksheet (don't suggest dates from
+  //    years the AD has no data for).
+  if (query.dateRange?.year) {
+    const targetYear = query.dateRange.year;
+    const filtered = candidateDates.filter((d) => {
+      const yr = parseInt(d.substring(0, 4), 10);
+      return yr === targetYear;
+    });
+
+    if (filtered.length === 0) {
+      // Rebuild from scratch using just the year + (optional) month.
+      // Pass a stripped query so start/end can't pull us back to a wrong year.
+      const fallbackQuery = {
+        ...query,
+        dateRange: {
+          year: targetYear,
+          month: query.dateRange.month,
+          months: query.dateRange.months,
+        },
+      };
+      candidateDates = generateCandidateDates(fallbackQuery, referenceDate, worksheetYears);
+    } else {
+      candidateDates = filtered;
+    }
+  } else if (
     worksheetYears.size > 0 &&
-    !query.dateRange?.year &&
     !query.dateRange?.start &&
     !query.dateRange?.end
   ) {
@@ -212,12 +260,18 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
   }
 
   // ── Choose scan path ────────────────────────────────────────────────────────
-  let serviceResult: AvailableDatesResult;
-
-  if (query.targetTeams.length === 0) {
-    // ── GLOBAL SCAN ──────────────────────────────────────────────────────────
-    // No team was specified → treat every game on the worksheet as an occupied
-    // date and return candidate dates that have nothing scheduled.
+  /**
+   * Build a "scan all games for open dates" result. Used in two places:
+   *   1. When the user prompt mentions no team (query.targetTeams empty).
+   *   2. As an automatic fallback when the team-specific path matches no
+   *      games at all — the user typed e.g. "find open dates in february"
+   *      and the AI hallucinated a team that doesn't exist on the sheet.
+   *      Better to show "here are all open dates" than a confusing
+   *      "no teams matched the prompt" error with zero results.
+   */
+  const runGlobalScan = (
+    extraNote: string | null
+  ): AvailableDatesResult => {
     const occupiedDates = extractAllOccupiedDates(gamesTable);
     const excludeDays = query.excludeDays ?? [];
     const minSpacing = query.minSpacing;
@@ -229,7 +283,6 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
 
     let available = validCandidates.filter((d) => !occupiedDates.has(d));
 
-    // Apply excludeDays filter
     const excludedDayNames: string[] = [];
     if (excludeDays.length > 0) {
       excludedDayNames.push(...excludeDays.map((d) => WEEKDAY_NAMES_FULL[d]));
@@ -238,7 +291,6 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       );
     }
 
-    // Apply minSpacing filter
     if (minSpacing && minSpacing > 0) {
       const spaced: string[] = [];
       let last: Date | null = null;
@@ -263,9 +315,8 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       return day !== 0 && day !== 6;
     }).length;
 
-    const notes: string[] = [
-      "No team specified — scanning all games for open dates",
-    ];
+    const notes: string[] = [];
+    if (extraNote) notes.push(extraNote);
     if (excludedDayNames.length > 0)
       notes.push(`Excluded days: ${excludedDayNames.join(", ")}`);
     if (minSpacing && minSpacing > 0)
@@ -274,7 +325,7 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
       `Found ${recommendations.length} available dates (${weekdayCount} weekdays, ${recommendations.length - weekdayCount} weekends)`
     );
 
-    serviceResult = {
+    return {
       recommendations,
       debug: {
         parsedTokens: [],
@@ -287,6 +338,15 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
         minSpacing: minSpacing ?? undefined,
       },
     };
+  };
+
+  let serviceResult: AvailableDatesResult;
+
+  if (query.targetTeams.length === 0) {
+    // No team prompt → straight global scan.
+    serviceResult = runGlobalScan(
+      "No team specified — showing all open dates. Add a sport or level to narrow the results."
+    );
   } else {
     // ── TEAM-SPECIFIC (existing path) ─────────────────────────────────────────
     const cleanPrompt = query.targetTeams
@@ -323,6 +383,25 @@ export async function scanWorksheet(opts: ScanOptions): Promise<ScanResult> {
         minSpacing: query.minSpacing,
       }
     );
+
+    // ── Automatic fallback to global scan ────────────────────────────────
+    //
+    // When the prompt parsed to teams but NONE of those teams matched any
+    // games on the worksheet (e.g. the user typed "find open dates in
+    // february" and the AI hallucinated "BV Basketball" as a team), we used
+    // to return zero results with "No teams matched the prompt". That's the
+    // wrong UX — the user asked for open dates, so show open dates.
+    //
+    // We DON'T fall back when teams matched but happened to be fully booked.
+    // That case is a real answer ("no openings for this team") that global
+    // scan would obscure by showing dates conflicting with the actual team.
+    const noMatchedTeams =
+      (serviceResult.debug.matchedClusters?.length ?? 0) === 0;
+    if (noMatchedTeams) {
+      serviceResult = runGlobalScan(
+        "No matching teams found for your prompt — showing all open dates in the requested range. Add a sport or level (e.g. \"Boys Varsity Basketball\") to narrow the results."
+      );
+    }
   }
 
   // ── Shared post-filter chain (applies to both paths) ─────────────────────

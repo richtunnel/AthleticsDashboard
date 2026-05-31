@@ -7,9 +7,17 @@ import { hasScopes } from "@/lib/services/incremental-auth.service";
 
 export async function GET(request: NextRequest) {
   try {
-    // Try main AD session first; fall back to parent session
+    // AD / collaborator dashboards ONLY. The parent dashboard must call
+    // /api/parent/calendar/list so its parent-cookie tokens are used.
+    //
+    // The old code also fell back to getParentSession() here, which caused
+    // session bleed: a user logged in as both AD and parent would see the
+    // AD's calendars on the parent dashboard (including secondary accounts
+    // subscribed in the AD's Google Calendar UI).
     let session = await getAnySession();
     if (!session?.user?.id) {
+      // Allow the parent-session fallback ONLY when no AD/collaborator cookie
+      // exists at all (pure parent users hitting this endpoint directly).
       session = await getParentSession();
     }
 
@@ -111,15 +119,30 @@ export async function GET(request: NextRequest) {
     // List all calendars the user has access to
     const response = await calendar.calendarList.list();
 
+    // accessRole from Google's calendarList.list():
+    //   "owner"           — user owns the calendar (their primary + their own secondaries)
+    //   "writer"          — calendar shared with edit access (e.g. another gmail's calendar)
+    //   "reader"          — read-only share
+    //   "freeBusyReader"  — only sees free/busy
+    // We surface this so the UI can distinguish "your calendar" from "someone
+    // else's calendar you've subscribed to". The user reported confusion seeing
+    // an email they don't own appearing in the list — that's almost always a
+    // shared calendar with writer/reader access, not a separate OAuth grant.
     const calendars = response.data.items?.map((cal) => ({
       id: cal.id,
       name: cal.summary,
       description: cal.description,
       primary: cal.primary || false,
+      accessRole: cal.accessRole || null,
       backgroundColor: cal.backgroundColor,
     })) || [];
 
-    return NextResponse.json({ calendars });
+    return NextResponse.json({
+      calendars,
+      // The email tied to the OAuth grant that produced this list. Lets the
+      // client confirm which Google account it's actually reading from.
+      grantEmail: session.user?.email ?? null,
+    });
   } catch (error: any) {
     console.error("Error listing calendars:", error);
     

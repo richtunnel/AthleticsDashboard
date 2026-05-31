@@ -44,6 +44,7 @@ import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
 import { alpha } from "@mui/material/styles";
+import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,9 +53,25 @@ interface AvailableDatesModalProps {
   onClose: () => void;
   sport?: string;
   level?: string;
+  /** Already-resolved homeTeamId from the parent table. When provided the form
+   *  skips the client-side team lookup entirely and uses this value directly. */
+  homeTeamId?: string;
   workbookId?: string | null;
+  /** Display name of the active worksheet — shown in the Add form's context row
+   *  so the user can verify which worksheet they're writing into. */
+  workbookName?: string | null;
   onDateSelect?: (date: Date, sport?: string, level?: string) => void;
-  onGameCreated?: () => void;
+  onGameCreated?: (game: any) => void;
+  /**
+   * Optional parent-owned submit hook. When provided, the modal hands the
+   * fully-built gameData to the parent and lets the parent's existing
+   * createGameMutation handle the POST + cache insertion. This guarantees the
+   * new row uses the SAME code path as CSV-imported games (which already
+   * appear correctly), instead of the modal duplicating that logic.
+   *
+   * Must return the created game row (or null on failure).
+   */
+  onSubmitGameData?: (gameData: any) => Promise<any>;
 }
 
 interface ClusterMatch {
@@ -110,26 +127,83 @@ const formatDateDisplay = (dateStr: string): string => {
 const normalizeColName = (s: string) =>
   s.toLowerCase().replace(/[\s_\-\/\.]+/g, "");
 
+/**
+ * Aliases for the "opponent" / "away team" worksheet column.
+ * Anything in this set is treated as the opponent column when backfilling.
+ * Add new spellings here, not in the resolver — keeps both call sites in sync.
+ */
+const OPPONENT_ALIASES = new Set([
+  "opponent",
+  "opponents",
+  "vs",
+  "vsteam",
+  "awayteam",
+  "away",
+  "otherteam",
+  "otherteams",
+  "challenger",
+  "visitor",
+  "visitors",
+  "visitingteam",
+  "enemy",
+  "theirteam",
+  "competitor",
+  "opposing",
+  "opposingteam",
+]);
+
+/**
+ * Aliases for the HOME TEAM column (column whose value is the AD's own
+ * school/team name). Distinct from the home/away INDICATOR — see
+ * HOME_AWAY_ALIASES below.
+ */
+const HOME_TEAM_ALIASES = new Set([
+  "hometeam",
+  "mainteam",
+  "ourteam",
+  "ourteams",
+  "ourschool",
+  "myteam",
+  "myschool",
+  "school",
+  "schoolname",
+  "team1",
+  "host",
+  "hostteam",
+]);
+
+/**
+ * Aliases for the home/away INDICATOR column (value is "Home"/"Away").
+ * Note: bare "home" is intentionally listed here, not in HOME_TEAM_ALIASES.
+ * A column literally named "Home" in the wild is overwhelmingly the indicator
+ * (paired with an "Away" column) rather than the team name. Users who want
+ * auto-fill of the home team's name should label the column "Home Team",
+ * "Main Team", "Our Team", etc.
+ */
+const HOME_AWAY_ALIASES = new Set(["home", "homeaway", "ishome"]);
+
 /** Column names (normalized) that map to core game fields — not shown as extra custom fields */
 const STANDARD_FIELD_KEYS = new Set([
   "date", "time", "gametime", "starttime",
   "sport", "level", "gender", "team",
-  "opponent", "vs", "awayteam", "away",
+  ...OPPONENT_ALIASES,
   "location", "venue", "site", "fieldsite",
   "notes", "note", "comments", "info",
   "status", "gamestatus",
-  "home", "homeaway", "ishome",
+  ...HOME_AWAY_ALIASES,
+  ...HOME_TEAM_ALIASES,
 ]);
 
 /** Map a normalized column name to the standard game form field it represents */
 function resolveStandardField(col: string): string | null {
   const key = normalizeColName(col);
   if (["time", "gametime", "starttime"].includes(key)) return "time";
-  if (["opponent", "vs", "awayteam"].includes(key)) return "opponent";
+  if (OPPONENT_ALIASES.has(key)) return "opponent";
   if (["location", "venue", "site", "fieldsite"].includes(key)) return "location";
   if (["notes", "note", "comments", "info"].includes(key)) return "notes";
   if (["status", "gamestatus"].includes(key)) return "status";
-  if (["home", "homeaway", "ishome"].includes(key)) return "isHome";
+  if (HOME_AWAY_ALIASES.has(key)) return "isHome";
+  if (HOME_TEAM_ALIASES.has(key)) return "homeTeam";
   return null;
 }
 
@@ -175,9 +249,12 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   onClose,
   sport,
   level,
+  homeTeamId: homeTeamIdProp,
   workbookId,
+  workbookName,
   onDateSelect,
   onGameCreated,
+  onSubmitGameData,
 }) => {
   // ── Search view state ────────────────────────────────────────────────────
   const [prompt, setPrompt] = useState("");
@@ -198,9 +275,43 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
-  /** Worksheet columns fetched from the API */
+  /** Worksheet columns fetched from the API (union of CustomColumn names + imported CSV keys) */
   const [worksheetColumns, setWorksheetColumns] = useState<string[]>([]);
   const [columnsLoading, setColumnsLoading] = useState(false);
+  /**
+   * Map of CustomColumn.name → CustomColumn.id for this workbook.
+   *
+   * The GamesTable reads user-defined worksheet columns from `customData[col.id]`
+   * (keyed by ID) and imported CSV columns from `customFields[col.name]` (keyed by name).
+   * We need this map so on submit we can route each value to the correct location —
+   * otherwise CustomColumn values get saved to `customFields` and never display in the
+   * table (because the table looks them up by ID, not name).
+   */
+  const [customColumnIdByName, setCustomColumnIdByName] = useState<Record<string, string>>({});
+
+  /**
+   * The AD's own school name — used to auto-fill the "Home Team" / "Main Team"
+   * worksheet column on submit so the user doesn't have to type their own
+   * school's name into every game. Fetched on form open. Mascot/team name is
+   * deliberately NOT included; if the user wants the mascot they edit before
+   * submitting.
+   */
+  const [homeSchoolName, setHomeSchoolName] = useState<string>("");
+
+  useEffect(() => {
+    if (view !== "addForm") return;
+    if (homeSchoolName) return;
+    fetch("/api/user/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.schoolName && typeof data.schoolName === "string") {
+          setHomeSchoolName(data.schoolName.trim());
+        }
+      })
+      .catch(() => {
+        /* non-fatal — the column just stays empty if profile fetch fails */
+      });
+  }, [view, homeSchoolName]);
 
   // ── Pre-fill prompt ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -217,19 +328,42 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       setFieldValues({});
       setFormError(null);
       setFormSuccess(false);
+      setCustomColumnIdByName({});
+      setWorksheetColumns([]);
     }
   }, [open]);
 
-  // Fetch worksheet columns whenever we enter the add-form view
+  // Fetch worksheet columns whenever we enter the add-form view.
+  //
+  // We fetch from TWO endpoints in parallel:
+  //   1. /api/calendar/workbook-columns → union of column NAMES (CustomColumn.name + customFields keys)
+  //   2. /api/organizations/custom-columns → CustomColumn records with { id, name }
+  //
+  // The second is what lets us know which displayed columns are CustomColumn-defined
+  // (and therefore need to be saved into `customData[col.id]` not `customFields[col.name]`).
   useEffect(() => {
     if (view !== "addForm" || !workbookId) return;
     setColumnsLoading(true);
-    fetch(`/api/calendar/workbook-columns?workbookId=${workbookId}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.columns) setWorksheetColumns(data.columns as string[]);
+
+    Promise.all([
+      fetch(`/api/calendar/workbook-columns?workbookId=${workbookId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`/api/organizations/custom-columns?workbookId=${workbookId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ])
+      .then(([colsRes, customColsRes]) => {
+        if (colsRes?.columns) setWorksheetColumns(colsRes.columns as string[]);
+
+        // Build name → id map for CustomColumn rows (scoped to this workbook or global)
+        const map: Record<string, string> = {};
+        const records: any[] = customColsRes?.data || [];
+        for (const c of records) {
+          if (c?.name && c?.id) map[c.name] = c.id;
+        }
+        setCustomColumnIdByName(map);
       })
-      .catch(() => {})
       .finally(() => setColumnsLoading(false));
   }, [view, workbookId]);
 
@@ -363,7 +497,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     setFieldValues((prev) => ({ ...prev, [col]: value }));
   };
 
-  /** Submit the Add Date form — resolves team then creates the game */
+  /** Submit the Add Date form — resolves team then POSTs to /api/games */
   const handleFormSubmit = async () => {
     if (!addDateCtx) return;
     setFormSubmitting(true);
@@ -372,64 +506,72 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     try {
       const { dateStr, sport: sportName, level: levelName } = addDateCtx;
 
-      // ── 1. Resolve homeTeamId ──────────────────────────────────────────
-      let homeTeamId: string | null = null;
-      const teamsRes = await fetch("/api/teams");
-      if (teamsRes.ok) {
-        const teamsData = await teamsRes.json();
-        const existingTeam = (teamsData.data || teamsData || []).find(
-          (t: any) =>
-            t.sport?.name?.toLowerCase() === sportName.toLowerCase() &&
-            t.level?.toLowerCase() === levelName.toLowerCase(),
+      // ── 0. workbookId guard ───────────────────────────────────────────
+      // The GamesTable query filters by workbookId — a row created without
+      // one (or against the wrong worksheet) would never appear in the active
+      // view. Snapshot the prop at submit time so a worksheet switch mid-flow
+      // can't redirect the write to a different worksheet.
+      const targetWorkbookId = workbookId || null;
+      if (!targetWorkbookId) {
+        throw new Error(
+          "No worksheet is currently selected. Open the worksheet you want to add this game to, then try again."
         );
-        if (existingTeam) homeTeamId = existingTeam.id;
       }
 
-      if (!homeTeamId) {
-        // Create sport
-        let sportId: string | null = null;
-        const sportRes = await fetch("/api/sports", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: sportName, season: "FALL" }),
-        });
-        if (sportRes.ok) {
-          const sd = await sportRes.json();
-          sportId = sd.data?.id || sd.id;
-        } else {
-          const existingSportRes = await fetch(`/api/sports?name=${encodeURIComponent(sportName)}`);
-          if (existingSportRes.ok) {
-            const sd = await existingSportRes.json();
-            sportId = sd.data?.id || sd.id;
-          }
-        }
-        if (!sportId) throw new Error(`Could not find or create sport: ${sportName}`);
+      // ── 1. homeTeamId ─────────────────────────────────────────────────
+      // Fast path: the parent table passes down the already-resolved team ID.
+      // When that isn't available we do a single GET /api/teams lookup.
+      // We never create teams/sports here — that would produce wrong data.
+      let resolvedHomeTeamId: string | null = homeTeamIdProp || null;
 
-        // Create team
-        const teamRes = await fetch("/api/teams", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: `${sportName} ${levelName}`, sportId, level: levelName }),
-        });
-        if (!teamRes.ok) {
-          const e = await teamRes.json();
-          throw new Error(e.error || "Failed to create team");
+      if (!resolvedHomeTeamId) {
+        if (!sportName || !levelName) {
+          throw new Error(
+            "Sport and level are required. Select a sport in the Game Center row first, then use Find Dates."
+          );
         }
-        const td = await teamRes.json();
-        homeTeamId = td.data?.id || td.id;
+
+        const normLevel = (l: string): string => {
+          const s = l.toLowerCase().trim();
+          if (["jv", "j.v.", "junior var", "jr varsity"].includes(s)) return "junior varsity";
+          if (["v", "var"].includes(s)) return "varsity";
+          return s;
+        };
+
+        const teamsRes = await fetch("/api/teams");
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          const targetSport = sportName.toLowerCase();
+          const targetLevel = normLevel(levelName);
+          const match = (teamsData.data || teamsData || []).find((t: any) => {
+            const tSport = (t.sport?.name || "").toLowerCase();
+            const sportMatches =
+              tSport === targetSport ||
+              tSport.includes(targetSport) ||
+              targetSport.includes(tSport);
+            const levelMatches = normLevel(t.level || "") === targetLevel;
+            return sportMatches && levelMatches;
+          });
+          if (match) resolvedHomeTeamId = match.id;
+        }
+
+        if (!resolvedHomeTeamId) {
+          throw new Error(
+            `No team found for "${sportName} – ${levelName}". ` +
+              "Create a game from the main form first to register that team, then try again."
+          );
+        }
       }
 
-      if (!homeTeamId) throw new Error("Could not resolve team");
-
-      // ── 2. Resolve opponentId ──────────────────────────────────────────
+      // ── 2. opponentId (optional) ──────────────────────────────────────
       let opponentId: string | null = null;
-      const opponentName = fieldValues["opponent"]?.trim() || fieldValues["Opponent"]?.trim() || "";
+      const opponentName = (fieldValues["opponent"] || "").trim();
       if (opponentName) {
         const oppRes = await fetch("/api/opponents");
         if (oppRes.ok) {
           const oppData = await oppRes.json();
           const existing = (oppData.data || oppData || []).find(
-            (o: any) => o.name.toLowerCase() === opponentName.toLowerCase(),
+            (o: any) => o.name.toLowerCase() === opponentName.toLowerCase()
           );
           if (existing) {
             opponentId = existing.id;
@@ -447,9 +589,15 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         }
       }
 
-      // ── 3. Build game payload ──────────────────────────────────────────
-      // Walk through every field value and map to standard game fields or customFields
+      // ── 3. Map fieldValues → game fields ─────────────────────────────
+      //
+      // Worksheet columns split into TWO storage locations:
+      //   • customData[colId]   ← for CustomColumn-defined columns (UI keys them by ID)
+      //   • customFields[name]  ← for imported CSV columns (UI keys them by name)
+      // Routing by the customColumnIdByName map ensures values land where the
+      // GamesTable will actually read them back.
       const customFields: Record<string, string> = {};
+      const customData: Record<string, string> = {};
       let time: string | null = null;
       let location: string | null = null;
       let notes: string | null = null;
@@ -464,40 +612,149 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         if (stdField === "notes") { notes = val.trim(); continue; }
         if (stdField === "status") { status = val.trim(); continue; }
         if (stdField === "isHome") { isHome = val !== "away"; continue; }
-        if (stdField === "opponent") continue; // already handled above
-        // Unknown / custom worksheet column
+        if (stdField === "opponent") continue; // handled above
         if (!STANDARD_FIELD_KEYS.has(normalizeColName(col))) {
-          customFields[col] = val.trim();
+          const customColId = customColumnIdByName[col];
+          if (customColId) {
+            // User-defined CustomColumn → stored by ID in customData
+            customData[customColId] = val.trim();
+          } else {
+            // Imported CSV column → stored by name in customFields
+            customFields[col] = val.trim();
+          }
         }
       }
 
+      // ── 3b. Backfill the canonical worksheet columns ────────────────────
+      //
+      // The form filters Sport / Level / Gender / Date / Team out of the
+      // editable inputs (they're shown read-only in the context row at the
+      // top). But the GamesTable RENDERS those columns by reading
+      // `customFields[colName]` — so unless we write them here, the new row
+      // appears with blank Sport/Level/Gender/Date cells even though we have
+      // the values right there in addDateCtx.
+      //
+      // We use the exact column-name spelling from the worksheet (worksheet
+      // column "Sport" vs custom column "sport" matter because the table
+      // looks up by name). For each match we route to the right storage
+      // (customData by ID for CustomColumns, customFields by name otherwise).
+      const writeWorksheetValue = (col: string, value: string) => {
+        if (!value) return;
+        // Skip if the user already typed something for this column.
+        const existing = fieldValues[col]?.trim();
+        if (existing) return;
+        const customColId = customColumnIdByName[col];
+        if (customColId) {
+          customData[customColId] = value;
+        } else {
+          customFields[col] = value;
+        }
+      };
+
+      // Format date for worksheet "Date" column — match the most common
+      // imported style (YYYY-MM-DD). The table's date column reads from
+      // game.date directly, but the imported "Date" column (if it exists)
+      // reads from customFields["Date"], so we backfill both.
+      const dateForWorksheet = dateStr; // already YYYY-MM-DD
+
+      for (const col of worksheetColumns) {
+        const norm = normalizeColName(col);
+        if (norm === "sport" && sportName) writeWorksheetValue(col, sportName);
+        else if (norm === "level" && levelName) writeWorksheetValue(col, levelName);
+        else if (norm === "gender" && addDateCtx.gender) writeWorksheetValue(col, addDateCtx.gender);
+        else if (norm === "date") writeWorksheetValue(col, dateForWorksheet);
+        else if (norm === "team" && sportName && levelName) {
+          // Best-effort team label: "<Gender> <Level> <Sport>" trimmed.
+          const teamLabel = [addDateCtx.gender, levelName, sportName].filter(Boolean).join(" ").trim();
+          if (teamLabel) writeWorksheetValue(col, teamLabel);
+        } else if (OPPONENT_ALIASES.has(norm) && opponentName) {
+          // Route the typed opponent into ANY column the worksheet considers
+          // the "opponent" — opponent / vs / away team / challenger / visitor /
+          // other team / etc. The standard-field resolver pulled the value into
+          // the canonical opponent relation; this mirrors it into the imported
+          // column so the table cell isn't empty.
+          writeWorksheetValue(col, opponentName);
+        } else if (HOME_TEAM_ALIASES.has(norm) && homeSchoolName) {
+          // Auto-fill the home-team column with the AD's school name. The
+          // mascot/team-nickname is intentionally NOT appended — the user
+          // asked for the school name only.
+          writeWorksheetValue(col, homeSchoolName);
+        } else if (norm === "time" && time) {
+          writeWorksheetValue(col, time);
+        } else if (norm === "location" && location) {
+          writeWorksheetValue(col, location);
+        } else if (norm === "status" && status) {
+          writeWorksheetValue(col, status);
+        } else if (HOME_AWAY_ALIASES.has(norm)) {
+          writeWorksheetValue(col, isHome ? "Home" : "Away");
+        } else if (norm === "notes" && notes) {
+          writeWorksheetValue(col, notes);
+        }
+      }
+
+      // ── 4. Build gameData payload ─────────────────────────────────────
       const gameData = {
         date: dateStrToUTC(dateStr),
         time,
-        homeTeamId,
+        homeTeamId: resolvedHomeTeamId,
         isHome,
         opponentId,
         status,
         location,
         notes,
-        customData: {},
+        customData,
         customFields,
-        workbookId: workbookId || null,
+        // Pinned to the worksheet that was active when the user clicked Submit.
+        workbookId: targetWorkbookId,
       };
 
-      const gameRes = await fetch("/api/games", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gameData }),
-      });
+      // ── 5. Submit via parent's mutation (preferred) or direct POST ────
+      //
+      // The parent (GamesTable) supplies `onSubmitGameData` so the same
+      // createGameMutation that handles CSV imports also handles this. That
+      // mutation already does the optimistic cache insert + preservedGameIds
+      // bookkeeping correctly — duplicating it here led to rows that never
+      // appeared. If no parent hook is wired up we fall back to a direct
+      // POST so the modal still works in isolation.
+      let createdGame: any = null;
+      if (onSubmitGameData) {
+        createdGame = await onSubmitGameData(gameData);
+      } else {
+        const gameRes = await fetch("/api/games", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gameData),
+        });
+        if (!gameRes.ok) {
+          const e = await gameRes.json();
+          throw new Error(e.error || "Failed to create game");
+        }
+        const createdData = await gameRes.json();
+        createdGame = createdData?.data ?? createdData;
+      }
 
-      if (!gameRes.ok) {
-        const e = await gameRes.json();
-        throw new Error(e.error || "Failed to create game");
+      // Guard: confirm a real game row came back before declaring success.
+      if (!createdGame?.id) {
+        throw new Error("Game was not created. Please try again.");
       }
 
       setFormSuccess(true);
-      onGameCreated?.();
+      onGameCreated?.(createdGame);
+
+      // Mark this date as taken — drop it from the available list so the user
+      // can't re-add it from the same search results panel. The "Available
+      // Dates (N)" counter updates automatically since it reads .length.
+      setResult((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recommendations: prev.recommendations.filter((d) => d !== dateStr),
+          debug: {
+            ...prev.debug,
+            clusterDates: prev.debug.clusterDates?.filter((d) => d !== dateStr) ?? prev.debug.clusterDates,
+          },
+        };
+      });
 
       trackEvent("Available Dates - Game Created", {
         dateStr,
@@ -506,7 +763,6 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         source: "find_dates_modal",
       });
 
-      // Return to search results after a short success flash
       setTimeout(() => {
         setView("search");
         setFormSuccess(false);
@@ -919,13 +1175,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                                     e.stopPropagation();
                                     handleOpenAddForm(dateStr, result.debug.matchedClusters);
                                   }}
-                                  sx={{
+                                  sx={(theme) => ({
                                     fontSize: "0.7rem",
                                     py: 0.4,
                                     px: 1,
                                     textTransform: "none",
                                     fontWeight: 600,
-                                  }}
+                                    ...(theme.palette.mode === "dark" && {
+                                      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                      color: "#fff",
+                                      "&:hover": {
+                                        background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                                      },
+                                    }),
+                                  })}
                                 >
                                   Add Date
                                 </Button>
@@ -1018,7 +1281,31 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                       {addDateCtx?.level || "—"}
                     </Typography>
                   </Box>
+                  {(workbookName || workbookId) && (
+                    <>
+                      <Divider orientation="vertical" flexItem />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.25 }}>
+                          Worksheet
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {workbookName || "—"}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
                 </Box>
+
+                {!workbookId && (
+                  <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      No worksheet selected
+                    </Typography>
+                    <Typography variant="body2">
+                      Open the worksheet you want to add this game to before submitting — the new row needs a worksheet to appear in the table.
+                    </Typography>
+                  </Alert>
+                )}
 
                 {/* Standard game fields */}
                 <Box
@@ -1045,8 +1332,8 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     fullWidth
                     value={fieldValues["time"] || ""}
                     onChange={(e) => setField("time", e.target.value)}
-                    placeholder="e.g. 15:00"
-                    helperText="24-hour format (HH:MM)"
+                    placeholder="e.g. 7:00 PM"
+                    helperText="e.g. 7:00 PM or 3:30 PM"
                   />
 
                   {/* Home / Away */}
@@ -1078,16 +1365,20 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     </Select>
                   </FormControl>
 
-                  {/* Location — full width */}
-                  <TextField
-                    label="Location"
-                    size="small"
-                    fullWidth
-                    sx={{ gridColumn: { sm: "1 / -1" } }}
-                    value={fieldValues["location"] || ""}
-                    onChange={(e) => setField("location", e.target.value)}
-                    placeholder="e.g. Main Gym, Field 2"
-                  />
+                  {/* Location — full width. Google Places autocomplete with
+                      manual-entry fallback (the underlying component already
+                      gracefully degrades to free text when the Places API is
+                      unavailable). freeSolo mode means whatever the user types
+                      is preserved even if no prediction matches. */}
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <SchoolAddressAutocomplete
+                      value={fieldValues["location"] || ""}
+                      onChange={(value) => setField("location", value)}
+                      label="Location"
+                      placeholder="e.g. Main Gym, 123 Main St, or pick from suggestions"
+                      size="small"
+                    />
+                  </Box>
 
                   {/* Notes — full width */}
                   <TextField
@@ -1157,11 +1448,10 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
               variant="contained"
               startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <Search />}
               disabled={loading || !prompt.trim()}
-              sx={(theme) => ({
-                color: theme.palette.mode === "dark" ? theme.palette.text.primary : "",
+              sx={{
                 textTransform: "none",
                 borderRadius: 2,
-              })}
+              }}
             >
               {loading ? "Searching..." : "Find Dates"}
             </Button>

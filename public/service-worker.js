@@ -11,15 +11,24 @@
 //   7. Short-lived stateless — no persistent in-SW state; each event is standalone
 // ============================================================
 
-const SW_VERSION = "v2";
-const CACHE_NAME = "opletics-images-v2";
+// Bump the version any time the fetch handler changes — forces every client
+// to download and activate the new SW, evicting the previous one (which was
+// intercepting cross-origin PUTs to DigitalOcean Spaces and breaking the
+// post-image upload).
+const SW_VERSION = "v5";
+const CACHE_NAME = "opletics-images-v5";
 const MAX_CACHE_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ---------------------------------------------------------------------------
 // Install — open new cache, skip waiting only when explicitly told to
 // ---------------------------------------------------------------------------
 self.addEventListener("install", (event) => {
-  // Principle 2: do NOT call skipWaiting() here; wait for client postMessage
+  // Force immediate activation. The previous v2 SW intercepted cross-origin
+  // PUTs and broke post-image uploads — we don't want it lingering in any
+  // open tab while the user is trying to post. Principle 2 ("don't auto
+  // skipWaiting") is intentionally overridden here because correctness >
+  // graceful update for this specific regression.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       // Pre-warm entries that are likely to exist; don't fail on missing ones
@@ -61,7 +70,23 @@ self.addEventListener("activate", (event) => {
 // Fetch — stale-while-revalidate image cache (unchanged from v1)
 // ---------------------------------------------------------------------------
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+  // ── HARD bypass rules ────────────────────────────────────────────────
+  //   1. Anything other than GET — uploads/mutations must never be touched.
+  //   2. Cross-origin requests — we have no business caching third-party
+  //      assets and intercepting them produces the
+  //      "TypeError: Failed to convert value to 'Response'" you saw on
+  //      DigitalOcean Spaces uploads. The SW handles SAME-origin GETs only.
+  if (event.request.method !== "GET") return;
+
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch {
+    return; // malformed URL — let the browser handle it
+  }
+
+  if (url.origin !== self.location.origin) return;
+
   if (_isImageRequest(url)) {
     event.respondWith(
       _handleImageRequest(event.request).catch(() =>

@@ -70,12 +70,76 @@ const MAX_PREVIEW_LENGTH = 300;
 
 // ─── Image grid ──────────────────────────────────────────────────────────────
 
+// Width the centred content column maxes out at. Single image is constrained
+// to this so it never balloons on wide screens; multi-image grid + text are
+// constrained to the same value so everything aligns vertically.
+const CONTENT_MAX_WIDTH = 800;
+
 function ImageGrid({ images }: { images: PostImageData[] }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   if (images.length === 0) return null;
 
+  // ── Single image: fluid responsive, max 800px, natural aspect ratio ──
+  //
+  // No `fill` — that requires a parent with a fixed height, which the 1-image
+  // case didn't have, so the image rendered at 0×0. Using explicit width +
+  // height + CSS `height: auto` lets Next.js generate the srcset for the
+  // optimizer (width hint) while CSS scales the actual displayed dimensions
+  // to the natural aspect of the source image.
+  if (images.length === 1) {
+    const img = images[0];
+    return (
+      <>
+        <Box
+          role="button"
+          tabIndex={0}
+          aria-label="View full size image"
+          onClick={() => setLightbox(img.url)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLightbox(img.url); } }}
+          sx={{
+            mt: 1.5,
+            maxWidth: CONTENT_MAX_WIDTH,
+            mx: "auto",
+            display: "block",
+            cursor: "pointer",
+            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2, borderRadius: "10px" },
+          }}
+        >
+          <Image
+            src={img.url}
+            alt="Post image"
+            width={1600}
+            height={900}
+            sizes={`(max-width: ${CONTENT_MAX_WIDTH}px) 100vw, ${CONTENT_MAX_WIDTH}px`}
+            style={{
+              width: "100%",
+              maxWidth: CONTENT_MAX_WIDTH,
+              height: "auto",
+              display: "block",
+              margin: "0 auto",
+              borderRadius: "10px",
+            }}
+          />
+        </Box>
+
+        {lightbox && (
+          <Box
+            role="dialog" aria-modal="true" aria-label="Image lightbox — press Escape to close" tabIndex={-1}
+            onClick={() => setLightbox(null)}
+            onKeyDown={(e) => { if (e.key === "Escape") setLightbox(null); }}
+            sx={{ position: "fixed", inset: 0, bgcolor: "rgba(0,0,0,0.9)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+          >
+            <Box sx={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh", width: "100%", height: "100%" }}>
+              <Image src={lightbox} alt="Full size" fill style={{ objectFit: "contain" }} sizes="90vw" />
+            </Box>
+          </Box>
+        )}
+      </>
+    );
+  }
+
+  // ── Multi-image: 2-4 grid with explicit row heights so `fill` works ──
   const gridStyles: Record<number, object> = {
-    1: { gridTemplateColumns: "1fr" },
     2: { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "220px" },
     3: { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "220px 220px" },
     4: { gridTemplateColumns: "1fr 1fr", gridTemplateRows: "200px 200px" },
@@ -92,7 +156,7 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
       sx={{
         position: "relative",
         overflow: "hidden",
-        borderRadius: 1,
+        borderRadius: "10px",
         cursor: "pointer",
         bgcolor: "action.hover",
         "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: 2 },
@@ -110,8 +174,10 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
           display: "grid",
           gap: 0.5,
           mt: 1.5,
-          borderRadius: 2,
+          borderRadius: "10px",
           overflow: "hidden",
+          maxWidth: CONTENT_MAX_WIDTH,
+          mx: "auto",
           ...(gridStyles[Math.min(images.length, 4) as keyof typeof gridStyles] || gridStyles[4]),
         }}
       >
@@ -120,7 +186,7 @@ function ImageGrid({ images }: { images: PostImageData[] }) {
               <Box key={images[0].id} role="button" tabIndex={0} aria-label="View full size image"
                 onClick={() => setLightbox(images[0].url)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLightbox(images[0].url); } }}
-                sx={{ gridRow: "1 / 3", position: "relative", overflow: "hidden", cursor: "pointer", bgcolor: "action.hover", borderRadius: 1 }}>
+                sx={{ gridRow: "1 / 3", position: "relative", overflow: "hidden", cursor: "pointer", bgcolor: "action.hover", borderRadius: "10px" }}>
                 <Image src={images[0].url} alt="Post image" fill sizes="50vw" style={{ objectFit: "cover" }} />
               </Box>,
               imgSlot(images[1]),
@@ -480,9 +546,11 @@ export default function PostCard({ post, currentUserId, onDelete }: PostCardProp
           )}
         </Box>
 
-        {/* Content */}
+        {/* Content — constrained to the same 800px column as the image so
+            the text's left edge aligns with the image's left edge on wide
+            screens. */}
         {content && (
-          <Box>
+          <Box sx={{ maxWidth: CONTENT_MAX_WIDTH, mx: "auto" }}>
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6, fontSize: "0.9rem" }}>
               {displayContent}
             </Typography>

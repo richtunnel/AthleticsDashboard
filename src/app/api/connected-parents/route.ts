@@ -86,6 +86,50 @@ export async function GET(request: Request) {
       : [];
     const connectedMap = new Map(connectedRows.map((cp) => [cp.parentUserId, cp]));
 
+    // ── Resolve athlete (child) name per sync request ────────────────────
+    // Each approved request corresponds to one child + sport + level. We look
+    // up the matching ParentAthleteLink so the AD's card can show WHO the
+    // schedule is for (and so AD search can find by athlete name).
+    const links = parentUserIds.length
+      ? await prisma.parentAthleteLink.findMany({
+          where: {
+            parentUserId: { in: parentUserIds },
+            schoolId: user.organizationId,
+          },
+          select: {
+            parentUserId: true,
+            athleteName: true,
+            sport: true,
+            gradeLevel: true,
+          },
+        })
+      : [];
+
+    /** Find the athlete linked to this parent + sport + level slot. */
+    const findAthleteName = (
+      parentUserId: string,
+      sportName: string,
+      sportLevel: string
+    ): string | null => {
+      // Try exact case-insensitive match first
+      const exact = links.find(
+        (l) =>
+          l.parentUserId === parentUserId &&
+          (l.sport ?? "").toLowerCase() === sportName.toLowerCase() &&
+          (l.gradeLevel ?? "").toLowerCase() === sportLevel.toLowerCase()
+      );
+      if (exact) return exact.athleteName;
+
+      // Loose fallback: sport contains/contained-by (covers "Basketball" vs "Girls Basketball")
+      const loose = links.find(
+        (l) =>
+          l.parentUserId === parentUserId &&
+          (l.sport ?? "").toLowerCase().includes(sportName.toLowerCase()) &&
+          (l.gradeLevel ?? "").toLowerCase() === sportLevel.toLowerCase()
+      );
+      return loose?.athleteName ?? null;
+    };
+
     return Response.json({
       parents: approvedRequests.map((req) => {
         const cp = connectedMap.get(req.parentUserId);
@@ -101,6 +145,9 @@ export async function GET(request: Request) {
           schoolName: req.school.name,
           sportName: req.sportName,
           sportLevel: req.sportLevel,
+          // The child this approval is for — surfaced on the AD's card and
+          // included in search so an AD can find a parent by typing the kid's name.
+          athleteName: findAthleteName(req.parentUserId, req.sportName, req.sportLevel),
           calendarSynced: cp?.calendarSynced ?? false,
           lastSyncedAt: cp?.lastSyncedAt?.toISOString() ?? null,
           membershipStatus: cp?.membershipStatus ?? "ACTIVE",

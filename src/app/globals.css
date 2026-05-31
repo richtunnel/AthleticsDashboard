@@ -1,5 +1,7 @@
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+/* @fontsource-variable/inter removed — Inter is now loaded via next/font/google
+   (font-display: optional, preloaded) so there is no FOUT / layout shift.
+   The --font-inter CSS variable is injected by next/font on the <html> element. */
 
 /* Skip-to-main-content link — visually hidden until focused by keyboard */
 .skip-to-main {
@@ -63,8 +65,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 * {
@@ -79,9 +81,10 @@ body {
   background-color: var(--background);
   color: var(--text-primary);
   min-height: 100%;
+  /* --font-inter is injected by next/font on the <html> element at SSR time.
+     The fallback stack activates only if the variable is somehow absent. */
   font-family:
-    "Inter Variable",
-    Inter,
+    var(--font-inter),
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

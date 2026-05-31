@@ -110,8 +110,11 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
 
   // ── 4b. All CalendarSyncRequests — for per-sport status on child cards ───
   // Ordered newest-first so we take the latest status for each slot.
+  // Exclude REMOVED rows from the dashboard view. They're kept in the DB so
+  // a re-request can resurrect the approval, but to the parent they should
+  // look like there's no active request (the "Request Sync" button shows).
   const allSyncRequests = await prisma.calendarSyncRequest.findMany({
-    where: { parentUserId: user.id },
+    where: { parentUserId: user.id, status: { not: "REMOVED" } },
     include: { school: { select: { name: true } } },
     orderBy: { requestedAt: "desc" },
   });
@@ -133,6 +136,11 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
   // gradeLevel on ParentAthleteLink stores the TEAM level (VARSITY, JV, …),
   // not the child's school grade.
   let upcomingGames: any[] = [];
+
+  // Hoisted outside the links guard so the serialisation block below can
+  // always reference them, even when links.length === 0.
+  const teamIdToLinkIds = new Map<string, string[]>();
+  const workbookIdToLinkIds = new Map<string, string[]>();
 
   if (links.length > 0) {
     const teamIdSet = new Set<string>();
@@ -180,6 +188,20 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       return where;
     };
 
+    // ── Attribution maps ─────────────────────────────────────────────────────
+    // teamIdToLinkIds / workbookIdToLinkIds are declared above the if-block so
+    // the serialisation step can always reference them (hoisted).
+    //
+    //   teamIdToLinkIds    : DB team ID  → [linkId, ...]
+    //   workbookIdToLinkIds: workbook ID → [linkId, ...]
+
+    /** Add linkId to the map entry for `key`, deduplicating in-place. */
+    function addAttribution(map: Map<string, string[]>, key: string, linkId: string) {
+      const arr = map.get(key) ?? [];
+      if (!arr.includes(linkId)) arr.push(linkId);
+      map.set(key, arr);
+    }
+
     // Primary: sport + level match per link
     for (const link of links) {
       if (!link.sport) continue;
@@ -187,7 +209,10 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
         where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel),
         select: { id: true },
       });
-      teams.forEach((t) => teamIdSet.add(t.id));
+      for (const t of teams) {
+        teamIdSet.add(t.id);
+        addAttribution(teamIdToLinkIds, t.id, link.id);
+      }
     }
 
     // Supplementary: approved CalendarSyncRequests add additional teams when
@@ -205,13 +230,28 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
     const approvedWorkbookIds = new Set<string>();
 
     for (const req of approvedRequests) {
+      // Resolve which ParentAthleteLink corresponds to this sync request so
+      // workbook-path games can be attributed to the right child.
+      const reqSlot = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+      const matchingLink = links.find(
+        (l) =>
+          `${l.schoolId}|${(l.sport ?? "").toLowerCase()}|${(l.gradeLevel ?? "").toLowerCase()}` ===
+          reqSlot
+      );
+
       const teams = await prisma.team.findMany({
         where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel),
         select: { id: true },
       });
-      teams.forEach((t) => teamIdSet.add(t.id));
+      for (const t of teams) {
+        teamIdSet.add(t.id);
+        if (matchingLink) addAttribution(teamIdToLinkIds, t.id, matchingLink.id);
+      }
 
-      if (req.workbookId) approvedWorkbookIds.add(req.workbookId);
+      if (req.workbookId) {
+        approvedWorkbookIds.add(req.workbookId);
+        if (matchingLink) addAttribution(workbookIdToLinkIds, req.workbookId, matchingLink.id);
+      }
     }
 
     const uniqueTeamIds = [...teamIdSet];
@@ -233,6 +273,10 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
         gameMatchers.push({ workbookId: { in: uniqueWorkbookIds } });
       }
 
+      // Scale the fetch limit proportionally so every child's schedule is
+      // fully represented — 30 upcoming games per link, min 50, hard cap 200.
+      const gameFetchLimit = Math.min(200, Math.max(50, links.length * 30));
+
       upcomingGames = await prisma.game.findMany({
         where: {
           OR: gameMatchers,
@@ -246,7 +290,7 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
           venue: true,
         },
         orderBy: { date: "asc" },
-        take: 20,
+        take: gameFetchLimit,
       });
     }
   }
@@ -302,6 +346,86 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
         game.awayTeam?.name?.trim() ||
         null;
 
+      // Build per-link attribution. PRECEDENCE MATTERS — see below.
+      //
+      // 1. Team-based attribution is precise (buildTeamWhere is gender-aware,
+      //    sport-aware, level-aware). If a game's team matches a link's team
+      //    set, that link owns the game. Period.
+      //
+      // 2. Workbook-based attribution is a FALLBACK for imported games whose
+      //    team rows never got normalised. It's per-workbook, so when one
+      //    workbook holds BOTH boys and girls games (very common in test
+      //    data), naively merging it with team-based attribution causes the
+      //    girls child's tab to show boys games and vice versa.
+      //
+      // Rule: workbook attribution only contributes link IDs when team
+      // attribution found NONE for this game. Even then, we constrain it to
+      // links whose sport/level matches the game's resolved sport/level so
+      // a shared-workbook scenario can't cross-pollinate.
+      const teamLinkIds = new Set<string>([
+        ...(teamIdToLinkIds.get(game.homeTeamId) ?? []),
+        ...(game.awayTeamId ? (teamIdToLinkIds.get(game.awayTeamId) ?? []) : []),
+      ]);
+      const linkIdSet = new Set<string>(teamLinkIds);
+
+      if (teamLinkIds.size === 0 && game.workbookId) {
+        const candidateLinkIds = workbookIdToLinkIds.get(game.workbookId) ?? [];
+
+        // Resolve the game's effective sport/level/gender from any source we
+        // trust, in priority order:
+        //   • team.gender (most reliable when set)
+        //   • parsed prefix on the sport label ("Girls Basketball" → FEMALE)
+        //   • customFields["Sport"] / ["Level"] (already merged into resolvedSport/Level)
+        const gSportRaw = (resolvedSport ?? "").toLowerCase().trim();
+        const gLevelRaw = (resolvedLevel ?? "").toLowerCase().trim();
+        const { baseSport: gBaseSport, gender: gGenderFromLabel } = gSportRaw
+          ? parseSportLabel(gSportRaw)
+          : { baseSport: "", gender: null as null };
+        const gTeamGender = (game.homeTeam as any)?.gender ?? null;
+        const gGender: string | null = gTeamGender ?? gGenderFromLabel ?? null;
+
+        for (const lid of candidateLinkIds) {
+          const link = links.find((l) => l.id === lid);
+          if (!link) continue;
+
+          const lSportRaw = (link.sport ?? "").toLowerCase().trim();
+          const lLevelRaw = normaliseLevel(link.gradeLevel) ?? "";
+          const { baseSport: lBaseSport, gender: lGender } = lSportRaw
+            ? parseSportLabel(lSportRaw)
+            : { baseSport: "", gender: null as null };
+
+          // Sport: accept exact-label match or a base-sport match.
+          const sportMatches =
+            (gSportRaw && lSportRaw && gSportRaw === lSportRaw) ||
+            (gBaseSport &&
+              lBaseSport &&
+              gBaseSport.toLowerCase() === lBaseSport.toLowerCase());
+
+          // Gender: STRICT. If the link specifies one (Girls / Boys), the
+          // game MUST also specify the same one. Genderless games (sport
+          // label "Basketball" with no team.gender) are rejected from
+          // gendered links — otherwise a generic "Basketball" row leaks
+          // into the Girls tab, which is the bug the user just reported.
+          // When the link has no gender (rare), accept any gender.
+          const genderMatches = !lGender || (gGender && gGender === lGender);
+
+          // Level: match when both sides provide one. JV ↔ "Junior Varsity"
+          // treated as equivalent. Missing-on-either-side is accepted (we
+          // don't want to lose a Varsity link just because the import
+          // omitted the level on the game row).
+          const levelMatches =
+            !lLevelRaw ||
+            !gLevelRaw ||
+            lLevelRaw === gLevelRaw ||
+            (lLevelRaw === "jv" && gLevelRaw === "junior varsity") ||
+            (lLevelRaw === "junior varsity" && gLevelRaw === "jv");
+
+          if (sportMatches && genderMatches && levelMatches) {
+            linkIdSet.add(lid);
+          }
+        }
+      }
+
       return {
         id: game.id,
         date: game.date.toISOString(),
@@ -323,6 +447,10 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
           : null,
         opponent: game.opponent ? { id: game.opponent.id, name: game.opponent.name } : null,
         venue: game.venue ? { name: game.venue.name, address: game.venue.address } : null,
+        // IDs of the ParentAthleteLinks that caused this game to appear.
+        // The client uses this for exact-match tab isolation — no fuzzy string
+        // matching needed, no risk of cross-child contamination.
+        linkIds: [...linkIdSet],
       };
     }),
     calendarConnected,

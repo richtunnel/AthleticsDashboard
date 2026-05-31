@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useGoogleCalendarConnection } from "@/hooks/useGoogleCalendarConnection";
@@ -36,6 +36,7 @@ import {
   Info,
   SyncLock,
   Warning,
+  LinkOff,
 } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme as customTheme } from "@mui/material/styles";
@@ -58,6 +59,14 @@ interface GoogleCalendar {
   name: string;
   description?: string;
   primary: boolean;
+  /**
+   * Google's accessRole on this calendar:
+   *   "owner"   → user owns it (their primary + own secondaries)
+   *   "writer"  → shared with edit access
+   *   "reader"  → shared read-only
+   *   "freeBusyReader" → free/busy only
+   */
+  accessRole?: string | null;
   backgroundColor?: string;
 }
 
@@ -78,10 +87,22 @@ const fetchCalendarGroupMappings = async (): Promise<{
   return res.json();
 };
 
-const fetchGoogleCalendars = async (): Promise<{
+const fetchGoogleCalendars = async (
+  /**
+   * When `true`, hits the parent-scoped endpoint that uses the parent session
+   * cookie. Without this, the AD-side endpoint runs and — if the user happens
+   * to also be logged in as an AD in this browser — returns the AD's calendars
+   * instead of the parent's (a real session-bleed bug).
+   */
+  parentMode: boolean
+): Promise<{
   calendars: GoogleCalendar[];
+  grantEmail?: string | null;
 }> => {
-  const res = await fetch("/api/calendar/list-calendars");
+  const url = parentMode
+    ? "/api/parent/calendar/list"
+    : "/api/calendar/list-calendars";
+  const res = await fetch(url);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || "Failed to fetch Google Calendars");
@@ -101,12 +122,19 @@ const fetchWorkbooks = async (): Promise<Workbook[]> => {
 interface CalendarGroupMappingsProps {
   /** Override the connected-account email shown in the header. */
   connectedEmailOverride?: string | null;
+  /**
+   * When mounted on the parent dashboard, set this so the Google Calendar list
+   * is fetched via the parent-scoped endpoint (parent cookie → parent OAuth
+   * tokens). Prevents AD/parent session bleed when the same browser holds both.
+   */
+  parentMode?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CalendarGroupMappings({
   connectedEmailOverride,
+  parentMode = false,
 }: CalendarGroupMappingsProps = {}) {
   const { addNotification } = useNotifications();
   const theme = customTheme();
@@ -148,8 +176,10 @@ export function CalendarGroupMappings({
     isLoading: calendarsLoading,
     error: calendarsError,
   } = useQuery({
-    queryKey: ["googleCalendars"],
-    queryFn: fetchGoogleCalendars,
+    // Key includes parentMode so an AD-then-parent navigation doesn't reuse
+    // the wrong cache entry.
+    queryKey: ["googleCalendars", parentMode ? "parent" : "ad"],
+    queryFn: () => fetchGoogleCalendars(parentMode),
     retry: false,
   });
 
@@ -243,6 +273,87 @@ export function CalendarGroupMappings({
       addNotification(error.message || "Failed to delete mapping", "error");
     },
   });
+
+  // Bulk-disconnect every mapping that routes to a given Google Calendar.
+  // Useful when an AD/parent connected a shared calendar (e.g. another
+  // gmail account they have access to) and wants to stop routing games
+  // there without hunting down each mapping row individually.
+  const disconnectCalendarMutation = useMutation({
+    mutationFn: async (calendarId: string) => {
+      const res = await fetch(
+        `/api/calendar/group-mappings?calendarId=${encodeURIComponent(calendarId)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Failed to disconnect calendar");
+      }
+      return res.json() as Promise<{ success: true; deleted: number }>;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
+      addNotification(
+        `Disconnected calendar — removed ${data.deleted} mapping${data.deleted === 1 ? "" : "s"}.`,
+        "success"
+      );
+    },
+    onError: (error: Error) => {
+      addNotification(error.message || "Failed to disconnect calendar", "error");
+    },
+  });
+
+  // ── Derived: distinct calendars currently used in mappings ───────────────
+  //
+  // The Google OAuth grant gives access to every calendar the user is subscribed
+  // to — including secondary accounts they've added in their Google Calendar UI
+  // (a shared "visualembassy@gmail.com" calendar, "Holidays in US", etc.). The
+  // user might pick any of those when creating a mapping, so we surface the
+  // distinct destinations actually in use so they can be disconnected one-by-one
+  // without combing through every mapping row.
+  const connectedCalendarsInUse = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        count: number;
+        isPrimary: boolean;
+        accessRole: string | null;
+      }
+    >();
+    for (const m of mappingsData?.mappings ?? []) {
+      const existing = map.get(m.googleCalendarId);
+      if (existing) {
+        existing.count++;
+      } else {
+        const cal = (calendarsData?.calendars ?? []).find(
+          (c) => c.id === m.googleCalendarId
+        );
+        map.set(m.googleCalendarId, {
+          id: m.googleCalendarId,
+          name: m.googleCalendarName,
+          count: 1,
+          isPrimary: cal?.primary ?? false,
+          accessRole: cal?.accessRole ?? null,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      // Primary first, then alphabetical by name
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [mappingsData?.mappings, calendarsData?.calendars]);
+
+  /** Friendly label for Google's accessRole. */
+  const accessRoleLabel = (role: string | null): string | null => {
+    if (!role) return null;
+    if (role === "owner") return "Owned";
+    if (role === "writer") return "Shared · edit";
+    if (role === "reader") return "Shared · read";
+    if (role === "freeBusyReader") return "Shared · free/busy";
+    return null;
+  };
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -425,6 +536,23 @@ export function CalendarGroupMappings({
               Connected as: {connectedEmail}
             </Typography>
           )}
+          {/* When the Google grant email differs from connectedEmail it's a
+              strong hint of session bleed (e.g. AD cookie active on parent
+              page). Show it so the user can spot the mismatch. */}
+          {calendarsData?.grantEmail &&
+            connectedEmail &&
+            calendarsData.grantEmail.toLowerCase() !==
+              connectedEmail.toLowerCase() && (
+              <Typography
+                variant="caption"
+                color="warning.main"
+                sx={{ mt: 0.5, display: "block", fontWeight: 600 }}
+              >
+                ⚠ Calendars are being read from {calendarsData.grantEmail}, not{" "}
+                {connectedEmail}. Sign out of the other account or reconnect
+                this one to fix.
+              </Typography>
+            )}
         </Box>
         <Button
           variant="contained"
@@ -454,6 +582,126 @@ export function CalendarGroupMappings({
             with no matching mapping fall back to your primary calendar.
           </Typography>
         </Alert>
+      )}
+
+      {/* Connected calendars in use — derived from current mappings */}
+      {connectedCalendarsInUse.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Connected Calendars
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
+            Calendars (and the Google accounts that own them) currently receiving
+            games from your mappings. Disconnect to stop routing games to a
+            calendar — every mapping pointing to it will be removed.
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {connectedCalendarsInUse.map((cal) => {
+              const pending =
+                disconnectCalendarMutation.isPending &&
+                (disconnectCalendarMutation.variables as string) === cal.id;
+              return (
+                <Box
+                  key={cal.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    p: 1,
+                    borderRadius: 1,
+                    bgcolor: "action.hover",
+                  }}
+                >
+                  <SyncLock sx={{ fontSize: 18, color: "success.main", flexShrink: 0 }} />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                        {cal.name}
+                      </Typography>
+                      {cal.isPrimary && (
+                        <Chip
+                          label="Primary"
+                          size="small"
+                          color="primary"
+                          sx={{ height: 18, fontSize: "0.65rem" }}
+                        />
+                      )}
+                      {accessRoleLabel(cal.accessRole) && (
+                        <Tooltip
+                          title={
+                            cal.accessRole === "owner"
+                              ? "You own this calendar."
+                              : "This calendar is shared with you from another Google account. It still lives in their account — you're just routing games to it through your access."
+                          }
+                        >
+                          <Chip
+                            label={accessRoleLabel(cal.accessRole)!}
+                            size="small"
+                            color={cal.accessRole === "owner" ? "default" : "warning"}
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.65rem" }}
+                          />
+                        </Tooltip>
+                      )}
+                      <Chip
+                        label={`${cal.count} mapping${cal.count === 1 ? "" : "s"}`}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: "0.65rem" }}
+                      />
+                    </Box>
+                    {/* Calendar IDs are often emails for shared calendars — surface that */}
+                    {cal.id !== cal.name && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontFamily: "monospace", display: "block", mt: 0.25 }}
+                        noWrap
+                      >
+                        {cal.id}
+                      </Typography>
+                    )}
+                  </Box>
+                  <Tooltip
+                    title={
+                      cal.isPrimary
+                        ? "This is your primary Google Calendar — disconnecting only removes its mappings, not the calendar itself."
+                        : "Remove every mapping that routes to this calendar"
+                    }
+                  >
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={
+                          pending ? (
+                            <CircularProgress size={12} color="inherit" />
+                          ) : (
+                            <LinkOff sx={{ fontSize: 14 }} />
+                          )
+                        }
+                        disabled={disconnectCalendarMutation.isPending}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Disconnect "${cal.name}"? This will remove ${cal.count} mapping${cal.count === 1 ? "" : "s"} that route games to this calendar.`
+                            )
+                          ) {
+                            disconnectCalendarMutation.mutate(cal.id);
+                          }
+                        }}
+                        sx={{ fontSize: "0.7rem", py: 0.4, px: 1, flexShrink: 0 }}
+                      >
+                        {pending ? "Disconnecting…" : "Disconnect"}
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Box>
+              );
+            })}
+          </Box>
+        </Paper>
       )}
 
       {/* Mappings table */}

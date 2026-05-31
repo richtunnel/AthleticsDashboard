@@ -12,6 +12,8 @@ import { applyAllSecurityHeaders } from "@/lib/security/security-headers";
 import { sanitizeEmail, sanitizeString, validatePassword } from "@/lib/security/sanitizer";
 import { generateUniqueShareCode } from "@/lib/utils/shareCode";
 import { checkInvitationCookie, clearInvitationCookie, setBypassOnboardingCookie } from "@/lib/utils/invitation";
+import { notifySlack } from "@/lib/services/slack.service";
+import { buildSlackContext, toSlackContextRecord } from "@/lib/utils/slackContext";
 
 export async function POST(request: NextRequest) {
   // Apply rate limiting - strict limit for signup to prevent abuse
@@ -250,6 +252,26 @@ export async function POST(request: NextRequest) {
       // Don't fail signup if tracking fails
     }
 
+    // ── Slack signup notification ────────────────────────────────────────
+    // Parent signups → parent-signup channel. AD signups → ad-signups.
+    // Failures here never block the response — wrapped in try/catch and
+    // delivered via BullMQ.
+    try {
+      const ctx = buildSlackContext(request, { user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+      await notifySlack({
+        channel: isParentPlan ? "parent-signup" : "ad-signups",
+        title: isParentPlan ? "New Parent Signup" : "New AD Signup",
+        context: {
+          Plan: user.plan ?? "—",
+          Organization: user.organization?.name ?? "—",
+          ...(sanitizedReferrerEmail ? { Referrer: sanitizedReferrerEmail } : {}),
+          ...toSlackContextRecord(ctx),
+        },
+      });
+    } catch (slackErr) {
+      console.error("Slack notification failed", slackErr);
+    }
+
     const response = NextResponse.json(
       {
         success: true,
@@ -268,6 +290,10 @@ export async function POST(request: NextRequest) {
     return applyAllSecurityHeaders(request, response);
   } catch (error) {
     console.error("[Signup] Unexpected error during signup:", error);
+
+    const { reportCriticalError } = await import("@/lib/utils/reportCriticalError");
+    await reportCriticalError(request, error, { source: "/api/signup" });
+
     const response = NextResponse.json(
       { error: "Failed to create account" },
       { status: 500 }

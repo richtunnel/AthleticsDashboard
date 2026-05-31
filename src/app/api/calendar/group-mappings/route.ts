@@ -76,7 +76,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Delete a specific mapping by ID
+// DELETE - Remove mapping(s)
+//
+// Two modes:
+//   ?id=<mappingId>           → delete a single mapping
+//   ?calendarId=<calendarId>  → delete EVERY mapping that routes to the given
+//                               Google Calendar. Used by the "Disconnect this
+//                               calendar" action on the Calendar Sync page so
+//                               the AD/parent can stop routing games to a
+//                               specific (often shared/secondary) calendar
+//                               without hunting down each individual mapping.
 export async function DELETE(request: NextRequest) {
   try {
     const userId = await resolveUserId();
@@ -87,24 +96,29 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const calendarId = searchParams.get("calendarId");
 
-    if (!id) {
-      return NextResponse.json({ error: "Missing mapping ID" }, { status: 400 });
+    if (!id && !calendarId) {
+      return NextResponse.json(
+        { error: "Missing mapping ID or calendarId" },
+        { status: 400 }
+      );
     }
 
-    // Delete specific mapping (scoped by user)
-    const result = await prisma.calendarGroupMapping.deleteMany({
-      where: {
-        id,
-        userId,
-      },
-    });
+    const where = id
+      ? { id, userId }
+      : { googleCalendarId: calendarId!, userId };
+
+    const result = await prisma.calendarGroupMapping.deleteMany({ where });
 
     if (result.count === 0) {
-      return NextResponse.json({ error: "Mapping not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: id ? "Mapping not found" : "No mappings found for that calendar" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deleted: result.count });
   } catch (error) {
     console.error("Error deleting calendar group mapping:", error);
     return NextResponse.json({ error: "Failed to delete calendar group mapping" }, { status: 500 });

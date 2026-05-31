@@ -30,32 +30,49 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const connectedParent = await prisma.connectedParent.findUnique({
+    // The frontend identifies rows by CalendarSyncRequest.id. Look up by that.
+    const syncRequest = await prisma.calendarSyncRequest.findUnique({
       where: { id },
+      select: { id: true, parentUserId: true, schoolId: true },
     });
 
-    if (!connectedParent) {
-      return NextResponse.json({ error: "Connected parent not found" }, { status: 404 });
+    if (!syncRequest) {
+      return NextResponse.json({ error: "Sync request not found" }, { status: 404 });
     }
 
-    if (connectedParent.schoolId !== adUser.organizationId) {
+    if (syncRequest.schoolId !== adUser.organizationId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Mark all CalendarSyncRequests for this parent+school as REMOVED
-    await prisma.calendarSyncRequest.updateMany({
-      where: {
-        parentUserId: connectedParent.parentUserId,
-        schoolId: connectedParent.schoolId,
-      },
+    // Remove ONLY this specific sport/level approval. Bulk-updating every
+    // request for the parent would nuke sibling approvals (boys + girls of
+    // the same family), which is almost never what the AD wants from a
+    // per-card Remove button.
+    await prisma.calendarSyncRequest.update({
+      where: { id: syncRequest.id },
       data: { status: "REMOVED" },
     });
 
-    // Remove the ConnectedParent record — ParentAthleteLink is intentionally kept
-    // so the parent still sees their child's card and can re-request sync.
-    await prisma.connectedParent.delete({
-      where: { id },
+    // If this was the parent's last APPROVED request at this school, also
+    // drop the ConnectedParent helper row so the AD's Connected Parents tab
+    // hides them cleanly. Otherwise leave it (other approvals still active).
+    const remaining = await prisma.calendarSyncRequest.count({
+      where: {
+        parentUserId: syncRequest.parentUserId,
+        schoolId: syncRequest.schoolId,
+        status: "APPROVED",
+      },
     });
+    if (remaining === 0) {
+      await prisma.connectedParent
+        .deleteMany({
+          where: {
+            parentUserId: syncRequest.parentUserId,
+            schoolId: syncRequest.schoolId,
+          },
+        })
+        .catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

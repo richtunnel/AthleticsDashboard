@@ -20,7 +20,23 @@ import { AvailableDatesModal } from "./AvailableDatesModal";
 import { DismissDepartModal } from "./DismissDepartModal";
 import { TravelTimeModal } from "./TravelTimeModal";
 import { CostModal } from "./CostModal";
-import { Sync, ViewColumn, Download, Upload, Tune, AutoAwesome, SyncLock, AttachMoney, TableChart, Edit as EditIcon, Delete as DeleteIcon, DoNotDisturbOn } from "@mui/icons-material";
+import {
+  Sync,
+  ViewColumn,
+  Download,
+  Upload,
+  Tune,
+  AutoAwesome,
+  SyncLock,
+  AttachMoney,
+  TableChart,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  DoNotDisturbOn,
+  ChevronLeft,
+  ChevronRight,
+  Settings as SettingsMenuIcon,
+} from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
@@ -163,10 +179,7 @@ interface InlineDatePickerProps {
 
 function InlineDatePicker({ inlineEditValue, isInlineSaving, onClose, onDateChange, onKeyDown }: InlineDatePickerProps) {
   // Stable Date reference: only recreated when the date string actually changes
-  const dateValue = useMemo(
-    () => (inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null),
-    [inlineEditValue],
-  );
+  const dateValue = useMemo(() => (inlineEditValue ? parse(inlineEditValue, "yyyy-MM-dd", new Date()) : null), [inlineEditValue]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -575,6 +588,12 @@ export function GamesTable() {
 
   // Available Dates Modal state
   const [availableDatesModalOpen, setAvailableDatesModalOpen] = useState(false);
+  // Toolbar menu visibility — persists in localStorage
+  const [toolbarMenuVisible, setToolbarMenuVisible] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("gamesTableToolbarVisible");
+    return stored === null ? true : stored !== "false";
+  });
   // Plan limits state
   const [planLimits, setPlanLimits] = useState<{ worksheetLimit: number } | null>(null);
 
@@ -952,7 +971,7 @@ export function GamesTable() {
       const res = await fetch("/api/admin/calendar-sync-requests");
       if (!res.ok) return [];
       const json = await res.json();
-      return (json.requests as Array<{ sportName: string; sportLevel: string }> || [])
+      return ((json.requests as Array<{ sportName: string; sportLevel: string }>) || [])
         .filter((r: any) => r.status === "APPROVED")
         .map((r) => ({
           sportName: r.sportName.toLowerCase(),
@@ -962,14 +981,9 @@ export function GamesTable() {
     staleTime: 60_000,
   });
 
-  const syncedSportSet = new Set(
-    approvedSyncRequests.map((r) => `${r.sportName}|${r.sportLevel}`)
-  );
+  const syncedSportSet = new Set(approvedSyncRequests.map((r) => `${r.sportName}|${r.sportLevel}`));
 
-  const gameHasSyncedParents = (game: Game): boolean =>
-    syncedSportSet.has(
-      `${game.homeTeam?.sport?.name?.toLowerCase() ?? ""}|${game.homeTeam?.level?.toLowerCase() ?? ""}`
-    );
+  const gameHasSyncedParents = (game: Game): boolean => syncedSportSet.has(`${game.homeTeam?.sport?.name?.toLowerCase() ?? ""}|${game.homeTeam?.level?.toLowerCase() ?? ""}`);
 
   // ── Cancel game mutation ──────────────────────────────────────────────────
   const [cancellingGameId, setCancellingGameId] = useState<string | null>(null);
@@ -992,9 +1006,7 @@ export function GamesTable() {
         if (!old) return old;
         return {
           ...old,
-          games: old.games?.map((g: Game) =>
-            g.id === gameId ? { ...g, status: "CANCELLED" as GameStatus } : g
-          ),
+          games: old.games?.map((g: Game) => (g.id === gameId ? { ...g, status: "CANCELLED" as GameStatus } : g)),
         };
       });
       return { previous };
@@ -3145,6 +3157,13 @@ export function GamesTable() {
     setIsAddingNew(true);
     setEditingGameId(null);
     setEditingGameData(null);
+  };
+
+  const toggleToolbarMenu = (visible: boolean) => {
+    setToolbarMenuVisible(visible);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gamesTableToolbarVisible", String(visible));
+    }
   };
 
   const handleFindAvailableDates = () => {
@@ -6312,15 +6331,8 @@ export function GamesTable() {
               </Tooltip>
               {gameHasSyncedParents(game) && game.status !== "CANCELLED" && (
                 <Tooltip title="Cancel game — notifies all synced parents">
-                  <IconButton
-                    size="small"
-                    sx={{ p: 0.5, color: "text.secondary" }}
-                    disabled={cancellingGameId === game.id}
-                    onClick={() => cancelGameMutation.mutate(game.id)}
-                  >
-                    {cancellingGameId === game.id
-                      ? <CircularProgress size={16} />
-                      : <DoNotDisturbOn sx={{ fontSize: 18 }} />}
+                  <IconButton size="small" sx={{ p: 0.5, color: "text.secondary" }} disabled={cancellingGameId === game.id} onClick={() => cancelGameMutation.mutate(game.id)}>
+                    {cancellingGameId === game.id ? <CircularProgress size={16} /> : <DoNotDisturbOn sx={{ fontSize: 18 }} />}
                   </IconButton>
                 </Tooltip>
               )}
@@ -6919,9 +6931,7 @@ export function GamesTable() {
 
     // Format date as MM/dd/yyyy (extract the local date part to avoid TZ shift)
     const datePart = extractDatePart(game.date);
-    const formattedDate = datePart
-      ? format(new Date(datePart + "T12:00:00"), "MM/dd/yyyy")
-      : "—";
+    const formattedDate = datePart ? format(new Date(datePart + "T12:00:00"), "MM/dd/yyyy") : "—";
 
     // Get time
     const timeDisplay = formatTimeDisplay(game.time);
@@ -7226,7 +7236,7 @@ export function GamesTable() {
 
               <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
                 {/* Manage your athletic schedules and create your own customized columns. */}
-                Import your CSV or image game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
+                Import your CSV game schedule and instantly sync, organize, and coordinate your athletic programs in one place.
                 <span>
                   <Tooltip
                     title="Import your spreadsheets using the import button above the table, sync them to your Google Calendar, and use Email Manager to create contact groups and rapidly send schedules at scale."
@@ -7261,7 +7271,36 @@ export function GamesTable() {
                 )}
               </Typography>
 
-              {!showWorkbookSelector && (
+              {!showWorkbookSelector && !toolbarMenuVisible && (
+                <Tooltip title="Show menu">
+                  <Box
+                    onClick={() => toggleToolbarMenu(true)}
+                    sx={{
+                      mt: 2,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      cursor: "pointer",
+                      // Match the body-text colour so the toggle reads as part
+                      // of the intro copy rather than disabled-looking ghost text.
+                      color: "text.secondary",
+                      userSelect: "none",
+                      "&:hover": { color: "text.primary" },
+                      transition: "color 0.18s ease",
+                    }}
+                  >
+                    <SettingsMenuIcon sx={{ fontSize: "1rem" }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ lineHeight: 1.2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}
+                    >
+                      Show menu
+                    </Typography>
+                    <ChevronRight sx={{ fontSize: "1.05rem" }} />
+                  </Box>
+                </Tooltip>
+              )}
+              {!showWorkbookSelector && toolbarMenuVisible && (
                 <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
                   {selectedGames.size > 0 && games.length > 0 && (
                     <Button
@@ -7488,6 +7527,24 @@ export function GamesTable() {
                       {hiddenColumnCount} hidden
                     </Button>
                   )}
+
+                  {/* Hide menu toggle — subtle arrow at the far end */}
+                  <Tooltip title="Hide menu">
+                    <IconButton
+                      size="small"
+                      onClick={() => toggleToolbarMenu(false)}
+                      sx={{
+                        color: "text.disabled",
+                        opacity: 0.35,
+                        "&:hover": { opacity: 0.75, bgcolor: "transparent" },
+                        transition: "opacity 0.18s ease",
+                        ml: 0.5,
+                      }}
+                      disableRipple
+                    >
+                      <ChevronLeft fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               )}
             </Box>
@@ -8166,9 +8223,30 @@ export function GamesTable() {
         onClose={() => setAvailableDatesModalOpen(false)}
         sport={newGameData.sport || undefined}
         level={newGameData.level || undefined}
+        homeTeamId={newGameData.homeTeamId || undefined}
         workbookId={selectedWorkbookId}
+        workbookName={workbooks.find((w: any) => w.id === selectedWorkbookId)?.name || null}
         onDateSelect={handleDateSelect}
-        onGameCreated={() => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY })}
+        /**
+         * Route the form's gameData through the SAME createGameMutation that
+         * handles CSV-imported games. That mutation already does optimistic
+         * cache insertion + preservedGameIds tracking. Anything else duplicates
+         * that wiring and risks the row not showing up — which is exactly the
+         * bug we kept hitting.
+         */
+        onSubmitGameData={async (gameData) => {
+          const res = await createGameMutation.mutateAsync({
+            gameData,
+            // The mutation auto-syncs to calendar; that's fine for form-created games too.
+            skipCalendarSync: false,
+          });
+          return res?.data ?? res;
+        }}
+        onGameCreated={() => {
+          // createGameMutation.onSuccess already handled cache + preservedGameIds.
+          // Just refetch as a safety net so the row survives the next full pull.
+          refetch();
+        }}
       />
 
       {/* Dismiss/Depart Modal for Bus Info/Travel columns */}

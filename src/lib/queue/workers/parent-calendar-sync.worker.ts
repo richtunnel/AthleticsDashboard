@@ -23,7 +23,7 @@ const QUEUE_PREFIX = process.env.BULLMQ_PREFIX || "opletics";
 export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
   `${QUEUE_PREFIX}-parent-calendar-sync`,
   async (job: Job<ParentCalendarSyncPayload>) => {
-    const { backgroundJobId, parentUserId, syncRequestId, schoolId, sportName, sportLevel, googleCalendarId } = job.data;
+    const { backgroundJobId, parentUserId, syncRequestId, schoolId, sportName, sportLevel, googleCalendarId, workbookId, gender } = job.data;
 
     const channel = `syncjob:${backgroundJobId}`;
 
@@ -45,7 +45,7 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
     });
 
     // ── Do the work ───────────────────────────────────────────────────────
-    const results = await calendarService.syncGamesForSportLevel(parentUserId, schoolId, sportName, sportLevel, googleCalendarId);
+    const results = await calendarService.syncGamesForSportLevel(parentUserId, schoolId, sportName, sportLevel, googleCalendarId, workbookId, gender);
 
     const added = results.filter((r) => r.ok).length;
     const failed = results.filter((r) => !r.ok).length;

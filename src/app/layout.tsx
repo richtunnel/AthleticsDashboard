@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { Providers } from "./provider";
 import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
@@ -10,6 +11,20 @@ import { getSiteUrl, getSiteUrlAsUrl } from "@/lib/utils/siteUrl";
 
 import "./globals.css";
 import "../styles/sortable-drag-drop.css";
+
+/**
+ * Load Inter via next/font so the woff2 is preloaded at build time and
+ * font-display is set to "optional" — the font is used on the first paint if
+ * it's ready; otherwise the fallback is kept and NO swap occurs afterward.
+ * This eliminates the FOUT / layout-shift that fontsource's `font-display: swap`
+ * caused (text expanding once Inter loaded after the initial render).
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "optional",
+  variable: "--font-inter",
+  preload: true,
+});
 
 const siteUrl = getSiteUrl();
 
@@ -79,6 +94,12 @@ const softwareAppJsonLd = {
     "Smart athlete and athlete monitoring dashboard",
     "Tools for coaches, tools for athletic directors, tools for staff",
     "College tools and minor league management",
+    "Spreadsheet automation software — automate google sheets tasks and excel workflows for athletic schedules",
+    "Bulk email automation — send emails with google sheets or excel to parents and coaches at scale",
+    "Google Sheets and Excel integration — organize sports data, filter game schedules, and build searchable spreadsheet databases",
+    "AI spreadsheet assistant — ai-powered spreadsheet tools that automate repetitive school admin tasks",
+    "Mass email tools for schools — send personalized emails from spreadsheets with one click",
+    "Automated email reminders for games — send schedule updates automatically to parents and staff",
   ],
   offers: {
     "@type": "AggregateOffer",
@@ -355,6 +376,136 @@ export const metadata: Metadata = {
     "streamlining athletic department operations",
     "digital tools for school athletics",
     "managing athletic travel efficiently",
+    // ── Spreadsheet / Excel / Google Sheets ──────────────────────────────
+    "school software",
+    "spreadsheet automation software",
+    "spreadsheet ai tools",
+    "spreadsheet ai assistant",
+    "ai spreadsheet organizer",
+    "ai spreadsheet software",
+    "ai spreadsheet search tool",
+    "ai-powered spreadsheet tools",
+    "smart spreadsheet tools",
+    "spreadsheet management software",
+    "spreadsheet workflow automation",
+    "spreadsheet dashboard for coaches",
+    "spreadsheet collaboration software",
+    "spreadsheet tools for administrators",
+    "spreadsheet reporting software",
+    "spreadsheet search tools",
+    "spreadsheet filtering tips",
+    "school spreadsheet software",
+    "best spreadsheet software for schools",
+    "automate google sheets tasks",
+    "automate excel workflows",
+    "google sheets automation for schools",
+    "excel automation for athletic departments",
+    "google sheets formulas for sports schedules",
+    "excel formulas for schedules",
+    "how to organize athletic schedules",
+    "how to sort spreadsheets faster",
+    "excel help for beginners",
+    "google sheets help for coaches",
+    "automate repetitive spreadsheet tasks",
+    "create searchable spreadsheets",
+    "how to build a searchable database in google sheets",
+    "how to track schedules in excel",
+    "how to organize sports data in google sheets",
+    "how to filter games in google sheets",
+    "how to add filters in excel",
+    "help sorting game schedule",
+    "help creating spreadsheet search",
+    "how to create a sports schedule spreadsheet",
+    "team scheduling spreadsheet",
+    "ai that automates spreadsheets",
+    // ── Email / Communication Automation ─────────────────────────────────
+    "bulk email software for schools",
+    "mass email tools for schools",
+    "email automation with excel",
+    "email automation with google sheets",
+    "how to send bulk emails in google sheets",
+    "send personalized emails from spreadsheets",
+    "how to email parents from spreadsheets",
+    "how to send emails with google sheets",
+    "how to send emails with excel",
+    "sending emails with google sheets",
+    "how can i send multiple emails to parents",
+    "google sheets mail merge",
+    "excel mail merge tutorial",
+    "email merge for athletic departments",
+    "parent communication software",
+    "team email management",
+    "automated email reminders for games",
+    "send schedule updates automatically",
+    "automated sports communication",
+    "sports communication automation",
+    "team notification software",
+    "school messaging software",
+    "coach parent communication tools",
+    // ── AI / Automation ───────────────────────────────────────────────────
+    "ai for athletic departments",
+    "ai sports scheduling software",
+    "ai assistant for schools",
+    "ai workflow automation",
+    "ai admin assistant for coaches",
+    "ai scheduling assistant",
+    "ai tools for school administrators",
+    "ai tools for administrators",
+    "ai productivity tools for coaches",
+    "ai for sports management",
+    "ai sports operations platform",
+    "ai-powered school software",
+    "ai data organization software",
+    "ai software for scheduling games",
+    "automate school operations with ai",
+    "automate athletic department tasks",
+    "smart scheduling assistant",
+    // ── How-To / Search Intent ─────────────────────────────────────────────
+    "how to create a game schedule",
+    "how to create a teams list",
+    "how do athletic directors schedule games",
+    "how to organize game schedules",
+    "easiest way to schedule games",
+    "best way to manage team schedules",
+    "how to track athletic schedules",
+    "how to automate schedule updates",
+    "how to reduce scheduling conflicts",
+    "how to manage multiple team schedules",
+    "how to organize athletic departments",
+    "how to save time with spreadsheets",
+    "how to automate school admin tasks",
+    "how coaches manage schedules",
+    "how to manage sports communications",
+    "how to centralize athletic schedules",
+    "how to search data in spreadsheets",
+    "how to filter sports schedules",
+    "how to create automated reports in google sheets",
+    "how to manage school sports data",
+    "tools to automate athletic administration",
+    "how to schedule games for multiple teams",
+    "how to organize a sports season",
+    // ── Expanded Athletic / School ─────────────────────────────────────────
+    "athletic department software",
+    "game scheduling tools",
+    "high school sports scheduling tools",
+    "coach communication software",
+    "athletic admin tools",
+    "sports scheduling app for schools",
+    "team management software",
+    "school athletics software",
+    "coach organization software",
+    "scheduling software for athletic directors",
+    "athletic calendar management",
+    "sports operations software",
+    "sports event planning software",
+    "high school athletic management software",
+    "software for managing athletic programs",
+    "sports communication platform",
+    "school sports admin software",
+    "team roster management software",
+    "scheduling conflicts in sports",
+    "sports staff coordination tools",
+    "booster club fundraising tools",
   ],
   alternates: {
     canonical: "/",
@@ -404,7 +555,7 @@ export default function RootLayout({
 }>) {
   console.log("Current Env:", process.env.NODE_ENV);
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       {/* Built by Richard Stokes @ Visual Embassy */}
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />

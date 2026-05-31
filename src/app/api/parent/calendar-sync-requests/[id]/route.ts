@@ -59,9 +59,32 @@ export async function DELETE(
     const wasApproved = syncRequest.status === "APPROVED";
     const previousSchoolId = syncRequest.schoolId;
 
-    await prisma.calendarSyncRequest.delete({
-      where: { id },
-    });
+    // ── Allowed actions ──────────────────────────────────────────────────
+    // APPROVED → "Unsync": soft-delete (status=REMOVED) so a future resync
+    //            doesn't require fresh AD approval.
+    // PENDING  → BLOCKED. Parents cannot cancel a pending request — once
+    //            submitted, only the AD can resolve it (approve / reject).
+    // REJECTED → hard delete (clears history so the parent can retry).
+    if (syncRequest.status === "PENDING") {
+      return NextResponse.json(
+        {
+          error:
+            "Pending requests can't be cancelled. The athletic director will approve or reject this request shortly.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (wasApproved) {
+      await prisma.calendarSyncRequest.update({
+        where: { id },
+        data: { status: "REMOVED" },
+      });
+    } else {
+      await prisma.calendarSyncRequest.delete({
+        where: { id },
+      });
+    }
 
     // If we were synced, also drop the calendarSynced flag on ConnectedParent
     // so the AD's "Connected Parents" tab reflects reality.

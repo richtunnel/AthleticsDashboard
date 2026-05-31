@@ -12,13 +12,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Autocomplete,
-  TextField,
   CircularProgress,
   Alert,
-  Stepper,
-  Step,
-  StepLabel,
   Paper,
   Table,
   TableBody,
@@ -36,12 +31,6 @@ import {
 } from "@mui/material";
 import { Delete, CalendarMonth, CheckCircle, Warning, Info, Sync, LinkOff } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
-
-interface LinkedSchool {
-  id: string;
-  schoolId: string;
-  schoolName: string;
-}
 
 interface CalendarSyncRequest {
   id: string;
@@ -66,44 +55,9 @@ interface GoogleCalendar {
 function CalendarSyncPageContent() {
   const { addNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const [activeStep, setActiveStep] = useState(0);
-  const [selectedSchoolId, setSelectedSchoolId] = useState("");
-  const [selectedSportName, setSelectedSportName] = useState("");
-  const [selectedSportLevel, setSelectedSportLevel] = useState("");
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [selectedRequestForSync, setSelectedRequestForSync] = useState<CalendarSyncRequest | null>(null);
   const [selectedCalendarId, setSelectedCalendarId] = useState("");
-
-  const { data: schoolsData, isLoading: schoolsLoading } = useQuery({
-    queryKey: ["parentLinkedSchools"],
-    queryFn: async () => {
-      const res = await fetch("/api/parent/linked-schools");
-      if (!res.ok) throw new Error("Failed to fetch linked schools");
-      return res.json() as Promise<{ schools: LinkedSchool[] }>;
-    },
-  });
-
-  const { data: sportsData, isLoading: sportsLoading } = useQuery({
-    queryKey: ["parentSports", selectedSchoolId],
-    queryFn: async () => {
-      if (!selectedSchoolId) return { sports: [] };
-      const res = await fetch(`/api/parent/sports?schoolId=${selectedSchoolId}`);
-      if (!res.ok) throw new Error("Failed to fetch sports");
-      return res.json() as Promise<{ sports: { id: string; name: string }[] }>;
-    },
-    enabled: !!selectedSchoolId,
-  });
-
-  const { data: levelsData, isLoading: levelsLoading } = useQuery({
-    queryKey: ["parentLevels", selectedSchoolId, selectedSportName],
-    queryFn: async () => {
-      if (!selectedSchoolId || !selectedSportName) return { levels: [] };
-      const res = await fetch(`/api/parent/sport-levels?schoolId=${selectedSchoolId}&sport=${selectedSportName}`);
-      if (!res.ok) throw new Error("Failed to fetch levels");
-      return res.json() as Promise<{ levels: { id: string; name: string }[] }>;
-    },
-    enabled: !!selectedSchoolId && !!selectedSportName,
-  });
 
   const { data: requestsData, isLoading: requestsLoading } = useQuery({
     queryKey: ["parentCalendarSyncRequests"],
@@ -163,36 +117,6 @@ function CalendarSyncPageContent() {
     onError: (err: Error) => addNotification(err.message, "error"),
   });
 
-  const createRequestMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/parent/calendar-sync-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          schoolId: selectedSchoolId,
-          sportName: selectedSportName,
-          sportLevel: selectedSportLevel,
-        }),
-      });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to submit request");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["parentCalendarSyncRequests"] });
-      addNotification("Request submitted successfully", "success");
-      setActiveStep(0);
-      setSelectedSchoolId("");
-      setSelectedSportName("");
-      setSelectedSportLevel("");
-    },
-    onError: (error: Error) => {
-      addNotification(error.message, "error");
-    },
-  });
-
   const cancelRequestMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/parent/calendar-sync-requests/${id}`, {
@@ -234,18 +158,15 @@ function CalendarSyncPageContent() {
     setSyncDialogOpen(true);
   };
 
-  const steps = ["Select School", "Select Sport", "Select Level"];
-
-  const handleNext = () => setActiveStep((prev) => prev + 1);
-  const handleBack = () => setActiveStep((prev) => prev - 1);
-
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} gutterBottom>
         Calendar Sync
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Manage your Google Calendar connection and sync request status. A new sync request is automatically submitted when you add a child — use the form below only if you need to request access to a different sport or level.
+        Manage your Google Calendar connection and view the status of every sync
+        request you&apos;ve submitted. Requests are submitted automatically when
+        you add a child — there&apos;s nothing to fill out here.
       </Typography>
 
       {/* ── Google Calendar connection status ─────────────────────────────── */}
@@ -313,130 +234,6 @@ function CalendarSyncPageContent() {
               </Button>
             </Box>
           )}
-        </CardContent>
-      </Card>
-
-      {/* ── Manual new sync request (use only for additional sports/levels) ── */}
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            New Sync Request
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            A sync request is automatically submitted when you add a child. Use this only to request access to an additional sport or level.
-          </Typography>
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-
-          {activeStep === 0 && (
-            <Autocomplete
-              options={schoolsData?.schools || []}
-              getOptionLabel={(o) => o.schoolName}
-              value={schoolsData?.schools.find((s) => s.schoolId === selectedSchoolId) ?? null}
-              onChange={(_: any, v) => setSelectedSchoolId(v?.schoolId ?? "")}
-              isOptionEqualToValue={(o, v) => o.schoolId === v.schoolId}
-              loading={schoolsLoading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="School"
-                  fullWidth
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {schoolsLoading ? <CircularProgress size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-            />
-          )}
-
-          {activeStep === 1 && (
-            <Autocomplete
-              options={sportsData?.sports || []}
-              getOptionLabel={(o) => o.name}
-              value={sportsData?.sports.find((s) => s.name === selectedSportName) ?? null}
-              onChange={(_: any, v) => setSelectedSportName(v?.name ?? "")}
-              isOptionEqualToValue={(o, v) => o.id === v.id}
-              loading={sportsLoading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Sport"
-                  fullWidth
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {sportsLoading ? <CircularProgress size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-            />
-          )}
-
-          {activeStep === 2 && (
-            <Autocomplete
-              options={levelsData?.levels || []}
-              getOptionLabel={(o) => o.name}
-              value={levelsData?.levels.find((l) => l.name === selectedSportLevel) ?? null}
-              onChange={(_: any, v) => setSelectedSportLevel(v?.name ?? "")}
-              isOptionEqualToValue={(o, v) => o.id === v.id}
-              loading={levelsLoading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Level"
-                  fullWidth
-                  InputProps={{
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {levelsLoading ? <CircularProgress size={16} /> : null}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  }}
-                />
-              )}
-            />
-          )}
-
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3, gap: 2 }}>
-            {activeStep > 0 && <Button onClick={handleBack}>Back</Button>}
-            {activeStep < 2 ? (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                disabled={
-                  (activeStep === 0 && !selectedSchoolId) ||
-                  (activeStep === 1 && !selectedSportName)
-                }
-              >
-                Next
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={() => createRequestMutation.mutate()}
-                disabled={!selectedSportLevel || createRequestMutation.isPending}
-              >
-                {createRequestMutation.isPending ? <CircularProgress size={24} /> : "Submit Request"}
-              </Button>
-            )}
-          </Box>
         </CardContent>
       </Card>
 

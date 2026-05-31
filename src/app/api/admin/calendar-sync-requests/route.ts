@@ -22,8 +22,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // REMOVED rows are parent-side "unsync" tombstones used to skip the
+    // re-approval step on resync. The AD's lists shouldn't surface them.
     const requests = await prisma.calendarSyncRequest.findMany({
-      where: { schoolId: user.organizationId },
+      where: { schoolId: user.organizationId, status: { not: "REMOVED" } },
       include: {
         parent: {
           select: {

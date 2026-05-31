@@ -15,7 +15,17 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     dangerouslyAllowSVG: false,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // CSP applied to /_next/image responses. The Next.js default includes
+    // `sandbox;` which is a defence-in-depth for SVG XSS — but we have SVG
+    // disabled via dangerouslyAllowSVG: false, so the sandbox is protecting
+    // nothing here. AND it has a real cost:
+    //   • Combined with our global X-Content-Type-Options: nosniff, the
+    //     browser refuses to render the response in <img> tags.
+    //   • Direct navigation to /_next/image?url=... downloads a file instead
+    //     of displaying the image inline.
+    // Replaced with a strict no-sandbox policy that still prevents any
+    // resource loading from inside the image response (the actual XSS risk).
+    contentSecurityPolicy: "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline';",
     remotePatterns: [
       {
         protocol: "https",

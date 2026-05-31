@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, CircularProgress, Stack } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Collapse, Stack } from "@mui/material";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 
 import { importGoogleEmailGroups } from "@/app/actions/googleGroups";
@@ -29,10 +29,15 @@ export function ImportGroupsButton() {
 
       setLastError(null);
 
-      if (result.success) {
+      // Refresh the Email Manager list whenever the action actually wrote
+      // something. "no_groups" / "no_contacts" are success outcomes that
+      // didn't touch the DB — no need to refetch.
+      if (result.success && result.status === "imported") {
         queryClient.invalidateQueries({ queryKey: ["email-groups"], refetchType: "all" });
         queryClient.invalidateQueries({ queryKey: ["user-data"] });
-      } else {
+      }
+
+      if (!result.success) {
         setLastError(result.error || "Import failed due to an internal error.");
       }
     },
@@ -73,8 +78,42 @@ export function ImportGroupsButton() {
     importMutation.mutate({ returnTo: returnToWithAutoImport });
   }, [searchParams, buildReturnTo, router, importMutation]);
 
+  // Pick which Alert to show based on the discriminator the server returned.
+  // The OAuth-redirect path navigates away — we never render its "success".
+  const result = importMutation.data;
+  const status = result?.status;
+  const isInfoStatus = status === "no_groups" || status === "no_contacts";
+  const isSuccessStatus = status === "imported";
+  const showError = !!lastError;
+
   return (
-    <Stack spacing={1} direction="column" alignItems="flex-start">
+    <Stack spacing={1} direction="column" alignItems="flex-start" sx={{ width: "100%" }}>
+      {/* Status slot — fixed above the button. Reserves vertical space so the
+          button itself never shifts when a message appears/disappears. */}
+      <Box sx={{ width: "100%" }}>
+        {/* ✓ Imported N contacts into "Google Contact" group */}
+        <Collapse in={isSuccessStatus && !showError} unmountOnExit>
+          <Alert severity="success" sx={{ width: "100%" }}>
+            {result?.message || "Email groups imported successfully."}
+          </Alert>
+        </Collapse>
+
+        {/* ℹ No contact groups / no contacts found — distinct from failure. */}
+        <Collapse in={isInfoStatus && !showError} unmountOnExit>
+          <Alert severity="info" sx={{ width: "100%" }}>
+            {result?.message ||
+              "Nothing to import from your Google contact groups."}
+          </Alert>
+        </Collapse>
+
+        {/* ✗ Import failed */}
+        <Collapse in={showError} unmountOnExit>
+          <Alert severity="error" onClose={() => setLastError(null)} sx={{ width: "100%" }}>
+            Import failed: {lastError}
+          </Alert>
+        </Collapse>
+      </Box>
+
       <Button
         variant="contained"
         startIcon={importMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
@@ -91,18 +130,6 @@ export function ImportGroupsButton() {
       >
         {importMutation.isPending ? "Importing Groups..." : "Import Google Groups"}
       </Button>
-
-      {importMutation.isSuccess && !lastError && (
-        <Alert severity="success" sx={{ width: "100%" }}>
-          {importMutation.data?.message || "Email groups imported successfully."}
-        </Alert>
-      )}
-
-      {lastError && (
-        <Alert severity="error" onClose={() => setLastError(null)} sx={{ width: "100%" }}>
-          Import Error: {lastError}
-        </Alert>
-      )}
     </Stack>
   );
 }
