@@ -45,13 +45,16 @@
     padding: 0px 12px;
     display: block;
     justify-content: center;
-    text-align: center;
+    /* Intentionally NOT setting text-align: center here. The container is
+       centred via margin/justify, but text inside the Partner / Parent Portal
+       cards must stay left-aligned. The "Save Time Scheduling Games" title
+       has its own .partnerFooterTitle rule above that centres just the title. */
   }
 
   .PartnerFooterLinks {
-    width: 100%;
-    text-align: center;
-    justify-content: center;
-    align-items: center !important;
+    /* Keep the link left-aligned inside its card on mobile too. The Button's
+       `alignSelf: flex-start` already pins it to the card's left edge — this
+       block previously forced text-align/justify/align to center which fought
+       that and dragged the link into the middle. */
   }
 }
