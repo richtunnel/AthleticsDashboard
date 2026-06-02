@@ -49,9 +49,9 @@ export default function AboutClient() {
               About Opletics
             </h1>
 
-            <h2 className="text-2xl font-semibold mb-6" style={{ color: "#1f2123" }}>
+            {/* <h2 className="text-2xl font-semibold mb-6" style={{ color: "#1f2123" }}>
               Revolutionizing Athletic Department Management
-            </h2>
+            </h2> */}
 
             <div
               className="text-lg mb-4"
