@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Chat, Newspaper, Person } from "@mui/icons-material";
+import { Newspaper, Person } from "@mui/icons-material";
 
 interface MenuVisibility {
   hideChatMenu: boolean;
@@ -122,32 +122,23 @@ export function MenuVisibilityToggles() {
   }
 
   // "show" = not hidden; toggles are ON when item is visible
-  const showChat = !(data?.hideChatMenu ?? false);
-  const showPosts = !(data?.hidePostsMenu ?? false);
-  const showParents = !(data?.hideParentsMenu ?? false);
+  const showPosts    = !(data?.hidePostsMenu   ?? false);
+  const showParents  = !(data?.hideParentsMenu ?? false);
 
   const items = [
     {
-      key: "hideChatMenu" as const,
-      label: "Chat",
-      description: "Direct messaging between ADs and collaborators.",
-      tooltip: "When hidden, the Chat menu item will no longer appear in the sidebar. Your messages are preserved and can be restored by re-enabling this option.",
-      icon: <Chat fontSize="small" />,
-      checked: showChat,
-    },
-    {
       key: "hidePostsMenu" as const,
-      label: "Posts",
-      description: "Community news feed for sharing updates with fellow ADs.",
-      tooltip: "When hidden, the Posts menu item will no longer appear in the sidebar. The public news feed at /news is unaffected — this only hides your dashboard shortcut.",
+      label: "Community",
+      description: "Community posts, schedule exchange, and game request board.",
+      tooltip: "When hidden, the Community menu item will no longer appear in the sidebar. Your posts and schedule data are preserved — this only removes the sidebar shortcut.",
       icon: <Newspaper fontSize="small" />,
       checked: showPosts,
     },
     {
       key: "hideParentsMenu" as const,
       label: "Parents",
-      description: "Parent & athlete portal access and communication tools.",
-      tooltip: "When hidden, the Parents menu item will no longer appear in the sidebar. Parent portal access codes remain active — this only removes the dashboard shortcut.",
+      description: "Parent & athlete portal access, calendar sync, and messaging.",
+      tooltip: "When hidden, the Parents menu item will no longer appear in the sidebar. Parent portal access codes and messages remain active — this only removes the dashboard shortcut.",
       icon: <Person fontSize="small" />,
       checked: showParents,
     },

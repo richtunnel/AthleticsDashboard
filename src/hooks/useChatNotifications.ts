@@ -112,6 +112,40 @@ export function useChatNotifications(streamUrl: string) {
           return;
         }
 
+        // ── Game Request notifications ────────────────────────────────────
+        if (data.type === "GAME_REQUEST_RECEIVED") {
+          queryClient.invalidateQueries({ queryKey: ["game-requests"] });
+          queryClient.invalidateQueries({ queryKey: ["game-requests-unread"] });
+          addNotification("You have a new game request!", "info");
+          showDesktopNotification("New Game Request", "Another AD would like to schedule a game with you.");
+          return;
+        }
+        if (data.type === "GAME_REQUEST_APPROVED") {
+          queryClient.invalidateQueries({ queryKey: ["game-requests"] });
+          queryClient.invalidateQueries({ queryKey: ["game-requests-unread"] });
+          addNotification("Your game request was approved! Log in to confirm.", "success");
+          showDesktopNotification("Game Request Approved", "Your game request has been approved.");
+          return;
+        }
+        if (data.type === "GAME_REQUEST_REJECTED") {
+          queryClient.invalidateQueries({ queryKey: ["game-requests"] });
+          addNotification("Your game request was declined.", "warning");
+          return;
+        }
+        if (data.type === "GAME_REQUEST_CONFIRMED") {
+          queryClient.invalidateQueries({ queryKey: ["game-requests"] });
+          addNotification("A game has been confirmed!", "success");
+          return;
+        }
+        if (data.type === "GAME_REQUEST_COUNT_UPDATE") {
+          queryClient.invalidateQueries({ queryKey: ["game-requests-unread"] });
+          return;
+        }
+        if (data.type === "SCHEDULE_POST_UPDATED") {
+          queryClient.invalidateQueries({ queryKey: ["schedule-board"] });
+          return;
+        }
+
         // Any new chat message — even one we sent ourselves — should refresh
         // the conversation-list preview so the "last message" snippet stays
         // current. Without this the card on the left keeps showing whatever

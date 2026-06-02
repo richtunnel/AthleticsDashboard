@@ -20,6 +20,9 @@ export const TIP_IDS = {
   SETTINGS_OTHER: "settings.other.intro",
   AI_TRAVEL_TIMES: "ai.travel.arrival",
 
+  // ── Schedule Exchange ────────────────────────────────────────────────────
+  SCHEDULE_CHECK_AVAILABILITY: "schedule.check.availability",
+
   // ── Parent dashboard tips ────────────────────────────────────────────────
   PARENT_UPCOMING_SCHEDULE: "parent.upcoming.schedule",
   PARENT_ADD_CHILD: "parent.add.child",

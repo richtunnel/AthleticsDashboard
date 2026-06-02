@@ -63,6 +63,7 @@ import {
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { VscGithubProject } from "react-icons/vsc";
+import { RiCalendarScheduleFill } from "react-icons/ri";
 import EmailIcon from "@mui/icons-material/Email";
 import HistoryIcon from "@mui/icons-material/History";
 
@@ -84,17 +85,16 @@ import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesM
 const DRAWER_WIDTH = 240;
 
 const baseNavigation = [
-  { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
-  { name: "Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
+  { name: "Dashboard",     href: "/dashboard",              icon: DashboardIcon },
+  { name: "Game Center",   href: "/dashboard/games",        icon: CalendarMonth },
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
-  { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
-  { name: "Email Logs", href: "/dashboard/email-logs", icon: HistoryIcon },
-  { name: "Chat", href: "/dashboard/messages", icon: Chat },
-  { name: "Posts", href: "/dashboard/posts", icon: Newspaper },
-  { name: "Parents", href: "/dashboard/parents", icon: Person },
+  { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon },
+  { name: "Teams",         href: "/dashboard/opponents",    icon: Groups, requiresScoreTracker: true },
+  { name: "Email Logs",    href: "/dashboard/email-logs",   icon: HistoryIcon },
+  { name: "Parents",       href: "/dashboard/parents",      icon: Person },
+  { name: "Community",     href: "/dashboard/posts",        icon: Newspaper },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings",      href: "/dashboard/settings",     icon: Settings },
   // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
 ];
 
@@ -131,7 +131,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Filter navigation based on feature toggles and user preferences
   const navigation = baseNavigation.filter((item) => {
     if (item.requiresScoreTracker && !isScoreTrackerEnabled) return false;
-    if (item.href === "/dashboard/messages" && menuVisibility?.hideChatMenu) return false;
+    // Chat is now accessed via the Parents page, not a standalone nav item
     if (item.href === "/dashboard/posts" && menuVisibility?.hidePostsMenu) return false;
     if (item.href === "/dashboard/parents" && menuVisibility?.hideParentsMenu) return false;
     return true;
@@ -436,10 +436,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           {/* Dark Mode Toggle */}
           <DarkModeToggle />
 
-          {/* Google Calendar Button */}
-          <Tooltip title={calendarTooltip}>
-            <IconButton component="a" href={calendarHref} target="_blank" rel="noopener noreferrer" sx={{ mr: { xs: 0.5, sm: 1 } }} color="default" aria-label="Open Google Calendar">
-              <CalendarMonth />
+          {/* Schedule Exchange Board */}
+          <Tooltip title="Schedule Exchange Board — browse open game dates and request games from other ADs">
+            <IconButton
+              component="a"
+              href="/schedule-board"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ mr: { xs: 0.5, sm: 1 } }}
+              color="default"
+              aria-label="Schedule Exchange Board"
+            >
+              <RiCalendarScheduleFill size={22} />
             </IconButton>
           </Tooltip>
 

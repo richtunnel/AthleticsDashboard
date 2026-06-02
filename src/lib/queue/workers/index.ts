@@ -13,6 +13,7 @@ import { gameImportWorker, emailImportWorker } from "./import.worker";
 import { stripeWebhookWorker } from "./stripe.worker";
 import { gameCancelNotifyWorker } from "./game-cancel-notify.worker";
 import { slackNotifyWorker } from "./slack-notify.worker";
+import { runGameRequestConfirmWorker } from "./game-request-confirm.worker";
 
 export const workers = [
   emailWorker,

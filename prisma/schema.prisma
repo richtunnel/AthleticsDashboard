@@ -95,6 +95,9 @@ model User {
   emailJobs                  EmailJob[]
   posts                      Post[]                    @relation("UserPosts")
   announcements              Announcement[]            @relation("UserAnnouncements")
+  schedulePosts              SchedulePost[]            @relation("UserSchedulePosts")
+  ownedGameRequests          GameRequest[]             @relation("GameRequestOwner")
+  sentGameRequests           GameRequest[]             @relation("GameRequestRequester")
 
   @@index([organizationId])
   @@map("User")
@@ -172,6 +175,7 @@ enum JobType {
   CALENDAR_SYNC
   GAME_IMPORT
   EMAIL_IMPORT
+  GAME_REQUEST_CONFIRM
 }
 
 enum JobStatus {
@@ -220,6 +224,7 @@ model GamesWorkbook {
   customColumns         CustomColumn[]
   user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   calendarSyncRequests  CalendarSyncRequest[]
+  schedulePosts         SchedulePost[]
 
   @@unique([userId, sortOrder])
   @@index([userId])
@@ -1181,4 +1186,77 @@ model Announcement {
   @@index([organizationId])
   @@index([authorId])
   @@map("Announcement")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Schedule Exchange
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum GameRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONFIRMED
+  CANCELLED
+}
+
+model SchedulePost {
+  id              String   @id @default(cuid())
+  userId          String
+  workbookId      String
+  sport           String
+  level           String
+  gender          String
+  seasonStart     DateTime
+  seasonEnd       DateTime
+  isActive        Boolean  @default(true)
+  excludeWeekends Boolean  @default(false)
+  excludedDates   Json     @default("[]")  // Array of ISO date strings manually hidden
+  title           String?                  // Optional custom title for the post
+  description     String?                  // Optional description / notes for other ADs
+  postedAt        DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user         User          @relation("UserSchedulePosts", fields: [userId], references: [id], onDelete: Cascade)
+  workbook     GamesWorkbook @relation(fields: [workbookId], references: [id], onDelete: Cascade)
+  gameRequests GameRequest[]
+
+  @@unique([userId, sport, level, gender])
+  @@index([userId])
+  @@index([workbookId])
+  @@index([sport, level, gender])
+  @@index([isActive])
+  @@map("SchedulePost")
+}
+
+model GameRequest {
+  id                   String            @id @default(cuid())
+  schedulePostId       String
+  requesterUserId      String
+  ownerUserId          String
+  availableDate        DateTime
+  availableTimeWindow  String?
+  sport                String
+  level                String
+  gender               String
+  isHomeForRequester   Boolean
+  status               GameRequestStatus @default(PENDING)
+  confirmedByOwner     Boolean           @default(false)
+  confirmedByRequester Boolean           @default(false)
+  syncedToWorkbookId   String?
+  syncedGameId         String?
+  readByOwner          Boolean           @default(false)
+  readByRequester      Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  schedulePost SchedulePost @relation(fields: [schedulePostId], references: [id], onDelete: Cascade)
+  requester    User         @relation("GameRequestRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  owner        User         @relation("GameRequestOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId, status])
+  @@index([requesterUserId, status])
+  @@index([schedulePostId])
+  @@index([createdAt])
+  @@map("GameRequest")
 }

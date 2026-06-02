@@ -55,6 +55,7 @@ import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
+import InboxIcon from "@mui/icons-material/Inbox";
 import { GameStatus } from "@prisma/client";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
@@ -461,6 +462,51 @@ const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
     </Box>
   );
 };
+
+// ── Game Request Pill — closable chip linking to the Game Requests tab ────────
+function GameRequestPill() {
+  const router = useRouter();
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem("gcGameRequestPillDismissed") === "true"; }
+    catch { return false; }
+  });
+
+  const { data: unread } = useQuery({
+    queryKey:        ["game-requests-unread"],
+    queryFn:         () => fetch("/api/game-requests/unread-count").then((r) => r.json()) as Promise<{ count: number }>,
+    refetchInterval: 60_000,
+    staleTime:       30_000,
+  });
+
+  // Auto-reappear when there are new unread requests
+  useEffect(() => {
+    if ((unread?.count ?? 0) > 0 && dismissed) {
+      setDismissed(false);
+      try { localStorage.removeItem("gcGameRequestPillDismissed"); } catch { /* ignore */ }
+    }
+  }, [unread?.count, dismissed]);
+
+  if (dismissed) return null;
+
+  const count = unread?.count ?? 0;
+
+  return (
+    <Chip
+      icon={<InboxIcon sx={{ fontSize: "1rem !important" }} />}
+      label={`Game Requests${count > 0 ? ` (${count})` : ""}`}
+      size="small"
+      variant="outlined"
+      color={count > 0 ? "primary" : "default"}
+      onClick={() => router.push("/dashboard/posts?tab=3")}
+      onDelete={() => {
+        setDismissed(true);
+        try { localStorage.setItem("gcGameRequestPillDismissed", "true"); } catch { /* ignore */ }
+      }}
+      deleteIcon={<Close sx={{ fontSize: "0.85rem !important" }} />}
+      sx={{ mt: 1.5, fontWeight: count > 0 ? 700 : 400, cursor: "pointer", transition: "all 0.2s ease" }}
+    />
+  );
+}
 
 export function GamesTable() {
   const router = useRouter();
@@ -7233,6 +7279,8 @@ export function GamesTable() {
               >
                 Game Schedules
               </Typography>
+
+              <GameRequestPill />
 
               <Typography variant="body2" component="div" color="text.primary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
                 {/* Manage your athletic schedules and create your own customized columns. */}

@@ -28,7 +28,8 @@ import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggl
 import { TutorialTipsCard } from "@/components/settings/TutorialTipsCard";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
-import { AutoAwesome, AttachMoney, MenuBook } from "@mui/icons-material";
+import { AutoAwesome, AttachMoney, MenuBook, Inbox } from "@mui/icons-material";
+import { GameRequestsPanel } from "@/components/game-requests/GameRequestsPanel";
 import Link from "next/link";
 
 interface SettingsPageProps {
@@ -223,6 +224,37 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         </CardContent>
       </Card>
 
+      {/* Game Requests shortcut card */}
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+            <Inbox sx={{ color: "primary.main" }} />
+            <Typography variant="h6" sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Game Requests
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Review and manage incoming game requests from the Schedule Exchange Board.
+          </Typography>
+          <Box
+            component={Link}
+            href="/dashboard/posts?tab=3"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.75,
+              color: "primary.main",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            Manage Game Requests →
+          </Box>
+        </CardContent>
+      </Card>
+
       <DeleteAccountSection />
     </>
   );
@@ -320,6 +352,18 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     </>
   );
 
+  const gameRequestsContent = (
+    <Box sx={{ pb: 3 }}>
+      <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+        Game Requests
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+        Review, approve, and manage game requests received from the Schedule Exchange Board.
+      </Typography>
+      <GameRequestsPanel context="settings" mode="all" />
+    </Box>
+  );
+
   return (
     <Box sx={{ px: { xs: 2, sm: 3 }, pb: 3, pt: 0 }}>
       <Typography sx={{ mb: 2, fontWeight: 700 }} variant="h4">
@@ -332,6 +376,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         aiFeaturesContent={aiFeaturesContent}
         collaboratorContent={collaboratorContent}
         otherContent={otherContent}
+        gameRequestsContent={gameRequestsContent}
       />
     </Box>
   );

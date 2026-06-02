@@ -33,8 +33,9 @@ export async function GET(request: NextRequest) {
   const sinceDate = sinceParam ? new Date(sinceParam) : new Date();
 
   const encoder = new TextEncoder();
-  let lastMessageAt = sinceDate;
-  let lastSyncAt = sinceDate;
+  let lastMessageAt     = sinceDate;
+  let lastSyncAt        = sinceDate;
+  let lastGameRequestAt = sinceDate;
   let closed = false;
 
   const stream = new ReadableStream({
@@ -87,6 +88,54 @@ export async function GET(request: NextRequest) {
               createdAt: msg.createdAt.toISOString(),
             });
             lastMessageAt = msg.createdAt;
+          }
+        } catch { /* retry next tick */ }
+
+        // ── Game Request events ──────────────────────────────────────────────
+        try {
+          const gameRequests = await prisma.gameRequest.findMany({
+            where: {
+              OR: [{ ownerUserId: user.id }, { requesterUserId: user.id }],
+              updatedAt: { gt: lastGameRequestAt },
+            },
+            select: {
+              id:        true,
+              ownerUserId: true,
+              requesterUserId: true,
+              status:    true,
+              updatedAt: true,
+              readByOwner: true,
+              readByRequester: true,
+            },
+            orderBy: { updatedAt: "asc" },
+            take: 20,
+          });
+
+          for (const gr of gameRequests) {
+            const isOwner     = gr.ownerUserId     === user.id;
+            const isRequester = gr.requesterUserId === user.id;
+
+            let type: string | null = null;
+            if (gr.status === "PENDING"   && isOwner     && !gr.readByOwner)     type = "GAME_REQUEST_RECEIVED";
+            if (gr.status === "APPROVED"  && isRequester && !gr.readByRequester) type = "GAME_REQUEST_APPROVED";
+            if (gr.status === "REJECTED"  && isRequester)                        type = "GAME_REQUEST_REJECTED";
+            if (gr.status === "CONFIRMED" && isOwner)                            type = "GAME_REQUEST_CONFIRMED";
+
+            if (type) {
+              send({ type, requestId: gr.id });
+            }
+            lastGameRequestAt = gr.updatedAt;
+          }
+
+          // Also emit unread count for badge refresh
+          if (gameRequests.length > 0) {
+            const unreadOwner = await prisma.gameRequest.count({
+              where: { ownerUserId: user.id, readByOwner: false, status: "PENDING" },
+            });
+            const unreadReq = await prisma.gameRequest.count({
+              where: { requesterUserId: user.id, readByRequester: false, status: "APPROVED" },
+            });
+            send({ type: "GAME_REQUEST_COUNT_UPDATE", count: unreadOwner + unreadReq });
           }
         } catch { /* retry next tick */ }
 

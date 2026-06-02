@@ -2,22 +2,29 @@
 
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
-import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz } from "@mui/icons-material";
+import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz, Inbox } from "@mui/icons-material";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
+import { GameRequestUnreadBadge } from "@/components/game-requests/GameRequestUnreadBadge";
 
 interface SettingsTabsClientProps {
-  generalContent: React.ReactNode;
-  costBudgetContent: React.ReactNode;
-  aiFeaturesContent: React.ReactNode;
+  generalContent:      React.ReactNode;
+  costBudgetContent:   React.ReactNode;
+  aiFeaturesContent:   React.ReactNode;
   collaboratorContent: React.ReactNode;
-  otherContent: React.ReactNode;
+  otherContent:        React.ReactNode;
+  gameRequestsContent: React.ReactNode;
 }
 
-export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeaturesContent, collaboratorContent, otherContent }: SettingsTabsClientProps) {
+export function SettingsTabsClient({
+  generalContent,
+  costBudgetContent,
+  aiFeaturesContent,
+  collaboratorContent,
+  otherContent,
+  gameRequestsContent,
+}: SettingsTabsClientProps) {
   const [tab, setTab] = useState(0);
-  // Anchor for the first-login "Other" tab tip. Bubble is suppressed while the
-  // user is on any other tab so it doesn't follow them around.
   const [otherTabEl, setOtherTabEl] = useState<HTMLElement | null>(null);
 
   return (
@@ -27,12 +34,21 @@ export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeatur
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />
         <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Collaborator" />
+        <Tab
+          iconPosition="start"
+          icon={
+            <GameRequestUnreadBadge>
+              <Inbox fontSize="small" />
+            </GameRequestUnreadBadge>
+          }
+          label="Game Requests"
+        />
         <Tab ref={setOtherTabEl} label="Other" />
       </Tabs>
 
       <TipBubble
         tipId={TIP_IDS.SETTINGS_OTHER}
-        anchorEl={tab === 4 ? otherTabEl : null}
+        anchorEl={tab === 5 ? otherTabEl : null}
         placement="bottom-end"
         title="Customize your workspace"
         body="Enable the Score Tracker to log game results and team stats, hide menu items you don't use to keep your sidebar clean, and reset your spreadsheet columns to defaults."
@@ -42,7 +58,8 @@ export function SettingsTabsClient({ generalContent, costBudgetContent, aiFeatur
       {tab === 1 && <Box>{costBudgetContent}</Box>}
       {tab === 2 && <Box>{aiFeaturesContent}</Box>}
       {tab === 3 && <Box>{collaboratorContent}</Box>}
-      {tab === 4 && <Box>{otherContent}</Box>}
+      {tab === 4 && <Box>{gameRequestsContent}</Box>}
+      {tab === 5 && <Box>{otherContent}</Box>}
     </Box>
   );
 }
