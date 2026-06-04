@@ -120,38 +120,47 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot request your own schedule" }, { status: 400 });
     }
 
-    // Prevent duplicate pending request for same date
-    const existing = await prisma.gameRequest.findFirst({
-      where: {
-        schedulePostId,
-        requesterUserId: session.user.id,
-        availableDate:   new Date(availableDate),
-        status:          { in: ["PENDING", "APPROVED"] },
-      },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "You already have an active request for this date" },
-        { status: 409 }
-      );
+    // Prevent duplicate requests — check + create in a serializable transaction
+    // so two simultaneous requests for the same date can't both slip through.
+    let gameRequest: any;
+    try {
+      gameRequest = await prisma.$transaction(async (tx) => {
+        const existing = await tx.gameRequest.findFirst({
+          where: {
+            schedulePostId,
+            requesterUserId: session.user.id,
+            availableDate:   new Date(availableDate),
+            status:          { in: ["PENDING", "APPROVED"] },
+          },
+        });
+        if (existing) {
+          const err: any = new Error("You already have an active request for this date");
+          err.code = "DUPLICATE";
+          throw err;
+        }
+        return tx.gameRequest.create({
+          data: {
+            schedulePostId,
+            requesterUserId:    session.user.id,
+            ownerUserId:        post.userId,
+            availableDate:      new Date(availableDate),
+            sport:              post.sport,
+            level:              post.level,
+            gender:             post.gender,
+            isHomeForRequester,
+          },
+          include: {
+            requester: { select: { ...REQUESTER_SELECT, schoolAddress: true } },
+            owner:     { select: REQUESTER_SELECT },
+          },
+        });
+      }, { isolationLevel: "Serializable" });
+    } catch (err: any) {
+      if (err.code === "DUPLICATE") {
+        return NextResponse.json({ error: err.message }, { status: 409 });
+      }
+      throw err;
     }
-
-    const gameRequest = await prisma.gameRequest.create({
-      data: {
-        schedulePostId,
-        requesterUserId:    session.user.id,
-        ownerUserId:        post.userId,
-        availableDate:      new Date(availableDate),
-        sport:              post.sport,
-        level:              post.level,
-        gender:             post.gender,
-        isHomeForRequester,
-      },
-      include: {
-        requester: { select: { ...REQUESTER_SELECT, schoolAddress: true } },
-        owner:     { select: REQUESTER_SELECT },
-      },
-    });
 
     return NextResponse.json(
       { request: serializeRequest(gameRequest, session.user.id) },

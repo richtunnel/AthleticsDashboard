@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz, Inbox } from "@mui/icons-material";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
@@ -24,12 +25,12 @@ export function SettingsTabsClient({
   otherContent,
   gameRequestsContent,
 }: SettingsTabsClientProps) {
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = usePersistedTab("settings-tab", 5);
   const [otherTabEl, setOtherTabEl] = useState<HTMLElement | null>(null);
 
   return (
     <Box>
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }} variant="scrollable" scrollButtons="auto">
+      <Tabs value={tab} onChange={(_, v: number) => setTab(v)} sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }} variant="scrollable" scrollButtons="auto">
         <Tab icon={<Tune fontSize="small" />} iconPosition="start" label="General" />
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />

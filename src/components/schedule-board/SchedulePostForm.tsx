@@ -4,15 +4,15 @@ import { useState } from "react";
 import {
   Box, Button, Card, CardContent, Typography, Select, MenuItem,
   FormControl, InputLabel, Stack, CircularProgress, Alert,
-  Switch, FormControlLabel, Chip, Divider, IconButton, Tooltip,
+  Switch, FormControlLabel, Chip, Divider, Checkbox, ListItemText,
   TextField,
 } from "@mui/material";
-import CalendarMonthIcon  from "@mui/icons-material/CalendarMonth";
-import UploadFileIcon     from "@mui/icons-material/UploadFile";
-import OpenInNewIcon      from "@mui/icons-material/OpenInNew";
-import WeekendIcon        from "@mui/icons-material/Weekend";
-import AddIcon            from "@mui/icons-material/Add";
-import CloseIcon          from "@mui/icons-material/Close";
+import { useTheme } from "@mui/material/styles";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import UploadFileIcon    from "@mui/icons-material/UploadFile";
+import OpenInNewIcon     from "@mui/icons-material/OpenInNew";
+import WeekendIcon       from "@mui/icons-material/Weekend";
+import CloseIcon         from "@mui/icons-material/Close";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -25,7 +25,7 @@ interface Props {
 }
 
 interface Combo {
-  key:    string;   // "sport|level|gender"
+  key:    string;
   sport:  string;
   level:  string;
   gender: string;
@@ -33,16 +33,15 @@ interface Combo {
 }
 
 export function SchedulePostForm({ onPosted }: Props) {
+  const theme               = useTheme();
   const queryClient         = useQueryClient();
   const { addNotification } = useNotifications();
 
   const [workbookId,      setWorkbookId]      = useState("");
-  const [comboKey,        setComboKey]        = useState("");
-  const [title,           setTitle]           = useState("");
+  const [selectedKeys,    setSelectedKeys]    = useState<string[]>([]);   // multi-select
   const [description,     setDescription]     = useState("");
   const [excludeWeekends, setExcludeWeekends] = useState(false);
   const [excludedDates,   setExcludedDates]   = useState<string[]>([]);
-  const [addingDate,      setAddingDate]      = useState<Date | null>(null);
   const [duplicateErr,    setDuplicateErr]    = useState(false);
 
   // Workbooks list
@@ -69,39 +68,50 @@ export function SchedulePostForm({ onPosted }: Props) {
   const combos    = combosData?.combos ?? [];
   const hasCombos = combos.length > 0;
 
-  const selectedCombo = combos.find((c) => c.key === comboKey);
+  const selectedCombos = combos.filter((c) => selectedKeys.includes(c.key));
+  const hasSelections  = selectedCombos.length > 0;
 
+  // Post one request per selected league (upsert on server)
   const mutation = useMutation({
-    mutationFn: () => {
-      if (!selectedCombo) throw new Error("No sport selected");
-      return fetch("/api/schedule-board", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          workbookId,
-          sport:          selectedCombo.sport,
-          level:          selectedCombo.level,
-          gender:         selectedCombo.gender,
-          title:          title.trim()       || null,
-          description:    description.trim() || null,
-          excludeWeekends,
-          excludedDates,
-        }),
-      }).then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "Failed to post schedule");
-        return d;
-      });
+    mutationFn: async () => {
+      if (!hasSelections) throw new Error("No leagues selected");
+      const results = await Promise.all(
+        selectedCombos.map((combo) =>
+          fetch("/api/schedule-board", {
+            method:  "POST",
+            headers: { "Content-Type": "application/json" },
+            body:    JSON.stringify({
+              workbookId,
+              sport:          combo.sport,
+              level:          combo.level,
+              gender:         combo.gender,
+              description:    description.trim() || null,
+              excludeWeekends,
+              excludedDates,
+            }),
+          }).then(async (r) => {
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error || "Failed to post schedule");
+            return d;
+          })
+        )
+      );
+      return results;
     },
     onSuccess: () => {
-      addNotification("Your schedule has been posted to the Exchange Board!", "success");
+      const count = selectedCombos.length;
+      addNotification(
+        count === 1
+          ? "Your schedule has been posted to the Exchange Board!"
+          : `${count} leagues posted to the Exchange Board!`,
+        "success"
+      );
       queryClient.invalidateQueries({ queryKey: ["schedule-board"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-board-schools"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-board-mine"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-board-filters"] });
       setDuplicateErr(false);
-      setComboKey("");
-      setTitle("");
+      setSelectedKeys([]);
       setDescription("");
       setExcludeWeekends(false);
       setExcludedDates([]);
@@ -113,22 +123,32 @@ export function SchedulePostForm({ onPosted }: Props) {
     },
   });
 
-  const valid = !!workbookId && !!comboKey && !!selectedCombo;
-
+  // ── Date exclusion helpers ──────────────────────────────────────────────────
   const addExcludedDate = (d: Date | null) => {
     if (!d) return;
     const key = d.toISOString().slice(0, 10);
-    if (!excludedDates.includes(key)) setExcludedDates((prev) => [...prev, key].sort());
-    setAddingDate(null);
+    if (!excludedDates.includes(key)) {
+      setExcludedDates((prev) => [...prev, key].sort());
+    }
   };
 
   const removeExcludedDate = (key: string) =>
     setExcludedDates((prev) => prev.filter((d) => d !== key));
 
-  const formatExcluded = (iso: string) => {
-    const d = new Date(iso + "T00:00:00");
-    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  const formatExcluded = (iso: string) =>
+    new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      weekday: "short", month: "short", day: "numeric", year: "numeric",
+    });
+
+  // Separator color: slightly stronger than "divider" so it's visible
+  const dividerSx = {
+    borderColor:       theme.palette.mode === "dark"
+      ? "rgba(255,255,255,0.18)"
+      : "rgba(0,0,0,0.18)",
+    borderBottomWidth: "1px",
   };
+
+  const valid = !!workbookId && hasSelections;
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -142,12 +162,11 @@ export function SchedulePostForm({ onPosted }: Props) {
           </Stack>
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-            Select a worksheet and sport. We'll scan your schedule, find every date
-            that isn't already booked for that sport, and publish those open dates to
-            the Exchange Board so other ADs can request a game.
+            Select a worksheet and one or more leagues. We'll scan your schedule, find every
+            unbooked date per league, and publish them to the Exchange Board.
           </Typography>
 
-          {/* No worksheets — prompt to import */}
+          {/* No worksheets */}
           {!loadingWorkbooks && !hasWorkbooks && (
             <Alert
               severity="info"
@@ -167,14 +186,14 @@ export function SchedulePostForm({ onPosted }: Props) {
             >
               <Typography variant="body2" fontWeight={600}>No worksheet yet</Typography>
               <Typography variant="caption" color="text.secondary">
-                Import your game schedule in Game Center first, then come back to post your open dates.
+                Import your game schedule in Game Center first.
               </Typography>
             </Alert>
           )}
 
           {duplicateErr && (
             <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setDuplicateErr(false)}>
-              You already have an active post for this sport. It has been updated with your latest selections.
+              One or more leagues already had active posts — they've been updated with your latest settings.
             </Alert>
           )}
 
@@ -187,7 +206,7 @@ export function SchedulePostForm({ onPosted }: Props) {
                 notched
                 value={workbookId}
                 label="Worksheet"
-                onChange={(e) => { setWorkbookId(e.target.value); setComboKey(""); }}
+                onChange={(e) => { setWorkbookId(e.target.value); setSelectedKeys([]); }}
                 renderValue={(val) =>
                   val
                     ? workbooks.find((w) => w.id === val)?.name ?? val
@@ -201,11 +220,7 @@ export function SchedulePostForm({ onPosted }: Props) {
                     <MenuItem key={wb.id} value={wb.id}>{wb.name}</MenuItem>
                   ))
                 ) : (
-                  <MenuItem
-                    component={NextLink}
-                    href="/dashboard/games"
-                    sx={{ gap: 1, color: "primary.main" }}
-                  >
+                  <MenuItem component={NextLink} href="/dashboard/games" sx={{ gap: 1, color: "primary.main" }}>
                     <UploadFileIcon fontSize="small" />
                     No Worksheet — Upload Schedule →
                   </MenuItem>
@@ -213,78 +228,77 @@ export function SchedulePostForm({ onPosted }: Props) {
               </Select>
             </FormControl>
 
-            {/* ── Single sport + level + gender combo dropdown ── */}
-            <FormControl
-              size="small"
-              fullWidth
-              disabled={!workbookId || loadingCombos}
-            >
-              <InputLabel shrink>Choose a league</InputLabel>
+            {/* ── Multi-select leagues ── */}
+            <FormControl size="small" fullWidth disabled={!workbookId || loadingCombos}>
+              <InputLabel shrink>Choose leagues</InputLabel>
               <Select
+                multiple
                 displayEmpty
                 notched
-                value={comboKey}
-                label="Choose a league"
-                onChange={(e) => setComboKey(e.target.value)}
-                renderValue={(val) => {
-                  if (!workbookId)       return "Select a worksheet first";
-                  if (loadingCombos)     return "Loading…";
-                  if (!hasCombos)        return "No sports found in this worksheet";
-                  if (!val)              return "Select sport";
-                  return combos.find((c) => c.key === val)?.label ?? val;
+                value={selectedKeys}
+                label="Choose leagues"
+                onChange={(e) => setSelectedKeys(
+                  typeof e.target.value === "string"
+                    ? e.target.value.split(",")
+                    : e.target.value as string[]
+                )}
+                renderValue={(selected) => {
+                  if (!workbookId)        return "Select a worksheet first";
+                  if (loadingCombos)      return "Loading…";
+                  if (!hasCombos)         return "No sports found in this worksheet";
+                  if (!selected.length)   return "Select one or more leagues";
+                  return combos
+                    .filter((c) => selected.includes(c.key))
+                    .map((c) => c.label)
+                    .join(", ");
                 }}
               >
                 {!workbookId ? (
                   <MenuItem disabled value="">Select a worksheet first</MenuItem>
                 ) : loadingCombos ? (
-                  <MenuItem disabled value="">Loading sports…</MenuItem>
+                  <MenuItem disabled value="">Loading…</MenuItem>
                 ) : !hasCombos ? (
-                  <MenuItem disabled value="">
-                    No sports found — check that your worksheet has game data
-                  </MenuItem>
+                  <MenuItem disabled value="">No sports found in this worksheet</MenuItem>
                 ) : (
                   combos.map((c) => (
-                    <MenuItem key={c.key} value={c.key}>{c.label}</MenuItem>
+                    <MenuItem key={c.key} value={c.key} sx={{ py: 0.75 }}>
+                      <Checkbox
+                        size="small"
+                        checked={selectedKeys.includes(c.key)}
+                        sx={{ p: 0.5, mr: 0.5 }}
+                      />
+                      <ListItemText
+                        primary={c.label}
+                        primaryTypographyProps={{ fontSize: "0.875rem" }}
+                      />
+                    </MenuItem>
                   ))
                 )}
               </Select>
             </FormControl>
 
-            {/* ── Title + Description (shown once a combo is selected) ── */}
-            {selectedCombo && (
-              <>
-                <TextField
-                  size="small"
-                  label="Post title (optional)"
-                  placeholder={`${selectedCombo.label} — open dates`}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  inputProps={{ maxLength: 80 }}
-                  InputLabelProps={{ shrink: true }}
-                  helperText={`${title.length}/80 — shown on your card in the Exchange Board`}
-                  fullWidth
-                />
-                <TextField
-                  size="small"
-                  label="Description (optional)"
-                  placeholder="e.g. Preferred game times, travel notes, contact info…"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  multiline
-                  minRows={2}
-                  maxRows={5}
-                  inputProps={{ maxLength: 300 }}
-                  InputLabelProps={{ shrink: true }}
-                  helperText={`${description.length}/300 — visible to other ADs when they view your schedule`}
-                  fullWidth
-                />
-              </>
+            {/* ── Description (only shown when leagues are selected) ── */}
+            {hasSelections && (
+              <TextField
+                size="small"
+                label="Description (optional)"
+                placeholder="e.g. Preferred game times, travel notes, contact info…"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                multiline
+                minRows={2}
+                maxRows={5}
+                inputProps={{ maxLength: 300 }}
+                InputLabelProps={{ shrink: true }}
+                helperText={`${description.length}/300 — visible to other ADs when they view your schedule`}
+                fullWidth
+              />
             )}
 
-            {/* ── Date exclusion controls (shown once a combo is selected) ── */}
-            {selectedCombo && (
+            {/* ── Date exclusion controls ── */}
+            {hasSelections && (
               <>
-                <Divider />
+                <Divider sx={dividerSx} />
 
                 <Box>
                   <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 1, display: "block" }}>
@@ -306,55 +320,45 @@ export function SchedulePostForm({ onPosted }: Props) {
                         <Typography variant="body2">Exclude weekends</Typography>
                       </Stack>
                     }
-                    sx={{ mb: 1 }}
+                    sx={{ mb: 1.5 }}
                   />
 
-                  {/* Hidden specific dates */}
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: "block" }}>
-                    Hide specific dates
+                  {/* Hide Dates — pick from calendar, auto-add on select */}
+                  <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 1, display: "block" }}>
+                    Hide Dates
                   </Typography>
 
-                  <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1 }}>
-                    {excludedDates.map((iso) => (
-                      <Chip
-                        key={iso}
-                        label={formatExcluded(iso)}
-                        size="small"
-                        variant="outlined"
-                        onDelete={() => removeExcludedDate(iso)}
-                        deleteIcon={<CloseIcon sx={{ fontSize: "0.75rem !important" }} />}
-                        sx={{ fontSize: "0.7rem" }}
-                      />
-                    ))}
+                  {/* Hidden date chips */}
+                  {excludedDates.length > 0 && (
+                    <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 1.5 }}>
+                      {excludedDates.map((iso) => (
+                        <Chip
+                          key={iso}
+                          label={formatExcluded(iso)}
+                          size="small"
+                          variant="outlined"
+                          onDelete={() => removeExcludedDate(iso)}
+                          deleteIcon={<CloseIcon sx={{ fontSize: "0.75rem !important" }} />}
+                          sx={{ fontSize: "0.7rem" }}
+                        />
+                      ))}
+                    </Stack>
+                  )}
 
-                    {/* Add date button + inline picker */}
-                    {addingDate !== undefined && (
-                      <DatePicker
-                        label="Hide date"
-                        value={addingDate}
-                        onChange={addExcludedDate}
-                        onClose={() => setAddingDate(null)}
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                            sx: { width: 160 },
-                            InputLabelProps: { shrink: true },
-                          },
-                        }}
-                      />
-                    )}
-
-                    <Tooltip title="Hide a specific date">
-                      <Chip
-                        icon={<AddIcon sx={{ fontSize: "0.85rem !important" }} />}
-                        label="Add date"
-                        size="small"
-                        variant="outlined"
-                        onClick={() => setAddingDate(null)}
-                        sx={{ fontSize: "0.7rem", cursor: "pointer" }}
-                      />
-                    </Tooltip>
-                  </Stack>
+                  {/* Calendar picker — date auto-saved on selection, no extra button */}
+                  <DatePicker
+                    label="Pick a date to hide"
+                    value={null}
+                    onChange={addExcludedDate}
+                    slotProps={{
+                      textField: {
+                        size:  "small",
+                        sx:    { maxWidth: 220 },
+                        InputLabelProps: { shrink: true },
+                        helperText: "Click a date to hide it from your posted availability",
+                      },
+                    }}
+                  />
                 </Box>
               </>
             )}
@@ -372,7 +376,9 @@ export function SchedulePostForm({ onPosted }: Props) {
                 }
                 sx={{ alignSelf: "flex-start", textTransform: "none", fontWeight: 700 }}
               >
-                {mutation.isPending ? "Posting…" : "Post to Schedule Board"}
+                {mutation.isPending
+                  ? "Posting…"
+                  : `Post ${selectedCombos.length > 1 ? `${selectedCombos.length} Leagues` : "to Schedule Board"}`}
               </Button>
             ) : (
               <Button

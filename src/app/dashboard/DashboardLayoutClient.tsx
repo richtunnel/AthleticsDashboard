@@ -65,7 +65,6 @@ import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { VscGithubProject } from "react-icons/vsc";
 import { RiCalendarScheduleFill } from "react-icons/ri";
 import EmailIcon from "@mui/icons-material/Email";
-import HistoryIcon from "@mui/icons-material/History";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
@@ -90,7 +89,6 @@ const baseNavigation = [
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon },
   { name: "Teams",         href: "/dashboard/opponents",    icon: Groups, requiresScoreTracker: true },
-  { name: "Email Logs",    href: "/dashboard/email-logs",   icon: HistoryIcon },
   { name: "Parents",       href: "/dashboard/parents",      icon: Person },
   { name: "Community",     href: "/dashboard/posts",        icon: Newspaper },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },

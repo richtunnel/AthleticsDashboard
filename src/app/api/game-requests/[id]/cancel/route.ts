@@ -18,9 +18,29 @@ export async function PUT(
       return NextResponse.json({ error: "Cannot cancel at this stage" }, { status: 400 });
     }
 
-    const updated = await prisma.gameRequest.update({
-      where: { id },
-      data:  { status: "CANCELLED" },
+    const wasApproved = gr.status === "APPROVED";
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.gameRequest.update({
+        where: { id },
+        data:  { status: "CANCELLED" },
+      });
+
+      // If the request was already approved the date was locked in excludedDates — restore it
+      if (wasApproved) {
+        const dateKey = gr.availableDate.toISOString().slice(0, 10);
+        const post = await tx.schedulePost.findUnique({
+          where:  { id: gr.schedulePostId },
+          select: { excludedDates: true },
+        });
+        const current = (post?.excludedDates as string[]) ?? [];
+        await tx.schedulePost.update({
+          where: { id: gr.schedulePostId },
+          data:  { excludedDates: current.filter((d) => d !== dateKey) },
+        });
+      }
+
+      return result;
     });
 
     return NextResponse.json({ request: updated });

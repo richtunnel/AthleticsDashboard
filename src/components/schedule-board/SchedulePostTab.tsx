@@ -3,7 +3,6 @@
 import { Box, Typography, Divider, CircularProgress, Button, Stack } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useQuery } from "@tanstack/react-query";
-import { useTheme } from "@mui/material/styles";
 import { SchedulePostForm }  from "./SchedulePostForm";
 import { PostedScheduleCard } from "./PostedScheduleCard";
 
@@ -21,9 +20,6 @@ interface PostedSchedule {
 }
 
 export function SchedulePostTab() {
-  const theme   = useTheme();
-  const isDark  = theme.palette.mode === "dark";
-
   const { data, isLoading } = useQuery({
     queryKey:  ["schedule-board-mine"],
     queryFn:   () =>
@@ -60,7 +56,7 @@ export function SchedulePostTab() {
         </Box>
       ) : posts.length > 0 ? (
         <>
-          <Divider sx={{ mb: 2.5, borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)" }} />
+          <Divider sx={{ mb: 2.5 }} />
           <Typography variant="overline" sx={{ color: "text.secondary", fontWeight: 700, fontSize: "0.7rem", letterSpacing: 1 }}>
             Your Active Posts
           </Typography>

@@ -10,7 +10,7 @@ export default function ParentsAndAthletesPage() {
     <Box>
       <ParentsAndAthletesMenu defaultOpen={true} />
 
-      <Divider sx={{ my: 3 }} />
+      <Divider sx={{ my: 3, borderColor: "divider", borderBottomWidth: "0.5px" }} />
 
       {/* Chat — formerly a top-level nav item, now lives here */}
       <Box sx={{ px: { xs: 1, sm: 2 }, pb: 3 }}>

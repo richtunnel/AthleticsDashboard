@@ -138,7 +138,7 @@ export function GameRequestsPanel({ context = "posts", mode = "all" }: Props) {
             >
               {SECTION_LABELS[status]} ({items.length})
             </Typography>
-            <Divider sx={{ mb: 2 }} />
+            <Divider sx={{ mb: 2, borderColor: "divider", borderBottomWidth: "0.5px" }} />
             {items.map((r) => (
               <GameRequestCard key={r.id} request={r} currentUserId={currentUserId} />
             ))}

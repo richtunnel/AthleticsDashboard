@@ -91,7 +91,7 @@ export function CheckAvailabilityModal({
           <Typography variant="body2" color="text.secondary">{timeLabel}</Typography>
         </Box>
 
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 2, borderColor: "divider", borderBottomWidth: "0.5px" }} />
 
         {/* Home / Away selection — required */}
         <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>

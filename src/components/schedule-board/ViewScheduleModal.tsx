@@ -12,7 +12,6 @@ import { useTheme, alpha } from "@mui/material/styles";
 import CloseIcon        from "@mui/icons-material/Close";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import { useQuery }      from "@tanstack/react-query";
-import { useSession }    from "next-auth/react";
 import {
   formatGameDateShort,
   formatDayOfWeek,
@@ -55,7 +54,6 @@ export function ViewScheduleModal({
 }: Props) {
   const theme           = useTheme();
   const isDark          = theme.palette.mode === "dark";
-  const { data: sess }  = useSession();
   const [selectedPostId, setSelectedPostId] = useState<string>(combos[0]?.postId ?? "");
   const [checkModal,     setCheckModal]     = useState<{ date: string } | null>(null);
 
@@ -76,8 +74,9 @@ export function ViewScheduleModal({
     staleTime: 60_000,
   });
 
-  const tz   = datesData?.timezone ?? "America/New_York";
-  const dates = datesData?.availableDates ?? [];
+  const tz          = datesData?.timezone ?? "America/New_York";
+  const dates       = datesData?.availableDates ?? [];
+  const showActions = !isOwnPost;
 
   const headerBg = isDark ? theme.palette.primary.dark : theme.palette.primary.main;
 
@@ -175,12 +174,19 @@ export function ViewScheduleModal({
                 <TableContainer
                   component={Paper}
                   elevation={0}
-                  sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", overflowX: "auto" }}
+                  sx={{
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    overflowX: "auto",
+                    maxHeight: 420,
+                    overflowY: "auto",
+                  }}
                 >
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        {["Date", "Day", "Time", ""].map((h) => (
+                        {["Date", "Day", "Time", ...(showActions ? [""] : [])].map((h) => (
                           <TableCell
                             key={h}
                             sx={{
@@ -229,23 +235,24 @@ export function ViewScheduleModal({
                             )}
                           </TableCell>
 
-                          <TableCell align="right" sx={{ py: 1.25, pr: 1.5 }}>
-                            {!isOwnPost && sess && (
+                          {showActions && (
+                            <TableCell align="right" sx={{ py: 1.25, pr: 1.5 }}>
                               <Button
                                 size="small"
                                 variant="contained"
                                 onClick={() => setCheckModal({ date: d.date })}
                                 sx={{
                                   textTransform: "none",
-                                  fontWeight:     600,
-                                  fontSize:       "0.72rem",
+                                  fontWeight:     700,
+                                  fontSize:       "0.75rem",
                                   whiteSpace:     "nowrap",
+                                  boxShadow:      0,
                                 }}
                               >
                                 Check Availability
                               </Button>
-                            )}
-                          </TableCell>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>

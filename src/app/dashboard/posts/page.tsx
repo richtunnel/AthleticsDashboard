@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { usePersistedTab } from "@/hooks/usePersistedTab";
 import { useSession } from "next-auth/react";
 import { Box, Divider, Tab, Tabs, Typography, useTheme } from "@mui/material";
 import { Newspaper, Campaign, CalendarMonth, Inbox } from "@mui/icons-material";
@@ -27,9 +28,9 @@ export default function PostsPage() {
   const isDark            = theme.palette.mode === "dark";
   const dividerColor      = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
 
-  // Allow ?tab=3 deep-link from Game Center pill
-  const initialTab = parseInt(searchParams.get("tab") ?? "0", 10);
-  const [tab, setTab] = useState(isNaN(initialTab) ? 0 : Math.min(initialTab, 3));
+  // Persists across refreshes; ?tab= URL param wins for deep-links (e.g. Game Center pill)
+  const urlTab = parseInt(searchParams.get("tab") ?? "", 10);
+  const [tab, setTab] = usePersistedTab("community-tab", 3, isNaN(urlTab) ? undefined : urlTab);
 
   const [postsTabEl, setPostsTabEl] = useState<HTMLElement | null>(null);
   const [annTabEl,   setAnnTabEl]   = useState<HTMLElement | null>(null);

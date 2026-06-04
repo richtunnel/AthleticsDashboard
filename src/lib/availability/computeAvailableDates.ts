@@ -77,9 +77,12 @@ export async function computeAvailableDates(
   const bookedSet  = new Set<string>(dates.map((d) => d.toISOString().slice(0, 10)));
   const excludeSet = new Set<string>(excludedDates.map((d) => d.slice(0, 10)));
 
-  // Generate all days in [minDate, maxDate]
+  // Generate all days in [max(minDate, today), maxDate]
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
   const results: AvailableDate[] = [];
-  const cursor = new Date(minDate);
+  const cursor = new Date(Math.max(minDate.getTime(), today.getTime()));
   cursor.setUTCHours(0, 0, 0, 0);
   const end = new Date(maxDate);
   end.setUTCHours(23, 59, 59, 999);

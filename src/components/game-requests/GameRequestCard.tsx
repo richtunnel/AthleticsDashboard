@@ -232,7 +232,7 @@ export function GameRequestCard({ request, currentUserId }: Props) {
           </Box>
         </Stack>
 
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 2, borderColor: "divider", borderBottomWidth: "0.5px" }} />
 
         {/* Date/time block — center of attraction */}
         <Box
@@ -303,7 +303,7 @@ export function GameRequestCard({ request, currentUserId }: Props) {
           )}
         </Stack>
 
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: 2, borderColor: "divider", borderBottomWidth: "0.5px" }} />
 
         {/* Action area */}
         <Stack
