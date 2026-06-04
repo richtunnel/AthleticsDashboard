@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/database/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/utils/authOptions";
+import { lookupSchoolDistrict } from "@/lib/utils/schoolDistrictLookup";
 import { ALLOWED_SETTINGS_ROLES, AllowedSettingsRole } from "@/lib/constants/role";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import bcrypt from "bcryptjs";
@@ -201,10 +202,11 @@ export async function changePassword(payload: ChangePasswordPayload) {
 }
 
 type UpdateSchoolDetailsPayload = {
-  schoolName: string;
-  teamName: string;
-  schoolAddress: string;
-  schoolEmail?: string;
+  schoolName:     string;
+  teamName:       string;
+  schoolAddress:  string;
+  schoolEmail?:   string;
+  schoolDistrict?: string | null;
 };
 
 export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
@@ -241,10 +243,26 @@ export async function updateSchoolDetails(payload: UpdateSchoolDetailsPayload) {
       select: { organizationId: true },
     });
 
+    // If the caller explicitly provided a district value (including empty string to clear),
+    // use it. Otherwise try a Census lookup so the field auto-populates.
+    let resolvedDistrict: string | null | undefined =
+      payload.schoolDistrict !== undefined
+        ? (payload.schoolDistrict?.trim() || null)
+        : undefined;
+
+    if (resolvedDistrict === undefined) {
+      // Fire lookup synchronously (≤4 s timeout) — acceptable in a settings save
+      resolvedDistrict = await Promise.race<string | null>([
+        lookupSchoolDistrict(schoolAddress),
+        new Promise((resolve) => setTimeout(() => resolve(null), 4_000)),
+      ]);
+    }
+
     const updateData: any = {
       schoolName,
       teamName,
       schoolAddress,
+      ...(resolvedDistrict !== undefined ? { schoolDistrict: resolvedDistrict } : {}),
     };
 
     const ops: any[] = [

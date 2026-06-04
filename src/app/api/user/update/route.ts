@@ -144,5 +144,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Enqueue background district lookup when a school address is provided.
+  // This is non-blocking — onboarding should not wait for the Census API.
+  if (schoolAddress?.trim()) {
+    try {
+      await prisma.backgroundJob.create({
+        data: {
+          type:    "SCHOOL_DISTRICT_LOOKUP",
+          payload: { userId: existingUser.id, address: schoolAddress.trim() },
+          userId:  existingUser.id,
+        },
+      });
+    } catch {
+      // Non-critical — job table write failure should not block the response
+    }
+  }
+
   return NextResponse.json({ success: true });
 }

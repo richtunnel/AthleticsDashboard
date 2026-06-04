@@ -59,10 +59,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       plan: true,
       image: true,
       hashedPassword: true,
-      schoolName: true,
-      teamName: true,
-      schoolAddress: true,
-      schoolEmail: true,
+      schoolName:     true,
+      teamName:       true,
+      schoolAddress:  true,
+      schoolEmail:    true,
+      schoolDistrict: true,
       organization: {
         select: {
           id: true,
@@ -313,6 +314,18 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Hide Menu Options
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
+          </Typography>
+          <MenuVisibilityToggles />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
             Score Tracker
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
@@ -333,18 +346,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             to return to the standard view.
           </Typography>
           <ResetColumnsButton />
-        </CardContent>
-      </Card>
-
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            Hide Menu Options
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
-          </Typography>
-          <MenuVisibilityToggles />
         </CardContent>
       </Card>
 

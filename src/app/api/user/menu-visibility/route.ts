@@ -12,16 +12,18 @@ export async function GET() {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
-        hideChatMenu: true,
-        hidePostsMenu: true,
-        hideParentsMenu: true,
+        hideChatMenu:      true,
+        hidePostsMenu:     true,
+        hideParentsMenu:   true,
+        hideFindGamesMenu: true,
       },
     });
 
     return NextResponse.json({
-      hideChatMenu: user?.hideChatMenu ?? false,
-      hidePostsMenu: user?.hidePostsMenu ?? false,
-      hideParentsMenu: user?.hideParentsMenu ?? false,
+      hideChatMenu:      user?.hideChatMenu      ?? false,
+      hidePostsMenu:     user?.hidePostsMenu     ?? false,
+      hideParentsMenu:   user?.hideParentsMenu   ?? false,
+      hideFindGamesMenu: user?.hideFindGamesMenu ?? false,
     });
   } catch (error) {
     console.error("Error fetching menu visibility settings:", error);
@@ -37,7 +39,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const allowed = ["hideChatMenu", "hidePostsMenu", "hideParentsMenu"] as const;
+    const allowed = ["hideChatMenu", "hidePostsMenu", "hideParentsMenu", "hideFindGamesMenu"] as const;
     const data: Partial<Record<(typeof allowed)[number], boolean>> = {};
 
     for (const key of allowed) {

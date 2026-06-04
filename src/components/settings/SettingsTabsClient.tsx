@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { Box, Tabs, Tab } from "@mui/material";
 import { usePersistedTab } from "@/hooks/usePersistedTab";
-import { Tune, AttachMoney, AutoAwesome, Group, MoreHoriz, Inbox } from "@mui/icons-material";
+import { Tune, AttachMoney, AutoAwesome, Group } from "@mui/icons-material";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
-import { GameRequestUnreadBadge } from "@/components/game-requests/GameRequestUnreadBadge";
 
 interface SettingsTabsClientProps {
   generalContent:      React.ReactNode;
@@ -35,15 +34,7 @@ export function SettingsTabsClient({
         <Tab icon={<AttachMoney fontSize="small" />} iconPosition="start" label="Cost & Budget" />
         <Tab icon={<AutoAwesome fontSize="small" />} iconPosition="start" label="AI Features" />
         <Tab icon={<Group fontSize="small" />} iconPosition="start" label="Collaborator" />
-        <Tab
-          iconPosition="start"
-          icon={
-            <GameRequestUnreadBadge>
-              <Inbox fontSize="small" />
-            </GameRequestUnreadBadge>
-          }
-          label="Game Requests"
-        />
+        <Tab label="Game Requests" />
         <Tab ref={setOtherTabEl} label="Other" />
       </Tabs>
 

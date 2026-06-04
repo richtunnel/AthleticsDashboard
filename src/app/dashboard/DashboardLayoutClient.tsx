@@ -64,7 +64,8 @@ import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { VscGithubProject } from "react-icons/vsc";
 import { RiCalendarScheduleFill } from "react-icons/ri";
-import EmailIcon from "@mui/icons-material/Email";
+import EmailIcon   from "@mui/icons-material/Email";
+import SearchIcon   from "@mui/icons-material/Search";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
@@ -89,8 +90,9 @@ const baseNavigation = [
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
   { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon },
   { name: "Teams",         href: "/dashboard/opponents",    icon: Groups, requiresScoreTracker: true },
-  { name: "Parents",       href: "/dashboard/parents",      icon: Person },
+  { name: "Connect",        href: "/dashboard/parents",      icon: Person },
   { name: "Community",     href: "/dashboard/posts",        icon: Newspaper },
+  { name: "Find Games",    href: "/schedule-board",         icon: SearchIcon, external: true, requiresVisible: "findGames" },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings",      href: "/dashboard/settings",     icon: Settings },
   // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
@@ -129,9 +131,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Filter navigation based on feature toggles and user preferences
   const navigation = baseNavigation.filter((item) => {
     if (item.requiresScoreTracker && !isScoreTrackerEnabled) return false;
-    // Chat is now accessed via the Parents page, not a standalone nav item
-    if (item.href === "/dashboard/posts" && menuVisibility?.hidePostsMenu) return false;
-    if (item.href === "/dashboard/parents" && menuVisibility?.hideParentsMenu) return false;
+    if (item.href === "/dashboard/posts"    && menuVisibility?.hidePostsMenu)     return false;
+    if (item.href === "/dashboard/parents"  && menuVisibility?.hideParentsMenu)   return false;
+    if (item.requiresVisible === "findGames" && menuVisibility?.hideFindGamesMenu) return false;
     return true;
   });
   const pathname = usePathname();
@@ -213,12 +215,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <List sx={{ px: 2, py: 2, flexGrow: 1 }}>
         {navigation.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = !item.external && pathname === item.href;
           return (
             <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 component={Link}
                 href={item.href}
+                {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 selected={isActive}
                 sx={{
                   borderRadius: 1.5,
@@ -382,12 +385,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               }}
             >
               {navigation.map((item) => {
-                const isActive = pathname === item.href;
+                const isActive = !item.external && pathname === item.href;
                 return (
                   <Box
                     key={item.name}
                     component={Link}
                     href={item.href}
+                    {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     sx={{
                       position: "relative",
                       px: 1.5,

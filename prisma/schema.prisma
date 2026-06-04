@@ -63,6 +63,8 @@ model User {
   hideChatMenu               Boolean                   @default(false)
   hidePostsMenu              Boolean                   @default(false)
   hideParentsMenu            Boolean                   @default(false)
+  hideFindGamesMenu          Boolean                   @default(false)
+  schoolDistrict             String?
   dismissedTips              Json                      @default("[]")
   schoolEmail                String?                   @unique
   shareCode                  String?                   @unique
@@ -176,6 +178,7 @@ enum JobType {
   GAME_IMPORT
   EMAIL_IMPORT
   GAME_REQUEST_CONFIRM
+  SCHOOL_DISTRICT_LOOKUP
 }
 
 enum JobStatus {

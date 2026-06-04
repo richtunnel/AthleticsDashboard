@@ -145,7 +145,7 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
                 label="Sync Requests"
               />
               <Tab ref={setConnectedTabEl} icon={<Group fontSize="small" />} iconPosition="start" label="Connected Parents" />
-              <Tab ref={setPortalTabEl} icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Portal Setup" />
+              <Tab ref={setPortalTabEl} icon={<LinkIcon fontSize="small" />} iconPosition="start" label="Parent Setup" />
             </Tabs>
 
             <TipBubble

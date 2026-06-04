@@ -14,12 +14,13 @@ import {
   Typography,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Newspaper, Person } from "@mui/icons-material";
+import { Newspaper, Person, Search } from "@mui/icons-material";
 
 interface MenuVisibility {
-  hideChatMenu: boolean;
-  hidePostsMenu: boolean;
-  hideParentsMenu: boolean;
+  hideChatMenu:      boolean;
+  hidePostsMenu:     boolean;
+  hideParentsMenu:   boolean;
+  hideFindGamesMenu: boolean;
 }
 
 async function fetchMenuVisibility(): Promise<MenuVisibility> {
@@ -39,13 +40,13 @@ async function updateMenuVisibility(patch: Partial<MenuVisibility>): Promise<Men
 }
 
 interface MenuItemToggleProps {
-  label: string;
+  label:       string;
   description: string;
-  tooltip: string;
-  icon: React.ReactNode;
-  checked: boolean;
-  disabled: boolean;
-  onChange: (checked: boolean) => void;
+  tooltip:     string;
+  icon:        React.ReactNode;
+  checked:     boolean;
+  disabled:    boolean;
+  onChange:    (checked: boolean) => void;
 }
 
 function MenuItemToggle({ label, description, tooltip, icon, checked, disabled, onChange }: MenuItemToggleProps) {
@@ -55,9 +56,7 @@ function MenuItemToggle({ label, description, tooltip, icon, checked, disabled, 
         <Box sx={{ color: "text.secondary", mt: 0.25 }}>{icon}</Box>
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Typography variant="body1" fontWeight={500}>
-              {label}
-            </Typography>
+            <Typography variant="body1" fontWeight={500}>{label}</Typography>
             <Tooltip title={tooltip} placement="top" arrow>
               <IconButton size="small">
                 <InfoOutlinedIcon sx={{ fontSize: 16 }} />
@@ -101,29 +100,24 @@ export function MenuVisibilityToggles() {
         ...prev,
         ...updated,
       }));
-      // Also invalidate the layout query so the sidebar updates
       queryClient.invalidateQueries({ queryKey: ["menuVisibility"] });
       setError(null);
     },
-    onError: (err: Error) => {
-      setError(err.message);
-    },
+    onError: (err: Error) => setError(err.message),
   });
 
   if (isLoading) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <CircularProgress size={20} />
-        <Typography variant="body2" color="text.secondary">
-          Loading…
-        </Typography>
+        <Typography variant="body2" color="text.secondary">Loading…</Typography>
       </Box>
     );
   }
 
-  // "show" = not hidden; toggles are ON when item is visible
-  const showPosts    = !(data?.hidePostsMenu   ?? false);
-  const showParents  = !(data?.hideParentsMenu ?? false);
+  const showPosts     = !(data?.hidePostsMenu     ?? false);
+  const showConnect   = !(data?.hideParentsMenu   ?? false);
+  const showFindGames = !(data?.hideFindGamesMenu ?? false);
 
   const items = [
     {
@@ -136,11 +130,19 @@ export function MenuVisibilityToggles() {
     },
     {
       key: "hideParentsMenu" as const,
-      label: "Parents",
+      label: "Connect",
       description: "Parent & athlete portal access, calendar sync, and messaging.",
-      tooltip: "When hidden, the Parents menu item will no longer appear in the sidebar. Parent portal access codes and messages remain active — this only removes the dashboard shortcut.",
+      tooltip: "When hidden, the Connect menu item will no longer appear in the sidebar. Parent portal access codes and messages remain active — this only removes the dashboard shortcut.",
       icon: <Person fontSize="small" />,
-      checked: showParents,
+      checked: showConnect,
+    },
+    {
+      key: "hideFindGamesMenu" as const,
+      label: "Find Games",
+      description: "Quick link to the Schedule Exchange Board to browse open game dates from other ADs.",
+      tooltip: "When hidden, the Find Games shortcut will no longer appear in the sidebar. The Schedule Exchange Board remains accessible — this only removes the sidebar link.",
+      icon: <Search fontSize="small" />,
+      checked: showFindGames,
     },
   ];
 
@@ -157,18 +159,14 @@ export function MenuVisibilityToggles() {
               icon={item.icon}
               checked={item.checked}
               disabled={mutation.isPending}
-              onChange={(visible) =>
-                mutation.mutate({ [item.key]: !visible })
-              }
+              onChange={(visible) => mutation.mutate({ [item.key]: !visible })}
             />
           </Box>
         ))}
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
+        <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
       )}
     </Box>
   );
