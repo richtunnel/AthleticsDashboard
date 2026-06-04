@@ -261,9 +261,14 @@ function PricingPlansContent() {
     if (!priceId || !isValidPriceId(priceId)) {
       if (loadingPriceIds) {
         setError("Loading plan details — please try again in a moment.");
-      } else {
-        setError("This plan is not available right now. Please try again or contact support.");
+        return;
       }
+      // Dev bypass — Stripe not configured, go straight to dashboard
+      if (isDevelopment) {
+        router.push("/dashboard");
+        return;
+      }
+      setError("This plan is not available right now. Please try again or contact support.");
       return;
     }
 
@@ -331,6 +336,20 @@ function PricingPlansContent() {
         <Box sx={{ maxWidth: 800, mx: "auto", mt: 0 }}>
           <TestModeIndicator variant="banner" />
         </Box>
+
+        {isDevelopment && sessionStatus === "authenticated" && (
+          <Alert
+            severity="success"
+            sx={{ mt: 3, mb: 2, maxWidth: 800, mx: "auto" }}
+            action={
+              <Button color="inherit" size="small" sx={{ fontWeight: 700, whiteSpace: "nowrap" }} onClick={() => router.push("/dashboard")}>
+                Skip to Dashboard →
+              </Button>
+            }
+          >
+            <strong>Dev mode:</strong> Click any plan or use the button to skip Stripe and go straight to the dashboard.
+          </Alert>
+        )}
 
         {!priceConfigured && isDevelopment && (
           <Alert severity="error" icon={<SettingsIcon />} sx={{ mt: 3, mb: 3, maxWidth: 800, mx: "auto" }}>

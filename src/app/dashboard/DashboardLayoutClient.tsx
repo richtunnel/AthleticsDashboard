@@ -58,6 +58,7 @@ import {
   SupportAgent,
   Newspaper,
   MenuBook,
+  LightbulbOutlined,
 } from "@mui/icons-material";
 
 import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
@@ -589,6 +590,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </Typography>
               </Box>
               <Divider />
+              <MenuItem component={Link} href="/dashboard/feature-tips" onClick={handleClose}>
+                <ListItemIcon>
+                  <LightbulbOutlined fontSize="small" />
+                </ListItemIcon>
+                Introduction
+              </MenuItem>
               <MenuItem component="a" href="/docs" target="_blank" rel="noopener noreferrer" onClick={handleClose}>
                 <ListItemIcon>
                   <MenuBook fontSize="small" />

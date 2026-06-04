@@ -88,6 +88,7 @@ export default function PostsPage() {
             </GameRequestUnreadBadge>
           }
           label="Game Requests"
+          sx={{ gap: 0.75 }}
         />
       </Tabs>
 
