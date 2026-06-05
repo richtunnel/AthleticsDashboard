@@ -14,9 +14,9 @@ export const gameImportWorker = new Worker<GameImportPayload>(
   `${QUEUE_PREFIX}-game-import`,
   async (job: Job<GameImportPayload>) => {
     return await importExportService.processImportJob({
-      ...job.data,
-      jobId: job.data.backgroundJobId,
-    });
+      ...job.data as any,
+      jobId: (job.data as any).backgroundJobId,
+    } as any);
   },
   {
     connection: bullConnection,
@@ -35,9 +35,9 @@ export const emailImportWorker = new Worker<EmailImportPayload>(
   `${QUEUE_PREFIX}-email-import`,
   async (job: Job<EmailImportPayload>) => {
     return await emailImportService.processImportJob({
-      ...job.data,
-      jobId: job.data.backgroundJobId,
-    });
+      ...job.data as any,
+      jobId: (job.data as any).backgroundJobId,
+    } as any);
   },
   {
     connection: bullConnection,

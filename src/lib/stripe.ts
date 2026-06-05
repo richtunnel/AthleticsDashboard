@@ -14,7 +14,7 @@ export function getStripe(): Stripe {
     const testMode = isStripeTestMode(key);
 
     stripeSingleton = new Stripe(key, {
-      apiVersion: "2026-01-28.clover",
+      apiVersion: "2026-01-28.clover" as any,
       typescript: true,
       appInfo: {
         name: "Opletics",
@@ -26,7 +26,7 @@ export function getStripe(): Stripe {
     if (testMode) {
       logTestModeInfo("Stripe client initialized", {
         mode: "test",
-        apiVersion: "2026-01-28.clover",
+        apiVersion: "2026-01-28.clover" as any,
       });
     }
   }

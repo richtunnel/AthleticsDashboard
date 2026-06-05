@@ -12,7 +12,7 @@ const QUEUE_PREFIX = process.env.BULLMQ_PREFIX || "opletics";
 export const stripeWebhookWorker = new Worker<StripeWebhookPayload>(
   `${QUEUE_PREFIX}-stripe-webhook`,
   async (job: Job<StripeWebhookPayload>) => {
-    return await stripeWebhookService.processWebhookEvent(job.data.event);
+    return await stripeWebhookService.processWebhookEvent(job.data.event as any);
   },
   {
     connection: bullConnection,

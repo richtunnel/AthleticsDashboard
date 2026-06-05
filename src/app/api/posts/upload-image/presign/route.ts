@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       CacheControl: "public, max-age=31536000, immutable",
     });
 
-    const uploadUrl = await getSignedUrl(s3Client, cmd, {
+    const uploadUrl = await getSignedUrl(s3Client as any, cmd, {
       expiresIn: PRESIGN_TTL_SECONDS,
       // These four are the ONLY headers the client is required to send. The
       // signature is locked to them; anything else the browser auto-adds

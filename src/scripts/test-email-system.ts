@@ -24,7 +24,7 @@ async function test() {
       subject: "Test Subject",
       body: "<p>Test Body</p>",
     });
-    console.log(`Enqueued job: ${job.id}, totalCount: ${job.totalCount}`);
+    console.log(`Enqueued job: ${job.id}, totalCount: ${(job as any).totalCount ?? "n/a"}`);
   } catch (error: any) {
     console.error("Enqueuing failed:", error.message);
   }

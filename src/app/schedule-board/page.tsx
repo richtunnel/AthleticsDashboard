@@ -12,10 +12,8 @@ import BusinessIcon     from "@mui/icons-material/Business";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ScheduleBoardCard }    from "@/components/schedule-board/ScheduleBoardCard";
-import { ScheduleBoardFilters } from "@/components/schedule-board/ScheduleBoardFilters";
 import { SchoolSearchBar }      from "@/components/schedule-board/SchoolSearchBar";
 
-type SportFilter = { sport: string; level: string; gender: string } | null;
 
 interface School {
   userId:     string;
@@ -55,7 +53,6 @@ interface ApiResponse {
 const PROMPT_DISMISSED_KEY = "schedule-board-district-prompt-dismissed";
 
 export default function ScheduleBoardPage() {
-  const [sportFilter,       setSportFilter]       = useState<SportFilter>(null);
   const [schoolFilter,      setSchoolFilter]       = useState<string | null>(null);
   const [districtFilter,    setDistrictFilter]     = useState<string>(""); // "" = use API default
   const [page,              setPage]               = useState(1);
@@ -94,16 +91,7 @@ export default function ScheduleBoardPage() {
     }
   }, [data, districtInitialized]);
 
-  // Client-side sport filter (fast, avoids re-fetch)
-  const schools: School[] = (data?.schools ?? []).filter((s) => {
-    if (!sportFilter) return true;
-    return s.combos.some(
-      (c) =>
-        c.sport  === sportFilter.sport  &&
-        c.level  === sportFilter.level  &&
-        c.gender === sportFilter.gender
-    );
-  });
+  const schools: School[] = data?.schools ?? [];
 
   const pagination         = data?.pagination;
   const userDistrict       = data?.userDistrict ?? null;
@@ -211,7 +199,6 @@ export default function ScheduleBoardPage() {
           gap={2}
         >
           <SchoolSearchBar onSelect={(id) => { setSchoolFilter(id); setPage(1); }} />
-          <ScheduleBoardFilters selected={sportFilter} onChange={setSportFilter} />
         </Stack>
       </Stack>
 
@@ -227,7 +214,7 @@ export default function ScheduleBoardPage() {
             No schools posted yet
           </Typography>
           <Typography variant="body2">
-            {sportFilter || schoolFilter || (districtFilter && districtFilter !== "all")
+            {schoolFilter || (districtFilter && districtFilter !== "all")
               ? "Try clearing your filters."
               : "Be the first — head to Posts › Schedule Post to publish your open dates."}
           </Typography>
@@ -255,7 +242,7 @@ export default function ScheduleBoardPage() {
         <>
           <Grid container spacing={2}>
             {schools.map((school) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={school.userId}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={school.userId}>
                 <ScheduleBoardCard
                   userId={school.userId}
                   name={school.name}

@@ -29,15 +29,7 @@ import {
   TextField,
   FormHelperText,
 } from "@mui/material";
-import {
-  Add,
-  Delete,
-  Edit,
-  Info,
-  SyncLock,
-  Warning,
-  LinkOff,
-} from "@mui/icons-material";
+import { Add, Delete, Edit, Info, SyncLock, Warning, LinkOff } from "@mui/icons-material";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useTheme as customTheme } from "@mui/material/styles";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
@@ -94,14 +86,12 @@ const fetchGoogleCalendars = async (
    * to also be logged in as an AD in this browser — returns the AD's calendars
    * instead of the parent's (a real session-bleed bug).
    */
-  parentMode: boolean
+  parentMode: boolean,
 ): Promise<{
   calendars: GoogleCalendar[];
   grantEmail?: string | null;
 }> => {
-  const url = parentMode
-    ? "/api/parent/calendar/list"
-    : "/api/calendar/list-calendars";
+  const url = parentMode ? "/api/parent/calendar/list" : "/api/calendar/list-calendars";
   const res = await fetch(url);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -132,20 +122,13 @@ interface CalendarGroupMappingsProps {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function CalendarGroupMappings({
-  connectedEmailOverride,
-  parentMode = false,
-}: CalendarGroupMappingsProps = {}) {
+export function CalendarGroupMappings({ connectedEmailOverride, parentMode = false }: CalendarGroupMappingsProps = {}) {
   const { addNotification } = useNotifications();
   const theme = customTheme();
   const { data: session } = useSession();
-  const connectedEmail =
-    connectedEmailOverride !== undefined
-      ? connectedEmailOverride
-      : (session?.user as any)?.googleCalendarEmail || null;
+  const connectedEmail = connectedEmailOverride !== undefined ? connectedEmailOverride : (session?.user as any)?.googleCalendarEmail || null;
   const queryClient = useQueryClient();
-  const { disconnect: disconnectCalendar, connect: connectCalendar } =
-    useGoogleCalendarConnection();
+  const { disconnect: disconnectCalendar, connect: connectCalendar } = useGoogleCalendarConnection();
 
   // ── Dialog open / close ───────────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -194,9 +177,7 @@ export function CalendarGroupMappings({
   const { data: columnsData, isLoading: columnsLoading } = useQuery({
     queryKey: ["workbookColumns", selectedWorkbookId],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/calendar/workbook-columns?workbookId=${encodeURIComponent(selectedWorkbookId)}`
-      );
+      const res = await fetch(`/api/calendar/workbook-columns?workbookId=${encodeURIComponent(selectedWorkbookId)}`);
       if (!res.ok) throw new Error("Failed to fetch columns");
       return res.json() as Promise<{ columns: string[] }>;
     },
@@ -208,11 +189,7 @@ export function CalendarGroupMappings({
   const { data: valuesData, isLoading: valuesLoading } = useQuery({
     queryKey: ["workbookColumnValues", selectedWorkbookId, newMapping.columnName],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/calendar/workbook-columns?workbookId=${encodeURIComponent(
-          selectedWorkbookId
-        )}&columnName=${encodeURIComponent(newMapping.columnName)}`
-      );
+      const res = await fetch(`/api/calendar/workbook-columns?workbookId=${encodeURIComponent(selectedWorkbookId)}&columnName=${encodeURIComponent(newMapping.columnName)}`);
       if (!res.ok) throw new Error("Failed to fetch values");
       return res.json() as Promise<{ values: string[] }>;
     },
@@ -230,9 +207,7 @@ export function CalendarGroupMappings({
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const createMappingMutation = useMutation({
-    mutationFn: async (
-      mapping: Omit<CalendarGroupMapping, "id" | "createdAt" | "updatedAt">
-    ) => {
+    mutationFn: async (mapping: Omit<CalendarGroupMapping, "id" | "createdAt" | "updatedAt">) => {
       const res = await fetch("/api/calendar/group-mappings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,10 +255,7 @@ export function CalendarGroupMappings({
   // there without hunting down each mapping row individually.
   const disconnectCalendarMutation = useMutation({
     mutationFn: async (calendarId: string) => {
-      const res = await fetch(
-        `/api/calendar/group-mappings?calendarId=${encodeURIComponent(calendarId)}`,
-        { method: "DELETE" }
-      );
+      const res = await fetch(`/api/calendar/group-mappings?calendarId=${encodeURIComponent(calendarId)}`, { method: "DELETE" });
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
         throw new Error(error.error || "Failed to disconnect calendar");
@@ -292,10 +264,7 @@ export function CalendarGroupMappings({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["calendarGroupMappings"] });
-      addNotification(
-        `Disconnected calendar — removed ${data.deleted} mapping${data.deleted === 1 ? "" : "s"}.`,
-        "success"
-      );
+      addNotification(`Disconnected calendar — removed ${data.deleted} mapping${data.deleted === 1 ? "" : "s"}.`, "success");
     },
     onError: (error: Error) => {
       addNotification(error.message || "Failed to disconnect calendar", "error");
@@ -326,9 +295,7 @@ export function CalendarGroupMappings({
       if (existing) {
         existing.count++;
       } else {
-        const cal = (calendarsData?.calendars ?? []).find(
-          (c) => c.id === m.googleCalendarId
-        );
+        const cal = (calendarsData?.calendars ?? []).find((c) => c.id === m.googleCalendarId);
         map.set(m.googleCalendarId, {
           id: m.googleCalendarId,
           name: m.googleCalendarName,
@@ -392,12 +359,7 @@ export function CalendarGroupMappings({
   };
 
   const handleAddMapping = () => {
-    if (
-      !newMapping.columnName?.trim() ||
-      !newMapping.columnValue?.trim() ||
-      !newMapping.googleCalendarId?.trim() ||
-      !newMapping.googleCalendarName?.trim()
-    ) {
+    if (!newMapping.columnName?.trim() || !newMapping.columnValue?.trim() || !newMapping.googleCalendarId?.trim() || !newMapping.googleCalendarName?.trim()) {
       addNotification("Please fill in all fields", "warning");
       return;
     }
@@ -426,18 +388,12 @@ export function CalendarGroupMappings({
   const handleReconnect = async () => {
     try {
       setIsReconnecting(true);
-      addNotification(
-        "Redirecting to Google to update permissions...",
-        "info"
-      );
+      addNotification("Redirecting to Google to update permissions...", "info");
       await disconnectCalendar();
       await connectCalendar(window.location.pathname);
     } catch (error) {
       console.error("Reconnection error:", error);
-      addNotification(
-        "Failed to reconnect calendar. Please try again.",
-        "error"
-      );
+      addNotification("Failed to reconnect calendar. Please try again.", "error");
       setIsReconnecting(false);
     }
   };
@@ -446,24 +402,14 @@ export function CalendarGroupMappings({
 
   const hasInsufficientScopes =
     calendarsError instanceof Error &&
-    (calendarsError.message.includes("Insufficient permissions") ||
-      calendarsError.message.includes(
-        "insufficient authentication scopes"
-      ) ||
-      calendarsError.message.includes("reconnect"));
+    (calendarsError.message.includes("Insufficient permissions") || calendarsError.message.includes("insufficient authentication scopes") || calendarsError.message.includes("reconnect"));
 
   const selectedWorkbook = workbooks.find((w) => w.id === selectedWorkbookId);
   const columnNames = columnsData?.columns ?? [];
   const columnValues = valuesData?.values ?? [];
-  const selectedCalendar =
-    calendarsData?.calendars.find(
-      (c) => c.id === newMapping.googleCalendarId
-    ) ?? null;
+  const selectedCalendar = calendarsData?.calendars.find((c) => c.id === newMapping.googleCalendarId) ?? null;
 
-  const canSubmit =
-    !!newMapping.columnName.trim() &&
-    !!newMapping.columnValue.trim() &&
-    !!newMapping.googleCalendarId;
+  const canSubmit = !!newMapping.columnName.trim() && !!newMapping.columnValue.trim() && !!newMapping.googleCalendarId;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -484,31 +430,16 @@ export function CalendarGroupMappings({
           icon={<Warning />}
           sx={{ mb: 3 }}
           action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={handleReconnect}
-              disabled={isReconnecting}
-              sx={{ textTransform: "none" }}
-            >
-              {isReconnecting && (
-                <CircularProgress
-                  size={16}
-                  color="inherit"
-                  sx={{ mr: 1 }}
-                />
-              )}
+            <Button color="inherit" size="small" onClick={handleReconnect} disabled={isReconnecting} sx={{ textTransform: "none" }}>
+              {isReconnecting && <CircularProgress size={16} color="inherit" sx={{ mr: 1 }} />}
               {isReconnecting ? "Reconnecting..." : "Reconnect Now"}
             </Button>
           }
         >
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Calendar Permissions Update Required
+            Calendar Permissions Update Required for Calendar Grouping
           </Typography>
-          <Typography variant="body2">
-            Your Google Calendar connection needs additional permissions to
-            list calendars. Please reconnect to grant access.
-          </Typography>
+          <Typography variant="body2">Your Google Calendar connection needs additional permissions to use Calendar Group Mapping. Please connect to grant access.</Typography>
         </Alert>
       )}
 
@@ -524,45 +455,27 @@ export function CalendarGroupMappings({
         <Box>
           <Typography variant="h6">Calendar Group Mappings</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Map your game columns to specific Google Calendar groups for
-            organized scheduling
+            Map your game columns to specific Google Calendar groups for organized scheduling
           </Typography>
           {connectedEmail && (
-            <Typography
-              variant="caption"
-              color="text.disabled"
-              sx={{ mt: 0.5, display: "block" }}
-            >
+            <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: "block" }}>
               Connected as: {connectedEmail}
             </Typography>
           )}
           {/* When the Google grant email differs from connectedEmail it's a
               strong hint of session bleed (e.g. AD cookie active on parent
               page). Show it so the user can spot the mismatch. */}
-          {calendarsData?.grantEmail &&
-            connectedEmail &&
-            calendarsData.grantEmail.toLowerCase() !==
-              connectedEmail.toLowerCase() && (
-              <Typography
-                variant="caption"
-                color="warning.main"
-                sx={{ mt: 0.5, display: "block", fontWeight: 600 }}
-              >
-                ⚠ Calendars are being read from {calendarsData.grantEmail}, not{" "}
-                {connectedEmail}. Sign out of the other account or reconnect
-                this one to fix.
-              </Typography>
-            )}
+          {calendarsData?.grantEmail && connectedEmail && calendarsData.grantEmail.toLowerCase() !== connectedEmail.toLowerCase() && (
+            <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: "block", fontWeight: 600 }}>
+              ⚠ Calendars are being read from {calendarsData.grantEmail}, not {connectedEmail}. Sign out of the other account or reconnect this one to fix.
+            </Typography>
+          )}
         </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={handleOpenDialog}
-          disabled={
-            hasInsufficientScopes ||
-            calendarsLoading ||
-            calendarsError !== null
-          }
+          disabled={hasInsufficientScopes || calendarsLoading || calendarsError !== null}
           sx={{
             textTransform: "none",
             color: theme.palette.themeButtonText.main,
@@ -576,10 +489,8 @@ export function CalendarGroupMappings({
       {!hasInsufficientScopes && !calendarsError && (
         <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
           <Typography variant="body2">
-            <strong>How it works:</strong> When syncing a game to your
-            Google Calendar, the system checks your spreadsheet column
-            values and routes games to the matching calendar group. Games
-            with no matching mapping fall back to your primary calendar.
+            <strong>How it works:</strong> When syncing a game to your Google Calendar, the system checks your spreadsheet column values and routes games to the matching calendar group. Games with no
+            matching mapping fall back to your primary calendar.
           </Typography>
         </Alert>
       )}
@@ -591,15 +502,12 @@ export function CalendarGroupMappings({
             Connected Calendars
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-            Calendars (and the Google accounts that own them) currently receiving
-            games from your mappings. Disconnect to stop routing games to a
-            calendar — every mapping pointing to it will be removed.
+            Calendars (and the Google accounts that own them) currently receiving games from your mappings. Disconnect to stop routing games to a calendar — every mapping pointing to it will be
+            removed.
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {connectedCalendarsInUse.map((cal) => {
-              const pending =
-                disconnectCalendarMutation.isPending &&
-                (disconnectCalendarMutation.variables as string) === cal.id;
+              const pending = disconnectCalendarMutation.isPending && (disconnectCalendarMutation.variables as string) === cal.id;
               return (
                 <Box
                   key={cal.id}
@@ -618,14 +526,7 @@ export function CalendarGroupMappings({
                       <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                         {cal.name}
                       </Typography>
-                      {cal.isPrimary && (
-                        <Chip
-                          label="Primary"
-                          size="small"
-                          color="primary"
-                          sx={{ height: 18, fontSize: "0.65rem" }}
-                        />
-                      )}
+                      {cal.isPrimary && <Chip label="Primary" size="small" color="primary" sx={{ height: 18, fontSize: "0.65rem" }} />}
                       {accessRoleLabel(cal.accessRole) && (
                         <Tooltip
                           title={
@@ -643,30 +544,18 @@ export function CalendarGroupMappings({
                           />
                         </Tooltip>
                       )}
-                      <Chip
-                        label={`${cal.count} mapping${cal.count === 1 ? "" : "s"}`}
-                        size="small"
-                        variant="outlined"
-                        sx={{ height: 18, fontSize: "0.65rem" }}
-                      />
+                      <Chip label={`${cal.count} mapping${cal.count === 1 ? "" : "s"}`} size="small" variant="outlined" sx={{ height: 18, fontSize: "0.65rem" }} />
                     </Box>
                     {/* Calendar IDs are often emails for shared calendars — surface that */}
                     {cal.id !== cal.name && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontFamily: "monospace", display: "block", mt: 0.25 }}
-                        noWrap
-                      >
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace", display: "block", mt: 0.25 }} noWrap>
                         {cal.id}
                       </Typography>
                     )}
                   </Box>
                   <Tooltip
                     title={
-                      cal.isPrimary
-                        ? "This is your primary Google Calendar — disconnecting only removes its mappings, not the calendar itself."
-                        : "Remove every mapping that routes to this calendar"
+                      cal.isPrimary ? "This is your primary Google Calendar — disconnecting only removes its mappings, not the calendar itself." : "Remove every mapping that routes to this calendar"
                     }
                   >
                     <span>
@@ -674,20 +563,10 @@ export function CalendarGroupMappings({
                         size="small"
                         variant="outlined"
                         color="error"
-                        startIcon={
-                          pending ? (
-                            <CircularProgress size={12} color="inherit" />
-                          ) : (
-                            <LinkOff sx={{ fontSize: 14 }} />
-                          )
-                        }
+                        startIcon={pending ? <CircularProgress size={12} color="inherit" /> : <LinkOff sx={{ fontSize: 14 }} />}
                         disabled={disconnectCalendarMutation.isPending}
                         onClick={() => {
-                          if (
-                            window.confirm(
-                              `Disconnect "${cal.name}"? This will remove ${cal.count} mapping${cal.count === 1 ? "" : "s"} that route games to this calendar.`
-                            )
-                          ) {
+                          if (window.confirm(`Disconnect "${cal.name}"? This will remove ${cal.count} mapping${cal.count === 1 ? "" : "s"} that route games to this calendar.`)) {
                             disconnectCalendarMutation.mutate(cal.id);
                           }
                         }}
@@ -724,20 +603,14 @@ export function CalendarGroupMappings({
                   </TableCell>
                   <TableCell>{mapping.columnValue}</TableCell>
                   <TableCell>
-                    <Box
-                      sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                    >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
                       {mapping.googleCalendarName}
                     </Box>
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Delete mapping">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteMapping(mapping.id)}
-                        disabled={deleteMappingMutation.isPending}
-                      >
+                      <IconButton size="small" onClick={() => handleDeleteMapping(mapping.id)} disabled={deleteMappingMutation.isPending}>
                         <Delete />
                       </IconButton>
                     </Tooltip>
@@ -750,24 +623,17 @@ export function CalendarGroupMappings({
       ) : (
         <Paper sx={{ p: 3, textAlign: "center" }}>
           <Typography variant="body2" color="text.secondary">
-            No calendar group mappings configured yet. Click &quot;Add
-            Mapping&quot; to get started.
+            No calendar group mappings configured yet. Click &quot;Add Mapping&quot; to get started.
           </Typography>
         </Paper>
       )}
 
       {/* ── Add Mapping Dialog ─────────────────────────────────────────────── */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={dialogOpen} onClose={handleDialogClose} maxWidth="sm" fullWidth>
         <DialogTitle>Add Calendar Group Mapping</DialogTitle>
 
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 1 }}>
-
             {/* ── Worksheet selector ──────────────────────────────────────── */}
             <Box
               sx={{
@@ -783,22 +649,14 @@ export function CalendarGroupMappings({
                 minHeight: 44,
               }}
             >
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ flexShrink: 0, fontWeight: 600, mr: 0.5 }}
-              >
+              <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, fontWeight: 600, mr: 0.5 }}>
                 Worksheet:
               </Typography>
 
               {editingWorkbook ? (
                 <Autocomplete<Workbook>
                   options={workbooks}
-                  getOptionLabel={(w) =>
-                    w._count?.games !== undefined
-                      ? `${w.name}  (${w._count.games} games)`
-                      : w.name
-                  }
+                  getOptionLabel={(w) => (w._count?.games !== undefined ? `${w.name}  (${w._count.games} games)` : w.name)}
                   isOptionEqualToValue={(o, v) => o.id === v.id}
                   value={selectedWorkbook ?? null}
                   onChange={(_, wb) => handleWorkbookChange(wb)}
@@ -806,46 +664,22 @@ export function CalendarGroupMappings({
                   openOnFocus
                   size="small"
                   sx={{ flex: 1 }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder="Search worksheets…"
-                      variant="outlined"
-                      size="small"
-                    />
-                  )}
+                  renderInput={(params) => <TextField {...params} placeholder="Search worksheets…" variant="outlined" size="small" />}
                   noOptionsText="No worksheets found"
                   onBlur={() => setEditingWorkbook(false)}
                 />
               ) : (
                 <>
-                  <Typography
-                    variant="body2"
-                    fontWeight={600}
-                    sx={{ flex: 1 }}
-                  >
-                    {selectedWorkbook?.name ?? (
-                      <em style={{ fontWeight: 400, opacity: 0.6 }}>
-                        No worksheet selected
-                      </em>
-                    )}
+                  <Typography variant="body2" fontWeight={600} sx={{ flex: 1 }}>
+                    {selectedWorkbook?.name ?? <em style={{ fontWeight: 400, opacity: 0.6 }}>No worksheet selected</em>}
                     {selectedWorkbook?._count?.games !== undefined && (
-                      <Typography
-                        component="span"
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ ml: 0.75 }}
-                      >
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.75 }}>
                         ({selectedWorkbook._count.games} games)
                       </Typography>
                     )}
                   </Typography>
                   <Tooltip title="Change worksheet">
-                    <IconButton
-                      size="small"
-                      onClick={() => setEditingWorkbook(true)}
-                      sx={{ flexShrink: 0 }}
-                    >
+                    <IconButton size="small" onClick={() => setEditingWorkbook(true)} sx={{ flexShrink: 0 }}>
                       <Edit fontSize="small" />
                     </IconButton>
                   </Tooltip>
@@ -860,30 +694,18 @@ export function CalendarGroupMappings({
               onChange={(_, v) => handleColumnNameChange(v)}
               loading={columnsLoading}
               disabled={hasInsufficientScopes || !selectedWorkbookId}
-              noOptionsText={
-                !selectedWorkbookId
-                  ? "Select a worksheet first"
-                  : columnsLoading
-                  ? "Loading columns…"
-                  : "No columns found in this worksheet"
-              }
+              noOptionsText={!selectedWorkbookId ? "Select a worksheet first" : columnsLoading ? "Loading columns…" : "No columns found in this worksheet"}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Column Name"
                   placeholder="Search columns…"
-                  helperText={
-                    columnNames.length > 0
-                      ? `${columnNames.length} column${columnNames.length !== 1 ? "s" : ""} found in this worksheet`
-                      : "Select a worksheet to see its columns"
-                  }
+                  helperText={columnNames.length > 0 ? `${columnNames.length} column${columnNames.length !== 1 ? "s" : ""} found in this worksheet` : "Select a worksheet to see its columns"}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {columnsLoading && (
-                          <CircularProgress color="inherit" size={16} />
-                        )}
+                        {columnsLoading && <CircularProgress color="inherit" size={16} />}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -896,22 +718,10 @@ export function CalendarGroupMappings({
             <Autocomplete
               options={columnValues}
               value={newMapping.columnValue || null}
-              onChange={(_, v) =>
-                setNewMapping((prev) => ({ ...prev, columnValue: v ?? "" }))
-              }
+              onChange={(_, v) => setNewMapping((prev) => ({ ...prev, columnValue: v ?? "" }))}
               loading={valuesLoading}
-              disabled={
-                hasInsufficientScopes ||
-                !newMapping.columnName ||
-                !selectedWorkbookId
-              }
-              noOptionsText={
-                !newMapping.columnName
-                  ? "Select a column first"
-                  : valuesLoading
-                  ? "Loading values…"
-                  : "No values found for this column"
-              }
+              disabled={hasInsufficientScopes || !newMapping.columnName || !selectedWorkbookId}
+              noOptionsText={!newMapping.columnName ? "Select a column first" : valuesLoading ? "Loading values…" : "No values found for this column"}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -921,16 +731,14 @@ export function CalendarGroupMappings({
                     !newMapping.columnName
                       ? "Select a column above to see its values"
                       : columnValues.length > 0
-                      ? `${columnValues.length} unique value${columnValues.length !== 1 ? "s" : ""} in this column`
-                      : "No values found"
+                        ? `${columnValues.length} unique value${columnValues.length !== 1 ? "s" : ""} in this column`
+                        : "No values found"
                   }
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
                       <>
-                        {valuesLoading && (
-                          <CircularProgress color="inherit" size={16} />
-                        )}
+                        {valuesLoading && <CircularProgress color="inherit" size={16} />}
                         {params.InputProps.endAdornment}
                       </>
                     ),
@@ -940,10 +748,7 @@ export function CalendarGroupMappings({
             />
 
             {/* ── Google Calendar ──────────────────────────────────────────── */}
-            <FormControl
-              fullWidth
-              error={!!calendarsError && !hasInsufficientScopes}
-            >
+            <FormControl fullWidth error={!!calendarsError && !hasInsufficientScopes}>
               <Autocomplete<GoogleCalendar>
                 options={calendarsData?.calendars ?? []}
                 getOptionLabel={(c) => c.name}
@@ -957,18 +762,8 @@ export function CalendarGroupMappings({
                   }))
                 }
                 loading={calendarsLoading}
-                disabled={
-                  hasInsufficientScopes ||
-                  calendarsLoading ||
-                  (calendarsError !== null && !hasInsufficientScopes)
-                }
-                noOptionsText={
-                  hasInsufficientScopes
-                    ? "Please reconnect your calendar first"
-                    : calendarsError
-                    ? "Error loading calendars"
-                    : "No calendars found"
-                }
+                disabled={hasInsufficientScopes || calendarsLoading || (calendarsError !== null && !hasInsufficientScopes)}
+                noOptionsText={hasInsufficientScopes ? "Please reconnect your calendar first" : calendarsError ? "Error loading calendars" : "No calendars found"}
                 renderOption={(props, cal) => (
                   <li {...props} key={cal.id}>
                     <Box
@@ -981,9 +776,7 @@ export function CalendarGroupMappings({
                     >
                       <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
                       <span style={{ flex: 1 }}>{cal.name}</span>
-                      {cal.primary && (
-                        <Chip label="Primary" size="small" />
-                      )}
+                      {cal.primary && <Chip label="Primary" size="small" />}
                     </Box>
                   </li>
                 )}
@@ -996,9 +789,7 @@ export function CalendarGroupMappings({
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {calendarsLoading && (
-                            <CircularProgress color="inherit" size={16} />
-                          )}
+                          {calendarsLoading && <CircularProgress color="inherit" size={16} />}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -1006,49 +797,25 @@ export function CalendarGroupMappings({
                   />
                 )}
               />
-              {calendarsError && !hasInsufficientScopes && (
-                <FormHelperText>
-                  Error loading calendars. Try reconnecting your Google
-                  Calendar.
-                </FormHelperText>
-              )}
+              {calendarsError && !hasInsufficientScopes && <FormHelperText>Error loading calendars. Try reconnecting your Google Calendar.</FormHelperText>}
             </FormControl>
 
             {/* Info tip */}
             <Alert severity="info">
               <Typography variant="caption">
-                <strong>Example:</strong> Select the column that identifies
-                teams (e.g. &quot;Team&quot; or &quot;Sports Level&quot;),
-                then pick the exact value (e.g. &quot;Junior Varsity
-                Basketball&quot;). All games with that value will sync to the
-                chosen calendar.
+                <strong>Example:</strong> Select the column that identifies teams (e.g. &quot;Team&quot; or &quot;Sports Level&quot;), then pick the exact value (e.g. &quot;Junior Varsity
+                Basketball&quot;). All games with that value will sync to the chosen calendar.
               </Typography>
             </Alert>
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button
-            onClick={handleDialogClose}
-            sx={{ textTransform: "none" }}
-          >
+          <Button onClick={handleDialogClose} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
-          <Button
-            onClick={handleAddMapping}
-            variant="contained"
-            disabled={
-              createMappingMutation.isPending ||
-              hasInsufficientScopes ||
-              !canSubmit
-            }
-            sx={{ textTransform: "none" }}
-          >
-            {createMappingMutation.isPending ? (
-              <CircularProgress size={20} />
-            ) : (
-              "Add Mapping"
-            )}
+          <Button onClick={handleAddMapping} variant="contained" disabled={createMappingMutation.isPending || hasInsufficientScopes || !canSubmit} sx={{ textTransform: "none" }}>
+            {createMappingMutation.isPending ? <CircularProgress size={20} /> : "Add Mapping"}
           </Button>
         </DialogActions>
       </Dialog>

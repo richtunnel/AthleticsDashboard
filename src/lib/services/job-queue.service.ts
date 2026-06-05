@@ -15,6 +15,8 @@ export interface JobProgress {
   id: string;
   type: JobType;
   status: JobStatus;
+  userId?: string | null;
+  organizationId?: string | null;
   progress?: {
     current?: number;
     total?: number;
@@ -138,12 +140,14 @@ export class JobQueueService {
     if (!job) return null;
 
     // Extract progress from payload if available
-    const progress = job.payload?.progress as JobProgress["progress"] | undefined;
+    const progress = (job.payload as any)?.progress as JobProgress["progress"] | undefined;
 
     return {
       id: job.id,
       type: job.type,
       status: job.status,
+      userId: job.userId,
+      organizationId: job.organizationId,
       progress,
       result: job.result,
       error: job.error,
@@ -273,7 +277,7 @@ export class JobQueueService {
       id: job.id,
       type: job.type,
       status: job.status,
-      progress: job.payload?.progress,
+      progress: (job.payload as any)?.progress,
       result: job.result,
       error: job.error,
       attempts: job.attempts,

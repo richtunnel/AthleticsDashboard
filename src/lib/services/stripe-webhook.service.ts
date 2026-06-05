@@ -126,8 +126,9 @@ export class StripeWebhookService {
     const planType = this.toPlanType(billingCycle) ?? (existing?.planType as PlanType) ?? null;
 
     const status = this.mapStripeStatus(stripeSubscription.status);
-    const currentPeriodStart = this.toDate(stripeSubscription.current_period_start);
-    const currentPeriodEnd = this.toDate(stripeSubscription.current_period_end);
+    const sub = stripeSubscription as any;
+    const currentPeriodStart = this.toDate(sub.current_period_start ?? sub.start_date);
+    const currentPeriodEnd = this.toDate(sub.current_period_end ?? sub.ended_at);
     const cancelAt = this.toDate(stripeSubscription.cancel_at);
     const canceledAt = this.toDate(stripeSubscription.canceled_at);
     const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end ?? false;
@@ -220,7 +221,8 @@ export class StripeWebhookService {
   }
 
   private async handlePaymentSuccess(invoice: Stripe.Invoice) {
-    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    const inv = invoice as any;
+    const subscriptionId = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
     if (!subscriptionId) return;
 
     const subscriptionRecord = await prisma.subscription.findFirst({
@@ -280,7 +282,8 @@ export class StripeWebhookService {
   }
 
   private async handlePaymentFailure(invoice: Stripe.Invoice) {
-    const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+    const inv2 = invoice as any;
+    const subscriptionId = typeof inv2.subscription === 'string' ? inv2.subscription : inv2.subscription?.id;
     if (!subscriptionId) return;
 
     const subscriptionRecord = await prisma.subscription.findFirst({
@@ -387,7 +390,7 @@ export class StripeWebhookService {
     }
 
     if (invoice) {
-      const line = invoice.lines?.data?.[0];
+      const line = (invoice.lines?.data?.[0]) as any;
       return line?.price?.nickname ?? line?.price?.lookup_key ?? line?.price?.id ?? null;
     }
 

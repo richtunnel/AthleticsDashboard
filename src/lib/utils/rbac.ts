@@ -69,7 +69,7 @@ export async function checkCollaborativeAccess(
     // For now, we assume if there's no collaboration record, they're the owner
     // The actual ownership check would be done via session context
     return {
-      hasAccess: context === "ADMIN" ? true : context !== "ADMIN",
+      hasAccess: true, // owner has full access regardless of context
       isOwner: true,
     };
   }

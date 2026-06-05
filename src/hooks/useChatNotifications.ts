@@ -47,13 +47,13 @@ export function useChatNotifications(streamUrl: string) {
           icon: "/favicon.ico",
           badge: "/favicon.ico",
           tag: conversationId ? `chat-${conversationId}` : "chat",
-          renotify: true, // ring again even if same tag already shown
+          renotify: true, // ring again even if same tag already shown (TS type gap, valid browser API)
           data: {
             url: conversationId
               ? `/dashboard/messages?conversation=${conversationId}`
               : "/dashboard/messages",
           },
-        });
+        } as NotificationOptions);
       } catch {
         // Desktop notifications are best-effort; never let them crash the hook
       }

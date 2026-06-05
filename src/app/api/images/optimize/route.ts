@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
     // Apply resizing if dimensions specified
     if (width || height) {
       sharpInstance = sharpInstance.resize({
-        width: width || null,
-        height: height || null,
+        width: width || undefined,
+        height: height || undefined,
         fit: "inside",
         withoutEnlargement: true,
       });
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     const contentType = `image/${format}`;
     
     // Return optimized image
-    return new NextResponse(optimizedBuffer, {
+    return new NextResponse(optimizedBuffer as unknown as BodyInit, {
       headers: {
         "Content-Type": contentType,
         "Content-Length": optimizedBuffer.length.toString(),

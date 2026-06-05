@@ -5,8 +5,30 @@ import { prisma } from "@/lib/database/prisma";
 import { getStripe } from "@/lib/stripe";
 import { logTestModeInfo } from "@/lib/stripe-config";
 import { jobQueueService } from "@/lib/services/job-queue.service";
-import { JobType } from "@prisma/client";
+import { JobType, Prisma, SubscriptionStatus, PlanType } from "@prisma/client";
 import { slackService } from "@/lib/services/slack.service";
+import { emailService } from "@/lib/services/email.service";
+import { runNonCritical } from "@/lib/utils/nonCritical";
+import { getAccountCleanupConfig, calculateDeletionDeadline } from "@/lib/utils/accountCleanup";
+
+// ── Local type aliases ───────────────────────────────────────────────────────
+const userSelect = {
+  id: true, email: true, name: true, plan: true,
+  stripeCustomerId: true, schoolName: true, teamName: true,
+} as const;
+type SelectedUser         = Prisma.UserGetPayload<{ select: typeof userSelect }>;
+type SubscriptionStatusEnum = SubscriptionStatus;
+type PlanTypeEnum           = PlanType;
+interface SubscriptionSyncResult {
+  subscription:    any;
+  previousStatus:  SubscriptionStatusEnum | null;
+  previousCancelAt: Date | null;
+  planPriceId:     string | null;
+  planLookupKey:   string | null;
+  planNickname:    string | null;
+  planProductId:   string | null;
+  user:            SelectedUser;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

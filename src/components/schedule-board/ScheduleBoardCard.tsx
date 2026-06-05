@@ -7,10 +7,8 @@ import {
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import LocationOnIcon    from "@mui/icons-material/LocationOn";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import NextLink from "next/link";
-import { sportComboLabel } from "@/lib/utils/formatGameDateTime";
 import { ViewScheduleModal } from "./ViewScheduleModal";
 
 interface Combo {
@@ -60,6 +58,8 @@ export function ScheduleBoardCard({
             ? alpha(theme.palette.primary.main, 0.4)
             : "divider",
           borderRadius: 3,
+          minWidth:     350,
+          minHeight:    250,
           height:       "100%",
           display:      "flex",
           flexDirection: "column",
@@ -150,26 +150,6 @@ export function ScheduleBoardCard({
           </Stack>
 
           <Divider sx={{ mb: 1.5 }} />
-
-          {/* Sport combos */}
-          <Stack direction="row" alignItems="center" gap={0.5} sx={{ mb: 1 }}>
-            <CalendarTodayIcon sx={{ fontSize: 13, color: "text.disabled" }} />
-            <Typography variant="caption" color="text.secondary" fontWeight={600}>
-              {combos.length} sport{combos.length !== 1 ? "s" : ""} available
-            </Typography>
-          </Stack>
-
-          <Stack direction="row" flexWrap="wrap" gap={0.75}>
-            {combos.map((c) => (
-              <Chip
-                key={c.postId}
-                label={sportComboLabel(c.sport, c.level, c.gender)}
-                size="small"
-                variant="outlined"
-                sx={{ fontSize: "0.68rem" }}
-              />
-            ))}
-          </Stack>
         </CardContent>
 
         <CardActions sx={{ px: { xs: 2, sm: 2.5 }, pb: 2, pt: 0 }}>
