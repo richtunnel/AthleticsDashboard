@@ -8,24 +8,18 @@ import { prisma } from "@/lib/database/prisma";
  * unique text values > 4 characters to create opponent records.
  */
 
-// Known opponent column name patterns (case-insensitive)
-const OPPONENT_COLUMN_NAMES = [
-  "away",
-  "away team",
-  "away teams",
-  "opponent",
-  "opponents",
-  "rival",
-  "rivals",
-  "other teams",
-  "other team",
-  "other school",
-  "challenger",
-  "challengers",
-  "vs",
-  "vs.",
-  "v.s.",
+const OPPONENT_KEYWORDS = [
+  "away", "away team", "away teams", "away school", "away schools",
+  "opponent", "opponents", "opponent team", "opposing team", "opposing school",
+  "rival", "rivals", "other team", "other teams", "other school",
+  "challenger", "challengers", "visiting team", "visiting school",
+  "visitor", "visitors", "visiting", "competition", "competing team",
+  "competition team", "adversary", "guest", "guests", "guest team",
+  "playing against", "their team", "the other team",
+  // short/exact-only keywords (only match exactly to avoid false positives):
 ];
+
+const OPPONENT_KEYWORDS_EXACT_ONLY = ["vs", "vs.", "v.s.", "opp", "foe", "foes", "matchup", "enemy"];
 
 interface OpponentDetectionResult {
   detected: boolean;
@@ -60,11 +54,12 @@ export async function detectAndCreateOpponents(
 
     // Detect opponent column (case-insensitive match)
     const opponentColumnName = customColumns.find((col) => {
-      const normalizedCol = col.toLowerCase().trim();
-      return OPPONENT_COLUMN_NAMES.some((pattern) => {
-        const normalizedPattern = pattern.toLowerCase();
-        return normalizedCol === normalizedPattern;
-      });
+      const norm = col.toLowerCase().trim();
+      // exact match against all keywords
+      if ([...OPPONENT_KEYWORDS, ...OPPONENT_KEYWORDS_EXACT_ONLY].some((k) => norm === k)) return true;
+      // partial/contains match only for longer keywords (avoids false positives for short ones)
+      if (OPPONENT_KEYWORDS.some((k) => norm.includes(k))) return true;
+      return false;
     });
 
     // Fail gracefully if no opponent column detected

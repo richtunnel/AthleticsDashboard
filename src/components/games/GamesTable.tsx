@@ -556,7 +556,8 @@ export function GamesTable() {
   const [scheduleView, setScheduleView] = useState(false);
 
   // Opponent column override (shared with ScheduleCalendarView via persisted store)
-  const { overrides: opponentOverrides } = useOpponentColumnStore();
+  const { overrides: opponentOverrides, setOverride: setOpponentOverride } = useOpponentColumnStore();
+  const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
   const opponentColumnOverride = selectedWorkbookId ? (opponentOverrides[selectedWorkbookId] ?? null) : null;
 
   /**
@@ -566,33 +567,14 @@ export function GamesTable() {
    * Mirrors the logic in ScheduleCalendarView so both views are identical.
    */
   const resolveOpponent = useCallback(
-    (game: Game): string => {
-      // 1. User-picked column override
+    (game: any): string => {
       if (opponentColumnOverride) {
         const raw = (game.customFields ?? game.customData ?? {}) as Record<string, any>;
         const val = raw[opponentColumnOverride];
         if (val != null && String(val).trim()) return String(val).trim();
+        return "TBD";
       }
-      // 2. Relational opponent (properly linked)
-      if (game.opponent?.name) return game.opponent.name;
-      // 3. Expanded keyword scan on customFields
-      const raw = (game.customFields ?? game.customData ?? {}) as Record<string, any>;
-      const exactKeys = [
-        "Opponent","opponent","Away","away","Visitor","visitor",
-        "Away Team","away team","Opposing Team","opposing team",
-        "Road Team","road team","VS","Vs","vs","vs.","Versus","versus",
-        "Rival","rival","Opp","opp","Against","against",
-        "Away School","away school","Opponent Name","opponent name",
-      ];
-      for (const k of exactKeys) {
-        if (raw[k] != null && String(raw[k]).trim()) return String(raw[k]).trim();
-      }
-      const subs = ["opponent","away","visitor","vs","versus","rival","road","opp","opposing"];
-      for (const [key, val] of Object.entries(raw)) {
-        if (!val || typeof val !== "string") continue;
-        if (subs.some((kw) => key.toLowerCase().includes(kw))) return val.trim();
-      }
-      return "TBD";
+      return game.opponent?.name || "TBD";
     },
     [opponentColumnOverride]
   );
@@ -735,7 +717,6 @@ export function GamesTable() {
   const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
   // Workbook management state
-  const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
 
   // Workbook edit dialog state
   const [editingWorkbookDialog, setEditingWorkbookDialog] = useState<{
@@ -1414,6 +1395,49 @@ export function GamesTable() {
     hasPrev: false,
   };
   const teams = teamsResponse?.data || [];
+  // Banner dismiss state — re-checks localStorage when workbook changes
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
+  const [selectedBannerColumn, setSelectedBannerColumn] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedWorkbookId) { setBannerDismissed(false); return; }
+    setBannerDismissed(
+      localStorage.getItem(`dismissed-opponent-banner-${selectedWorkbookId}`) === "true"
+    );
+    setSelectedBannerColumn("");
+  }, [selectedWorkbookId]);
+
+  const availableCustomColumns = useMemo(() => {
+    const keys = new Set<string>();
+    (games ?? []).forEach((game: any) => {
+      if (game.customFields && typeof game.customFields === "object") {
+        Object.keys(game.customFields).forEach((k) => keys.add(k));
+      } else if (game.customData && typeof game.customData === "object") {
+        Object.keys(game.customData).forEach((k) => keys.add(k));
+      }
+    });
+    return Array.from(keys).sort();
+  }, [games]);
+
+  const hasTBDOpponents = useMemo(() => {
+    if (!selectedWorkbookId || opponentColumnOverride || !games?.length) return false;
+    const tbdCount = games.filter((g: any) => !g.opponent?.name).length;
+    return tbdCount > games.length / 2;
+  }, [games, selectedWorkbookId, opponentColumnOverride]);
+
+  const handleDismissBanner = useCallback(() => {
+    if (selectedWorkbookId) {
+      localStorage.setItem(`dismissed-opponent-banner-${selectedWorkbookId}`, "true");
+    }
+    setBannerDismissed(true);
+  }, [selectedWorkbookId]);
+
+  const handleSaveBannerColumn = useCallback(() => {
+    if (selectedWorkbookId && selectedBannerColumn) {
+      setOpponentOverride(selectedWorkbookId, selectedBannerColumn);
+    }
+    handleDismissBanner();
+  }, [selectedWorkbookId, selectedBannerColumn, setOpponentOverride, handleDismissBanner]);
   const opponents = opponentsResponse?.data || [];
   const venues = venuesResponse?.data || [];
 
@@ -7821,7 +7845,57 @@ export function GamesTable() {
 
           {/* ── Schedule / Calendar View ── */}
           {scheduleView ? (
+            <>
+            {hasTBDOpponents && !bannerDismissed && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: 2,
+                  p: 2,
+                  mb: 2,
+                  borderRadius: 2,
+                  bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
+                  border: "1px solid",
+                  borderColor: "warning.light",
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Away team names showing as TBD?
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Select the column from your worksheet that contains opponent / away team names.
+                  </Typography>
+                </Box>
+                <Select
+                  size="small"
+                  value={selectedBannerColumn}
+                  onChange={(e) => setSelectedBannerColumn(e.target.value as string)}
+                  displayEmpty
+                  sx={{ minWidth: 200 }}
+                >
+                  <MenuItem value="" disabled>Select a column…</MenuItem>
+                  {availableCustomColumns.map((col) => (
+                    <MenuItem key={col} value={col}>{col}</MenuItem>
+                  ))}
+                </Select>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleSaveBannerColumn}
+                  disabled={!selectedBannerColumn}
+                >
+                  Save
+                </Button>
+                <IconButton size="small" onClick={handleDismissBanner} aria-label="Dismiss">
+                  <Close fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
             <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+            </>
           ) : isMobile ? (
             <Box sx={{ position: "relative" }}>
               {/* Show skeleton loader on initial load OR when fetching with no data */}
@@ -7841,7 +7915,7 @@ export function GamesTable() {
               ) : games.length === 0 ? (
                 <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
                   <Typography color="text.secondary" variant="body2">
-                    No games found. Import your spreadsheet or click "Create Game" to add one.
+                    No games found. Import your spreadsheet or click &quot;Create Game&quot; to add one.
                   </Typography>
                 </Paper>
               ) : (
@@ -7966,7 +8040,7 @@ export function GamesTable() {
                             </Box>
                           ) : (
                             <Typography color="text.secondary" variant="body2">
-                              No games found. Import your spreadsheet or click "Create Game" to add one.
+                              No games found. Import your spreadsheet or click &quot;Create Game&quot; to add one.
                             </Typography>
                           )}
                         </TableCell>

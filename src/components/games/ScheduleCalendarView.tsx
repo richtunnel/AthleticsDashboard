@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Box, Typography, Stack, Chip, CircularProgress, Paper,
+  Select, MenuItem, Button, IconButton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import HomeIcon          from "@mui/icons-material/Home";
 import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
+import Close from "@mui/icons-material/Close";
 import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
-import { AwayTeamColumnSelector } from "./AwayTeamColumnSelector";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -41,46 +42,6 @@ interface Props {
 
 function cf(game: CalendarGame): Record<string, any> {
   return (game.customFields ?? game.customData ?? {}) as Record<string, any>;
-}
-
-// ── Expanded opponent keyword list ────────────────────────────────────────────
-// We try every common variation before giving up and showing TBD.
-
-const OPPONENT_KEYS = [
-  // Exact common names
-  "Opponent", "opponent", "OPPONENT",
-  "Away", "away", "AWAY",
-  "Visitor", "visitor", "VISITOR",
-  "Away Team", "away team", "Away_Team",
-  "Opposing Team", "opposing team",
-  "Other Team", "other team",
-  "Road Team", "road team",
-  "Visiting Team", "visiting team",
-  "VS", "Vs", "vs", "vs.",
-  "Versus", "versus",
-  "Rival", "rival",
-  "Opp", "opp",
-  "Competition", "competition",
-  "Against", "against",
-  "Away School", "away school",
-  "Opponent School", "opponent school",
-  "Opponent Name", "opponent name",
-  "Away Name", "away name",
-];
-
-function findOpponentInCF(raw: Record<string, any>): string | null {
-  // 1. Exact key matches (fastest path)
-  for (const key of OPPONENT_KEYS) {
-    if (raw[key] != null && String(raw[key]).trim()) return String(raw[key]).trim();
-  }
-  // 2. Case-insensitive substring scan on all keys
-  const oppSubstrings = ["opponent", "away", "visitor", "vs", "versus", "rival", "road", "opp", "opposing"];
-  for (const [key, val] of Object.entries(raw)) {
-    if (!val || typeof val !== "string") continue;
-    const kl = key.toLowerCase();
-    if (oppSubstrings.some((kw) => kl.includes(kw))) return val.trim();
-  }
-  return null;
 }
 
 // ── Normalisation helpers ─────────────────────────────────────────────────────
@@ -120,17 +81,13 @@ function getOpponentName(
   game: CalendarGame,
   overrideColumn?: string | null
 ): string {
-  // 1. User-specified column override (from AwayTeamColumnSelector)
   if (overrideColumn) {
     const raw = cf(game);
     const val = raw[overrideColumn];
     if (val != null && String(val).trim()) return String(val).trim();
+    return "TBD";
   }
-  // 2. Relational opponent (properly imported)
-  if (game.opponent?.name) return game.opponent.name;
-  // 3. Expanded keyword scan across customFields
-  const found = findOpponentInCF(cf(game));
-  return found ?? "TBD";
+  return game.opponent?.name || "TBD";
 }
 
 // ── Day-of-week accent colors ─────────────────────────────────────────────────
@@ -159,11 +116,11 @@ function fmtTime(time: string | null): string {
 }
 
 function fmtDateHeader(isoDate: string) {
-  const d = new Date(isoDate + "T00:00:00");
+  const d = new Date(isoDate + "T00:00:00Z");
   return {
-    weekday: d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase(),
-    label:   d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    year:    d.getFullYear().toString(),
+    weekday: d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }).toUpperCase(),
+    label:   d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
+    year:    d.getUTCFullYear().toString(),
   };
 }
 
@@ -287,15 +244,23 @@ function ColumnHeader({ dateKey, count }: { dateKey: string; count: number }) {
         textAlign: "center",
       }}
     >
-      {/* Year — top right */}
       <Typography
         sx={{
-          position: "absolute", top: 5, right: 8,
-          fontSize: "0.6rem", fontWeight: 700,
-          color: "text.disabled", lineHeight: 1,
+          position: "absolute",
+          top: 4,
+          right: 8,
+          fontSize: 11,
+          fontWeight: 700,
+          color: "text.disabled",
+          lineHeight: 1,
+          userSelect: "none",
+          pointerEvents: "none",
         }}
       >
-        {year}
+        {(() => {
+          const d = new Date(dateKey + "T00:00:00Z");
+          return isNaN(d.getTime()) ? "" : d.getUTCFullYear();
+        })()}
       </Typography>
 
       <Typography variant="caption" fontWeight={700} sx={{ fontSize: "0.65rem", letterSpacing: 1.2, textTransform: "uppercase", display: "block", color: accent }}>
@@ -321,6 +286,24 @@ function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
       gap={1.5}
       sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: "10px", bgcolor: "rgb(24 27 56 / 3%)", border: "1px solid", borderColor: accent, position: "relative" }}
     >
+      <Typography
+        sx={{
+          position: "absolute",
+          top: 4,
+          right: 8,
+          fontSize: 11,
+          fontWeight: 700,
+          color: "text.disabled",
+          lineHeight: 1,
+          userSelect: "none",
+          pointerEvents: "none",
+        }}
+      >
+        {(() => {
+          const d = new Date(dateKey + "T00:00:00Z");
+          return isNaN(d.getTime()) ? "" : d.getUTCFullYear();
+        })()}
+      </Typography>
       <Box sx={{ width: 42, height: 42, borderRadius: "8px", bgcolor: accent, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <Typography sx={{ fontSize: "0.52rem", fontWeight: 700, lineHeight: 1, letterSpacing: 0.8, textTransform: "uppercase" }}>{weekday}</Typography>
         <Typography sx={{ fontSize: "0.95rem", fontWeight: 800, lineHeight: 1.1 }}>{label.split(" ")[1]}</Typography>
@@ -329,10 +312,6 @@ function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
         <Typography variant="subtitle2" fontWeight={700}>{weekday}, {label}</Typography>
         <Typography variant="caption" color="text.secondary">{count} game{count !== 1 ? "s" : ""}</Typography>
       </Box>
-      {/* Year — top right */}
-      <Typography sx={{ position: "absolute", top: 5, right: 10, fontSize: "0.6rem", fontWeight: 700, color: "text.disabled" }}>
-        {year}
-      </Typography>
     </Stack>
   );
 }
@@ -340,18 +319,8 @@ function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
-  const { overrides, setOverride } = useOpponentColumnStore();
+  const { overrides } = useOpponentColumnStore();
   const overrideColumn = workbookId ? (overrides[workbookId] ?? null) : null;
-
-  // Show selector banner only when TBD games exist and banner not dismissed
-  const [selectorDismissed, setSelectorDismissed] = useState(false);
-
-  const hasTBD = useMemo(
-    () => games.some((g) => getOpponentName(g, overrideColumn) === "TBD"),
-    [games, overrideColumn]
-  );
-
-  const showSelector = hasTBD && !selectorDismissed && !overrideColumn;
 
   const groupedByDate = useMemo(() => {
     const map = new Map<string, CalendarGame[]>();
@@ -385,19 +354,6 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
 
   return (
     <>
-      {/* TBD opponent column selector */}
-      {showSelector && (
-        <AwayTeamColumnSelector
-          games={games}
-          workbookId={workbookId}
-          onSelect={(col) => {
-            if (workbookId) setOverride(workbookId, col);
-            setSelectorDismissed(true);
-          }}
-          onDismiss={() => setSelectorDismissed(true)}
-        />
-      )}
-
       {/* ── Mobile / Tablet (< md) ── */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
         {groupedByDate.map(([key, dayGames]) => (
