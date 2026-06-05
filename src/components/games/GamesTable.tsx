@@ -1406,50 +1406,6 @@ export function GamesTable() {
     hasPrev: false,
   };
   const teams = teamsResponse?.data || [];
-  // Banner dismiss state — re-checks localStorage when workbook changes
-  const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
-  const [selectedBannerColumn, setSelectedBannerColumn] = useState<string>("");
-
-  useEffect(() => {
-    if (!selectedWorkbookId) {
-      setBannerDismissed(false);
-      return;
-    }
-    setBannerDismissed(localStorage.getItem(`dismissed-opponent-banner-${selectedWorkbookId}`) === "true");
-    setSelectedBannerColumn("");
-  }, [selectedWorkbookId]);
-
-  const availableCustomColumns = useMemo(() => {
-    const keys = new Set<string>();
-    (games ?? []).forEach((game: any) => {
-      if (game.customFields && typeof game.customFields === "object") {
-        Object.keys(game.customFields).forEach((k) => keys.add(k));
-      } else if (game.customData && typeof game.customData === "object") {
-        Object.keys(game.customData).forEach((k) => keys.add(k));
-      }
-    });
-    return Array.from(keys).sort();
-  }, [games]);
-
-  const hasTBDOpponents = useMemo(() => {
-    if (!selectedWorkbookId || opponentColumnOverride || !games?.length) return false;
-    const tbdCount = games.filter((g: any) => !g.opponent?.name).length;
-    return tbdCount > games.length / 2;
-  }, [games, selectedWorkbookId, opponentColumnOverride]);
-
-  const handleDismissBanner = useCallback(() => {
-    if (selectedWorkbookId) {
-      localStorage.setItem(`dismissed-opponent-banner-${selectedWorkbookId}`, "true");
-    }
-    setBannerDismissed(true);
-  }, [selectedWorkbookId]);
-
-  const handleSaveBannerColumn = useCallback(() => {
-    if (selectedWorkbookId && selectedBannerColumn) {
-      setOpponentOverride(selectedWorkbookId, selectedBannerColumn);
-    }
-    handleDismissBanner();
-  }, [selectedWorkbookId, selectedBannerColumn, setOpponentOverride, handleDismissBanner]);
   const opponents = opponentsResponse?.data || [];
   const venues = venuesResponse?.data || [];
 
@@ -7855,48 +7811,7 @@ export function GamesTable() {
           {/* ── Schedule / Calendar View ── */}
           {scheduleView ? (
             <>
-              {hasTBDOpponents && !bannerDismissed && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: { xs: "flex-start", sm: "center" },
-                    flexDirection: { xs: "column", sm: "row" },
-                    gap: 2,
-                    p: 2,
-                    mb: 2,
-                    borderRadius: 2,
-                    bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
-                    border: "1px solid",
-                    borderColor: "warning.light",
-                  }}
-                >
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="subtitle2" fontWeight={700}>
-                      Team names showing as TBD?
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Use the select menu to correspond your csv team columns with this view.
-                    </Typography>
-                  </Box>
-                  <Select size="small" value={selectedBannerColumn} onChange={(e) => setSelectedBannerColumn(e.target.value as string)} displayEmpty sx={{ minWidth: 200 }}>
-                    <MenuItem value="" disabled>
-                      Select a column…
-                    </MenuItem>
-                    {availableCustomColumns.map((col) => (
-                      <MenuItem key={col} value={col}>
-                        {col}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  <Button variant="contained" size="small" onClick={handleSaveBannerColumn} disabled={!selectedBannerColumn}>
-                    Save
-                  </Button>
-                  <IconButton size="small" onClick={handleDismissBanner} aria-label="Dismiss">
-                    <Close fontSize="small" />
-                  </IconButton>
-                </Box>
-              )}
-              <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+<ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
             </>
           ) : isMobile ? (
             <Box sx={{ position: "relative" }}>

@@ -12,6 +12,10 @@ interface OpponentColumnState {
   overrides: Record<string, string>;
   setOverride: (workbookId: string, columnKey: string) => void;
   clearOverride: (workbookId: string) => void;
+
+  /** per-workbook list of discovered custom column names */
+  columnRegistry: Record<string, string[]>;
+  setColumnRegistry: (workbookId: string, columns: string[]) => void;
 }
 
 export const useOpponentColumnStore = create<OpponentColumnState>()(
@@ -25,6 +29,9 @@ export const useOpponentColumnStore = create<OpponentColumnState>()(
           const { [workbookId]: _, ...rest } = s.overrides;
           return { overrides: rest };
         }),
+      columnRegistry: {},
+      setColumnRegistry: (workbookId, columns) =>
+        set((s) => ({ columnRegistry: { ...s.columnRegistry, [workbookId]: columns } })),
     }),
     { name: "opponent-column-overrides" }
   )

@@ -319,8 +319,63 @@ function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
-  const { overrides } = useOpponentColumnStore();
+  const { overrides, setOverride, setColumnRegistry } = useOpponentColumnStore();
   const overrideColumn = workbookId ? (overrides[workbookId] ?? null) : null;
+
+  // ── Opponent-column banner state ──
+
+  const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
+  const [selectedCol, setSelectedCol] = useState<string>("");
+
+  useEffect(() => {
+    if (!workbookId) {
+      setBannerDismissed(false);
+      return;
+    }
+    setBannerDismissed(localStorage.getItem(`dismissed-opponent-banner-${workbookId}`) === "true");
+    setSelectedCol("");
+  }, [workbookId]);
+
+  useEffect(() => {
+    if (overrideColumn) setSelectedCol(overrideColumn);
+  }, [overrideColumn]);
+
+  const availableCustomColumns = useMemo(() => {
+    const keys = new Set<string>();
+    for (const game of games) {
+      const raw = cf(game);
+      Object.keys(raw).forEach((k) => keys.add(k));
+    }
+    return Array.from(keys).sort();
+  }, [games]);
+
+  // Sync column registry whenever games / workbook change
+  useEffect(() => {
+    if (workbookId && availableCustomColumns.length > 0) {
+      setColumnRegistry(workbookId, availableCustomColumns);
+    }
+  }, [workbookId, availableCustomColumns, setColumnRegistry]);
+
+  const hasTBDOpponents = useMemo(() => {
+    if (!workbookId || overrideColumn || !games.length) return false;
+    const tbdCount = games.filter((g) => !g.opponent?.name).length;
+    return tbdCount > 5;
+  }, [games, workbookId, overrideColumn]);
+
+  const handleDismiss = useCallback(() => {
+    if (workbookId) {
+      localStorage.setItem(`dismissed-opponent-banner-${workbookId}`, "true");
+    }
+    setBannerDismissed(true);
+  }, [workbookId]);
+
+  const handleSync = useCallback(() => {
+    if (workbookId && selectedCol) {
+      setOverride(workbookId, selectedCol);
+    }
+  }, [workbookId, selectedCol, setOverride]);
+
+  // ── Grouping logic ──
 
   const groupedByDate = useMemo(() => {
     const map = new Map<string, CalendarGame[]>();
@@ -352,8 +407,113 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
     );
   }
 
+  const showBannerWarning = !overrideColumn && hasTBDOpponents && !bannerDismissed;
+  const showBannerSynced = !!overrideColumn;
+  const showBannerSection = !isLoading && games.length > 0 && !!workbookId;
+
   return (
     <>
+      {/* ── Opponent column banner ── */}
+      {showBannerSection && (
+        <>
+          {/* Unsynced – warning state */}
+          {showBannerWarning && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: { xs: "flex-start", sm: "center" },
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+                p: 2,
+                mb: 2,
+                borderRadius: 2,
+                bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
+                border: "1px solid",
+                borderColor: "warning.light",
+              }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  Team names showing as TBD?
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Use the select menu to correspond your csv team columns with this view.
+                </Typography>
+              </Box>
+              <Select
+                size="small"
+                value={selectedCol}
+                onChange={(e) => setSelectedCol(e.target.value as string)}
+                displayEmpty
+                sx={{ minWidth: 200 }}
+              >
+                <MenuItem value="" disabled>
+                  Select a column…
+                </MenuItem>
+                {availableCustomColumns.map((col) => (
+                  <MenuItem key={col} value={col}>
+                    {col}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Button variant="contained" size="small" onClick={handleSync} disabled={!selectedCol}>
+                Save
+              </Button>
+              <IconButton size="small" onClick={handleDismiss} aria-label="Dismiss">
+                <Close fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
+
+          {/* Synced – info state */}
+          {showBannerSynced && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: { xs: "flex-start", sm: "center" },
+                flexDirection: { xs: "column", sm: "row" },
+                gap: 2,
+                p: 2,
+                mb: 2,
+                borderRadius: 2,
+                bgcolor: (theme) => alpha(theme.palette.info.light, 0.1),
+                border: "1px solid",
+                borderColor: "info.light",
+              }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ color: "info.dark" }}>
+                  ✓ Column synced
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Showing opponent names from <strong>{overrideColumn}</strong>. Update the mapped column below if needed.
+                </Typography>
+              </Box>
+              <Select
+                size="small"
+                value={selectedCol}
+                onChange={(e) => setSelectedCol(e.target.value as string)}
+                sx={{ minWidth: 200 }}
+              >
+                {availableCustomColumns.map((col) => (
+                  <MenuItem key={col} value={col}>
+                    {col}
+                  </MenuItem>
+                ))}
+              </Select>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleSync}
+                disabled={!selectedCol || selectedCol === overrideColumn}
+              >
+                Update
+              </Button>
+            </Box>
+          )}
+        </>
+      )}
+
       {/* ── Mobile / Tablet (< md) ── */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
         {groupedByDate.map(([key, dayGames]) => (

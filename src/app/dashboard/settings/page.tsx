@@ -26,9 +26,10 @@ import { CollaboratorsSection } from "@/components/settings/CollaboratorsSection
 import { SettingsTabsClient } from "@/components/settings/SettingsTabsClient";
 import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggles";
 import { TutorialTipsCard } from "@/components/settings/TutorialTipsCard";
+import { ColumnIdentityModal } from "@/components/settings/ColumnIdentityModal";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
-import { AutoAwesome, AttachMoney, MenuBook, Inbox } from "@mui/icons-material";
+import { AutoAwesome, AttachMoney, MenuBook, Inbox, InfoOutlined } from "@mui/icons-material";
 import { GameRequestsPanel } from "@/components/game-requests/GameRequestsPanel";
 import Link from "next/link";
 
@@ -346,6 +347,21 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             to return to the standard view.
           </Typography>
           <ResetColumnsButton />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+            <InfoOutlined sx={{ color: "primary.main" }} />
+            <Typography variant="h6" sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+              Column Identity
+            </Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Map your imported CSV column names to recognized data fields. Use this when your schedule columns use custom names that weren&apos;t automatically detected.
+          </Typography>
+          <ColumnIdentityModal />
         </CardContent>
       </Card>
 

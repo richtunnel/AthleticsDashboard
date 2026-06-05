@@ -321,6 +321,19 @@ const MORE_TIPS: Tip[] = [
     href: "/dashboard/settings",
     cta: "Open Settings →",
   },
+  {
+    num: 13,
+    icon: <TuneIcon sx={{ fontSize: 18 }} />,
+    title: "Column Identity — Sync Your CSV Columns",
+    tag: "Settings → Other",
+    body: "When you import a CSV, Opletics automatically tries to detect which column holds your opponent or away team names. If it can't match it automatically, use Column Identity in Settings → Other to manually point your column to the right field. Once mapped, your Schedule View and table will both show the correct team names instead of TBD.",
+    callouts: [
+      { type: "note", text: "Column Identity also shows you which columns were auto-detected for date, time, and home/away — so you always know how your data is being read." },
+      { type: "learning", text: "If more than 5 games show TBD as the opponent, a banner will appear in the Schedule View guiding you to sync the correct column." },
+    ],
+    href: "/dashboard/settings",
+    cta: "Open Settings → Other →",
+  },
 ];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -362,7 +375,7 @@ export default function FeatureTipsPage() {
             See More Features
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-            5 more tips
+            6 more tips
           </Typography>
         </Box>
       ) : (
