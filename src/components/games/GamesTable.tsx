@@ -36,6 +36,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings as SettingsMenuIcon,
+  ViewModule as ViewModuleIcon,
+  TableRows as TableRowsIcon,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -51,6 +53,8 @@ import { formatLevelDisplay, extractDatePart, formatTimeDisplay } from "@/lib/ut
 import { ImportUndoButton } from "./ImportUndoButton";
 import { WorksheetToggle } from "./WorksheetToggle";
 import { WorksheetView } from "./WorksheetView";
+import { ScheduleCalendarView } from "./ScheduleCalendarView";
+import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { TipBubble } from "@/components/tips/TipBubble";
@@ -549,6 +553,49 @@ export function GamesTable() {
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
+  const [scheduleView, setScheduleView] = useState(false);
+
+  // Opponent column override (shared with ScheduleCalendarView via persisted store)
+  const { overrides: opponentOverrides } = useOpponentColumnStore();
+  const opponentColumnOverride = selectedWorkbookId ? (opponentOverrides[selectedWorkbookId] ?? null) : null;
+
+  /**
+   * Resolves the opponent display name for a game row.
+   * Priority: user-selected column override → relational opponent → expanded
+   * keyword scan across customFields → "TBD".
+   * Mirrors the logic in ScheduleCalendarView so both views are identical.
+   */
+  const resolveOpponent = useCallback(
+    (game: Game): string => {
+      // 1. User-picked column override
+      if (opponentColumnOverride) {
+        const raw = (game.customFields ?? game.customData ?? {}) as Record<string, any>;
+        const val = raw[opponentColumnOverride];
+        if (val != null && String(val).trim()) return String(val).trim();
+      }
+      // 2. Relational opponent (properly linked)
+      if (game.opponent?.name) return game.opponent.name;
+      // 3. Expanded keyword scan on customFields
+      const raw = (game.customFields ?? game.customData ?? {}) as Record<string, any>;
+      const exactKeys = [
+        "Opponent","opponent","Away","away","Visitor","visitor",
+        "Away Team","away team","Opposing Team","opposing team",
+        "Road Team","road team","VS","Vs","vs","vs.","Versus","versus",
+        "Rival","rival","Opp","opp","Against","against",
+        "Away School","away school","Opponent Name","opponent name",
+      ];
+      for (const k of exactKeys) {
+        if (raw[k] != null && String(raw[k]).trim()) return String(raw[k]).trim();
+      }
+      const subs = ["opponent","away","visitor","vs","versus","rival","road","opp","opposing"];
+      for (const [key, val] of Object.entries(raw)) {
+        if (!val || typeof val !== "string") continue;
+        if (subs.some((kw) => key.toLowerCase().includes(kw))) return val.trim();
+      }
+      return "TBD";
+    },
+    [opponentColumnOverride]
+  );
   const [viewImportWorkbookId, setViewImportWorkbookId] = useState<string | null>(null);
   const [deletingWorkbookId, setDeletingWorkbookId] = useState<string | null>(null);
 
@@ -824,6 +871,48 @@ export function GamesTable() {
     // Clear preserved games on mount (page refresh)
     setPreservedGameIds(new Set());
   }, []);
+
+  // ── Calendar view: fetch all matching games (no pagination) ─────────────────
+  const calendarQueryKey = useMemo(() => {
+    const filterKey = Object.keys(stableColumnFilters)
+      .sort()
+      .map((key) => {
+        const f = stableColumnFilters[key];
+        if (f.type === "condition") return `${key}:c:${f.condition ?? ""}:${f.value ?? ""}:${f.secondValue ?? ""}`;
+        return `${key}:v:${f.values ? JSON.stringify([...(f.values as string[])].sort()) : ""}`;
+      })
+      .join("|");
+    return ["games-calendar-view", filterKey, selectedWorkbookId] as const;
+  }, [stableColumnFilters, selectedWorkbookId]);
+
+  const { data: calendarResponse, isLoading: calendarLoading } = useQuery({
+    queryKey: calendarQueryKey,
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      Object.entries(columnFilters).forEach(([colId, filter]) => {
+        params.append(`filter_${colId}_type`, filter.type);
+        if (filter.type === "condition") {
+          params.append(`filter_${colId}_condition`, filter.condition || "");
+          params.append(`filter_${colId}_value`, filter.value || "");
+          if (filter.secondValue) params.append(`filter_${colId}_secondValue`, filter.secondValue);
+        } else if (filter.type === "values") {
+          params.append(`filter_${colId}_values`, JSON.stringify(filter.values || []));
+        }
+      });
+      params.append("sortBy", "date");
+      params.append("sortOrder", "asc");
+      params.append("page", "1");
+      params.append("limit", "1000");
+      if (selectedWorkbookId) params.append("workbookId", selectedWorkbookId);
+      const res = await fetch(`/api/games?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch calendar games");
+      return res.json();
+    },
+    enabled: scheduleView,
+    staleTime: 30_000,
+  });
+
+  const calendarGames = calendarResponse?.data?.games ?? [];
 
   const {
     data: response,
@@ -1413,7 +1502,7 @@ export function GamesTable() {
     games.forEach((game: Game) => {
       values.sport.add(game.homeTeam.sport.name);
       values.level.add(game.homeTeam.level);
-      values.opponent.add(game.opponent?.name || "TBD");
+      values.opponent.add(resolveOpponent(game));
       values.status.add(game.status);
       const locationValue = game.location || game.venue?.name || "TBD";
       values.location.add(locationValue);
@@ -4249,7 +4338,7 @@ export function GamesTable() {
             cellValue = game.homeTeam.level;
             break;
           case "opponent":
-            cellValue = game.opponent?.name || "TBD";
+            cellValue = resolveOpponent(game);
             break;
           case "isHome":
             cellValue = game.isHome ? "Home" : "Away";
@@ -5955,7 +6044,7 @@ export function GamesTable() {
       }
       case "opponent": {
         const isEditing = inlineEditState?.gameId === game.id && inlineEditState.field === "opponent";
-        const opponentName = game.opponent?.name || "TBD";
+        const opponentName = resolveOpponent(game);
         return (
           <TableCell key="opponent" sx={getDataCellSx("opponent", isEditing)} onDoubleClick={() => handleDoubleClick(game, "opponent")}>
             {isEditing ? (
@@ -6426,7 +6515,7 @@ export function GamesTable() {
                     variant="text"
                     size="small"
                     onClick={() => {
-                      const opponentName = game.opponent?.name || "TBD";
+                      const opponentName = resolveOpponent(game);
                       const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
                       setTravelTimeModal({
                         open: true,
@@ -6749,7 +6838,7 @@ export function GamesTable() {
                     variant="text"
                     size="small"
                     onClick={() => {
-                      const opponentName = game.opponent?.name || "TBD";
+                      const opponentName = resolveOpponent(game);
                       const gameName = `${game.homeTeam.sport.name} vs ${opponentName}`;
                       setTravelTimeModal({
                         open: true,
@@ -7657,21 +7746,18 @@ export function GamesTable() {
                   Export{selectedGames.size > 0 ? ` (${selectedGames.size})` : ""}
                 </Button>
               </Tooltip>
-              {/* <Tooltip title={"Go to Calendar"}>
-            <Button
-              component={NextLink}
-              href="/gsync"
-              size="small"
-              sx={{
-                borderColor: theme.palette.themeButtonText.subtle,
-                color: `${theme.palette.mode}` === "dark" ? `${theme.palette.primary.light}}` : "inherit",
-                textTransform: "none",
-                display: { xs: "none", sm: "inline-flex" },
-              }}
-            >
-              <EditCalendarIcon />
-            </Button>
-          </Tooltip> */}
+              {/* Schedule / Calendar View Toggle */}
+              <Tooltip title={scheduleView ? "Table View" : "Schedule View"}>
+                <IconButton
+                  size="small"
+                  onClick={() => setScheduleView((v) => !v)}
+                  sx={{
+                    color: scheduleView ? "primary.main" : "text.secondary",
+                  }}
+                >
+                  {scheduleView ? <TableRowsIcon fontSize="small" /> : <ViewModuleIcon fontSize="small" />}
+                </IconButton>
+              </Tooltip>
             </Stack>
           </Box>
 
@@ -7733,8 +7819,10 @@ export function GamesTable() {
           {/* Sample Game Banner */}
           <SampleGameBanner hasSampleGames={games.some((game: Game) => game.isSampleGame)} />
 
-          {/* Mobile Card View */}
-          {isMobile ? (
+          {/* ── Schedule / Calendar View ── */}
+          {scheduleView ? (
+            <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+          ) : isMobile ? (
             <Box sx={{ position: "relative" }}>
               {/* Show skeleton loader on initial load OR when fetching with no data */}
               {isLoading || (!mounted && !isAddingNew) ? (
