@@ -12,28 +12,56 @@ export interface AvailableDate {
 // Shared game fetcher — reads ALL non-cancelled, non-sample games in the
 // workbook including customFields so normalizeGameCombo can read CSV data.
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchWorkbookGames(workbookId: string) {
-  return prisma.game.findMany({
-    where: {
-      workbookId,
-      status:      { not: "CANCELLED" },
-      isSampleGame: false,
-    },
+export const WORKBOOK_GAME_SELECT = {
+  date:         true,
+  workbookId:   true,
+  customFields: true,
+  customData:   true,
+  homeTeam: {
     select: {
-      date:         true,
-      customFields: true,
-      customData:   true,
-      homeTeam: {
-        select: {
-          name:   true,
-          sport:  { select: { name: true } },
-          level:  true,
-          gender: true,
-        },
-      },
+      name:   true,
+      sport:  { select: { name: true } },
+      level:  true,
+      gender: true,
     },
+  },
+} as const;
+
+export type WorkbookGame = {
+  date:         Date;
+  workbookId:   string | null;
+  customFields: unknown;
+  customData:   unknown;
+  homeTeam: { name: string | null; sport: { name: string }; level: string; gender: string | null };
+};
+
+export async function fetchWorkbookGames(workbookId: string): Promise<WorkbookGame[]> {
+  return prisma.game.findMany({
+    where: { workbookId, status: { not: "CANCELLED" }, isSampleGame: false },
+    select: WORKBOOK_GAME_SELECT,
     orderBy: { date: "asc" },
   });
+}
+
+/**
+ * Batch-fetch games for multiple workbooks in a single query.
+ * Returns a Map keyed by workbookId for O(1) lookup per post.
+ */
+export async function fetchWorkbookGamesBatch(workbookIds: string[]): Promise<Map<string, WorkbookGame[]>> {
+  if (workbookIds.length === 0) return new Map();
+  const games = await prisma.game.findMany({
+    where: { workbookId: { in: workbookIds }, status: { not: "CANCELLED" }, isSampleGame: false },
+    select: WORKBOOK_GAME_SELECT,
+    orderBy: { date: "asc" },
+  });
+  const map = new Map<string, WorkbookGame[]>();
+  for (const g of games) {
+    if (!g.workbookId) continue;
+    const arr = map.get(g.workbookId) ?? [];
+    arr.push(g);
+    map.set(g.workbookId, arr);
+  }
+  return map;
 }
 
 /**
@@ -55,12 +83,14 @@ export async function computeAvailableDates(
   options?: {
     excludeWeekends?: boolean;
     excludedDates?:   string[];
+    /** Pre-loaded games for this workbook — skips the DB fetch when provided (batch path). */
+    preloadedGames?:  WorkbookGame[];
   }
 ): Promise<AvailableDate[]> {
-  const { excludeWeekends = false, excludedDates = [] } = options ?? {};
+  const { excludeWeekends = false, excludedDates = [], preloadedGames } = options ?? {};
   const targetKey = comboKey(sport, level, gender);
 
-  const allGames = await fetchWorkbookGames(workbookId);
+  const allGames = preloadedGames ?? await fetchWorkbookGames(workbookId);
 
   // Filter to the target combo using the normalizer
   const comboGames = allGames.filter(

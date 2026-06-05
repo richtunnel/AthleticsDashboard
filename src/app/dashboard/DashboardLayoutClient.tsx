@@ -117,15 +117,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Fetch menu visibility preferences
+  // Fetch menu visibility preferences.
+  // initialData reads from localStorage so the correct hidden/shown state is
+  // applied synchronously on every render — no flash while the API responds.
+  const MENU_VIS_CACHE_KEY = "opletics-menu-visibility";
   const { data: menuVisibility } = useQuery({
     queryKey: ["menuVisibility"],
     queryFn: async () => {
       const res = await fetch("/api/user/menu-visibility");
       if (!res.ok) throw new Error("Failed to fetch menu visibility");
-      return res.json();
+      const data = await res.json();
+      // Keep the cache in sync so future renders start with fresh values
+      try { localStorage.setItem(MENU_VIS_CACHE_KEY, JSON.stringify(data)); } catch {}
+      return data;
     },
     staleTime: 5 * 60 * 1000,
+    initialData: () => {
+      if (typeof window === "undefined") return undefined;
+      try {
+        const cached = localStorage.getItem(MENU_VIS_CACHE_KEY);
+        return cached ? JSON.parse(cached) : undefined;
+      } catch {
+        return undefined;
+      }
+    },
   });
 
   // AD chat unread count for the Chat nav badge

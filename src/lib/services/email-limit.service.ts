@@ -1,5 +1,52 @@
 import { prisma } from "../database/prisma";
 import { getEmailLimit } from "../security/plan-limits";
+import { REDIS_ENABLED, REDIS_URL } from "../redis/enabled";
+import IORedis from "ioredis";
+
+// ── Redis client (lazy-init, reused across invocations) ───────────────────────
+declare global { var _redisEmailLimit: IORedis | undefined; }
+function getRedis(): IORedis | null {
+  if (!REDIS_ENABLED) return null;
+  if (!globalThis._redisEmailLimit) {
+    globalThis._redisEmailLimit = new IORedis(REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      lazyConnect: true,
+      enableReadyCheck: false,
+    });
+    globalThis._redisEmailLimit.on("error", () => { /* fail-open */ });
+  }
+  return globalThis._redisEmailLimit;
+}
+
+/**
+ * Atomically increment an email send counter in Redis and return the new value.
+ * If Redis is unavailable, returns null (caller falls back to DB count).
+ * Keys:
+ *   email:daily:{userId}:{YYYY-MM-DD}  — expires in 2 days
+ *   email:monthly:{YYYY-MM}            — expires in 35 days (global system limit)
+ */
+async function redisIncrEmailCount(key: string, ttlSec: number): Promise<number | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    pipeline.expire(key, ttlSec, "NX"); // only set TTL on first INCR
+    const results = await pipeline.exec();
+    return (results?.[0]?.[1] as number) ?? null;
+  } catch {
+    return null; // fail-open: fall back to DB
+  }
+}
+
+async function redisGetCount(key: string): Promise<number | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const v = await redis.get(key);
+    return v === null ? null : parseInt(v, 10);
+  } catch { return null; }
+}
 
 export const EMAIL_LIMITS = {
   DAILY_PER_USER: 75,
@@ -65,26 +112,68 @@ export class EmailLimitService {
   }
 
   /**
-   * Check both user daily and system monthly limits
+   * Check both user daily and system monthly limits.
+   * Uses atomic Redis INCR when Redis is available to prevent race conditions
+   * between concurrent send requests from the same user.
+   * Falls back to DB counts when Redis is unavailable (fail-open).
    */
   async checkEmailLimits(userId: string, emailCount: number = 1): Promise<EmailLimitCheck> {
-    // Check user daily limit first
+    const now    = new Date();
+    const dateKey  = now.toISOString().slice(0, 10);                       // YYYY-MM-DD
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
+
+    // ── Atomic reservation via Redis ──────────────────────────────────────────
+    // INCR claims the send slots before the DB write. If the limit is exceeded
+    // we DECR to release the reservation. This prevents the race where two
+    // concurrent requests both read the same DB count and both proceed.
+    const dailyRedisKey   = `email:daily:${userId}:${dateKey}`;
+    const monthlyRedisKey = `email:monthly:${monthKey}`;
+
+    const [redisDailyAfter, redisMonthlyAfter] = await Promise.all([
+      redisIncrEmailCount(dailyRedisKey,   2 * 24 * 3600),   // 2 days TTL
+      redisIncrEmailCount(monthlyRedisKey, 35 * 24 * 3600),  // 35 days TTL
+    ]);
+
+    if (redisDailyAfter !== null && redisMonthlyAfter !== null) {
+      // Redis atomic path — no DB count queries needed
+      const dailyLimit   = EMAIL_LIMITS.DAILY_PER_USER;
+      const monthlyLimit = await getEmailLimit(userId);
+      const systemLimit  = EMAIL_LIMITS.MONTHLY_GLOBAL;
+
+      if (redisDailyAfter > dailyLimit) {
+        // Release reservation
+        await Promise.all([
+          getRedis()?.decrby(dailyRedisKey, emailCount),
+          getRedis()?.decrby(monthlyRedisKey, emailCount),
+        ]).catch(() => {});
+        return { allowed: false, reason: `Daily email limit of ${dailyLimit} exceeded.`, dailyUsed: redisDailyAfter - emailCount, dailyLimit };
+      }
+      if (redisMonthlyAfter > monthlyLimit) {
+        await Promise.all([
+          getRedis()?.decrby(dailyRedisKey, emailCount),
+          getRedis()?.decrby(monthlyRedisKey, emailCount),
+        ]).catch(() => {});
+        return { allowed: false, reason: `Monthly plan limit of ${monthlyLimit.toLocaleString()} exceeded.`, monthlyUsed: redisMonthlyAfter - emailCount, monthlyLimit };
+      }
+      if (redisMonthlyAfter > systemLimit) {
+        await Promise.all([
+          getRedis()?.decrby(dailyRedisKey, emailCount),
+          getRedis()?.decrby(monthlyRedisKey, emailCount),
+        ]).catch(() => {});
+        return { allowed: false, reason: "System monthly email limit exceeded. Please contact support.", monthlyUsed: redisMonthlyAfter - emailCount, monthlyLimit: systemLimit };
+      }
+      return { allowed: true, dailyUsed: redisDailyAfter, dailyLimit, monthlyUsed: redisMonthlyAfter, monthlyLimit };
+    }
+
+    // ── DB fallback (Redis unavailable) ──────────────────────────────────────
     const userCheck = await this.canUserSendEmails(userId, emailCount);
-    if (!userCheck.allowed) {
-      return userCheck;
-    }
+    if (!userCheck.allowed) return userCheck;
 
-    // Check user monthly limit based on plan
     const userMonthlyCheck = await this.canUserSendMonthlyEmails(userId, emailCount);
-    if (!userMonthlyCheck.allowed) {
-      return userMonthlyCheck;
-    }
+    if (!userMonthlyCheck.allowed) return userMonthlyCheck;
 
-    // Check system monthly limit
     const systemCheck = await this.canSystemSendEmails(emailCount);
-    if (!systemCheck.allowed) {
-      return systemCheck;
-    }
+    if (!systemCheck.allowed) return systemCheck;
 
     return {
       allowed: true,
@@ -93,6 +182,20 @@ export class EmailLimitService {
       monthlyUsed: userMonthlyCheck.monthlyUsed,
       monthlyLimit: userMonthlyCheck.monthlyLimit,
     };
+  }
+
+  /**
+   * Atomically record sent emails in Redis counters (called after successful send).
+   * Keeps Redis in sync when the DB-fallback path was used.
+   */
+  async recordSentEmails(userId: string, count: number): Promise<void> {
+    const now      = new Date();
+    const dateKey  = now.toISOString().slice(0, 10);
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await Promise.all([
+      redisIncrEmailCount(`email:daily:${userId}:${dateKey}`,   2  * 24 * 3600),
+      redisIncrEmailCount(`email:monthly:${monthKey}`,          35 * 24 * 3600),
+    ]).catch(() => {});
   }
 
   /**
@@ -140,15 +243,9 @@ export class EmailLimitService {
       where: {
         job: {
           userId,
+          createdAt: { gte: firstDayOfMonth },
         },
-        status: {
-          in: ["PENDING", "RETRYING"],
-        },
-        job: {
-          createdAt: {
-            gte: firstDayOfMonth,
-          },
-        },
+        status: { in: ["PENDING", "RETRYING"] },
       },
     });
 
@@ -176,15 +273,9 @@ export class EmailLimitService {
       where: {
         job: {
           userId,
+          createdAt: { gte: twentyFourHoursAgo },
         },
-        status: {
-          in: ["PENDING", "RETRYING"],
-        },
-        job: {
-          createdAt: {
-            gte: twentyFourHoursAgo,
-          },
-        },
+        status: { in: ["PENDING", "RETRYING"] },
       },
     });
 

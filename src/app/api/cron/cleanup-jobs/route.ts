@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jobQueueService } from "@/lib/services/job-queue.service";
+import { prisma } from "@/lib/database/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,12 +30,31 @@ export async function POST(req: NextRequest) {
   try {
     const deletedCount = await jobQueueService.cleanup(retentionDays);
 
+    // ── Stuck-PROCESSING reaper ─────────────────────────────────────────────
+    // Reset any job stuck in PROCESSING for > 10 min (crashed or killed worker).
+    const staleThreshold = new Date(Date.now() - 5 * 60 * 1000);
+
+    const reaperRecovered = await prisma.$executeRaw`
+      UPDATE "BackgroundJob"
+      SET "status" = 'PENDING', "updatedAt" = NOW(),
+          "error" = COALESCE("error" || E'\n', '') || '[Reaper] Reset from stuck PROCESSING state'
+      WHERE "status" = 'PROCESSING' AND "updatedAt" < ${staleThreshold} AND "attempts" < "maxAttempts"
+    `;
+    const reaperFailed = await prisma.$executeRaw`
+      UPDATE "BackgroundJob"
+      SET "status" = 'FAILED', "failedAt" = NOW(), "updatedAt" = NOW(),
+          "error" = COALESCE("error" || E'\n', '') || '[Reaper] Permanently failed after exhausting retries in PROCESSING state'
+      WHERE "status" = 'PROCESSING' AND "updatedAt" < ${staleThreshold} AND "attempts" >= "maxAttempts"
+    `;
+
     const durationMs = Date.now() - startTime;
-    console.log(`[CleanupJobsCron] Deleted ${deletedCount} old jobs in ${durationMs}ms`);
+    console.log(`[CleanupJobsCron] Deleted ${deletedCount} old jobs | Reaper: recovered=${reaperRecovered} failed=${reaperFailed} | ${durationMs}ms`);
 
     return NextResponse.json({
       success: true,
       deletedCount,
+      reaperRecovered: Number(reaperRecovered),
+      reaperFailed: Number(reaperFailed),
       retentionDays,
       durationMs,
       timestamp: new Date().toISOString(),

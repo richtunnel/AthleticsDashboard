@@ -6,6 +6,7 @@ import { calculateDeletionDeadline, getAccountCleanupConfig } from "../utils/acc
 import { runNonCritical } from "../utils/nonCritical";
 import { PlanType, SubscriptionStatus, Prisma } from "@prisma/client";
 import { sendCapiEvent } from "../analytics/meta-capi";
+import { invalidatePaymentStatusCache } from "./payment-status.service";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://opletics.com").replace(/\/$/, "");
 
@@ -46,17 +47,23 @@ export class StripeWebhookService {
         if (result) {
           await this.maybeSendConfirmationEmail(result, event.type);
           await this.maybeSendCancellationEmail(result, event.type);
+          // Invalidate cached payment status so the next middleware hit picks up the change
+          const uid = (result as any).userId ?? (result as any).user?.id;
+          if (uid) invalidatePaymentStatusCache(uid);
         }
         break;
       }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         await this.handlePaymentSuccess(invoice);
+        // Invalidate by customer if we can resolve the userId
+        this.invalidateCacheByCustomer(invoice.customer as string).catch(() => {});
         break;
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         await this.handlePaymentFailure(invoice);
+        this.invalidateCacheByCustomer(invoice.customer as string).catch(() => {});
         break;
       }
       case "customer.created": {
@@ -422,6 +429,15 @@ export class StripeWebhookService {
     if (normalized.includes("ANNUAL")) return "ANNUAL";
     if (normalized.includes("MONTH")) return "MONTHLY";
     return null;
+  }
+
+  private async invalidateCacheByCustomer(customerId: string): Promise<void> {
+    if (!customerId) return;
+    const sub = await prisma.subscription.findFirst({
+      where: { stripeCustomerId: customerId },
+      select: { userId: true },
+    });
+    if (sub?.userId) invalidatePaymentStatusCache(sub.userId);
   }
 }
 

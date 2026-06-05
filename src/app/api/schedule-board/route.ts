@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { prisma } from "@/lib/database/prisma";
-import { computeAvailableDates, deriveSeasonRange } from "@/lib/availability/computeAvailableDates";
+import { computeAvailableDates, deriveSeasonRange, fetchWorkbookGamesBatch } from "@/lib/availability/computeAvailableDates";
 
 export async function GET(request: NextRequest) {
   const session = await getAnySession();
@@ -49,6 +49,10 @@ export async function GET(request: NextRequest) {
 
     const currentUserId = session.user.id;
 
+    // Pre-load games for all workbooks in ONE query — eliminates the per-post DB fetch
+    const uniqueWorkbookIds = [...new Set(posts.map((p) => p.workbookId))];
+    const workbookGamesMap  = await fetchWorkbookGamesBatch(uniqueWorkbookIds);
+
     const enriched = await Promise.all(
       posts.map(async (post) => {
         const availableDates = await computeAvailableDates(
@@ -59,6 +63,7 @@ export async function GET(request: NextRequest) {
           {
             excludeWeekends: post.excludeWeekends,
             excludedDates:   (post.excludedDates as string[]) ?? [],
+            preloadedGames:  workbookGamesMap.get(post.workbookId),
           }
         );
 

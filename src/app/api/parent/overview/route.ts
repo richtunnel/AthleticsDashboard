@@ -188,6 +188,37 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       return where;
     };
 
+    /**
+     * In-memory check: does a team row satisfy the given Prisma WHERE clause?
+     * Used to distribute the batch query results back to each lookup slot.
+     * Handles the same conditions buildTeamWhere produces (organizationId + OR sport clauses + AND level).
+     */
+    function prismaWhereMatchesTeam(
+      where: Prisma.TeamWhereInput,
+      team: { id: string; organizationId: string; sport: { name: string }; level: string; gender: string | null }
+    ): boolean {
+      if (where.organizationId !== team.organizationId) return false;
+      const sportOR = (where.OR ?? []) as Prisma.TeamWhereInput[];
+      const sportMatch = sportOR.some((clause) => {
+        if (!clause.sport) return false;
+        const nameCond = (clause.sport as any).name;
+        const nameMatch = typeof nameCond?.equals === "string"
+          ? team.sport.name.toLowerCase() === nameCond.equals.toLowerCase()
+          : false;
+        if (!nameMatch) return false;
+        if (clause.gender) return team.gender?.toUpperCase() === (clause.gender as string).toUpperCase();
+        return true;
+      });
+      if (!sportMatch) return false;
+      const andClause = (where.AND as Prisma.TeamWhereInput[] | undefined)?.[0];
+      if (!andClause?.OR) return true;
+      const levelOR = andClause.OR as Prisma.TeamWhereInput[];
+      return levelOR.some((lc) => {
+        const eq = (lc.level as any)?.equals;
+        return typeof eq === "string" && team.level.toLowerCase() === eq.toLowerCase();
+      });
+    }
+
     // ── Attribution maps ─────────────────────────────────────────────────────
     // teamIdToLinkIds / workbookIdToLinkIds are declared above the if-block so
     // the serialisation step can always reference them (hoisted).
@@ -202,52 +233,64 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       map.set(key, arr);
     }
 
-    // Primary: sport + level match per link
-    for (const link of links) {
-      if (!link.sport) continue;
-      const teams = await prisma.team.findMany({
-        where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel),
-        select: { id: true },
-      });
-      for (const t of teams) {
-        teamIdSet.add(t.id);
-        addAttribution(teamIdToLinkIds, t.id, link.id);
-      }
-    }
-
-    // Supplementary: approved CalendarSyncRequests add additional teams when
-    // the AD approved a slightly different sport/level/gender combo than
-    // what's on the link.
+    // Fetch approved CalendarSyncRequests first (needed for batching below)
     const approvedRequests = await prisma.calendarSyncRequest.findMany({
       where: { parentUserId: user.id, status: "APPROVED" },
       select: { schoolId: true, sportName: true, sportLevel: true, workbookId: true },
     });
 
-    // Collect workbook IDs the AD pinned during approval — we'll include
-    // EVERY game from those workbooks below (regardless of Team matching).
-    // This is the killer fix for cases where imported games never produced
-    // properly normalised Team rows.
-    const approvedWorkbookIds = new Set<string>();
+    // ── Batch all team lookups into a SINGLE OR query ──────────────────────
+    // Previously: one findMany per link + one per approved request (N+1).
+    // Now: collect all OR clauses, fire one query, distribute results.
 
+    type LookupSlot = { where: Prisma.TeamWhereInput; linkId?: string; reqIndex?: number };
+    const lookupSlots: LookupSlot[] = [];
+
+    for (const link of links) {
+      if (!link.sport) continue;
+      lookupSlots.push({ where: buildTeamWhere(link.schoolId, link.sport, link.gradeLevel), linkId: link.id });
+    }
+    for (let i = 0; i < approvedRequests.length; i++) {
+      const req = approvedRequests[i];
+      lookupSlots.push({ where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel), reqIndex: i });
+    }
+
+    if (lookupSlots.length > 0) {
+      // Single query with OR of all slot conditions
+      const allTeams = await prisma.team.findMany({
+        where: { OR: lookupSlots.map((s) => s.where) },
+        select: { id: true, organizationId: true, sport: { select: { name: true } }, level: true, gender: true },
+      });
+
+      // Distribute results back to each slot by re-evaluating per-slot membership
+      for (const slot of lookupSlots) {
+        // Re-filter in memory — avoids re-querying, uses the already-fetched set
+        const matchingTeams = allTeams.filter((t) =>
+          prismaWhereMatchesTeam(slot.where, t)
+        );
+        for (const t of matchingTeams) {
+          teamIdSet.add(t.id);
+          if (slot.linkId) addAttribution(teamIdToLinkIds, t.id, slot.linkId);
+          if (slot.reqIndex !== undefined) {
+            const req = approvedRequests[slot.reqIndex];
+            const reqSlot = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
+            const matchingLink = links.find(
+              (l) => `${l.schoolId}|${(l.sport ?? "").toLowerCase()}|${(l.gradeLevel ?? "").toLowerCase()}` === reqSlot
+            );
+            if (matchingLink) addAttribution(teamIdToLinkIds, t.id, matchingLink.id);
+          }
+        }
+      }
+    }
+
+    // Collect workbook IDs from approved requests
+    const approvedWorkbookIds = new Set<string>();
     for (const req of approvedRequests) {
-      // Resolve which ParentAthleteLink corresponds to this sync request so
-      // workbook-path games can be attributed to the right child.
       const reqSlot = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
       const matchingLink = links.find(
         (l) =>
-          `${l.schoolId}|${(l.sport ?? "").toLowerCase()}|${(l.gradeLevel ?? "").toLowerCase()}` ===
-          reqSlot
+          `${l.schoolId}|${(l.sport ?? "").toLowerCase()}|${(l.gradeLevel ?? "").toLowerCase()}` === reqSlot
       );
-
-      const teams = await prisma.team.findMany({
-        where: buildTeamWhere(req.schoolId, req.sportName, req.sportLevel),
-        select: { id: true },
-      });
-      for (const t of teams) {
-        teamIdSet.add(t.id);
-        if (matchingLink) addAttribution(teamIdToLinkIds, t.id, matchingLink.id);
-      }
-
       if (req.workbookId) {
         approvedWorkbookIds.add(req.workbookId);
         if (matchingLink) addAttribution(workbookIdToLinkIds, req.workbookId, matchingLink.id);

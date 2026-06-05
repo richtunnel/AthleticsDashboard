@@ -11,7 +11,9 @@ import CalendarMonthIcon  from "@mui/icons-material/CalendarMonth";
 import ViewWeekIcon       from "@mui/icons-material/ViewWeek";
 import HomeIcon           from "@mui/icons-material/Home";
 import FlightTakeoffIcon  from "@mui/icons-material/FlightTakeoff";
-import Close from "@mui/icons-material/Close";
+import Close           from "@mui/icons-material/Close";
+import VisibilityOff  from "@mui/icons-material/VisibilityOff";
+import Visibility     from "@mui/icons-material/Visibility";
 import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
 import { useScheduleColumnStore, type ScheduleColumnType } from "@/lib/stores/scheduleColumnStore";
 import { ScheduleMonthView } from "./ScheduleMonthView";
@@ -332,6 +334,31 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
 
   const [monthView, setMonthView] = useState(false);
 
+  // ── Persistent banner visibility (per workbook, stored in localStorage) ──
+  const bannerHiddenKey = workbookId ? `calendar-banner-hidden-${workbookId}` : null;
+  const [bannerHidden, setBannerHidden] = useState<boolean>(() => {
+    if (typeof window === "undefined" || !workbookId) return false;
+    return localStorage.getItem(`calendar-banner-hidden-${workbookId}`) === "true";
+  });
+
+  const toggleBannerHidden = useCallback(() => {
+    setBannerHidden((prev) => {
+      const next = !prev;
+      if (bannerHiddenKey) {
+        try { localStorage.setItem(bannerHiddenKey, String(next)); } catch {}
+      }
+      return next;
+    });
+  }, [bannerHiddenKey]);
+
+  // Sync state when workbook changes
+  useEffect(() => {
+    if (!workbookId) { setBannerHidden(false); return; }
+    try {
+      setBannerHidden(localStorage.getItem(`calendar-banner-hidden-${workbookId}`) === "true");
+    } catch { setBannerHidden(false); }
+  }, [workbookId]);
+
   // ── Per-column-type banner dismissed state ──
   const [dismissedBanners, setDismissedBanners] = useState<Set<BannerColumnType>>(new Set());
   const [activePill, setActivePill] = useState<BannerColumnType | null>(null);
@@ -459,7 +486,7 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
     );
   }
 
-  const showBannerSection = !isLoading && games.length > 0 && !!workbookId && activeBannerTypes.length > 0;
+  const showBannerSection = !isLoading && games.length > 0 && !!workbookId && activeBannerTypes.length > 0 && !bannerHidden;
 
   // Derive synced column for the active pill
   const activeSyncedCol =
@@ -485,23 +512,39 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
   return (
     <>
       {/* ── View toggle ── */}
-      <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={0.75} sx={{ mb: 2 }}>
-        <Chip
-          icon={<ViewWeekIcon sx={{ fontSize: "14px !important" }} />}
-          label="Week"
-          size="small"
-          variant={monthView ? "outlined" : "filled"}
-          onClick={() => setMonthView(false)}
-          sx={{ cursor: "pointer", fontWeight: monthView ? 400 : 700, fontSize: "0.75rem" }}
-        />
-        <Chip
-          icon={<CalendarMonthIcon sx={{ fontSize: "14px !important" }} />}
-          label="Month"
-          size="small"
-          variant={monthView ? "filled" : "outlined"}
-          onClick={() => setMonthView(true)}
-          sx={{ cursor: "pointer", fontWeight: monthView ? 700 : 400, fontSize: "0.75rem" }}
-        />
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+        {/* Restore chip — only when banner is hidden and would otherwise be shown */}
+        {bannerHidden && !isLoading && games.length > 0 && !!workbookId && activeBannerTypes.length > 0 ? (
+          <Chip
+            icon={<Visibility sx={{ fontSize: "13px !important" }} />}
+            label="Show Column Setup"
+            size="small"
+            variant="outlined"
+            onClick={toggleBannerHidden}
+            sx={{ cursor: "pointer", fontSize: "0.72rem", color: "text.secondary" }}
+          />
+        ) : (
+          <Box />
+        )}
+
+        <Stack direction="row" alignItems="center" gap={0.75}>
+          <Chip
+            icon={<ViewWeekIcon sx={{ fontSize: "14px !important" }} />}
+            label="Week"
+            size="small"
+            variant={monthView ? "outlined" : "filled"}
+            onClick={() => setMonthView(false)}
+            sx={{ cursor: "pointer", fontWeight: monthView ? 400 : 700, fontSize: "0.75rem" }}
+          />
+          <Chip
+            icon={<CalendarMonthIcon sx={{ fontSize: "14px !important" }} />}
+            label="Month"
+            size="small"
+            variant={monthView ? "filled" : "outlined"}
+            onClick={() => setMonthView(true)}
+            sx={{ cursor: "pointer", fontWeight: monthView ? 700 : 400, fontSize: "0.75rem" }}
+          />
+        </Stack>
       </Stack>
 
       {monthView ? (
@@ -602,10 +645,13 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
                   {isSynced ? "Update" : "Save"}
                 </Button>
                 {isDismissable && (
-                  <IconButton size="small" onClick={() => handleDismiss(activePill)} aria-label="Dismiss">
+                  <IconButton size="small" onClick={() => handleDismiss(activePill)} aria-label="Dismiss this banner">
                     <Close fontSize="small" />
                   </IconButton>
                 )}
+                <IconButton size="small" onClick={toggleBannerHidden} aria-label="Hide column setup banner" title="Hide column setup">
+                  <VisibilityOff fontSize="small" />
+                </IconButton>
               </Box>
             );
           })()}

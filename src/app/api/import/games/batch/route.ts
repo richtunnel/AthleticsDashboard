@@ -145,8 +145,35 @@ export async function POST(request: NextRequest) {
     const duplicates: string[] = [];
     const createdGameIds: string[] = [];
 
-    // Track games in current batch to avoid duplicate detection within batch
+    // ── Pre-load existing games for the entire import date range ─────────────
+    // Eliminates the per-row isDuplicateRow DB query (was O(n), now O(1)).
+    const parsedDates: Date[] = [];
+    for (const g of games as ImportGameData[]) {
+      try { parsedDates.push(validateAndParseDate(g.date)); } catch { /* invalid dates caught below */ }
+    }
+    const existingSignatures = new Set<string>();
+    if (parsedDates.length > 0) {
+      const minDate = new Date(Math.min(...parsedDates.map((d) => d.getTime())));
+      const maxDate = new Date(Math.max(...parsedDates.map((d) => d.getTime())));
+      minDate.setUTCHours(0, 0, 0, 0);
+      maxDate.setUTCHours(23, 59, 59, 999);
+
+      const existing = await prisma.game.findMany({
+        where: {
+          homeTeam: { organizationId: session.user.organizationId },
+          date: { gte: minDate, lte: maxDate },
+        },
+        select: { customFields: true, date: true },
+      });
+      for (const eg of existing) {
+        existingSignatures.add(createGameSignature(eg.date, eg.customFields as Record<string, any> ?? {}));
+      }
+    }
+
+    // Track games in current batch to avoid in-batch duplicates
     const batchGameSignatures: Set<string> = new Set();
+    // Accumulate valid rows for a single bulk insert at the end
+    const pendingGames: Array<{ rowNum: number; data: any }> = [];
 
     // Validate organization exists before proceeding
     const organization = await prisma.organization.findUnique({
@@ -272,88 +299,53 @@ export async function POST(request: NextRequest) {
         // === SANITIZE CUSTOM FIELDS TO PREVENT INJECTION ATTACKS ===
         const sanitizedCustomFields = sanitizeCustomFields(gameData.customFields || {});
 
-        // === CHECK FOR DUPLICATE ROW ===
-        const isDuplicate = await isDuplicateRow(
-          parsedDate,
-          sanitizedCustomFields,
-          session.user.organizationId,
-          batchGameSignatures
-        );
-
-        if (isDuplicate) {
+        // === CHECK FOR DUPLICATE ROW (in-memory — no DB query per row) ===
+        const gameSignature = createGameSignature(parsedDate, sanitizedCustomFields);
+        if (batchGameSignatures.has(gameSignature) || existingSignatures.has(gameSignature)) {
           duplicates.push(`Row ${rowNum}: Duplicate row detected (all fields match existing game)`);
           duplicateCount++;
-          continue; // Skip this row
-        }
-
-        // === CREATE GAME WITH DATE AND CUSTOM FIELDS ===
-        const gameCreateData: any = {
-          date: parsedDate,
-          homeTeamId: defaultTeam.id,
-          isHome: true, // Default value
-          status: "SCHEDULED" as GameStatus,
-          customFields: sanitizedCustomFields,
-          createdById: session.user.id,
-          time: timeValue,
-          sortOrder: 0,
-        };
-
-        // Associate game with workbook if provided
-        if (workbookId) {
-          gameCreateData.workbookId = workbookId;
-        }
-
-        let createdGame;
-        try {
-          createdGame = await prisma.game.create({
-            data: gameCreateData,
-            include: {
-              homeTeam: {
-                include: {
-                  sport: true,
-                },
-              },
-            },
-          });
-        } catch (gameCreateError) {
-          console.error(`Row ${rowNum} game creation error:`, gameCreateError);
-          
-          // Handle specific Prisma errors
-          if (gameCreateError instanceof Error && 'code' in gameCreateError) {
-            const prismaError = gameCreateError as any;
-            if (prismaError.code === 'P2003') {
-              errors.push(`Row ${rowNum}: Foreign key constraint violation - the organization or team referenced doesn't exist`);
-            } else if (prismaError.code === 'P2002') {
-              errors.push(`Row ${rowNum}: Duplicate entry - a game with these details already exists`);
-            } else {
-              errors.push(`Row ${rowNum}: Database error (${prismaError.code}): ${prismaError.message}`);
-            }
-          } else {
-            errors.push(`Row ${rowNum}: ${gameCreateError instanceof Error ? gameCreateError.message : "Unknown error creating game"}`);
-          }
-          
-          failedCount++;
           continue;
         }
 
-        // === VALIDATE CREATED GAME ===
-        if (!createdGame || !createdGame.id) {
-          errors.push(`Row ${rowNum}: Game creation failed - no ID returned`);
-          failedCount++;
-          continue;
-        }
-
-        // === SUCCESS ===
-        createdGameIds.push(createdGame.id);
-        successCount++;
-
-        // Add to batch signatures to prevent duplicate detection within batch
-        const gameSignature = createGameSignature(parsedDate, sanitizedCustomFields);
+        // Queue for batch insert
+        pendingGames.push({
+          rowNum,
+          data: {
+            date: parsedDate,
+            homeTeamId: defaultTeam.id,
+            isHome: true,
+            status: "SCHEDULED" as GameStatus,
+            customFields: sanitizedCustomFields,
+            createdById: session.user.id,
+            time: timeValue,
+            sortOrder: 0,
+            ...(workbookId ? { workbookId } : {}),
+          },
+        });
         batchGameSignatures.add(gameSignature);
       } catch (error) {
         console.error(`Row ${rowNum} import error:`, error);
         errors.push(`Row ${rowNum}: ${error instanceof Error ? error.message : "Unknown error"}`);
         failedCount++;
+      }
+    }
+
+    // ── Bulk insert all valid games in one DB round trip ────────────────────
+    if (pendingGames.length > 0) {
+      try {
+        const created = await prisma.game.createManyAndReturn({
+          data: pendingGames.map((p) => p.data),
+          select: { id: true },
+        });
+        for (const row of created) createdGameIds.push(row.id);
+        successCount += created.length;
+      } catch (bulkErr: any) {
+        // If bulk insert fails entirely, log each row as failed
+        console.error("[Import] Bulk insert failed:", bulkErr);
+        for (const p of pendingGames) {
+          errors.push(`Row ${p.rowNum}: ${bulkErr?.message ?? "Database error during bulk insert"}`);
+          failedCount++;
+        }
       }
     }
 
@@ -380,7 +372,7 @@ export async function POST(request: NextRequest) {
         const sanitizedColumnMapping: Record<string, string> = {};
         for (const [key, value] of Object.entries(columnMapping)) {
           const sanitizedKey = sanitizeColumnName(key);
-          sanitizedColumnMapping[sanitizedKey] = typeof value === "string" ? sanitizeColumnName(value) : value;
+          sanitizedColumnMapping[sanitizedKey] = typeof value === "string" ? sanitizeColumnName(value) : String(value ?? "");
         }
 
         // Each import is a clean slate — no merging with previous column configs.

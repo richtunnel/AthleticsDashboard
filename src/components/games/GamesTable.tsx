@@ -568,6 +568,7 @@ export function GamesTable() {
 
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showImportChoiceDialog, setShowImportChoiceDialog] = useState(false);
   const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
   const { gamesViewMode, setGamesViewMode, showPostScheduleButton } = useDashboardPreferencesStore();
   const scheduleView = gamesViewMode === "schedule";
@@ -3396,10 +3397,18 @@ export function GamesTable() {
       source: "games_table",
       action: "import_button",
     });
+    // Show worksheet choice first — new worksheet is the default
+    setShowImportChoiceDialog(true);
+  }, []);
+
+  // Called from the choice dialog when user picks "Add to current worksheet"
+  const handleImportMerge = useCallback(() => {
+    setShowImportChoiceDialog(false);
     setShowImportDialog(true);
   }, []);
 
-  const handleViewImportNew = useCallback(async () => {
+  const handleViewImportNew = useCallback(async (closeChoiceDialog = false) => {
+    if (closeChoiceDialog) setShowImportChoiceDialog(false);
     if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
       addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
       return;
@@ -8231,6 +8240,76 @@ export function GamesTable() {
       />
 
       <CustomColumnManager open={showColumnManager} onClose={() => setShowColumnManager(false)} workbookId={selectedWorkbookId} />
+
+      {/* ── Import Worksheet Choice Dialog ── */}
+      <Dialog open={showImportChoiceDialog} onClose={() => setShowImportChoiceDialog(false)} maxWidth="xs" fullWidth disableScrollLock>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Upload fontSize="small" />
+            <Typography variant="h6">Import Schedule</Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent sx={{ pt: "8px !important" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+            Where should the imported data go?
+          </Typography>
+          <Stack spacing={1.5}>
+            {/* New worksheet — default / recommended */}
+            <Box
+              onClick={() => handleViewImportNew(true)}
+              sx={{
+                p: 2,
+                border: "2px solid",
+                borderColor: "primary.main",
+                borderRadius: 2,
+                cursor: "pointer",
+                bgcolor: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.04)",
+                "&:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.08)" },
+                transition: "background-color 0.15s",
+              }}
+            >
+              <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 0.5 }}>
+                <Typography variant="subtitle2" fontWeight={700}>New Worksheet</Typography>
+                <Chip label="Recommended" size="small" color="primary" sx={{ fontSize: "0.65rem", height: 18 }} />
+              </Stack>
+              <Typography variant="caption" color="text.secondary">
+                Creates a fresh isolated worksheet for this import. Keeps your existing schedule untouched.
+              </Typography>
+            </Box>
+
+            {/* Merge into current */}
+            <Box
+              onClick={handleImportMerge}
+              sx={{
+                p: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                cursor: "pointer",
+                "&:hover": { bgcolor: "action.hover" },
+                transition: "background-color 0.15s",
+              }}
+            >
+              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                Add to Current Worksheet
+                {workbooks.find((w: any) => w.id === selectedWorkbookId)?.name && (
+                  <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    ({workbooks.find((w: any) => w.id === selectedWorkbookId)?.name})
+                  </Typography>
+                )}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Merges the imported games into the currently open worksheet. Duplicates are detected and skipped.
+              </Typography>
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2 }}>
+          <Button size="small" onClick={() => setShowImportChoiceDialog(false)} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {showImportDialog && (
         <ErrorBoundary

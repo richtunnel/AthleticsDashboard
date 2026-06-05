@@ -61,7 +61,7 @@ export default function PostsPage() {
   };
 
   return (
-    <Box sx={{ maxWidth: 992, mx: "auto", px: { xs: "10px", sm: 2 }, py: 3 }}>
+    <Box sx={{ maxWidth: 1185, mx: "auto", px: { xs: "10px", sm: 2 }, py: 3 }}>
       <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: "1.15rem", sm: "1.5rem" } }}>
         {TAB_DESCRIPTIONS[tab]?.heading ?? "Posts"}
       </Typography>

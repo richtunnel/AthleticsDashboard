@@ -102,19 +102,39 @@ export function normalizeGameCombo(
   if (colOverrides?.gender) {
     const raw = cfVal(colOverrides.gender) ?? "";
     gender = extractGenderFromText(raw) ?? dbGender ?? "COED";
+  } else if (dbGender && dbGender !== "COED") {
+    // Relational gender is set and meaningful — trust it
+    gender = dbGender;
   } else {
-    const teamName =
-      (game.homeTeam.name as string | null) ||
-      cfVal("Team") || "";
-    if (dbGender) {
-      gender = dbGender;
-    } else if (/boys/i.test(teamName)) {
-      gender = "MALE";
-    } else if (/girls/i.test(teamName)) {
-      gender = "FEMALE";
-    } else {
-      gender = "COED";
+    // No reliable DB gender: do a broad scan across all customField values.
+    //
+    // Priority order:
+    //  1. Dedicated gender columns (Gender, Sex, Division, M/F)
+    //  2. The homeTeam.name stored in the DB
+    //  3. Every other string value in customFields (Sport, Level, Team, etc.)
+    //     — catches "Boys Varsity Basketball" wherever it lands in the CSV
+
+    const priorityKeys  = ["Gender", "Sex", "Division", "M/F", "gender", "sex"];
+    const priorityValue = priorityKeys.map((k) => cfVal(k)).find(Boolean) ?? "";
+    let detected        = extractGenderFromText(priorityValue);
+
+    if (!detected) {
+      // Check homeTeam.name and the raw "Team" column
+      const teamName = (game.homeTeam.name as string | null) || cfVal("Team") || "";
+      detected = extractGenderFromText(teamName);
     }
+
+    if (!detected) {
+      // Scan every remaining string cell value — last resort
+      for (const val of Object.values(cf)) {
+        if (typeof val === "string" && val) {
+          detected = extractGenderFromText(val);
+          if (detected) break;
+        }
+      }
+    }
+
+    gender = detected ?? dbGender ?? "COED";
   }
 
   return { sport, level, gender };

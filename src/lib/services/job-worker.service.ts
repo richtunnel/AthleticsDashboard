@@ -241,9 +241,49 @@ export class JobWorker {
   }
 
   /**
+   * Reap jobs stuck in PROCESSING for > 5 minutes.
+   * These indicate a crashed worker or a cron invocation that was killed mid-job.
+   * Jobs under maxAttempts are reset to PENDING (will be retried with backoff).
+   * Jobs at maxAttempts are moved to FAILED so they don't block the idempotency key.
+   */
+  private async reaperSweep(): Promise<void> {
+    const staleThreshold = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+
+    // Reset recoverable stuck jobs back to PENDING
+    const recovered = await prisma.$executeRaw`
+      UPDATE "BackgroundJob"
+      SET "status" = 'PENDING',
+          "updatedAt" = NOW(),
+          "error" = COALESCE("error" || E'\n', '') || '[Reaper] Reset from stuck PROCESSING state'
+      WHERE "status" = 'PROCESSING'
+        AND "updatedAt" < ${staleThreshold}
+        AND "attempts" < "maxAttempts"
+    `;
+
+    // Permanently fail stuck jobs that have already exhausted retries
+    const failed = await prisma.$executeRaw`
+      UPDATE "BackgroundJob"
+      SET "status" = 'FAILED',
+          "failedAt" = NOW(),
+          "updatedAt" = NOW(),
+          "error" = COALESCE("error" || E'\n', '') || '[Reaper] Permanently failed after exhausting retries in PROCESSING state'
+      WHERE "status" = 'PROCESSING'
+        AND "updatedAt" < ${staleThreshold}
+        AND "attempts" >= "maxAttempts"
+    `;
+
+    if (recovered > 0 || failed > 0) {
+      console.warn(`[JobWorker] Reaper: recovered=${recovered} failed=${failed} stuck jobs`);
+    }
+  }
+
+  /**
    * Acquire a job for processing using pessimistic locking
    */
   private async acquireJob(): Promise<BackgroundJob | null> {
+    // Sweep for stuck jobs before picking up new work
+    await this.reaperSweep();
+
     try {
       // Use SKIP LOCKED for concurrency-safe job acquisition in PostgreSQL
       const result = await prisma.$queryRaw<BackgroundJob[]>`

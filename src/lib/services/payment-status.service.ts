@@ -9,6 +9,17 @@ import type { Subscription, SubscriptionStatus } from "@prisma/client";
 
 const PAYMENT_GRACE_HOURS = 48;
 
+// ── In-process payment status cache ─────────────────────────────────────────
+// Eliminates a DB query on every /dashboard/* middleware hit.
+// TTL is short (5 min) so changes from Stripe webhooks propagate quickly.
+const PAYMENT_CACHE_TTL_MS = 5 * 60 * 1000;
+const _paymentCache = new Map<string, { result: PaymentStatusResult; expiresAt: number }>();
+
+/** Invalidate a cached entry — call from Stripe webhook handlers on status changes. */
+export function invalidatePaymentStatusCache(userId: string): void {
+  _paymentCache.delete(userId);
+}
+
 export interface PaymentStatusResult {
   isOverdue: boolean;
   hoursOverdue?: number;
@@ -27,6 +38,16 @@ export interface PaymentStatusResult {
  * Check if a user's payment is overdue and dashboard should be locked
  */
 export async function checkPaymentStatus(userId: string): Promise<PaymentStatusResult> {
+  // Serve from cache to avoid a DB hit on every middleware request
+  const cached = _paymentCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.result;
+
+  const result = await _checkPaymentStatusFromDB(userId);
+  _paymentCache.set(userId, { result, expiresAt: Date.now() + PAYMENT_CACHE_TTL_MS });
+  return result;
+}
+
+async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusResult> {
   try {
     // Fetch account status, role, and member-access flag in one query
     const user = await prisma.user.findUnique({

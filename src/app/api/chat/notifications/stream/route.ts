@@ -8,6 +8,23 @@ import { REDIS_ENABLED } from "@/lib/redis/enabled";
 // When Redis is off, poll fast since it's the only delivery path.
 const POLL_INTERVAL_MS = REDIS_ENABLED ? 60_000 : 5_000;
 
+// ── Per-user SSE connection cap ───────────────────────────────────────────────
+// Prevents reconnect storms and runaway timer/subscription accumulation.
+// In-process only — sufficient for single-instance deployments; with Redis
+// this could be promoted to a shared counter.
+const MAX_SSE_PER_USER = 3;
+const _sseConnCount = new Map<string, number>();
+function _sseIncr(userId: string): number {
+  const n = (_sseConnCount.get(userId) ?? 0) + 1;
+  _sseConnCount.set(userId, n);
+  return n;
+}
+function _sseDecr(userId: string): void {
+  const n = (_sseConnCount.get(userId) ?? 1) - 1;
+  if (n <= 0) _sseConnCount.delete(userId);
+  else _sseConnCount.set(userId, n);
+}
+
 /**
  * GET /api/chat/notifications/stream?since=<ISO>
  *
@@ -28,6 +45,13 @@ export async function GET(request: NextRequest) {
     select: { id: true, organizationId: true },
   });
   if (!user?.organizationId) return new Response("User not found or no organization", { status: 404 });
+
+  // Enforce per-user connection cap
+  const connCount = _sseIncr(user.id);
+  if (connCount > MAX_SSE_PER_USER) {
+    _sseDecr(user.id);
+    return new Response("Too many SSE connections", { status: 429 });
+  }
 
   const sinceParam = request.nextUrl.searchParams.get("since");
   const sinceDate = sinceParam ? new Date(sinceParam) : new Date();
@@ -132,14 +156,12 @@ export async function GET(request: NextRequest) {
             lastGameRequestAt = gr.updatedAt;
           }
 
-          // Also emit unread count for badge refresh
+          // Also emit unread count for badge refresh (parallel — 1 round-trip)
           if (gameRequests.length > 0) {
-            const unreadOwner = await prisma.gameRequest.count({
-              where: { ownerUserId: user.id, readByOwner: false, status: "PENDING" },
-            });
-            const unreadReq = await prisma.gameRequest.count({
-              where: { requesterUserId: user.id, readByRequester: false, status: "APPROVED" },
-            });
+            const [unreadOwner, unreadReq] = await Promise.all([
+              prisma.gameRequest.count({ where: { ownerUserId: user.id, readByOwner: false, status: "PENDING" } }),
+              prisma.gameRequest.count({ where: { requesterUserId: user.id, readByRequester: false, status: "APPROVED" } }),
+            ]);
             send({ type: "GAME_REQUEST_COUNT_UPDATE", count: unreadOwner + unreadReq });
           }
         } catch { /* retry next tick */ }
@@ -179,6 +201,7 @@ export async function GET(request: NextRequest) {
 
       request.signal.addEventListener("abort", () => {
         closed = true;
+        _sseDecr(user.id);
         unsubs.forEach((fn) => fn());
         clearInterval(pollInterval);
         clearInterval(keepaliveInterval);

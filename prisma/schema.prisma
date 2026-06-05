@@ -341,6 +341,11 @@ model Game {
   @@index([opponentId])
   @@index([createdById, sortOrder])
   @@index([workbookId])
+  // Composite indexes for common multi-column query patterns
+  @@index([workbookId, date])             // workbook schedule range queries
+  @@index([workbookId, status])           // workbook + status filter (cancel detection)
+  @@index([date, status])                 // upcoming games by status across org
+  @@index([homeTeamId, date])             // team schedule in date range
 }
 
 model Venue {
@@ -391,6 +396,9 @@ model EmailLog {
   @@index([sentById])
   @@index([createdAt])
   @@index([status])
+  // Composite indexes for email limit queries (avoids full table scans)
+  @@index([status, sentAt])               // global monthly count: WHERE status='SENT' AND sentAt>=...
+  @@index([sentById, status, sentAt])     // per-user daily/monthly limit checks
 }
 
 model EmailJob {

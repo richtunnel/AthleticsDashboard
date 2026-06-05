@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { isSignupBlocked, getDaysRemaining } from "@/lib/services/signup-log.service";
+import { rateLimit } from "@/lib/middleware/rateLimit";
 
 export async function POST(request: NextRequest) {
+  // 10 signup checks per minute per IP
+  const limit = await rateLimit({ request, key: "auth:signup-check", limit: 10, windowSec: 60 });
+  if (limit.response) return limit.response;
+
   try {
     const body = await request.json();
     const { email } = body;
