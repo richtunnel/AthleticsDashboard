@@ -10,6 +10,8 @@ interface DashboardPreferencesState {
   setCalendarWidgetState: (state: CalendarWidgetState) => void;
   gamesViewMode: "table" | "schedule";
   setGamesViewMode: (mode: "table" | "schedule") => void;
+  showPostScheduleButton: boolean;
+  setShowPostScheduleButton: (show: boolean) => void;
 }
 
 export const useDashboardPreferencesStore = create<DashboardPreferencesState>()(
@@ -19,6 +21,8 @@ export const useDashboardPreferencesStore = create<DashboardPreferencesState>()(
       setCalendarWidgetState: (state) => set({ calendarWidgetState: state }),
       gamesViewMode: "table",
       setGamesViewMode: (mode) => set({ gamesViewMode: mode }),
+      showPostScheduleButton: false,
+      setShowPostScheduleButton: (show) => set({ showPostScheduleButton: show }),
     }),
     {
       name: "dashboard-preferences-storage",

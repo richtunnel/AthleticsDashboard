@@ -27,6 +27,7 @@ import { SettingsTabsClient } from "@/components/settings/SettingsTabsClient";
 import { MenuVisibilityToggles } from "@/components/settings/MenuVisibilityToggles";
 import { TutorialTipsCard } from "@/components/settings/TutorialTipsCard";
 import { ColumnIdentityModal } from "@/components/settings/ColumnIdentityModal";
+import { PostScheduleToggle } from "@/components/settings/PostScheduleToggle";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import { AutoAwesome, AttachMoney, MenuBook, Inbox, InfoOutlined } from "@mui/icons-material";
@@ -362,6 +363,18 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             Map your imported CSV column names to recognized data fields. Use this when your schedule columns use custom names that weren&apos;t automatically detected.
           </Typography>
           <ColumnIdentityModal />
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Post Schedule Quick Link
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Show a <strong>Post Schedule</strong> button in Game Center so you can post your schedule to the Schedule Exchange Board without leaving the page.
+          </Typography>
+          <PostScheduleToggle />
         </CardContent>
       </Card>
 

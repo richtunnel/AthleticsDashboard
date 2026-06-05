@@ -38,6 +38,8 @@ import {
   Settings as SettingsMenuIcon,
   ViewModule as ViewModuleIcon,
   TableRows as TableRowsIcon,
+  PostAdd as PostAddIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon,
 } from "@mui/icons-material";
 import { useRouter } from "next/navigation";
 import { useNotifications } from "@/contexts/NotificationContext";
@@ -55,6 +57,7 @@ import { ImportUndoButton } from "./ImportUndoButton";
 import { WorksheetToggle } from "./WorksheetToggle";
 import { WorksheetView } from "./WorksheetView";
 import { ScheduleCalendarView } from "./ScheduleCalendarView";
+import { SchedulePostForm } from "@/components/schedule-board/SchedulePostForm";
 import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
@@ -565,8 +568,10 @@ export function GamesTable() {
   const [editingGameData, setEditingGameData] = useState<Game | null>(null);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [worksheetTab, setWorksheetTab] = useState<"worksheet" | "view">("worksheet");
-  const { gamesViewMode, setGamesViewMode } = useDashboardPreferencesStore();
+  const { gamesViewMode, setGamesViewMode, showPostScheduleButton } = useDashboardPreferencesStore();
   const scheduleView = gamesViewMode === "schedule";
+  const [postScheduleModalOpen, setPostScheduleModalOpen] = useState(false);
+  const [postSchedulePosted, setPostSchedulePosted] = useState(false);
 
   // Opponent column override (shared with ScheduleCalendarView via persisted store)
   const { overrides: opponentOverrides, setOverride: setOpponentOverride } = useOpponentColumnStore();
@@ -7609,6 +7614,26 @@ export function GamesTable() {
                     </Button>
                   )}
 
+                  {/* Post Schedule Button — visible only when enabled in Settings > Other */}
+                  {showPostScheduleButton && (
+                    <Tooltip title="Post your schedule to the Schedule Exchange Board">
+                      <Button
+                        variant="outlined"
+                        startIcon={<PostAddIcon />}
+                        onClick={() => { setPostSchedulePosted(false); setPostScheduleModalOpen(true); }}
+                        size="small"
+                        sx={{
+                          borderColor: theme.palette.themeButtonText.subtle,
+                          color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                          textTransform: "none",
+                          py: "5px",
+                        }}
+                      >
+                        Post Schedule
+                      </Button>
+                    </Tooltip>
+                  )}
+
                   {/* Hide menu toggle — subtle arrow at the far end */}
                   <Tooltip title="Hide menu">
                     <IconButton
@@ -7692,7 +7717,7 @@ export function GamesTable() {
                 </Button>
               </Tooltip>
               {/* Schedule / Calendar View Toggle */}
-              <Tooltip title={scheduleView ? "Switch to Table View" : "Switch to Schedule View"}>
+              <Tooltip title={scheduleView ? "Switch to Table View" : "Switch to Calendar View"}>
                 <Button
                   variant="outlined"
                   size="small"
@@ -7705,7 +7730,7 @@ export function GamesTable() {
                     display: { xs: "none", sm: "inline-flex" },
                   }}
                 >
-                  {scheduleView ? "Table View" : "Schedule View"}
+                  {scheduleView ? "Table View" : "Calendar View"}
                 </Button>
               </Tooltip>
             </Stack>
@@ -8336,6 +8361,45 @@ export function GamesTable() {
           refetch();
         }}
       />
+
+      {/* Post Schedule Modal */}
+      <Dialog
+        open={postScheduleModalOpen}
+        onClose={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }}
+        maxWidth="md"
+        fullWidth
+        disableScrollLock
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <PostAddIcon />
+            <Typography variant="h6">Post Schedule</Typography>
+          </Box>
+          <IconButton size="small" onClick={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }}>
+            <ChevronLeft sx={{ fontSize: "1.1rem" }} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
+          {postSchedulePosted ? (
+            <Box sx={{ textAlign: "center", py: 6 }}>
+              <CheckCircleOutlineIcon sx={{ fontSize: 56, color: "success.main", mb: 2 }} />
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                Schedule Posted!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Your schedule has been posted to the Schedule Exchange Board. Other ADs can now request games on your open dates.
+              </Typography>
+            </Box>
+          ) : (
+            <SchedulePostForm onPosted={() => setPostSchedulePosted(true)} />
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }} variant={postSchedulePosted ? "contained" : "text"}>
+            {postSchedulePosted ? "Close" : "Cancel"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dismiss/Depart Modal for Bus Info/Travel columns */}
       {dismissDepartModal && (

@@ -30,6 +30,8 @@ import { ConnectedParentsMenu } from "../parents/ConnectedParentsMenu";
 import { CalendarSyncRequestsMenu } from "./CalendarSyncRequestsMenu";
 import { TipBubble } from "@/components/tips/TipBubble";
 import { TIP_IDS } from "@/components/tips/tipIds";
+import {} from "@mui/icons-material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 interface ParentsAndAthletesMenuProps {
   defaultOpen?: boolean;
@@ -120,20 +122,29 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
 
   return (
     <Box sx={{ px: { xs: "10px", sm: 2 }, pb: 3, pt: 0 }}>
-      <Typography sx={{ mb: 2, fontWeight: 700, fontSize: { xs: "1.35rem", sm: "2.125rem" } }} variant="h4">
-        Parents Connect
+      <Typography sx={{ mb: 0, fontWeight: 600, fontSize: { xs: "1.35rem", sm: "1.5rem" } }} variant="h5">
+        Parent Connect
+      </Typography>
+
+      <Typography sx={{ mb: 2 }} variant="body2" color="text.secondary">
+        Manage parent connections, athlete links, and direct messaging.
+        <span>
+          <Tooltip
+            placement="top"
+            arrow
+            title="Allow parents to sync game schedules with your worksheet. Approve the sync request, then select the columns that match the student's sport and level (e.g., Varsity, JV, or Freshman)"
+          >
+            <IconButton size="small" sx={{ ml: 0, pl: 0 }}>
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </span>
       </Typography>
 
       <Card variant="outlined" sx={{ mb: 2 }}>
         <Collapse in={open} timeout="auto" unmountOnExit>
           <Box sx={{ p: 2, pt: 1 }}>
-            <Tabs 
-              value={tabValue} 
-              onChange={handleTabChange} 
-              sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
+            <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }} variant="scrollable" scrollButtons="auto">
               <Tab
                 ref={setSyncTabEl}
                 icon={
@@ -171,9 +182,9 @@ export function ParentsAndAthletesMenu({ defaultOpen = false }: ParentsAndAthlet
             />
 
             {tabValue === 0 && <CalendarSyncRequestsMenu />}
-            
+
             {tabValue === 1 && <ConnectedParentsMenu />}
-            
+
             {tabValue === 2 && (
               <Box sx={{ mb: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>

@@ -607,7 +607,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </Typography>
               </Box>
               <Divider />
-              <MenuItem component={Link} href="/dashboard/feature-tips" onClick={handleClose}>
+              <MenuItem component="a" href="/dashboard/feature-tips" target="_blank" rel="noopener noreferrer" onClick={handleClose}>
                 <ListItemIcon>
                   <LightbulbOutlined fontSize="small" />
                 </ListItemIcon>
@@ -739,7 +739,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <Container
           maxWidth={false}
           sx={{
-            py: { xs: 2, sm: 3, md: 4 },
+            // Keep top padding on Dashboard and Game Center, or when the sidebar is collapsed
+            pt: (pathname === "/dashboard" || pathname === "/dashboard/games" || !isSidebarVisible)
+              ? { xs: 2, sm: 3, md: 4 }
+              : { xs: 2, sm: 3, md: 0 },
+            pb: { xs: 2, sm: 3, md: 4 },
             px: { xs: 2, sm: 3 },
             maxWidth: {
               xs: "100%",

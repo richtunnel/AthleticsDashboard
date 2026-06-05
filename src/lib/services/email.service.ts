@@ -378,7 +378,7 @@ export class EmailService {
     `;
 
     return {
-      subject: "Welcome to Opletics 🏆",
+      subject: "Welcome to Opletics",
       body,
     };
   }

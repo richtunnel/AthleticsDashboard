@@ -170,6 +170,11 @@ const HOME_TEAM_ALIASES = new Set([
   "team1",
   "host",
   "hostteam",
+  // Broader informal names the user may call their own team
+  "team",
+  "squad",
+  "gang",
+  "peeps",
 ]);
 
 /**

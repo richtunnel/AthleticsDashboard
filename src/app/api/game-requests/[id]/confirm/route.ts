@@ -40,7 +40,7 @@ export async function PUT(
     if (gr.owner?.email) {
       emails.push(emailService.sendEmail({
         to:        [gr.owner.email],
-        subject:   `🏆 Game Confirmed — ${sport} vs. ${gr.requester?.schoolName || gr.requester?.name}`,
+        subject:   `Game Confirmed — ${sport} vs. ${gr.requester?.schoolName || gr.requester?.name}`,
         body:      `Hi ${gr.owner.name || "Coach"},\n\n${gr.requester?.schoolName || "The requesting school"} has confirmed the ${sport} game on ${dateStr}. The game is now locked in on both sides.\n\nLog in to view the full details.\n\nhttps://opletics.com/dashboard/posts?tab=3`,
         immediate: true,
       }));
@@ -49,7 +49,7 @@ export async function PUT(
     if (gr.requester?.email) {
       emails.push(emailService.sendEmail({
         to:        [gr.requester.email],
-        subject:   `🏆 Game Confirmed — ${sport} vs. ${gr.owner?.schoolName || gr.owner?.name}`,
+        subject:   `Game Confirmed — ${sport} vs. ${gr.owner?.schoolName || gr.owner?.name}`,
         body:      `Hi ${gr.requester.name || "Coach"},\n\nYou've confirmed the ${sport} game with ${gr.owner?.schoolName || "the school"} on ${dateStr}. The game is now locked in — head to Game Center to sync it to your schedule.\n\nhttps://opletics.com/dashboard/posts?tab=3`,
         immediate: true,
       }));

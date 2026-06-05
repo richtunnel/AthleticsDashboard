@@ -195,7 +195,10 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
   const textContent: string[] = [];
 
   if (signatureText?.trim()) {
-    textContent.push(`<div style="margin-bottom: 4px; white-space: pre-wrap; font-size: 14px; line-height: 1.3; font-weight: 600;">${escapeHtml(signatureText)}</div>`);
+    // signatureText may contain rich HTML (bold/size from the editor) or legacy plain text.
+    const isHtmlContent = /<[a-z][\s\S]*?>/i.test(signatureText);
+    const rendered = isHtmlContent ? signatureText : escapeHtml(signatureText).replace(/\n/g, "<br>");
+    textContent.push(`<div style="margin-bottom: 4px; font-size: 14px; line-height: 1.4;">${rendered}</div>`);
   }
 
   if (signaturePhone?.trim()) {

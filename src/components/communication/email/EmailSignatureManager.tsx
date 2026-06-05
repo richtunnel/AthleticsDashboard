@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Box, Button, Card, CardContent, Divider, Snackbar, Stack, TextField, Typography, IconButton, Paper, useTheme } from "@mui/material";
+import {
+  Alert, Box, Button, Card, CardContent, Divider, Snackbar, Stack,
+  Typography, IconButton, Paper, useTheme, Select, MenuItem, Tooltip,
+  FormControl, TextField,
+} from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import PhotoCamera from "@mui/icons-material/PhotoCamera";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
 import { LoadingButton } from "@/components/utils/LoadingButton";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { buildEmailSignatureHTML } from "@/lib/utils/email-signature";
@@ -91,15 +96,59 @@ async function uploadLogo(file: File): Promise<string> {
   return data.data.url;
 }
 
+const FONT_SIZES = [
+  { label: "Small",   value: "12px" },
+  { label: "Normal",  value: "14px" },
+  { label: "Large",   value: "16px" },
+  { label: "X-Large", value: "18px" },
+];
+
+/** Convert plain text (legacy) to simple HTML for contentEditable */
+function plainToHtml(text: string): string {
+  if (!text) return "";
+  if (/<[a-z][\s\S]*?>/i.test(text)) return text; // already HTML
+  return text
+    .split("\n")
+    .map((line) => `<div>${line || "<br>"}</div>`)
+    .join("");
+}
+
 export function EmailSignatureManager() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const [snackbar, setSnackbar] = useState<SnackbarState>(DEFAULT_SNACKBAR);
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [signatureText, setSignatureText] = useState("");
+  const [selectedFontSize, setSelectedFontSize] = useState("14px");
+
+  const syncEditorContent = useCallback(() => {
+    if (editorRef.current) setSignatureText(editorRef.current.innerHTML);
+  }, []);
+
+  const applyBold = useCallback(() => {
+    editorRef.current?.focus();
+    document.execCommand("bold", false);
+    syncEditorContent();
+  }, [syncEditorContent]);
+
+  const applyFontSize = useCallback((size: string) => {
+    editorRef.current?.focus();
+    // execCommand fontSize only supports 1-7 scale; use a workaround to inject inline style
+    document.execCommand("fontSize", false, "7");
+    const fontEls = editorRef.current?.querySelectorAll('font[size="7"]') ?? [];
+    fontEls.forEach((el) => {
+      const span = document.createElement("span");
+      span.style.fontSize = size;
+      span.innerHTML = (el as HTMLElement).innerHTML;
+      el.replaceWith(span);
+    });
+    setSelectedFontSize(size);
+    syncEditorContent();
+  }, [syncEditorContent]);
 
   const showMessage = (message: string, severity: AlertColor = "success") => {
     setSnackbar({ open: true, message, severity });
@@ -119,9 +168,21 @@ export function EmailSignatureManager() {
       setPhone(signature.signaturePhone || "");
       setWebsite(signature.signatureWebsite || "");
       setLogoUrl(signature.signatureLogoUrl || "");
-      setSignatureText(signature.signatureText || "");
+      const html = plainToHtml(signature.signatureText || "");
+      setSignatureText(html);
+      // Populate the contentEditable after React paints it
+      if (editorRef.current) {
+        editorRef.current.innerHTML = html;
+      }
     }
   }, [signature]);
+
+  // Set innerHTML when editorRef mounts if signatureText is already populated
+  useEffect(() => {
+    if (editorRef.current && signatureText && !editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = signatureText;
+    }
+  });
 
   const updateMutation = useMutation({
     mutationFn: updateEmailSignature,
@@ -298,17 +359,80 @@ export function EmailSignatureManager() {
                 </Typography>
               </Box>
 
-              {/* Custom Text */}
-              <TextField
-                label="Signature Text"
-                value={signatureText}
-                onChange={(e) => setSignatureText(e.target.value)}
-                placeholder="e.g., Best regards,&#10;John Smith&#10;Athletic Director"
-                fullWidth
-                multiline
-                rows={3}
-                helperText="Add custom text to your signature (e.g., name, title, greeting)"
-              />
+              {/* Custom Text — rich text editor */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.75 }}>
+                  Signature Text
+                </Typography>
+
+                {/* Mini formatting toolbar */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  gap={0.5}
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderBottom: "none",
+                    borderRadius: "4px 4px 0 0",
+                    bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)",
+                  }}
+                >
+                  <Tooltip title="Bold (Ctrl+B)">
+                    <IconButton size="small" onClick={applyBold} sx={{ borderRadius: 1 }}>
+                      <FormatBoldIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <FormControl size="small" variant="standard" sx={{ minWidth: 90 }}>
+                    <Select
+                      value={selectedFontSize}
+                      onChange={(e) => applyFontSize(e.target.value as string)}
+                      disableUnderline
+                      displayEmpty
+                      sx={{ fontSize: "0.75rem", "& .MuiSelect-select": { py: "2px" } }}
+                    >
+                      {FONT_SIZES.map((s) => (
+                        <MenuItem key={s.value} value={s.value} sx={{ fontSize: "0.8rem" }}>
+                          {s.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
+
+                {/* contentEditable area styled like a MUI outlined TextField */}
+                <Box
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={syncEditorContent}
+                  data-placeholder="e.g., Best regards,&#10;John Smith&#10;Athletic Director"
+                  sx={{
+                    minHeight: 80,
+                    px: 1.75,
+                    py: 1.25,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: "0 0 4px 4px",
+                    fontSize: "0.875rem",
+                    lineHeight: 1.6,
+                    outline: "none",
+                    "&:focus": { borderColor: "primary.main", boxShadow: (t) => `0 0 0 2px ${(t.palette.primary as any).main}22` },
+                    "&:empty::before": {
+                      content: "attr(data-placeholder)",
+                      color: "text.disabled",
+                      pointerEvents: "none",
+                      whiteSpace: "pre-line",
+                    },
+                    wordBreak: "break-word",
+                  }}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  Add custom text to your signature (e.g., name, title, greeting). Select text to apply bold or size.
+                </Typography>
+              </Box>
 
               {/* Phone Number */}
               <TextField label="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., (555) 123-4567" fullWidth helperText="Your contact phone number" />

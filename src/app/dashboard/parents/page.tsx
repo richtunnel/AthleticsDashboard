@@ -2,21 +2,19 @@
 
 import { Box, Button, Divider, Stack, Typography } from "@mui/material";
 import ChatIcon from "@mui/icons-material/Chat";
-import NextLink  from "next/link";
+import NextLink from "next/link";
 import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesMenu";
 
 export default function ParentsAndAthletesPage() {
   return (
     <Box>
       <Box sx={{ px: { xs: 1, sm: 2 }, pt: 1, pb: 2 }}>
-        <Typography variant="h4" fontWeight={700} sx={{ mb: 0.25 }}>Connect Hub</Typography>
-        <Typography variant="h6" fontWeight={500} color="text.secondary" sx={{ mb: 0.5 }}>
-          Parents Connect
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Manage parent connections, athlete links, and direct messaging.
+        <Typography variant="h4" fontWeight={700}>
+          Connect Hub
         </Typography>
       </Box>
+      <Divider sx={{ mb: 3, borderColor: "divider", borderBottomWidth: "0.5px" }} />
+
       <ParentsAndAthletesMenu defaultOpen={true} />
 
       <Divider sx={{ my: 3, borderColor: "divider", borderBottomWidth: "0.5px" }} />
@@ -32,13 +30,7 @@ export default function ParentsAndAthletesPage() {
               Direct messaging with connected parents and collaborators.
             </Typography>
           </Box>
-          <Button
-            component={NextLink}
-            href="/dashboard/messages"
-            variant="outlined"
-            startIcon={<ChatIcon fontSize="small" />}
-            sx={{ textTransform: "none", fontWeight: 600, whiteSpace: "nowrap" }}
-          >
+          <Button component={NextLink} href="/dashboard/messages" variant="outlined" startIcon={<ChatIcon fontSize="small" />} sx={{ textTransform: "none", fontWeight: 600, whiteSpace: "nowrap" }}>
             Open Chat
           </Button>
         </Stack>

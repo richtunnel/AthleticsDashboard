@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAnySession } from "@/lib/utils/collaboratorSession";
 import { prisma } from "@/lib/database/prisma";
+import { emailService } from "@/lib/services/email.service";
 
 export async function PUT(
   _req: NextRequest,
@@ -11,7 +12,13 @@ export async function PUT(
 
   const { id } = await params;
   try {
-    const gr = await prisma.gameRequest.findUnique({ where: { id } });
+    const gr = await prisma.gameRequest.findUnique({
+      where: { id },
+      include: {
+        requester: { select: { email: true, name: true, schoolName: true } },
+        owner:     { select: { email: true, name: true, schoolName: true } },
+      },
+    });
 
     if (!gr) return NextResponse.json({ error: "Not found" }, { status: 404 });
     if (gr.ownerUserId !== session.user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -41,7 +48,40 @@ export async function PUT(
       return result;
     });
 
-    // Emails only fire after the requester confirms (confirm/route.ts)
+    // Notify the requester by email so they know to confirm
+    if (gr.requester?.email) {
+      const dateStr = gr.availableDate.toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      });
+      const sport = `${gr.gender === "MALE" ? "Boys" : gr.gender === "FEMALE" ? "Girls" : "Co-ed"} ${gr.level} ${gr.sport}`;
+      const ownerSchool = gr.owner?.schoolName || gr.owner?.name || "the school";
+
+      const confirmUrl = `https://opletics.com/dashboard/posts?tab=3`;
+      emailService.sendEmail({
+        to:      [gr.requester.email],
+        subject: `Action Required — Confirm Your ${sport} Game with ${ownerSchool}`,
+        body: [
+          `Hi ${gr.requester.name || "Coach"},`,
+          "",
+          `Great news! ${ownerSchool} has approved your ${sport} game request for ${dateStr}.`,
+          "",
+          "ACTION REQUIRED — you must confirm to lock the game in:",
+          "",
+          `  → Confirm your game here: ${confirmUrl}`,
+          "",
+          "Steps to confirm:",
+          "  1. Click the link above to open Game Requests",
+          `  2. Find the ${sport} request under \"Approved — Awaiting Confirmation\"`,
+          "  3. Click the Confirm button on the request card",
+          "",
+          "Once confirmed, both schools will receive a final confirmation email and the game will be ready to sync to your schedule.",
+          "",
+          "If you have any questions, reply to this email or contact us at support@opletics.com.",
+        ].join("\n"),
+        immediate: true,
+      }).catch((err) => console.warn("[game-requests/approve] approval email failed:", err));
+    }
+
     return NextResponse.json({ request: updated });
   } catch (err) {
     console.error("[game-requests/[id]/approve PUT]", err);
