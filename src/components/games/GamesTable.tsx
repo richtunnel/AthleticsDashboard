@@ -59,6 +59,7 @@ import { WorksheetView } from "./WorksheetView";
 import { ScheduleCalendarView } from "./ScheduleCalendarView";
 import { SchedulePostForm } from "@/components/schedule-board/SchedulePostForm";
 import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
+import { useNavigationStore } from "@/lib/stores/navigationStore";
 import { UndoDeleteButton } from "./UndoDeleteButton";
 import { SampleGameBanner } from "./SampleGameBanner";
 import { TipBubble } from "@/components/tips/TipBubble";
@@ -572,6 +573,27 @@ export function GamesTable() {
   const scheduleView = gamesViewMode === "schedule";
   const [postScheduleModalOpen, setPostScheduleModalOpen] = useState(false);
   const [postSchedulePosted, setPostSchedulePosted] = useState(false);
+  const { setLeftNavOpen } = useNavigationStore();
+
+  // Auto-hide toolbar menu + sidebar when viewport is narrower than 1440px
+  useEffect(() => {
+    const BREAKPOINT = 1440;
+
+    const applyHide = (width: number) => {
+      if (width < BREAKPOINT) {
+        toggleToolbarMenu(false);
+        setLeftNavOpen(false);
+      }
+    };
+
+    // Apply on mount
+    applyHide(window.innerWidth);
+
+    const onResize = () => applyHide(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Opponent column override (shared with ScheduleCalendarView via persisted store)
   const { overrides: opponentOverrides, setOverride: setOpponentOverride } = useOpponentColumnStore();

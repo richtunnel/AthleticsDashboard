@@ -5,7 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
-import { Tooltip } from "@mui/material";
+import { Tooltip, useMediaQuery } from "@mui/material";
 import { getFirstName } from "@/lib/utils/name";
 import FeedbackIcon from "@mui/icons-material/Feedback";
 import { useQuery } from "@tanstack/react-query";
@@ -163,6 +163,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isSidebarVisible = mounted ? isLeftNavOpen : true;
+  // At ≤ 1440px use the mobile temporary drawer + hamburger; above that use the permanent sidebar
+  const useHamburger = useMediaQuery("(max-width: 1440px)");
+  const { setLeftNavOpen } = useNavigationStore();
+
+  // Auto-hide the permanent sidebar when viewport drops to ≤ 1440px
+  useEffect(() => {
+    if (useHamburger) setLeftNavOpen(false);
+  }, [useHamburger, setLeftNavOpen]);
 
   const calendarAccountEmail = session?.user?.googleCalendarEmail || session?.user?.email || null;
   const calendarHref = calendarAccountEmail ? `https://calendar.google.com/calendar/u/0/r?account=${encodeURIComponent(calendarAccountEmail)}` : "https://calendar.google.com/calendar/u/0/r";
@@ -199,6 +207,63 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         return "info";
     }
   };
+
+  // ── Clean mobile nav (used at ≤ 1440px, separate from the desktop sidebar) ──
+  const mobileNavContent = (
+    <Box sx={{ width: 280, display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <Box sx={{ px: 2.5, py: 2, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: 1, borderColor: "divider" }}>
+        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 6, color: mode === "dark" ? "#fff" : "#0f172a" }}>
+          <CircularProjectIcon color={mode === "dark" ? "#fff" : "currentColor"} />
+          <span style={{ fontWeight: 800, letterSpacing: "-0.65px", fontSize: "1rem" }}>opletics</span>
+        </Link>
+        <IconButton size="small" onClick={handleDrawerToggle} sx={{ color: "text.secondary" }}>
+          <Close fontSize="small" />
+        </IconButton>
+      </Box>
+
+      {/* Nav items */}
+      <List sx={{ flex: 1, px: 1.5, py: 1.5, overflowY: "auto" }}>
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const isActive = !item.external && pathname === item.href;
+          return (
+            <ListItem key={item.name} disablePadding sx={{ mb: 0.5 }}>
+              <ListItemButton
+                component={Link}
+                href={item.href}
+                {...(item.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: 2,
+                  px: 1.5,
+                  py: 1,
+                  bgcolor: isActive ? "primary.main" : "transparent",
+                  color: isActive ? "#fff" : "text.primary",
+                  "&:hover": { bgcolor: isActive ? "primary.dark" : "action.hover" },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36, color: "inherit" }}>
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={item.name}
+                  primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: isActive ? 700 : 500 }}
+                />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+
+      {/* Footer */}
+      <Box sx={{ px: 2, py: 2, borderTop: 1, borderColor: "divider" }}>
+        <Typography variant="caption" color="text.disabled" noWrap>
+          {session?.user?.name || session?.user?.email}
+        </Typography>
+      </Box>
+    </Box>
+  );
 
   const drawer = (
     <Box
@@ -337,8 +402,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         position="fixed"
         elevation={0}
         sx={{
-          width: { sm: isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%" },
-          ml: { sm: isSidebarVisible ? `${DRAWER_WIDTH}px` : 0 },
+          width: (!useHamburger && isSidebarVisible) ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
+          ml: (!useHamburger && isSidebarVisible) ? `${DRAWER_WIDTH}px` : 0,
           bgcolor: "transparent",
           borderBottom: "none",
           borderColor: "none",
@@ -362,14 +427,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               minWidth: 0,
             }}
           >
-            {/* Drawer Toggle (Mobile) */}
-            <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ display: { sm: "none" }, color: "text.primary", mr: 1 }}>
-              <MenuIcon />
-            </IconButton>
+            {/* Hamburger — shown at ≤ 1440px, opens the temporary overlay drawer */}
+            {useHamburger && (
+              <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ color: "text.primary", mr: 1 }}>
+                <MenuIcon />
+              </IconButton>
+            )}
 
-            {/* Logo - shown when sidebar is collapsed */}
-            {!isSidebarVisible && (
-              <Box sx={{ display: { xs: "none", sm: "block" }, mr: 2 }}>
+            {/* Logo - shown when sidebar is collapsed (desktop > 1440px only) */}
+            {!isSidebarVisible && !useHamburger && (
+              <Box sx={{ mr: 2 }}>
                 <Link
                   className={`${styles["ad-hub-logo"]} flex d-flex`}
                   href="/"
@@ -383,15 +450,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </Box>
             )}
 
-            {/* Sidebar Toggle */}
-            <IconButton onClick={toggleLeftNav} aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"} sx={{ display: { xs: "none", sm: "flex" }, color: "text.primary" }}>
-              {isSidebarVisible ? <ChevronLeft /> : <ChevronRight />}
-            </IconButton>
+            {/* Sidebar Toggle — chevron, only visible above 1440px */}
+            {!useHamburger && (
+              <IconButton onClick={toggleLeftNav} aria-label={isSidebarVisible ? "Hide navigation menu" : "Show navigation menu"} sx={{ color: "text.primary" }}>
+                {isSidebarVisible ? <ChevronLeft /> : <ChevronRight />}
+              </IconButton>
+            )}
 
-            {/* Horizontal Navigation (Desktop) */}
+            {/* Horizontal Navigation (Desktop) — hidden; sidebar hamburger replaces it */}
             <Box
               sx={{
-                display: { xs: "none", sm: isSidebarVisible ? "none" : "flex" },
+                display: (!useHamburger && !isSidebarVisible) ? "flex" : "none",
                 alignItems: "center",
                 gap: 0.5,
                 flexGrow: 1,
@@ -663,8 +732,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <Box
         component="nav"
         sx={{
-          width: { xs: 0, sm: isSidebarVisible ? DRAWER_WIDTH : 0 },
-          flexShrink: { sm: 0 },
+          width: useHamburger ? 0 : (isSidebarVisible ? DRAWER_WIDTH : 0),
+          flexShrink: 0,
           transition: (theme) =>
             theme.transitions.create("width", {
               easing: theme.transitions.easing.sharp,
@@ -672,33 +741,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             }),
         }}
       >
-        {/* Mobile Drawer */}
+        {/* Temporary mobile nav drawer — shown at ≤ 1440px */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{ keepMounted: true }}
           sx={{
-            display: { xs: "block", sm: "none" },
+            display: useHamburger ? "block" : "none",
             "& .MuiDrawer-paper": {
               boxSizing: "border-box",
-              width: DRAWER_WIDTH,
+              width: 280,
               borderRight: 1,
               borderColor: "divider",
-              borderTopLeftRadius: 0,
-              borderBottomLeftRadius: 0,
             },
           }}
         >
-          {drawer}
+          {mobileNavContent}
         </Drawer>
 
-        {/* Desktop Drawer */}
-        {isSidebarVisible && (
+        {/* Permanent Sidebar — only above 1440px */}
+        {isSidebarVisible && !useHamburger && (
           <Drawer
             variant="permanent"
             sx={{
-              display: { xs: "none", sm: "block" },
+              display: "block",
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: DRAWER_WIDTH,
@@ -726,7 +793,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: { sm: isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%" },
+          width: (!useHamburger && isSidebarVisible) ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
           minHeight: "100vh",
           transition: (theme) =>
             theme.transitions.create(["width", "margin"], {
