@@ -477,7 +477,7 @@ export class ImportExportService {
       "challenger", "challengers", "visiting team", "visiting school",
       "visitor", "visitors", "visiting", "competition", "competing team",
       "competition team", "adversary", "guest", "guests", "guest team",
-      "playing against", "their team",
+      "playing against", "their team", "the other team",
     ];
     const OPPONENT_KEYWORDS_EXACT_ONLY = ["vs", "vs.", "v.s.", "opp", "foe", "foes", "matchup", "enemy"];
 
