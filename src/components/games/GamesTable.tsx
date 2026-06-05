@@ -471,22 +471,29 @@ const SaveStatusBanner: React.FC<SaveStatusBannerProps> = ({ status }) => {
 function GameRequestPill() {
   const router = useRouter();
   const [dismissed, setDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem("gcGameRequestPillDismissed") === "true"; }
-    catch { return false; }
+    try {
+      return localStorage.getItem("gcGameRequestPillDismissed") === "true";
+    } catch {
+      return false;
+    }
   });
 
   const { data: unread } = useQuery({
-    queryKey:        ["game-requests-unread"],
-    queryFn:         () => fetch("/api/game-requests/unread-count").then((r) => r.json()) as Promise<{ count: number }>,
+    queryKey: ["game-requests-unread"],
+    queryFn: () => fetch("/api/game-requests/unread-count").then((r) => r.json()) as Promise<{ count: number }>,
     refetchInterval: 60_000,
-    staleTime:       30_000,
+    staleTime: 30_000,
   });
 
   // Auto-reappear when there are new unread requests
   useEffect(() => {
     if ((unread?.count ?? 0) > 0 && dismissed) {
       setDismissed(false);
-      try { localStorage.removeItem("gcGameRequestPillDismissed"); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem("gcGameRequestPillDismissed");
+      } catch {
+        /* ignore */
+      }
     }
   }, [unread?.count, dismissed]);
 
@@ -504,7 +511,11 @@ function GameRequestPill() {
       onClick={() => router.push("/dashboard/posts?tab=3")}
       onDelete={() => {
         setDismissed(true);
-        try { localStorage.setItem("gcGameRequestPillDismissed", "true"); } catch { /* ignore */ }
+        try {
+          localStorage.setItem("gcGameRequestPillDismissed", "true");
+        } catch {
+          /* ignore */
+        }
       }}
       deleteIcon={<Close sx={{ fontSize: "0.85rem !important" }} />}
       sx={{ mt: 1.5, fontWeight: count > 0 ? 700 : 400, cursor: "pointer", transition: "all 0.2s ease" }}
@@ -576,7 +587,7 @@ export function GamesTable() {
       }
       return game.opponent?.name || "TBD";
     },
-    [opponentColumnOverride]
+    [opponentColumnOverride],
   );
   const [viewImportWorkbookId, setViewImportWorkbookId] = useState<string | null>(null);
   const [deletingWorkbookId, setDeletingWorkbookId] = useState<string | null>(null);
@@ -1400,10 +1411,11 @@ export function GamesTable() {
   const [selectedBannerColumn, setSelectedBannerColumn] = useState<string>("");
 
   useEffect(() => {
-    if (!selectedWorkbookId) { setBannerDismissed(false); return; }
-    setBannerDismissed(
-      localStorage.getItem(`dismissed-opponent-banner-${selectedWorkbookId}`) === "true"
-    );
+    if (!selectedWorkbookId) {
+      setBannerDismissed(false);
+      return;
+    }
+    setBannerDismissed(localStorage.getItem(`dismissed-opponent-banner-${selectedWorkbookId}`) === "true");
     setSelectedBannerColumn("");
   }, [selectedWorkbookId]);
 
@@ -7451,10 +7463,7 @@ export function GamesTable() {
                     }}
                   >
                     <SettingsMenuIcon sx={{ fontSize: "1rem" }} />
-                    <Typography
-                      variant="body2"
-                      sx={{ lineHeight: 1.2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}
-                    >
+                    <Typography variant="body2" sx={{ lineHeight: 1.2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
                       Show menu
                     </Typography>
                     <ChevronRight sx={{ fontSize: "1.05rem" }} />
@@ -7846,55 +7855,48 @@ export function GamesTable() {
           {/* ── Schedule / Calendar View ── */}
           {scheduleView ? (
             <>
-            {hasTBDOpponents && !bannerDismissed && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: { xs: "flex-start", sm: "center" },
-                  flexDirection: { xs: "column", sm: "row" },
-                  gap: 2,
-                  p: 2,
-                  mb: 2,
-                  borderRadius: 2,
-                  bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
-                  border: "1px solid",
-                  borderColor: "warning.light",
-                }}
-              >
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Away team names showing as TBD?
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Select the column from your worksheet that contains opponent / away team names.
-                  </Typography>
+              {hasTBDOpponents && !bannerDismissed && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: { xs: "flex-start", sm: "center" },
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 2,
+                    p: 2,
+                    mb: 2,
+                    borderRadius: 2,
+                    bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
+                    border: "1px solid",
+                    borderColor: "warning.light",
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Team names showing as TBD?
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Use the select menu to correspond your csv team columns with this view.
+                    </Typography>
+                  </Box>
+                  <Select size="small" value={selectedBannerColumn} onChange={(e) => setSelectedBannerColumn(e.target.value as string)} displayEmpty sx={{ minWidth: 200 }}>
+                    <MenuItem value="" disabled>
+                      Select a column…
+                    </MenuItem>
+                    {availableCustomColumns.map((col) => (
+                      <MenuItem key={col} value={col}>
+                        {col}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <Button variant="contained" size="small" onClick={handleSaveBannerColumn} disabled={!selectedBannerColumn}>
+                    Save
+                  </Button>
+                  <IconButton size="small" onClick={handleDismissBanner} aria-label="Dismiss">
+                    <Close fontSize="small" />
+                  </IconButton>
                 </Box>
-                <Select
-                  size="small"
-                  value={selectedBannerColumn}
-                  onChange={(e) => setSelectedBannerColumn(e.target.value as string)}
-                  displayEmpty
-                  sx={{ minWidth: 200 }}
-                >
-                  <MenuItem value="" disabled>Select a column…</MenuItem>
-                  {availableCustomColumns.map((col) => (
-                    <MenuItem key={col} value={col}>{col}</MenuItem>
-                  ))}
-                </Select>
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleSaveBannerColumn}
-                  disabled={!selectedBannerColumn}
-                >
-                  Save
-                </Button>
-                <IconButton size="small" onClick={handleDismissBanner} aria-label="Dismiss">
-                  <Close fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
-            <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+              )}
+              <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
             </>
           ) : isMobile ? (
             <Box sx={{ position: "relative" }}>
