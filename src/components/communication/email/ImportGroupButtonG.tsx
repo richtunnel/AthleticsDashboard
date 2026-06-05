@@ -118,9 +118,9 @@ export function ImportGroupsButton() {
         variant="contained"
         startIcon={importMutation.isPending ? <CircularProgress size={20} color="inherit" /> : <CloudDownloadIcon />}
         onClick={() => {
-          trackEvent("Import Google Groups Clicked", {
+          trackEvent("Import Google Contacts Clicked", {
             source: "email_manager",
-            action: "import_google_groups",
+            action: "import_google_contacts",
           });
           setLastError(null);
           importMutation.mutate({ returnTo: buildReturnTo(true) });
@@ -128,7 +128,7 @@ export function ImportGroupsButton() {
         disabled={importMutation.isPending}
         sx={{ color: mode === "dark" ? "#000" : "#fff" }}
       >
-        {importMutation.isPending ? "Importing Groups..." : "Import Google Groups"}
+        {importMutation.isPending ? "Importing Contacts..." : "Import Google Contacts"}
       </Button>
     </Stack>
   );

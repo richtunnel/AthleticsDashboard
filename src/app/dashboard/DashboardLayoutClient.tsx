@@ -93,6 +93,7 @@ const baseNavigation = [
   { name: "Teams",         href: "/dashboard/opponents",    icon: Groups, requiresScoreTracker: true },
   { name: "Connect",        href: "/dashboard/parents",      icon: Person },
   { name: "Community",     href: "/dashboard/posts",        icon: Newspaper },
+  { name: "Chat",          href: "/dashboard/ad-chat",      icon: Chat },
   { name: "Find Games",    href: "/schedule-board",         icon: SearchIcon, external: true, requiresVisible: "findGames" },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
   { name: "Settings",      href: "/dashboard/settings",     icon: Settings },
@@ -126,6 +127,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  // AD chat unread count for the Chat nav badge
+  const { data: adChatUnread } = useQuery({
+    queryKey:  ["adChatUnread"],
+    queryFn:   () => fetch("/api/ad-chat/unread").then((r) => r.json()) as Promise<{ count: number }>,
+    staleTime: 30_000,
+    enabled:   !!session?.user?.id,
+  });
+  const adUnreadCount = adChatUnread?.count ?? 0;
 
   const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
 
@@ -247,7 +257,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 }}
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  <Icon sx={{ fontSize: 20 }} />
+                  <Badge
+                    badgeContent={item.href === "/dashboard/ad-chat" ? (adUnreadCount || null) : null}
+                    color="error"
+                    max={99}
+                    sx={{ "& .MuiBadge-badge": { fontSize: "0.6rem", minWidth: 16, height: 16, p: "0 4px" } }}
+                  >
+                    <Icon sx={{ fontSize: 20 }} />
+                  </Badge>
                 </ListItemIcon>
                 <ListItemText
                   primary={item.name}

@@ -6,11 +6,15 @@ import {
   Select, MenuItem, Button, IconButton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import HomeIcon          from "@mui/icons-material/Home";
-import FlightTakeoffIcon from "@mui/icons-material/FlightTakeoff";
+import CalendarTodayIcon  from "@mui/icons-material/CalendarToday";
+import CalendarMonthIcon  from "@mui/icons-material/CalendarMonth";
+import ViewWeekIcon       from "@mui/icons-material/ViewWeek";
+import HomeIcon           from "@mui/icons-material/Home";
+import FlightTakeoffIcon  from "@mui/icons-material/FlightTakeoff";
 import Close from "@mui/icons-material/Close";
 import { useOpponentColumnStore } from "@/lib/stores/opponentColumnStore";
+import { useScheduleColumnStore, type ScheduleColumnType } from "@/lib/stores/scheduleColumnStore";
+import { ScheduleMonthView } from "./ScheduleMonthView";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -63,12 +67,13 @@ function getGender(game: CalendarGame): string | null {
   const dbGender = (game.homeTeam?.gender ?? "") as string;
   const teamName = game.homeTeam?.name ?? "";
   const raw      = cf(game);
-  const cfTeam   = (raw["Team"] || raw["team"] || "") as string;
+  const cfTeam   = (raw["Team"] || raw["team"] || raw["Sport"] || raw["sport"] || raw["Level"] || raw["level"] || "") as string;
+  const searchText = `${teamName} ${cfTeam}`;
 
   const resolved =
-    dbGender                                  ? dbGender
-    : /boys/i.test(teamName || cfTeam)        ? "MALE"
-    : /girls/i.test(teamName || cfTeam)       ? "FEMALE"
+    dbGender                                                           ? dbGender
+    : /\b(boys|male|mens|men\'s|m)\b/i.test(searchText)              ? "MALE"
+    : /\b(girls|female|womens|women\'s|w)\b/i.test(searchText)       ? "FEMALE"
     : null;
 
   if (!resolved || resolved.toUpperCase() === "COED") return null;
@@ -180,15 +185,10 @@ function GameCard({
         </Typography>
 
         <Typography variant="body2" fontWeight={700} sx={{ lineHeight: 1.3, fontSize: "0.8rem", mb: 0.4 }}>
-          {gender && (
-            <Typography component="span" variant="body2" fontWeight={700} sx={{ fontSize: "0.8rem" }}>
-              {gender}{" "}
-            </Typography>
-          )}
           {sport}
-          {lvl && (
+          {(gender || lvl) && (
             <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5, fontWeight: 400 }}>
-              · {lvl}
+              · {[gender, lvl].filter(Boolean).join(" ")}
             </Typography>
           )}
         </Typography>
@@ -230,31 +230,27 @@ function GameCard({
 // ── Column header (desktop) ────────────────────────────────────────────────────
 
 function ColumnHeader({ dateKey, count }: { dateKey: string; count: number }) {
-  const { weekday, label, year } = fmtDateHeader(dateKey);
+  const theme  = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const { weekday, label } = fmtDateHeader(dateKey);
   const accent = getDayColor(dateKey);
   return (
     <Box
       sx={{
-        position: "relative",
-        mb: 1.5, px: 1.25, py: 1,
-        borderRadius: "10px",
-        border: "1px solid",
-        borderColor: accent,
-        bgcolor: "rgb(24 27 56 / 3%)",
+        position:  "relative",
+        px: 1.25, py: 1,
+        borderRadius: "10px 10px 0 0",
+        bgcolor: alpha(accent, isDark ? 0.18 : 0.1),
         textAlign: "center",
       }}
     >
       <Typography
         sx={{
-          position: "absolute",
-          top: 4,
-          right: 8,
-          fontSize: 11,
-          fontWeight: 700,
-          color: "text.disabled",
-          lineHeight: 1,
-          userSelect: "none",
-          pointerEvents: "none",
+          position:  "absolute",
+          top: 4, right: 8,
+          fontSize:  11, fontWeight: 700,
+          color:     "text.disabled",
+          lineHeight: 1, userSelect: "none", pointerEvents: "none",
         }}
       >
         {(() => {
@@ -262,7 +258,6 @@ function ColumnHeader({ dateKey, count }: { dateKey: string; count: number }) {
           return isNaN(d.getTime()) ? "" : d.getUTCFullYear();
         })()}
       </Typography>
-
       <Typography variant="caption" fontWeight={700} sx={{ fontSize: "0.65rem", letterSpacing: 1.2, textTransform: "uppercase", display: "block", color: accent }}>
         {weekday}
       </Typography>
@@ -277,14 +272,16 @@ function ColumnHeader({ dateKey, count }: { dateKey: string; count: number }) {
 // ── Section header (mobile) ────────────────────────────────────────────────────
 
 function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
-  const { weekday, label, year } = fmtDateHeader(dateKey);
+  const theme  = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const { weekday, label } = fmtDateHeader(dateKey);
   const accent = getDayColor(dateKey);
   return (
     <Stack
       direction="row"
       alignItems="center"
       gap={1.5}
-      sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: "10px", bgcolor: "rgb(24 27 56 / 3%)", border: "1px solid", borderColor: accent, position: "relative" }}
+      sx={{ px: 1.5, py: 1, bgcolor: alpha(accent, isDark ? 0.18 : 0.1), position: "relative" }}
     >
       <Typography
         sx={{
@@ -318,26 +315,57 @@ function SectionHeader({ dateKey, count }: { dateKey: string; count: number }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+type BannerColumnType = "opponent" | ScheduleColumnType;
+
+const BANNER_LABELS: Record<BannerColumnType, string> = {
+  opponent: "Opponent",
+  time:     "Time",
+  location: "Location",
+};
+
 export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
   const { overrides, setOverride, setColumnRegistry } = useOpponentColumnStore();
   const overrideColumn = workbookId ? (overrides[workbookId] ?? null) : null;
 
-  // ── Opponent-column banner state ──
+  const { overrides: scheduleOverrides, setOverride: setScheduleOverride } = useScheduleColumnStore();
+  const scheduleOverridesForWb: Partial<Record<ScheduleColumnType, string>> = workbookId ? (scheduleOverrides[workbookId] ?? {}) : {};
 
-  const [bannerDismissed, setBannerDismissed] = useState<boolean>(false);
-  const [selectedCol, setSelectedCol] = useState<string>("");
+  const [monthView, setMonthView] = useState(false);
+
+  // ── Per-column-type banner dismissed state ──
+  const [dismissedBanners, setDismissedBanners] = useState<Set<BannerColumnType>>(new Set());
+  const [activePill, setActivePill] = useState<BannerColumnType | null>(null);
+
+  // Per-column selected value in the dropdown
+  const [selectedCols, setSelectedCols] = useState<Record<BannerColumnType, string>>({
+    opponent: "",
+    time:     "",
+    location: "",
+  });
 
   useEffect(() => {
     if (!workbookId) {
-      setBannerDismissed(false);
+      setDismissedBanners(new Set());
+      setActivePill(null);
+      setSelectedCols({ opponent: "", time: "", location: "" });
       return;
     }
-    setBannerDismissed(localStorage.getItem(`dismissed-opponent-banner-${workbookId}`) === "true");
-    setSelectedCol("");
+    const dismissed = new Set<BannerColumnType>();
+    (["opponent", "time", "location"] as BannerColumnType[]).forEach((t) => {
+      if (localStorage.getItem(`dismissed-col-banner-${t}-${workbookId}`) === "true") dismissed.add(t);
+    });
+    setDismissedBanners(dismissed);
+    setActivePill(null);
+    setSelectedCols({
+      opponent: overrideColumn ?? "",
+      time:     scheduleOverridesForWb.time     ?? "",
+      location: scheduleOverridesForWb.location ?? "",
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workbookId]);
 
   useEffect(() => {
-    if (overrideColumn) setSelectedCol(overrideColumn);
+    setSelectedCols((prev) => ({ ...prev, opponent: overrideColumn ?? "" }));
   }, [overrideColumn]);
 
   const availableCustomColumns = useMemo(() => {
@@ -349,31 +377,64 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
     return Array.from(keys).sort();
   }, [games]);
 
-  // Sync column registry whenever games / workbook change
   useEffect(() => {
     if (workbookId && availableCustomColumns.length > 0) {
       setColumnRegistry(workbookId, availableCustomColumns);
     }
   }, [workbookId, availableCustomColumns, setColumnRegistry]);
 
+  // ── Detect TBD columns ──
   const hasTBDOpponents = useMemo(() => {
     if (!workbookId || overrideColumn || !games.length) return false;
-    const tbdCount = games.filter((g) => !g.opponent?.name).length;
-    return tbdCount > 5;
+    return games.filter((g) => !g.opponent?.name).length > 5;
   }, [games, workbookId, overrideColumn]);
 
-  const handleDismiss = useCallback(() => {
+  const hasTBDTimes = useMemo(() => {
+    if (!workbookId || scheduleOverridesForWb.time || !games.length) return false;
+    return games.filter((g) => !g.time).length > 3;
+  }, [games, workbookId, scheduleOverridesForWb.time]);
+
+  const hasTBDLocations = useMemo(() => {
+    if (!workbookId || scheduleOverridesForWb.location || !games.length) return false;
+    return games.filter((g) => !g.location).length > 3;
+  }, [games, workbookId, scheduleOverridesForWb.location]);
+
+  // Which column types have active issues (not dismissed, not synced)
+  const activeBannerTypes = useMemo<BannerColumnType[]>(() => {
+    const types: BannerColumnType[] = [];
+    if (hasTBDOpponents && !dismissedBanners.has("opponent")) types.push("opponent");
+    if (hasTBDTimes     && !dismissedBanners.has("time"))     types.push("time");
+    if (hasTBDLocations && !dismissedBanners.has("location")) types.push("location");
+    if (overrideColumn)                                        { if (!types.includes("opponent")) types.push("opponent"); }
+    if (scheduleOverridesForWb.time)                           { if (!types.includes("time"))     types.push("time"); }
+    if (scheduleOverridesForWb.location)                       { if (!types.includes("location")) types.push("location"); }
+    return types;
+  }, [hasTBDOpponents, hasTBDTimes, hasTBDLocations, dismissedBanners, overrideColumn, scheduleOverridesForWb]);
+
+  // Auto-select active pill when types change
+  useEffect(() => {
+    setActivePill((prev) => {
+      if (prev && activeBannerTypes.includes(prev)) return prev;
+      return activeBannerTypes[0] ?? null;
+    });
+  }, [activeBannerTypes]);
+
+  const handleDismiss = useCallback((type: BannerColumnType) => {
     if (workbookId) {
-      localStorage.setItem(`dismissed-opponent-banner-${workbookId}`, "true");
+      localStorage.setItem(`dismissed-col-banner-${type}-${workbookId}`, "true");
     }
-    setBannerDismissed(true);
+    setDismissedBanners((prev) => new Set([...prev, type]));
   }, [workbookId]);
 
-  const handleSync = useCallback(() => {
-    if (workbookId && selectedCol) {
-      setOverride(workbookId, selectedCol);
+  const handleSync = useCallback((type: BannerColumnType) => {
+    const col = selectedCols[type];
+    if (!workbookId || !col) return;
+    if (type === "opponent") {
+      setOverride(workbookId, col);
+    } else {
+      setScheduleOverride(workbookId, type, col);
     }
-  }, [workbookId, selectedCol, setOverride]);
+  }, [workbookId, selectedCols, setOverride, setScheduleOverride]);
 
   // ── Grouping logic ──
 
@@ -398,134 +459,184 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
     );
   }
 
-  if (groupedByDate.length === 0) {
-    return (
-      <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
-        <CalendarTodayIcon sx={{ fontSize: 48, mb: 2, opacity: 0.3 }} />
-        <Typography variant="body1">No games to display. Import a schedule to get started.</Typography>
-      </Box>
-    );
-  }
+  const showBannerSection = !isLoading && games.length > 0 && !!workbookId && activeBannerTypes.length > 0;
 
-  const showBannerWarning = !overrideColumn && hasTBDOpponents && !bannerDismissed;
-  const showBannerSynced = !!overrideColumn;
-  const showBannerSection = !isLoading && games.length > 0 && !!workbookId;
+  // Derive synced column for the active pill
+  const activeSyncedCol =
+    activePill === "opponent" ? overrideColumn
+    : activePill             ? (scheduleOverridesForWb[activePill as ScheduleColumnType] ?? null)
+    : null;
+
+  const BANNER_DESCRIPTIONS: Record<BannerColumnType, { tbd: string; synced: string }> = {
+    opponent: {
+      tbd:    "Team names showing as TBD? Map your CSV opponent column to this view.",
+      synced: `Showing opponent names from "${activeSyncedCol}". Update the mapped column if needed.`,
+    },
+    time: {
+      tbd:    "Game times showing as TBD? Map your CSV time column to fix this.",
+      synced: `Using time values from "${activeSyncedCol}". Update the mapped column if needed.`,
+    },
+    location: {
+      tbd:    "Locations missing? Map your CSV location/venue column to populate this field.",
+      synced: `Using location values from "${activeSyncedCol}". Update the mapped column if needed.`,
+    },
+  };
 
   return (
     <>
-      {/* ── Opponent column banner ── */}
-      {showBannerSection && (
-        <>
-          {/* Unsynced – warning state */}
-          {showBannerWarning && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: { xs: "flex-start", sm: "center" },
-                flexDirection: { xs: "column", sm: "row" },
-                gap: 2,
-                p: 2,
-                mb: 2,
-                borderRadius: 2,
-                bgcolor: (theme) => alpha(theme.palette.warning.light, 0.12),
-                border: "1px solid",
-                borderColor: "warning.light",
-              }}
-            >
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Team names showing as TBD?
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Use the select menu to correspond your csv team columns with this view.
-                </Typography>
-              </Box>
-              <Select
-                size="small"
-                value={selectedCol}
-                onChange={(e) => setSelectedCol(e.target.value as string)}
-                displayEmpty
-                sx={{ minWidth: 200 }}
-              >
-                <MenuItem value="" disabled>
-                  Select a column…
-                </MenuItem>
-                {availableCustomColumns.map((col) => (
-                  <MenuItem key={col} value={col}>
-                    {col}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Button variant="contained" size="small" onClick={handleSync} disabled={!selectedCol}>
-                Save
-              </Button>
-              <IconButton size="small" onClick={handleDismiss} aria-label="Dismiss">
-                <Close fontSize="small" />
-              </IconButton>
-            </Box>
+      {/* ── View toggle ── */}
+      <Stack direction="row" alignItems="center" justifyContent="flex-end" gap={0.75} sx={{ mb: 2 }}>
+        <Chip
+          icon={<ViewWeekIcon sx={{ fontSize: "14px !important" }} />}
+          label="Week"
+          size="small"
+          variant={monthView ? "outlined" : "filled"}
+          onClick={() => setMonthView(false)}
+          sx={{ cursor: "pointer", fontWeight: monthView ? 400 : 700, fontSize: "0.75rem" }}
+        />
+        <Chip
+          icon={<CalendarMonthIcon sx={{ fontSize: "14px !important" }} />}
+          label="Month"
+          size="small"
+          variant={monthView ? "filled" : "outlined"}
+          onClick={() => setMonthView(true)}
+          sx={{ cursor: "pointer", fontWeight: monthView ? 700 : 400, fontSize: "0.75rem" }}
+        />
+      </Stack>
+
+      {monthView ? (
+        <ScheduleMonthView games={games} overrideColumn={overrideColumn} />
+      ) : groupedByDate.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
+          <CalendarTodayIcon sx={{ fontSize: 48, mb: 2, opacity: 0.3 }} />
+          <Typography variant="body1">No games to display. Import a schedule to get started.</Typography>
+        </Box>
+      ) : (
+      <>
+      {/* ── Multi-column correction banners ── */}
+      {showBannerSection && activePill && (
+        <Box sx={{ mb: 2 }}>
+          {/* Pill selectors — switch between column types */}
+          {activeBannerTypes.length > 1 && (
+            <Stack direction="row" gap={1} sx={{ mb: 1.5, flexWrap: "wrap" }}>
+              {activeBannerTypes.map((type) => {
+                const isSynced =
+                  type === "opponent" ? !!overrideColumn
+                  : !!(scheduleOverridesForWb[type as ScheduleColumnType]);
+                return (
+                  <Chip
+                    key={type}
+                    label={BANNER_LABELS[type]}
+                    size="small"
+                    variant={activePill === type ? "filled" : "outlined"}
+                    color={isSynced ? "success" : "warning"}
+                    onClick={() => setActivePill(type)}
+                    sx={{ cursor: "pointer", fontWeight: activePill === type ? 700 : 400 }}
+                  />
+                );
+              })}
+            </Stack>
           )}
 
-          {/* Synced – info state */}
-          {showBannerSynced && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: { xs: "flex-start", sm: "center" },
-                flexDirection: { xs: "column", sm: "row" },
-                gap: 2,
-                p: 2,
-                mb: 2,
-                borderRadius: 2,
-                bgcolor: (theme) => alpha(theme.palette.info.light, 0.1),
-                border: "1px solid",
-                borderColor: "info.light",
-              }}
-            >
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography variant="subtitle2" fontWeight={700} sx={{ color: "info.dark" }}>
-                  ✓ Column synced
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Showing opponent names from <strong>{overrideColumn}</strong>. Update the mapped column below if needed.
-                </Typography>
+          {/* Active banner */}
+          {(() => {
+            const isSynced = !!activeSyncedCol;
+            const desc     = BANNER_DESCRIPTIONS[activePill];
+            const colVal   = selectedCols[activePill];
+            const currentOverride =
+              activePill === "opponent" ? overrideColumn
+              : (scheduleOverridesForWb[activePill as ScheduleColumnType] ?? null);
+            const isDismissable = !isSynced;
+
+            return (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: (theme) =>
+                    isSynced
+                      ? alpha(theme.palette.info.light, 0.1)
+                      : alpha(theme.palette.warning.light, 0.12),
+                  border: "1px solid",
+                  borderColor: isSynced ? "info.light" : "warning.light",
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ color: isSynced ? "info.dark" : "warning.dark" }}>
+                    {isSynced ? `✓ ${BANNER_LABELS[activePill]} column synced` : `${BANNER_LABELS[activePill]} showing as TBD?`}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {isSynced ? desc.synced : desc.tbd}
+                  </Typography>
+                </Box>
+                <Select
+                  size="small"
+                  value={colVal}
+                  onChange={(e) =>
+                    setSelectedCols((prev) => ({ ...prev, [activePill]: e.target.value as string }))
+                  }
+                  displayEmpty={!isSynced}
+                  sx={{ minWidth: 200 }}
+                >
+                  {!isSynced && (
+                    <MenuItem value="" disabled>
+                      Select a column…
+                    </MenuItem>
+                  )}
+                  {availableCustomColumns.map((col) => (
+                    <MenuItem key={col} value={col}>
+                      {col}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => handleSync(activePill)}
+                  disabled={!colVal || colVal === currentOverride}
+                >
+                  {isSynced ? "Update" : "Save"}
+                </Button>
+                {isDismissable && (
+                  <IconButton size="small" onClick={() => handleDismiss(activePill)} aria-label="Dismiss">
+                    <Close fontSize="small" />
+                  </IconButton>
+                )}
               </Box>
-              <Select
-                size="small"
-                value={selectedCol}
-                onChange={(e) => setSelectedCol(e.target.value as string)}
-                sx={{ minWidth: 200 }}
-              >
-                {availableCustomColumns.map((col) => (
-                  <MenuItem key={col} value={col}>
-                    {col}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Button
-                variant="contained"
-                size="small"
-                onClick={handleSync}
-                disabled={!selectedCol || selectedCol === overrideColumn}
-              >
-                Update
-              </Button>
-            </Box>
-          )}
-        </>
+            );
+          })()}
+        </Box>
       )}
 
       {/* ── Mobile / Tablet (< md) ── */}
       <Box sx={{ display: { xs: "block", md: "none" } }}>
-        {groupedByDate.map(([key, dayGames]) => (
-          <Box key={key} sx={{ mb: 3 }}>
-            <SectionHeader dateKey={key} count={dayGames.length} />
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
-              {dayGames.map((g) => (
-                <GameCard key={g.id} game={g} accent={getDayColor(key)} overrideColumn={overrideColumn} />
-              ))}
+        {groupedByDate.map(([key, dayGames]) => {
+          const accent = getDayColor(key);
+          return (
+            <Box
+              key={key}
+              sx={(theme) => ({
+                mb:           2,
+                borderRadius: "10px",
+                border:       "1px solid",
+                borderColor:  alpha(accent, theme.palette.mode === "dark" ? 0.3 : 0.2),
+                overflow:     "hidden",
+              })}
+            >
+              <SectionHeader dateKey={key} count={dayGames.length} />
+              <Box sx={{ height: "1px", bgcolor: alpha(accent, 0.25) }} />
+              <Box sx={{ p: 1, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}>
+                {dayGames.map((g) => (
+                  <GameCard key={g.id} game={g} accent={accent} overrideColumn={overrideColumn} />
+                ))}
+              </Box>
             </Box>
-          </Box>
-        ))}
+          );
+        })}
       </Box>
 
       {/* ── Desktop (≥ md) — horizontal scrollable columns ── */}
@@ -542,17 +653,34 @@ export function ScheduleCalendarView({ games, isLoading, workbookId }: Props) {
           "&::-webkit-scrollbar-thumb": { borderRadius: 3, bgcolor: "action.disabled" },
         }}
       >
-        {groupedByDate.map(([key, dayGames]) => (
-          <Box key={key} sx={{ width: 230, flexShrink: 0 }}>
-            <ColumnHeader dateKey={key} count={dayGames.length} />
-            <Stack spacing={1}>
-              {dayGames.map((g) => (
-                <GameCard key={g.id} game={g} accent={getDayColor(key)} overrideColumn={overrideColumn} />
-              ))}
-            </Stack>
-          </Box>
-        ))}
+        {groupedByDate.map(([key, dayGames]) => {
+          const accent = getDayColor(key);
+          return (
+            <Box
+              key={key}
+              sx={(theme) => ({
+                width:        230,
+                flexShrink:   0,
+                borderRadius: "10px",
+                border:       "1px solid",
+                borderColor:  alpha(accent, theme.palette.mode === "dark" ? 0.3 : 0.2),
+                overflow:     "hidden",
+              })}
+            >
+              <ColumnHeader dateKey={key} count={dayGames.length} />
+              {/* Thin accent line separating header from cards */}
+              <Box sx={{ height: "1px", bgcolor: alpha(accent, 0.25) }} />
+              <Stack spacing={1} sx={{ p: 1 }}>
+                {dayGames.map((g) => (
+                  <GameCard key={g.id} game={g} accent={accent} overrideColumn={overrideColumn} />
+                ))}
+              </Stack>
+            </Box>
+          );
+        })}
       </Box>
+      </>
+      )}
     </>
   );
 }

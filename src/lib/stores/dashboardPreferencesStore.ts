@@ -8,6 +8,8 @@ type CalendarWidgetState = "full" | "minimized" | "hidden";
 interface DashboardPreferencesState {
   calendarWidgetState: CalendarWidgetState;
   setCalendarWidgetState: (state: CalendarWidgetState) => void;
+  gamesViewMode: "table" | "schedule";
+  setGamesViewMode: (mode: "table" | "schedule") => void;
 }
 
 export const useDashboardPreferencesStore = create<DashboardPreferencesState>()(
@@ -15,6 +17,8 @@ export const useDashboardPreferencesStore = create<DashboardPreferencesState>()(
     (set) => ({
       calendarWidgetState: "full",
       setCalendarWidgetState: (state) => set({ calendarWidgetState: state }),
+      gamesViewMode: "table",
+      setGamesViewMode: (mode) => set({ gamesViewMode: mode }),
     }),
     {
       name: "dashboard-preferences-storage",

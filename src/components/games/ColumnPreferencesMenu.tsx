@@ -83,7 +83,7 @@ export function ColumnPreferencesMenu({ open, onClose, columns, onToggleVisibili
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth disableScrollLock>
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pr: 1, fontWeight: 600 }}>
         Customize Columns
         <IconButton onClick={onClose} size="small">

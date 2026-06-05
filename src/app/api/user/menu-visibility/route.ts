@@ -23,7 +23,7 @@ export async function GET() {
       hideChatMenu:      user?.hideChatMenu      ?? false,
       hidePostsMenu:     user?.hidePostsMenu     ?? false,
       hideParentsMenu:   user?.hideParentsMenu   ?? false,
-      hideFindGamesMenu: user?.hideFindGamesMenu ?? false,
+      hideFindGamesMenu: user?.hideFindGamesMenu ?? true,
     });
   } catch (error) {
     console.error("Error fetching menu visibility settings:", error);

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Box, Card, CardContent, Typography, Avatar, Chip, Button,
-  Divider, Stack, CircularProgress, Tooltip,
+  Divider, Stack, CircularProgress, Tooltip, IconButton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import HomeIcon    from "@mui/icons-material/Home";
@@ -11,6 +11,8 @@ import FlightIcon  from "@mui/icons-material/FlightTakeoff";
 import PlaceIcon   from "@mui/icons-material/Place";
 import EmailIcon   from "@mui/icons-material/Email";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import NextLink from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { formatGameDate, formatGameTime, gameRequestSubject, sportComboLabel } from "@/lib/utils/formatGameDateTime";
@@ -28,6 +30,7 @@ export interface GameRequestData {
   level:                string;
   gender:               string;
   isHomeForRequester:   boolean;
+  note:                 string | null;
   status:               "PENDING" | "APPROVED" | "REJECTED" | "CONFIRMED" | "CANCELLED";
   confirmedByOwner:     boolean;
   confirmedByRequester: boolean;
@@ -210,7 +213,7 @@ export function GameRequestCard({ request, currentUserId }: Props) {
           <Avatar sx={{ width: 38, height: 38, bgcolor: "primary.main", fontSize: "0.875rem" }}>
             {initials(requester.name)}
           </Avatar>
-          <Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="subtitle2" fontWeight={700} lineHeight={1.2}>
               {requester.name || "Athletic Director"}
               {requester.teamName ? (
@@ -230,6 +233,18 @@ export function GameRequestCard({ request, currentUserId }: Props) {
               </Typography>
             </Stack>
           </Box>
+          {isOwner && (
+            <Tooltip title="Chat with this AD">
+              <IconButton
+                component={NextLink}
+                href={`/dashboard/ad-chat?adId=${requester.id}`}
+                size="small"
+                sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
+              >
+                <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
 
         <Divider sx={{ mb: 2, borderColor: "divider", borderBottomWidth: "0.5px" }} />
@@ -299,6 +314,17 @@ export function GameRequestCard({ request, currentUserId }: Props) {
                 Address:
               </Typography>
               <Typography variant="body2">{requester.schoolAddress}</Typography>
+            </Stack>
+          )}
+
+          {/* Note from requester */}
+          {request.note && (
+            <Stack direction="row" alignItems="flex-start" gap={1}>
+              <ChatBubbleOutlineIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 80 }}>
+                Note:
+              </Typography>
+              <Typography variant="body2" sx={{ fontStyle: "italic" }}>{request.note}</Typography>
             </Stack>
           )}
         </Stack>

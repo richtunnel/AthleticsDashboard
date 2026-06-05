@@ -5,6 +5,7 @@ const GEOLOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 interface CacheEntry {
   city: string | null;
+  region: string | null;
   country: string | null;
   expiresAt: number;
 }
@@ -32,12 +33,14 @@ export async function recordUserLogin({
   const startOfToday = startOfDay(now);
   const normalizedIp = normalizeIp(ip);
   let resolvedCity: string | null = null;
+  let resolvedRegion: string | null = null;
   let resolvedCountry: string | null = null;
 
   if (normalizedIp) {
     try {
       const location = await resolveLocationForIp(normalizedIp);
       resolvedCity = location.city;
+      resolvedRegion = location.region;
       resolvedCountry = location.country;
     } catch (error) {
       console.warn("Failed to resolve geolocation for IP", {
@@ -54,6 +57,7 @@ export async function recordUserLogin({
           userId,
           ipAddress: normalizedIp ?? null,
           city: resolvedCity,
+          region: resolvedRegion,
           country: resolvedCountry,
           success: true,
         },
@@ -163,6 +167,7 @@ function isIn172PrivateRange(ip: string): boolean {
 
 type ResolvedLocation = {
   city: string | null;
+  region: string | null;
   country: string | null;
 };
 
@@ -171,7 +176,7 @@ async function resolveLocationForIp(ip: string): Promise<ResolvedLocation> {
   const now = Date.now();
 
   if (cached && cached.expiresAt > now) {
-    return { city: cached.city, country: cached.country };
+    return { city: cached.city, region: cached.region, country: cached.country };
   }
 
   const apiKey = process.env.IPINFO_API_TOKEN;
@@ -181,8 +186,8 @@ async function resolveLocationForIp(ip: string): Promise<ResolvedLocation> {
       console.warn("IPINFO_API_TOKEN is not configured. Geolocation will be skipped.");
       geoApiWarningLogged = true;
     }
-    geolocationCache.set(ip, { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return { city: null, country: null };
+    geolocationCache.set(ip, { city: null, region: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
+    return { city: null, region: null, country: null };
   }
 
   try {
@@ -197,19 +202,20 @@ async function resolveLocationForIp(ip: string): Promise<ResolvedLocation> {
         status: response.status,
         statusText: response.statusText,
       });
-      geolocationCache.set(ip, { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-      return { city: null, country: null };
+      geolocationCache.set(ip, { city: null, region: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
+      return { city: null, region: null, country: null };
     }
 
-    const payload = (await response.json()) as { city?: string | null; country?: string | null };
-    const city = payload.city?.trim() || null;
+    const payload = (await response.json()) as { city?: string | null; region?: string | null; country?: string | null };
+    const city    = payload.city?.trim()    || null;
+    const region  = payload.region?.trim()  || null;
     const country = payload.country?.trim() || null;
 
-    geolocationCache.set(ip, { city, country, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return { city, country };
+    geolocationCache.set(ip, { city, region, country, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
+    return { city, region, country };
   } catch (error) {
     console.warn("IP geolocation request failed", { ip, error });
-    geolocationCache.set(ip, { city: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
-    return { city: null, country: null };
+    geolocationCache.set(ip, { city: null, region: null, country: null, expiresAt: now + GEOLOCATION_CACHE_TTL_MS });
+    return { city: null, region: null, country: null };
   }
 }

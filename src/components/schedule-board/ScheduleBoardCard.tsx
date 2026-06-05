@@ -3,11 +3,13 @@
 import { useState } from "react";
 import {
   Card, CardContent, CardActions, Typography,
-  Avatar, Chip, Stack, Button, Box, Divider,
+  Avatar, Chip, Stack, Button, Box, Divider, Tooltip, IconButton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import LocationOnIcon    from "@mui/icons-material/LocationOn";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import NextLink from "next/link";
 import { sportComboLabel } from "@/lib/utils/formatGameDateTime";
 import { ViewScheduleModal } from "./ViewScheduleModal";
 
@@ -122,15 +124,29 @@ export function ScheduleBoardCard({
               )}
             </Box>
 
-            {isOwnPost && (
-              <Chip
-                label="Your Post"
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ ml: "auto", fontSize: "0.65rem", flexShrink: 0 }}
-              />
-            )}
+            <Stack direction="row" alignItems="center" gap={0.5} sx={{ ml: "auto", flexShrink: 0 }}>
+              {isOwnPost && (
+                <Chip
+                  label="Your Post"
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ fontSize: "0.65rem" }}
+                />
+              )}
+              {!isOwnPost && (
+                <Tooltip title="Chat with this AD">
+                  <IconButton
+                    component={NextLink}
+                    href={`/dashboard/ad-chat?adId=${userId}`}
+                    size="small"
+                    sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
+                  >
+                    <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
           </Stack>
 
           <Divider sx={{ mb: 1.5 }} />

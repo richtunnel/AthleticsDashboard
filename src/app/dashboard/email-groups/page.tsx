@@ -34,7 +34,7 @@ export default function EmailManagerPage() {
   if (status === "unauthenticated") return null;
 
   return (
-    <Box sx={{ maxWidth: 1024, mx: "auto", py: 2 }}>
+    <Box sx={{ maxWidth: 1440, mx: "auto", py: 2 }}>
       <Typography variant="h4" fontWeight={700} sx={{ mb: 2 }}>
         Email Manager
       </Typography>

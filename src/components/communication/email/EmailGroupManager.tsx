@@ -172,7 +172,7 @@ export function EmailGroupManager() {
     <Box>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
             Email Campaign Manager
           </Typography>
           <Typography color="text.secondary" variant="body1">

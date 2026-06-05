@@ -117,7 +117,7 @@ export function MenuVisibilityToggles() {
 
   const showPosts     = !(data?.hidePostsMenu     ?? false);
   const showConnect   = !(data?.hideParentsMenu   ?? false);
-  const showFindGames = !(data?.hideFindGamesMenu ?? false);
+  const showFindGames = !(data?.hideFindGamesMenu ?? true);
 
   const items = [
     {

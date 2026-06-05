@@ -32,6 +32,7 @@ export interface UserWithSubscription {
   lastLogin: {
     timestamp: Date;
     city: string | null;
+    region: string | null;
     country: string | null;
   } | null;
   todayLoginCount: number;
@@ -80,6 +81,7 @@ export async function getUserWithSubscription(userId: string): Promise<UserWithS
         select: {
           timestamp: true,
           city: true,
+          region: true,
           country: true,
         },
       },
@@ -126,6 +128,7 @@ export async function getRecentLoginEvents(userId: string, limit: number = 10) {
       timestamp: true,
       ipAddress: true,
       city: true,
+      region: true,
       country: true,
       success: true,
     },

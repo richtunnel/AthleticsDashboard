@@ -63,7 +63,7 @@ model User {
   hideChatMenu               Boolean                   @default(false)
   hidePostsMenu              Boolean                   @default(false)
   hideParentsMenu            Boolean                   @default(false)
-  hideFindGamesMenu          Boolean                   @default(false)
+  hideFindGamesMenu          Boolean                   @default(true)
   schoolDistrict             String?
   dismissedTips              Json                      @default("[]")
   schoolEmail                String?                   @unique
@@ -100,6 +100,9 @@ model User {
   schedulePosts              SchedulePost[]            @relation("UserSchedulePosts")
   ownedGameRequests          GameRequest[]             @relation("GameRequestOwner")
   sentGameRequests           GameRequest[]             @relation("GameRequestRequester")
+  adConversationsAsA         AdConversation[]          @relation("AdConvUserA")
+  adConversationsAsB         AdConversation[]          @relation("AdConvUserB")
+  sentAdMessages             AdMessage[]               @relation("SentAdMessages")
 
   @@index([organizationId])
   @@map("User")
@@ -628,6 +631,7 @@ model UserLoginEvent {
   timestamp DateTime @default(now())
   ipAddress String?
   city      String?
+  region    String?
   country   String?
   success   Boolean  @default(true)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -957,6 +961,49 @@ model ChatMessage {
   @@index([senderUserId, createdAt])
 }
 
+enum AdConvStatus {
+  PENDING  // initiator sent first message; awaiting recipient reply to activate
+  ACTIVE   // both parties may freely exchange messages
+  BLOCKED  // one party has muted the conversation (see blockedByUserId)
+}
+
+model AdConversation {
+  id              String       @id @default(cuid())
+  userAId         String       // lexicographically smaller userId (canonical pair key)
+  userBId         String       // lexicographically larger userId
+  initiatorId     String       // who sent the very first message
+  status          AdConvStatus @default(PENDING)
+  blockedByUserId String?      // set when status=BLOCKED
+  lastMessageAt   DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  userA           User         @relation("AdConvUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB           User         @relation("AdConvUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages        AdMessage[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@index([lastMessageAt])
+  @@map("AdConversation")
+}
+
+model AdMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  senderUserId   String
+  content        String         // AES-256-GCM encrypted
+  readAt         DateTime?
+  deletedAt      DateTime?      // soft-delete; excluded from UI
+  createdAt      DateTime       @default(now())
+  conversation   AdConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User           @relation("SentAdMessages", fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderUserId])
+  @@map("AdMessage")
+}
+
 enum UserRole {
   SUPER_ADMIN
   ATHLETIC_DIRECTOR
@@ -1243,6 +1290,7 @@ model GameRequest {
   level                String
   gender               String
   isHomeForRequester   Boolean
+  note                 String?
   status               GameRequestStatus @default(PENDING)
   confirmedByOwner     Boolean           @default(false)
   confirmedByRequester Boolean           @default(false)

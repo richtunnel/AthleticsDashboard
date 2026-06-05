@@ -25,6 +25,7 @@ function serializeRequest(req: any, currentUserId: string) {
     level:                req.level,
     gender:               req.gender,
     isHomeForRequester:   req.isHomeForRequester,
+    note:                 req.note ?? null,
     status:               req.status,
     confirmedByOwner:     req.confirmedByOwner,
     confirmedByRequester: req.confirmedByRequester,
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { schedulePostId, availableDate, isHomeForRequester } = body;
+    const { schedulePostId, availableDate, isHomeForRequester, note } = body;
 
     if (!schedulePostId || !availableDate || typeof isHomeForRequester !== "boolean") {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
             level:              post.level,
             gender:             post.gender,
             isHomeForRequester,
+            note:               typeof note === "string" && note.trim() ? note.trim() : null,
           },
           include: {
             requester: { select: { ...REQUESTER_SELECT, schoolAddress: true } },

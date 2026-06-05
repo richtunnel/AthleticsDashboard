@@ -1,15 +1,35 @@
 "use client";
 
-import { Box, Container, Typography, Button } from "@mui/material";
+import { Box, Container, Typography, Button, Stack } from "@mui/material";
 import { ErrorOutline } from "@mui/icons-material";
-import BaseHeader from "@/components/headers/_base";
 import TopFooter from "@/components/footer/topFooter";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+
+function useHomeHref(): string {
+  const { data: session, status } = useSession();
+  if (status === "loading") return "/";
+  if (!session) return "/";
+  if (session.user?.role === "PARENT") return "/parent-dashboard";
+  return "/dashboard";
+}
 
 export default function NotFound() {
+  const homeHref = useHomeHref();
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <BaseHeader pt="20px" pl="20px" />
+      <Box sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Link href={homeHref} style={{ textDecoration: "none" }}>
+          <Stack direction="row" alignItems="center" gap={0.75}>
+            <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} />
+            <Typography variant="h6" fontWeight={800} sx={{ color: "text.primary", letterSpacing: "-0.65px", lineHeight: 1 }}>
+              opletics
+            </Typography>
+          </Stack>
+        </Link>
+      </Box>
       <Box
         component="main"
         sx={{
@@ -35,7 +55,7 @@ export default function NotFound() {
             <Button
               variant="contained"
               component={Link}
-              href="/"
+              href={homeHref}
               size="large"
               sx={{ borderRadius: 2, px: 4 }}
             >

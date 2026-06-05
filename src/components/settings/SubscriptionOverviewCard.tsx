@@ -34,6 +34,7 @@ interface RecoveryEmailData {
 interface LastLoginData {
   timestamp: Date;
   city: string | null;
+  region: string | null;
   country: string | null;
 }
 
@@ -470,10 +471,10 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
                         minute: "2-digit",
                       })}
                     </Typography>
-                    {lastLogin.city && (
+                    {(lastLogin.city || lastLogin.region) && (
                       <Typography variant="body2" color="text.secondary">
-                        Location: {lastLogin.city}
-                        {lastLogin.country && `, ${lastLogin.country}`}
+                        Location:{" "}
+                        {[lastLogin.city, lastLogin.region, lastLogin.country].filter(Boolean).join(", ")}
                       </Typography>
                     )}
                     <Typography variant="body2" color="text.secondary">

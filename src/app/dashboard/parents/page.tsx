@@ -8,6 +8,15 @@ import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesM
 export default function ParentsAndAthletesPage() {
   return (
     <Box>
+      <Box sx={{ px: { xs: 1, sm: 2 }, pt: 1, pb: 2 }}>
+        <Typography variant="h4" fontWeight={700} sx={{ mb: 0.25 }}>Connect Hub</Typography>
+        <Typography variant="h6" fontWeight={500} color="text.secondary" sx={{ mb: 0.5 }}>
+          Parents Connect
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Manage parent connections, athlete links, and direct messaging.
+        </Typography>
+      </Box>
       <ParentsAndAthletesMenu defaultOpen={true} />
 
       <Divider sx={{ my: 3, borderColor: "divider", borderBottomWidth: "0.5px" }} />

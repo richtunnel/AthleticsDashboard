@@ -792,6 +792,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      disableScrollLock
       PaperComponent={DraggablePaper}
       PaperProps={{
         sx: {
@@ -837,7 +838,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   fullWidth
                   multiline
                   rows={3}
-                  placeholder="e.g., 'Find me open days for girls varsity soccer 3 days apart.'"
+                  placeholder="e.g., 'Find me open dates for Girls Varsity Soccer'"
                   value={prompt}
                   onChange={(e) => handlePromptChange(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -846,7 +847,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                  Try: "Give me some dates for girls varsity soccer at least 4 days apart"
+                  Try: "Find open dates for B V Basketball"
                 </Typography>
               </Box>
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, ToggleButton, ToggleButtonGroup, Typography,
-  CircularProgress, Box, Stack, Divider,
+  CircularProgress, Box, Stack, Divider, TextField,
 } from "@mui/material";
 import SendIcon   from "@mui/icons-material/Send";
 import HomeIcon   from "@mui/icons-material/Home";
@@ -33,6 +33,7 @@ export function CheckAvailabilityModal({
   timezone, schoolName, sport, level, gender,
 }: Props) {
   const [isHome, setIsHome]           = useState<boolean | null>(null);
+  const [note, setNote]               = useState("");
   const [sendBtnRef, setSendBtnRef]   = useState<HTMLElement | null>(null);
   const queryClient                   = useQueryClient();
   const { addNotification }           = useNotifications();
@@ -46,6 +47,7 @@ export function CheckAvailabilityModal({
           schedulePostId,
           availableDate,
           isHomeForRequester: isHome,
+          note: note.trim() || null,
         }),
       }).then(async (r) => {
         const d = await r.json();
@@ -121,6 +123,25 @@ export function CheckAvailabilityModal({
             Please select Home or Away to continue.
           </Typography>
         )}
+
+        <Divider sx={{ my: 2, borderBottomWidth: "0.5px" }} />
+
+        <Typography variant="body2" fontWeight={600} sx={{ mb: 1 }}>
+          Add a note <Typography component="span" variant="caption" color="text.disabled">(optional)</Typography>
+        </Typography>
+        <TextField
+          multiline
+          rows={3}
+          fullWidth
+          placeholder="e.g., We're flexible on time — prefer afternoon games."
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          inputProps={{ maxLength: 500 }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+        />
+        <Typography variant="caption" color="text.disabled" sx={{ display: "block", mt: 0.5, textAlign: "right" }}>
+          {note.length}/500
+        </Typography>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>

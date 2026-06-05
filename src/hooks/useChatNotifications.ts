@@ -137,6 +137,17 @@ export function useChatNotifications(streamUrl: string) {
           addNotification("A game has been confirmed!", "success");
           return;
         }
+
+        // ── AD Chat notifications ─────────────────────────────────────────
+        if (data.type === "ad_message") {
+          queryClient.invalidateQueries({ queryKey: ["adChatConversations"] });
+          queryClient.invalidateQueries({ queryKey: ["adChatUnread"] });
+          const preview = data.content?.length > 50 ? data.content.substring(0, 50) + "..." : (data.content || "");
+          const label   = data.senderName || "An AD";
+          addNotification(`New message from ${label}: ${preview}`, "info");
+          showDesktopNotification(`New message from ${label}`, preview, data.conversationId);
+          return;
+        }
         if (data.type === "GAME_REQUEST_COUNT_UPDATE") {
           queryClient.invalidateQueries({ queryKey: ["game-requests-unread"] });
           return;

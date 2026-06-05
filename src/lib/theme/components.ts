@@ -211,7 +211,7 @@ export const buildThemeComponents = (theme: Theme): Components<Theme> => {
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 1)}`,
+          borderBottom: `1px solid ${isDark ? alpha(theme.palette.divider, 1) : "#00000030"}`,
           "&.MuiTableCell-head": {
             fontWeight: 600,
             textTransform: "uppercase",

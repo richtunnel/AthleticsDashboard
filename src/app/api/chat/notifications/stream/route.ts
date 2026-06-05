@@ -60,6 +60,11 @@ export async function GET(request: NextRequest) {
         subscribeChatChannel(`sync:${user.organizationId}`, (event) => {
           send({ type: "sync_request", ...event });
         }),
+        // AD-to-AD chat notifications for this specific user
+        subscribeChatChannel(`ad-user:${user.id}`, (event) => {
+          if (event.senderUserId === user.id) return;
+          send({ type: "ad_message", ...event });
+        }),
       ];
 
       // ── DB safety-net poll every 5 s ─────────────────────────────────────
