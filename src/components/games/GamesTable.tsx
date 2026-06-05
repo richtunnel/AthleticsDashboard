@@ -557,6 +557,8 @@ export function GamesTable() {
 
   // Opponent column override (shared with ScheduleCalendarView via persisted store)
   const { overrides: opponentOverrides, setOverride: setOpponentOverride } = useOpponentColumnStore();
+  const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
+  const opponentColumnOverride = selectedWorkbookId ? (opponentOverrides[selectedWorkbookId] ?? null) : null;
 
   /**
    * Resolves the opponent display name for a game row.
@@ -715,8 +717,6 @@ export function GamesTable() {
   const [gameToUnsync, setGameToUnsync] = useState<string | null>(null);
 
   // Workbook management state
-  const { workbooks, selectedWorkbookId, showWorkbookSelector, setWorkbooks, addWorkbook, updateWorkbook, deleteWorkbook, setSelectedWorkbookId, setShowWorkbookSelector } = useGamesWorkbookStore();
-  const opponentColumnOverride = selectedWorkbookId ? (opponentOverrides[selectedWorkbookId] ?? null) : null;
 
   // Workbook edit dialog state
   const [editingWorkbookDialog, setEditingWorkbookDialog] = useState<{
@@ -7895,11 +7895,11 @@ export function GamesTable() {
               </Box>
             )}
             <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+            </>
           ) : isMobile ? (
             <Box sx={{ position: "relative" }}>
               {/* Show skeleton loader on initial load OR when fetching with no data */}
               {isLoading || (!mounted && !isAddingNew) ? (
-            </>
                 <Stack spacing={2}>
                   {Array.from({ length: 3 }).map((_, index) => (
                     <Card key={`skeleton-${index}`}>
@@ -7915,7 +7915,7 @@ export function GamesTable() {
               ) : games.length === 0 ? (
                 <Paper sx={{ p: 4, textAlign: "center", bgcolor: "background.paper" }}>
                   <Typography color="text.secondary" variant="body2">
-                    No games found. Import your spreadsheet or click "Create Game" to add one.
+                    No games found. Import your spreadsheet or click &quot;Create Game&quot; to add one.
                   </Typography>
                 </Paper>
               ) : (
@@ -8040,7 +8040,7 @@ export function GamesTable() {
                             </Box>
                           ) : (
                             <Typography color="text.secondary" variant="body2">
-                              No games found. Import your spreadsheet or click "Create Game" to add one.
+                              No games found. Import your spreadsheet or click &quot;Create Game&quot; to add one.
                             </Typography>
                           )}
                         </TableCell>
