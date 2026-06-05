@@ -470,13 +470,21 @@ export class ImportExportService {
   }
 
   private mapColumnAliases(headers: string[]): string[] {
-    const opponentAliases = ['away', 'other team', 'opponent', 'challenger', 'playing', 'against'];
-    
-    return headers.map(header => {
-      const lowerHeader = header.toLowerCase();
-      if (opponentAliases.includes(lowerHeader)) {
-        return 'Opponent';
-      }
+    const OPPONENT_KEYWORDS = [
+      "away", "away team", "away teams", "away school", "away schools",
+      "opponent", "opponents", "opponent team", "opposing team", "opposing school",
+      "rival", "rivals", "other team", "other teams", "other school",
+      "challenger", "challengers", "visiting team", "visiting school",
+      "visitor", "visitors", "visiting", "competition", "competing team",
+      "competition team", "adversary", "guest", "guests", "guest team",
+      "playing against", "their team",
+    ];
+    const OPPONENT_KEYWORDS_EXACT_ONLY = ["vs", "vs.", "v.s.", "opp", "foe", "foes", "matchup", "enemy"];
+
+    return headers.map((header) => {
+      const norm = header.toLowerCase().trim();
+      if ([...OPPONENT_KEYWORDS, ...OPPONENT_KEYWORDS_EXACT_ONLY].some((k) => norm === k)) return "Opponent";
+      if (OPPONENT_KEYWORDS.some((k) => norm.includes(k))) return "Opponent";
       return header;
     });
   }
