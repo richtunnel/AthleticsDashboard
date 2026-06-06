@@ -12,6 +12,69 @@ interface ImportGameData {
   customFields?: Record<string, any>; // All non-date columns stored here
 }
 
+// ── Home/Away smart detection ─────────────────────────────────────────────────
+// Column names that typically hold the home/away indicator
+const HOME_AWAY_COL_NAMES = new Set([
+  "home", "away", "homeaway", "home/away", "h/a", "ha", "ishome",
+  "location type", "locationtype", "game type", "gametype", "type",
+  "site", "host", "venue type", "venuetype", "field", "status type",
+  "home or away", "home_away", "location_type",
+]);
+
+// Values that indicate HOME
+const HOME_VALUES = new Set([
+  "home", "h", "hm", "home game", "at home", "host", "hosting",
+  "home field", "home venue", "home team", "1", "true", "yes",
+]);
+
+// Values that indicate AWAY
+const AWAY_VALUES = new Set([
+  "away", "a", "aw", "away game", "on the road", "road game", "visiting",
+  "visitor", "visit", "travel", "travels", "at", "0", "false", "no",
+]);
+
+/**
+ * Infers whether the AD's team is playing at home from a CSV game row.
+ * Returns:
+ *   true  → home game
+ *   false → away game
+ *   null  → could not determine (caller should default to true)
+ */
+function detectIsHome(customFields: Record<string, any>): boolean | null {
+  if (!customFields || typeof customFields !== "object") return null;
+
+  // Phase 1: check well-known column names first (case-insensitive key lookup)
+  for (const [rawKey, val] of Object.entries(customFields)) {
+    const normKey = rawKey.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!HOME_AWAY_COL_NAMES.has(normKey)) continue;
+
+    const normVal = String(val ?? "").trim().toLowerCase();
+    if (!normVal) continue;
+
+    if (HOME_VALUES.has(normVal))  return true;
+    if (AWAY_VALUES.has(normVal))  return false;
+
+    // Partial match for values like "home – varsity" or "away (jv)"
+    if (/\bhome\b/i.test(normVal))  return true;
+    if (/\baway\b/i.test(normVal))  return false;
+    if (/^h$/i.test(normVal))       return true;
+    if (/^a$/i.test(normVal))       return false;
+  }
+
+  // Phase 2: scan ALL values for unambiguous home/away signals when no
+  //          dedicated column was found — handles CSVs where the location
+  //          column is simply called "Location" with values "Home" or "Away"
+  for (const [, val] of Object.entries(customFields)) {
+    const normVal = String(val ?? "").trim().toLowerCase();
+    if (!normVal || normVal.length > 40) continue; // skip long text (notes etc.)
+
+    if (HOME_VALUES.has(normVal))  return true;
+    if (AWAY_VALUES.has(normVal))  return false;
+  }
+
+  return null; // undetermined
+}
+
 // Helper function to validate date string
 function validateAndParseDate(dateString: string): Date {
   const date = new Date(dateString);
@@ -308,12 +371,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Queue for batch insert
+        const detectedIsHome = detectIsHome(sanitizedCustomFields);
         pendingGames.push({
           rowNum,
           data: {
             date: parsedDate,
             homeTeamId: defaultTeam.id,
-            isHome: true,
+            isHome: detectedIsHome ?? true, // default to home when undetectable
             status: "SCHEDULED" as GameStatus,
             customFields: sanitizedCustomFields,
             createdById: session.user.id,

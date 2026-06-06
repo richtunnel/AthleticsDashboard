@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert, Box, Button, Card, CardContent, Divider, Snackbar, Stack,
   Typography, IconButton, Paper, useTheme, Select, MenuItem, Tooltip,
-  FormControl, TextField,
+  FormControl, TextField, Switch, FormControlLabel,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
@@ -48,11 +48,16 @@ function SignatureLogoImage({ logoUrl }: { logoUrl: string }) {
   );
 }
 
+const DEFAULT_DISCLAIMER =
+  "CONFIDENTIALITY NOTICE: This email and any attachments are intended solely for the use of the individual or entity to which they are addressed. If you have received this message in error, please notify the sender immediately and delete this email from your system. This communication is sent on behalf of [School Name] Athletics Department.";
+
 interface EmailSignature {
   signaturePhone: string;
   signatureWebsite: string;
   signatureLogoUrl: string;
   signatureText: string;
+  signatureDisclaimer: string;
+  signatureDisclaimerEnabled: boolean;
 }
 
 async function fetchEmailSignature(): Promise<EmailSignature> {
@@ -61,7 +66,7 @@ async function fetchEmailSignature(): Promise<EmailSignature> {
     throw new Error("Failed to fetch email signature");
   }
   const data = await res.json();
-  return data.data || { signaturePhone: "", signatureWebsite: "", signatureLogoUrl: "", signatureText: "" };
+  return data.data || { signaturePhone: "", signatureWebsite: "", signatureLogoUrl: "", signatureText: "", signatureDisclaimer: "", signatureDisclaimerEnabled: false };
 }
 
 async function updateEmailSignature(signature: EmailSignature): Promise<EmailSignature> {
@@ -124,6 +129,8 @@ export function EmailSignatureManager() {
   const [logoUrl, setLogoUrl] = useState("");
   const [signatureText, setSignatureText] = useState("");
   const [selectedFontSize, setSelectedFontSize] = useState("14px");
+  const [disclaimerEnabled, setDisclaimerEnabled] = useState(false);
+  const [disclaimerText, setDisclaimerText] = useState("");
 
   const syncEditorContent = useCallback(() => {
     if (editorRef.current) setSignatureText(editorRef.current.innerHTML);
@@ -170,6 +177,8 @@ export function EmailSignatureManager() {
       setLogoUrl(signature.signatureLogoUrl || "");
       const html = plainToHtml(signature.signatureText || "");
       setSignatureText(html);
+      setDisclaimerEnabled(signature.signatureDisclaimerEnabled ?? false);
+      setDisclaimerText(signature.signatureDisclaimer || DEFAULT_DISCLAIMER);
       // Populate the contentEditable after React paints it
       if (editorRef.current) {
         editorRef.current.innerHTML = html;
@@ -227,6 +236,8 @@ export function EmailSignatureManager() {
       signatureWebsite: website,
       signatureLogoUrl: logoUrl,
       signatureText: signatureText,
+      signatureDisclaimer: disclaimerText,
+      signatureDisclaimerEnabled: disclaimerEnabled,
     });
   };
 
@@ -287,6 +298,8 @@ export function EmailSignatureManager() {
         signatureWebsite: website,
         signatureLogoUrl: logoUrl,
         signatureText: signatureText,
+        signatureDisclaimer: disclaimerText,
+        signatureDisclaimerEnabled: disclaimerEnabled,
       },
       {
         baseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
@@ -447,6 +460,58 @@ export function EmailSignatureManager() {
                 helperText="Your school or organization website (must include https://)"
               />
             </Stack>
+
+            <Divider />
+
+            {/* Disclaimer */}
+            <Box>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Email Disclaimer
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Appended in small italic text below your signature on every outgoing email.
+                  </Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      checked={disclaimerEnabled}
+                      onChange={(e) => setDisclaimerEnabled(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label={<Typography variant="caption">{disclaimerEnabled ? "On" : "Off"}</Typography>}
+                  labelPlacement="start"
+                  sx={{ ml: 0 }}
+                />
+              </Stack>
+
+              {disclaimerEnabled && (
+                <Box>
+                  <TextField
+                    value={disclaimerText}
+                    onChange={(e) => setDisclaimerText(e.target.value)}
+                    multiline
+                    rows={4}
+                    fullWidth
+                    size="small"
+                    helperText="Customize the disclaimer text. It will appear in small italic text below your phone and website."
+                    sx={{ "& .MuiInputBase-root": { fontSize: "0.8rem" } }}
+                  />
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{ mt: 0.5, textTransform: "none", fontSize: "0.72rem", color: "text.secondary" }}
+                    onClick={() => setDisclaimerText(DEFAULT_DISCLAIMER)}
+                  >
+                    Reset to default
+                  </Button>
+                </Box>
+              )}
+            </Box>
 
             <Divider />
 

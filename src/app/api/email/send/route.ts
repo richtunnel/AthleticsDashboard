@@ -273,10 +273,12 @@ async function getUserSignature(userId: string) {
     signatureHTML: user
       ? buildEmailSignatureHTML(
           {
-            signaturePhone: user.signaturePhone,
-            signatureWebsite: user.signatureWebsite,
-            signatureLogoUrl: user.signatureLogoUrl,
-            signatureText: user.signatureText,
+            signaturePhone: (user as any).signaturePhone,
+            signatureWebsite: (user as any).signatureWebsite,
+            signatureLogoUrl: (user as any).signatureLogoUrl,
+            signatureText: (user as any).signatureText,
+            signatureDisclaimer: (user as any).signatureDisclaimer,
+            signatureDisclaimerEnabled: (user as any).signatureDisclaimerEnabled,
           },
           {
             // Explicitly pass baseUrl to ensure relative URLs are converted to absolute URLs for email sending

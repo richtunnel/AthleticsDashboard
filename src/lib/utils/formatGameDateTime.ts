@@ -82,11 +82,23 @@ export const genderLabel = (gender: string | null | undefined): string => {
 };
 
 /**
- * Human-readable sport/level/gender combo label
- * e.g. "Girls Varsity Tennis"
+ * Human-readable sport/level/gender combo label — e.g. "Girls Varsity Tennis".
+ *
+ * Guards against double-prefixing: if the sport string already contains the
+ * gender or level keywords (e.g. sport="Girls Varsity Basketball" because the
+ * CSV stored the full string there), those parts are NOT prepended again.
  */
 export const sportComboLabel = (sport: string, level: string, gender: string | null | undefined): string => {
-  const g = genderLabel(gender);
-  const l = level.charAt(0).toUpperCase() + level.slice(1).toLowerCase();
+  const g      = genderLabel(gender);
+  const l      = level.charAt(0).toUpperCase() + level.slice(1).toLowerCase().replace(/_/g, " ");
+  const sLower = sport.toLowerCase();
+
+  // Detect if the sport string already carries gender / level info
+  const hasGender = g !== "Co-ed" && sLower.includes(g.toLowerCase());
+  const hasLevel  = sLower.includes(l.toLowerCase());
+
+  if (hasGender && hasLevel) return sport;                     // fully qualified already
+  if (hasGender)             return `${l} ${sport}`;
+  if (hasLevel)              return `${g} ${sport}`;
   return `${g} ${l} ${sport}`;
 };

@@ -15,6 +15,10 @@ export async function GET() {
         signatureWebsite: true,
         signatureLogoUrl: true,
         signatureText: true,
+        signatureDisclaimer: true,
+        signatureDisclaimerEnabled: true,
+        schoolName: true,
+        email: true,
       } as any,
     }) as any;
 
@@ -27,6 +31,8 @@ export async function GET() {
       signatureWebsite: user.signatureWebsite || "",
       signatureLogoUrl: user.signatureLogoUrl || "",
       signatureText: user.signatureText || "",
+      signatureDisclaimer: user.signatureDisclaimer || "",
+      signatureDisclaimerEnabled: user.signatureDisclaimerEnabled ?? false,
     });
 
     // Add cache control headers to prevent stale data
@@ -43,7 +49,7 @@ export async function PATCH(request: NextRequest) {
     const session = await requireAuth();
     const body = await request.json();
 
-    const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = body;
+    const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText, signatureDisclaimer, signatureDisclaimerEnabled } = body;
 
     // Validate inputs
     if (signaturePhone && typeof signaturePhone !== "string") {
@@ -78,12 +84,16 @@ export async function PATCH(request: NextRequest) {
         signatureWebsite: signatureWebsite || null,
         signatureLogoUrl: signatureLogoUrl || null,
         signatureText: signatureText || null,
+        signatureDisclaimer: signatureDisclaimer || null,
+        signatureDisclaimerEnabled: typeof signatureDisclaimerEnabled === "boolean" ? signatureDisclaimerEnabled : undefined,
       } as any,
       select: {
         signaturePhone: true,
         signatureWebsite: true,
         signatureLogoUrl: true,
         signatureText: true,
+        signatureDisclaimer: true,
+        signatureDisclaimerEnabled: true,
       } as any,
     }) as any;
 

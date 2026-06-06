@@ -50,6 +50,36 @@ function extractSportFromText(text: string): string {
     .trim() || text.trim();
 }
 
+/**
+ * Deep row scan: given all string cell values from a single game row,
+ * score each by how many of {sport, level, gender} it encodes simultaneously.
+ * Returns the highest-scoring extraction found.
+ */
+function deepRowScan(strings: string[]): { sport: string | null; level: string | null; gender: string | null } {
+  type Hit = { sport: string | null; level: string | null; gender: string | null; score: number };
+
+  let best: Hit = { sport: null, level: null, gender: null, score: 0 };
+
+  for (const s of strings) {
+    const rawSport  = extractSportFromText(s);
+    const hasSport  = rawSport.toLowerCase() !== s.toLowerCase() && rawSport.length > 0;
+    const rawLevel  = extractLevelFromText(s);
+    const rawGender = extractGenderFromText(s);
+
+    const score = (hasSport ? 1 : 0) + (rawLevel ? 1 : 0) + (rawGender ? 1 : 0);
+    if (score > best.score) {
+      best = {
+        sport:  hasSport ? rawSport : null,
+        level:  rawLevel,
+        gender: rawGender,
+        score,
+      };
+    }
+  }
+
+  return best;
+}
+
 export function normalizeGameCombo(
   game: {
     customFields?: unknown;
@@ -72,66 +102,90 @@ export function normalizeGameCombo(
   const cfVal = (key: string): string | undefined =>
     (cf[key] ?? cf[key.toLowerCase()] ?? cf[key.toUpperCase()]) as string | undefined;
 
-  // ── Sport ──────────────────────────────────────────────────────────────────
+  // Collect all non-empty string values for the deep scan
+  const allStrings: string[] = Object.values(cf).filter(
+    (v): v is string => typeof v === "string" && !!v.trim()
+  );
+
   const dbSport  = game.homeTeam.sport.name;
+  const dbLevel  = game.homeTeam.level;
+  const dbGender = game.homeTeam.gender as string | null;
+
+  // ── Sport ──────────────────────────────────────────────────────────────────
   let sport: string;
   if (colOverrides?.sport) {
     const raw = cfVal(colOverrides.sport) ?? "";
     sport = extractSportFromText(raw) || dbSport || "Unknown";
+  } else if (dbSport && dbSport.toLowerCase() !== "general") {
+    // Relational sport is meaningful — use it directly (no stripping needed)
+    sport = dbSport;
   } else {
-    const cfSport = cfVal("Sport");
-    sport = dbSport && dbSport.toLowerCase() !== "general"
-      ? dbSport
-      : cfSport || dbSport || "Unknown";
+    // Try dedicated "Sport" column first — always strip gender/level from it
+    const cfSport = cfVal("Sport") ?? cfVal("sport") ?? "";
+    if (cfSport) {
+      sport = extractSportFromText(cfSport) || dbSport || "Unknown";
+    } else {
+      // Deep scan: find the richest combined string containing sport info
+      sport = deepRowScan(allStrings).sport ?? dbSport ?? "Unknown";
+    }
   }
 
   // ── Level ──────────────────────────────────────────────────────────────────
-  const dbLevel = game.homeTeam.level;
   let level: string;
   if (colOverrides?.level) {
     const raw = cfVal(colOverrides.level) ?? "";
     level = extractLevelFromText(raw) ?? dbLevel ?? "VARSITY";
+  } else if (dbLevel && !["VARSITY", ""].includes(dbLevel.toUpperCase())) {
+    // Non-generic DB level — trust it
+    level = dbLevel;
   } else {
-    const cfLevel = cfVal("Level");
-    level = dbLevel || cfLevel || "VARSITY";
+    // Try dedicated "Level" column
+    const cfLevel = cfVal("Level") ?? cfVal("level") ?? "";
+    const levelFromCol = cfLevel ? extractLevelFromText(cfLevel) : null;
+    if (levelFromCol) {
+      level = levelFromCol;
+    } else {
+      // Deep scan: find level from any combined column
+      // Also check the Sport column since CSVs often put "Girls Varsity Basketball" there
+      const candidates = [
+        cfVal("Sport") ?? "", cfVal("Team") ?? "",
+        (game.homeTeam.name as string | null) ?? "",
+        ...allStrings,
+      ].filter(Boolean);
+      const scanned = deepRowScan(candidates).level;
+      level = scanned ?? dbLevel ?? "VARSITY";
+    }
   }
 
   // ── Gender ─────────────────────────────────────────────────────────────────
-  const dbGender = game.homeTeam.gender as string | null;
   let gender: string;
   if (colOverrides?.gender) {
     const raw = cfVal(colOverrides.gender) ?? "";
     gender = extractGenderFromText(raw) ?? dbGender ?? "COED";
   } else if (dbGender && dbGender !== "COED") {
-    // Relational gender is set and meaningful — trust it
     gender = dbGender;
   } else {
-    // No reliable DB gender: do a broad scan across all customField values.
-    //
-    // Priority order:
-    //  1. Dedicated gender columns (Gender, Sex, Division, M/F)
-    //  2. The homeTeam.name stored in the DB
-    //  3. Every other string value in customFields (Sport, Level, Team, etc.)
-    //     — catches "Boys Varsity Basketball" wherever it lands in the CSV
-
+    // 1. Dedicated gender columns
     const priorityKeys  = ["Gender", "Sex", "Division", "M/F", "gender", "sex"];
     const priorityValue = priorityKeys.map((k) => cfVal(k)).find(Boolean) ?? "";
     let detected        = extractGenderFromText(priorityValue);
 
+    // 2. homeTeam.name and raw "Team" column
     if (!detected) {
-      // Check homeTeam.name and the raw "Team" column
       const teamName = (game.homeTeam.name as string | null) || cfVal("Team") || "";
       detected = extractGenderFromText(teamName);
     }
 
+    // 3. Deep scan: find gender from any combined column value
     if (!detected) {
-      // Scan every remaining string cell value — last resort
-      for (const val of Object.values(cf)) {
-        if (typeof val === "string" && val) {
-          detected = extractGenderFromText(val);
-          if (detected) break;
-        }
-      }
+      // Check "Sport" column value first (most likely to have "Boys/Girls Basketball")
+      const sportColVal = cfVal("Sport") ?? cfVal("sport") ?? "";
+      if (sportColVal) detected = extractGenderFromText(sportColVal);
+    }
+
+    if (!detected) {
+      const scanResult = deepRowScan(allStrings).gender;
+      detected = scanResult;
     }
 
     gender = detected ?? dbGender ?? "COED";

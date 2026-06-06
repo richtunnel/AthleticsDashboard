@@ -405,7 +405,7 @@ export default function AdChatPage() {
           <Box sx={{ p: 2, textAlign: "center" }}>
             <ChatIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
             <Typography variant="body2" color="text.secondary">
-              Search athletics directory
+              Messages
             </Typography>
           </Box>
         ) : (

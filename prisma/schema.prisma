@@ -57,6 +57,8 @@ model User {
   signatureWebsite           String?
   signatureLogoUrl           String?
   signatureText              String?
+  signatureDisclaimer        String?   // custom disclaimer text (null = use default)
+  signatureDisclaimerEnabled Boolean   @default(false)
   costBudgetEnabled          Boolean                   @default(false)
   monthlyBudget              Float?
   scoreTrackerEnabled        Boolean                   @default(false)

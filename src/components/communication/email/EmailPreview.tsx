@@ -396,6 +396,8 @@ export function buildEmailPreviewHtml({ mounted, theme, additionalMessage, visib
         signatureWebsite: emailSignature.signatureWebsite,
         signatureLogoUrl: emailSignature.signatureLogoUrl,
         signatureText: emailSignature.signatureText,
+        signatureDisclaimer: emailSignature.signatureDisclaimer,
+        signatureDisclaimerEnabled: emailSignature.signatureDisclaimerEnabled,
       },
       {
         baseUrl: typeof window !== "undefined" ? window.location.origin : undefined,

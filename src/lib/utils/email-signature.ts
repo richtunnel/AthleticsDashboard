@@ -5,6 +5,10 @@ interface SignatureData {
   signatureWebsite?: string | null;
   signatureLogoUrl?: string | null;
   signatureText?: string | null;
+  /** Custom disclaimer text; null = use the default auto-generated one */
+  signatureDisclaimer?: string | null;
+  /** Whether to append the disclaimer to outgoing emails */
+  signatureDisclaimerEnabled?: boolean | null;
 }
 
 interface BuildEmailSignatureOptions {
@@ -157,10 +161,10 @@ export function processLogoUrl(logoUrl: string, baseUrl: string, useOptimized: b
  * @returns HTML string for email signature or preview
  */
 export function buildEmailSignatureHTML(signatureData: SignatureData, options: BuildEmailSignatureOptions = {}): string {
-  const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText } = signatureData;
+  const { signaturePhone, signatureWebsite, signatureLogoUrl, signatureText, signatureDisclaimer, signatureDisclaimerEnabled } = signatureData;
 
   // Early return if no signature data
-  if (!signaturePhone && !signatureWebsite && !signatureLogoUrl && !signatureText) {
+  if (!signaturePhone && !signatureWebsite && !signatureLogoUrl && !signatureText && !signatureDisclaimerEnabled) {
     return "";
   }
 
@@ -233,6 +237,16 @@ export function buildEmailSignatureHTML(signatureData: SignatureData, options: B
 
   if (textContent.length > 0) {
     sections.push(`<div style="font-size: 13px; color: ${secondaryColor}; line-height: 1.3;">${textContent.join("")}</div>`);
+  }
+
+  // ── Disclaimer ─────────────────────────────────────────────────────────────
+  if (signatureDisclaimerEnabled) {
+    const disclaimerText = signatureDisclaimer?.trim() || "";
+    if (disclaimerText) {
+      sections.push(
+        `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid ${dividerColor}; font-size: 10px; color: #9ca3af; line-height: 1.5; font-style: italic;">${escapeHtml(disclaimerText)}</div>`
+      );
+    }
   }
 
   return `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid ${dividerColor}; font-family: Arial, sans-serif; color: ${primaryColor};">${sections.join("")}</div>`;

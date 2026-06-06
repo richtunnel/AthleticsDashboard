@@ -703,6 +703,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </ListItemIcon>
                 Documentation
               </MenuItem>
+              <MenuItem component={Link} href="/dashboard/help" onClick={handleClose}>
+                <ListItemIcon>
+                  <HelpOutline fontSize="small" />
+                </ListItemIcon>
+                Help & Troubleshooting
+              </MenuItem>
               <MenuItem component={Link} href="/dashboard/support" onClick={handleClose}>
                 <ListItemIcon>
                   <SupportAgent fontSize="small" />

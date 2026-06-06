@@ -37,10 +37,10 @@ interface Combo {
 interface ColOverrides {
   sport:  string;
   level:  string;
-  gender: string;
+  // gender is intentionally omitted — it is auto-detected from row values
 }
 
-const EMPTY_OVERRIDES: ColOverrides = { sport: "", level: "", gender: "" };
+const EMPTY_OVERRIDES: ColOverrides = { sport: "", level: "" };
 
 export function SchedulePostForm({ onPosted }: Props) {
   const theme               = useTheme();
@@ -78,7 +78,7 @@ export function SchedulePostForm({ onPosted }: Props) {
       const params = new URLSearchParams({ workbookId });
       if (appliedOverrides.sport)  params.set("sportCol",  appliedOverrides.sport);
       if (appliedOverrides.level)  params.set("levelCol",  appliedOverrides.level);
-      if (appliedOverrides.gender) params.set("genderCol", appliedOverrides.gender);
+      // gender is always auto-detected — no genderCol param sent
       return fetch(`/api/schedule-board/workbook-sports?${params}`)
         .then((r) => r.json()) as Promise<{ combos: Combo[]; availableColumns: string[] }>;
     },
@@ -88,7 +88,7 @@ export function SchedulePostForm({ onPosted }: Props) {
   const combos           = combosData?.combos ?? [];
   const hasCombos        = combos.length > 0;
   const availableColumns = combosData?.availableColumns ?? [];
-  const hasOverrides     = !!(appliedOverrides.sport || appliedOverrides.level || appliedOverrides.gender);
+  const hasOverrides     = !!(appliedOverrides.sport || appliedOverrides.level);
 
   const selectedCombos = combos.filter((c) => selectedKeys.includes(c.key));
   const hasSelections  = selectedCombos.length > 0;
@@ -259,13 +259,13 @@ export function SchedulePostForm({ onPosted }: Props) {
             {/* ── Multi-select leagues ── */}
             <Box>
               <FormControl size="small" fullWidth disabled={!workbookId || loadingCombos}>
-                <InputLabel shrink>Choose leagues</InputLabel>
+                <InputLabel shrink>Select a sport</InputLabel>
                 <Select
                   multiple
                   displayEmpty
                   notched
                   value={selectedKeys}
-                  label="Choose leagues"
+                  label="Select a sport"
                   onChange={(e) => setSelectedKeys(
                     typeof e.target.value === "string"
                       ? e.target.value.split(",")
@@ -275,7 +275,7 @@ export function SchedulePostForm({ onPosted }: Props) {
                     if (!workbookId)        return "Select a worksheet first";
                     if (loadingCombos)      return "Loading…";
                     if (!hasCombos)         return "No sports found in this worksheet";
-                    if (!selected.length)   return "Select one or more leagues";
+                    if (!selected.length)   return "Select a sport";
                     return combos
                       .filter((c) => selected.includes(c.key))
                       .map((c) => c.label)
@@ -381,9 +381,8 @@ export function SchedulePostForm({ onPosted }: Props) {
                   <Stack spacing={1.5}>
                     {(
                       [
-                        { field: "sport"  as const, label: "Sport column",  example: 'e.g. "Basketball"' },
-                        { field: "level"  as const, label: "Level column",  example: 'e.g. "Varsity"' },
-                        { field: "gender" as const, label: "Gender column", example: 'e.g. "Boys"' },
+                        { field: "sport" as const, label: "Sport column",  example: 'e.g. "Basketball" or "Girls Varsity Basketball"' },
+                        { field: "level" as const, label: "Level column",  example: 'e.g. "Varsity" or "JV"' },
                       ] as const
                     ).map(({ field, label, example }) => (
                       <FormControl key={field} size="small" fullWidth>
@@ -413,6 +412,21 @@ export function SchedulePostForm({ onPosted }: Props) {
                         </Typography>
                       </FormControl>
                     ))}
+
+                    {/* Gender note — no manual override needed */}
+                    <Box
+                      sx={{
+                        px: 1.5, py: 1, borderRadius: 1.5,
+                        bgcolor: (t) => t.palette.mode === "dark" ? "rgba(251,191,36,0.08)" : "rgba(251,191,36,0.1)",
+                        border: "1px solid rgba(251,191,36,0.3)",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                        <strong>Gender</strong> is auto-detected from your CSV rows — no column selection needed.
+                        For best results, include gender in your sport column values (e.g.{" "}
+                        <em>"Boys Varsity Basketball"</em> or <em>"Girls JV Soccer"</em>).
+                      </Typography>
+                    </Box>
                   </Stack>
 
                   <Stack direction="row" gap={1} sx={{ mt: 2 }}>
