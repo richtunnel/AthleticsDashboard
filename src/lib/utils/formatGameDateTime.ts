@@ -93,12 +93,14 @@ export const sportComboLabel = (sport: string, level: string, gender: string | n
   const l      = level.charAt(0).toUpperCase() + level.slice(1).toLowerCase().replace(/_/g, " ");
   const sLower = sport.toLowerCase();
 
-  // Detect if the sport string already carries gender / level info
-  const hasGender = g !== "Co-ed" && sLower.includes(g.toLowerCase());
+  // Detect if the sport string already carries gender / level info.
+  // Co-ed means no gender was detected — omit it from the label entirely.
+  const isCoed    = g === "Co-ed";
+  const hasGender = !isCoed && sLower.includes(g.toLowerCase());
   const hasLevel  = sLower.includes(l.toLowerCase());
 
-  if (hasGender && hasLevel) return sport;                     // fully qualified already
-  if (hasGender)             return `${l} ${sport}`;
+  if (hasGender && hasLevel) return sport;
+  if (hasGender || isCoed)   return hasLevel ? sport : `${l} ${sport}`;
   if (hasLevel)              return `${g} ${sport}`;
   return `${g} ${l} ${sport}`;
 };

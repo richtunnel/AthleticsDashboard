@@ -28,24 +28,29 @@ export interface ColOverrides {
 function extractLevelFromText(text: string): string | null {
   const t = text.toUpperCase();
   if (/\bJUNIOR\s+VARSITY\b/.test(t) || /\bJ\.?V\.?\b/.test(t)) return "JV";
-  if (/\bVARSITY\b/.test(t) || /\bVAR\b/.test(t))                return "VARSITY";
-  if (/\bFRESH(MAN|MEN)\b/.test(t))                              return "FRESHMAN";
-  if (/\bMIDDLE\s+SCHOOL\b/.test(t))                             return "MIDDLE_SCHOOL";
+  if (/\bVARSITY\b/.test(t) || /\bVAR\b/.test(t))               return "VARSITY";
+  // Single-letter "V" only after JV is already ruled out above
+  if (/\bV\b/.test(t))                                           return "VARSITY";
+  if (/\bFRESH(MAN|MEN)\b/.test(t))                             return "FRESHMAN";
+  if (/\bMIDDLE\s+SCHOOL\b/.test(t))                            return "MIDDLE_SCHOOL";
   if (/\bSOPHOMORE\b/.test(t))                                   return "SOPHOMORE";
   return null;
 }
 
 function extractGenderFromText(text: string): string | null {
   const t = text.toLowerCase();
-  if (/\bboys?\b/.test(t) || /\bmale\b/.test(t) || /\b(men|mens)\b/.test(t))     return "MALE";
+  if (/\bboys?\b/.test(t) || /\bmale\b/.test(t) || /\b(men|mens)\b/.test(t))        return "MALE";
   if (/\bgirls?\b/.test(t) || /\bfemale\b/.test(t) || /\b(women|womens)\b/.test(t)) return "FEMALE";
+  // Single-letter abbreviations ("B V Basketball", "G V Soccer")
+  if (/\bb\b/.test(t)) return "MALE";
+  if (/\bg\b/.test(t)) return "FEMALE";
   return null;
 }
 
 function extractSportFromText(text: string): string {
   return text
-    .replace(/\b(junior\s+varsity|varsity|j\.?v\.?|freshman|freshmen|middle\s+school|sophomore)\b/gi, "")
-    .replace(/\b(boys?|girls?|male|female|men|womens?|coed)\b/gi, "")
+    .replace(/\b(junior\s+varsity|varsity|j\.?v\.?|freshman|freshmen|middle\s+school|sophomore|v)\b/gi, "")
+    .replace(/\b(boys?|girls?|male|female|men|womens?|coed|b|g)\b/gi, "")
     .replace(/\s+/g, " ")
     .trim() || text.trim();
 }

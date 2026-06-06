@@ -1,39 +1,47 @@
 import { AvailabilityQuery, ParseMethod } from "./types";
 import { resolveRelativeDates } from "./resolveRelativeDates";
 import { canonicalizeMonths, monthNameToIndex, monthIndexToName } from "./normalizeDates";
-import {
-  GENDER_ALIASES,
-  LEVEL_ALIASES,
-  COMPOUND_ABBREVIATIONS,
-  buildSportDetectionRules,
-} from "./sportTokens";
+import { GENDER_ALIASES, LEVEL_ALIASES, COMPOUND_ABBREVIATIONS, buildSportDetectionRules } from "./sportTokens";
 
 // Build once at module load — no need to rebuild per call.
 const SPORT_DETECTION_RULES = buildSportDetectionRules();
 
-const MONTH_RE =
-  /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi;
+const MONTH_RE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi;
 
 const WEEKDAY_MAP: Record<string, number> = {
-  sunday: 0, sun: 0,
-  monday: 1, mon: 1,
-  tuesday: 2, tue: 2, tues: 2,
-  wednesday: 3, wed: 3,
-  thursday: 4, thu: 4, thur: 4, thurs: 4,
-  friday: 5, fri: 5,
-  saturday: 6, sat: 6,
+  sunday: 0,
+  sun: 0,
+  monday: 1,
+  mon: 1,
+  tuesday: 2,
+  tue: 2,
+  tues: 2,
+  wednesday: 3,
+  wed: 3,
+  thursday: 4,
+  thu: 4,
+  thur: 4,
+  thurs: 4,
+  friday: 5,
+  fri: 5,
+  saturday: 6,
+  sat: 6,
 };
 
-const WEEKDAY_NAMES_FULL = [
-  "Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday",
-];
+const WEEKDAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const ORDINAL_MAP: Record<string, number> = {
-  first: 1, "1st": 1,
-  second: 2, "2nd": 2,
-  third: 3, "3rd": 3,
-  fourth: 4, "4th": 4,
-  last: 5, fifth: 5, "5th": 5,
+  first: 1,
+  "1st": 1,
+  second: 2,
+  "2nd": 2,
+  third: 3,
+  "3rd": 3,
+  fourth: 4,
+  "4th": 4,
+  last: 5,
+  fifth: 5,
+  "5th": 5,
 };
 
 function parseWeekdayList(text: string): number[] {
@@ -49,10 +57,7 @@ function parseWeekdayList(text: string): number[] {
   return days;
 }
 
-export function fallbackParse(
-  prompt: string,
-  opts?: { quotaExceeded?: boolean; referenceDate?: Date }
-): { query: AvailabilityQuery; method: ParseMethod } {
+export function fallbackParse(prompt: string, opts?: { quotaExceeded?: boolean; referenceDate?: Date }): { query: AvailabilityQuery; method: ParseMethod } {
   const quotaExceeded = opts?.quotaExceeded ?? false;
   const lower = prompt.toLowerCase();
 
@@ -133,8 +138,7 @@ export function fallbackParse(
   let weekdaysToInclude: number[] | undefined;
 
   const isWeekendsOnly = /\bweekends?\s+only\b|\bonly\s+weekends?\b/i.test(lower);
-  const isWeekdaysOnly =
-    /\bno\s+weekends?\b|\bweekdays?\s+only\b|\bonly\s+weekdays?\b|mon(?:day)?\s*(?:through|to|thru|[-–])\s*fri(?:day)?/i.test(lower);
+  const isWeekdaysOnly = /\bno\s+weekends?\b|\bweekdays?\s+only\b|\bonly\s+weekdays?\b|mon(?:day)?\s*(?:through|to|thru|[-–])\s*fri(?:day)?/i.test(lower);
 
   if (isWeekendsOnly) {
     weekdaysToInclude = [0, 6];
@@ -150,34 +154,26 @@ export function fallbackParse(
       while ((im = re.exec(lower)) !== null) {
         const days = parseWeekdayList(im[1]);
         if (days.length > 0) {
-          weekdaysToInclude = weekdaysToInclude
-            ? [...new Set([...weekdaysToInclude, ...days])]
-            : days;
+          weekdaysToInclude = weekdaysToInclude ? [...new Set([...weekdaysToInclude, ...days])] : days;
         }
       }
     }
 
-    const onDaysRe =
-      /\bon\s+((?:(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue(?:s)?|wed|thu(?:rs?)?|fri|sat)s?\s*(?:,?\s*(?:and\s+)?)?)+)/gi;
+    const onDaysRe = /\bon\s+((?:(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue(?:s)?|wed|thu(?:rs?)?|fri|sat)s?\s*(?:,?\s*(?:and\s+)?)?)+)/gi;
     let odm: RegExpExecArray | null;
     while ((odm = onDaysRe.exec(lower)) !== null) {
       const days = parseWeekdayList(odm[1]);
       if (days.length > 0) {
-        weekdaysToInclude = weekdaysToInclude
-          ? [...new Set([...weekdaysToInclude, ...days])]
-          : days;
+        weekdaysToInclude = weekdaysToInclude ? [...new Set([...weekdaysToInclude, ...days])] : days;
       }
     }
 
-    const pluralDaysRe =
-      /\b((?:(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)s\s*(?:,?\s*(?:and\s+)?)?)+)\b/gi;
+    const pluralDaysRe = /\b((?:(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)s\s*(?:,?\s*(?:and\s+)?)?)+)\b/gi;
     let pdm: RegExpExecArray | null;
     while ((pdm = pluralDaysRe.exec(lower)) !== null) {
       const days = parseWeekdayList(pdm[1]);
       if (days.length > 0) {
-        weekdaysToInclude = weekdaysToInclude
-          ? [...new Set([...weekdaysToInclude, ...days])]
-          : days;
+        weekdaysToInclude = weekdaysToInclude ? [...new Set([...weekdaysToInclude, ...days])] : days;
       }
     }
   }
@@ -198,10 +194,7 @@ export function fallbackParse(
 
   // Stage 7: Spacing
   const spacingMatch =
-    lower.match(/(\d+)\s*days?\s*(?:apart|between|gap|spacing)/i) ??
-    lower.match(/at\s+least\s+(\d+)\s*days?/i) ??
-    lower.match(/every\s+(\d+)\s*days?/i) ??
-    lower.match(/(\d+)\s*day\s*minimum/i);
+    lower.match(/(\d+)\s*days?\s*(?:apart|between|gap|spacing)/i) ?? lower.match(/at\s+least\s+(\d+)\s*days?/i) ?? lower.match(/every\s+(\d+)\s*days?/i) ?? lower.match(/(\d+)\s*day\s*minimum/i);
   const minSpacing = spacingMatch ? parseInt(spacingMatch[1], 10) : undefined;
 
   // Stage 8: Team extraction — derived from shared sportTokens alias tables.
@@ -214,7 +207,7 @@ export function fallbackParse(
   for (const [abbrev, [g, l]] of Object.entries(COMPOUND_ABBREVIATIONS)) {
     if (new RegExp(`\\b${abbrev}\\b`, "i").test(lower)) {
       detectedGender = g;
-      detectedLevel  = l;
+      detectedLevel = l;
       break;
     }
   }
@@ -223,11 +216,11 @@ export function fallbackParse(
   // Iterates GENDER_ALIASES in insertion order; first match wins.
   if (!detectedGender) {
     for (const [canonical, aliases] of Object.entries(GENDER_ALIASES)) {
-      const pattern = new RegExp(
-        `\\b(${(aliases as string[]).map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
-        "i"
-      );
-      if (pattern.test(lower)) { detectedGender = canonical; break; }
+      const pattern = new RegExp(`\\b(${(aliases as string[]).map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+      if (pattern.test(lower)) {
+        detectedGender = canonical;
+        break;
+      }
     }
   }
 
@@ -238,11 +231,11 @@ export function fallbackParse(
     for (const [canonical, aliases] of Object.entries(LEVEL_ALIASES)) {
       // Sort aliases longest-first within each level for the same reason.
       const sorted = [...(aliases as string[])].sort((a, b) => b.length - a.length);
-      const pattern = new RegExp(
-        `\\b(${sorted.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`,
-        "i"
-      );
-      if (pattern.test(lower)) { detectedLevel = canonical; break; }
+      const pattern = new RegExp(`\\b(${sorted.map((a) => a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+      if (pattern.test(lower)) {
+        detectedLevel = canonical;
+        break;
+      }
     }
   }
 
@@ -251,19 +244,18 @@ export function fallbackParse(
   // automatically because their aliases are sorted longest-first.
   let detectedSport: string | undefined;
   for (const [re, name] of SPORT_DETECTION_RULES) {
-    if (re.test(lower)) { detectedSport = name; break; }
+    if (re.test(lower)) {
+      detectedSport = name;
+      break;
+    }
   }
 
-  const targetTeams =
-    detectedSport || detectedGender || detectedLevel
-      ? [{ sport: detectedSport, gender: detectedGender, level: detectedLevel }]
-      : [];
+  const targetTeams = detectedSport || detectedGender || detectedLevel ? [{ sport: detectedSport, gender: detectedGender, level: detectedLevel }] : [];
 
   // Stage 9: Build interpretation
   let interpretation: string;
   if (quotaExceeded) {
-    interpretation =
-      "Opletics is experiencing AI token usage at a high volume, try again in a few hours.";
+    interpretation = "Opletics is experiencing AI token usage at a high volume,";
   } else {
     const parts: string[] = ["Finding available dates"];
     const teamDesc = [detectedGender, detectedLevel, detectedSport].filter(Boolean).join(" ");
@@ -274,7 +266,7 @@ export function fallbackParse(
     } else if (explicitStart && explicitEnd) {
       parts.push(`from ${explicitStart} to ${explicitEnd}`);
     } else if (weekOfMonth !== undefined) {
-      const ordinalWords = ["","first","second","third","fourth","fifth"];
+      const ordinalWords = ["", "first", "second", "third", "fourth", "fifth"];
       const monthLabel = weekOfMonthMonthOverride ?? (foundMonths[0] ? foundMonths[0] : "the month");
       parts.push(`in the ${ordinalWords[weekOfMonth] ?? weekOfMonth} week of ${monthLabel}`);
     } else if (foundMonths.length > 0) {

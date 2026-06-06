@@ -23,13 +23,11 @@ export async function GET(
 
   try {
     const post = await prisma.schedulePost.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            organization: { select: { timezone: true } },
-          },
-        },
+      where:  { id },
+      select: {
+        id: true, workbookId: true, sport: true, level: true, gender: true,
+        isActive: true, excludeWeekends: true, excludedDates: true, extraDates: true,
+        user: { select: { organization: { select: { timezone: true } } } },
       },
     });
 
@@ -38,28 +36,44 @@ export async function GET(
       return NextResponse.json({ error: "Schedule post not found" }, { status: 404 });
     }
 
-    const availableDates = await computeAvailableDates(
+    const tz             = post.user.organization?.timezone ?? "America/New_York";
+    const excludedDates  = (post.excludedDates as string[]) ?? [];
+    const extraEntries   = (post.extraDates    as Array<{ date: string; timeWindow: string | null }>) ?? [];
+
+    const computedDates = await computeAvailableDates(
       post.workbookId,
       post.sport,
       post.level,
       post.gender,
-      {
-        excludeWeekends: post.excludeWeekends,
-        excludedDates:   (post.excludedDates as string[]) ?? [],
-      }
+      { excludeWeekends: post.excludeWeekends, excludedDates },
     );
+
+    // Manually added dates: exclude any that are in the excluded set, then format.
+    const excludedSet  = new Set(excludedDates.map((d) => d.slice(0, 10)));
+    const computedKeys = new Set(computedDates.map((d) => d.dateISO.slice(0, 10)));
+    const manualDates  = extraEntries
+      .filter((e) => !excludedSet.has(e.date.slice(0, 10)) && !computedKeys.has(e.date.slice(0, 10)))
+      .map((e) => ({
+        date:       e.date.slice(0, 10) + "T12:00:00.000Z",
+        dayOfWeek:  new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: tz }).format(
+                      new Date(e.date.slice(0, 10) + "T12:00:00Z")
+                    ),
+        timeWindow: e.timeWindow,
+        source:     "manual" as const,
+      }));
+
+    const allDates = [
+      ...computedDates.map((d) => ({ date: d.dateISO, dayOfWeek: d.dayOfWeek, timeWindow: d.timeWindow, source: "computed" as const })),
+      ...manualDates,
+    ].sort((a, b) => a.date.localeCompare(b.date));
 
     return NextResponse.json({
       postId:   post.id,
       sport:    post.sport,
       level:    post.level,
       gender:   post.gender,
-      timezone: post.user.organization?.timezone ?? "America/New_York",
-      availableDates: availableDates.map((d) => ({
-        date:       d.dateISO,
-        dayOfWeek:  d.dayOfWeek,
-        timeWindow: d.timeWindow,
-      })),
+      timezone: tz,
+      availableDates: allDates,
     });
   } catch (err) {
     console.error("[schedule-board/[id]/dates GET]", err);

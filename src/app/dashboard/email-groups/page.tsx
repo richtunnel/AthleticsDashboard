@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Box, CircularProgress, Tab, Tabs, Typography } from "@mui/material";
 import EmailIcon    from "@mui/icons-material/Email";
 import HistoryIcon  from "@mui/icons-material/History";
+import GestureIcon  from "@mui/icons-material/Gesture";
 import { EmailGroupManager }    from "@/components/communication/email/EmailGroupManager";
 import { EmailSignatureManager } from "@/components/communication/email/EmailSignatureManager";
 import { EmailLogsPanel }        from "@/components/communication/email/EmailLogsPanel";
@@ -21,7 +22,7 @@ export default function EmailManagerPage() {
   }, [status, router]);
 
   const urlTab        = parseInt(searchParams.get("tab") ?? "", 10);
-  const [tab, setTab] = usePersistedTab("email-manager-tab", 1, isNaN(urlTab) ? undefined : urlTab);
+  const [tab, setTab] = usePersistedTab("email-manager-tab", 2, isNaN(urlTab) ? undefined : urlTab);
 
   if (status === "loading") {
     return (
@@ -46,18 +47,14 @@ export default function EmailManagerPage() {
         variant="scrollable"
         scrollButtons="auto"
       >
-        <Tab icon={<EmailIcon fontSize="small" />}   iconPosition="start" label="Email Groups" />
-        <Tab icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Email Logs" />
+        <Tab icon={<EmailIcon   fontSize="small" />} iconPosition="start" label="Email Groups" />
+        <Tab icon={<GestureIcon fontSize="small" />} iconPosition="start" label="Signature"    />
+        <Tab icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Email Logs"  />
       </Tabs>
 
-      {tab === 0 && (
-        <Box>
-          <EmailGroupManager />
-          <EmailSignatureManager />
-        </Box>
-      )}
-
-      {tab === 1 && <EmailLogsPanel />}
+      {tab === 0 && <EmailGroupManager />}
+      {tab === 1 && <EmailSignatureManager />}
+      {tab === 2 && <EmailLogsPanel />}
     </Box>
   );
 }

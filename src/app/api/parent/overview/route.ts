@@ -141,6 +141,7 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
   // always reference them, even when links.length === 0.
   const teamIdToLinkIds = new Map<string, string[]>();
   const workbookIdToLinkIds = new Map<string, string[]>();
+  const schoolIdToLinkIds = new Map<string, string[]>();
 
   if (links.length > 0) {
     const teamIdSet = new Set<string>();
@@ -285,6 +286,7 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
 
     // Collect workbook IDs from approved requests
     const approvedWorkbookIds = new Set<string>();
+
     for (const req of approvedRequests) {
       const reqSlot = `${req.schoolId}|${req.sportName.toLowerCase()}|${req.sportLevel.toLowerCase()}`;
       const matchingLink = links.find(
@@ -294,19 +296,26 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       if (req.workbookId) {
         approvedWorkbookIds.add(req.workbookId);
         if (matchingLink) addAttribution(workbookIdToLinkIds, req.workbookId, matchingLink.id);
+      } else {
+        // AD approved without pinning a workbook — query games directly by school
+        // organisation. In-memory sport/gender/level filtering (serialisation step
+        // below) ensures only this child's sport appears on their tab.
+        if (matchingLink) addAttribution(schoolIdToLinkIds, req.schoolId, matchingLink.id);
       }
     }
 
     const uniqueTeamIds = [...teamIdSet];
     const uniqueWorkbookIds = [...approvedWorkbookIds];
+    const autoDetectSchoolIds = [...schoolIdToLinkIds.keys()];
 
-    if (uniqueTeamIds.length > 0 || uniqueWorkbookIds.length > 0) {
+    if (uniqueTeamIds.length > 0 || uniqueWorkbookIds.length > 0 || autoDetectSchoolIds.length > 0) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       // Match a game when EITHER:
       //   • it belongs to one of the matched teams, OR
-      //   • it's in a workbook the AD pinned during sync approval
+      //   • it's in a workbook the AD pinned during sync approval, OR
+      //   • it's a home game at a school matched via auto-detect (no workbook pinned)
       const gameMatchers: Prisma.GameWhereInput[] = [];
       if (uniqueTeamIds.length > 0) {
         gameMatchers.push({ homeTeamId: { in: uniqueTeamIds } });
@@ -314,6 +323,9 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
       }
       if (uniqueWorkbookIds.length > 0) {
         gameMatchers.push({ workbookId: { in: uniqueWorkbookIds } });
+      }
+      if (autoDetectSchoolIds.length > 0) {
+        gameMatchers.push({ homeTeam: { organizationId: { in: autoDetectSchoolIds } } });
       }
 
       // Scale the fetch limit proportionally so every child's schedule is
@@ -465,6 +477,52 @@ async function buildOverviewResponse(user: { id: string; googleCalendarRefreshTo
 
           if (sportMatches && genderMatches && levelMatches) {
             linkIdSet.add(lid);
+          }
+        }
+      }
+
+      // School-based attribution: for auto-detect requests (no workbook pinned),
+      // games are fetched by homeTeam.organizationId. Filter by sport/gender/level
+      // in memory so a child's tab only shows their own sport.
+      if (linkIdSet.size === 0) {
+        const schoolOrgId = (game.homeTeam as any)?.organizationId ?? null;
+        if (schoolOrgId) {
+          const candidateLinkIds = schoolIdToLinkIds.get(schoolOrgId) ?? [];
+
+          const gSportRaw = (resolvedSport ?? "").toLowerCase().trim();
+          const gLevelRaw = (resolvedLevel ?? "").toLowerCase().trim();
+          const { baseSport: gBaseSport, gender: gGenderFromLabel } = gSportRaw
+            ? parseSportLabel(gSportRaw)
+            : { baseSport: "", gender: null as null };
+          const gTeamGender = (game.homeTeam as any)?.gender ?? null;
+          const gGender: string | null = gTeamGender ?? gGenderFromLabel ?? null;
+
+          for (const lid of candidateLinkIds) {
+            const link = links.find((l) => l.id === lid);
+            if (!link) continue;
+
+            const lSportRaw = (link.sport ?? "").toLowerCase().trim();
+            const lLevelRaw = normaliseLevel(link.gradeLevel) ?? "";
+            const { baseSport: lBaseSport, gender: lGender } = lSportRaw
+              ? parseSportLabel(lSportRaw)
+              : { baseSport: "", gender: null as null };
+
+            const sportMatches =
+              (gSportRaw && lSportRaw && gSportRaw === lSportRaw) ||
+              (gBaseSport && lBaseSport && gBaseSport.toLowerCase() === lBaseSport.toLowerCase());
+
+            const genderMatches = !lGender || (gGender && gGender === lGender);
+
+            const levelMatches =
+              !lLevelRaw ||
+              !gLevelRaw ||
+              lLevelRaw === gLevelRaw ||
+              (lLevelRaw === "jv" && gLevelRaw === "junior varsity") ||
+              (lLevelRaw === "junior varsity" && gLevelRaw === "jv");
+
+            if (sportMatches && genderMatches && levelMatches) {
+              linkIdSet.add(lid);
+            }
           }
         }
       }

@@ -7,15 +7,18 @@ import {
   Typography, Box, Table, TableHead, TableBody,
   TableRow, TableCell, TableContainer, Paper,
   Button, Chip, Stack, CircularProgress, Divider,
+  TextField, Tooltip,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
-import CloseIcon        from "@mui/icons-material/Close";
-import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import { useQuery }      from "@tanstack/react-query";
+import CloseIcon          from "@mui/icons-material/Close";
+import CalendarTodayIcon  from "@mui/icons-material/CalendarToday";
+import AddIcon            from "@mui/icons-material/Add";
+import DeleteOutlineIcon  from "@mui/icons-material/DeleteOutline";
+import EditCalendarIcon   from "@mui/icons-material/EditCalendar";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   formatGameDateShort,
   formatDayOfWeek,
-  formatGameTime,
   sportComboLabel,
 } from "@/lib/utils/formatGameDateTime";
 import { CheckAvailabilityModal } from "./CheckAvailabilityModal";
@@ -45,6 +48,7 @@ interface DateRow {
   date:       string;
   dayOfWeek:  string;
   timeWindow: string | null;
+  source:     "computed" | "manual";
 }
 
 export function ViewScheduleModal({
@@ -54,8 +58,14 @@ export function ViewScheduleModal({
 }: Props) {
   const theme           = useTheme();
   const isDark          = theme.palette.mode === "dark";
+  const queryClient     = useQueryClient();
+
   const [selectedPostId, setSelectedPostId] = useState<string>(combos[0]?.postId ?? "");
   const [checkModal,     setCheckModal]     = useState<{ date: string } | null>(null);
+
+  // Edit mode state
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
 
   const selectedCombo = combos.find((c) => c.postId === selectedPostId) ?? combos[0];
 
@@ -73,6 +83,36 @@ export function ViewScheduleModal({
     enabled:   !!selectedPostId,
     staleTime: 60_000,
   });
+
+  const patchMutation = useMutation({
+    mutationFn: (body: object) =>
+      fetch(`/api/schedule-board/${selectedPostId}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) throw new Error("Failed to update");
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule-board-dates", selectedPostId] });
+      queryClient.invalidateQueries({ queryKey: ["schedule-board-mine"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule-board"] });
+    },
+  });
+
+  const handleAddDate = () => {
+    if (!newDate) return;
+    patchMutation.mutate({
+      addDate: { date: newDate, timeWindow: newTime.trim() || null },
+    });
+    setNewDate("");
+    setNewTime("");
+  };
+
+  const handleRemoveDate = (date: string) => {
+    patchMutation.mutate({ removeDate: date });
+  };
 
   const tz          = datesData?.timezone ?? "America/New_York";
   const dates       = datesData?.availableDates ?? [];
@@ -157,18 +197,21 @@ export function ViewScheduleModal({
                     variant="outlined"
                   />
                 )}
+                {isOwnPost && (
+                  <Chip
+                    icon={<EditCalendarIcon sx={{ fontSize: "0.85rem !important" }} />}
+                    label="Your schedule"
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                    sx={{ ml: "auto" }}
+                  />
+                )}
               </Stack>
 
               {loadingDates ? (
                 <Box sx={{ display: "flex", justifyContent: "center", py: 5 }}>
                   <CircularProgress size={28} />
-                </Box>
-              ) : dates.length === 0 ? (
-                <Box sx={{ textAlign: "center", py: 5, color: "text.secondary" }}>
-                  <CalendarTodayIcon sx={{ fontSize: 40, mb: 1, opacity: 0.3 }} />
-                  <Typography variant="body2">
-                    No open dates available for this sport right now.
-                  </Typography>
                 </Box>
               ) : (
                 <TableContainer
@@ -179,25 +222,25 @@ export function ViewScheduleModal({
                     border: "1px solid",
                     borderColor: "divider",
                     overflowX: "auto",
-                    maxHeight: 420,
+                    maxHeight: isOwnPost ? 360 : 420,
                     overflowY: "auto",
                   }}
                 >
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        {["Date", "Day", "Time", ...(showActions ? [""] : [])].map((h) => (
+                        {["Date", "Day", "Time", ...(showActions ? [""] : []), ...(isOwnPost ? [""] : [])].map((h, i) => (
                           <TableCell
-                            key={h}
+                            key={i}
                             sx={{
-                              bgcolor:      headerBg,
-                              color:        "#fff",
-                              fontWeight:   700,
-                              fontSize:     "0.72rem",
+                              "&&": { backgroundColor: headerBg },
+                              color:         "#fff",
+                              fontWeight:    700,
+                              fontSize:      "0.72rem",
                               letterSpacing: 0.5,
-                              borderBottom: "none",
-                              py:           1.25,
-                              whiteSpace:   "nowrap",
+                              borderBottom:  "none",
+                              py:            1.25,
+                              whiteSpace:    "nowrap",
                             }}
                           >
                             {h}
@@ -207,57 +250,137 @@ export function ViewScheduleModal({
                     </TableHead>
 
                     <TableBody>
-                      {dates.map((d, idx) => (
-                        <TableRow
-                          key={d.date}
-                          sx={{
-                            bgcolor: idx % 2 === 0
-                              ? "transparent"
-                              : isDark
-                              ? alpha(theme.palette.action.hover, 0.04)
-                              : alpha(theme.palette.action.hover, 0.03),
-                            "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.05) },
-                          }}
-                        >
-                          <TableCell sx={{ fontWeight: 700, py: 1.25, whiteSpace: "nowrap" }}>
-                            {formatGameDateShort(d.date, tz)}
+                      {dates.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={isOwnPost ? 4 : showActions ? 4 : 3}
+                            sx={{ textAlign: "center", py: 5, color: "text.secondary" }}
+                          >
+                            <CalendarTodayIcon sx={{ fontSize: 40, mb: 1, display: "block", mx: "auto", opacity: 0.3 }} />
+                            <Typography variant="body2">
+                              No open dates yet.{isOwnPost ? " Add one below." : ""}
+                            </Typography>
                           </TableCell>
-
-                          <TableCell sx={{ color: "text.secondary", py: 1.25 }}>
-                            {formatDayOfWeek(d.date, tz)}
-                          </TableCell>
-
-                          <TableCell sx={{ color: "text.secondary", py: 1.25 }}>
-                            {d.timeWindow ?? (
-                              <Typography component="span" variant="caption" color="text.disabled">
-                                Time TBD
-                              </Typography>
-                            )}
-                          </TableCell>
-
-                          {showActions && (
-                            <TableCell align="right" sx={{ py: 1.25, pr: 1.5 }}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() => setCheckModal({ date: d.date })}
-                                sx={{
-                                  textTransform: "none",
-                                  fontWeight:     700,
-                                  fontSize:       "0.75rem",
-                                  whiteSpace:     "nowrap",
-                                  boxShadow:      0,
-                                }}
-                              >
-                                Check Availability
-                              </Button>
-                            </TableCell>
-                          )}
                         </TableRow>
-                      ))}
+                      ) : (
+                        dates.map((d, idx) => (
+                          <TableRow
+                            key={d.date}
+                            sx={{
+                              bgcolor: idx % 2 === 0
+                                ? "transparent"
+                                : isDark
+                                ? alpha(theme.palette.action.hover, 0.04)
+                                : alpha(theme.palette.action.hover, 0.03),
+                              "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.05) },
+                            }}
+                          >
+                            <TableCell sx={{ fontWeight: 700, py: 1.25, whiteSpace: "nowrap" }}>
+                              {formatGameDateShort(d.date, tz)}
+                              {d.source === "manual" && (
+                                <Chip label="added" size="small" sx={{ ml: 1, height: 16, fontSize: "0.6rem", opacity: 0.6 }} />
+                              )}
+                            </TableCell>
+
+                            <TableCell sx={{ color: "text.secondary", py: 1.25 }}>
+                              {d.dayOfWeek}
+                            </TableCell>
+
+                            <TableCell sx={{ color: "text.secondary", py: 1.25 }}>
+                              {d.timeWindow ?? (
+                                <Typography component="span" variant="caption" color="text.disabled">
+                                  Time TBD
+                                </Typography>
+                              )}
+                            </TableCell>
+
+                            {showActions && (
+                              <TableCell align="right" sx={{ py: 1.25, pr: 1.5 }}>
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={() => setCheckModal({ date: d.date })}
+                                  sx={{
+                                    textTransform: "none",
+                                    fontWeight:    700,
+                                    fontSize:      "0.75rem",
+                                    whiteSpace:    "nowrap",
+                                    boxShadow:     0,
+                                  }}
+                                >
+                                  Check Availability
+                                </Button>
+                              </TableCell>
+                            )}
+
+                            {isOwnPost && (
+                              <TableCell align="right" sx={{ py: 0.5, pr: 1 }}>
+                                <Tooltip title="Remove this date">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    disabled={patchMutation.isPending}
+                                    onClick={() => handleRemoveDate(d.date)}
+                                    sx={{ opacity: 0.6, "&:hover": { opacity: 1 } }}
+                                  >
+                                    <DeleteOutlineIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
+              )}
+
+              {/* Add date form — only for the AD's own post */}
+              {isOwnPost && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    p: 2,
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: isDark ? alpha(theme.palette.primary.main, 0.04) : alpha(theme.palette.primary.main, 0.03),
+                  }}
+                >
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: "block", mb: 1.25, letterSpacing: 0.4 }}>
+                    ADD AVAILABLE DATE
+                  </Typography>
+                  <Stack direction="row" gap={1.5} flexWrap="wrap" alignItems="center">
+                    <TextField
+                      type="date"
+                      size="small"
+                      label="Date"
+                      value={newDate}
+                      onChange={(e) => setNewDate(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ minWidth: 160 }}
+                    />
+                    <TextField
+                      size="small"
+                      label="Time (optional)"
+                      placeholder="e.g. 4:00 PM"
+                      value={newTime}
+                      onChange={(e) => setNewTime(e.target.value)}
+                      sx={{ minWidth: 150 }}
+                    />
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={patchMutation.isPending ? <CircularProgress size={14} color="inherit" /> : <AddIcon />}
+                      onClick={handleAddDate}
+                      disabled={!newDate || patchMutation.isPending}
+                      sx={{ textTransform: "none", boxShadow: 0, whiteSpace: "nowrap" }}
+                    >
+                      Add Date
+                    </Button>
+                  </Stack>
+                </Box>
               )}
             </>
           )}

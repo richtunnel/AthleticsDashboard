@@ -48,7 +48,7 @@ interface Props {
 export function ScheduleBoardTable({ sportFilter, schoolFilter }: Props) {
   const theme                 = useTheme();
   const isDark                = theme.palette.mode === "dark";
-  const { data: session }     = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const [modal, setModal]     = useState<{ post: Post; date: string } | null>(null);
 
   const params = new URLSearchParams();
@@ -91,14 +91,14 @@ export function ScheduleBoardTable({ sportFilter, schoolFilter }: Props) {
                 <TableCell
                   key={h}
                   sx={{
-                    bgcolor:     headerBg,
-                    color:       "#fff",
-                    fontWeight:  700,
-                    fontSize:    "0.75rem",
-                    whiteSpace:  "nowrap",
+                    "&&": { backgroundColor: headerBg },
+                    color:         "#fff",
+                    fontWeight:    700,
+                    fontSize:      "0.75rem",
+                    whiteSpace:    "nowrap",
                     letterSpacing: 0.5,
-                    borderBottom: "none",
-                    py:           1.25,
+                    borderBottom:  "none",
+                    py:            1.25,
                   }}
                 >
                   {h}
@@ -197,7 +197,9 @@ export function ScheduleBoardTable({ sportFilter, schoolFilter }: Props) {
 
                     {/* Action */}
                     <TableCell align="right" sx={{ py: 1.25, pr: 2 }}>
-                      {post.isOwnPost ? null : !session ? (
+                      {post.isOwnPost ? null : sessionStatus === "loading" ? (
+                        <Skeleton variant="rounded" width={130} height={28} />
+                      ) : !session ? (
                         <Tooltip title="Sign in to request a game">
                           <span>
                             <Button

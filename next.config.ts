@@ -15,17 +15,11 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     dangerouslyAllowSVG: false,
-    // CSP applied to /_next/image responses. The Next.js default includes
-    // `sandbox;` which is a defence-in-depth for SVG XSS — but we have SVG
-    // disabled via dangerouslyAllowSVG: false, so the sandbox is protecting
-    // nothing here. AND it has a real cost:
-    //   • Combined with our global X-Content-Type-Options: nosniff, the
-    //     browser refuses to render the response in <img> tags.
-    //   • Direct navigation to /_next/image?url=... downloads a file instead
-    //     of displaying the image inline.
-    // Replaced with a strict no-sandbox policy that still prevents any
-    // resource loading from inside the image response (the actual XSS risk).
-    contentSecurityPolicy: "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline';",
+    // NOTE: do NOT set contentSecurityPolicy here. When any value is set,
+    // Next.js adds Content-Disposition: attachment to /_next/image responses,
+    // which causes Cloudflare to mark them DYNAMIC and bypass the edge cache.
+    // SVG is disabled above, so sandbox protection is moot. The global CSP
+    // header from headers() applies to these requests anyway.
     remotePatterns: [
       {
         protocol: "https",
@@ -168,6 +162,18 @@ const nextConfig: NextConfig = {
           {
             key: "Expires",
             value: "0",
+          },
+        ],
+      },
+      {
+        // NEXT.JS IMAGES: explicit s-maxage so Cloudflare edge-caches these.
+        // Next.js sets max-age from minimumCacheTTL but omits s-maxage, which
+        // Cloudflare needs to cache at the edge. Must match minimumCacheTTL (30d).
+        source: "/_next/image",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=2592000, s-maxage=2592000, stale-while-revalidate=86400",
           },
         ],
       },

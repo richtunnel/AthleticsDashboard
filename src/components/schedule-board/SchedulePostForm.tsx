@@ -5,7 +5,7 @@ import {
   Box, Button, Card, CardContent, Typography, Select, MenuItem,
   FormControl, InputLabel, Stack, CircularProgress, Alert,
   Switch, FormControlLabel, Chip, Divider, Checkbox, ListItemText,
-  TextField, Collapse, Tooltip, Paper, IconButton,
+  TextField, Collapse, Tooltip, Paper, IconButton, Skeleton,
 } from "@mui/material";
 import { useTheme, alpha } from "@mui/material/styles";
 import CalendarMonthIcon    from "@mui/icons-material/CalendarMonth";
@@ -221,7 +221,7 @@ export function SchedulePostForm({ onPosted }: Props) {
 
           <Stack spacing={2}>
             {/* ── Worksheet ── */}
-            <FormControl size="small" fullWidth disabled={!hasWorkbooks}>
+            <FormControl size="small" fullWidth disabled={loadingWorkbooks || !hasWorkbooks}>
               <InputLabel shrink>Worksheet</InputLabel>
               <Select
                 displayEmpty
@@ -238,6 +238,8 @@ export function SchedulePostForm({ onPosted }: Props) {
                 renderValue={(val) =>
                   val
                     ? workbooks.find((w) => w.id === val)?.name ?? val
+                    : loadingWorkbooks
+                    ? "Loading…"
                     : !hasWorkbooks
                     ? "No worksheet — import one first"
                     : "Select a worksheet"
@@ -542,7 +544,9 @@ export function SchedulePostForm({ onPosted }: Props) {
             )}
 
             {/* ── Submit ── */}
-            {hasWorkbooks ? (
+            {loadingWorkbooks ? (
+              <Skeleton variant="rounded" width={220} height={36} sx={{ borderRadius: 1.5 }} />
+            ) : hasWorkbooks ? (
               <Button
                 variant="contained"
                 disabled={!valid || mutation.isPending}

@@ -107,12 +107,10 @@ export async function computeAvailableDates(
   const bookedSet  = new Set<string>(dates.map((d) => d.toISOString().slice(0, 10)));
   const excludeSet = new Set<string>(excludedDates.map((d) => d.slice(0, 10)));
 
-  // Generate all days in [max(minDate, today), maxDate]
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
+  // Use the full spreadsheet date range — do NOT clamp to today.
+  // ADs need to see all open dates across their whole season, including past ones.
   const results: AvailableDate[] = [];
-  const cursor = new Date(Math.max(minDate.getTime(), today.getTime()));
+  const cursor = new Date(minDate);
   cursor.setUTCHours(0, 0, 0, 0);
   const end = new Date(maxDate);
   end.setUTCHours(23, 59, 59, 999);

@@ -1271,7 +1271,8 @@ model SchedulePost {
   seasonEnd       DateTime
   isActive        Boolean  @default(true)
   excludeWeekends Boolean  @default(false)
-  excludedDates   Json     @default("[]")  // Array of ISO date strings manually hidden
+  excludedDates   Json     @default("[]")  // Array of ISO date strings to hide (computed dates removed by AD)
+  extraDates      Json     @default("[]")  // Array of {date, timeWindow} manually added by AD
   title           String?                  // Optional custom title for the post
   description     String?                  // Optional description / notes for other ADs
   postedAt        DateTime @default(now())

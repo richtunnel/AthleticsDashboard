@@ -28,18 +28,7 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from "@mui/material";
-import {
-  Search,
-  AutoAwesome,
-  EventAvailable,
-  AddCircleOutline,
-  DragIndicator,
-  Settings,
-  Close,
-  ExpandMore,
-  ArrowBack,
-  CalendarMonth,
-} from "@mui/icons-material";
+import { Search, AutoAwesome, EventAvailable, AddCircleOutline, DragIndicator, Settings, Close, ExpandMore, ArrowBack, CalendarMonth } from "@mui/icons-material";
 import { format } from "date-fns";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import Draggable from "react-draggable";
@@ -124,8 +113,7 @@ const formatDateDisplay = (dateStr: string): string => {
 };
 
 /** Normalize a column name to a lowercase no-punctuation key for matching */
-const normalizeColName = (s: string) =>
-  s.toLowerCase().replace(/[\s_\-\/\.]+/g, "");
+const normalizeColName = (s: string) => s.toLowerCase().replace(/[\s_\-\/\.]+/g, "");
 
 /**
  * Aliases for the "opponent" / "away team" worksheet column.
@@ -189,12 +177,25 @@ const HOME_AWAY_ALIASES = new Set(["home", "homeaway", "ishome"]);
 
 /** Column names (normalized) that map to core game fields — not shown as extra custom fields */
 const STANDARD_FIELD_KEYS = new Set([
-  "date", "time", "gametime", "starttime",
-  "sport", "level", "gender", "team",
+  "date",
+  "time",
+  "gametime",
+  "starttime",
+  "sport",
+  "level",
+  "gender",
+  "team",
   ...OPPONENT_ALIASES,
-  "location", "venue", "site", "fieldsite",
-  "notes", "note", "comments", "info",
-  "status", "gamestatus",
+  "location",
+  "venue",
+  "site",
+  "fieldsite",
+  "notes",
+  "note",
+  "comments",
+  "info",
+  "status",
+  "gamestatus",
   ...HOME_AWAY_ALIASES,
   ...HOME_TEAM_ALIASES,
 ]);
@@ -223,11 +224,7 @@ function dateStrToUTC(dateStr: string): string {
 function DraggablePaper(props: any) {
   const nodeRef = React.useRef(null);
   return (
-    <Draggable
-      handle="#draggable-dialog-title"
-      cancel={'[class*="MuiDialogContent-root"]'}
-      nodeRef={nodeRef}
-    >
+    <Draggable handle="#draggable-dialog-title" cancel={'[class*="MuiDialogContent-root"]'} nodeRef={nodeRef}>
       <Paper {...props} ref={nodeRef} />
     </Draggable>
   );
@@ -269,6 +266,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
   const [excludeDays, setExcludeDays] = useState<number[]>([]);
   const [maxResults, setMaxResults] = useState<number>(10);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(0);
   const [showConfiguration, setShowConfiguration] = useState<boolean>(false);
   const [showMatchedTeamsAlert, setShowMatchedTeamsAlert] = useState(true);
 
@@ -378,23 +376,29 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       setError("Please enter a search prompt");
       return;
     }
+    const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"];
+    const effectivePrompt = selectedMonth > 0
+      ? `${prompt.trim()} in ${MONTH_NAMES[selectedMonth - 1]}`
+      : prompt.trim();
     setLoading(true);
     setError(null);
     setResult(null);
     trackEvent("Available Dates - Search Started", {
-      prompt: prompt.trim(),
+      prompt: effectivePrompt,
       sport,
       level,
       source: "games_table",
       excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
       year: selectedYear,
+      month: selectedMonth > 0 ? selectedMonth : undefined,
     });
     try {
       const response = await fetch("/api/games/find-available-dates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: prompt.trim(),
+          prompt: effectivePrompt,
           excludeDays: excludeDays.length > 0 ? excludeDays : undefined,
           maxResults,
           year: selectedYear,
@@ -405,18 +409,19 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       setResult(data);
       setShowMatchedTeamsAlert(true);
       trackEvent("Available Dates - Search Completed", {
-        prompt: prompt.trim(),
+        prompt: effectivePrompt,
         sport,
         level,
         datesFound: data.recommendations.length,
         source: "games_table",
         year: selectedYear,
+        month: selectedMonth > 0 ? selectedMonth : undefined,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "An unknown error occurred";
       setError(msg);
       trackEvent("Available Dates - Search Failed", {
-        prompt: prompt.trim(),
+        prompt: effectivePrompt,
         sport,
         level,
         error: msg,
@@ -472,6 +477,14 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
     }
   };
 
+  const handleMonthChange = (month: number) => {
+    setSelectedMonth(month);
+    if (result) {
+      setResult(null);
+      setError(null);
+    }
+  };
+
   const generateYearOptions = () => {
     const y = new Date().getFullYear();
     return [y, y + 1, y + 2];
@@ -518,9 +531,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       // can't redirect the write to a different worksheet.
       const targetWorkbookId = workbookId || null;
       if (!targetWorkbookId) {
-        throw new Error(
-          "No worksheet is currently selected. Open the worksheet you want to add this game to, then try again."
-        );
+        throw new Error("No worksheet is currently selected. Open the worksheet you want to add this game to, then try again.");
       }
 
       // ── 1. homeTeamId ─────────────────────────────────────────────────
@@ -531,9 +542,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
 
       if (!resolvedHomeTeamId) {
         if (!sportName || !levelName) {
-          throw new Error(
-            "Sport and level are required. Select a sport in the Game Center row first, then use Find Dates."
-          );
+          throw new Error("Sport and level are required. Select a sport in the Game Center row first, then use Find Dates.");
         }
 
         const normLevel = (l: string): string => {
@@ -550,10 +559,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           const targetLevel = normLevel(levelName);
           const match = (teamsData.data || teamsData || []).find((t: any) => {
             const tSport = (t.sport?.name || "").toLowerCase();
-            const sportMatches =
-              tSport === targetSport ||
-              tSport.includes(targetSport) ||
-              targetSport.includes(tSport);
+            const sportMatches = tSport === targetSport || tSport.includes(targetSport) || targetSport.includes(tSport);
             const levelMatches = normLevel(t.level || "") === targetLevel;
             return sportMatches && levelMatches;
           });
@@ -561,10 +567,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         }
 
         if (!resolvedHomeTeamId) {
-          throw new Error(
-            `No team found for "${sportName} – ${levelName}". ` +
-              "Create a game from the main form first to register that team, then try again."
-          );
+          throw new Error(`No team found for "${sportName} – ${levelName}". ` + "Create a game from the main form first to register that team, then try again.");
         }
       }
 
@@ -575,9 +578,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
         const oppRes = await fetch("/api/opponents");
         if (oppRes.ok) {
           const oppData = await oppRes.json();
-          const existing = (oppData.data || oppData || []).find(
-            (o: any) => o.name.toLowerCase() === opponentName.toLowerCase()
-          );
+          const existing = (oppData.data || oppData || []).find((o: any) => o.name.toLowerCase() === opponentName.toLowerCase());
           if (existing) {
             opponentId = existing.id;
           } else {
@@ -612,11 +613,26 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       for (const [col, val] of Object.entries(fieldValues)) {
         if (!val?.trim()) continue;
         const stdField = resolveStandardField(col);
-        if (stdField === "time") { time = val.trim(); continue; }
-        if (stdField === "location") { location = val.trim(); continue; }
-        if (stdField === "notes") { notes = val.trim(); continue; }
-        if (stdField === "status") { status = val.trim(); continue; }
-        if (stdField === "isHome") { isHome = val !== "away"; continue; }
+        if (stdField === "time") {
+          time = val.trim();
+          continue;
+        }
+        if (stdField === "location") {
+          location = val.trim();
+          continue;
+        }
+        if (stdField === "notes") {
+          notes = val.trim();
+          continue;
+        }
+        if (stdField === "status") {
+          status = val.trim();
+          continue;
+        }
+        if (stdField === "isHome") {
+          isHome = val !== "away";
+          continue;
+        }
         if (stdField === "opponent") continue; // handled above
         if (!STANDARD_FIELD_KEYS.has(normalizeColName(col))) {
           const customColId = customColumnIdByName[col];
@@ -807,17 +823,10 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
       }}
     >
       {/* ── Title ── */}
-      <DialogTitle
-        id="draggable-dialog-title"
-        sx={{ cursor: "move", userSelect: "none" }}
-      >
+      <DialogTitle id="draggable-dialog-title" sx={{ cursor: "move", userSelect: "none" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <DragIndicator sx={{ color: "text.secondary", fontSize: 20 }} />
-          {view === "search" ? (
-            <AutoAwesome sx={{ color: "primary.main", fontSize: 28 }} />
-          ) : (
-            <CalendarMonth sx={{ color: "primary.main", fontSize: 28 }} />
-          )}
+          {view === "search" ? <AutoAwesome sx={{ color: "primary.main", fontSize: 28 }} /> : <CalendarMonth sx={{ color: "primary.main", fontSize: 28 }} />}
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {view === "search" ? "Find Available Dates" : "Add Game to Schedule"}
           </Typography>
@@ -826,8 +835,8 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           {view === "search"
             ? "Use natural language to find open dates • Drag to move"
             : addDateCtx
-            ? `${formatDateDisplay(addDateCtx.dateStr)} · ${addDateCtx.sport} ${addDateCtx.level}`
-            : "Fill in the details below"}
+              ? `${formatDateDisplay(addDateCtx.dateStr)} · ${addDateCtx.sport} ${addDateCtx.level}`
+              : "Fill in the details below"}
         </Typography>
       </DialogTitle>
 
@@ -895,12 +904,32 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                       <FormControl size="small" fullWidth>
                         <Select value={selectedYear} onChange={(e) => handleYearChange(e.target.value as number)} disabled={loading}>
                           {generateYearOptions().map((year) => (
-                            <MenuItem key={year} value={year}>{year}</MenuItem>
+                            <MenuItem key={year} value={year}>
+                              {year}
+                            </MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
                         Select the year to search through all 12 months
+                      </Typography>
+                    </Box>
+
+                    {/* Month Filter */}
+                    <Box sx={{ flex: 1, minWidth: 200 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                        Month (Optional)
+                      </Typography>
+                      <FormControl size="small" fullWidth>
+                        <Select value={selectedMonth} onChange={(e) => handleMonthChange(e.target.value as number)} disabled={loading}>
+                          <MenuItem value={0}>All months</MenuItem>
+                          {["January","February","March","April","May","June","July","August","September","October","November","December"].map((name, i) => (
+                            <MenuItem key={i + 1} value={i + 1}>{name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                        Narrow results to a specific month
                       </Typography>
                     </Box>
 
@@ -957,7 +986,10 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                         value={maxResults}
                         onChange={(e) => {
                           setMaxResults(e.target.value as number);
-                          if (result) { setResult(null); setError(null); }
+                          if (result) {
+                            setResult(null);
+                            setError(null);
+                          }
                         }}
                         disabled={loading}
                       >
@@ -974,9 +1006,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   {/* AI Info Banner */}
                   {result?.aiQuotaExceeded ? (
                     <Alert severity="warning" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
-                      <Typography variant="body2">
-                        Opletics is experiencing AI token usage at a high volume, try again in a few hours.
-                      </Typography>
+                      <Typography variant="body2">Opletics is experiencing AI token usage at a high volume.</Typography>
                     </Alert>
                   ) : (
                     <Alert severity="info" icon={<AutoAwesome />} sx={{ borderRadius: 2 }}>
@@ -1018,10 +1048,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     icon={<AutoAwesome />}
                     sx={{
                       borderRadius: 2,
-                      bgcolor: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? alpha(theme.palette.success.main, 0.1)
-                          : alpha(theme.palette.success.main, 0.05),
+                      bgcolor: (theme) => (theme.palette.mode === "dark" ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.success.main, 0.05)),
                       "& .MuiAlert-message": { width: "100%" },
                     }}
                   >
@@ -1055,17 +1082,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                       {result.debug.matchedClusters.slice(0, 3).map((cluster, idx) => (
-                        <Chip
-                          key={idx}
-                          label={`${cluster.gender} ${cluster.level} ${cluster.sport}`}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
+                        <Chip key={idx} label={`${cluster.gender} ${cluster.level} ${cluster.sport}`} size="small" color="primary" variant="outlined" />
                       ))}
-                      {result.debug.matchedClusters.length > 3 && (
-                        <Chip label={`+${result.debug.matchedClusters.length - 3} more`} size="small" variant="outlined" />
-                      )}
+                      {result.debug.matchedClusters.length > 3 && <Chip label={`+${result.debug.matchedClusters.length - 3} more`} size="small" variant="outlined" />}
                     </Stack>
                   </Alert>
                 )}
@@ -1129,15 +1148,9 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                             elevation={0}
                             sx={(theme) => ({
                               p: "10px 16px",
-                              bgcolor:
-                                theme.palette.mode === "dark"
-                                  ? "#081417ed"
-                                  : "success.lighter",
+                              bgcolor: theme.palette.mode === "dark" ? "#081417ed" : "success.lighter",
                               border: "1px solid",
-                              borderColor:
-                                theme.palette.mode === "dark"
-                                  ? "rgb(79, 109, 165)"
-                                  : "#272D60",
+                              borderColor: theme.palette.mode === "dark" ? "rgb(79, 109, 165)" : "#272D60",
                               borderRadius: 1.5,
                               display: "flex",
                               flexDirection: "column",
@@ -1146,10 +1159,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                             })}
                           >
                             {/* Date */}
-                            <Typography
-                              variant="body2"
-                              sx={{ fontWeight: 700, fontSize: "0.82rem", lineHeight: 1.3 }}
-                            >
+                            <Typography variant="body2" sx={{ fontWeight: 700, fontSize: "0.82rem", lineHeight: 1.3 }}>
                               {formatDateDisplay(dateStr)}
                             </Typography>
 
@@ -1250,10 +1260,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   sx={(theme) => ({
                     p: 1.5,
                     borderRadius: 1.5,
-                    bgcolor:
-                      theme.palette.mode === "dark"
-                        ? alpha(theme.palette.primary.main, 0.12)
-                        : alpha(theme.palette.primary.main, 0.06),
+                    bgcolor: theme.palette.mode === "dark" ? alpha(theme.palette.primary.main, 0.12) : alpha(theme.palette.primary.main, 0.06),
                     border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                     display: "flex",
                     gap: 2,
@@ -1307,9 +1314,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       No worksheet selected
                     </Typography>
-                    <Typography variant="body2">
-                      Open the worksheet you want to add this game to before submitting — the new row needs a worksheet to appear in the table.
-                    </Typography>
+                    <Typography variant="body2">Open the worksheet you want to add this game to before submitting — the new row needs a worksheet to appear in the table.</Typography>
                   </Alert>
                 )}
 
@@ -1322,14 +1327,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   }}
                 >
                   {/* Opponent */}
-                  <TextField
-                    label="Opponent"
-                    size="small"
-                    fullWidth
-                    value={fieldValues["opponent"] || ""}
-                    onChange={(e) => setField("opponent", e.target.value)}
-                    placeholder="e.g. Lincoln High"
-                  />
+                  <TextField label="Opponent" size="small" fullWidth value={fieldValues["opponent"] || ""} onChange={(e) => setField("opponent", e.target.value)} placeholder="e.g. Lincoln High" />
 
                   {/* Time */}
                   <TextField
@@ -1345,11 +1343,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   {/* Home / Away */}
                   <FormControl size="small" fullWidth>
                     <InputLabel>Home / Away</InputLabel>
-                    <Select
-                      label="Home / Away"
-                      value={fieldValues["isHome"] || "home"}
-                      onChange={(e) => setField("isHome", e.target.value)}
-                    >
+                    <Select label="Home / Away" value={fieldValues["isHome"] || "home"} onChange={(e) => setField("isHome", e.target.value)}>
                       <MenuItem value="home">Home</MenuItem>
                       <MenuItem value="away">Away</MenuItem>
                     </Select>
@@ -1358,11 +1352,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                   {/* Status */}
                   <FormControl size="small" fullWidth>
                     <InputLabel>Status</InputLabel>
-                    <Select
-                      label="Status"
-                      value={fieldValues["status"] || "SCHEDULED"}
-                      onChange={(e) => setField("status", e.target.value)}
-                    >
+                    <Select label="Status" value={fieldValues["status"] || "SCHEDULED"} onChange={(e) => setField("status", e.target.value)}>
                       {GAME_STATUSES.map((s) => (
                         <MenuItem key={s} value={s}>
                           {s.charAt(0) + s.slice(1).toLowerCase()}
@@ -1424,14 +1414,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
                       }}
                     >
                       {extraColumns.map((col) => (
-                        <TextField
-                          key={col}
-                          label={col}
-                          size="small"
-                          fullWidth
-                          value={fieldValues[col] || ""}
-                          onChange={(e) => setField(col, e.target.value)}
-                        />
+                        <TextField key={col} label={col} size="small" fullWidth value={fieldValues[col] || ""} onChange={(e) => setField(col, e.target.value)} />
                       ))}
                     </Box>
                   </>
@@ -1464,13 +1447,7 @@ export const AvailableDatesModal: React.FC<AvailableDatesModalProps> = ({
           </>
         ) : (
           <>
-            <Button
-              onClick={() => setView("search")}
-              variant="outlined"
-              startIcon={<ArrowBack />}
-              disabled={formSubmitting}
-              sx={{ textTransform: "none", borderRadius: 2 }}
-            >
+            <Button onClick={() => setView("search")} variant="outlined" startIcon={<ArrowBack />} disabled={formSubmitting} sx={{ textTransform: "none", borderRadius: 2 }}>
               Back
             </Button>
             <Box sx={{ flex: 1 }} />

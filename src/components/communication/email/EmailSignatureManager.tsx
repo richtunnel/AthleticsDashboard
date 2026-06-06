@@ -315,7 +315,7 @@ export function EmailSignatureManager() {
   };
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box>
       <Card>
         <CardContent>
           <Stack spacing={3}>
@@ -332,7 +332,7 @@ export function EmailSignatureManager() {
               Your signature will include the information you see in the preview.
             </Alert>
 
-            <Divider />
+            <Divider sx={{ borderColor: "divider", borderBottomWidth: 1 }} />
 
             <Stack spacing={2.5}>
               {/* Logo Upload */}
@@ -461,7 +461,7 @@ export function EmailSignatureManager() {
               />
             </Stack>
 
-            <Divider />
+            <Divider sx={{ borderColor: "divider", borderBottomWidth: 1 }} />
 
             {/* Disclaimer */}
             <Box>
@@ -513,7 +513,7 @@ export function EmailSignatureManager() {
               )}
             </Box>
 
-            <Divider />
+            <Divider sx={{ borderColor: "divider", borderBottomWidth: 1 }} />
 
             {/* Preview */}
             <Box>

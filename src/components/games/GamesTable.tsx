@@ -7485,7 +7485,7 @@ export function GamesTable() {
                         onClick={handleNewGame}
                         disabled={isAddingNew || scheduleView || selectedGames.size > 0}
                         size="small"
-                        sx={{ color: theme.palette.mode === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, py: "5px", "&:hover": { boxShadow: 2 } }}
+                        sx={{ color: theme.palette.mode === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
                       >
                         Create Game
                       </Button>

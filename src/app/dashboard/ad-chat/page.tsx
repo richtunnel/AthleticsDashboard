@@ -4,105 +4,98 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Box, Typography, Stack, Avatar, TextField, Button, IconButton,
-  Paper, Divider, CircularProgress, Alert, Chip, Tooltip,
-  Menu, MenuItem, InputAdornment, Badge,
-} from "@mui/material";
+import { Box, Typography, Stack, Avatar, TextField, Button, IconButton, Paper, Divider, CircularProgress, Alert, Chip, Tooltip, Menu, MenuItem, InputAdornment, Badge } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import ChatIcon          from "@mui/icons-material/Chat";
-import SearchIcon        from "@mui/icons-material/Search";
-import SendIcon          from "@mui/icons-material/Send";
-import MoreVertIcon      from "@mui/icons-material/MoreVert";
+import ChatIcon from "@mui/icons-material/Chat";
+import SearchIcon from "@mui/icons-material/Search";
+import SendIcon from "@mui/icons-material/Send";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import BlockIcon         from "@mui/icons-material/Block";
-import LockIcon          from "@mui/icons-material/Lock";
-import ArrowBackIcon     from "@mui/icons-material/ArrowBack";
-import { useAdChatSSE }  from "@/hooks/useAdChatSSE";
+import BlockIcon from "@mui/icons-material/Block";
+import LockIcon from "@mui/icons-material/Lock";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useAdChatSSE } from "@/hooks/useAdChatSSE";
 import { formatDistanceToNow } from "date-fns";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface OtherUser {
-  id:         string;
-  name:       string | null;
-  email:      string;
-  image?:     string | null;
+  id: string;
+  name: string | null;
+  email: string;
+  image?: string | null;
   schoolName: string | null;
 }
 
 interface Conversation {
-  id:          string;
-  otherUser:   OtherUser;
+  id: string;
+  otherUser: OtherUser;
   initiatorId: string;
-  status:      "PENDING" | "ACTIVE" | "BLOCKED" | "DO_NOT_DISTURB";
+  status: "PENDING" | "ACTIVE" | "BLOCKED" | "DO_NOT_DISTURB";
   lastMessage: { content: string; createdAt: string; isFromMe: boolean } | null;
   unreadCount: number;
-  createdAt:   string;
-  updatedAt:   string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Message {
-  id:             string;
+  id: string;
   conversationId: string;
-  senderUserId:   string;
-  senderName:     string;
-  senderImage?:   string | null;
-  content:        string;
-  readAt:         string | null;
-  createdAt:      string;
+  senderUserId: string;
+  senderName: string;
+  senderImage?: string | null;
+  content: string;
+  readAt: string | null;
+  createdAt: string;
 }
 
 interface SearchUser {
-  id:         string;
-  name:       string | null;
-  email:      string;
-  image?:     string | null;
+  id: string;
+  name: string | null;
+  email: string;
+  image?: string | null;
   schoolName: string | null;
-  teamName?:  string | null;
+  teamName?: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function initials(name: string | null, email: string) {
   const src = name || email;
-  return src.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return src
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }
 
 function relativeTime(iso: string) {
-  try { return formatDistanceToNow(new Date(iso), { addSuffix: true }); }
-  catch { return ""; }
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+  } catch {
+    return "";
+  }
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function MessageBubble({
-  message,
-  isMe,
-  onDelete,
-}: {
-  message: Message;
-  isMe: boolean;
-  onDelete: (id: string) => void;
-}) {
-  const theme     = useTheme();
-  const isDark    = theme.palette.mode === "dark";
+function MessageBubble({ message, isMe, onDelete }: { message: Message; isMe: boolean; onDelete: (id: string) => void }) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   return (
     <Box
       sx={{
-        display:        "flex",
+        display: "flex",
         justifyContent: isMe ? "flex-end" : "flex-start",
-        mb:             0.75,
+        mb: 0.75,
         "&:hover .msg-actions": { opacity: 1 },
       }}
     >
       {!isMe && (
-        <Avatar
-          src={message.senderImage ?? undefined}
-          sx={{ width: 28, height: 28, mr: 1, mt: 0.25, fontSize: "0.7rem", flexShrink: 0 }}
-        >
+        <Avatar src={message.senderImage ?? undefined} sx={{ width: 28, height: 28, mr: 1, mt: 0.25, fontSize: "0.7rem", flexShrink: 0 }}>
           {initials(message.senderName, message.senderName)}
         </Avatar>
       )}
@@ -111,11 +104,10 @@ function MessageBubble({
         <Paper
           elevation={0}
           sx={{
-            px: 1.5, py: 1,
+            px: 1.5,
+            py: 1,
             borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-            bgcolor: isMe
-              ? theme.palette.primary.main
-              : (isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)"),
+            bgcolor: isMe ? theme.palette.primary.main : isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)",
             color: isMe ? (isDark ? "#0f172a" : "#fff") : "text.primary",
             wordBreak: "break-word",
           }}
@@ -137,7 +129,13 @@ function MessageBubble({
             </IconButton>
           </Box>
           <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
-            <MenuItem onClick={() => { onDelete(message.id); setMenuAnchor(null); }} sx={{ color: "error.main", gap: 1, fontSize: "0.875rem" }}>
+            <MenuItem
+              onClick={() => {
+                onDelete(message.id);
+                setMenuAnchor(null);
+              }}
+              sx={{ color: "error.main", gap: 1, fontSize: "0.875rem" }}
+            >
               <DeleteOutlineIcon fontSize="small" /> Delete
             </MenuItem>
           </Menu>
@@ -150,39 +148,39 @@ function MessageBubble({
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdChatPage() {
-  const { data: session }  = useSession();
-  const searchParams       = useSearchParams();
-  const queryClient        = useQueryClient();
-  const theme              = useTheme();
-  const isDark             = theme.palette.mode === "dark";
-  const messagesEndRef     = useRef<HTMLDivElement>(null);
-  const inputRef           = useRef<HTMLInputElement>(null);
+  const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const adIdParam = searchParams.get("adId");
 
-  const [selectedId,   setSelectedId]   = useState<string | null>(null);
-  const [messageText,  setMessageText]  = useState("");
-  const [searchQuery,  setSearchQuery]  = useState("");
-  const [searchFocus,  setSearchFocus]  = useState(false);
-  const [menuAnchor,   setMenuAnchor]   = useState<null | HTMLElement>(null);
-  const [mobileView,   setMobileView]   = useState<"list" | "chat">("list");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messageText, setMessageText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocus, setSearchFocus] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
   const me = session?.user?.id ?? "";
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const { data: convosData, isLoading: loadingConvos } = useQuery({
-    queryKey:  ["adChatConversations"],
-    queryFn:   () => fetch("/api/ad-chat/conversations").then((r) => r.json()) as Promise<{ conversations: Conversation[] }>,
+    queryKey: ["adChatConversations"],
+    queryFn: () => fetch("/api/ad-chat/conversations").then((r) => r.json()) as Promise<{ conversations: Conversation[] }>,
     staleTime: 30_000,
-    enabled:   !!me,
+    enabled: !!me,
   });
   const conversations = convosData?.conversations ?? [];
 
   const { data: searchData, isFetching: searching } = useQuery({
-    queryKey:  ["adChatSearch", searchQuery],
-    queryFn:   () => fetch(`/api/ad-chat/search?q=${encodeURIComponent(searchQuery)}`).then((r) => r.json()) as Promise<{ users: SearchUser[] }>,
-    enabled:   searchQuery.length >= 2,
+    queryKey: ["adChatSearch", searchQuery],
+    queryFn: () => fetch(`/api/ad-chat/search?q=${encodeURIComponent(searchQuery)}`).then((r) => r.json()) as Promise<{ users: SearchUser[] }>,
+    enabled: searchQuery.length >= 2,
     staleTime: 10_000,
   });
   const searchResults = searchData?.users ?? [];
@@ -190,9 +188,9 @@ export default function AdChatPage() {
   const selectedConvo = conversations.find((c) => c.id === selectedId) ?? null;
 
   const { data: messagesData, isLoading: loadingMessages } = useQuery({
-    queryKey:  ["adChatMessages", selectedId],
-    queryFn:   () => fetch(`/api/ad-chat/conversations/${selectedId}/messages`).then((r) => r.json()) as Promise<{ messages: Message[] }>,
-    enabled:   !!selectedId,
+    queryKey: ["adChatMessages", selectedId],
+    queryFn: () => fetch(`/api/ad-chat/conversations/${selectedId}/messages`).then((r) => r.json()) as Promise<{ messages: Message[] }>,
+    enabled: !!selectedId,
     staleTime: 0,
   });
   const messages = messagesData?.messages ?? [];
@@ -217,9 +215,9 @@ export default function AdChatPage() {
   const findOrCreateConvo = useMutation({
     mutationFn: (targetUserId: string) =>
       fetch("/api/ad-chat/conversations", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ targetUserId }),
+        body: JSON.stringify({ targetUserId }),
       }).then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
@@ -237,9 +235,9 @@ export default function AdChatPage() {
   const sendMessage = useMutation({
     mutationFn: () =>
       fetch(`/api/ad-chat/conversations/${selectedId}/messages`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ content: messageText.trim() }),
+        body: JSON.stringify({ content: messageText.trim() }),
       }).then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
@@ -247,31 +245,24 @@ export default function AdChatPage() {
       }),
     onSuccess: (msg) => {
       setMessageText("");
-      queryClient.setQueryData<{ messages: Message[] }>(
-        ["adChatMessages", selectedId],
-        (old) => ({ messages: [...(old?.messages ?? []), msg] }),
-      );
+      queryClient.setQueryData<{ messages: Message[] }>(["adChatMessages", selectedId], (old) => ({ messages: [...(old?.messages ?? []), msg] }));
       queryClient.invalidateQueries({ queryKey: ["adChatConversations"] });
     },
   });
 
   const deleteMessage = useMutation({
-    mutationFn: (msgId: string) =>
-      fetch(`/api/ad-chat/messages/${msgId}`, { method: "DELETE" }).then((r) => r.json()),
+    mutationFn: (msgId: string) => fetch(`/api/ad-chat/messages/${msgId}`, { method: "DELETE" }).then((r) => r.json()),
     onSuccess: (_, msgId) => {
-      queryClient.setQueryData<{ messages: Message[] }>(
-        ["adChatMessages", selectedId],
-        (old) => ({ messages: (old?.messages ?? []).filter((m) => m.id !== msgId) }),
-      );
+      queryClient.setQueryData<{ messages: Message[] }>(["adChatMessages", selectedId], (old) => ({ messages: (old?.messages ?? []).filter((m) => m.id !== msgId) }));
     },
   });
 
   const blockConvo = useMutation({
     mutationFn: (action: "block" | "unblock") =>
       fetch(`/api/ad-chat/conversations/${selectedId}/block`, {
-        method:  "PATCH",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ action }),
+        body: JSON.stringify({ action }),
       }).then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
@@ -322,10 +313,10 @@ export default function AdChatPage() {
   const listPane = (
     <Box
       sx={{
-        width:    { xs: "100%", sm: 300 },
+        width: { xs: "100%", sm: 300 },
         flexShrink: 0,
-        height:   "100%",
-        display:  { xs: mobileView === "chat" ? "none" : "flex", sm: "flex" },
+        height: "100%",
+        display: { xs: mobileView === "chat" ? "none" : "flex", sm: "flex" },
         flexDirection: "column",
         borderRight: { sm: `1px solid ${borderColor}` },
       }}
@@ -347,7 +338,9 @@ export default function AdChatPage() {
               </InputAdornment>
             ),
             endAdornment: searching ? (
-              <InputAdornment position="end"><CircularProgress size={14} /></InputAdornment>
+              <InputAdornment position="end">
+                <CircularProgress size={14} />
+              </InputAdornment>
             ) : null,
           }}
           InputLabelProps={{ shrink: true }}
@@ -359,9 +352,9 @@ export default function AdChatPage() {
             elevation={4}
             sx={{
               position: "absolute",
-              zIndex:   1300,
-              mt:       0.5,
-              width:    268,
+              zIndex: 1300,
+              mt: 0.5,
+              width: 268,
               maxHeight: 260,
               overflow: "auto",
             }}
@@ -372,11 +365,7 @@ export default function AdChatPage() {
               </Typography>
             ) : (
               searchResults.map((u) => (
-                <MenuItem
-                  key={u.id}
-                  onClick={() => findOrCreateConvo.mutate(u.id)}
-                  sx={{ gap: 1, py: 1 }}
-                >
+                <MenuItem key={u.id} onClick={() => findOrCreateConvo.mutate(u.id)} sx={{ gap: 1, py: 1 }}>
                   <Avatar src={u.image ?? undefined} sx={{ width: 30, height: 30, fontSize: "0.75rem" }}>
                     {initials(u.name, u.email)}
                   </Avatar>
@@ -411,14 +400,18 @@ export default function AdChatPage() {
         ) : (
           conversations.map((convo) => {
             const isActive = convo.id === selectedId;
-            const other    = convo.otherUser;
-            const isDnd    = convo.status === "DO_NOT_DISTURB";
+            const other = convo.otherUser;
+            const isDnd = convo.status === "DO_NOT_DISTURB";
             return (
               <Box
                 key={convo.id}
-                onClick={() => { setSelectedId(convo.id); setMobileView("chat"); }}
+                onClick={() => {
+                  setSelectedId(convo.id);
+                  setMobileView("chat");
+                }}
                 sx={{
-                  px: 1.5, py: 1.25,
+                  px: 1.5,
+                  py: 1.25,
                   cursor: "pointer",
                   bgcolor: isActive ? (isDark ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.07)") : "transparent",
                   borderLeft: isActive ? "3px solid" : "3px solid transparent",
@@ -444,19 +437,14 @@ export default function AdChatPage() {
                         </Typography>
                       )}
                     </Stack>
-                    <Typography
-                      variant="caption"
-                      color={isDnd ? "warning.main" : "text.secondary"}
-                      noWrap
-                      sx={{ fontSize: "0.75rem", display: "block" }}
-                    >
+                    <Typography variant="caption" color={isDnd ? "warning.main" : "text.secondary"} noWrap sx={{ fontSize: "0.75rem", display: "block" }}>
                       {isDnd
                         ? "Do not disturb"
                         : convo.status === "PENDING"
-                        ? "Pending…"
-                        : convo.lastMessage
-                        ? (convo.lastMessage.isFromMe ? "You: " : "") + convo.lastMessage.content
-                        : other.schoolName ?? other.email}
+                          ? "Pending…"
+                          : convo.lastMessage
+                            ? (convo.lastMessage.isFromMe ? "You: " : "") + convo.lastMessage.content
+                            : (other.schoolName ?? other.email)}
                     </Typography>
                   </Box>
                 </Stack>
@@ -486,7 +474,7 @@ export default function AdChatPage() {
             Private Chat
           </Typography>
           <Typography variant="body2" color="text.disabled" textAlign="center" maxWidth={320}>
-            Search for an athletic director, coach, or staff member to start a private encrypted conversation.
+            Start a private encrypted conversation with athletic directors, coaches, or staff members.
           </Typography>
           <Stack direction="row" alignItems="center" gap={0.5}>
             <LockIcon sx={{ fontSize: 14, color: "text.disabled" }} />
@@ -499,11 +487,7 @@ export default function AdChatPage() {
         <>
           {/* Header */}
           <Box sx={{ px: 2, py: 1.25, borderBottom: `1px solid ${borderColor}`, display: "flex", alignItems: "center", gap: 1.5 }}>
-            <IconButton
-              size="small"
-              onClick={() => setMobileView("list")}
-              sx={{ display: { sm: "none" }, mr: 0.5 }}
-            >
+            <IconButton size="small" onClick={() => setMobileView("list")} sx={{ display: { sm: "none" }, mr: 0.5 }}>
               <ArrowBackIcon fontSize="small" />
             </IconButton>
             <Avatar src={selectedConvo.otherUser.image ?? undefined} sx={{ width: 36, height: 36, fontSize: "0.8rem" }}>
@@ -519,17 +503,9 @@ export default function AdChatPage() {
             </Box>
 
             {selectedConvo.status === "PENDING" && (
-              <Chip
-                label={selectedConvo.initiatorId === me ? "Awaiting reply" : "New request"}
-                size="small"
-                color="warning"
-                variant="outlined"
-                sx={{ fontSize: "0.7rem" }}
-              />
+              <Chip label={selectedConvo.initiatorId === me ? "Awaiting reply" : "New request"} size="small" color="warning" variant="outlined" sx={{ fontSize: "0.7rem" }} />
             )}
-            {selectedConvo.status === "BLOCKED" && (
-              <Chip label="Muted" size="small" color="default" variant="outlined" sx={{ fontSize: "0.7rem" }} />
-            )}
+            {selectedConvo.status === "BLOCKED" && <Chip label="Muted" size="small" color="default" variant="outlined" sx={{ fontSize: "0.7rem" }} />}
 
             <Tooltip title="Options">
               <IconButton size="small" onClick={(e) => setMenuAnchor(e.currentTarget)}>
@@ -538,18 +514,12 @@ export default function AdChatPage() {
             </Tooltip>
             <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
               {selectedConvo.status !== "BLOCKED" ? (
-                <MenuItem
-                  onClick={() => blockConvo.mutate("block")}
-                  sx={{ gap: 1, fontSize: "0.875rem" }}
-                >
+                <MenuItem onClick={() => blockConvo.mutate("block")} sx={{ gap: 1, fontSize: "0.875rem" }}>
                   <BlockIcon fontSize="small" />
                   Mute conversation
                 </MenuItem>
               ) : selectedConvo.status === "BLOCKED" ? (
-                <MenuItem
-                  onClick={() => blockConvo.mutate("unblock")}
-                  sx={{ gap: 1, fontSize: "0.875rem" }}
-                >
+                <MenuItem onClick={() => blockConvo.mutate("unblock")} sx={{ gap: 1, fontSize: "0.875rem" }}>
                   <BlockIcon fontSize="small" />
                   Unmute conversation
                 </MenuItem>
@@ -566,20 +536,11 @@ export default function AdChatPage() {
             ) : messages.length === 0 ? (
               <Box sx={{ textAlign: "center", pt: 4 }}>
                 <Typography variant="body2" color="text.secondary">
-                  {selectedConvo.status === "PENDING" && selectedConvo.initiatorId !== me
-                    ? `${selectedConvo.otherUser.name || "This AD"} sent you a chat request`
-                    : "No messages yet. Say hello!"}
+                  {selectedConvo.status === "PENDING" && selectedConvo.initiatorId !== me ? `${selectedConvo.otherUser.name || "This AD"} sent you a chat request` : "No messages yet. Say hello!"}
                 </Typography>
               </Box>
             ) : (
-              messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg}
-                  isMe={msg.senderUserId === me}
-                  onDelete={(id) => deleteMessage.mutate(id)}
-                />
-              ))
+              messages.map((msg) => <MessageBubble key={msg.id} message={msg} isMe={msg.senderUserId === me} onDelete={(id) => deleteMessage.mutate(id)} />)
             )}
             <div ref={messagesEndRef} />
           </Box>
@@ -625,9 +586,10 @@ export default function AdChatPage() {
                 disabled={!canSend() || sendMessage.isPending}
                 sx={{
                   bgcolor: canSend() ? "primary.main" : "action.disabledBackground",
-                  color:   canSend() ? (isDark ? "#0f172a" : "#fff") : "text.disabled",
+                  color: canSend() ? (isDark ? "#0f172a" : "#fff") : "text.disabled",
                   "&:hover": { bgcolor: "primary.dark" },
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   flexShrink: 0,
                 }}
               >
@@ -662,12 +624,13 @@ export default function AdChatPage() {
       <Paper
         elevation={0}
         sx={{
-          flex:         1,
-          display:      "flex",
-          overflow:     "hidden",
-          border:       `1px solid ${borderColor}`,
+          flex: 1,
+          display: "flex",
+          overflow: "hidden",
+          border: `1px solid ${borderColor}`,
           borderRadius: 3,
-          position:     "relative",
+          borderTopLeftRadius: "10px",
+          position: "relative",
         }}
       >
         {listPane}

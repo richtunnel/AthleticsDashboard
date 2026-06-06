@@ -68,20 +68,13 @@ export async function POST(
     }
 
     // ── Count games BEFORE invalidating, to report a delta ───────────────
-    // Scope to the AD's pinned workbook when available — that's the precise
-    // worksheet the parent's child games come from. Falls back to a broader
-    // organization+sport scan when no workbook was pinned during approval.
+    // When a workbook was pinned at approval time, scope to that workbook.
+    // Otherwise query directly by school organisation — consistent with how
+    // the parent overview route fetches auto-detect games.
     const futureFilter = { date: { gte: new Date() } } as const;
     const beforeWhere = syncRequest.workbookId
       ? { workbookId: syncRequest.workbookId, ...futureFilter }
-      : {
-          homeTeam: {
-            organizationId: syncRequest.schoolId,
-            sport: { name: { equals: syncRequest.sportName, mode: "insensitive" as const } },
-            level: { equals: syncRequest.sportLevel, mode: "insensitive" as const },
-          },
-          ...futureFilter,
-        };
+      : { homeTeam: { organizationId: syncRequest.schoolId }, ...futureFilter };
 
     const beforeCount = await prisma.game.count({ where: beforeWhere });
 
@@ -92,8 +85,7 @@ export async function POST(
       console.error("[parent-rescan] redis invalidate failed:", err);
     });
 
-    // ── Count after — same filter, but with a fresh DB read ──────────────
-    // (Game count is a direct DB query, not cached, so this reflects truth.)
+    // ── Count after — same filter, fresh DB read (not cached) ────────────
     const afterCount = await prisma.game.count({ where: beforeWhere });
     const added = Math.max(0, afterCount - beforeCount);
 
