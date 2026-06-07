@@ -51,6 +51,8 @@ import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
 import { useDashboardPreferencesStore } from "@/lib/stores/dashboardPreferencesStore";
+import { useGridNavigation, GRID_NAV_TAB_EVENT, GRID_FOCUS_CLASS } from "@/hooks/useGridNavigation";
+import { GlobalStyles } from "@mui/material";
 import { trackEvent } from "@/lib/analytics/mixpanel.services";
 import { formatLevelDisplay, extractDatePart, formatTimeDisplay } from "@/lib/utils/formatters";
 import { ImportUndoButton } from "./ImportUndoButton";
@@ -535,6 +537,8 @@ export function GamesTable() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mounted, setMounted] = useState(false);
+  // Ref for the table container — used by the grid navigation hook
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const {
     page,
@@ -2781,6 +2785,26 @@ export function GamesTable() {
     [editingGameId],
   );
 
+  // ── Grid navigation (Google Sheets-style cell indicator) ──────────────────
+  // Must be placed after handleDoubleClick to avoid TDZ reference errors.
+  const handleGridActivateCell = useCallback(
+    (gameId: string, colId: string) => {
+      const game = games.find((g: any) => g.id === gameId);
+      if (!game) return;
+      handleDoubleClick(game as any, colId as any);
+    },
+    [games, handleDoubleClick],
+  );
+
+  const { handleBodyClick: handleGridBodyClick } = useGridNavigation({
+    containerRef: tableContainerRef,
+    isEditingCell: inlineEditState !== null,
+    isMobile,
+    isTableVisible: worksheetTab === "worksheet" && !scheduleView,
+    columnIds: resolvedColumns.map((c) => c.id),
+    onActivateCell: handleGridActivateCell,
+  });
+
   // Batched autosave function - handles multiple field changes efficiently
   const executeBatchedSave = useCallback(
     async (gameId: string, game: Game) => {
@@ -3114,6 +3138,17 @@ export function GamesTable() {
           setInlineEditValue("");
           setSaveStatus("idle");
         }
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // Save immediately then signal the grid navigator to advance one cell
+        if (inlineEditValue !== originalInlineValueRef.current) {
+          scheduleAutosave(game.id, inlineEditState.field, inlineEditValue, game, true);
+        } else {
+          setInlineEditState(null);
+          setInlineEditValue("");
+          setSaveStatus("idle");
+        }
+        document.dispatchEvent(new CustomEvent(GRID_NAV_TAB_EVENT, { detail: { shiftKey: e.shiftKey } }));
       } else if (e.key === "Escape") {
         e.preventDefault();
         // Cancel pending saves and clear state
@@ -5926,6 +5961,10 @@ export function GamesTable() {
         width: columnWidth,
         minWidth: MIN_COLUMN_WIDTH,
         maxWidth: MAX_COLUMN_WIDTH,
+        // Prevent cells from wrapping and expanding row height
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
         cursor: isEditing ? "default" : "pointer",
         bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
         ...(isEditing && {
@@ -7315,6 +7354,7 @@ export function GamesTable() {
     return (
       <TableRow
         key={game.id}
+        data-game-id={game.id}
         selected={isSelected}
         sx={{
           bgcolor: "background.paper",
@@ -7931,7 +7971,17 @@ export function GamesTable() {
             </Box>
           ) : (
             /* Desktop Table View */
-            <Box sx={{ position: "relative" }}>
+            <Box ref={tableContainerRef} sx={{ position: "relative" }}>
+              {/* Google Sheets-style cell focus indicator — injected once globally */}
+              <GlobalStyles
+                styles={{
+                  [`td.${GRID_FOCUS_CLASS}`]: {
+                    boxShadow: "inset 0 0 0 2px #1976d2 !important",
+                    position: "relative",
+                    zIndex: 1,
+                  },
+                }}
+              />
               <TableContainer
                 component={Paper}
                 elevation={0}
@@ -8029,7 +8079,7 @@ export function GamesTable() {
                       </TableRow>
                     </TableBody>
                   ) : (
-                    <TableBody>
+                    <TableBody onClick={handleGridBodyClick}>
                       {renderNewRow()}
                       {games.filter((game: any) => game && game.id).map((game: any) => renderGameRow(game))}
                     </TableBody>
