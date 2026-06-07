@@ -81,16 +81,14 @@ function PostImages({ images }: { images: PostImageData[] }) {
 
   return (
     <>
+      {/* 600×600 square container — objectFit:contain inside means every
+          image is shown in full, letterboxed on black if needed. */}
       <Box
-        sx={{ mt: 1.5, maxWidth: CONTENT_MAX_WIDTH, mx: "auto" }}
+        sx={{ mt: 1.5, maxWidth: 600, width: "100%", mx: "auto", cursor: "pointer" }}
         onClick={(e) => {
-          // Open lightbox on click if not interacting with slider controls
           const target = e.target as HTMLElement;
           if (target.closest("button")) return;
-          const el = e.currentTarget.querySelector("[role='region']");
-          if (!el) return;
-          const idx = parseInt(el.getAttribute("data-index") || "0", 10) || 0;
-          setLightboxIndex(idx);
+          setLightboxIndex(0);
         }}
       >
         <ImageSlider

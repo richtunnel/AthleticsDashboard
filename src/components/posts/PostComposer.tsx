@@ -507,10 +507,12 @@ export default function PostComposer({ currentUser, onPostCreated }: PostCompose
             />
           </Box>
 
-          {/* Image slider preview */}
+          {/* Image slider preview — constrained to a thumbnail strip */}
           {images.length > 0 && (
             <Box sx={{ mt: 1.5, position: "relative" }}>
-              <ImageSlider images={sliderImages} aspectRatio="1/1" rounded />
+              <Box sx={{ maxWidth: 280, width: "100%" }}>
+                <ImageSlider images={sliderImages} aspectRatio="1/1" rounded />
+              </Box>
 
               {/* Per-image status overlay pills */}
               <Box sx={{ display: "flex", gap: 0.75, mt: 1, flexWrap: "wrap" }}>

@@ -170,15 +170,18 @@ export default function ImageSlider({
           aspectRatio,
           overflow: "hidden",
           borderRadius: rounded ? 2 : 0,
-          bgcolor: "action.hover",
+          bgcolor: "#000",
           position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         {isDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={img.url} alt={img.alt ?? "Post image"} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src={img.url} alt={img.alt ?? "Post image"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
         ) : (
-          <Image src={img.url} alt={img.alt ?? "Post image"} fill sizes="(max-width: 800px) 100vw, 800px" style={{ objectFit: "cover" }} />
+          <Image src={img.url} alt={img.alt ?? "Post image"} fill sizes="(max-width: 600px) 100vw, 600px" style={{ objectFit: "contain" }} />
         )}
       </Box>
     );
@@ -230,7 +233,10 @@ export default function ImageSlider({
                 minWidth: 0,
                 position: "relative",
                 overflow: "hidden",
-                bgcolor: "action.hover",
+                bgcolor: "#000",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
               {isNear && (
@@ -240,15 +246,15 @@ export default function ImageSlider({
                     src={img.url}
                     alt={img.alt ?? `Image ${i + 1}`}
                     draggable={false}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none" }}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", pointerEvents: "none" }}
                   />
                 ) : (
                   <Image
                     src={img.url}
                     alt={img.alt ?? `Image ${i + 1}`}
                     fill
-                    sizes="(max-width: 800px) 100vw, 800px"
-                    style={{ objectFit: "cover", pointerEvents: "none" }}
+                    sizes="(max-width: 600px) 100vw, 600px"
+                    style={{ objectFit: "contain", pointerEvents: "none" }}
                     draggable={false}
                     priority={i === 0}
                   />

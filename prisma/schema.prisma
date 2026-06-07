@@ -57,8 +57,8 @@ model User {
   signatureWebsite           String?
   signatureLogoUrl           String?
   signatureText              String?
-  signatureDisclaimer        String?   // custom disclaimer text (null = use default)
-  signatureDisclaimerEnabled Boolean   @default(false)
+  signatureDisclaimer        String? // custom disclaimer text (null = use default)
+  signatureDisclaimerEnabled Boolean                   @default(false)
   costBudgetEnabled          Boolean                   @default(false)
   monthlyBudget              Float?
   scoreTrackerEnabled        Boolean                   @default(false)
@@ -222,17 +222,17 @@ model TablePreference {
 }
 
 model GamesWorkbook {
-  id                    String                @id @default(cuid())
-  name                  String
-  sortOrder             Int                   @default(0)
-  userId                String
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  games                 Game[]
-  customColumns         CustomColumn[]
-  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  calendarSyncRequests  CalendarSyncRequest[]
-  schedulePosts         SchedulePost[]
+  id                   String                @id @default(cuid())
+  name                 String
+  sortOrder            Int                   @default(0)
+  userId               String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  games                Game[]
+  customColumns        CustomColumn[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  calendarSyncRequests CalendarSyncRequest[]
+  schedulePosts        SchedulePost[]
 
   @@unique([userId, sortOrder])
   @@index([userId])
@@ -344,10 +344,10 @@ model Game {
   @@index([createdById, sortOrder])
   @@index([workbookId])
   // Composite indexes for common multi-column query patterns
-  @@index([workbookId, date])             // workbook schedule range queries
-  @@index([workbookId, status])           // workbook + status filter (cancel detection)
-  @@index([date, status])                 // upcoming games by status across org
-  @@index([homeTeamId, date])             // team schedule in date range
+  @@index([workbookId, date]) // workbook schedule range queries
+  @@index([workbookId, status]) // workbook + status filter (cancel detection)
+  @@index([date, status]) // upcoming games by status across org
+  @@index([homeTeamId, date]) // team schedule in date range
 }
 
 model Venue {
@@ -399,31 +399,31 @@ model EmailLog {
   @@index([createdAt])
   @@index([status])
   // Composite indexes for email limit queries (avoids full table scans)
-  @@index([status, sentAt])               // global monthly count: WHERE status='SENT' AND sentAt>=...
-  @@index([sentById, status, sentAt])     // per-user daily/monthly limit checks
+  @@index([status, sentAt]) // global monthly count: WHERE status='SENT' AND sentAt>=...
+  @@index([sentById, status, sentAt]) // per-user daily/monthly limit checks
 }
 
 model EmailJob {
-  id                  String         @id @default(cuid())
+  id                  String           @id @default(cuid())
   userId              String
   organizationId      String
   subject             String
   body                String
   replyTo             String?
-  status              EmailJobStatus @default(PENDING)
-  totalCount          Int            @default(0)
-  sentCount           Int            @default(0)
-  failedCount         Int            @default(0)
-  gameIds             String[]       @default([])
+  status              EmailJobStatus   @default(PENDING)
+  totalCount          Int              @default(0)
+  sentCount           Int              @default(0)
+  failedCount         Int              @default(0)
+  gameIds             String[]         @default([])
   groupId             String?
   campaignId          String?
   recipientCategory   String?
   additionalMessage   String?
-  visibleColumnIds    String[]       @default([])
-  selectedSchoolNames String[]       @default([])
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visibleColumnIds    String[]         @default([])
+  selectedSchoolNames String[]         @default([])
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipients          EmailRecipient[]
 
   @@index([userId])
@@ -766,23 +766,24 @@ model GoogleCalendarSyncTracker {
 }
 
 model CollaborativeMember {
-  id                   String                       @id @default(cuid())
-  userId               String
-  email                String
-  role                 CollaborativeRole            @default(VIEWER)
-  status               CollaborativeStatus          @default(PENDING)
-  invitedAt            DateTime                     @default(now())
-  acceptedAt           DateTime?
-  revokedAt            DateTime?
-  revokeReason         String?
-  token                String?                      @unique
-  emailError           String?
-  emailSent            Boolean                      @default(false)
-  emailSentAt          DateTime?
-  chatAccess           CollaboratorChatAccess?
+  id                    String                  @id @default(cuid())
+  userId                String
+  email                 String
+  role                  CollaborativeRole       @default(VIEWER)
+  status                CollaborativeStatus     @default(PENDING)
+  invitedAt             DateTime                @default(now())
+  acceptedAt            DateTime?
+  revokedAt             DateTime?
+  revokeReason          String?
+  token                 String?                 @unique
+  emailError            String?
+  emailSent             Boolean                 @default(false)
+  emailSentAt           DateTime?
+  chatAccess            CollaboratorChatAccess?
   chatAccessRequestedAt DateTime?
   chatAccessReviewedAt  DateTime?
-  owner                User                         @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
+  permissions           Json?
+  owner                 User                    @relation("CollaborativeMemberOwner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, email])
   @@index([userId, status])
@@ -972,18 +973,18 @@ model ChatMessage {
 }
 
 enum AdConvStatus {
-  PENDING  // initiator sent first message; awaiting recipient reply to activate
-  ACTIVE   // both parties may freely exchange messages
-  BLOCKED  // one party has muted the conversation (see blockedByUserId)
+  PENDING // initiator sent first message; awaiting recipient reply to activate
+  ACTIVE // both parties may freely exchange messages
+  BLOCKED // one party has muted the conversation (see blockedByUserId)
 }
 
 model AdConversation {
   id              String       @id @default(cuid())
-  userAId         String       // lexicographically smaller userId (canonical pair key)
-  userBId         String       // lexicographically larger userId
-  initiatorId     String       // who sent the very first message
+  userAId         String // lexicographically smaller userId (canonical pair key)
+  userBId         String // lexicographically larger userId
+  initiatorId     String // who sent the very first message
   status          AdConvStatus @default(PENDING)
-  blockedByUserId String?      // set when status=BLOCKED
+  blockedByUserId String? // set when status=BLOCKED
   lastMessageAt   DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -1002,9 +1003,9 @@ model AdMessage {
   id             String         @id @default(cuid())
   conversationId String
   senderUserId   String
-  content        String         // AES-256-GCM encrypted
+  content        String // AES-256-GCM encrypted
   readAt         DateTime?
-  deletedAt      DateTime?      // soft-delete; excluded from UI
+  deletedAt      DateTime? // soft-delete; excluded from UI
   createdAt      DateTime       @default(now())
   conversation   AdConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender         User           @relation("SentAdMessages", fields: [senderUserId], references: [id], onDelete: Cascade)
@@ -1271,10 +1272,10 @@ model SchedulePost {
   seasonEnd       DateTime
   isActive        Boolean  @default(true)
   excludeWeekends Boolean  @default(false)
-  excludedDates   Json     @default("[]")  // Array of ISO date strings to hide (computed dates removed by AD)
-  extraDates      Json     @default("[]")  // Array of {date, timeWindow} manually added by AD
-  title           String?                  // Optional custom title for the post
-  description     String?                  // Optional description / notes for other ADs
+  excludedDates   Json     @default("[]") // Array of ISO date strings to hide (computed dates removed by AD)
+  extraDates      Json     @default("[]") // Array of {date, timeWindow} manually added by AD
+  title           String? // Optional custom title for the post
+  description     String? // Optional description / notes for other ADs
   postedAt        DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

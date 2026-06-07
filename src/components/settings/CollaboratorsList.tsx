@@ -24,12 +24,11 @@ import {
   Schedule,
   PersonOff,
   Refresh,
-  ChatBubbleOutline,
-  Lock,
-  LockOpen,
+  Tune,
 } from "@mui/icons-material";
+import Link from "next/link";
 import { ROLE_DISPLAY_NAMES, STATUS_DISPLAY_NAMES } from "@/types/collaboration";
-import { CollaborativeRole, CollaborativeStatus, CollaboratorChatAccess } from "@prisma/client";
+import { CollaborativeRole, CollaborativeStatus } from "@prisma/client";
 
 interface Collaborator {
   id: string;
@@ -40,15 +39,12 @@ interface Collaborator {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   revokeReason: string | null;
-  chatAccess?: CollaboratorChatAccess | null;
-  chatAccessRequestedAt?: Date | string | null;
 }
 
 interface CollaboratorsListProps {
   members: Collaborator[];
   isLoading?: boolean;
   onRevoke?: (collaboratorId: string) => Promise<void>;
-  onChatAccessChange?: (collaboratorId: string, action: "APPROVE" | "REVOKE") => Promise<void>;
   onRefresh?: () => void;
 }
 
@@ -56,56 +52,18 @@ export function CollaboratorsList({
   members,
   isLoading = false,
   onRevoke,
-  onChatAccessChange,
-  onRefresh
+  onRefresh,
 }: CollaboratorsListProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [chatAccessProcessingId, setChatAccessProcessingId] = useState<string | null>(null);
 
   const handleRevoke = async (collaboratorId: string) => {
     if (!onRevoke) return;
-
     setRevokingId(collaboratorId);
     try {
       await onRevoke(collaboratorId);
     } finally {
       setRevokingId(null);
     }
-  };
-
-  const handleChatAccess = async (collaboratorId: string, action: "APPROVE" | "REVOKE") => {
-    if (!onChatAccessChange) return;
-    setChatAccessProcessingId(collaboratorId);
-    try {
-      await onChatAccessChange(collaboratorId, action);
-    } finally {
-      setChatAccessProcessingId(null);
-    }
-  };
-
-  const getChatAccessChip = (member: Collaborator) => {
-    if (member.status !== "ACCEPTED") return null;
-    if (!member.chatAccess) {
-      // No request yet
-      return <Chip label="No Access" size="small" variant="outlined" color="default" icon={<Lock fontSize="inherit" />} />;
-    }
-    if (member.chatAccess === "PENDING") {
-      return (
-        <Chip
-          label="Requested"
-          size="small"
-          color="warning"
-          icon={<ChatBubbleOutline fontSize="inherit" />}
-        />
-      );
-    }
-    if (member.chatAccess === "APPROVED") {
-      return <Chip label="Approved" size="small" color="success" icon={<LockOpen fontSize="inherit" />} />;
-    }
-    if (member.chatAccess === "REVOKED") {
-      return <Chip label="Revoked" size="small" color="error" icon={<Lock fontSize="inherit" />} />;
-    }
-    return null;
   };
 
   const formatDate = (date: Date | null) => {
@@ -183,7 +141,6 @@ export function CollaboratorsList({
               <TableCell>Email</TableCell>
               <TableCell>Role</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Chat Access</TableCell>
               <TableCell>Invited</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -215,64 +172,41 @@ export function CollaboratorsList({
                   </Box>
                 </TableCell>
                 <TableCell>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                    {getChatAccessChip(member)}
-                    {member.status === "ACCEPTED" && onChatAccessChange && (
-                      <>
-                        {member.chatAccess !== "APPROVED" && (
-                          <Button
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                            onClick={() => handleChatAccess(member.id, "APPROVE")}
-                            disabled={chatAccessProcessingId === member.id}
-                            sx={{ minWidth: 80 }}
-                          >
-                            {chatAccessProcessingId === member.id ? (
-                              <CircularProgress size={14} />
-                            ) : (
-                              "Approve"
-                            )}
-                          </Button>
-                        )}
-                        {member.chatAccess === "APPROVED" && (
-                          <Button
-                            size="small"
-                            color="error"
-                            variant="outlined"
-                            onClick={() => handleChatAccess(member.id, "REVOKE")}
-                            disabled={chatAccessProcessingId === member.id}
-                            sx={{ minWidth: 80 }}
-                          >
-                            {chatAccessProcessingId === member.id ? (
-                              <CircularProgress size={14} />
-                            ) : (
-                              "Revoke"
-                            )}
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </Box>
-                </TableCell>
-                <TableCell>
                   <Typography variant="body2" color="text.secondary">
                     {formatDate(member.invitedAt)}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
-                  {["ACCEPTED", "PENDING", "EXPIRED"].includes(member.status) && onRevoke && (
-                    <Button
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      onClick={() => handleRevoke(member.id)}
-                      disabled={revokingId === member.id}
-                      startIcon={revokingId === member.id ? <CircularProgress size={16} /> : <PersonOff />}
-                    >
-                      Revoke
-                    </Button>
-                  )}
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}>
+                    {member.status === "ACCEPTED" && (
+                      <Tooltip title="Manage which dashboard features this collaborator can access">
+                        <Button
+                          component={Link}
+                          href={`/dashboard/settings/collaborators/${member.id}/permissions`}
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          startIcon={<Tune fontSize="small" />}
+                          sx={{ textTransform: "none" }}
+                        >
+                          Permissions
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {["ACCEPTED", "PENDING", "EXPIRED"].includes(member.status) && onRevoke && (
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="outlined"
+                        onClick={() => handleRevoke(member.id)}
+                        disabled={revokingId === member.id}
+                        startIcon={revokingId === member.id ? <CircularProgress size={16} /> : <PersonOff />}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}

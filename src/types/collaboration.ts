@@ -1,5 +1,59 @@
 import { CollaborativeRole, CollaborativeStatus } from "@prisma/client";
 
+// ── Feature permissions ───────────────────────────────────────────────────────
+
+export interface CollaboratorPermissions {
+  gameCenter: boolean;      // Game Center — always on, cannot be disabled
+  adChat: boolean;          // AD ↔ AD Chat (Messages page)
+  parentMessages: boolean;  // View parent athlete messages (Connect page messages)
+  emailManager: boolean;    // Email Manager
+  calendarSync: boolean;    // Calendar Sync (Calendars page)
+  settings: boolean;        // Account Settings
+  community: boolean;       // Community / Posts feed
+  connect: boolean;         // Connect / Parents management
+  scheduleBoard: boolean;   // Schedule Exchange Board
+}
+
+export const DEFAULT_COLLABORATOR_PERMISSIONS: CollaboratorPermissions = {
+  gameCenter: true,
+  adChat: false,
+  parentMessages: false,
+  emailManager: false,
+  calendarSync: false,
+  settings: false,
+  community: false,
+  connect: false,
+  scheduleBoard: false,
+};
+
+export const ALL_PERMISSIONS_GRANTED: CollaboratorPermissions = {
+  gameCenter: true,
+  adChat: true,
+  parentMessages: true,
+  emailManager: true,
+  calendarSync: true,
+  settings: true,
+  community: true,
+  connect: true,
+  scheduleBoard: true,
+};
+
+export function parsePermissions(raw: unknown): CollaboratorPermissions {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_COLLABORATOR_PERMISSIONS };
+  const p = raw as Partial<CollaboratorPermissions>;
+  return {
+    gameCenter: true, // always true — cannot be revoked
+    adChat: p.adChat ?? false,
+    parentMessages: p.parentMessages ?? false,
+    emailManager: p.emailManager ?? false,
+    calendarSync: p.calendarSync ?? false,
+    settings: p.settings ?? false,
+    community: p.community ?? false,
+    connect: p.connect ?? false,
+    scheduleBoard: p.scheduleBoard ?? false,
+  };
+}
+
 // API Request/Response Types
 
 export interface InviteCollaboratorRequest {

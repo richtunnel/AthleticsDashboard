@@ -85,19 +85,19 @@ import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesM
 
 const DRAWER_WIDTH = 240;
 
+type NavPermissionKey = "gameCenter" | "emailManager" | "calendarSync" | "connect" | "community" | "adChat" | "settings" | "scheduleBoard";
+
 const baseNavigation = [
-  { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
-  { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
-  { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
-  { name: "Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
-  { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
-  { name: "Connect", href: "/dashboard/parents", icon: Person },
-  { name: "Community", href: "/dashboard/posts", icon: Newspaper },
-  { name: "Chat", href: "/dashboard/ad-chat", icon: Chat },
-  { name: "Find Games", href: "/schedule-board", icon: SearchIcon, external: true, requiresVisible: "findGames" },
-  // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
-  // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
+  { name: "Dashboard",     href: "/dashboard",              icon: DashboardIcon },
+  { name: "Game Center",   href: "/dashboard/games",        icon: CalendarMonth,    permissionKey: "gameCenter" as NavPermissionKey },
+  { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon,        permissionKey: "emailManager" as NavPermissionKey },
+  { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon, permissionKey: "calendarSync" as NavPermissionKey },
+  { name: "Teams",         href: "/dashboard/opponents",    icon: Groups,           requiresScoreTracker: true },
+  { name: "Connect",       href: "/dashboard/parents",      icon: Person,           permissionKey: "connect" as NavPermissionKey },
+  { name: "Community",     href: "/dashboard/posts",        icon: Newspaper,        permissionKey: "community" as NavPermissionKey },
+  { name: "Chat",          href: "/dashboard/ad-chat",      icon: Chat,             permissionKey: "adChat" as NavPermissionKey },
+  { name: "Find Games",    href: "/schedule-board",         icon: SearchIcon,       external: true, requiresVisible: "findGames", permissionKey: "scheduleBoard" as NavPermissionKey },
+  { name: "Settings",      href: "/dashboard/settings",     icon: Settings,         permissionKey: "settings" as NavPermissionKey },
 ];
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -145,6 +145,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     },
   });
 
+  // Collaborator feature permissions — null while loading, full access for ADs
+  const { data: myPermissions } = useQuery({
+    queryKey: ["myCollaboratorPermissions"],
+    queryFn: async () => {
+      const res = await fetch("/api/collaboration/my-permissions");
+      if (!res.ok) return null;
+      return res.json() as Promise<{ isCollaborator: boolean; permissions: Record<NavPermissionKey, boolean> }>;
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: !!session?.user?.id,
+  });
+
   // AD chat unread count for the Chat nav badge
   const { data: adChatUnread } = useQuery({
     queryKey: ["adChatUnread"],
@@ -156,12 +168,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const isScoreTrackerEnabled = scoreTrackerData?.scoreTrackerEnabled ?? false;
 
-  // Filter navigation based on feature toggles and user preferences
+  // Filter navigation based on feature toggles, user preferences, and collaborator permissions
+  const isCollaborator = myPermissions?.isCollaborator ?? false;
+  const collabPerms = myPermissions?.permissions ?? null;
+
   const navigation = baseNavigation.filter((item) => {
     if (item.requiresScoreTracker && !isScoreTrackerEnabled) return false;
     if (item.href === "/dashboard/posts" && menuVisibility?.hidePostsMenu) return false;
     if (item.href === "/dashboard/parents" && menuVisibility?.hideParentsMenu) return false;
     if (item.requiresVisible === "findGames" && menuVisibility?.hideFindGamesMenu) return false;
+    // Hide items the collaborator has no permission for
+    if (isCollaborator && collabPerms && item.permissionKey) {
+      if (!collabPerms[item.permissionKey]) return false;
+    }
     return true;
   });
   const pathname = usePathname();
