@@ -691,7 +691,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </Typography>
               </Box>
               <Divider />
-              <MenuItem component="a" href="/dashboard/feature-tips" target="_blank" rel="noopener noreferrer" onClick={handleClose}>
+              <MenuItem component="a" href="/feature-tips" target="_blank" rel="noopener noreferrer" onClick={handleClose}>
                 <ListItemIcon>
                   <LightbulbOutlined fontSize="small" />
                 </ListItemIcon>
