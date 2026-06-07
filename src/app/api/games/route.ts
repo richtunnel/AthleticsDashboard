@@ -40,8 +40,24 @@ export async function GET(request: NextRequest) {
     // Pagination
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "25");
-    const sortBy = searchParams.get("sortBy") || "date";
-    const sortOrder = searchParams.get("sortOrder") || "asc";
+    // Multi-sort: new `sort` JSON param takes precedence; fall back to legacy
+    // sortBy/sortOrder for the calendar view (which hardcodes date asc).
+    type SortItem = { field: string; order: "asc" | "desc" };
+    let sortItems: SortItem[] = [];
+    const sortParam = searchParams.get("sort");
+    if (sortParam) {
+      try {
+        const parsed = JSON.parse(sortParam);
+        if (Array.isArray(parsed) && parsed.every((s: any) => typeof s.field === "string" && (s.order === "asc" || s.order === "desc"))) {
+          sortItems = parsed;
+        }
+      } catch { /* ignore bad JSON */ }
+    }
+    if (sortItems.length === 0) {
+      const sortBy = searchParams.get("sortBy") || "date";
+      const sortOrder = (searchParams.get("sortOrder") || "asc") as "asc" | "desc";
+      sortItems = [{ field: sortBy, order: sortOrder }];
+    }
     const workbookId = searchParams.get("workbookId");
 
     // Build where clause
@@ -107,55 +123,40 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Build orderBy based on sortBy parameter.
-    // Prisma 6.x dropped JSON-path orderBy (customFields/customData path sorting),
-    // so we handle those in-memory after fetching all matching rows.
-    let orderBy: any = { date: "asc" };
-    let jsonSortField: { source: "customData" | "customFields"; key: string } | null = null;
+    // Build orderBy from the sorted list of {field, order} pairs.
+    // Prisma 6.x dropped JSON-path orderBy, so custom:/imported: fields are
+    // collected separately and applied in-memory after the DB fetch.
+    type JsonSortItem = { source: "customData" | "customFields"; key: string; order: "asc" | "desc" };
+    const dbClauses: any[] = [];
+    const jsonSortItems: JsonSortItem[] = [];
 
-    if (sortBy.startsWith("custom:")) {
-      jsonSortField = { source: "customData", key: sortBy.replace("custom:", "") };
-    } else if (sortBy.startsWith("imported:")) {
-      jsonSortField = { source: "customFields", key: sortBy.replace("imported:", "") };
-    } else {
-      switch (sortBy) {
-        case "date":
-          orderBy = { date: sortOrder };
-          break;
-        case "time":
-          orderBy = { time: sortOrder };
-          break;
-        case "isHome":
-          orderBy = { isHome: sortOrder };
-          break;
-        case "status":
-          orderBy = { status: sortOrder };
-          break;
-        case "location":
-          orderBy = { venue: { name: sortOrder } };
-          break;
-        case "sport":
-          orderBy = { homeTeam: { sport: { name: sortOrder } } };
-          break;
-        case "level":
-          orderBy = { homeTeam: { level: sortOrder } };
-          break;
-        case "opponent":
-          orderBy = { opponent: { name: sortOrder } };
-          break;
-        case "busTravel":
-          orderBy = { busTravel: sortOrder };
-          break;
-        case "notes":
-          orderBy = { notes: sortOrder };
-          break;
-        case "sortOrder":
-          orderBy = [{ sortOrder: sortOrder }, { date: "asc" }];
-          break;
-        default:
-          orderBy = { date: "asc" };
+    for (const { field, order } of sortItems) {
+      if (field.startsWith("custom:")) {
+        jsonSortItems.push({ source: "customData", key: field.replace("custom:", ""), order });
+      } else if (field.startsWith("imported:")) {
+        jsonSortItems.push({ source: "customFields", key: field.replace("imported:", ""), order });
+      } else {
+        switch (field) {
+          case "date":      dbClauses.push({ date: order }); break;
+          case "time":      dbClauses.push({ time: order }); break;
+          case "isHome":    dbClauses.push({ isHome: order }); break;
+          case "status":    dbClauses.push({ status: order }); break;
+          case "location":  dbClauses.push({ venue: { name: order } }); break;
+          case "sport":     dbClauses.push({ homeTeam: { sport: { name: order } } }); break;
+          case "level":     dbClauses.push({ homeTeam: { level: order } }); break;
+          case "opponent":  dbClauses.push({ opponent: { name: order } }); break;
+          case "busTravel": dbClauses.push({ busTravel: order }); break;
+          case "notes":     dbClauses.push({ notes: order }); break;
+          case "sortOrder": dbClauses.push({ sortOrder: order }, { date: "asc" }); break;
+          // unknown custom column keys — fall through (no-op)
+        }
       }
     }
+
+    // Prisma accepts either a single object or an array for orderBy
+    let orderBy: any = dbClauses.length > 0
+      ? (dbClauses.length === 1 ? dbClauses[0] : dbClauses)
+      : { date: "asc" };
 
     // Get total count for pagination
     const total = await prisma.game.count({ where });
@@ -175,16 +176,18 @@ export async function GET(request: NextRequest) {
 
     // Get games
     let games;
-    if (jsonSortField) {
-      // JSON field sorts can't be pushed to Prisma 6.x — fetch all matching rows,
-      // sort in memory, then slice for the requested page.
-      const { source, key } = jsonSortField;
-      const allGames = await prisma.game.findMany({ where, include: gameInclude, orderBy: { date: "asc" } });
+    if (jsonSortItems.length > 0) {
+      // JSON fields (custom:/imported:) can't be sorted by Prisma 6.x —
+      // fetch all matching rows (DB-sorted by any non-JSON keys first as a
+      // stable base), sort the JSON fields in-memory, then page-slice.
+      const allGames = await prisma.game.findMany({ where, include: gameInclude, orderBy });
       allGames.sort((a, b) => {
-        const av = String((a[source] as any)?.[key] ?? "");
-        const bv = String((b[source] as any)?.[key] ?? "");
-        if (av < bv) return sortOrder === "asc" ? -1 : 1;
-        if (av > bv) return sortOrder === "asc" ? 1 : -1;
+        for (const { source, key, order } of jsonSortItems) {
+          const av = String((a[source] as any)?.[key] ?? "");
+          const bv = String((b[source] as any)?.[key] ?? "");
+          if (av < bv) return order === "asc" ? -1 : 1;
+          if (av > bv) return order === "asc" ? 1 : -1;
+        }
         return 0;
       });
       games = allGames.slice((page - 1) * limit, page * limit);

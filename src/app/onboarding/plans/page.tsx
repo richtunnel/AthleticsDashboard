@@ -70,6 +70,7 @@ const buildPlans = (priceIds: StripePriceIds): Plan[] => [
       "Mass email game schedules",
       "Travel Recommendations (Bus Departure)",
       "Table customization (filters, ordering)",
+      "Schedule Exchange",
       "1 Collaborator Account",
       "Public posts",
       "Basic chat and email support",
@@ -163,11 +164,11 @@ function PricingPlansContent() {
         // Merge server values over any build-time values — server wins if set
         setPriceIds((prev) => ({
           standardMonthly: data.standardMonthly || prev.standardMonthly,
-          standardAnnual:  data.standardAnnual  || prev.standardAnnual,
-          teamMonthly:     data.teamMonthly      || prev.teamMonthly,
-          teamAnnual:      data.teamAnnual       || prev.teamAnnual,
-          plusMonthly:     data.plusMonthly      || prev.plusMonthly,
-          plusAnnual:      data.plusAnnual       || prev.plusAnnual,
+          standardAnnual: data.standardAnnual || prev.standardAnnual,
+          teamMonthly: data.teamMonthly || prev.teamMonthly,
+          teamAnnual: data.teamAnnual || prev.teamAnnual,
+          plusMonthly: data.plusMonthly || prev.plusMonthly,
+          plusAnnual: data.plusAnnual || prev.plusAnnual,
         }));
       })
       .catch(() => {
@@ -395,9 +396,7 @@ function PricingPlansContent() {
             <Typography variant="body2" fontWeight={600} gutterBottom>
               One more step — start your free trial
             </Typography>
-            <Typography variant="body2">
-              Select a plan below to activate your 2-week free trial. You won&apos;t be charged until the trial ends, and you can cancel anytime.
-            </Typography>
+            <Typography variant="body2">Select a plan below to activate your 2-week free trial. You won&apos;t be charged until the trial ends, and you can cancel anytime.</Typography>
           </Alert>
         )}
 

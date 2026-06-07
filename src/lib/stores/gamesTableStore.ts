@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
+export type SortItem = { field: string; order: "asc" | "desc" };
+
 interface NewGameData {
   date: string;
   time: string;
@@ -33,11 +35,9 @@ interface GamesTableState {
   isCustomStructureActive: boolean;
   setIsCustomStructureActive: (isActive: boolean) => void;
 
-  // Sorting
-  sortField: string | null;
-  sortOrder: "asc" | "desc" | null;
-  setSortField: (field: string | null) => void;
-  setSortOrder: (order: "asc" | "desc" | null) => void;
+  // Sorting — ordered list of {field, order}; first entry is primary sort
+  sortFields: SortItem[];
+  setSortFields: (fields: SortItem[]) => void;
 
   // Adding new game
   isAddingNew: boolean;
@@ -94,11 +94,9 @@ export const useGamesTableStore = create<GamesTableState>()(
 
       setIsCustomStructureActive: (isActive) => set({ isCustomStructureActive: isActive }),
 
-      // Sorting - default to date ascending, but allow null to reset to natural order
-      sortField: "date",
-      sortOrder: "asc",
-      setSortField: (field) => set({ sortField: field }),
-      setSortOrder: (order) => set({ sortOrder: order }),
+      // Sorting — default primary sort is date asc
+      sortFields: [{ field: "date", order: "asc" as const }],
+      setSortFields: (fields) => set({ sortFields: fields }),
 
       // Adding new game
       isAddingNew: false,
@@ -150,8 +148,7 @@ export const useGamesTableStore = create<GamesTableState>()(
         set({
           page: 0,
           rowsPerPage: 25,
-          sortField: "date",
-          sortOrder: "asc",
+          sortFields: [{ field: "date", order: "asc" as const }],
           isAddingNew: false,
           newGameData: getDefaultNewGameData(),
           editingGameId: null,
@@ -162,6 +159,18 @@ export const useGamesTableStore = create<GamesTableState>()(
     {
       name: "games-table-storage",
       storage: createJSONStorage(() => localStorage),
+      version: 2,
+      migrate: (persistedState: any, version) => {
+        if (version < 2) {
+          // Migrate single sortField/sortOrder → sortFields array
+          const field = persistedState.sortField ?? "date";
+          const order: "asc" | "desc" = persistedState.sortOrder === "desc" ? "desc" : "asc";
+          persistedState.sortFields = field ? [{ field, order }] : [{ field: "date", order: "asc" }];
+          delete persistedState.sortField;
+          delete persistedState.sortOrder;
+        }
+        return persistedState as any;
+      },
     }
   )
 );

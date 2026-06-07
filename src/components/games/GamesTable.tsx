@@ -46,7 +46,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { GradientSendIcon } from "@/components/icons/GradientSendIcon";
 import { ChipProps } from "@mui/material/Chip";
 import { useGamesFiltersStore } from "@/lib/stores/gamesFiltersStore";
-import { useGamesTableStore } from "@/lib/stores/gamesTableStore";
+import { useGamesTableStore, type SortItem } from "@/lib/stores/gamesTableStore";
 import { useImportUndoStore } from "@/lib/stores/importUndoStore";
 import { useDeleteUndoStore } from "@/lib/stores/deleteUndoStore";
 import { useGamesWorkbookStore } from "@/lib/stores/gamesWorkbookStore";
@@ -541,10 +541,8 @@ export function GamesTable() {
     rowsPerPage,
     setPage,
     setRowsPerPage,
-    sortField,
-    sortOrder,
-    setSortField,
-    setSortOrder,
+    sortFields,
+    setSortFields,
     isAddingNew,
     setIsAddingNew,
     newGameData,
@@ -801,8 +799,8 @@ export function GamesTable() {
       })
       .join("|");
 
-    return ["games", filterKey, sortField, sortOrder, page + 1, rowsPerPage, selectedWorkbookId] as const;
-  }, [stableColumnFilters, sortField, sortOrder, page, rowsPerPage, selectedWorkbookId]);
+    return ["games", filterKey, JSON.stringify(sortFields), page + 1, rowsPerPage, selectedWorkbookId] as const;
+  }, [stableColumnFilters, sortFields, page, rowsPerPage, selectedWorkbookId]);
 
   const getCharacterCounterColor = (length: number) => {
     if (length >= MAX_CHAR_LIMIT) {
@@ -965,12 +963,9 @@ export function GamesTable() {
         }
       });
 
-      // Only append sort params if they're not null (allows reverting to default sort)
-      if (sortField) {
-        params.append("sortBy", sortField);
-      }
-      if (sortOrder) {
-        params.append("sortOrder", sortOrder);
+      // Encode the full sort spec; API falls back to date asc when absent
+      if (sortFields.length > 0) {
+        params.append("sort", JSON.stringify(sortFields));
       }
       params.append("page", String(page + 1));
       params.append("limit", String(rowsPerPage));
@@ -4220,25 +4215,41 @@ export function GamesTable() {
     clearSelectedGameIds();
   };
 
-  const handleSort = (field: SortField) => {
-    // Clear preserved games when user manually sorts
+  const handleSort = (field: SortField, event?: React.MouseEvent) => {
     setPreservedGameIds(new Set());
+    setPage(0);
 
-    if (sortField === field) {
-      // Cycle through: asc → desc → null (remove sort)
-      if (sortOrder === "asc") {
-        setSortOrder("desc");
-      } else if (sortOrder === "desc") {
-        // Remove sort completely - reset to null
-        setSortField(null);
-        setSortOrder(null);
+    if (event?.shiftKey) {
+      // ── Multi-sort: Shift+click adds / cycles / removes a secondary key ──
+      const idx = sortFields.findIndex((s) => s.field === field);
+      if (idx === -1) {
+        // Add as next sort key (asc)
+        setSortFields([...sortFields, { field, order: "asc" }]);
+      } else if (sortFields[idx].order === "asc") {
+        // Toggle to desc
+        const updated = sortFields.map((s, i) =>
+          i === idx ? { ...s, order: "desc" as const } : s
+        );
+        setSortFields(updated);
+      } else {
+        // Remove this key; fall back to date asc if list becomes empty
+        const updated = sortFields.filter((_, i) => i !== idx);
+        setSortFields(updated.length > 0 ? updated : [{ field: "date", order: "asc" }]);
       }
     } else {
-      // New field - start with asc
-      setSortField(field);
-      setSortOrder("asc");
+      // ── Single-sort: replace all active sorts with this field ──
+      const isSoleSort = sortFields.length === 1 && sortFields[0].field === field;
+      if (isSoleSort) {
+        // Cycle: asc → desc → default (date asc)
+        if (sortFields[0].order === "asc") {
+          setSortFields([{ field, order: "desc" }]);
+        } else {
+          setSortFields([{ field: "date", order: "asc" }]);
+        }
+      } else {
+        setSortFields([{ field, order: "asc" }]);
+      }
     }
-    setPage(0);
   };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -4521,9 +4532,44 @@ export function GamesTable() {
     return (
       <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
-          <TableSortLabel active={sortField === sortFieldValue} direction={sortField === sortFieldValue && sortOrder ? sortOrder : "asc"} onClick={() => handleSort(sortFieldValue)}>
-            {displayLabel.toUpperCase()}
-          </TableSortLabel>
+          (() => {
+            const sortIdx = sortFields.findIndex((s) => s.field === sortFieldValue);
+            const isActive = sortIdx !== -1;
+            const direction = isActive ? sortFields[sortIdx].order : "asc";
+            return (
+              <Tooltip title="Hold Shift to sort by multiple columns" placement="top" arrow>
+              <TableSortLabel
+                active={isActive}
+                direction={direction}
+                onClick={(e) => handleSort(sortFieldValue, e)}
+              >
+                {displayLabel.toUpperCase()}
+                {sortFields.length > 1 && isActive && (
+                  <Box
+                    component="span"
+                    sx={{
+                      ml: 0.4,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      bgcolor: "primary.main",
+                      color: "primary.contrastText",
+                      borderRadius: "50%",
+                      width: 14,
+                      height: 14,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {sortIdx + 1}
+                  </Box>
+                )}
+              </TableSortLabel>
+              </Tooltip>
+            );
+          })()
         ) : (
           <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>{displayLabel.toUpperCase()}</Typography>
         )}
