@@ -12,8 +12,10 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
+  IconButton,
   Stack,
   Switch,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
@@ -22,6 +24,7 @@ import {
   ChatBubbleOutline,
   CheckCircle,
   Group,
+  InfoOutlined,
   Lock,
   ManageAccounts,
   Message,
@@ -39,8 +42,9 @@ interface PermissionDef {
   key: keyof CollaboratorPermissions;
   label: string;
   description: string;
+  tooltip: string;
   icon: React.ReactNode;
-  locked?: boolean; // always on, cannot be toggled
+  locked?: boolean;
 }
 
 const PERMISSION_DEFS: PermissionDef[] = [
@@ -48,58 +52,119 @@ const PERMISSION_DEFS: PermissionDef[] = [
     key: "gameCenter",
     label: "Game Center",
     description: "View and manage the game schedule, import CSVs, create and edit games.",
+    tooltip: "Game Center is always accessible to all collaborators and cannot be disabled.",
     icon: <SportsScore fontSize="small" />,
     locked: true,
   },
   {
     key: "scheduleBoard",
     label: "Schedule Exchange Board",
-    description: "Browse open dates posted by other ADs and request games.",
+    description: "Browse open dates posted by other ADs and request games from the Exchange Board.",
+    tooltip: "When enabled, the collaborator can view and interact with the Schedule Exchange Board.",
     icon: <Group fontSize="small" />,
   },
   {
     key: "emailManager",
     label: "Email Manager",
-    description: "Access email groups, campaigns, and send schedule emails.",
+    description: "Access email groups and campaigns, and send schedule emails on your behalf.",
+    tooltip: "When enabled, the collaborator can manage contact groups and send email campaigns.",
     icon: <Message fontSize="small" />,
   },
   {
     key: "calendarSync",
     label: "Calendar Sync",
-    description: "View and manage Google Calendar sync settings.",
+    description: "View and manage Google Calendar sync settings and connected calendars.",
+    tooltip: "When enabled, the collaborator can access the Calendars page and manage sync settings.",
     icon: <CalendarMonth fontSize="small" />,
   },
   {
     key: "adChat",
     label: "AD Chat",
-    description: "Access the AD-to-AD messaging system (Chat page).",
+    description: "Access the AD-to-AD messaging system and read or send chat messages.",
+    tooltip: "When enabled, the collaborator can read and reply to messages on the Chat page.",
     icon: <ChatBubbleOutline fontSize="small" />,
   },
   {
     key: "parentMessages",
     label: "Parent Messages",
     description: "View parent athlete messages and connection requests in the Connect section.",
+    tooltip: "Enable only for collaborators who assist with parent communications.",
     icon: <Person fontSize="small" />,
   },
   {
     key: "connect",
     label: "Connect — Parent Management",
-    description: "Manage parent connections, approve sync requests, and view parent details.",
+    description: "Manage parent connections, approve calendar sync requests, and view parent details.",
+    tooltip: "When enabled, the collaborator can approve or remove parent connections.",
     icon: <ManageAccounts fontSize="small" />,
   },
   {
     key: "community",
     label: "Community",
-    description: "View and post in the community feed, send announcements.",
+    description: "View and post in the community feed and send announcements to parents.",
+    tooltip: "When enabled, the collaborator can post updates and send announcements.",
     icon: <Newspaper fontSize="small" />,
   },
   {
     key: "settings",
     label: "Settings",
-    description: "Access account settings. Enable only for trusted collaborators.",
+    description: "Access account settings including school details and billing. Enable only for trusted collaborators.",
+    tooltip: "When enabled, the collaborator can view and edit account settings.",
     icon: <Lock fontSize="small" />,
   },
 ];
+
+// ── Single toggle row (matches MenuVisibilityToggles style) ───────────────────
+
+function PermissionToggle({
+  def,
+  checked,
+  disabled,
+  onChange,
+}: {
+  def: PermissionDef;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, flexGrow: 1 }}>
+        <Box sx={{ color: "text.secondary", mt: 0.25 }}>{def.icon}</Box>
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography variant="body1" fontWeight={500}>
+              {def.label}
+            </Typography>
+            {def.locked && (
+              <Chip label="Always on" size="small" color="success" sx={{ height: 18, fontSize: "0.62rem", ml: 0.5 }} />
+            )}
+            <Tooltip title={def.tooltip} placement="top" arrow>
+              <IconButton size="small">
+                <InfoOutlined sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+            {def.description}
+          </Typography>
+        </Box>
+      </Box>
+      <FormControlLabel
+        control={
+          <Switch
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+            disabled={disabled}
+            color="primary"
+          />
+        }
+        label=""
+        sx={{ mr: 0 }}
+      />
+    </Box>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -121,7 +186,6 @@ export default function CollaboratorPermissionsPage() {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load current permissions
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -138,7 +202,8 @@ export default function CollaboratorPermissionsPage() {
 
   const toggle = (key: keyof CollaboratorPermissions) => {
     if (!permissions) return;
-    setPermissions((prev) => prev ? { ...prev, [key]: !prev[key] } : prev);
+    setPermissions((prev) => (prev ? { ...prev, [key]: !prev[key] } : prev));
+    setSavedAt(null);
   };
 
   const handleSave = async () => {
@@ -162,8 +227,6 @@ export default function CollaboratorPermissionsPage() {
     }
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -174,7 +237,7 @@ export default function CollaboratorPermissionsPage() {
 
   if (error && !info) {
     return (
-      <Box sx={{ maxWidth: 700, mx: "auto", py: 4 }}>
+      <Box sx={{ maxWidth: 740, mx: "auto", py: 4 }}>
         <Button component={Link} href="/dashboard/settings" startIcon={<ArrowBack />} sx={{ mb: 2, textTransform: "none" }}>
           Back to Settings
         </Button>
@@ -190,41 +253,35 @@ export default function CollaboratorPermissionsPage() {
   return (
     <Box sx={{ maxWidth: 740, mx: "auto", py: { xs: 2, sm: 3 }, px: { xs: 1, sm: 0 } }}>
 
-      {/* Back button */}
       <Button
         component={Link}
         href="/dashboard/settings"
         startIcon={<ArrowBack />}
         size="small"
-        sx={{ mb: 2, textTransform: "none", color: "text.secondary" }}
+        sx={{ mb: 2.5, textTransform: "none", color: "text.secondary" }}
       >
         Back to Settings
       </Button>
 
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={700}>
-          Collaborator Permissions
-        </Typography>
-        {info && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {info.email}
-            </Typography>
-            <Chip label={info.role} size="small" variant="outlined" color="primary" />
-            <Chip
-              label={info.status}
-              size="small"
-              color={info.status === "ACCEPTED" ? "success" : "default"}
-              variant="outlined"
-            />
-          </Stack>
-        )}
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          All features are <strong>off by default</strong>. Enable only what this collaborator needs.
-          Changes take effect immediately on their next page load.
-        </Typography>
-      </Box>
+      {/* Header card — matches Others page section style */}
+      <Card sx={{ mb: 3, boxShadow: "none !important" }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
+            Collaborator Permissions
+          </Typography>
+          {info && (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1, flexWrap: "wrap", gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">{info.email}</Typography>
+              <Chip label={info.role} size="small" variant="outlined" color="primary" />
+              <Chip label={info.status} size="small" color={info.status === "ACCEPTED" ? "success" : "default"} variant="outlined" />
+            </Stack>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            All features are <strong>off by default</strong>. Enable only what this collaborator needs.
+            Changes take effect immediately on their next page load.
+          </Typography>
+        </CardContent>
+      </Card>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
@@ -232,71 +289,24 @@ export default function CollaboratorPermissionsPage() {
         </Alert>
       )}
 
-      {/* Permission cards */}
-      <Stack spacing={1.5}>
-        {PERMISSION_DEFS.map((def) => {
-          const isOn = permissions?.[def.key] ?? false;
-          return (
-            <Card
-              key={def.key}
-              elevation={0}
-              sx={{
-                border: "1px solid",
-                borderColor: isOn && !def.locked ? "primary.main" : "divider",
-                borderRadius: 2,
-                transition: "border-color 0.2s",
-                opacity: def.locked ? 0.8 : 1,
-              }}
-            >
-              <CardContent sx={{ py: 1.75, px: 2.5, "&:last-child": { pb: 1.75 } }}>
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, flex: 1, minWidth: 0 }}>
-                    <Box
-                      sx={{
-                        mt: 0.25,
-                        color: isOn || def.locked ? "primary.main" : "text.disabled",
-                        flexShrink: 0,
-                        transition: "color 0.2s",
-                      }}
-                    >
-                      {def.icon}
-                    </Box>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                        <Typography variant="body2" fontWeight={600}>
-                          {def.label}
-                        </Typography>
-                        {def.locked && (
-                          <Chip label="Always on" size="small" color="success" sx={{ height: 18, fontSize: "0.65rem" }} />
-                        )}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.45, display: "block" }}>
-                        {def.description}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={isOn}
-                        onChange={() => !def.locked && toggle(def.key)}
-                        disabled={def.locked}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label=""
-                    sx={{ m: 0, flexShrink: 0 }}
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </Stack>
-
-      <Divider sx={{ my: 3 }} />
+      {/* Single card with all toggles — matches MenuVisibilityToggles / Others page */}
+      <Card sx={{ mb: 3, boxShadow: "none !important" }}>
+        <CardContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            {PERMISSION_DEFS.map((def, idx) => (
+              <Box key={def.key}>
+                {idx > 0 && <Divider sx={{ mb: 2.5 }} />}
+                <PermissionToggle
+                  def={def}
+                  checked={permissions?.[def.key] ?? false}
+                  disabled={def.locked ?? false}
+                  onChange={(v) => toggle(def.key)}
+                />
+              </Box>
+            ))}
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Save bar */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -314,12 +324,7 @@ export default function CollaboratorPermissionsPage() {
           )}
         </Box>
         <Box sx={{ display: "flex", gap: 1.5 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => router.push("/dashboard/settings")}
-            sx={{ textTransform: "none" }}
-          >
+          <Button variant="outlined" size="small" onClick={() => router.push("/dashboard/settings")} sx={{ textTransform: "none" }}>
             Cancel
           </Button>
           <Button

@@ -4261,8 +4261,17 @@ export function GamesTable() {
       // ── Multi-sort: Shift+click adds / cycles / removes a secondary key ──
       const idx = sortFields.findIndex((s) => s.field === field);
       if (idx === -1) {
-        // Add as next sort key (asc)
-        setSortFields([...sortFields, { field, order: "asc" }]);
+        // Adding a new field. If the only existing sort is the auto-fallback
+        // (date asc), replace it so the new field gets badge "1", not "2".
+        const isDefaultFallback =
+          sortFields.length === 1 &&
+          sortFields[0].field === "date" &&
+          sortFields[0].order === "asc";
+        setSortFields(
+          isDefaultFallback
+            ? [{ field, order: "asc" }]
+            : [...sortFields, { field, order: "asc" }]
+        );
       } else if (sortFields[idx].order === "asc") {
         // Toggle to desc
         const updated = sortFields.map((s, i) => (i === idx ? { ...s, order: "desc" as const } : s));

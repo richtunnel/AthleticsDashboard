@@ -50,8 +50,7 @@ export async function GET() {
 
     if (!hasCalendarScope && !refreshToken && !accessToken) {
       return NextResponse.json(
-        { error: "Google Calendar not connected. Please connect your calendar.", needsConnect: true },
-        { status: 400 }
+        { calendars: [], connected: false, needsConnect: true, message: "Google Calendar not connected." }
       );
     }
 

@@ -468,8 +468,8 @@ export function CSVImport({ onImportComplete, onClose, workbookId }: CSVImportPr
   const handleDownloadTemplate = () => {
     const headers = ["date", "sport", "level", "home_away", "opponent", "location", "time", "confirmed", "bus_travel", "notes"];
     const sampleData = [
-      ["2024-01-15", "Basketball", "Varsity", "Home", "Lincoln High", "Home Gym", "15:00", "Yes", "No", "Senior Night"],
-      ["2024-01-20", "Football", "JV", "Away", "Roosevelt HS", "Roosevelt Stadium", "18:30", "Yes", "Yes", "Bring extra uniforms"],
+      ["01-15-2024", "Basketball", "Varsity", "Home", "Lincoln High", "Home Gym", "3:00 PM", "Yes", "No", "Senior Night"],
+      ["01-20-2024", "Football", "JV", "Away", "Roosevelt HS", "Roosevelt Stadium", "6:30 PM", "Yes", "Yes", "Bring extra uniforms"],
     ];
 
     const csv = [headers.join(","), ...sampleData.map((row) => row.join(","))].join("\n");

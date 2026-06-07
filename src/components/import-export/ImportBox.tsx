@@ -406,8 +406,8 @@ export function ImportBox({ onImportComplete, onClose }: CSVImportProps) {
   const handleDownloadTemplate = () => {
     const headers = ["date", "time", "sport", "level", "opponent", "home_away", "venue", "location", "status", "confirmed", "notes"];
     const sampleData = [
-      ["2024-01-15", "15:00", "Basketball", "VARSITY", "Lincoln High", "Home", "Main Gym", "123 Main St", "CONFIRMED", "yes", "Senior Night"],
-      ["2024-01-20", "18:30", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "456 Oak Ave", "SCHEDULED", "no", ""],
+      ["01-15-2024", "3:00 PM", "Basketball", "VARSITY", "Lincoln High", "Home", "Main Gym", "123 Main St", "CONFIRMED", "yes", "Senior Night"],
+      ["01-20-2024", "6:30 PM", "Football", "JV", "Roosevelt HS", "Away", "Roosevelt Stadium", "456 Oak Ave", "SCHEDULED", "no", ""],
     ];
 
     const csv = [headers.join(","), ...sampleData.map((row) => row.join(","))].join("\n");

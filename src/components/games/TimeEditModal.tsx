@@ -95,11 +95,7 @@ export const TimeEditModal: React.FC<TimeEditModalProps> = ({
             Supported formats:
           </Typography>
           <Typography variant="caption" sx={{ color: "text.secondary", display: "block", lineHeight: 1.6 }}>
-            • 12-hour: 3:30 PM, 9:00 AM
-            <br />
-            • 24-hour: 15:30, 09:00
-            <br />
-            • Compact: 1530, 0900
+            • 3:30 PM, 9:00 AM, 6:45 PM
             <br />• Type "TBD" or leave empty for no time
           </Typography>
         </Box>

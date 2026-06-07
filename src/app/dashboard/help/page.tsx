@@ -19,10 +19,10 @@ import Link from "next/link";
 function downloadExampleCsv() {
   const headers = ["date", "time", "sport", "level", "gender", "opponent", "home_away", "venue", "location", "status", "notes"];
   const rows = [
-    ["2025-09-05", "15:00", "Basketball", "Varsity", "Boys", "Lincoln High", "Home", "Main Gym", "123 Main St, Springfield", "SCHEDULED", "Season opener"],
-    ["2025-09-12", "18:30", "Soccer", "JV", "Girls", "Roosevelt HS", "Away", "Roosevelt Field", "456 Oak Ave, Shelbyville", "SCHEDULED", ""],
-    ["2025-09-19", "16:00", "Football", "Varsity", "Boys", "Washington HS", "Home", "Athletic Complex", "789 Elm Rd, Springfield", "SCHEDULED", "Homecoming game"],
-    ["2025-09-26", "14:00", "Volleyball", "Varsity", "Girls", "Jefferson Prep", "Away", "Jefferson Gym", "321 Pine St, Shelbyville", "SCHEDULED", ""],
+    ["09-05-2025", "3:00 PM", "Basketball", "Varsity", "Boys", "Lincoln High", "Home", "Main Gym", "123 Main St, Springfield", "SCHEDULED", "Season opener"],
+    ["09-12-2025", "6:30 PM", "Soccer", "JV", "Girls", "Roosevelt HS", "Away", "Roosevelt Field", "456 Oak Ave, Shelbyville", "SCHEDULED", ""],
+    ["09-19-2025", "4:00 PM", "Football", "Varsity", "Boys", "Washington HS", "Home", "Athletic Complex", "789 Elm Rd, Springfield", "SCHEDULED", "Homecoming game"],
+    ["09-26-2025", "2:00 PM", "Volleyball", "Varsity", "Girls", "Jefferson Prep", "Away", "Jefferson Gym", "321 Pine St, Shelbyville", "SCHEDULED", ""],
   ];
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -140,10 +140,10 @@ export default function HelpPage() {
             Make sure your file is saved as <strong>.csv</strong> (not .xlsx or .numbers).
           </Step>
           <Step num={2}>
-            Dates should be in <strong>YYYY-MM-DD</strong> format (e.g. 2025-09-05).
+            Dates can be in any common format — primarily <strong>MM-DD-YYYY</strong> (e.g. 09-05-2025). MM/DD/YYYY and other formats are also accepted.
           </Step>
           <Step num={3}>
-            Times should be in <strong>HH:MM</strong> 24-hour format (e.g. 15:00 for 3 PM).
+            Times should be in <strong>12-hour format with AM/PM</strong> (e.g. 3:00 PM, 6:30 PM, 10:00 AM).
           </Step>
           <Step num={4}>
             For <strong>Home/Away</strong>, use values like <em>Home</em>, <em>Away</em>, <em>H</em>, or <em>A</em> in your column. A column named <em>home_away</em>, <em>Location Type</em>, or{" "}
@@ -392,7 +392,7 @@ export default function HelpPage() {
                   {s.icon}
                 </Box>
                 <Box>
-                  <Typography variant="caption" fontWeight={700} sx={{ color: s.color, display: "block", lineHeight: 1 }}>
+                  <Typography variant="caption" fontWeight={700} sx={{ color: "text.secondary", display: "block", lineHeight: 1 }}>
                     {s.label}
                   </Typography>
                   <Typography variant="subtitle2" fontWeight={700} sx={{ lineHeight: 1.4, mt: 0.25 }}>
