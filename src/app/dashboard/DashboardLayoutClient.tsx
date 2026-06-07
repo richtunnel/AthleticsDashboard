@@ -65,8 +65,8 @@ import DepartureBoardIcon from "@mui/icons-material/DepartureBoard";
 import EditCalendarIcon from "@mui/icons-material/EditCalendar";
 import { VscGithubProject } from "react-icons/vsc";
 import { RiCalendarScheduleFill } from "react-icons/ri";
-import EmailIcon   from "@mui/icons-material/Email";
-import SearchIcon   from "@mui/icons-material/Search";
+import EmailIcon from "@mui/icons-material/Email";
+import SearchIcon from "@mui/icons-material/Search";
 
 import styles from "../../styles/logo.module.css";
 import { NotificationProvider, useNotifications } from "@/contexts/NotificationContext";
@@ -86,17 +86,17 @@ import { ParentsAndAthletesMenu } from "@/components/parents/ParentsAndAthletesM
 const DRAWER_WIDTH = 240;
 
 const baseNavigation = [
-  { name: "Dashboard",     href: "/dashboard",              icon: DashboardIcon },
-  { name: "Game Center",   href: "/dashboard/games",        icon: CalendarMonth },
+  { name: "Dashboard", href: "/dashboard", icon: DashboardIcon },
+  { name: "Game Center", href: "/dashboard/games", icon: CalendarMonth },
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon },
-  { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon },
-  { name: "Teams",         href: "/dashboard/opponents",    icon: Groups, requiresScoreTracker: true },
-  { name: "Connect",        href: "/dashboard/parents",      icon: Person },
-  { name: "Community",     href: "/dashboard/posts",        icon: Newspaper },
-  { name: "Chat",          href: "/dashboard/ad-chat",      icon: Chat },
-  { name: "Find Games",    href: "/schedule-board",         icon: SearchIcon, external: true, requiresVisible: "findGames" },
+  { name: "Calendars", href: "/dashboard/gsync", icon: EditCalendarIcon },
+  { name: "Teams", href: "/dashboard/opponents", icon: Groups, requiresScoreTracker: true },
+  { name: "Connect", href: "/dashboard/parents", icon: Person },
+  { name: "Community", href: "/dashboard/posts", icon: Newspaper },
+  { name: "Chat", href: "/dashboard/ad-chat", icon: Chat },
+  { name: "Find Games", href: "/schedule-board", icon: SearchIcon, external: true, requiresVisible: "findGames" },
   // { name: "Analytics", href: "/dashboard/analytics", icon: Analytics },
-  { name: "Settings",      href: "/dashboard/settings",     icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
   // { name: "Travel AI", href: "/dashboard/travel-ai", icon: DepartureBoardIcon },
 ];
 
@@ -128,7 +128,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       if (!res.ok) throw new Error("Failed to fetch menu visibility");
       const data = await res.json();
       // Keep the cache in sync so future renders start with fresh values
-      try { localStorage.setItem(MENU_VIS_CACHE_KEY, JSON.stringify(data)); } catch {}
+      try {
+        localStorage.setItem(MENU_VIS_CACHE_KEY, JSON.stringify(data));
+      } catch {}
       return data;
     },
     staleTime: 5 * 60 * 1000,
@@ -145,10 +147,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   // AD chat unread count for the Chat nav badge
   const { data: adChatUnread } = useQuery({
-    queryKey:  ["adChatUnread"],
-    queryFn:   () => fetch("/api/ad-chat/unread").then((r) => r.json()) as Promise<{ count: number }>,
+    queryKey: ["adChatUnread"],
+    queryFn: () => fetch("/api/ad-chat/unread").then((r) => r.json()) as Promise<{ count: number }>,
     staleTime: 30_000,
-    enabled:   !!session?.user?.id,
+    enabled: !!session?.user?.id,
   });
   const adUnreadCount = adChatUnread?.count ?? 0;
 
@@ -157,8 +159,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Filter navigation based on feature toggles and user preferences
   const navigation = baseNavigation.filter((item) => {
     if (item.requiresScoreTracker && !isScoreTrackerEnabled) return false;
-    if (item.href === "/dashboard/posts"    && menuVisibility?.hidePostsMenu)     return false;
-    if (item.href === "/dashboard/parents"  && menuVisibility?.hideParentsMenu)   return false;
+    if (item.href === "/dashboard/posts" && menuVisibility?.hidePostsMenu) return false;
+    if (item.href === "/dashboard/parents" && menuVisibility?.hideParentsMenu) return false;
     if (item.requiresVisible === "findGames" && menuVisibility?.hideFindGamesMenu) return false;
     return true;
   });
@@ -261,10 +263,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <ListItemIcon sx={{ minWidth: 36, color: "inherit" }}>
                   <Icon fontSize="small" />
                 </ListItemIcon>
-                <ListItemText
-                  primary={item.name}
-                  primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: isActive ? 700 : 500 }}
-                />
+                <ListItemText primary={item.name} primaryTypographyProps={{ fontSize: "0.9rem", fontWeight: isActive ? 700 : 500 }} />
               </ListItemButton>
             </ListItem>
           );
@@ -338,7 +337,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               >
                 <ListItemIcon sx={{ minWidth: 40 }}>
                   <Badge
-                    badgeContent={item.href === "/dashboard/ad-chat" ? (adUnreadCount || null) : null}
+                    badgeContent={item.href === "/dashboard/ad-chat" ? adUnreadCount || null : null}
                     color="error"
                     max={99}
                     sx={{ "& .MuiBadge-badge": { fontSize: "0.6rem", minWidth: 16, height: 16, p: "0 4px" } }}
@@ -417,8 +416,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         position="fixed"
         elevation={0}
         sx={{
-          width: (!useHamburger && isSidebarVisible) ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
-          ml: (!useHamburger && isSidebarVisible) ? `${DRAWER_WIDTH}px` : 0,
+          width: !useHamburger && isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
+          ml: !useHamburger && isSidebarVisible ? `${DRAWER_WIDTH}px` : 0,
           bgcolor: "transparent",
           borderBottom: "none",
           borderColor: "none",
@@ -475,7 +474,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             {/* Horizontal Navigation (Desktop) — hidden; sidebar hamburger replaces it */}
             <Box
               sx={{
-                display: (!useHamburger && !isSidebarVisible) ? "flex" : "none",
+                display: !useHamburger && !isSidebarVisible ? "flex" : "none",
                 alignItems: "center",
                 gap: 0.5,
                 flexGrow: 1,
@@ -542,15 +541,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
           {/* Schedule Exchange Board */}
           <Tooltip title="Schedule Exchange Board — browse open game dates and request games from other ADs">
-            <IconButton
-              component="a"
-              href="/schedule-board"
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ mr: { xs: 0.5, sm: 1 } }}
-              color="default"
-              aria-label="Schedule Exchange Board"
-            >
+            <IconButton component="a" href="/schedule-board" target="_blank" rel="noopener noreferrer" sx={{ mr: { xs: 0.5, sm: 1 } }} color="default" aria-label="Schedule Exchange Board">
               <RiCalendarScheduleFill size={22} />
             </IconButton>
           </Tooltip>
@@ -658,7 +649,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               {getFirstName(session?.user?.name) ? `Hey ${getFirstName(session?.user?.name)}` : "loading..."}
             </Typography>
             <IconButton onClick={handleMenu} sx={{ p: 0 }} aria-label="Open profile menu" aria-haspopup="true" aria-expanded={Boolean(anchorEl)}>
-              <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }} src={session?.user?.image || undefined} alt={session?.user?.name ? `${session.user.name}'s profile picture` : "Profile picture"}>
+              <Avatar
+                sx={{ width: 32, height: 32, bgcolor: "primary.main", color: "#fff" }}
+                src={session?.user?.image || undefined}
+                alt={session?.user?.name ? `${session.user.name}'s profile picture` : "Profile picture"}
+              >
                 {session?.user?.name ? (getFirstName(session?.user?.name) || "")[0] : ""}
               </Avatar>
             </IconButton>
@@ -707,7 +702,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <ListItemIcon>
                   <HelpOutline fontSize="small" />
                 </ListItemIcon>
-                Help & Troubleshooting
+                Help
               </MenuItem>
               <MenuItem component={Link} href="/dashboard/support" onClick={handleClose}>
                 <ListItemIcon>
@@ -753,7 +748,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <Box
         component="nav"
         sx={{
-          width: useHamburger ? 0 : (isSidebarVisible ? DRAWER_WIDTH : 0),
+          width: useHamburger ? 0 : isSidebarVisible ? DRAWER_WIDTH : 0,
           flexShrink: 0,
           transition: (theme) =>
             theme.transitions.create("width", {
@@ -814,7 +809,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: (!useHamburger && isSidebarVisible) ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
+          width: !useHamburger && isSidebarVisible ? `calc(100% - ${DRAWER_WIDTH}px)` : "100%",
           minHeight: "100vh",
           transition: (theme) =>
             theme.transitions.create(["width", "margin"], {
@@ -828,9 +823,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           maxWidth={false}
           sx={{
             // Keep top padding on Dashboard and Game Center, or when the sidebar is collapsed
-            pt: (pathname === "/dashboard" || pathname === "/dashboard/games" || !isSidebarVisible)
-              ? { xs: 2, sm: 3, md: 4 }
-              : { xs: 2, sm: 3, md: 0 },
+            pt: pathname === "/dashboard" || pathname === "/dashboard/games" || !isSidebarVisible ? { xs: 2, sm: 3, md: 4 } : { xs: 2, sm: 3, md: 0 },
             pb: { xs: 2, sm: 3, md: 4 },
             px: { xs: 2, sm: 3 },
             maxWidth: {

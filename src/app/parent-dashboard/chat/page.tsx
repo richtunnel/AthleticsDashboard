@@ -15,7 +15,8 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { School, ChatBubbleOutline, Delete } from "@mui/icons-material";
+import { School, ChatBubbleOutline, Delete, ArrowBack } from "@mui/icons-material";
+import Link from "next/link";
 import ConversationList from "@/components/chat/ConversationList";
 import MessageThread from "@/components/chat/MessageThread";
 import MessageInput from "@/components/chat/MessageInput";
@@ -207,6 +208,15 @@ export default function ParentChatPage() {
   return (
     <Box>
       <Box sx={{ mb: 3 }}>
+        <Button
+          component={Link}
+          href="/parent-dashboard"
+          startIcon={<ArrowBack />}
+          size="small"
+          sx={{ mb: 1.5, textTransform: "none", color: "text.secondary" }}
+        >
+          Back to Connect
+        </Button>
         <Typography ref={setHeaderAnchor} variant="h4" fontWeight={700} gutterBottom sx={{ display: "inline-block" }}>
           Chat
         </Typography>

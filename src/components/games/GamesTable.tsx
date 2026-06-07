@@ -591,7 +591,7 @@ export function GamesTable() {
     const onResize = () => applyHide(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Opponent column override (shared with ScheduleCalendarView via persisted store)
@@ -3402,30 +3402,33 @@ export function GamesTable() {
     setShowImportDialog(true);
   }, []);
 
-  const handleViewImportNew = useCallback(async (closeChoiceDialog = false) => {
-    if (closeChoiceDialog) setShowImportChoiceDialog(false);
-    if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
-      addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
-      return;
-    }
-    try {
-      const currentLength = useGamesWorkbookStore.getState().workbooks.length;
-      const tempName = `Spreadsheet${currentLength + 1}`;
-      const res = await fetch("/api/games-workbooks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: tempName }),
-      });
-      if (!res.ok) throw new Error("Failed to create workbook");
-      const data = await res.json();
-      // Only set the import workbook ID and open dialog — the query invalidation
-      // in handleImportComplete will sync the store via the useEffect
-      setViewImportWorkbookId(data.data.id);
-      setShowImportDialog(true);
-    } catch (error: any) {
-      addNotification(error.message || "Failed to create workbook", "error");
-    }
-  }, [addNotification]);
+  const handleViewImportNew = useCallback(
+    async (closeChoiceDialog = false) => {
+      if (closeChoiceDialog) setShowImportChoiceDialog(false);
+      if (planLimits && workbooks.length >= planLimits.worksheetLimit) {
+        addNotification(`You have reached the limit of ${planLimits.worksheetLimit} isolated spreadsheets for your plan. Please upgrade to create more.`, "warning");
+        return;
+      }
+      try {
+        const currentLength = useGamesWorkbookStore.getState().workbooks.length;
+        const tempName = `Spreadsheet${currentLength + 1}`;
+        const res = await fetch("/api/games-workbooks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: tempName }),
+        });
+        if (!res.ok) throw new Error("Failed to create workbook");
+        const data = await res.json();
+        // Only set the import workbook ID and open dialog — the query invalidation
+        // in handleImportComplete will sync the store via the useEffect
+        setViewImportWorkbookId(data.data.id);
+        setShowImportDialog(true);
+      } catch (error: any) {
+        addNotification(error.message || "Failed to create workbook", "error");
+      }
+    },
+    [addNotification],
+  );
 
   const handleViewSelectWorkbook = useCallback(
     (id: string) => {
@@ -4227,9 +4230,7 @@ export function GamesTable() {
         setSortFields([...sortFields, { field, order: "asc" }]);
       } else if (sortFields[idx].order === "asc") {
         // Toggle to desc
-        const updated = sortFields.map((s, i) =>
-          i === idx ? { ...s, order: "desc" as const } : s
-        );
+        const updated = sortFields.map((s, i) => (i === idx ? { ...s, order: "desc" as const } : s));
         setSortFields(updated);
       } else {
         // Remove this key; fall back to date asc if list becomes empty
@@ -4538,35 +4539,31 @@ export function GamesTable() {
             const direction = isActive ? sortFields[sortIdx].order : "asc";
             return (
               <Tooltip title="Hold Shift to sort by multiple columns" placement="top" arrow>
-              <TableSortLabel
-                active={isActive}
-                direction={direction}
-                onClick={(e) => handleSort(sortFieldValue, e)}
-              >
-                {displayLabel.toUpperCase()}
-                {sortFields.length > 1 && isActive && (
-                  <Box
-                    component="span"
-                    sx={{
-                      ml: 0.4,
-                      fontSize: 9,
-                      fontWeight: 700,
-                      bgcolor: "primary.main",
-                      color: "primary.contrastText",
-                      borderRadius: "50%",
-                      width: 14,
-                      height: 14,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {sortIdx + 1}
-                  </Box>
-                )}
-              </TableSortLabel>
+                <TableSortLabel active={isActive} direction={direction} onClick={(e) => handleSort(sortFieldValue, e)}>
+                  {displayLabel.toUpperCase()}
+                  {sortFields.length > 1 && isActive && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 0.4,
+                        fontSize: 9,
+                        fontWeight: 700,
+                        bgcolor: "primary.main",
+                        color: "primary.contrastText",
+                        borderRadius: "50%",
+                        width: 14,
+                        height: 14,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {sortIdx + 1}
+                    </Box>
+                  )}
+                </TableSortLabel>
               </Tooltip>
             );
           })()
@@ -7509,37 +7506,37 @@ export function GamesTable() {
                 </Tooltip>
               )}
               {!showWorkbookSelector && (
-              <Collapse in={toolbarMenuVisible} timeout={220} unmountOnExit>
-                <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
-                  {selectedGames.size > 0 && games.length > 0 && (
-                    <Button
-                      variant="contained"
-                      startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
-                      onClick={handleSendEmail}
-                      size="small"
-                      sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
-                    >
-                      Send Email ({selectedGames.size})
-                    </Button>
-                  )}
-                  {/* Create Game Button */}
-                  <Tooltip title={scheduleView ? "Switch to Table View to create a game" : selectedGames.size > 0 ? "Deselect rows to create a game" : "Create a new row in the table below"}>
-                    <span>
+                <Collapse in={toolbarMenuVisible} timeout={220} unmountOnExit>
+                  <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ mt: 2, flexWrap: "wrap", gap: 0 }}>
+                    {selectedGames.size > 0 && games.length > 0 && (
                       <Button
                         variant="contained"
-                        startIcon={<Add />}
-                        onClick={handleNewGame}
-                        disabled={isAddingNew || scheduleView || selectedGames.size > 0}
+                        startIcon={theme.palette.mode === "dark" ? <SendIcon sx={{ color: theme.palette.themeButtonText.main }} /> : <GradientSendIcon />}
+                        onClick={handleSendEmail}
                         size="small"
-                        sx={{ color: theme.palette.mode === "dark" ? "#121212" : "white", textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                        sx={{ color: theme.palette.themeButtonText.main, textTransform: "none", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
                       >
-                        Create Game
+                        Send Email ({selectedGames.size})
                       </Button>
-                    </span>
-                  </Tooltip>
+                    )}
+                    {/* Create Game Button */}
+                    <Tooltip title={scheduleView ? "Switch to Table View to create a game" : selectedGames.size > 0 ? "Deselect rows to create a game" : "Create a new row in the table below"}>
+                      <span>
+                        <Button
+                          variant="contained"
+                          startIcon={<Add />}
+                          onClick={handleNewGame}
+                          disabled={isAddingNew || scheduleView || selectedGames.size > 0}
+                          size="small"
+                          sx={{ color: theme.palette.mode === "dark" ? "#121212" : "white", textTransform: "none", padding: "6.5px 12.5px", boxShadow: 0, "&:hover": { boxShadow: 2 } }}
+                        >
+                          Create Game
+                        </Button>
+                      </span>
+                    </Tooltip>
 
-                  {/* Create Table Button - to create separate tables */}
-                  {/* <Tooltip title="Add a separate table">
+                    {/* Create Table Button - to create separate tables */}
+                    {/* <Tooltip title="Add a separate table">
                 {selectedGames.size > 0 ? (
                   <IconButton
                     disabled
@@ -7573,163 +7570,168 @@ export function GamesTable() {
                 )}
               </Tooltip> */}
 
-                  <Tooltip title="Use AI to find available dates in your schedule">
-                    <Button
-                      variant="contained"
-                      startIcon={<AutoAwesome fontSize="small" />}
-                      onClick={handleFindAvailableDates}
-                      size="small"
-                      sx={{
-                        textTransform: "none",
-                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        color: "white",
-                        boxShadow: 0,
-                        "&:hover": {
-                          background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
-                          boxShadow: 2,
-                        },
-                      }}
-                    >
-                      Find Dates
-                    </Button>
-                  </Tooltip>
-
-                  {/* Add Columns Button */}
-                  <Tooltip title={scheduleView ? "Switch to Table View to add columns" : selectedGames.size > 0 ? "Deselect rows to add columns" : "Add a custom column to the table below."}>
-                    <span>
+                    <Tooltip title="Use AI to find available dates in your schedule">
                       <Button
-                        variant="outlined"
-                        startIcon={<ViewColumn />}
-                        onClick={handleAddColumnsClick}
-                        disabled={selectedGames.size > 0 || scheduleView}
+                        variant="contained"
+                        startIcon={<AutoAwesome fontSize="small" />}
+                        onClick={handleFindAvailableDates}
                         size="small"
                         sx={{
-                          borderColor: theme.palette.themeButtonText.subtle,
-                          color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
                           textTransform: "none",
-                          py: "5px",
-                          display: { xs: "none", sm: "inline-flex" },
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "white",
+                          boxShadow: 0,
+                          "&:hover": {
+                            background: "linear-gradient(135deg, #5568d3 0%, #653a8b 100%)",
+                            boxShadow: 2,
+                          },
                         }}
                       >
-                        Add Columns ({customColumns.length})
+                        Find Dates
                       </Button>
-                    </span>
-                  </Tooltip>
+                    </Tooltip>
 
-                  {/* Columns Button */}
-                  <Tooltip title={scheduleView ? "Switch to Table View to customize columns" : selectedGames.size > 0 ? "Deselect rows to customize columns" : "Arrange your columns using drag and drop."}>
-                    <span>
+                    {/* Add Columns Button */}
+                    <Tooltip title={scheduleView ? "Switch to Table View to add columns" : selectedGames.size > 0 ? "Deselect rows to add columns" : "Add a custom column to the table below."}>
+                      <span>
+                        <Button
+                          variant="outlined"
+                          startIcon={<ViewColumn />}
+                          onClick={handleAddColumnsClick}
+                          disabled={selectedGames.size > 0 || scheduleView}
+                          size="small"
+                          sx={{
+                            borderColor: theme.palette.themeButtonText.subtle,
+                            color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                            textTransform: "none",
+                            py: "5px",
+                            display: { xs: "none", sm: "inline-flex" },
+                          }}
+                        >
+                          Add Columns ({customColumns.length})
+                        </Button>
+                      </span>
+                    </Tooltip>
+
+                    {/* Columns Button */}
+                    <Tooltip
+                      title={scheduleView ? "Switch to Table View to customize columns" : selectedGames.size > 0 ? "Deselect rows to customize columns" : "Arrange your columns using drag and drop."}
+                    >
+                      <span>
+                        <Button
+                          variant="outlined"
+                          startIcon={<Tune />}
+                          onClick={() => {
+                            trackEvent("Columns Button Clicked", {
+                              source: "games_table",
+                              action: "customize_columns",
+                              visible_columns_count: visibleColumnIds.length,
+                            });
+                            setIsColumnPreferencesOpen(true);
+                          }}
+                          disabled={selectedGames.size > 0 || scheduleView}
+                          size="small"
+                          sx={{ borderColor: theme.palette.themeButtonText.subtle, color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit", textTransform: "none", py: "5px" }}
+                        >
+                          Columns ({visibleColumnIds.length})
+                        </Button>
+                      </span>
+                    </Tooltip>
+
+                    {selectedGames.size > 0 && games.length > 0 && (
+                      <>
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          startIcon={<ContentCopy />}
+                          onClick={handleCopySelectedRows}
+                          size="small"
+                          sx={{
+                            color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                            borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                            textTransform: "none",
+                            display: { xs: "none", sm: "inline-flex" },
+                          }}
+                        >
+                          Copy ({selectedGames.size})
+                        </Button>
+                        <Tooltip title="Sync calendars">
+                          <IconButton
+                            onClick={handleBulkSync}
+                            disabled={bulkSyncGamesMutation.isPending}
+                            size="small"
+                            sx={{
+                              color: "primary.main",
+                              display: { xs: "none", sm: "inline-flex" },
+                            }}
+                          >
+                            {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                    {hiddenColumnCount > 0 && (
                       <Button
-                        variant="outlined"
-                        startIcon={<Tune />}
+                        size="small"
+                        variant="text"
                         onClick={() => {
-                          trackEvent("Columns Button Clicked", {
+                          trackEvent("Columns Hidden Indicator Clicked", {
                             source: "games_table",
                             action: "customize_columns",
+                            hidden_columns_count: hiddenColumnCount,
                             visible_columns_count: visibleColumnIds.length,
                           });
                           setIsColumnPreferencesOpen(true);
                         }}
-                        disabled={selectedGames.size > 0 || scheduleView}
-                        size="small"
-                        sx={{ borderColor: theme.palette.themeButtonText.subtle, color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit", textTransform: "none", py: "5px" }}
+                        startIcon={<VisibilityOff />}
+                        sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
                       >
-                        Columns ({visibleColumnIds.length})
+                        {hiddenColumnCount} hidden
                       </Button>
-                    </span>
-                  </Tooltip>
+                    )}
 
-                  {selectedGames.size > 0 && games.length > 0 && (
-                    <>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<ContentCopy />}
-                        onClick={handleCopySelectedRows}
-                        size="small"
-                        sx={{
-                          color: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                          borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                          textTransform: "none",
-                          display: { xs: "none", sm: "inline-flex" },
-                        }}
-                      >
-                        Copy ({selectedGames.size})
-                      </Button>
-                      <Tooltip title="Sync calendars">
-                        <IconButton
-                          onClick={handleBulkSync}
-                          disabled={bulkSyncGamesMutation.isPending}
+                    {/* Post Schedule Button — visible only when enabled in Settings > Other */}
+                    {showPostScheduleButton && (
+                      <Tooltip title="Post your schedule to the Schedule Exchange Board">
+                        <Button
+                          variant="outlined"
+                          startIcon={<PostAddIcon />}
+                          onClick={() => {
+                            setPostSchedulePosted(false);
+                            setPostScheduleModalOpen(true);
+                          }}
                           size="small"
                           sx={{
-                            color: "primary.main",
-                            display: { xs: "none", sm: "inline-flex" },
+                            borderColor: theme.palette.themeButtonText.subtle,
+                            color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
+                            textTransform: "none",
+                            py: "5px",
                           }}
                         >
-                          {bulkSyncGamesMutation.isPending ? <CircularProgress size={20} /> : <Sync />}
-                        </IconButton>
+                          Post Schedule
+                        </Button>
                       </Tooltip>
-                    </>
-                  )}
-                  {hiddenColumnCount > 0 && (
-                    <Button
-                      size="small"
-                      variant="text"
-                      onClick={() => {
-                        trackEvent("Columns Hidden Indicator Clicked", {
-                          source: "games_table",
-                          action: "customize_columns",
-                          hidden_columns_count: hiddenColumnCount,
-                          visible_columns_count: visibleColumnIds.length,
-                        });
-                        setIsColumnPreferencesOpen(true);
-                      }}
-                      startIcon={<VisibilityOff />}
-                      sx={{ textTransform: "none", display: { xs: "none", sm: "inline-flex" } }}
-                    >
-                      {hiddenColumnCount} hidden
-                    </Button>
-                  )}
+                    )}
 
-                  {/* Post Schedule Button — visible only when enabled in Settings > Other */}
-                  {showPostScheduleButton && (
-                    <Tooltip title="Post your schedule to the Schedule Exchange Board">
-                      <Button
-                        variant="outlined"
-                        startIcon={<PostAddIcon />}
-                        onClick={() => { setPostSchedulePosted(false); setPostScheduleModalOpen(true); }}
+                    {/* Hide menu toggle — subtle arrow at the far end */}
+                    <Tooltip title="Hide menu">
+                      <IconButton
                         size="small"
+                        onClick={() => toggleToolbarMenu(false)}
                         sx={{
-                          borderColor: theme.palette.themeButtonText.subtle,
-                          color: theme.palette.mode === "dark" ? theme.palette.primary.light : "inherit",
-                          textTransform: "none",
-                          py: "5px",
+                          color: "text.disabled",
+                          opacity: 0.35,
+                          "&:hover": { opacity: 0.75, bgcolor: "transparent" },
+                          transition: "opacity 0.18s ease",
+                          ml: 0.5,
                         }}
+                        disableRipple
                       >
-                        Post Schedule
-                      </Button>
+                        <ChevronLeft fontSize="small" />
+                      </IconButton>
                     </Tooltip>
-                  )}
-
-                  {/* Hide menu toggle — subtle arrow at the far end */}
-                  <Tooltip title="Hide menu">
-                    <IconButton
-                      size="small"
-                      onClick={() => toggleToolbarMenu(false)}
-                      sx={{
-                        color: "text.disabled",
-                        opacity: 0.35,
-                        "&:hover": { opacity: 0.75, bgcolor: "transparent" },
-                        transition: "opacity 0.18s ease",
-                        ml: 0.5,
-                      }}
-                      disableRipple
-                    >
-                      <ChevronLeft fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Stack>
-              </Collapse>
+                  </Stack>
+                </Collapse>
               )}
             </Box>
             <Stack direction="row" spacing={{ xs: 1, sm: 2 }} sx={{ flexShrink: 0 }}>
@@ -7874,7 +7876,7 @@ export function GamesTable() {
           {/* ── Schedule / Calendar View ── */}
           {scheduleView ? (
             <>
-<ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
+              <ScheduleCalendarView games={calendarGames} isLoading={calendarLoading} workbookId={selectedWorkbookId ?? null} />
             </>
           ) : isMobile ? (
             <Box sx={{ position: "relative" }}>
@@ -8309,13 +8311,15 @@ export function GamesTable() {
                 borderColor: "primary.main",
                 borderRadius: 2,
                 cursor: "pointer",
-                bgcolor: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.04)",
-                "&:hover": { bgcolor: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.08)" },
+                bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(99,102,241,0.08)" : "rgba(99,102,241,0.04)"),
+                "&:hover": { bgcolor: (t) => (t.palette.mode === "dark" ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.08)") },
                 transition: "background-color 0.15s",
               }}
             >
               <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 0.5 }}>
-                <Typography variant="subtitle2" fontWeight={700}>New Worksheet</Typography>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  New Worksheet
+                </Typography>
                 <Chip label="Recommended" size="small" color="primary" sx={{ fontSize: "0.65rem", height: 18 }} />
               </Stack>
               <Typography variant="caption" color="text.secondary">
@@ -8512,7 +8516,10 @@ export function GamesTable() {
       {/* Post Schedule Modal */}
       <Dialog
         open={postScheduleModalOpen}
-        onClose={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }}
+        onClose={() => {
+          setPostScheduleModalOpen(false);
+          setPostSchedulePosted(false);
+        }}
         maxWidth="md"
         fullWidth
         disableScrollLock
@@ -8522,7 +8529,13 @@ export function GamesTable() {
             <PostAddIcon />
             <Typography variant="h6">Post Schedule</Typography>
           </Box>
-          <IconButton size="small" onClick={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }}>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setPostScheduleModalOpen(false);
+              setPostSchedulePosted(false);
+            }}
+          >
             <ChevronLeft sx={{ fontSize: "1.1rem" }} />
           </IconButton>
         </DialogTitle>
@@ -8542,7 +8555,13 @@ export function GamesTable() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => { setPostScheduleModalOpen(false); setPostSchedulePosted(false); }} variant={postSchedulePosted ? "contained" : "text"}>
+          <Button
+            onClick={() => {
+              setPostScheduleModalOpen(false);
+              setPostSchedulePosted(false);
+            }}
+            variant={postSchedulePosted ? "contained" : "text"}
+          >
             {postSchedulePosted ? "Close" : "Cancel"}
           </Button>
         </DialogActions>
