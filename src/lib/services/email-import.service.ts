@@ -4,6 +4,7 @@ import { getEmailContactLimit } from "../security/plan-limits";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BATCH_SIZE = 500;
+export const MAX_EMAILS_PER_GROUP = 500;
 
 export interface EmailImportJobPayload {
   groupId: string;
@@ -41,29 +42,33 @@ export class EmailImportService {
     
     const normalized = this.normalizeEmails(emails);
     
-    // 1. Check plan limits
-    const [contactLimit, currentContactCount] = await Promise.all([
+    // 1. Check plan limits + per-group limit in parallel
+    const [contactLimit, currentContactCount, currentGroupCount] = await Promise.all([
       getEmailContactLimit(userId),
-      prisma.emailAddress.count({
-        where: {
-          group: { organizationId },
-        },
-      }),
+      prisma.emailAddress.count({ where: { group: { organizationId } } }),
+      prisma.emailAddress.count({ where: { groupId } }),
     ]);
 
     const isLimitFinite = isFinite(contactLimit);
-    const available = isLimitFinite ? Math.max(0, contactLimit - currentContactCount) : Infinity;
+    const planAvailable = isLimitFinite ? Math.max(0, contactLimit - currentContactCount) : Infinity;
 
     if (isLimitFinite && currentContactCount >= contactLimit) {
       const errorMsg = `You have reached your plan's email contact limit of ${contactLimit.toLocaleString()} contacts.`;
-      if (jobId) {
-        await jobQueueService.fail(jobId, errorMsg, false);
-      }
+      if (jobId) await jobQueueService.fail(jobId, errorMsg, false);
       throw new Error(errorMsg);
     }
 
-    // Clamp the import to what's available
-    const toImport = isLimitFinite ? normalized.slice(0, available) : normalized;
+    // Per-group cap: max 500 emails per campaign group
+    const groupAvailable = Math.max(0, MAX_EMAILS_PER_GROUP - currentGroupCount);
+    if (currentGroupCount >= MAX_EMAILS_PER_GROUP) {
+      const errorMsg = `This campaign group has reached the maximum of ${MAX_EMAILS_PER_GROUP} email addresses.`;
+      if (jobId) await jobQueueService.fail(jobId, errorMsg, false);
+      throw new Error(errorMsg);
+    }
+
+    // Clamp to whichever limit is tighter
+    const effectiveAvailable = Math.min(planAvailable, groupAvailable);
+    const toImport = normalized.slice(0, effectiveAvailable);
     const clampedCount = normalized.length - toImport.length;
     const totalToProcess = toImport.length;
     

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
-import { emailImportService } from "@/lib/services/email-import.service";
+import { emailImportService, MAX_EMAILS_PER_GROUP } from "@/lib/services/email-import.service";
 
 /** Emails at or below this threshold are inserted synchronously (no queue needed) */
 const SYNC_THRESHOLD = 100;
@@ -69,18 +69,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: "No valid email addresses provided" }, { status: 400 });
   }
 
+  // ── Per-group limit check ────────────────────────────────────────────────
+  const currentGroupCount = await prisma.emailAddress.count({ where: { groupId } });
+  const groupAvailable = Math.max(0, MAX_EMAILS_PER_GROUP - currentGroupCount);
+
+  if (groupAvailable <= 0) {
+    return NextResponse.json({
+      error: `This campaign group has reached the ${MAX_EMAILS_PER_GROUP}-email limit. Remove existing emails to add new ones.`,
+    }, { status: 400 });
+  }
+
+  // Clamp the import to the available slots before choosing sync vs async
+  const capped = normalized.slice(0, groupAvailable);
+  const limitSkipped = normalized.length - capped.length;
+
   // ─── Small batch: handle synchronously ───────────────────────────────────
-  if (normalized.length <= SYNC_THRESHOLD) {
+  if (capped.length <= SYNC_THRESHOLD) {
     try {
       const result = await emailImportService.processImportJob({
         groupId,
         userId: session.user.id,
         organizationId: session.user.organizationId,
-        emails: normalized,
+        emails: capped,
       });
 
       return NextResponse.json({
         mode: "sync",
+        limitSkipped,
+        groupLimit: MAX_EMAILS_PER_GROUP,
         ...result,
       });
     } catch (error: any) {
@@ -119,7 +135,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       groupId,
       userId: session.user.id,
       organizationId: session.user.organizationId,
-      emails: normalized,
+      emails: capped,
     },
   });
 
@@ -130,14 +146,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     userId: session.user.id,
     organizationId: session.user.organizationId,
     groupId,
-    emails: normalized,
+    emails: capped,
   });
 
   return NextResponse.json(
     {
       mode: "async",
       jobId: job.id,
-      total: normalized.length,
+      total: capped.length,
+      limitSkipped,
+      groupLimit: MAX_EMAILS_PER_GROUP,
     },
     { status: 202 },
   );

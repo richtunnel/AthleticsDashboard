@@ -6,7 +6,7 @@ import faqsData from "@/data/faq";
 export const metadata: Metadata = {
   title: "Opletics | Athletic Management Software for Coaches & Directors",
   description:
-    "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
+    "Opletics is the premier sports software for athletic departments. Our athletic management software gives athletic directors AI-powered tools to automate scheduling, sync calendars, send email campaigns, and manage teams — the best alternative to Direct Athletics and Teamworks.",
   keywords: [
     // ── Core product ──────────────────────────────────────────────────────
     "opletics",
@@ -27,9 +27,11 @@ export const metadata: Metadata = {
     "sports software",
     // ── Features ──────────────────────────────────────────────────────────
     "campaign manager",
+    "email campaigns",
     "score tracker",
     "game schedule",
     "ad chat",
+    "AD Channel",
     "athletics chat",
     "athlete management",
     "easy game finder",
@@ -45,17 +47,29 @@ export const metadata: Metadata = {
     "athletes desk",
     "adhub",
     "athletics hub",
+    "athletic directors hub",
+    "athletic directors connect",
+    "athletic directors exchange",
+    "athletic director calendars",
     "athlete monitoring",
     "smart athlete",
     // ── Audience ──────────────────────────────────────────────────────────
     "athletic directors",
+    "becoming an athletic director",
+    "learn how to become an AD",
+    "how to become the best athletic director",
+    "Athletic Director directory",
+    "athletic directors conference overview",
     "software for athletic directors",
     "software for coaches",
+    "software tools for coaches",
     "tools for athletic directors",
     "tools for coaches",
     "tools for staff",
     "best athletic director tools",
     "college tools",
+    "athletic director communication",
+    "best way for athletic director to communicate",
     // ── Competitor alternatives ───────────────────────────────────────────
     "Direct Athletics",
     "teamworks",
@@ -66,6 +80,7 @@ export const metadata: Metadata = {
     "hubletics",
     "sportsyou",
     "sports you",
+    "Zapier",
     "product hunt",
     // ── Discovery ────────────────────────────────────────────────────────
     "hidden gems",
@@ -82,6 +97,8 @@ export const metadata: Metadata = {
     "ai spreadsheet software",
     "ai-powered spreadsheet tools",
     "smart spreadsheet tools",
+    "smart spreadsheets for athletic directors",
+    "smart spreadsheets for coaches",
     "spreadsheet management software",
     "spreadsheet workflow automation",
     "spreadsheet dashboard for coaches",
@@ -98,8 +115,15 @@ export const metadata: Metadata = {
     "how to organize sports data in google sheets",
     "how to build a searchable database in google sheets",
     "how to create a sports schedule spreadsheet",
+    "creating a sports schedule",
     "team scheduling spreadsheet",
     "ai that automates spreadsheets",
+    "syncing my calendar to my excel",
+    "syncing my calendar to my spreadsheet",
+    "how to sync my spreadsheet to my calendar",
+    "how to sync my spreadsheet to my google calendar",
+    "how to automate my spreadsheet",
+    "how to automate my sports schedule",
     // ── Email / Communication Automation ─────────────────────────────────
     "bulk email software for schools",
     "mass email tools for schools",
@@ -107,6 +131,8 @@ export const metadata: Metadata = {
     "email automation with google sheets",
     "how to send emails with google sheets",
     "how to send emails with excel",
+    "how to send emails from my spreadsheet",
+    "how to send emails from my excel spreadsheet",
     "sending emails with google sheets",
     "how can i send multiple emails to parents",
     "google sheets mail merge",
@@ -115,23 +141,30 @@ export const metadata: Metadata = {
     "automated email reminders for games",
     "send schedule updates automatically",
     "school messaging software",
+    "what's the best way for athletic directors to send emails",
     // ── AI / Automation ───────────────────────────────────────────────────
     "ai for athletic departments",
     "ai sports scheduling software",
     "ai assistant for schools",
     "ai scheduling assistant",
     "ai tools for school administrators",
+    "ai tools for ADs",
+    "ai tools for coaches",
+    "AI for schools",
+    "best ai tech for athletic directors",
+    "athletic department ai tools",
     "ai productivity tools for coaches",
     "ai for sports management",
     "ai-powered school software",
     "ai software for scheduling games",
     "automate school operations with ai",
     "smart scheduling assistant",
-    "ai that automates spreadsheets",
     // ── How-To / Search Intent ─────────────────────────────────────────────
     "how to create a game schedule",
     "how to create a teams list",
     "how do athletic directors schedule games",
+    "how do athletic directors manage schedules",
+    "how to manage a sports schedule",
     "how to organize game schedules",
     "easiest way to schedule games",
     "how to reduce scheduling conflicts",
@@ -147,7 +180,14 @@ export const metadata: Metadata = {
     "how to organize a sports season",
     "help sorting game schedule",
     "help creating spreadsheet search",
-    "how can i send multiple emails to parents",
+    "how can i find software that automates my sports schedule",
+    "tricks to sport scheduling",
+    // ── Organization / Calendar ───────────────────────────────────────────
+    "keeping my sports schedule organized",
+    "organizing my sports schedule",
+    "organizing my athletics schedule",
+    "organizing my athletics sports schedule",
+    "how can I create iPhone notifications for my game schedules",
   ],
   alternates: {
     canonical: "/",
@@ -155,7 +195,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Opletics | Athletic Management Software for Coaches & Directors",
     description:
-      "Opletics is the premier sports software for athletic departments. Our atheletic managment software features a suite of tools that allow athletic directors to automate scheduling, sync calendars, and manage teams with our advanced athlete management system. Empowering athletic directors and coaches with AI-driven tools.",
+      "Opletics is the premier sports software for athletic departments. Automate scheduling, sync to Google Calendar, send email campaigns, and manage teams with AI-powered tools. The best alternative to Direct Athletics and Teamworks.",
     url: "/",
     images: [
       {
@@ -169,6 +209,7 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
+  // All FAQ answers are plain strings now — maps directly to JSON-LD without patching
   const faqJsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -177,18 +218,10 @@ export default function HomePage() {
       name: item.q,
       acceptedAnswer: {
         "@type": "Answer",
-        text:
-          typeof item.a === "string"
-            ? item.a
-            : "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.",
+        text: item.a as string,
       },
     })),
   };
-
-  // Manually fixing the text for the JSX ones if needed, or just hardcoding for now to be safe
-  faqJsonLd.mainEntity[0].acceptedAnswer.text =
-    "Our platform speeds up the process for finding game dates, synchronizing your calendar, generating and tracking emails, artificial bus scheduling, schedule conflict detection and more.";
-  faqJsonLd.mainEntity[3].acceptedAnswer.text = "We are happy to help! You can reach out to us at support@opletics.com";
 
   return (
     <>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/database/prisma";
 import { checkStorageBeforeWrite } from "@/lib/utils/storage-check";
+import { MAX_EMAILS_PER_GROUP } from "@/lib/services/email-import.service";
 
 const emailGroupInclude = {
   emails: {
@@ -114,10 +115,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const newEmails = normalizedEmails.filter((email) => !existingEmailSet.has(email));
     const duplicateEmails = normalizedEmails.filter((email) => existingEmailSet.has(email));
 
-    // Only create emails that don't already exist
-    if (newEmails.length > 0) {
+    // Per-group cap: max 500 emails per campaign group
+    const currentGroupCount = await prisma.emailAddress.count({ where: { groupId } });
+    const availableSlots = Math.max(0, MAX_EMAILS_PER_GROUP - currentGroupCount);
+    if (availableSlots <= 0) {
+      return NextResponse.json({
+        error: `This campaign group has reached the ${MAX_EMAILS_PER_GROUP}-email limit. Remove existing emails to add new ones.`,
+      }, { status: 400 });
+    }
+    const emailsToCreate = newEmails.slice(0, availableSlots);
+    const limitSkipped = newEmails.length - emailsToCreate.length;
+
+    // Only create emails that don't already exist and fit within the limit
+    if (emailsToCreate.length > 0) {
       await prisma.emailAddress.createMany({
-        data: newEmails.map((email) => ({ email, groupId })),
+        data: emailsToCreate.map((email) => ({ email, groupId })),
       });
     }
 
@@ -132,9 +144,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({
       ...updated,
-      addedCount: newEmails.length,
+      addedCount: emailsToCreate.length,
       duplicateCount: duplicateEmails.length,
       duplicates: duplicateEmails,
+      limitSkipped,
+      groupLimit: MAX_EMAILS_PER_GROUP,
     });
   } catch (error) {
     console.error("Error adding emails to group", error);

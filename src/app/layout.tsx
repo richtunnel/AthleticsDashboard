@@ -100,6 +100,13 @@ const softwareAppJsonLd = {
     "AI spreadsheet assistant — ai-powered spreadsheet tools that automate repetitive school admin tasks",
     "Mass email tools for schools — send personalized emails from spreadsheets with one click",
     "Automated email reminders for games — send schedule updates automatically to parents and staff",
+    "Calendar sync for athletic directors — sync spreadsheet schedule to Google Calendar automatically",
+    "iPhone notifications for game schedules — push alerts via Google Calendar and parent dashboard",
+    "Athletic director email campaigns — send bulk emails from your sports schedule with one click",
+    "Smart spreadsheets for athletic directors and coaches — AI-powered schedule organization",
+    "Athletic director communication hub — AD chat, email campaigns, and parent notifications in one place",
+    "AI tools for ADs and coaches — automate scheduling, email, and calendar sync with artificial intelligence",
+    "Athletic directors directory and connect platform — find and collaborate with ADs across the country",
   ],
   offers: {
     "@type": "AggregateOffer",
@@ -142,7 +149,7 @@ export const metadata: Metadata = {
     template: "%s | Opletics",
   },
   description:
-    "Opletics is the premier sports software for athletic departments. Automate scheduling, sync calendars, and manage teams with our advanced athlete management system. The top-tier alternative to Direct Athletics and Teamworks.",
+    "Opletics is the premier athletic management software for athletic directors and coaches. Automate your sports schedule, sync to Google Calendar, send email campaigns, and manage teams with AI tools. The best alternative to Direct Athletics and Teamworks.",
   applicationName: "Opletics",
   keywords: [
     // ── Core product ──────────────────────────────────────────────────────
@@ -506,6 +513,60 @@ export const metadata: Metadata = {
     "scheduling conflicts in sports",
     "sports staff coordination tools",
     "booster club fundraising tools",
+    // ── Calendar Sync / Notifications ─────────────────────────────────────
+    "how to sync my spreadsheet to my google calendar",
+    "how to sync my spreadsheet to my calendar",
+    "syncing my calendar to my spreadsheet",
+    "syncing my calendar to my excel",
+    "sync excel to google calendar",
+    "sync sports schedule to google calendar",
+    "how can I create iPhone notifications for my game schedules",
+    "push notifications for game schedule",
+    "athletic director calendars",
+    // ── Athletic Director Career / Community ──────────────────────────────
+    "becoming an athletic director",
+    "how to become an athletic director",
+    "learn how to become an AD",
+    "how to become the best athletic director",
+    "Athletic Director directory",
+    "athletic directors hub",
+    "athletic directors connect",
+    "athletic directors exchange",
+    "athletic directors conference overview",
+    "best way for athletic director to communicate",
+    "athletic director communication",
+    "AD Channel",
+    // ── Schedule Management ───────────────────────────────────────────────
+    "how do athletic directors manage schedules",
+    "how to manage a sports schedule",
+    "how to automate my sports schedule",
+    "how to automate my spreadsheet",
+    "creating a sports schedule",
+    "keeping my sports schedule organized",
+    "organizing my sports schedule",
+    "organizing my athletics schedule",
+    "organizing my athletics sports schedule",
+    "tricks to sport scheduling",
+    "where can I find software that automates my sports schedule",
+    // ── Email from Spreadsheet ────────────────────────────────────────────
+    "how to send emails from my spreadsheet",
+    "how to send emails from my excel spreadsheet",
+    "what's the best way for athletic directors to send emails",
+    "email campaigns for athletic departments",
+    "email campaigns",
+    // ── Competitor Comparison ─────────────────────────────────────────────
+    "Zapier alternative for sports scheduling",
+    "Zapier",
+    // ── Smart Spreadsheets ────────────────────────────────────────────────
+    "smart spreadsheets for athletic directors",
+    "smart spreadsheets for coaches",
+    // ── AI for Schools ────────────────────────────────────────────────────
+    "ai tools for ADs",
+    "ai tools for coaches",
+    "AI for schools",
+    "best ai tech for athletic directors",
+    "athletic department ai tools",
+    "software tools for coaches",
   ],
   alternates: {
     canonical: "/",
@@ -516,7 +577,7 @@ export const metadata: Metadata = {
     siteName: "Opletics",
     title: "Opletics | AMS for Athletic Directors, Coaches & League Management",
     description:
-      "Streamline your athletic department with Opletics. AI-powered game scheduling, team management, and seamless Google Calendar sync for athletic directors and coaches. The ultimate sports software solution.",
+      "Streamline your athletic department with Opletics. AI-powered game scheduling, Google Calendar sync, email campaigns, and team management tools for athletic directors and coaches. The ultimate sports software solution.",
     images: [
       {
         url: "/assets/images/opletic-dash-sample.png",

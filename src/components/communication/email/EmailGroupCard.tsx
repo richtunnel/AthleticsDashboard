@@ -105,10 +105,13 @@ export function EmailGroupCard({
     }
   }, [searchQuery]);
 
+  const MAX_GROUP_EMAILS = 500;
   const emailCountLabel = useMemo(() => {
     const count = group._count.emails;
-    return count === 1 ? "1 email" : `${count} emails`;
+    return `${count} / ${MAX_GROUP_EMAILS} emails`;
   }, [group._count.emails]);
+  const isAtLimit = group._count.emails >= MAX_GROUP_EMAILS;
+  const isNearLimit = !isAtLimit && group._count.emails >= MAX_GROUP_EMAILS * 0.9;
 
   const filteredEmails = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -150,16 +153,17 @@ export function EmailGroupCard({
       const addedCount = result.addedCount;
       const duplicateCount = result.duplicateCount;
 
+      const limitSkipped = (result as any).limitSkipped ?? 0;
       if (typeof addedCount === "number" && typeof duplicateCount === "number") {
+        const limitNote = limitSkipped > 0 ? ` ${limitSkipped} skipped — group is at the ${MAX_GROUP_EMAILS}-email limit.` : "";
         if (addedCount > 0 && duplicateCount > 0) {
-          onShowMessage(`${addedCount} email${addedCount > 1 ? "s" : ""} added. ${duplicateCount} duplicate${duplicateCount > 1 ? "s were" : " was"} not saved (already in group).`, "warning");
+          onShowMessage(`${addedCount} email${addedCount > 1 ? "s" : ""} added. ${duplicateCount} duplicate${duplicateCount > 1 ? "s were" : " was"} not saved (already in group).${limitNote}`, "warning");
         } else if (addedCount > 0 && duplicateCount === 0) {
-          onShowMessage(`${addedCount} email${addedCount > 1 ? "s" : ""} added to ${group.name}`);
+          onShowMessage(`${addedCount} email${addedCount > 1 ? "s" : ""} added to ${group.name}.${limitNote}`);
         } else if (addedCount === 0 && duplicateCount > 0) {
           onShowMessage(`No emails added. All ${duplicateCount} email${duplicateCount > 1 ? "s are" : " is"} already in this group.`, "warning");
         }
       } else {
-        // Fallback for old response format
         onShowMessage(`${normalized.length} email${normalized.length > 1 ? "s" : ""} added to ${group.name}`);
       }
     } catch (error) {
@@ -317,34 +321,42 @@ export function EmailGroupCard({
           <Stack direction="row" spacing={1} alignItems="center">
             {isExpanded && (
               <>
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  sx={(theme) => ({ color: theme.palette.mode === "dark" ? theme.palette.themeButtonText.main : "" })}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggleAddEmails();
-                  }}
-                >
-                  {isAddingEmails ? "Close" : "Add Emails"}
-                </Button>
-                <Tooltip title="Bulk import emails from CSV or paste">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<FileUploadIcon />}
-                    sx={(theme) => ({
-                      borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
-                      color: theme.palette.text.primary,
-                    })}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setImportModalOpen(true);
-                    }}
-                  >
-                    Import
-                  </Button>
+                <Tooltip title={isAtLimit ? `Group is at the ${MAX_GROUP_EMAILS}-email limit. Remove emails to add more.` : ""}>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      disabled={isAtLimit}
+                      sx={(theme) => ({ color: theme.palette.mode === "dark" ? theme.palette.themeButtonText.main : "" })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onToggleAddEmails();
+                      }}
+                    >
+                      {isAddingEmails ? "Close" : "Add Emails"}
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title={isAtLimit ? `Group is at the ${MAX_GROUP_EMAILS}-email limit. Remove emails to add more.` : "Bulk import emails from CSV or paste"}>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<FileUploadIcon />}
+                      disabled={isAtLimit}
+                      sx={(theme) => ({
+                        borderColor: theme.palette.mode === "dark" ? theme.palette.themeText.text : "",
+                        color: theme.palette.text.primary,
+                      })}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setImportModalOpen(true);
+                      }}
+                    >
+                      Import
+                    </Button>
+                  </span>
                 </Tooltip>
                 <Button
                   size="small"
@@ -397,6 +409,18 @@ export function EmailGroupCard({
       </Stack>
 
       <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+        {/* Limit banners */}
+        {isAtLimit && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            This group has reached the <strong>{MAX_GROUP_EMAILS}-email limit</strong>. Remove existing emails before adding new ones.
+          </Alert>
+        )}
+        {isNearLimit && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This group is almost full — <strong>{group._count.emails} / {MAX_GROUP_EMAILS} emails</strong> used.
+          </Alert>
+        )}
+
         {isAddingEmails && (
           <Box
             sx={{
@@ -464,7 +488,11 @@ export function EmailGroupCard({
             </Typography>
             {group.emails.length > 0 && (
               <>
-                <Chip label={emailCountLabel} size="small" />
+                <Chip
+                  label={emailCountLabel}
+                  size="small"
+                  color={isAtLimit ? "error" : isNearLimit ? "warning" : "default"}
+                />
                 <IconButton
                   size="small"
                   tabIndex={-1}
