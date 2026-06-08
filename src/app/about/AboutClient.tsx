@@ -16,7 +16,14 @@ export default function AboutClient() {
       }}
     >
       <div style={{ height: "75%" }} className="relative lg:block hidden">
-        <Image fill src="/assets/images/opletics-team.jpg" alt="Opletics team meeting to discuss athlete management system innovations" className="object-contain w-full" priority />
+        <Image
+          fill
+          src="/assets/images/opletics-team.jpg"
+          alt="Opletics team meeting to discuss athlete management system innovations"
+          className="object-contain w-full"
+          sizes="45vw"
+          priority
+        />
       </div>
 
       <div className="flex flex-col h-full">

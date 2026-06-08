@@ -48,7 +48,7 @@ const SoccerBeach = () => {
           transform: `translate3d(0, ${parallaxOffset}px, 0)`,
         }}
       >
-        <Image src="/assets/images/ocean-court01.jpg" alt="Soccer Field" fill style={{ objectFit: "contain" }} priority />
+        <Image src="/assets/images/ocean-court01.jpg" alt="Soccer Field" fill style={{ objectFit: "contain" }} sizes="100vw" priority />
       </Box>
 
       {/* Overlay */}

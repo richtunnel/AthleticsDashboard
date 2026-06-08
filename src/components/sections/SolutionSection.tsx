@@ -155,6 +155,7 @@ const SolutionSection = () => {
                 alt="Athletic director using Opletics sports management software to manage league schedules"
                 fill
                 style={{ objectFit: "cover" }}
+                sizes="(max-width: 900px) 100vw, 50vw"
               />
             </Box>
           </Grid>

@@ -53,7 +53,7 @@ export const Parallax: React.FC = () => {
             transform: `translate3d(0, ${parallaxOffset}px, 0)`,
           }}
         >
-          <Image src="/assets/images/bball-court01.jpg" alt="Basketball Court" fill style={{ objectFit: "cover" }} priority />
+          <Image src="/assets/images/bball-court01.jpg" alt="Basketball Court" fill style={{ objectFit: "cover" }} sizes="100vw" priority />
         </Box>
 
         {/* Overlay */}

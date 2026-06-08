@@ -117,12 +117,35 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
       };
     }
 
-    // Active, trialing, or incomplete = no lock
+    // Active or trialing = full access
     if (
       subscription.status === 'ACTIVE' ||
-      subscription.status === 'TRIALING' ||
-      subscription.status === 'INCOMPLETE'
+      subscription.status === 'TRIALING'
     ) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: false,
+        status: subscription.status,
+        isDisabled: false,
+      };
+    }
+
+    // INCOMPLETE: Stripe created the subscription when checkout started, but the
+    // user never submitted payment (navigated away from Stripe's hosted page).
+    // Treat exactly like no subscription — AD must complete checkout.
+    // Non-AD roles (collaborators, parents) are exempt as usual.
+    if (subscription.status === 'INCOMPLETE' && isAD && !isMember) {
+      return {
+        isOverdue: false,
+        shouldLockDashboard: true,
+        needsCheckout: true,
+        status: subscription.status,
+        isDisabled: false,
+      };
+    }
+
+    // INCOMPLETE for non-AD roles — no lock
+    if (subscription.status === 'INCOMPLETE') {
       return {
         isOverdue: false,
         shouldLockDashboard: false,
