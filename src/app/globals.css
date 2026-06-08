@@ -4,6 +4,20 @@
    The --font-inter CSS variable is injected by next/font on the <html> element. */
 
 /* Skip-to-main-content link — visually hidden until focused by keyboard */
+/* Server-rendered site navigation — accessible to screen readers and crawlers,
+   visually hidden so it doesn't interfere with page design */
+.seo-nav {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .skip-to-main {
   position: absolute;
   left: -9999px;

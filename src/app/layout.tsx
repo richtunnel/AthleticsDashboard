@@ -677,6 +677,27 @@ export default function RootLayout({
         <a href="#main-content" className="skip-to-main">
           Skip to main content
         </a>
+
+        {/*
+          Server-rendered navigation — included in the static HTML of every page.
+          Visually hidden (screen-reader accessible, not hidden from crawlers).
+          This ensures Googlebot picks up all key internal links without relying
+          on JavaScript execution.
+        */}
+        <nav aria-label="Site navigation" className="seo-nav">
+          <a href="/">Home</a>
+          <a href="/how-it-works">How It Works</a>
+          <a href="/about">About Opletics</a>
+          <a href="/parents">For Parents</a>
+          <a href="/careers">Careers</a>
+          <a href="/onboarding/plans">Pricing</a>
+          <a href="/docs">Documentation</a>
+          <a href="/news">News</a>
+          <a href="/support">Support</a>
+          <a href="/schedule-board">Schedule Exchange</a>
+          <a href="/members">Members</a>
+        </nav>
+
         <Providers>
           <MixpanelProvider />
           <Suspense fallback={null}>

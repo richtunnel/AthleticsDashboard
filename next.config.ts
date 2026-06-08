@@ -193,16 +193,20 @@ const nextConfig: NextConfig = {
 
   async redirects() {
     return [
+      // 1. www → non-www (hardcoded to https:// so protocol is never inherited)
       {
         source: "/:path*",
-        has: [
-          {
-            type: "host",
-            value: "www.(?<domain>.*)",
-          },
-        ],
+        has: [{ type: "host", value: "www.opletics.com" }],
         permanent: true,
-        destination: "https://:domain/:path*",
+        destination: "https://opletics.com/:path*",
+      },
+      // 2. http → https (via x-forwarded-proto set by proxy / load balancer)
+      {
+        source: "/:path*",
+        has: [{ type: "header", key: "x-forwarded-proto", value: "http" }],
+        missing: [{ type: "host", value: "www.opletics.com" }],
+        permanent: true,
+        destination: "https://opletics.com/:path*",
       },
     ];
   },

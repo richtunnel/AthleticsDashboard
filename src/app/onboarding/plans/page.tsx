@@ -253,7 +253,12 @@ function PricingPlansContent() {
     }
 
     if (sessionStatus !== "authenticated" || !session?.user) {
-      router.push("/login?callbackUrl=/onboarding/plans");
+      // Unauthenticated visitors should create an account first, not log in.
+      // Pass the selected plan so signup can preserve context.
+      // After account creation → /onboarding/details → middleware auto-redirects
+      // back to /onboarding/plans?checkout_required=true to complete checkout.
+      const params = new URLSearchParams({ plan: planKey });
+      router.push(`/onboarding/signup?${params.toString()}`);
       return;
     }
 

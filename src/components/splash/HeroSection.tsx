@@ -59,7 +59,9 @@ export const HeroSection: React.FC = () => {
                 </ButtonLink>
                 <ButtonLink
                   size="large"
-                  href="#"
+                  href={process.env.NEXT_PUBLIC_CALENDLY_URL || "https://calendly.com/opletics/30min"}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   variant="outlined"
                   endIcon={<FiArrowRight />}
                   sx={{
