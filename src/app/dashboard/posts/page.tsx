@@ -32,8 +32,10 @@ export default function PostsPage() {
   const urlTab = parseInt(searchParams.get("tab") ?? "", 10);
   const [tab, setTab] = usePersistedTab("community-tab", 3, isNaN(urlTab) ? undefined : urlTab);
 
-  const [postsTabEl, setPostsTabEl] = useState<HTMLElement | null>(null);
-  const [annTabEl,   setAnnTabEl]   = useState<HTMLElement | null>(null);
+  const [postsTabEl,      setPostsTabEl]     = useState<HTMLElement | null>(null);
+  const [annTabEl,        setAnnTabEl]       = useState<HTMLElement | null>(null);
+  const [postSchedTabEl,  setPostSchedTabEl] = useState<HTMLElement | null>(null);
+  const [gameReqTabEl,    setGameReqTabEl]   = useState<HTMLElement | null>(null);
 
   const currentUser = {
     id:    session?.user?.id   ?? "",
@@ -79,8 +81,9 @@ export default function PostsPage() {
       >
         <Tab ref={setPostsTabEl} icon={<Newspaper fontSize="small" />} iconPosition="start" label="Posts" />
         <Tab ref={setAnnTabEl}   icon={<Campaign  fontSize="small" />} iconPosition="start" label="Announcements" />
-        <Tab icon={<CalendarMonth fontSize="small" />} iconPosition="start" label="Post Schedule" />
+        <Tab ref={setPostSchedTabEl} icon={<CalendarMonth fontSize="small" />} iconPosition="start" label="Post Schedule" />
         <Tab
+          ref={setGameReqTabEl}
           iconPosition="start"
           icon={
             <GameRequestUnreadBadge>
@@ -105,6 +108,20 @@ export default function PostsPage() {
         placement="bottom-start"
         title="Send direct announcements"
         body="Announcements go straight to connected parents' dashboards — use them for time-sensitive updates like cancellations, location changes, or weather delays."
+      />
+      <TipBubble
+        tipId={TIP_IDS.POST_SCHEDULE_TAB}
+        anchorEl={tab === 2 ? postSchedTabEl : null}
+        placement="bottom-start"
+        title="Publish open dates to the Exchange"
+        body="Select a league from your worksheet and we'll scan every open slot on your schedule. Those dates are published to the Schedule Exchange Board so other ADs can request a game."
+      />
+      <TipBubble
+        tipId={TIP_IDS.GAME_REQUESTS_TAB}
+        anchorEl={tab === 3 ? gameReqTabEl : null}
+        placement="bottom-start"
+        title="Manage incoming game requests"
+        body="When another AD requests one of your open dates from the Exchange Board it lands here. Accept to add the game to your schedule, or decline if the date no longer works."
       />
 
       {tab === 0 && (

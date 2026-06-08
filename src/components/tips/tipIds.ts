@@ -20,6 +20,10 @@ export const TIP_IDS = {
   SETTINGS_OTHER: "settings.other.intro",
   AI_TRAVEL_TIMES: "ai.travel.arrival",
 
+  // ── Community tabs ───────────────────────────────────────────────────────
+  POST_SCHEDULE_TAB: "community.post.schedule.intro",
+  GAME_REQUESTS_TAB: "community.game.requests.intro",
+
   // ── Schedule Exchange ────────────────────────────────────────────────────
   SCHEDULE_CHECK_AVAILABILITY: "schedule.check.availability",
 

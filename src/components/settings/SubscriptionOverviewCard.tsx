@@ -74,7 +74,9 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   }, [checkoutStatus]);
 
   const displaySubscription = optimisticState || subscription;
-  const isAdmin = userRole === "SUPER_ADMIN" || userRole === "ATHLETIC_DIRECTOR";
+  // Only true super-admins get the "Admin Account" treatment.
+  // Athletic Directors are paying customers and should see their plan details.
+  const isAdmin = userRole === "SUPER_ADMIN";
   const isFreePlan = !displaySubscription && !isAdmin;
 
   const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : isAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan";
@@ -242,23 +244,30 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
       .join(" ");
   }
 
+  /** Map a Stripe price ID to a friendly plan name using env vars configured in the plans page. */
+  function resolvePlanNameFromPriceId(priceId: string): string | null {
+    const map: Record<string, string> = {};
+    const e = process.env;
+    if (e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO) map[e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO] = "Standard (Monthly)";
+    if (e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR) map[e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR] = "Standard (Annual)";
+    if (e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO)     map[e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO]     = "Team (Monthly)";
+    if (e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR)     map[e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR]     = "Team (Annual)";
+    if (e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO)     map[e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO]     = "Team+ (Monthly)";
+    if (e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR)     map[e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR]     = "Team+ (Annual)";
+    return map[priceId] ?? null;
+  }
+
   function getPlanDisplayName(sub: SubscriptionData): string {
-    if (sub.planNickname) {
-      return sub.planNickname;
-    }
-    if (sub.planLookupKey) {
-      return formatPlanType(sub.planLookupKey);
-    }
-    if (sub.planType) {
-      return formatPlanType(sub.planType);
-    }
-    if (sub.planProductId) {
-      return sub.planProductId;
-    }
+    if (sub.planNickname) return sub.planNickname;
+    if (sub.planLookupKey) return formatPlanType(sub.planLookupKey);
+    if (sub.planType) return formatPlanType(sub.planType);
+    // Try to resolve a friendly name from the configured price IDs before
+    // falling back to a generic label — never show a raw Stripe price ID.
     if (sub.priceId) {
-      return sub.priceId;
+      const resolved = resolvePlanNameFromPriceId(sub.priceId);
+      if (resolved) return resolved;
     }
-    return "Unknown";
+    return "Opletics Plan";
   }
 
   const formatDate = (date: Date | null): string => {

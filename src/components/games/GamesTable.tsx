@@ -537,6 +537,9 @@ export function GamesTable() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mounted, setMounted] = useState(false);
+  // True while we're auto-creating the first workbook for a brand-new user.
+  // Keeps the loading gate closed until the workbook + its preferences are ready.
+  const [isBootstrappingWorkbook, setIsBootstrappingWorkbook] = useState(false);
   // Ref for the table container — used by the grid navigation hook
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1218,9 +1221,17 @@ export function GamesTable() {
       selectedWorkbookId: nextSelectedId,
     });
 
-    // Auto-create a default workbook if none exist
+    // Once workbooks are available, the bootstrap phase is done.
+    if (serverData.length > 0) {
+      setIsBootstrappingWorkbook(false);
+    }
+
+    // Auto-create a default workbook for brand-new users who have none yet.
+    // Hold the loading gate closed (isBootstrappingWorkbook) until the new
+    // workbook's queries settle — this prevents the empty-table flash.
     if (serverData.length === 0 && !hasAutoCreatedWorkbook.current) {
       hasAutoCreatedWorkbook.current = true;
+      setIsBootstrappingWorkbook(true);
       fetch("/api/games-workbooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1231,10 +1242,12 @@ export function GamesTable() {
           if (data.data) {
             queryClient.invalidateQueries({ queryKey: ["gamesWorkbooks"] });
             queryClient.invalidateQueries({ queryKey: ["games"] });
+            // isBootstrappingWorkbook cleared above when workbooks refetch with data
           }
         })
         .catch(() => {
           hasAutoCreatedWorkbook.current = false;
+          setIsBootstrappingWorkbook(false);
         });
     }
   }, [workbooksResponse, queryClient]);
@@ -7430,10 +7443,12 @@ export function GamesTable() {
     return false;
   }).length;
 
-  // Wait for both games data AND column preferences to load before rendering
-  // This prevents default columns from flashing on page refresh when user has imported columns
-  // Also show loading when fetching with filters and no data yet (prevents "No games found" flash)
-  const isInitialLoading = !mounted || isLoading || isLoadingPreferences;
+  // Wait for games data, column preferences, AND workbooks to load before rendering.
+  // isLoadingWorkbooks: prevents flash when selectedWorkbookId hasn't been resolved yet.
+  // isBootstrappingWorkbook: keeps the gate closed during the auto-create cycle for new
+  //   users (no workbooks → POST → refetch → selectedWorkbookId changes → preferences
+  //   re-fetch) so the empty-table state never briefly appears mid-bootstrap.
+  const isInitialLoading = !mounted || isLoading || isLoadingPreferences || isLoadingWorkbooks || isBootstrappingWorkbook;
   const isFilterLoading = isFetching && games.length === 0 && activeFilterCount > 0;
 
   if (isInitialLoading || isFilterLoading) {
