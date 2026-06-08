@@ -167,26 +167,31 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
       where: { userId },
     });
 
-    // Athletic Directors must complete Stripe checkout before accessing the dashboard.
-    // Member-access (demo) sessions and non-AD roles (collaborators, parents) are exempt.
     const isAD = user?.role === 'ATHLETIC_DIRECTOR';
     const isMember = Boolean(user?.isMemberAccess);
 
-    // ── Stripe auto-sync fallback ─────────────────────────────────────────────
-    // No DB subscription record found for this AD. This happens when a webhook
-    // was missed, after a DB migration, or when the user subscribed through a
-    // flow that didn't write a local record.
-    //
-    // Strategy:
-    //   1. Use stripeCustomerId if we have it.
-    //   2. Otherwise search Stripe by email to find/create the customer link.
-    //   3. If a real active subscription is found, sync it and let them through.
-    //   4. Only runs once — the DB record + 5-min cache prevent repeat calls.
+    // ── Step 1: clean up stale INCOMPLETE records ─────────────────────────────
+    // The checkout routes no longer write INCOMPLETE to the DB, but old records
+    // may exist. Delete them so the auto-sync below can run cleanly.
+    if (subscription?.status === 'INCOMPLETE') {
+      try {
+        await prisma.subscription.delete({ where: { userId } });
+        invalidatePaymentStatusCache(userId);
+        console.log(`[PaymentStatus] Deleted stale INCOMPLETE record for user ${userId}`);
+      } catch (err) {
+        console.error('[PaymentStatus] Failed to delete stale INCOMPLETE record:', err);
+      }
+      subscription = null;
+    }
+
+    // ── Step 2: auto-sync from Stripe when DB has no record ──────────────────
+    // Covers: missed webhooks, DB migrations, post-checkout race condition,
+    // and the case above where INCOMPLETE was just deleted.
     if (!subscription && isAD && !isMember) {
       try {
         let customerId = user?.stripeCustomerId ?? null;
 
-        // Fallback: resolve customer ID from email when it isn't stored locally
+        // No customer ID stored locally — look it up by email in Stripe
         if (!customerId && user?.email) {
           const { getStripe } = await import('@/lib/stripe');
           const stripe = getStripe();
@@ -196,7 +201,6 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
           });
           if (customers.length > 0) {
             customerId = customers[0].id;
-            // Persist it so we never have to look it up again
             await prisma.user.update({
               where: { id: userId },
               data: { stripeCustomerId: customerId },
@@ -214,81 +218,27 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
         }
       } catch (syncErr) {
         console.error('[PaymentStatus] Stripe auto-sync failed:', syncErr);
-        // Fall through — still redirect to checkout below
       }
     }
 
+    // ── Step 3: evaluate the subscription ────────────────────────────────────
+
     if (!subscription && isAD && !isMember) {
-      return {
-        isOverdue: false,
-        shouldLockDashboard: true,
-        needsCheckout: true,
-        isDisabled: false,
-      };
+      return { isOverdue: false, shouldLockDashboard: true, needsCheckout: true, isDisabled: false };
     }
 
-    // No subscription = non-AD role (collaborator, parent, etc.) — no lock
     if (!subscription) {
-      return {
-        isOverdue: false,
-        shouldLockDashboard: false,
-        isDisabled: false,
-      };
-    }
-
-    // Expired incomplete checkout — AD must restart Stripe checkout
-    if (subscription.status === 'INCOMPLETE_EXPIRED' && isAD && !isMember) {
-      return {
-        isOverdue: false,
-        shouldLockDashboard: true,
-        needsCheckout: true,
-        status: subscription.status,
-        isDisabled: false,
-      };
+      return { isOverdue: false, shouldLockDashboard: false, isDisabled: false };
     }
 
     // Active or trialing = full access
-    if (
-      subscription.status === 'ACTIVE' ||
-      subscription.status === 'TRIALING'
-    ) {
-      return {
-        isOverdue: false,
-        shouldLockDashboard: false,
-        status: subscription.status,
-        isDisabled: false,
-      };
+    if (subscription.status === 'ACTIVE' || subscription.status === 'TRIALING') {
+      return { isOverdue: false, shouldLockDashboard: false, status: subscription.status, isDisabled: false };
     }
 
-    // INCOMPLETE: The webhook now skips writing these records entirely, so this
-    // branch only fires for records that existed before that fix was deployed.
-    // Self-heal by deleting the stale record so the user can start a fresh
-    // checkout. The delete is fire-and-forget; on error we still redirect them.
-    if (subscription.status === 'INCOMPLETE') {
-      try {
-        await prisma.subscription.delete({ where: { userId } });
-        invalidatePaymentStatusCache(userId);
-        console.log(`[PaymentStatus] Self-healed stale INCOMPLETE subscription for user ${userId}`);
-      } catch (err) {
-        console.error('[PaymentStatus] Failed to delete stale INCOMPLETE subscription:', err);
-      }
-      // After cleanup, an AD still needs to complete checkout
-      if (isAD && !isMember) {
-        return {
-          isOverdue: false,
-          shouldLockDashboard: true,
-          needsCheckout: true,
-          status: subscription.status,
-          isDisabled: false,
-        };
-      }
-      // Non-AD roles: no lock
-      return {
-        isOverdue: false,
-        shouldLockDashboard: false,
-        status: subscription.status,
-        isDisabled: false,
-      };
+    // Expired incomplete checkout — AD must restart
+    if (subscription.status === 'INCOMPLETE_EXPIRED' && isAD && !isMember) {
+      return { isOverdue: false, shouldLockDashboard: true, needsCheckout: true, status: subscription.status, isDisabled: false };
     }
 
     // Check if payment is past_due or unpaid
