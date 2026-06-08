@@ -239,8 +239,8 @@ export async function POST(req: NextRequest) {
     // Onboarding checkout lands on /dashboard so the middleware can route the user
     // to /onboarding/details (if not yet filled) or straight to the dashboard.
     const successUrl = isOnboarding
-      ? `${baseUrl}/dashboard`
-      : `${baseUrl}/dashboard/settings?checkout=success`;
+      ? `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`
+      : `${baseUrl}/dashboard/settings?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${baseUrl}/onboarding/plans?checkout=cancelled`;
 
     const checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {

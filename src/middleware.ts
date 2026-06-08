@@ -292,6 +292,24 @@ export async function middleware(req: NextRequest) {
       return response;
     }
 
+    // If Stripe redirected back with a session_id, the user just completed checkout.
+    // Verify it directly — no need to wait for the webhook.
+    const stripeSessionId = req.nextUrl.searchParams.get("session_id");
+    if (stripeSessionId?.startsWith("cs_")) {
+      try {
+        const { getStripe } = await import("@/lib/stripe");
+        const stripe = getStripe();
+        const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+        if (session.status === "complete" || session.payment_status === "paid") {
+          console.log("[Middleware] Stripe checkout verified, allowing through:", stripeSessionId);
+          return response;
+        }
+      } catch (err) {
+        console.error("[Middleware] Failed to verify Stripe session:", err);
+        // Fall through to normal payment check
+      }
+    }
+
     // Check if user has overdue payment or disabled account
     if (token?.sub) {
       try {
