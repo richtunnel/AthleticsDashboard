@@ -23,6 +23,7 @@ import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
+import styles from "@/styles/logo.module.css";
 
 // ─── Feature section data ────────────────────────────────────────────────────
 
@@ -132,15 +133,11 @@ export default function HowItWorksContent() {
           justifyContent: "space-between",
         }}
       >
-        <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
-          <CircularProjectIcon size={20} outerStrokeWidth={2} strokeWidth={4} color={isDark ? "#fff" : "#313a4d"} />
-          <Typography
-            variant="body1"
-            fontWeight={700}
-            sx={{ color: isDark ? "white" : "#313a4d", letterSpacing: "-0.6px" }}
-          >
+        <Link href="/" className={`${styles["ad-hub-logo"]} flex`} style={{ textDecoration: "none", color: isDark ? "#fff" : "#313a4d" }}>
+          <CircularProjectIcon size={22} outerStrokeWidth={2} strokeWidth={4} color={isDark ? "#fff" : "#313a4d"} />
+          <span className={styles.opleticsLogoText} style={{ marginLeft: "2px", letterSpacing: "-0.65px", color: isDark ? "#fff" : "#313a4d" }}>
             opletics
-          </Typography>
+          </span>
         </Link>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <Button

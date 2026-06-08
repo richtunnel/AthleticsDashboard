@@ -123,7 +123,7 @@ const SolutionSection = () => {
               variant="contained"
               size="large"
               component={Link}
-              href="/onboarding/plans"
+              href="/how-it-works"
               sx={{
                 backgroundColor: theme.palette.primary.main,
                 color: "white",
