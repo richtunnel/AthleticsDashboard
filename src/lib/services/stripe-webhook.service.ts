@@ -85,6 +85,43 @@ export class StripeWebhookService {
     const customerId = typeof stripeSubscription.customer === 'string' ? stripeSubscription.customer : stripeSubscription.customer?.id;
     const metadataUserId = stripeSubscription.metadata?.userId ?? stripeSubscription.metadata?.userID ?? null;
 
+    // ── Don't persist INCOMPLETE subscriptions ────────────────────────────────
+    // Stripe fires customer.subscription.created with status=incomplete as soon
+    // as the Checkout Session is created — before the user has entered or
+    // submitted payment. Storing this causes users who abandon checkout to get
+    // permanently blocked by the needsCheckout gate.
+    //
+    // We intentionally skip these events. When the user completes payment,
+    // customer.subscription.updated fires with status=active and we store it
+    // then. If they never pay, customer.subscription.updated fires with
+    // status=incomplete_expired, which we use to clean up any stale records.
+    if (stripeSubscription.status === 'incomplete') {
+      console.log(`[StripeWebhook] Skipping INCOMPLETE subscription ${stripeSubscriptionId} — waiting for payment confirmation.`);
+      return null;
+    }
+
+    // ── Clean up stale INCOMPLETE records when checkout expires ───────────────
+    // If the subscription expires without payment, delete any stale DB record
+    // so the user can start a fresh checkout. Don't write INCOMPLETE_EXPIRED
+    // status to the DB — it would just block them the same way INCOMPLETE did.
+    if (stripeSubscription.status === 'incomplete_expired') {
+      const orFilters: Prisma.SubscriptionWhereInput[] = [{ stripeSubscriptionId }];
+      if (metadataUserId) orFilters.push({ userId: metadataUserId });
+      if (customerId) orFilters.push({ stripeCustomerId: customerId });
+
+      try {
+        const stale = await prisma.subscription.findFirst({ where: { OR: orFilters } });
+        if (stale) {
+          await prisma.subscription.delete({ where: { id: stale.id } });
+          invalidatePaymentStatusCache(stale.userId);
+          console.log(`[StripeWebhook] Deleted stale INCOMPLETE_EXPIRED subscription for user ${stale.userId}`);
+        }
+      } catch (err) {
+        console.error('[StripeWebhook] Error cleaning up incomplete_expired subscription:', err);
+      }
+      return null;
+    }
+
     const orFilters: Prisma.SubscriptionWhereInput[] = [{ stripeSubscriptionId }];
     if (metadataUserId) {
       orFilters.push({ userId: metadataUserId });

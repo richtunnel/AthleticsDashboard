@@ -405,6 +405,7 @@ function PricingPlansContent() {
           </Alert>
         )}
 
+
         {showCancelledAlert && (
           <Alert
             severity="warning"

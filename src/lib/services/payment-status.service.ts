@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/database/prisma";
 import type { Subscription, SubscriptionStatus } from "@prisma/client";
+import type Stripe from "stripe";
 
 const PAYMENT_GRACE_HOURS = 48;
 
@@ -47,9 +48,90 @@ export async function checkPaymentStatus(userId: string): Promise<PaymentStatusR
   return result;
 }
 
+/**
+ * Pull the most recent non-incomplete subscription from Stripe and upsert it
+ * into the local DB. Called as a one-time recovery when no DB record exists.
+ * Returns true if a subscription was found and synced.
+ */
+async function syncSubscriptionFromStripe(userId: string, stripeCustomerId: string): Promise<boolean> {
+  const { getStripe } = await import("@/lib/stripe");
+  const stripe = getStripe();
+
+  // List active subscriptions for this customer; fall back to all statuses
+  const { data: subscriptions } = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    limit: 10,
+    expand: ["data.latest_invoice"],
+  });
+
+  if (!subscriptions.length) return false;
+
+  // Prefer ACTIVE > TRIALING > PAST_DUE > anything else
+  const priority = ["active", "trialing", "past_due", "unpaid", "canceled"];
+  const sorted = [...subscriptions].sort((a, b) => {
+    const ai = priority.indexOf(a.status) === -1 ? 99 : priority.indexOf(a.status);
+    const bi = priority.indexOf(b.status) === -1 ? 99 : priority.indexOf(b.status);
+    return ai - bi;
+  });
+
+  const sub = sorted[0];
+  if (!sub || sub.status === "incomplete" || sub.status === "incomplete_expired") return false;
+
+  const statusMap: Record<string, SubscriptionStatus> = {
+    active: "ACTIVE",
+    trialing: "TRIALING",
+    past_due: "PAST_DUE",
+    unpaid: "UNPAID",
+    canceled: "CANCELED",
+    incomplete: "INCOMPLETE",
+    incomplete_expired: "INCOMPLETE_EXPIRED",
+  };
+
+  const priceItem = sub.items?.data?.[0];
+  const planPriceId = priceItem?.price?.id ?? null;
+  const planLookupKey = priceItem?.price?.lookup_key ?? null;
+  const planNickname = priceItem?.price?.nickname ?? null;
+  const s = sub as any;
+
+  await prisma.subscription.upsert({
+    where: { userId },
+    create: {
+      userId,
+      stripeSubscriptionId: sub.id,
+      stripeCustomerId,
+      status: statusMap[sub.status] ?? "ACTIVE",
+      priceId: planPriceId,
+      planLookupKey,
+      planNickname,
+      currentPeriodStart: s.current_period_start ? new Date(s.current_period_start * 1000) : null,
+      currentPeriodEnd: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+      trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
+      trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+      lastEventId: "auto-sync",
+    },
+    update: {
+      stripeSubscriptionId: sub.id,
+      stripeCustomerId,
+      status: statusMap[sub.status] ?? "ACTIVE",
+      priceId: planPriceId,
+      planLookupKey,
+      planNickname,
+      currentPeriodStart: s.current_period_start ? new Date(s.current_period_start * 1000) : null,
+      currentPeriodEnd: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+      trialStart: sub.trial_start ? new Date(sub.trial_start * 1000) : null,
+      trialEnd: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+      lastEventId: "auto-sync",
+    },
+  });
+
+  return true;
+}
+
 async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusResult> {
   try {
-    // Fetch account status, role, and member-access flag in one query
+    // Fetch account status, role, member-access flag, and Stripe customer ID in one query
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -57,6 +139,7 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
         disableReason: true,
         role: true,
         isMemberAccess: true,
+        stripeCustomerId: true,
       },
     });
 
@@ -79,7 +162,7 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
       };
     }
 
-    const subscription = await prisma.subscription.findUnique({
+    let subscription = await prisma.subscription.findUnique({
       where: { userId },
     });
 
@@ -87,6 +170,25 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
     // Member-access (demo) sessions and non-AD roles (collaborators, parents) are exempt.
     const isAD = user?.role === 'ATHLETIC_DIRECTOR';
     const isMember = Boolean(user?.isMemberAccess);
+
+    // ── Stripe auto-sync fallback ─────────────────────────────────────────────
+    // No DB subscription record found, but the user has a Stripe customer ID.
+    // This can happen when a webhook was missed (endpoint down, misconfigured)
+    // or after a DB migration. Try to recover by fetching from Stripe directly
+    // and writing the record now. Only runs once per user — after the upsert the
+    // DB record exists and subsequent calls skip this entirely.
+    if (!subscription && isAD && !isMember && user?.stripeCustomerId) {
+      try {
+        const synced = await syncSubscriptionFromStripe(userId, user.stripeCustomerId);
+        if (synced) {
+          subscription = await prisma.subscription.findUnique({ where: { userId } });
+          console.log(`[PaymentStatus] Auto-synced subscription from Stripe for user ${userId}`);
+        }
+      } catch (syncErr) {
+        console.error('[PaymentStatus] Stripe auto-sync failed:', syncErr);
+        // Fall through — still redirect to checkout below
+      }
+    }
 
     if (!subscription && isAD && !isMember) {
       return {
@@ -130,22 +232,29 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
       };
     }
 
-    // INCOMPLETE: Stripe created the subscription when checkout started, but the
-    // user never submitted payment (navigated away from Stripe's hosted page).
-    // Treat exactly like no subscription — AD must complete checkout.
-    // Non-AD roles (collaborators, parents) are exempt as usual.
-    if (subscription.status === 'INCOMPLETE' && isAD && !isMember) {
-      return {
-        isOverdue: false,
-        shouldLockDashboard: true,
-        needsCheckout: true,
-        status: subscription.status,
-        isDisabled: false,
-      };
-    }
-
-    // INCOMPLETE for non-AD roles — no lock
+    // INCOMPLETE: The webhook now skips writing these records entirely, so this
+    // branch only fires for records that existed before that fix was deployed.
+    // Self-heal by deleting the stale record so the user can start a fresh
+    // checkout. The delete is fire-and-forget; on error we still redirect them.
     if (subscription.status === 'INCOMPLETE') {
+      try {
+        await prisma.subscription.delete({ where: { userId } });
+        invalidatePaymentStatusCache(userId);
+        console.log(`[PaymentStatus] Self-healed stale INCOMPLETE subscription for user ${userId}`);
+      } catch (err) {
+        console.error('[PaymentStatus] Failed to delete stale INCOMPLETE subscription:', err);
+      }
+      // After cleanup, an AD still needs to complete checkout
+      if (isAD && !isMember) {
+        return {
+          isOverdue: false,
+          shouldLockDashboard: true,
+          needsCheckout: true,
+          status: subscription.status,
+          isDisabled: false,
+        };
+      }
+      // Non-AD roles: no lock
       return {
         isOverdue: false,
         shouldLockDashboard: false,
