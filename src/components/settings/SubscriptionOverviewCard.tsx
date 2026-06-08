@@ -244,29 +244,27 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
       .join(" ");
   }
 
-  /** Map a Stripe price ID to a friendly plan name using env vars configured in the plans page. */
-  function resolvePlanNameFromPriceId(priceId: string): string | null {
-    const map: Record<string, string> = {};
-    const e = process.env;
-    if (e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO) map[e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO] = "Standard (Monthly)";
-    if (e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR) map[e.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR] = "Standard (Annual)";
-    if (e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO)     map[e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO]     = "Team (Monthly)";
-    if (e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR)     map[e.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR]     = "Team (Annual)";
-    if (e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO)     map[e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO]     = "Team+ (Monthly)";
-    if (e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR)     map[e.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR]     = "Team+ (Annual)";
-    return map[priceId] ?? null;
-  }
-
   function getPlanDisplayName(sub: SubscriptionData): string {
     if (sub.planNickname) return sub.planNickname;
     if (sub.planLookupKey) return formatPlanType(sub.planLookupKey);
     if (sub.planType) return formatPlanType(sub.planType);
-    // Try to resolve a friendly name from the configured price IDs before
-    // falling back to a generic label — never show a raw Stripe price ID.
+    // Map price IDs to friendly names using the literal process.env.NEXT_PUBLIC_* pattern
+    // so Next.js statically inlines the values at build time (safe in client components).
     if (sub.priceId) {
-      const resolved = resolvePlanNameFromPriceId(sub.priceId);
-      if (resolved) return resolved;
+      const stdMo = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO;
+      const stdYr = process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR;
+      const teamMo = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO;
+      const teamYr = process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR;
+      const plusMo = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO;
+      const plusYr = process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR;
+      if (stdMo  && sub.priceId === stdMo)  return "Standard (Monthly)";
+      if (stdYr  && sub.priceId === stdYr)  return "Standard (Annual)";
+      if (teamMo && sub.priceId === teamMo) return "Team (Monthly)";
+      if (teamYr && sub.priceId === teamYr) return "Team (Annual)";
+      if (plusMo && sub.priceId === plusMo) return "Team+ (Monthly)";
+      if (plusYr && sub.priceId === plusYr) return "Team+ (Annual)";
     }
+    // Never expose a raw Stripe price ID to the user
     return "Opletics Plan";
   }
 
