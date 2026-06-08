@@ -131,7 +131,7 @@ async function syncSubscriptionFromStripe(userId: string, stripeCustomerId: stri
 
 async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusResult> {
   try {
-    // Fetch account status, role, member-access flag, and Stripe customer ID in one query
+    // Fetch account status, role, member-access flag, Stripe customer ID, and email in one query
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -140,6 +140,7 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
         role: true,
         isMemberAccess: true,
         stripeCustomerId: true,
+        email: true,
       },
     });
 
@@ -172,17 +173,44 @@ async function _checkPaymentStatusFromDB(userId: string): Promise<PaymentStatusR
     const isMember = Boolean(user?.isMemberAccess);
 
     // ── Stripe auto-sync fallback ─────────────────────────────────────────────
-    // No DB subscription record found, but the user has a Stripe customer ID.
-    // This can happen when a webhook was missed (endpoint down, misconfigured)
-    // or after a DB migration. Try to recover by fetching from Stripe directly
-    // and writing the record now. Only runs once per user — after the upsert the
-    // DB record exists and subsequent calls skip this entirely.
-    if (!subscription && isAD && !isMember && user?.stripeCustomerId) {
+    // No DB subscription record found for this AD. This happens when a webhook
+    // was missed, after a DB migration, or when the user subscribed through a
+    // flow that didn't write a local record.
+    //
+    // Strategy:
+    //   1. Use stripeCustomerId if we have it.
+    //   2. Otherwise search Stripe by email to find/create the customer link.
+    //   3. If a real active subscription is found, sync it and let them through.
+    //   4. Only runs once — the DB record + 5-min cache prevent repeat calls.
+    if (!subscription && isAD && !isMember) {
       try {
-        const synced = await syncSubscriptionFromStripe(userId, user.stripeCustomerId);
-        if (synced) {
-          subscription = await prisma.subscription.findUnique({ where: { userId } });
-          console.log(`[PaymentStatus] Auto-synced subscription from Stripe for user ${userId}`);
+        let customerId = user?.stripeCustomerId ?? null;
+
+        // Fallback: resolve customer ID from email when it isn't stored locally
+        if (!customerId && user?.email) {
+          const { getStripe } = await import('@/lib/stripe');
+          const stripe = getStripe();
+          const { data: customers } = await stripe.customers.list({
+            email: user.email,
+            limit: 1,
+          });
+          if (customers.length > 0) {
+            customerId = customers[0].id;
+            // Persist it so we never have to look it up again
+            await prisma.user.update({
+              where: { id: userId },
+              data: { stripeCustomerId: customerId },
+            });
+            console.log(`[PaymentStatus] Resolved Stripe customer ${customerId} by email for user ${userId}`);
+          }
+        }
+
+        if (customerId) {
+          const synced = await syncSubscriptionFromStripe(userId, customerId);
+          if (synced) {
+            subscription = await prisma.subscription.findUnique({ where: { userId } });
+            console.log(`[PaymentStatus] Auto-synced subscription from Stripe for user ${userId}`);
+          }
         }
       } catch (syncErr) {
         console.error('[PaymentStatus] Stripe auto-sync failed:', syncErr);
