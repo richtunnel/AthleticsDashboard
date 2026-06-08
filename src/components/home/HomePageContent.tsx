@@ -40,17 +40,10 @@ export default function HomePageContent() {
 
   const handleSignIn = async () => {
     try {
-      if (status === "authenticated" && session) {
-        await signInAuth.executeAction({
-          type: "navigation",
-          navigationPath: "/dashboard",
-        });
-      } else {
-        await signInAuth.executeAction({
-          type: "navigation",
-          navigationPath: "/login",
-        });
-      }
+      await signInAuth.executeAction({
+        type: "navigation",
+        navigationPath: "/login",
+      });
     } catch (error) {
       // Navigation errors are typically user-initiated cancellations
     }

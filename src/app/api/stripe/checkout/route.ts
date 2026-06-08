@@ -115,30 +115,11 @@ export async function POST(req: NextRequest) {
       customerId,
     });
 
-    const subscriptionData = await prisma.subscription.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        customerId,
-        stripeCustomerId: customerId,
-        planType,
-        billingCycle: planType,
-        priceId,
-        status: "INCOMPLETE",
-        trialStart: trialEligible ? now : null,
-        trialEnd: trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null,
-      },
-      update: {
-        customerId,
-        stripeCustomerId: customerId,
-        planType,
-        billingCycle: planType,
-        priceId,
-        status: "INCOMPLETE",
-        trialStart: trialEligible ? now : null,
-        trialEnd: trialEligible ? new Date(now.getTime() + trialPeriodDays * 24 * 60 * 60 * 1000) : null,
-      },
-    });
+    // Do NOT write an INCOMPLETE subscription to the DB here.
+    // The payment gate treats INCOMPLETE as "not paid" and blocks dashboard access.
+    // The webhook (customer.subscription.updated → ACTIVE/TRIALING) writes the real
+    // record once payment is confirmed. The auto-sync in payment-status.service.ts
+    // handles the brief window between Stripe redirect and webhook delivery.
 
     // Use env-driven site URL so Stripe redirect URLs never use the bind address (0.0.0.0:3000).
     const baseUrl = normalizeBrowserUrl(process.env.NEXT_PUBLIC_APP_URL || getSiteUrl());
@@ -158,7 +139,6 @@ export async function POST(req: NextRequest) {
       metadata: getTestModeMetadata({
         userId: user.id,
         planType,
-        subscriptionRecordId: subscriptionData.id,
       }),
       subscription_data: {
         metadata: getTestModeMetadata({
