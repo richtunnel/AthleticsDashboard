@@ -10,6 +10,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: [
+          "/",
+          "/how-it-works",
+          "/about",
+          "/parents",
+          "/careers",
+          "/docs",
           "/onboarding/start",
           "/onboarding/plans",
           "/onboarding/signup",

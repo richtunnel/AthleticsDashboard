@@ -189,6 +189,23 @@ export default function HomePageContent() {
                   Get Started&nbsp; <ChevronRightIcon />
                 </AuthActionButton>
               </div>
+              <div className="mt-3">
+                <Link
+                  href="/how-it-works"
+                  style={{
+                    color: "rgb(97 98 99)",
+                    fontSize: "0.9rem",
+                    fontWeight: 500,
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    opacity: 0.85,
+                  }}
+                >
+                  How it works <ChevronRightIcon style={{ fontSize: "1rem" }} />
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -298,6 +315,22 @@ export default function HomePageContent() {
                   >
                     Try Now
                   </AuthActionButton>
+                </div>
+                <div className="text-center">
+                  <Link
+                    href="/how-it-works"
+                    style={{
+                      color: "rgba(229,231,235,0.75)",
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    How it works <ChevronRightIcon style={{ fontSize: "1rem" }} />
+                  </Link>
                 </div>
 
                 {/* Social Icons Only */}

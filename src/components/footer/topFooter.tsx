@@ -72,6 +72,20 @@ export default function TopFooter() {
       </div>
       <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
         <Link
+          href="/how-it-works"
+          style={{
+            color: "var(--text-secondary)",
+            fontSize: "0.875rem",
+            fontWeight: 400,
+            textDecoration: "none",
+            transition: "color 0.2s ease",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = "rgb(197, 197, 210)")}
+          onMouseOut={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+        >
+          How It Works
+        </Link>
+        <Link
           href="/about"
           target="_blank"
           rel="noopener noreferrer"
