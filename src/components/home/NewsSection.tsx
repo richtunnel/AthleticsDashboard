@@ -93,6 +93,8 @@ const NewsSection = () => {
               variant="outlined"
               component="a"
               href="/updates"
+              target="_blank"
+              rel="noopener noreferrer"
               sx={{
                 borderRadius: 3,
                 px: 4,
