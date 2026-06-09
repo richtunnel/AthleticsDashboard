@@ -156,11 +156,11 @@ export default function UpdatesClient() {
         }}
       >
         <Container maxWidth="lg" sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", py: 1.5 }}>
-          <Link href="/" style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 6 }}>
-            <CircularProjectIcon size={20} outerStrokeWidth={2} strokeWidth={4} color={isDark ? "#ceff77" : "#313a4d"} />
-            <Typography variant="body1" fontWeight={700} sx={{ letterSpacing: "-0.5px", color: isDark ? "text.primary" : "#313a4d" }}>
+          <Link href="/" className={`${styles["ad-hub-logo"]} flex`} style={{ textDecoration: "none", color: isDark ? "inherit" : "#313a4d" }}>
+            <CircularProjectIcon size={22} outerStrokeWidth={2} strokeWidth={4} color={isDark ? "inherit" : "#313a4d"} />
+            <span className={styles.opleticsLogoText} style={{ marginLeft: "2px", letterSpacing: "-0.65px" }}>
               opletics
-            </Typography>
+            </span>
           </Link>
           <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
             <ArrowBackIcon sx={{ fontSize: 16, color: "text.secondary" }} />
