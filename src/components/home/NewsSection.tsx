@@ -1,11 +1,9 @@
 import React from "react";
 import { Box, Container, Typography, Grid, Card, CardContent, Button, Chip, useTheme } from "@mui/material";
 import { ArrowForward } from "@mui/icons-material";
-import { useRouter } from "next/navigation";
 
 const NewsSection = () => {
   const theme = useTheme();
-  const router = useRouter();
 
   const newsItems = [
     {
@@ -24,11 +22,6 @@ const NewsSection = () => {
       variant: "standard" as const,
     },
   ];
-
-  const learnMoreButton = (e: any) => {
-    e.preventDefault();
-    router.push("/parents");
-  };
 
   return (
     <Box
@@ -98,11 +91,8 @@ const NewsSection = () => {
 
             <Button
               variant="outlined"
-              //   onClick={learnMoreButton}
               component="a"
-              href="/parents"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/updates"
               sx={{
                 borderRadius: 3,
                 px: 4,
@@ -221,7 +211,6 @@ const NewsSection = () => {
                 </Typography>
 
                 <Button
-                  //   onClick={learnMoreButton}
                   component="a"
                   href="/parents"
                   target="_blank"
