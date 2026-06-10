@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getMemberAccessExpiresAtMs, isMemberAccessCodeDisabled, isMemberAccessToken, normalizeMemberAccessCode } from "@/lib/utils/memberAccess";
 import { etagMiddleware } from "./middleware/etag-middleware";
+import { checkRateLimit } from "@/lib/security/redis-rate-limit";
+import { getRateTier, getClientIpFromHeaders, isScannerPath } from "@/lib/security/request-guard";
 
 /**
  * Cookie name for the separate parent session.
@@ -125,6 +127,62 @@ export async function middleware(req: NextRequest) {
   }
 
   const pathname = req.nextUrl.pathname;
+
+  // ── Endpoint-sniffer defense ──────────────────────────────────────────────
+  // 1. Known scanner paths (/.env, /wp-login.php, *.php, /.git, …) get an
+  //    instant 404 — no Redis call, no framework fingerprint leaked.
+  if (isScannerPath(pathname)) {
+    return new NextResponse("Not Found", { status: 404, headers: { "X-Request-ID": requestId } });
+  }
+
+  // 2. Redis-backed per-IP rate limiting at the single middleware chokepoint.
+  //    Fail-open by construction (checkRateLimit returns allowed on any Redis
+  //    issue), so this can never cause an outage. Skips webhooks (tier === null).
+  const tier = getRateTier(pathname, req.method);
+  if (tier) {
+    const ip = getClientIpFromHeaders(req.headers);
+    if (ip !== "unknown") {
+      const { allowed, retryAfter, limit, remaining } = await checkRateLimit(
+        `${tier.bucket}:${ip}`,
+        tier.limit,
+        tier.windowSec,
+      );
+      if (!allowed) {
+        console.warn(`[RateLimit] 429 ${tier.bucket} ip=${ip} path=${pathname}`);
+        return NextResponse.json(
+          { error: "Too many requests", message: `Rate limit exceeded. Try again in ${retryAfter}s.` },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(retryAfter),
+              "X-RateLimit-Limit": String(limit),
+              "X-RateLimit-Remaining": "0",
+              "X-Request-ID": requestId,
+            },
+          },
+        );
+      }
+      response.headers.set("X-RateLimit-Limit", String(limit));
+      response.headers.set("X-RateLimit-Remaining", String(remaining));
+    }
+  }
+
+  // ── Scope the auth/onboarding/payment gating below to the original protected
+  //    paths ONLY. The matcher was broadened so the sniffer defense above can
+  //    see root-level probe paths, but every OTHER path (homepage, marketing,
+  //    public content) must pass straight through with security headers — it
+  //    must NOT hit the token check, which would redirect public pages to /login.
+  const needsAuthGating =
+    pathname === "/login" ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/parent-dashboard") ||
+    pathname.startsWith("/api") ||
+    pathname === "/onboarding/details" ||
+    pathname.startsWith("/onboarding/parent");
+
+  if (!needsAuthGating) {
+    return response;
+  }
 
   // ── Parent OAuth error safety net ─────────────────────────────────────────
   // When the parent OAuth callback is processed by the MAIN NextAuth handler
@@ -357,5 +415,16 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/dashboard/:path*", "/parent-dashboard/:path*", "/api/:path*", "/onboarding/details", "/onboarding/parent/:path*"],
+  // Run on every route EXCEPT Next internals and static assets. This is what
+  // lets the sniffer defense (scanner-path 404 + per-IP rate limiting) see
+  // root-level probe paths like /.env and /wp-login.php — the previous
+  // allowlist matcher never ran middleware for those.
+  //
+  // The middleware body is unchanged for the previously-matched paths; any path
+  // it doesn't explicitly handle simply falls through to `return response`
+  // (security headers only). The rate-limit tier is null for non-/api paths, so
+  // marketing/page routes incur no Redis call — just a cheap regex check.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|avif|woff2?|ttf|css|js|map)$).*)",
+  ],
 };
