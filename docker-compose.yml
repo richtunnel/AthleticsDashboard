@@ -40,6 +40,11 @@ services:
       DO_SPACES_CDN_URL: ${SPACES_CDN_URL}
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
+      # Force IPv4 for outbound connections. Node 20 tries IPv6 first (Happy
+      # Eyeballs / autoSelectFamily); on this host IPv6 has no working route,
+      # so connections to Google OAuth fail with
+      # "AggregateError at internalConnectMultiple" and Google sign-in breaks.
+      NODE_OPTIONS: --no-network-family-autoselection
     depends_on:
       redis:
         condition: service_healthy
@@ -85,6 +90,9 @@ services:
       DO_SPACES_CDN_URL: ${SPACES_CDN_URL}
       NODE_ENV: production
       REDIS_URL: redis://redis:6379
+      # Same IPv4 fix as the app — outbound calls (Stripe, Google, email) fail
+      # otherwise on this host's broken IPv6 route.
+      NODE_OPTIONS: --no-network-family-autoselection
     command: ["yarn", "worker"]
     depends_on:
       redis:
