@@ -91,8 +91,7 @@ export function ScheduleBoardTable({ sportFilter, schoolFilter }: Props) {
                 <TableCell
                   key={h}
                   sx={{
-                    "&&": { backgroundColor: headerBg },
-                    color:         "#fff",
+                    "&&": { backgroundColor: headerBg, color: "#fff" },
                     fontWeight:    700,
                     fontSize:      "0.75rem",
                     whiteSpace:    "nowrap",

@@ -136,6 +136,7 @@ function PricingPlansContent() {
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [currentPriceId, setCurrentPriceId] = useState<string | null>(null);
   const [hasDismissedCheckoutAlert, setHasDismissedCheckoutAlert] = useState(false);
   const [priceIds, setPriceIds] = useState<StripePriceIds>(() => getStripePriceIds());
   const [hasCheckedPriceConfig, setHasCheckedPriceConfig] = useState(false);
@@ -208,6 +209,7 @@ function PricingPlansContent() {
 
         if (isMounted) {
           setSubscriptionStatus(data?.subscription?.status ?? null);
+          setCurrentPriceId(data?.subscription?.priceId ?? null);
         }
       } catch (err) {
         console.error("Error fetching subscription status:", err);
@@ -242,8 +244,55 @@ function PricingPlansContent() {
       price: billing === "monthly" ? plan.monthlyPrice : plan.annualPrice,
     });
 
-    if (hasActiveSubscription) {
-      router.push("/dashboard");
+    // Determine which plan index the user currently has (0=Standard, 1=Team, 2=Team+)
+    const getPlanIndex = (pid: string | null): number => {
+      if (!pid) return -1;
+      if (pid === priceIds.standardMonthly || pid === priceIds.standardAnnual) return 0;
+      if (pid === priceIds.teamMonthly    || pid === priceIds.teamAnnual)    return 1;
+      if (pid === priceIds.plusMonthly    || pid === priceIds.plusAnnual)    return 2;
+      return -1;
+    };
+    const currentIdx = getPlanIndex(currentPriceId);
+    const thisIdx    = plans.indexOf(plan);
+
+    // Current plan → go manage it in Settings
+    if (hasActiveSubscription && !plan.isFree && currentIdx === thisIdx) {
+      router.push("/dashboard/settings");
+      return;
+    }
+
+    // Upgrade to a higher tier → proration via change-plan API
+    if (hasActiveSubscription && !plan.isFree && currentIdx !== -1 && thisIdx > currentIdx) {
+      const targetPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
+      if (!targetPriceId || !isValidPriceId(targetPriceId)) {
+        setError("This plan is not available right now. Please try again or contact support.");
+        return;
+      }
+      setLoadingKey(planKey);
+      try {
+        const planType = billing === "monthly" ? "MONTHLY" : "ANNUAL";
+        const res = await fetch("/api/stripe/change-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planType, priceId: targetPriceId }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || data?.error) {
+          setError(data?.error || "Unable to upgrade. Please try again or contact support.");
+          return;
+        }
+        router.push("/dashboard/settings?checkout=success");
+      } catch {
+        setError("Something went wrong. Please try again.");
+      } finally {
+        setLoadingKey(null);
+      }
+      return;
+    }
+
+    // Any other active-subscription case → Settings
+    if (hasActiveSubscription && !plan.isFree) {
+      router.push("/dashboard/settings");
       return;
     }
 
@@ -446,7 +495,18 @@ function PricingPlansContent() {
             const selectedPriceId = billing === "monthly" ? plan.monthlyPriceId : plan.annualPriceId;
             const buttonDisabled = Boolean(loadingKey);
             const isLoading = loadingKey === planKey;
-            const buttonLabel = hasActiveSubscription && !plan.isFree ? "Manage Subscription" : "Get started";
+            const getPlanIdx = (pid: string | null) => {
+              if (!pid) return -1;
+              if (pid === priceIds.standardMonthly || pid === priceIds.standardAnnual) return 0;
+              if (pid === priceIds.teamMonthly    || pid === priceIds.teamAnnual)    return 1;
+              if (pid === priceIds.plusMonthly    || pid === priceIds.plusAnnual)    return 2;
+              return -1;
+            };
+            const currentIdx = getPlanIdx(currentPriceId);
+            const thisIdx    = plans.indexOf(plan);
+            const isCurrentPlan = hasActiveSubscription && !plan.isFree && currentIdx === thisIdx;
+            const isUpgrade     = hasActiveSubscription && !plan.isFree && currentIdx !== -1 && thisIdx > currentIdx;
+            const buttonLabel = isCurrentPlan ? "Manage Subscription" : isUpgrade ? "Upgrade" : "Get started";
 
             return (
               <Grid size={{ xs: 12, sm: 6, md: 4 }} key={plan.name}>

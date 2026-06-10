@@ -38,6 +38,61 @@ interface SettingsPageProps {
   searchParams?: Record<string, string | string[] | undefined>;
 }
 
+/**
+ * Resolve a human-readable plan name server-side, where both STRIPE_* (server-only)
+ * and NEXT_PUBLIC_STRIPE_* env vars are accessible at runtime (not baked in at build time).
+ * This avoids the "Opletics Plan" fallback when the client-side NEXT_PUBLIC_* values
+ * don't match the production price IDs stored in the database.
+ */
+function resolveServerPlanName(sub: {
+  planNickname?: string | null;
+  planLookupKey?: string | null;
+  planType?: string | null;
+  billingCycle?: string | null;
+  priceId?: string | null;
+} | null | undefined): string | null {
+  if (!sub) return null;
+
+  // Prefer an explicit nickname stored on the subscription
+  if (sub.planNickname) return sub.planNickname;
+
+  // Look up by price ID — server has access to all env vars at runtime
+  if (sub.priceId) {
+    const map: Record<string, string> = {
+      [process.env.STRIPE_STANDARD_PRICE_ID_MO ?? ""]: "Standard",
+      [process.env.STRIPE_STANDARD_PRICE_ID_YR ?? ""]: "Standard",
+      [process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_MO ?? ""]: "Standard",
+      [process.env.NEXT_PUBLIC_STRIPE_STANDARD_PRICE_ID_YR ?? ""]: "Standard",
+      [process.env.STRIPE_TEAM_PRICE_ID_MO ?? ""]: "Team",
+      [process.env.STRIPE_TEAM_PRICE_ID_YR ?? ""]: "Team",
+      [process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_MO ?? ""]: "Team",
+      [process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID_YR ?? ""]: "Team",
+      [process.env.STRIPE_PLUS_PRICE_ID_MO ?? ""]: "Team+ (Plus)",
+      [process.env.STRIPE_PLUS_PRICE_ID_YR ?? ""]: "Team+ (Plus)",
+      [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_MO ?? ""]: "Team+ (Plus)",
+      [process.env.NEXT_PUBLIC_STRIPE_PLUS_PRICE_ID_YR ?? ""]: "Team+ (Plus)",
+    };
+    // Remove the empty-string key that forms when an env var is unset
+    delete map[""];
+    if (map[sub.priceId]) return map[sub.priceId];
+  }
+
+  // Fall back to planLookupKey (e.g. "standard_monthly")
+  if (sub.planLookupKey) {
+    const key = sub.planLookupKey.toLowerCase();
+    if (key.includes("standard")) return "Standard";
+    if (key.includes("team_plus") || key.includes("plus")) return "Team+ (Plus)";
+    if (key.includes("team")) return "Team";
+  }
+
+  // Last resort: planType / billingCycle
+  const cycle = (sub.planType ?? sub.billingCycle ?? "").toUpperCase();
+  if (cycle === "MONTHLY") return "Standard";
+  if (cycle === "ANNUAL") return "Standard";
+
+  return null;
+}
+
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const session = await getServerSession(authOptions);
 
@@ -146,6 +201,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           userRole={userWithSubscription?.role || user.role}
           userPlan={user.plan}
           checkoutStatus={checkoutStatus}
+          resolvedPlanName={resolveServerPlanName(subscription)}
         />
       </Box>
     );
@@ -170,6 +226,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         userRole={userWithSubscription?.role || user.role}
         userPlan={user.plan}
         checkoutStatus={checkoutStatus}
+        resolvedPlanName={resolveServerPlanName(userWithSubscription?.subscription)}
       />
 
       <Typography sx={{ mb: 1, mt: 3, fontSize: { xs: "1.25rem", md: "1.5rem" } }} variant="h5">

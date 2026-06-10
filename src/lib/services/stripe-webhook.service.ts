@@ -37,13 +37,16 @@ export class StripeWebhookService {
   async processWebhookEvent(payload: { event: Stripe.Event; rawBody?: string }) {
     // Handle new payload format from queue
     const event = payload.event || payload;
-    
+    // Canonical timestamp for every event — used for ordering in the ledger and
+    // for out-of-order protection on the Subscription read-model.
+    const eventCreatedAt = new Date(event.created * 1000);
+
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        const result = await this.syncSubscription(subscription, event.id, event.type);
+        const result = await this.syncSubscription(subscription, event.id, event.type, eventCreatedAt);
         if (result) {
           await this.maybeSendConfirmationEmail(result, event.type);
           await this.maybeSendCancellationEmail(result, event.type);
@@ -55,14 +58,14 @@ export class StripeWebhookService {
       }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        await this.handlePaymentSuccess(invoice);
+        await this.handlePaymentSuccess(invoice, event.id, eventCreatedAt);
         // Invalidate by customer if we can resolve the userId
         this.invalidateCacheByCustomer(invoice.customer as string).catch(() => {});
         break;
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        await this.handlePaymentFailure(invoice);
+        await this.handlePaymentFailure(invoice, event.id, eventCreatedAt);
         this.invalidateCacheByCustomer(invoice.customer as string).catch(() => {});
         break;
       }
@@ -72,7 +75,7 @@ export class StripeWebhookService {
         break;
       }
     }
-    
+
     // Mark event as processed in log
     await prisma.stripeWebhookEvent.update({
       where: { id: event.id },
@@ -80,7 +83,12 @@ export class StripeWebhookService {
     });
   }
 
-  private async syncSubscription(stripeSubscription: Stripe.Subscription, eventId: string, eventType: string): Promise<SubscriptionSyncResult | null> {
+  private async syncSubscription(
+    stripeSubscription: Stripe.Subscription,
+    eventId: string,
+    eventType: string,
+    eventCreatedAt: Date,
+  ): Promise<SubscriptionSyncResult | null> {
     const stripeSubscriptionId = stripeSubscription.id;
     const customerId = typeof stripeSubscription.customer === 'string' ? stripeSubscription.customer : stripeSubscription.customer?.id;
     const metadataUserId = stripeSubscription.metadata?.userId ?? stripeSubscription.metadata?.userID ?? null;
@@ -202,14 +210,56 @@ export class StripeWebhookService {
       endedAt,
       latestInvoiceId,
       lastEventId: eventId,
+      lastEventTimestamp: eventCreatedAt,
     };
 
-    const updatedSubscription = await prisma.subscription.upsert({
-      where: { userId: user.id },
-      create: subscriptionPayload,
-      update: subscriptionPayload,
-      include: { user: { select: userSelect } },
+    // ── 1. Append to immutable ledger (idempotent — skipDuplicates ignores re-deliveries) ──
+    await prisma.subscriptionEvent.createMany({
+      data: [{
+        stripeEventId:        eventId,
+        stripeSubscriptionId,
+        userId:               user.id,
+        eventType,
+        status,
+        stripeStatus:         stripeSubscription.status,
+        stripeEventCreatedAt: eventCreatedAt,
+        priceId:              planPriceId ?? null,
+        planType:             planType ?? null,
+        billingCycle:         billingCycle ?? null,
+        currentPeriodStart:   currentPeriodStart ?? null,
+        currentPeriodEnd:     currentPeriodEnd ?? null,
+        cancelAt:             cancelAt ?? null,
+        cancelAtPeriodEnd,
+        canceledAt:           canceledAt ?? null,
+        trialStart:           trialStart ?? null,
+        trialEnd:             trialEnd ?? null,
+      }],
+      skipDuplicates: true, // no-op on re-delivery of the same Stripe event
     });
+
+    // ── 2. Update the Subscription read-model ONLY if this event is newer ────
+    // This prevents an out-of-order event (e.g. a delayed network retry) from
+    // overwriting a more recent state that arrived first.
+    const existingTimestamp = (existing as any)?.lastEventTimestamp ?? new Date(0);
+    let updatedSubscription: any;
+
+    if (eventCreatedAt >= existingTimestamp) {
+      updatedSubscription = await prisma.subscription.upsert({
+        where: { userId: user.id },
+        create: subscriptionPayload,
+        update: subscriptionPayload,
+        include: { user: { select: userSelect } },
+      });
+    } else {
+      // Out-of-order: event is older than what we have — skip the read-model update
+      // but still return the existing subscription for email/cache logic downstream
+      console.log(`[StripeWebhook] Out-of-order event skipped for read-model — event ${eventId} (${eventCreatedAt.toISOString()}) is older than last recorded (${existingTimestamp.toISOString()})`);
+      updatedSubscription = existing ?? await prisma.subscription.findFirst({
+        where: { userId: user.id },
+        include: { user: { select: userSelect } },
+      });
+      if (!updatedSubscription) return null;
+    }
 
     const nextPlan = planPriceId ?? user.plan;
     const userUpdate: Prisma.UserUpdateInput = {
@@ -257,7 +307,7 @@ export class StripeWebhookService {
     };
   }
 
-  private async handlePaymentSuccess(invoice: Stripe.Invoice) {
+  private async handlePaymentSuccess(invoice: Stripe.Invoice, stripeEventId: string, eventCreatedAt: Date) {
     const inv = invoice as any;
     const subscriptionId = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
     if (!subscriptionId) return;
@@ -270,6 +320,28 @@ export class StripeWebhookService {
     const user = subscriptionRecord?.user;
     if (!user?.email) return;
 
+    // ── Append payment_captured event to immutable ledger ───────────────────
+    await prisma.subscriptionEvent.createMany({
+      data: [{
+        stripeEventId,
+        stripeSubscriptionId: subscriptionId,
+        stripeInvoiceId:      invoice.id,
+        userId:               user.id,
+        eventType:            "invoice.payment_succeeded",
+        status:               subscriptionRecord?.status ?? "ACTIVE",
+        stripeStatus:         "payment_captured",
+        stripeEventCreatedAt: eventCreatedAt,
+        amountPaid:           invoice.amount_paid,
+        currency:             invoice.currency ?? "usd",
+        priceId:              subscriptionRecord?.priceId ?? null,
+        planType:             subscriptionRecord?.planType ?? null,
+        billingCycle:         subscriptionRecord?.billingCycle ?? null,
+        currentPeriodStart:   subscriptionRecord?.currentPeriodStart ?? null,
+        currentPeriodEnd:     subscriptionRecord?.currentPeriodEnd ?? null,
+      }],
+      skipDuplicates: true,
+    });
+
     try {
       const { autoEnableOnPayment } = await import("./account-disable.service");
       await autoEnableOnPayment(user.id);
@@ -280,8 +352,6 @@ export class StripeWebhookService {
     const planName = this.derivePlanName(null, invoice);
 
     // Meta CAPI — Purchase (server-side, most reliable signal)
-    // Use the Stripe invoice ID as the event_id; the browser pixel on the success
-    // page should fire with the same ID for deduplication.
     void runNonCritical(
       () => sendCapiEvent({
         eventName: "Purchase",
@@ -318,7 +388,7 @@ export class StripeWebhookService {
     );
   }
 
-  private async handlePaymentFailure(invoice: Stripe.Invoice) {
+  private async handlePaymentFailure(invoice: Stripe.Invoice, stripeEventId: string, eventCreatedAt: Date) {
     const inv2 = invoice as any;
     const subscriptionId = typeof inv2.subscription === 'string' ? inv2.subscription : inv2.subscription?.id;
     if (!subscriptionId) return;
@@ -330,6 +400,28 @@ export class StripeWebhookService {
 
     const user = subscriptionRecord?.user;
     if (!user?.email) return;
+
+    // ── Append payment_failed event to immutable ledger ──────────────────────
+    await prisma.subscriptionEvent.createMany({
+      data: [{
+        stripeEventId,
+        stripeSubscriptionId: subscriptionId,
+        stripeInvoiceId:      invoice.id,
+        userId:               user.id,
+        eventType:            "invoice.payment_failed",
+        status:               "PAST_DUE",
+        stripeStatus:         "payment_failed",
+        stripeEventCreatedAt: eventCreatedAt,
+        amountPaid:           0,
+        currency:             invoice.currency ?? "usd",
+        priceId:              subscriptionRecord?.priceId ?? null,
+        planType:             subscriptionRecord?.planType ?? null,
+        billingCycle:         subscriptionRecord?.billingCycle ?? null,
+        currentPeriodStart:   subscriptionRecord?.currentPeriodStart ?? null,
+        currentPeriodEnd:     subscriptionRecord?.currentPeriodEnd ?? null,
+      }],
+      skipDuplicates: true,
+    });
 
     const planName = this.derivePlanName(null, invoice);
     await emailService.sendSubscriptionEmail({

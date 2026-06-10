@@ -47,9 +47,10 @@ interface SubscriptionOverviewCardProps {
   userRole: UserRole | null;
   userPlan: string | null;
   checkoutStatus?: string | null;
+  resolvedPlanName?: string | null;
 }
 
-export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan, checkoutStatus }: SubscriptionOverviewCardProps) {
+export default function SubscriptionOverviewCard({ subscription, recoveryEmail, lastLogin, todayLoginCount, stripeCustomerId, userRole, userPlan, checkoutStatus, resolvedPlanName }: SubscriptionOverviewCardProps) {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +80,7 @@ export default function SubscriptionOverviewCard({ subscription, recoveryEmail, 
   const isAdmin = userRole === "SUPER_ADMIN";
   const isFreePlan = !displaySubscription && !isAdmin;
 
-  const planLabel = displaySubscription ? getPlanDisplayName(displaySubscription) : isAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan";
+  const planLabel = resolvedPlanName ?? (displaySubscription ? getPlanDisplayName(displaySubscription) : isAdmin ? "Admin Account" : userPlan ? formatPlanType(userPlan) : "Free Plan");
   const billingLabelRaw = displaySubscription?.billingCycle ? formatPlanType(displaySubscription.billingCycle) : null;
   const showBillingLabel = !!displaySubscription && !!billingLabelRaw && billingLabelRaw !== planLabel;
 

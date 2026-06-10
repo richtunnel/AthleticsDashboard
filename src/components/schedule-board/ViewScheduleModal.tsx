@@ -233,8 +233,7 @@ export function ViewScheduleModal({
                           <TableCell
                             key={i}
                             sx={{
-                              "&&": { backgroundColor: headerBg },
-                              color:         "#fff",
+                              "&&": { backgroundColor: headerBg, color: "#fff" },
                               fontWeight:    700,
                               fontSize:      "0.72rem",
                               letterSpacing: 0.5,

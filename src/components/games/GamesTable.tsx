@@ -5983,10 +5983,13 @@ export function GamesTable() {
         width: columnWidth,
         minWidth: MIN_COLUMN_WIDTH,
         maxWidth: MAX_COLUMN_WIDTH,
-        // Prevent cells from wrapping and expanding row height
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
+        // View mode: clip text so cell never expands.
+        // Edit mode: allow overflow so the multiline input content is fully visible.
+        whiteSpace: isEditing ? "normal" : "nowrap",
+        overflow: isEditing ? "visible" : "hidden",
+        textOverflow: isEditing ? "clip" : "ellipsis",
+        // Keep the editing cell above neighbouring cells when it grows vertically
+        ...(isEditing && { position: "relative", zIndex: 2 }),
         cursor: isEditing ? "default" : "pointer",
         bgcolor: isEditing ? (theme: any) => alpha(theme.palette.warning.main, 0.15) : "transparent",
         ...(isEditing && {
@@ -6186,6 +6189,7 @@ export function GamesTable() {
                 <TextField
                   size="small"
                   fullWidth
+                  multiline
                   value={inlineEditValue}
                   onChange={(e) => handleInlineChange(e.target.value, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
@@ -6369,6 +6373,7 @@ export function GamesTable() {
                 <TextField
                   size="small"
                   fullWidth
+                  multiline
                   value={inlineEditValue}
                   onChange={(e) => handleInlineChange(e.target.value, game)}
                   onKeyDown={(e) => handleInlineKeyDown(e, game)}
@@ -6528,6 +6533,7 @@ export function GamesTable() {
                 <TextField
                   size="small"
                   fullWidth
+                  multiline
                   value={inlineEditValue}
                   onChange={(e) => {
                     const value = e.target.value.slice(0, MAX_CHAR_LIMIT);
@@ -6854,6 +6860,7 @@ export function GamesTable() {
                   <TextField
                     size="small"
                     fullWidth
+                    multiline
                     value={inlineEditValue}
                     onChange={(e) => handleInlineChange(e.target.value, game)}
                     onKeyDown={(e) => handleInlineKeyDown(e, game)}
@@ -7115,6 +7122,7 @@ export function GamesTable() {
                     <TextField
                       size="small"
                       fullWidth
+                      multiline
                       value={inlineEditValue}
                       onChange={(e) => handleInlineChange(e.target.value, game)}
                       onKeyDown={(e) => handleInlineKeyDown(e, game)}
@@ -8016,7 +8024,7 @@ export function GamesTable() {
                   overflowX: "auto",
                 }}
               >
-                <Table size="small">
+                <Table size="small" sx={{ tableLayout: "fixed" }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
                       <TableCell padding="checkbox" sx={{ py: 0 }}>

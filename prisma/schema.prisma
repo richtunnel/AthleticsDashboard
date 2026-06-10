@@ -105,6 +105,7 @@ model User {
   adConversationsAsA         AdConversation[]          @relation("AdConvUserA")
   adConversationsAsB         AdConversation[]          @relation("AdConvUserB")
   sentAdMessages             AdMessage[]               @relation("SentAdMessages")
+  subscriptionEvents         SubscriptionEvent[]
 
   @@index([organizationId])
   @@map("User")
@@ -627,12 +628,49 @@ model Subscription {
   endedAt              DateTime?
   latestInvoiceId      String?
   lastEventId          String?
+  lastEventTimestamp   DateTime?          // tracks newest event processed — prevents out-of-order overwrites
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   user                 User               @relation("UserSubscription", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([stripeSubscriptionId])
   @@map("Subscription")
+}
+
+// ── Immutable payment event ledger ───────────────────────────────────────────
+// Every state change from Stripe is a new row — nothing is ever updated.
+// The current subscription status is derived from the latest event by timestamp.
+// Out-of-order events are safe: each appends to the ledger without corrupting
+// the Subscription read-model (which is only updated when a newer event arrives).
+model SubscriptionEvent {
+  id                   String             @id @default(cuid())
+  stripeEventId        String             @unique  // Stripe event.id — guarantees idempotency
+  stripeSubscriptionId String?
+  stripeInvoiceId      String?
+  userId               String
+  eventType            String             // raw Stripe event type, e.g. "customer.subscription.updated"
+  status               SubscriptionStatus // our computed status at this point in time
+  stripeStatus         String?            // raw Stripe status string before mapping
+  stripeEventCreatedAt DateTime           // event.created timestamp — canonical ordering field
+  priceId              String?
+  planType             PlanType?
+  billingCycle         String?
+  amountPaid           Int?               // cents — set on invoice events
+  currency             String?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAt             DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  createdAt            DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, stripeEventCreatedAt])
+  @@index([stripeSubscriptionId])
+  @@map("SubscriptionEvent")
 }
 
 model UserLoginEvent {

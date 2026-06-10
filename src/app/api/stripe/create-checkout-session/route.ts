@@ -281,7 +281,11 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const idempotencyKey = `checkout_${user.id}_${priceId}_${Date.now()}`;
+    // Stable within a 1-hour window: retries from the same user for the same
+    // price within 60 minutes reuse the same Stripe session instead of creating
+    // a new one. Changes each hour so a genuine new attempt the next hour works.
+    const hourBucket = Math.floor(Date.now() / (1000 * 60 * 60));
+    const idempotencyKey = `checkout_${user.id}_${priceId}_${hourBucket}`;
 
     let checkoutSession: Stripe.Checkout.Session;
     try {
