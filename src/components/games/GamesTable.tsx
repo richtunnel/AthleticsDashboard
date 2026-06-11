@@ -4588,7 +4588,7 @@ export function GamesTable() {
     }
 
     return (
-      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1, minWidth: 0, overflow: "hidden" }}>
+      <Box sx={{ display: "flex", flex: 1, alignItems: "center", gap: 0.25, position: "relative", group: 1, minWidth: 0, overflow: "hidden" }}>
         {sortable && sortFieldValue ? (
           (() => {
             const sortIdx = sortFields.findIndex((s) => s.field === sortFieldValue);
