@@ -4588,7 +4588,7 @@ export function GamesTable() {
     }
 
     return (
-      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1, minWidth: 0, overflow: "hidden" }}>
         {sortable && sortFieldValue ? (
           (() => {
             const sortIdx = sortFields.findIndex((s) => s.field === sortFieldValue);
@@ -4596,7 +4596,12 @@ export function GamesTable() {
             const direction = isActive ? sortFields[sortIdx].order : "asc";
             return (
               <Tooltip title="Hold Shift to sort by multiple columns" placement="top" arrow>
-                <TableSortLabel active={isActive} direction={direction} onClick={(e) => handleSort(sortFieldValue, e)}>
+                <TableSortLabel
+                  active={isActive}
+                  direction={direction}
+                  onClick={(e) => handleSort(sortFieldValue, e)}
+                  sx={{ minWidth: 0, maxWidth: "100%", "& .MuiTableSortLabel-icon": { flexShrink: 0 } }}
+                >
                   {displayLabel.toUpperCase()}
                   {sortFields.length > 1 && isActive && (
                     <Box
@@ -4625,7 +4630,7 @@ export function GamesTable() {
             );
           })()
         ) : (
-          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary" }}>{displayLabel.toUpperCase()}</Typography>
+          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{displayLabel.toUpperCase()}</Typography>
         )}
         {!isProtectedColumn && (
           <Tooltip title="Edit column title">
@@ -4703,7 +4708,7 @@ export function GamesTable() {
       case "date":
         return (
           <TableCell key="date" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("date", "Date", true, "date")}
               <ColumnFilterDragDrop
                 columnId="date"
@@ -4725,7 +4730,7 @@ export function GamesTable() {
       case "sport":
         return (
           <TableCell key="sport" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("sport", "Sport", true, "sport")}
               <ColumnFilterDragDrop
                 columnId="sport"
@@ -4747,7 +4752,7 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("level", "Level", true, "level")}
               <ColumnFilterDragDrop
                 columnId="level"
@@ -4769,7 +4774,7 @@ export function GamesTable() {
       case "opponent":
         return (
           <TableCell key="opponent" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("opponent", "Opponent", true, "opponent")}
               <ColumnFilterDragDrop
                 columnId="opponent"
@@ -4791,7 +4796,7 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("isHome", "Home/Away", true, "isHome")}
               <ColumnFilterDragDrop
                 columnId="isHome"
@@ -4813,7 +4818,7 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("time", "Time", true, "time")}
               <ColumnFilterDragDrop
                 columnId="time"
@@ -4835,7 +4840,7 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("status", "Confirmed", true, "status")}
               <ColumnFilterDragDrop
                 columnId="status"
@@ -4857,7 +4862,7 @@ export function GamesTable() {
       case "location":
         return (
           <TableCell key="location" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("location", "Location", true, "location")}
               <ColumnFilterDragDrop
                 columnId="location"
@@ -4879,7 +4884,7 @@ export function GamesTable() {
       case "busTravel":
         return (
           <TableCell key="busTravel" sx={{ ...cellSx, whiteSpace: "nowrap" }}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("busTravel", "Bus Info", true, "busTravel")}
               <ColumnFilterDragDrop
                 columnId="busTravel"
@@ -4901,7 +4906,7 @@ export function GamesTable() {
       case "notes":
         return (
           <TableCell key="notes" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
               {renderEditableColumnTitle("notes", "Notes", true, "notes")}
               <ColumnFilterDragDrop
                 columnId="notes"
@@ -4923,7 +4928,7 @@ export function GamesTable() {
       case "actions":
         return (
           <TableCell key="actions" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center" }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
+            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
             {renderResizeHandle("actions")}
           </TableCell>
         );
@@ -4936,7 +4941,7 @@ export function GamesTable() {
           const importedColumnType = importedColumnMapping?.[columnName] === "date" ? "date" : importedColumnMapping?.[columnName] === "time" ? "time" : "text";
           return (
             <TableCell key={column.id} sx={cellSx}>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
@@ -4962,7 +4967,7 @@ export function GamesTable() {
 
           return (
             <TableCell key={column.id} sx={cellSx}>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
