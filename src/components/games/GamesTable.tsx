@@ -782,9 +782,9 @@ export function GamesTable() {
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
-  const MIN_COLUMN_WIDTH = 220;
+  const MIN_COLUMN_WIDTH = 240;
   const MAX_COLUMN_WIDTH = 600;
-  const DEFAULT_COLUMN_WIDTH = 220;
+  const DEFAULT_COLUMN_WIDTH = 280;
 
   // Deep clone columnFilters for stable query key comparison
   // This prevents unnecessary refetches when the object reference changes but content is the same
