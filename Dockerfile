@@ -21,10 +21,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# --no-network-family-autoselection forces IPv4 during the build. This host's
-# IPv6 route is broken, so without it `next/font` can't reach Google Fonts
-# (fonts.gstatic.com) and falls back to a system font with a build warning.
-ENV NODE_OPTIONS="--max-old-space-size=4096 --no-network-family-autoselection"
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 # Prevent BullMQ/IORedis from attempting a Redis connection during `next build`.
 # At build time there is no Redis service, so any module that imports queues.ts
 # must not trigger a TCP dial. Runtime containers supply the real REDIS_URL via

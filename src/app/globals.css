@@ -1,7 +1,9 @@
 @import "tailwindcss";
-/* @fontsource-variable/inter removed — Inter is now loaded via next/font/google
-   (font-display: optional, preloaded) so there is no FOUT / layout shift.
-   The --font-inter CSS variable is injected by next/font on the <html> element. */
+/* Inter is bundled locally — ships inside node_modules, so the Next.js build
+   makes ZERO network calls for fonts. This avoids next/font/google's build-time
+   download of Inter from Google Fonts, which fails on hosts without a working
+   route to fonts.gstatic.com and falls back to a system font. */
+@import "@fontsource-variable/inter";
 
 /* Skip-to-main-content link — visually hidden until focused by keyboard */
 /* Server-rendered site navigation — accessible to screen readers and crawlers,
@@ -79,7 +81,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -95,10 +97,11 @@ body {
   background-color: var(--background);
   color: var(--text-primary);
   min-height: 100%;
-  /* --font-inter is injected by next/font on the <html> element at SSR time.
-     The fallback stack activates only if the variable is somehow absent. */
+  /* Inter Variable ships locally via @fontsource-variable/inter. The fallback
+     stack activates only if it somehow fails to load. */
   font-family:
-    var(--font-inter),
+    "Inter Variable",
+    Inter,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

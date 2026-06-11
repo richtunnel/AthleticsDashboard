@@ -782,9 +782,9 @@ export function GamesTable() {
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
-  const MIN_COLUMN_WIDTH = 100;
+  const MIN_COLUMN_WIDTH = 220;
   const MAX_COLUMN_WIDTH = 600;
-  const DEFAULT_COLUMN_WIDTH = 150;
+  const DEFAULT_COLUMN_WIDTH = 220;
 
   // Deep clone columnFilters for stable query key comparison
   // This prevents unnecessary refetches when the object reference changes but content is the same
@@ -4659,9 +4659,13 @@ export function GamesTable() {
 
   const getColumnWidth = useCallback(
     (columnId: ColumnId) => {
-      return columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+      // Enforce the 220px minimum as a hard floor — even older saved
+      // preferences that stored narrower widths can never crowd the
+      // header label against its filter/hide icons.
+      const saved = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
+      return Math.max(MIN_COLUMN_WIDTH, saved);
     },
-    [columnWidths, DEFAULT_COLUMN_WIDTH],
+    [columnWidths, DEFAULT_COLUMN_WIDTH, MIN_COLUMN_WIDTH],
   );
 
   const renderResizeHandle = useCallback(

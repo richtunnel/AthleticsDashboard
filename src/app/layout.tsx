@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Providers } from "./provider";
 import Script from "next/script";
 import { AnalyticsProvider } from "./AnalyticsProvider";
@@ -13,18 +12,13 @@ import "./globals.css";
 import "../styles/sortable-drag-drop.css";
 
 /**
- * Load Inter via next/font so the woff2 is preloaded at build time and
- * font-display is set to "optional" — the font is used on the first paint if
- * it's ready; otherwise the fallback is kept and NO swap occurs afterward.
- * This eliminates the FOUT / layout-shift that fontsource's `font-display: swap`
- * caused (text expanding once Inter loaded after the initial render).
+ * Inter is bundled locally via @fontsource-variable/inter (imported in
+ * globals.css), NOT next/font/google. next/font downloads Inter from Google
+ * Fonts at BUILD time, which fails on build hosts without a working route to
+ * fonts.gstatic.com (e.g. broken IPv6) and silently falls back to a system
+ * font. The fontsource package ships the woff2 inside node_modules, so the
+ * build needs zero network and the font always renders.
  */
-const inter = Inter({
-  subsets: ["latin"],
-  display: "optional",
-  variable: "--font-inter",
-  preload: true,
-});
 
 const siteUrl = getSiteUrl();
 
@@ -616,7 +610,7 @@ export default function RootLayout({
 }>) {
   console.log("Current Env:", process.env.NODE_ENV);
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       {/* Built by Richard Stokes @ Visual Embassy */}
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
