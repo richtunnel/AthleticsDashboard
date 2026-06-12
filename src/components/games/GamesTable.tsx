@@ -782,9 +782,9 @@ export function GamesTable() {
   // Constants
   const MAX_CHAR_LIMIT = 2500;
   const NOTES_PREVIEW_LENGTH = 100;
-  const MIN_COLUMN_WIDTH = 240;
-  const MAX_COLUMN_WIDTH = 600;
-  const DEFAULT_COLUMN_WIDTH = 280;
+  const MIN_COLUMN_WIDTH = 90;
+  const MAX_COLUMN_WIDTH = 300; // columns never grow past this; long text wraps instead
+  const DEFAULT_COLUMN_WIDTH = 200; // only used as the start width when resizing
 
   // Deep clone columnFilters for stable query key comparison
   // This prevents unnecessary refetches when the object reference changes but content is the same
@@ -4588,7 +4588,7 @@ export function GamesTable() {
     }
 
     return (
-      <Box sx={{ display: "flex", flex: 1, alignItems: "center", gap: 0.25, position: "relative", group: 1, minWidth: 0, overflow: "hidden" }}>
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.25, position: "relative", group: 1 }}>
         {sortable && sortFieldValue ? (
           (() => {
             const sortIdx = sortFields.findIndex((s) => s.field === sortFieldValue);
@@ -4630,7 +4630,7 @@ export function GamesTable() {
             );
           })()
         ) : (
-          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{displayLabel.toUpperCase()}</Typography>
+          <Typography sx={{ fontWeight: 600, fontSize: 12, color: "text.secondary", whiteSpace: "normal", wordBreak: "break-word" }}>{displayLabel.toUpperCase()}</Typography>
         )}
         {!isProtectedColumn && (
           <Tooltip title="Edit column title">
@@ -4658,14 +4658,13 @@ export function GamesTable() {
   };
 
   const getColumnWidth = useCallback(
-    (columnId: ColumnId) => {
-      // Enforce the 220px minimum as a hard floor — even older saved
-      // preferences that stored narrower widths can never crowd the
-      // header label against its filter/hide icons.
-      const saved = columnWidths[columnId] || DEFAULT_COLUMN_WIDTH;
-      return Math.max(MIN_COLUMN_WIDTH, saved);
+    (columnId: ColumnId): number | undefined => {
+      // Undefined when the user hasn't resized this column — the cell then
+      // auto-sizes to its content (label + icons), so columns stay snug and
+      // evenly spaced. A number is returned only after an explicit resize.
+      return columnWidths[columnId];
     },
-    [columnWidths, DEFAULT_COLUMN_WIDTH, MIN_COLUMN_WIDTH],
+    [columnWidths],
   );
 
   const renderResizeHandle = useCallback(
@@ -4706,13 +4705,15 @@ export function GamesTable() {
       width: columnWidth,
       minWidth: MIN_COLUMN_WIDTH,
       maxWidth: MAX_COLUMN_WIDTH,
+      // Wrap long header titles past the 300px cap instead of growing wider.
+      whiteSpace: "normal" as const,
     };
 
     switch (column.id) {
       case "date":
         return (
           <TableCell key="date" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("date", "Date", true, "date")}
               <ColumnFilterDragDrop
                 columnId="date"
@@ -4734,7 +4735,7 @@ export function GamesTable() {
       case "sport":
         return (
           <TableCell key="sport" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("sport", "Sport", true, "sport")}
               <ColumnFilterDragDrop
                 columnId="sport"
@@ -4756,7 +4757,7 @@ export function GamesTable() {
       case "level":
         return (
           <TableCell key="level" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("level", "Level", true, "level")}
               <ColumnFilterDragDrop
                 columnId="level"
@@ -4778,7 +4779,7 @@ export function GamesTable() {
       case "opponent":
         return (
           <TableCell key="opponent" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("opponent", "Opponent", true, "opponent")}
               <ColumnFilterDragDrop
                 columnId="opponent"
@@ -4800,7 +4801,7 @@ export function GamesTable() {
       case "isHome":
         return (
           <TableCell key="isHome" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("isHome", "Home/Away", true, "isHome")}
               <ColumnFilterDragDrop
                 columnId="isHome"
@@ -4822,7 +4823,7 @@ export function GamesTable() {
       case "time":
         return (
           <TableCell key="time" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("time", "Time", true, "time")}
               <ColumnFilterDragDrop
                 columnId="time"
@@ -4844,7 +4845,7 @@ export function GamesTable() {
       case "status":
         return (
           <TableCell key="status" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("status", "Confirmed", true, "status")}
               <ColumnFilterDragDrop
                 columnId="status"
@@ -4866,7 +4867,7 @@ export function GamesTable() {
       case "location":
         return (
           <TableCell key="location" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("location", "Location", true, "location")}
               <ColumnFilterDragDrop
                 columnId="location"
@@ -4888,7 +4889,7 @@ export function GamesTable() {
       case "busTravel":
         return (
           <TableCell key="busTravel" sx={{ ...cellSx, whiteSpace: "nowrap" }}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("busTravel", "Bus Info", true, "busTravel")}
               <ColumnFilterDragDrop
                 columnId="busTravel"
@@ -4910,7 +4911,7 @@ export function GamesTable() {
       case "notes":
         return (
           <TableCell key="notes" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
               {renderEditableColumnTitle("notes", "Notes", true, "notes")}
               <ColumnFilterDragDrop
                 columnId="notes"
@@ -4932,7 +4933,7 @@ export function GamesTable() {
       case "actions":
         return (
           <TableCell key="actions" sx={cellSx}>
-            <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>{renderEditableColumnTitle("actions", "Actions", false)}</Box>
             {renderResizeHandle("actions")}
           </TableCell>
         );
@@ -4945,7 +4946,7 @@ export function GamesTable() {
           const importedColumnType = importedColumnMapping?.[columnName] === "date" ? "date" : importedColumnMapping?.[columnName] === "time" ? "time" : "text";
           return (
             <TableCell key={column.id} sx={cellSx}>
-              <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
@@ -4971,7 +4972,7 @@ export function GamesTable() {
 
           return (
             <TableCell key={column.id} sx={cellSx}>
-              <Box sx={{ display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
                 {renderEditableColumnTitle(column.id, columnLabel, true, column.id)}
                 <ColumnFilterDragDrop
                   columnId={column.id}
@@ -5992,11 +5993,11 @@ export function GamesTable() {
         width: columnWidth,
         minWidth: MIN_COLUMN_WIDTH,
         maxWidth: MAX_COLUMN_WIDTH,
-        // View mode: clip text so cell never expands.
-        // Edit mode: allow overflow so the multiline input content is fully visible.
-        whiteSpace: isEditing ? "normal" : "nowrap",
-        overflow: isEditing ? "visible" : "hidden",
-        textOverflow: isEditing ? "clip" : "ellipsis",
+        // Cap at 300px (MAX_COLUMN_WIDTH) and wrap long content instead of
+        // letting it stretch the column wider.
+        whiteSpace: "normal" as const,
+        wordBreak: "break-word" as const,
+        overflow: "visible" as const,
         // Keep the editing cell above neighbouring cells when it grows vertically
         ...(isEditing && { position: "relative", zIndex: 2 }),
         cursor: isEditing ? "default" : "pointer",
@@ -8033,7 +8034,7 @@ export function GamesTable() {
                   overflowX: "auto",
                 }}
               >
-                <Table size="small" sx={{ tableLayout: "fixed" }}>
+                <Table size="small" sx={{ width: "auto" }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "rgb(127 158 203 / 8%)" }}>
                       <TableCell padding="checkbox" sx={{ py: 0 }}>

@@ -612,7 +612,7 @@ export default function AdChatPage() {
     <Box sx={{ p: { xs: 1.5, sm: 2.5 }, height: "calc(100vh - 80px)", display: "flex", flexDirection: "column" }}>
       {/* Page header */}
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h4" fontWeight={700}>
           Chat
         </Typography>
         <Typography variant="body2" color="text.secondary">

@@ -71,7 +71,7 @@ const MAX_PREVIEW_LENGTH = 300;
 
 // ─── Image display ────────────────────────────────────────────────────────────
 
-const CONTENT_MAX_WIDTH = 800;
+const CONTENT_MAX_WIDTH = 635;
 
 function PostImages({ images }: { images: PostImageData[] }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -84,7 +84,7 @@ function PostImages({ images }: { images: PostImageData[] }) {
       {/* 600×600 square container — objectFit:contain inside means every
           image is shown in full, letterboxed on black if needed. */}
       <Box
-        sx={{ mt: 1.5, maxWidth: 600, width: "100%", mx: "auto", cursor: "pointer" }}
+        sx={{ mt: 1.5, maxWidth: CONTENT_MAX_WIDTH, width: "100%", mx: "auto", cursor: "pointer" }}
         onClick={(e) => {
           const target = e.target as HTMLElement;
           if (target.closest("button")) return;

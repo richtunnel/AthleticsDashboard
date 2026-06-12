@@ -110,7 +110,7 @@ function GoogleCalendarSyncMenuContent() {
 
   return (
     <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, bgcolor: "background.paper" }}>
-      <Typography variant="h5">Google Calendar Sync</Typography>
+      <Typography variant="h4" fontWeight={700}>Google Calendar Sync</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, mb: 1, maxWidth: 960 }}>
         Google Calendar Sync imports your uploaded game schedule directly into your Google Calendar so you always have your events on your phone, in your inbox reminders, and accessible from any
         device.

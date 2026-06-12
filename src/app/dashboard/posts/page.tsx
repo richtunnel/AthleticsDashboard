@@ -64,7 +64,7 @@ export default function PostsPage() {
 
   return (
     <Box sx={{ maxWidth: 1185, mx: "auto", px: { xs: "10px", sm: 2 }, py: 3 }}>
-      <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, fontSize: { xs: "1.15rem", sm: "1.5rem" } }}>
+      <Typography variant="h4" fontWeight={700} sx={{ mb: 0.5 }}>
         {TAB_DESCRIPTIONS[tab]?.heading ?? "Posts"}
       </Typography>
 
@@ -128,7 +128,7 @@ export default function PostsPage() {
         <>
           {session?.user && <PostComposer currentUser={currentUser} onPostCreated={() => queryClient.invalidateQueries({ queryKey: [POSTS_KEY] })} />}
           <Divider sx={{ mb: 3, borderColor: dividerColor, borderBottomWidth: "0.5px" }} />
-          <NewsFeed currentUserId={session?.user?.id} queryKey={POSTS_KEY} />
+          <NewsFeed currentUserId={session?.user?.id} queryKey={POSTS_KEY} columns={3} />
         </>
       )}
 

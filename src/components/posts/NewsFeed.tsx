@@ -40,9 +40,15 @@ function PostSkeleton() {
 interface NewsFeedProps {
   currentUserId?: string;
   queryKey?: string;
+  /**
+   * Number of columns to lay the posts out in. Defaults to 1 (single feed
+   * column, used by the public /news page). The dashboard Community page passes
+   * 3 to show posts in rows of three. Degrades responsively on smaller screens.
+   */
+  columns?: number;
 }
 
-export default function NewsFeed({ currentUserId, queryKey = "posts-feed" }: NewsFeedProps) {
+export default function NewsFeed({ currentUserId, queryKey = "posts-feed", columns = 1 }: NewsFeedProps) {
   const { data: session } = useSession();
   const resolvedUserId = currentUserId ?? session?.user?.id;
   const queryClient = useQueryClient();
@@ -86,10 +92,26 @@ export default function NewsFeed({ currentUserId, queryKey = "posts-feed" }: New
 
   const allPosts = data?.pages.flatMap((p) => p.data) ?? [];
 
+  // Multi-column grid for the dashboard (columns > 1); single column elsewhere.
+  // Responsive: 1 col on mobile, 2 on tablet, up to `columns` on desktop.
+  const gridSx =
+    columns > 1
+      ? {
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            md: `repeat(${columns}, minmax(0, 1fr))`,
+          },
+          gap: 2,
+          alignItems: "start",
+        }
+      : undefined;
+
   if (isLoading) {
     return (
-      <Box>
-        {[...Array(3)].map((_, i) => <PostSkeleton key={i} />)}
+      <Box sx={gridSx}>
+        {[...Array(columns > 1 ? columns : 3)].map((_, i) => <PostSkeleton key={i} />)}
       </Box>
     );
   }
@@ -127,14 +149,16 @@ export default function NewsFeed({ currentUserId, queryKey = "posts-feed" }: New
 
   return (
     <Box>
-      {allPosts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          currentUserId={resolvedUserId}
-          onDelete={handleDelete}
-        />
-      ))}
+      <Box sx={gridSx}>
+        {allPosts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            currentUserId={resolvedUserId}
+            onDelete={handleDelete}
+          />
+        ))}
+      </Box>
 
       {/* Infinite scroll sentinel */}
       <div ref={sentinelRef} />

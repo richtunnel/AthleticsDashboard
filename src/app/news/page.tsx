@@ -57,7 +57,7 @@ export default function NewsPage() {
 
       {/* Feed */}
       <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-        <Box sx={{ maxWidth: 992, mx: "auto" }}>
+        <Box sx={{ maxWidth: 635, mx: "auto" }}>
           <NewsFeed queryKey="public-news-feed" />
         </Box>
       </Container>
