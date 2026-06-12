@@ -29,10 +29,13 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV REDIS_URL=disabled
 
 RUN yarn prisma generate
-# Mount the Next.js cache so fonts (next/font/google) and webpack modules are
-# reused across builds instead of re-downloaded every time.
-RUN --mount=type=cache,target=/app/.next/cache \
-    yarn build
+# Build WITHOUT a persisted .next/cache mount. Reusing Next's build cache across
+# Docker builds can desync Server Action IDs (content-hashed at build time),
+# producing a build where the client bundle references action IDs the server
+# bundle doesn't register → "Failed to find Server Action ... older or newer
+# deployment" on every request. A clean build each time keeps client/server
+# action manifests consistent.
+RUN yarn build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner
