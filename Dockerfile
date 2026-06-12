@@ -28,14 +28,6 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 # their environment / secrets.
 ENV REDIS_URL=disabled
 
-# STABLE Server Actions encryption key. Next.js generates a RANDOM key on every
-# build unless this is set, which makes Server Action IDs change each deploy and
-# breaks any already-loaded page with "Failed to find Server Action ... older or
-# newer deployment". The key MUST match at build AND runtime (set the same value
-# in docker-compose `environment`). Override via build-arg for rotation.
-ARG NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="W4lmggaATohMmpfI7mds2rVrS8DcQlTnCPAWDMQ2MMI="
-ENV NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=$NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-
 RUN yarn prisma generate
 # Mount the Next.js cache so fonts (next/font/google) and webpack modules are
 # reused across builds instead of re-downloaded every time.
