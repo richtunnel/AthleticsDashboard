@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Must equal the runtime NEXT_SERVER_ACTIONS_ENCRYPTION_KEY below so
+        # Server Action IDs stay stable across rebuilds/deploys.
+        NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-W4lmggaATohMmpfI7mds2rVrS8DcQlTnCPAWDMQ2MMI=}
     container_name: athletics-app
     image: rickstokes/athletics-app:latest
     restart: unless-stopped
@@ -45,6 +49,10 @@ services:
       # so connections to Google OAuth fail with
       # "AggregateError at internalConnectMultiple" and Google sign-in breaks.
       NODE_OPTIONS: --no-network-family-autoselection
+      # Stable Server Actions key — MUST match the build arg above so action IDs
+      # survive redeploys (fixes "Failed to find Server Action ... older or newer
+      # deployment").
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: ${NEXT_SERVER_ACTIONS_ENCRYPTION_KEY:-W4lmggaATohMmpfI7mds2rVrS8DcQlTnCPAWDMQ2MMI=}
     depends_on:
       redis:
         condition: service_healthy
