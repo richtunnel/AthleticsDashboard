@@ -26,9 +26,13 @@ function SignupForm() {
   // Check if this is a parent plan signup
   const isParentPlan = plan === "parent_plan" || plan === "parent_free" || plan === "parent_donation";
 
+  // Carry the selected plan into the details page so it can route the user
+  // straight to that plan's Stripe checkout after they fill in school details.
+  const adDetailsCallback = `/onboarding/details?plan=${encodeURIComponent(plan)}`;
+
   // Use parent onboarding callback for parent plans
   const googleAuth = useAuthButton({
-    callbackUrl: isParentPlan ? "/onboarding/parent" : "/onboarding/details",
+    callbackUrl: isParentPlan ? "/onboarding/parent" : adDetailsCallback,
     onError: (err) => setError(err),
   });
 
@@ -38,7 +42,7 @@ function SignupForm() {
   });
 
   const credentialsAuth = useAuthButton({
-    callbackUrl: isParentPlan ? "/onboarding/parent" : "/onboarding/details",
+    callbackUrl: isParentPlan ? "/onboarding/parent" : adDetailsCallback,
     onError: (err) => setError(err),
   });
 

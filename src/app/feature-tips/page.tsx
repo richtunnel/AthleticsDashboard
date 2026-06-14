@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Box, Typography, Stack, Chip, Button, Divider, Card, CardContent } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { CircularProjectIcon } from "@/components/circle-logo/OpleticsLogo";
 import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -343,6 +344,18 @@ export default function FeatureTipsPage() {
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
+      {/* Opletics logo — click returns to the dashboard */}
+      <Link
+        href="/dashboard"
+        aria-label="Back to dashboard"
+        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 20 }}
+      >
+        <CircularProjectIcon outerStrokeWidth={2} strokeWidth={4} color="currentColor" />
+        <Typography component="span" sx={{ fontWeight: 800, letterSpacing: "-0.65px", fontSize: "1.05rem", color: "text.primary" }}>
+          opletics
+        </Typography>
+      </Link>
+
       {/* Header */}
       <Stack direction="row" alignItems="center" gap={1.5} sx={{ mb: 0.5 }}>
         <LightbulbOutlinedIcon color="primary" sx={{ fontSize: 28 }} />

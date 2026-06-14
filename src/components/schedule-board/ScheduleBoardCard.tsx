@@ -8,6 +8,7 @@ import {
 import { useTheme, alpha } from "@mui/material/styles";
 import LocationOnIcon    from "@mui/icons-material/LocationOn";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import NextLink from "next/link";
 import { ViewScheduleModal } from "./ViewScheduleModal";
 
@@ -53,26 +54,45 @@ export function ScheduleBoardCard({
       <Card
         elevation={0}
         sx={{
-          border:       "1px solid",
-          borderColor:  isOwnPost
-            ? alpha(theme.palette.primary.main, 0.4)
-            : "divider",
+          position:     "relative",
+          overflow:     "hidden",
+          border:       "none",
           borderRadius: 3,
           minWidth:     350,
-          minHeight:    250,
-          height:       "100%",
+          // Fixed height so EVERY card is exactly the same size and fits the
+          // centered 350px schedule icon.
+          height:       380,
           display:      "flex",
           flexDirection: "column",
-          transition:   "box-shadow 0.2s ease, border-color 0.2s ease",
+          bgcolor:      "background.paper",
+          boxShadow:    isDark
+            ? "0 1px 3px rgba(0,0,0,0.3)"
+            : "0 1px 3px rgba(0,0,0,0.06)",
+          transition:   "box-shadow 0.2s ease",
           "&:hover": {
             boxShadow:   isDark
               ? "0 4px 20px rgba(0,0,0,0.4)"
               : "0 4px 20px rgba(0,0,0,0.08)",
-            borderColor: alpha(theme.palette.primary.main, 0.5),
           },
         }}
       >
-        <CardContent sx={{ flex: 1, p: { xs: 2, sm: 2.5 } }}>
+        {/* Centered, very light schedule icon spanning the card (decorative) */}
+        <Box
+          aria-hidden
+          sx={{
+            position:       "absolute",
+            inset:          0,
+            display:        "flex",
+            alignItems:     "center",
+            justifyContent: "center",
+            pointerEvents:  "none",
+            zIndex:         0,
+          }}
+        >
+          <CalendarMonthIcon sx={{ fontSize: 350, color: alpha(theme.palette.text.disabled, 0.3) }} />
+        </Box>
+
+        <CardContent sx={{ position: "relative", zIndex: 1, flex: 1, p: { xs: 2, sm: 2.5 } }}>
           {/* School identity */}
           <Stack direction="row" alignItems="flex-start" gap={1.5} sx={{ mb: 2 }}>
             <Avatar
@@ -152,7 +172,7 @@ export function ScheduleBoardCard({
           <Divider sx={{ mb: 1.5 }} />
         </CardContent>
 
-        <CardActions sx={{ px: { xs: 2, sm: 2.5 }, pb: 2, pt: 0 }}>
+        <CardActions sx={{ position: "relative", zIndex: 1, px: { xs: 2, sm: 2.5 }, pb: 2, pt: 0 }}>
           <Button
             variant="contained"
             fullWidth

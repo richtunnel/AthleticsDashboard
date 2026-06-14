@@ -1,16 +1,51 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Box, TextField, Typography, Link, Alert } from "@mui/material";
 import styles from "@/styles/details_page.module.css";
 import BaseHeader from "@/components/headers/_base";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
 
-export default function DetailsPage() {
+/**
+ * Resolve the Stripe checkout URL for the plan the user selected during signup.
+ * planKey format from the plans page is `${plan.name}-${billing}` e.g.
+ * "Team-monthly", "Team+ (Plus)-annual", "Free Trial (Standard)-monthly".
+ * Returns the Stripe Checkout URL, or null if it couldn't be resolved (caller
+ * then falls back to the plans page).
+ */
+async function resolveCheckoutUrl(planKey: string | null): Promise<string | null> {
+  if (!planKey) return null;
+  try {
+    const lastDash = planKey.lastIndexOf("-");
+    const name = (lastDash > 0 ? planKey.slice(0, lastDash) : planKey).toLowerCase();
+    const billingRaw = lastDash > 0 ? planKey.slice(lastDash + 1).toLowerCase() : "monthly";
+    const billing = billingRaw === "annual" ? "Annual" : "Monthly";
+
+    // name → tier (check Plus before Team since "Team+ (Plus)" contains both)
+    const tier = name.includes("plus") ? "plus" : name.includes("team") ? "team" : "standard";
+
+    const config = await fetch("/api/stripe/config").then((r) => r.json());
+    const priceId: string | undefined = config?.[`${tier}${billing}`];
+    if (!priceId || !priceId.startsWith("price_")) return null;
+
+    const res = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priceId, isOnboarding: true }),
+    });
+    const data = await res.json().catch(() => null);
+    return res.ok && data?.url ? (data.url as string) : null;
+  } catch {
+    return null;
+  }
+}
+
+function DetailsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const [schoolName, setSchoolName] = useState("");
   const [teamName, setTeamName] = useState("");
@@ -52,7 +87,17 @@ export default function DetailsPage() {
       }
 
       await update();
-      router.push("/dashboard");
+
+      // Details complete → go STRAIGHT to the Stripe checkout for the plan the
+      // user selected during signup (passed as ?plan= and also stored on the
+      // user). If we can resolve it, send them to Stripe; otherwise fall back to
+      // the plans page (the dashboard guard will keep unpaid users out anyway).
+      const checkoutUrl = await resolveCheckoutUrl(searchParams.get("plan"));
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+      router.push("/onboarding/plans?checkout_required=true");
     } catch (err) {
       setError("An error occurred. Please try again.");
       setSubmitting(false);
@@ -128,5 +173,13 @@ export default function DetailsPage() {
         </Box>
       </div>
     </>
+  );
+}
+
+export default function DetailsPage() {
+  return (
+    <Suspense fallback={null}>
+      <DetailsPageInner />
+    </Suspense>
   );
 }
