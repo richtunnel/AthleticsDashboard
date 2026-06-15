@@ -92,7 +92,9 @@ const baseNavigation = [
   { name: "Game Center",   href: "/dashboard/games",        icon: CalendarMonth,    permissionKey: "gameCenter" as NavPermissionKey },
   { name: "Email Manager", href: "/dashboard/email-groups", icon: EmailIcon,        permissionKey: "emailManager" as NavPermissionKey },
   { name: "Calendars",     href: "/dashboard/gsync",        icon: EditCalendarIcon, permissionKey: "calendarSync" as NavPermissionKey },
-  { name: "Teams",         href: "/dashboard/opponents",    icon: Groups,           requiresScoreTracker: true },
+  // Labelled "Scores" — only visible when Score Tracker is enabled (requiresScoreTracker),
+  // so the menu reads "Scores" whenever the user has turned the feature on.
+  { name: "Scores",        href: "/dashboard/opponents",    icon: Groups,           requiresScoreTracker: true },
   { name: "Connect",       href: "/dashboard/parents",      icon: Person,           permissionKey: "connect" as NavPermissionKey },
   { name: "Community",     href: "/dashboard/posts",        icon: Newspaper,        permissionKey: "community" as NavPermissionKey },
   { name: "Chat",          href: "/dashboard/ad-chat",      icon: Chat,             permissionKey: "adChat" as NavPermissionKey },

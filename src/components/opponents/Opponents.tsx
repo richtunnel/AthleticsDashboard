@@ -790,10 +790,10 @@ export default function OpponentsPage() {
       <Box sx={{ mb: 4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Teams
+            Scores
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Track your opponents and record game results with scores
+            Track scores and record game results against your opponents
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpenCreateDialog(true)} sx={{ textTransform: "none" }}>
