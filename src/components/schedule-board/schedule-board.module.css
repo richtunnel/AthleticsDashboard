@@ -1,0 +1,12 @@
+.ScheduleBoardCardContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.ScheduleBoardCardContainer svg {
+  transform: translateY(-38px);
+  font-size: 6.5rem;
+  color: #d8e1e5;
+}

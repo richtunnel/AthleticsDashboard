@@ -197,6 +197,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/stripe/webhook") ||
     pathname.startsWith("/api/auth/") || // NextAuth routes must be public (covers /api/auth/parent/* and /api/auth/collaborator/*)
     pathname.startsWith("/api/collaboration/accept-invitation") || // Invitation acceptance must be public
+    pathname === "/api/signup" || // Account creation must be public — unauthenticated users sign up here.
+                                  // Without this, the POST is 307-redirected to /login (preserving the body) → 405.
+    pathname === "/api/user/exists" || // Email-availability check used by the signup form (also pre-auth)
     pathname === "/api/schools" ||
     pathname === "/api/coaches" ||
     pathname === "/api/posts" || // Public news feed — GET handler works without auth; write ops are guarded at handler level

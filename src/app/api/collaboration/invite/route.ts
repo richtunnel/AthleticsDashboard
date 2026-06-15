@@ -50,6 +50,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "You cannot invite yourself to collaborate on your own account" }, { status: 400 });
     }
 
+    // Prevent inviting an email that already belongs to an Athletic Director.
+    // An existing AD owns their own Opletics account, and that same email can't
+    // double as a collaborator identity (it would collide with their AD login),
+    // so they must collaborate using a SEPARATE email address. Parents and any
+    // non-AD users are unaffected — only the ATHLETIC_DIRECTOR role is blocked.
+    const existingAccount = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { role: true },
+    });
+    if (existingAccount?.role === "ATHLETIC_DIRECTOR") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "This email already belongs to an Athletic Director account. They'll need to use a separate email address to join as a collaborator.",
+        },
+        { status: 400 },
+      );
+    }
+
     // Check collaborator limit
     const collaboratorLimit = getCollaboratorLimit(user.plan);
     const currentCollaborators = await prisma.collaborativeMember.count({

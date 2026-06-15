@@ -31,6 +31,7 @@ import { PostScheduleToggle } from "@/components/settings/PostScheduleToggle";
 import { canAccessSettings } from "@/lib/utils/rbac";
 import { isMemberAccessToken } from "@/lib/utils/memberAccess";
 import { AutoAwesome, AttachMoney, MenuBook, Inbox, InfoOutlined } from "@mui/icons-material";
+import { Divider } from "@mui/material";
 import { GameRequestsPanel } from "@/components/game-requests/GameRequestsPanel";
 import Link from "next/link";
 
@@ -44,13 +45,18 @@ interface SettingsPageProps {
  * This avoids the "Opletics Plan" fallback when the client-side NEXT_PUBLIC_* values
  * don't match the production price IDs stored in the database.
  */
-function resolveServerPlanName(sub: {
-  planNickname?: string | null;
-  planLookupKey?: string | null;
-  planType?: string | null;
-  billingCycle?: string | null;
-  priceId?: string | null;
-} | null | undefined): string | null {
+function resolveServerPlanName(
+  sub:
+    | {
+        planNickname?: string | null;
+        planLookupKey?: string | null;
+        planType?: string | null;
+        billingCycle?: string | null;
+        priceId?: string | null;
+      }
+    | null
+    | undefined,
+): string | null {
   if (!sub) return null;
 
   // Prefer an explicit nickname stored on the subscription
@@ -116,10 +122,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
       plan: true,
       image: true,
       hashedPassword: true,
-      schoolName:     true,
-      teamName:       true,
-      schoolAddress:  true,
-      schoolEmail:    true,
+      schoolName: true,
+      teamName: true,
+      schoolAddress: true,
+      schoolEmail: true,
       schoolDistrict: true,
       organization: {
         select: {
@@ -163,16 +169,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   // Billing-only view when subscription period has ended after cancellation
   const subscription = userWithSubscription?.subscription;
-  const isCanceledAndExpired =
-    subscriptionCanceledParam ||
-    (subscription?.status === "CANCELED" &&
-      (!subscription.currentPeriodEnd || subscription.currentPeriodEnd <= new Date()));
+  const isCanceledAndExpired = subscriptionCanceledParam || (subscription?.status === "CANCELED" && (!subscription.currentPeriodEnd || subscription.currentPeriodEnd <= new Date()));
 
   if (isCanceledAndExpired && !checkoutStatus) {
     const periodEnd = subscription?.currentPeriodEnd;
-    const dataRetentionEnd = periodEnd
-      ? new Date(periodEnd.getTime() + 30 * 24 * 60 * 60 * 1000)
-      : null;
+    const dataRetentionEnd = periodEnd ? new Date(periodEnd.getTime() + 30 * 24 * 60 * 60 * 1000) : null;
 
     return (
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 700 }}>
@@ -180,16 +181,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           Subscription Ended
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 1 }}>
-          Your subscription has been canceled and your access period has ended. Resubscribe below to restore full
-          dashboard access.
+          Your subscription has been canceled and your access period has ended. Resubscribe below to restore full dashboard access.
         </Typography>
         {dataRetentionEnd && (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Your data is retained until{" "}
-            <strong>
-              {dataRetentionEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            </strong>
-            . Resubscribing before that date will restore everything.
+            Your data is retained until <strong>{dataRetentionEnd.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>. Resubscribing before that date will restore
+            everything.
           </Typography>
         )}
         <SubscriptionOverviewCard
@@ -233,11 +230,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         Account Details
       </Typography>
       <Box sx={{ mb: 3 }}>
-        <AccountDetailsForm
-          user={user}
-          googleCalendarEmail={user.googleCalendarEmail ?? null}
-          schoolEmail={user.schoolEmail ?? null}
-        />
+        <AccountDetailsForm user={user} googleCalendarEmail={user.googleCalendarEmail ?? null} schoolEmail={user.schoolEmail ?? null} />
       </Box>
 
       <Box sx={{ mb: 3 }}>
@@ -379,19 +372,30 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             Choose which items appear in your sidebar navigation. Hidden items can be restored at any time — your data is never deleted.
           </Typography>
           <MenuVisibilityToggles />
+          <Divider sx={{ mb: 1.5, mt: 3 }} />
+
+          {/* Score Tracker lives here because it controls whether the Scores menu appears in the sidebar. */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+              Score Tracker
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+              Enable score tracking to add game results and view team performance statistics. This adds the <strong>Scores</strong> menu to your sidebar.
+            </Typography>
+            <ScoreTrackerToggle />
+          </Box>
         </CardContent>
       </Card>
 
       <Card sx={{ mb: 3, boxShadow: "none!important" }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            Score Tracker
+            Post Schedule Quick Link
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Enable score tracking to add game results and view team performance statistics. This adds score entry
-            functionality to teams menu options.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
+            Show a <strong>Post Schedule</strong> button in Game Center so you can post your schedule to the Schedule Exchange Board without leaving the page.
           </Typography>
-          <ScoreTrackerToggle />
+          <PostScheduleToggle />
         </CardContent>
       </Card>
 
@@ -401,8 +405,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             Spreadsheet Columns
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want
-            to return to the standard view.
+            Reset your spreadsheet columns to the default layout. This is useful if you imported custom columns and want to return to the standard view.
           </Typography>
           <ResetColumnsButton />
         </CardContent>
@@ -420,18 +423,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             Map your imported CSV column names to recognized data fields. Use this when your schedule columns use custom names that weren&apos;t automatically detected.
           </Typography>
           <ColumnIdentityModal />
-        </CardContent>
-      </Card>
-
-      <Card sx={{ mb: 3, boxShadow: "none!important" }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: "1.125rem", md: "1.25rem" } }}>
-            Post Schedule Quick Link
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontSize: { xs: "0.875rem", md: "0.875rem" } }}>
-            Show a <strong>Post Schedule</strong> button in Game Center so you can post your schedule to the Schedule Exchange Board without leaving the page.
-          </Typography>
-          <PostScheduleToggle />
         </CardContent>
       </Card>
 

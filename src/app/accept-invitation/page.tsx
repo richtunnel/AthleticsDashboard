@@ -48,7 +48,35 @@ function AcceptInvitationContent() {
     !invitation.email.toLowerCase().endsWith("@gmail.com") && 
     !invitation.email.toLowerCase().endsWith("@googlemail.com");
 
-  const token = searchParams.get("token") || "";
+  const urlToken = searchParams.get("token") || "";
+  const [token, setToken] = useState(urlToken);
+  const [tokenResolved, setTokenResolved] = useState(Boolean(urlToken));
+
+  // When the token is missing from the URL (it gets dropped across the signup /
+  // OAuth round-trip), fall back to the httpOnly pending-invitation cookie that
+  // the email-link route already set — so the invitee never sees "No invitation
+  // token provided" after signing up.
+  useEffect(() => {
+    if (urlToken) {
+      setToken(urlToken);
+      setTokenResolved(true);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/collaboration/accept-invitation/pending-token")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return;
+        if (d?.token) setToken(d.token);
+        setTokenResolved(true);
+      })
+      .catch(() => {
+        if (!cancelled) setTokenResolved(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [urlToken]);
 
   // Poll the collaborator session endpoint on mount so we can detect a successful
   // sign-in through the isolated collaborator auth flow.
@@ -92,6 +120,7 @@ function AcceptInvitationContent() {
 
   // Fetch invitation details on mount
   useEffect(() => {
+    if (!tokenResolved) return; // wait for the cookie fallback to resolve first
     if (!token) {
       setError("No invitation token provided");
       setLoading(false);
@@ -120,7 +149,7 @@ function AcceptInvitationContent() {
     }
 
     fetchInvitation();
-  }, [token]);
+  }, [token, tokenResolved]);
 
   // If user is signed in (main session OR collaborator session), auto-accept.
   // The active user is whichever session resolves first — collaborator takes

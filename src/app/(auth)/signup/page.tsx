@@ -118,7 +118,7 @@ function SignupForm() {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <BaseHeader pt="20px" pl="20px" />
-      <Container component="main" maxWidth="sm" sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <Container component="main" maxWidth={false} sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", maxWidth: 520, width: "100%", mx: "auto" }}>
         <Box
           sx={{
             display: "flex",
@@ -127,7 +127,7 @@ function SignupForm() {
             py: 4,
           }}
         >
-          <Paper elevation={3} sx={{ p: 4 }}>
+          <Paper elevation={3} sx={{ p: 4, paddingTop: "20px" }}>
             <Typography component="h1" variant="h5" align="center" gutterBottom>
               Create Account
             </Typography>
