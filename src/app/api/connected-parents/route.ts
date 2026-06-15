@@ -28,8 +28,14 @@ export async function GET(request: Request) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    // Select ONLY the fields this route uses. Selecting the whole row (the old
+    // behaviour) means any drift between the Prisma schema and the production
+    // User table — a column the client expects but the DB doesn't have — throws
+    // and surfaces as "Failed to load connected parents", even though login (which
+    // selects specific fields) keeps working.
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      select: { id: true, role: true, organizationId: true },
     });
 
     if (!user || !["ATHLETIC_DIRECTOR", "ASSISTANT_AD", "COACH"].includes(user.role)) {
@@ -163,6 +169,14 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("[API] Error fetching connected parents:", error);
-    return Response.json({ error: "Failed to fetch connected parents" }, { status: 500 });
+    // Surface the real cause (AD-only route) so it shows in the Network tab /
+    // logs instead of a generic message — makes the next failure diagnosable.
+    return Response.json(
+      {
+        error: "Failed to fetch connected parents",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }
