@@ -200,6 +200,9 @@ export async function middleware(req: NextRequest) {
     pathname === "/api/signup" || // Account creation must be public — unauthenticated users sign up here.
                                   // Without this, the POST is 307-redirected to /login (preserving the body) → 405.
     pathname === "/api/user/exists" || // Email-availability check used by the signup form (also pre-auth)
+    pathname === "/api/parent/share-code/lookup" || // Public AD lookup used during PARENT signup, before the
+                                                    // parent has a session. Otherwise the /api/parent gate
+                                                    // redirects it and the share-code/AD link never loads.
     pathname === "/api/schools" ||
     pathname === "/api/coaches" ||
     pathname === "/api/posts" || // Public news feed — GET handler works without auth; write ops are guarded at handler level
