@@ -322,6 +322,22 @@ export function CalendarGroupMappings({ connectedEmailOverride, parentMode = fal
     return null;
   };
 
+  /**
+   * Only "owner" and "writer" calendars accept new events. Mapping games to a
+   * "reader" / "freeBusyReader" calendar is what produces Google's
+   * "You need to have writer access to this calendar" error at sync time, so we
+   * disable those options below.
+   */
+  const isWritableCalendar = (role: string | null | undefined): boolean => role === "owner" || role === "writer";
+
+  /** Match Google's own grouping: owned = "My Calendars", everything else = "Other Calendars". */
+  const calendarGroup = (cal: GoogleCalendar): string => (cal.accessRole === "owner" ? "My Calendars" : "Other Calendars");
+
+  // Owned first, then writable shared, then read-only — Autocomplete's groupBy
+  // requires the options pre-sorted by their group.
+  const calRank = (c: GoogleCalendar) => (c.accessRole === "owner" ? 0 : isWritableCalendar(c.accessRole) ? 1 : 2);
+  const sortedCalendarOptions: GoogleCalendar[] = [...(calendarsData?.calendars ?? [])].sort((a, b) => calRank(a) - calRank(b));
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleOpenDialog = () => {
@@ -750,9 +766,13 @@ export function CalendarGroupMappings({ connectedEmailOverride, parentMode = fal
             {/* ── Google Calendar ──────────────────────────────────────────── */}
             <FormControl fullWidth error={!!calendarsError && !hasInsufficientScopes}>
               <Autocomplete<GoogleCalendar>
-                options={calendarsData?.calendars ?? []}
+                options={sortedCalendarOptions}
+                groupBy={(c) => calendarGroup(c)}
                 getOptionLabel={(c) => c.name}
                 isOptionEqualToValue={(o, v) => o.id === v.id}
+                // Read-only calendars can't receive events — disable them so games
+                // can only be mapped to a writable calendar (no more "writer access" errors).
+                getOptionDisabled={(c) => !isWritableCalendar(c.accessRole)}
                 value={selectedCalendar}
                 onChange={(_, cal) =>
                   setNewMapping((prev) => ({
@@ -764,22 +784,27 @@ export function CalendarGroupMappings({ connectedEmailOverride, parentMode = fal
                 loading={calendarsLoading}
                 disabled={hasInsufficientScopes || calendarsLoading || (calendarsError !== null && !hasInsufficientScopes)}
                 noOptionsText={hasInsufficientScopes ? "Please reconnect your calendar first" : calendarsError ? "Error loading calendars" : "No calendars found"}
-                renderOption={(props, cal) => (
-                  <li {...props} key={cal.id}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        width: "100%",
-                      }}
-                    >
-                      <SyncLock sx={{ fontSize: 18, color: "success.main" }} />
-                      <span style={{ flex: 1 }}>{cal.name}</span>
-                      {cal.primary && <Chip label="Primary" size="small" />}
-                    </Box>
-                  </li>
-                )}
+                renderOption={(props, cal) => {
+                  const writable = isWritableCalendar(cal.accessRole);
+                  return (
+                    <li {...props} key={cal.id}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          width: "100%",
+                          opacity: writable ? 1 : 0.6,
+                        }}
+                      >
+                        <SyncLock sx={{ fontSize: 18, color: writable ? "success.main" : "text.disabled" }} />
+                        <span style={{ flex: 1 }}>{cal.name}</span>
+                        {cal.primary && <Chip label="Primary" size="small" />}
+                        {!writable && <Chip label="Read-only — can't add events" size="small" color="warning" variant="outlined" sx={{ height: 18, fontSize: "0.6rem" }} />}
+                      </Box>
+                    </li>
+                  );
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
