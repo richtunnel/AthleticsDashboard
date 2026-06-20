@@ -109,8 +109,21 @@ export default function HomePageContent() {
             />
           </div>
 
-          <div className="flex flex-1 items-center justify-center px-4">
-            <div className={styles.homePageContentContainer}>
+          <div className="flex flex-1 items-center">
+            {/* Mirror the header box (max-width 768 / margin auto / 20px padding) so the
+                hero text left-aligns exactly with the opletics logo above it. Inline styles
+                override the shared module's 40px padding + desktop translateX(-30px), scoped
+                to this instance so the About page (same class) is unaffected. */}
+            <div
+              className={styles.homePageContentContainer}
+              style={{
+                width: "100%",
+                maxWidth: "768px",
+                margin: "0 auto",
+                padding: "0 20px",
+                transform: "none",
+              }}
+            >
               <h1
                 className="HomePageTitle mb-4"
                 style={{
