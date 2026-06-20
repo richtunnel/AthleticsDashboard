@@ -5,6 +5,21 @@
    route to fonts.gstatic.com and falls back to a system font. */
 @import "@fontsource-variable/inter";
 
+/* Metric-matched fallback for Inter. @fontsource ships font-display: swap with
+   no adjusted fallback, so the system-font -> Inter swap reflows/resizes text
+   (visible "resize" on the hero). next/font used to generate this automatically;
+   these are the exact metrics it computes for Inter over Arial, making the
+   fallback occupy the same space as Inter so the swap causes ZERO layout shift.
+   Use "Inter Fallback" right after "Inter Variable" in every font stack. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial");
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+  size-adjust: 107.4%;
+}
+
 /* Skip-to-main-content link — visually hidden until focused by keyboard */
 /* Server-rendered site navigation — accessible to screen readers and crawlers,
    visually hidden so it doesn't interfere with page design */
@@ -81,7 +96,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);
-  --font-sans: "Inter Variable", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", "Inter Fallback", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -101,6 +116,7 @@ body {
      stack activates only if it somehow fails to load. */
   font-family:
     "Inter Variable",
+    "Inter Fallback",
     Inter,
     system-ui,
     -apple-system,

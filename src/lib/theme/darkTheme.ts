@@ -67,7 +67,7 @@ const darkTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "'Inter Variable', 'Inter Fallback', Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     h1: {
       fontWeight: 700,
     },
