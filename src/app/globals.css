@@ -1,24 +1,9 @@
 @import "tailwindcss";
-/* Inter is bundled locally — ships inside node_modules, so the Next.js build
-   makes ZERO network calls for fonts. This avoids next/font/google's build-time
-   download of Inter from Google Fonts, which fails on hosts without a working
-   route to fonts.gstatic.com and falls back to a system font. */
-@import "@fontsource-variable/inter";
-
-/* Metric-matched fallback for Inter. @fontsource ships font-display: swap with
-   no adjusted fallback, so the system-font -> Inter swap reflows/resizes text
-   (visible "resize" on the hero). next/font used to generate this automatically;
-   these are the exact metrics it computes for Inter over Arial, making the
-   fallback occupy the same space as Inter so the swap causes ZERO layout shift.
-   Use "Inter Fallback" right after "Inter Variable" in every font stack. */
-@font-face {
-  font-family: "Inter Fallback";
-  src: local("Arial");
-  ascent-override: 90.2%;
-  descent-override: 22.48%;
-  line-gap-override: 0%;
-  size-adjust: 107.4%;
-}
+/* Inter is self-hosted and PRELOADED via next/font/local (src/app/fonts/inter.ts).
+   The --font-inter variable (set on <html>) already includes Next's auto-generated
+   metric-matched fallback, so referencing it gives no fallback flash and no layout
+   shift. Do NOT re-add @fontsource here — it injects un-preloaded font-display:swap
+   faces that cause the visible font flicker. */
 
 /* Skip-to-main-content link — visually hidden until focused by keyboard */
 /* Server-rendered site navigation — accessible to screen readers and crawlers,
@@ -96,7 +81,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--text-primary);
-  --font-sans: "Inter Variable", "Inter Fallback", Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -112,12 +97,10 @@ body {
   background-color: var(--background);
   color: var(--text-primary);
   min-height: 100%;
-  /* Inter Variable ships locally via @fontsource-variable/inter. The fallback
-     stack activates only if it somehow fails to load. */
+  /* Inter via next/font/local (preloaded + metric-matched fallback baked into
+     --font-inter). The system-ui chain only activates if the font truly fails. */
   font-family:
-    "Inter Variable",
-    "Inter Fallback",
-    Inter,
+    var(--font-inter),
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

@@ -22,9 +22,33 @@
   font-size: 1.95rem;
 }
 
+.signInButtonMobile {
+  background-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+  border-radius: 0.75rem;
+
+  /* Assuming MUI spacing scale (1 = 8px) */
+  padding-left: 2rem; /* px: 4 */
+  padding-right: 2rem;
+  padding-top: 0.75rem; /* py: 1.5 */
+  padding-bottom: 0.75rem;
+
+  font-size: 1.1rem;
+  width: 100%;
+  transition: transform 0.2s ease;
+}
+
+.signInButtonMobile:hover {
+  transform: translateY(-2px);
+  background-color: var(--accent);
+}
+
 .mobileSpreadsheetContainer {
   margin: 50px auto 0 auto;
-  width: 400px;
+  width: 100%;
+  max-width: 380px;
   height: auto;
   z-index: 999 !important;
   position: relative;
@@ -34,7 +58,7 @@
 .mobileSpreadsheetImg {
   position: relative !important;
   border-radius: 20px;
-  width: 400px;
+  width: 100%;
   height: 100%;
 }
 
@@ -171,6 +195,12 @@
   }
 }
 
+@media all and (min-width: 375px) and (max-width: 500px) {
+  .heroTitle {
+    font-size: 2.25rem;
+  }
+}
+
 /* iPhone 5, 5S, 5C, SE (1st gen) - Small screens */
 @media all and (min-width: 320px) and (max-width: 374px) {
   .heroTitle {
@@ -223,6 +253,18 @@
   .fullHeightMobileHero img {
     border-radius: 0 0 32px 32px;
   }
+
+  .fullHeightMobileHero > div {
+    width: 100%;
+    margin: 0 auto;
+    max-width: 100%;
+  }
+}
+
+@media all and (min-width: 565px) and (max-width: 720px) {
+  .mobileSpreadsheetContainer {
+    min-width: 590px;
+  }
 }
 
 @media all and (max-width: 480px) {
@@ -239,13 +281,33 @@
   }
 }
 
+@media all and (min-width: 992px) and (max-width: 1286px) {
+  .homePageContentContainer {
+    max-width: 635px;
+  }
+}
+
 @media all and (min-width: 728px) and (max-width: 1023px) {
   .mobileSpreadsheetContainer {
-    width: 800px;
+    /* keep the illustration within the centered content column (was 800px,
+       which blew the image out across the full tablet width) */
+    max-width: 380px;
   }
 
   .heroTitle {
     margin-bottom: 0;
+  }
+
+  .mobileSignInButtonContainer {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 685px;
+  }
+
+  .signInButtonMobile {
+    max-width: 658px;
+    text-align: center;
+    margin: 0 auto;
   }
 
   .logo_mobile-hero-section {
@@ -266,8 +328,9 @@
   }
 
   .mobile-hero-section {
-    min-width: 100%;
+    max-width: 100%;
     text-align: center;
+    margin: 0 auto;
   }
 }
 

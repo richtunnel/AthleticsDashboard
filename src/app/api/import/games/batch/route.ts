@@ -221,9 +221,16 @@ export async function POST(request: NextRequest) {
       minDate.setUTCHours(0, 0, 0, 0);
       maxDate.setUTCHours(23, 59, 59, 999);
 
+      // Scope duplicate detection to THIS worksheet only. Each worksheet is an
+      // isolated table (games are stored with their workbookId), so the same
+      // spreadsheet can be imported into a different worksheet without every row
+      // being flagged as a duplicate. Duplicates are only rejected within the
+      // same worksheet. (workbookId === undefined/null => the default "games"
+      // worksheet, whose games also have workbookId = null.)
       const existing = await prisma.game.findMany({
         where: {
           homeTeam: { organizationId: session.user.organizationId },
+          workbookId: workbookId ?? null,
           date: { gte: minDate, lte: maxDate },
         },
         select: { customFields: true, date: true },

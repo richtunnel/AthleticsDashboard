@@ -8,16 +8,18 @@ import { ServiceWorkerRegistration } from "@/components/utils/ServiceWorkerRegis
 
 import { getSiteUrl, getSiteUrlAsUrl } from "@/lib/utils/siteUrl";
 
+import { inter } from "./fonts/inter";
+
 import "./globals.css";
 import "../styles/sortable-drag-drop.css";
 
 /**
- * Inter is bundled locally via @fontsource-variable/inter (imported in
- * globals.css), NOT next/font/google. next/font downloads Inter from Google
- * Fonts at BUILD time, which fails on build hosts without a working route to
- * fonts.gstatic.com (e.g. broken IPv6) and silently falls back to a system
- * font. The fontsource package ships the woff2 inside node_modules, so the
- * build needs zero network and the font always renders.
+ * Inter is self-hosted via next/font/local (see ./fonts/inter.ts). The font
+ * files are bundled (zero build-time network, unlike next/font/google) AND Next
+ * preloads them + generates a metric-matched fallback, so Inter is ready before
+ * first paint — only Inter ever renders, with no fallback flash or layout shift.
+ * The font exposes the CSS variable --font-inter (consumed in globals.css and
+ * the MUI themes).
  */
 
 const siteUrl = getSiteUrl();
@@ -610,7 +612,7 @@ export default function RootLayout({
 }>) {
   console.log("Current Env:", process.env.NODE_ENV);
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       {/* Built by Richard Stokes @ Visual Embassy */}
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />

@@ -357,6 +357,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid password");
         }
 
+        // Guard: the AD/main login must NEVER authenticate a PARENT account.
+        // Parents have a fully separate sign-in (parentAuthOptions, own cookie).
+        // Without this, a parent-role record signing in here gets a main session
+        // and lands on the AD dashboard.
+        if (user.role === "PARENT") {
+          throw new Error("This is a parent account. Please use the parent sign-in.");
+        }
+
         const metadata = extractRequestMetadataFromHeaders(req?.headers);
 
         queueLoginTracking({
@@ -502,9 +510,19 @@ export const authOptions: NextAuthOptions = {
                 where: { email },
                 select: {
                   id: true,
+                  role: true,
                   googleCalendarEmail: true,
                 },
               });
+
+              // Guard: the AD/main login must NEVER authenticate a PARENT account.
+              // (Both providers use allowDangerousEmailAccountLinking, so the same
+              // Google email can resolve to a parent record — block it here so AD
+              // sign-in can't drop a parent onto the AD dashboard.)
+              if (existingUser?.role === "PARENT") {
+                console.warn("[Auth] Blocked AD/main Google sign-in for parent-role account:", email);
+                return false;
+              }
 
               // Allow account creation during signup flow
               // The customAdapter.createUser will handle signup validation (90-day block check)
@@ -621,6 +639,17 @@ export const authOptions: NextAuthOptions = {
         if (isMemberAccessCodeDisabled(token.memberAccessCode ?? MEMBER_ACCESS_CODE)) {
           token.memberAccessExpiresAt = nowMs - 1000;
         }
+
+        // This branch returns early WITHOUT the DB lookup below, so the member
+        // session would otherwise have no organizationId/role — which made
+        // session.user.organizationId = "" and broke game import ("Organization
+        // not found"). The member org is upserted at sign-in and its id is
+        // deterministic from the sessionId, so populate it here (no DB call,
+        // preserving the redirect-loop guard this early-return exists for).
+        if (token.memberAccessSessionId) {
+          token.organizationId = generateMemberOrgId(String(token.memberAccessSessionId));
+        }
+        token.role = token.role ?? "ATHLETIC_DIRECTOR";
 
         // Member access users are always considered onboarded
         token.isOnboarded = true;

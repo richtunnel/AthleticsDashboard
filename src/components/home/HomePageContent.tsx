@@ -201,7 +201,7 @@ export default function HomePageContent() {
           <TopFooter />
         </div>
 
-        {/* Mobile: Full height container like Buyable */}
+        {/* Mobile: Full height container */}
         <div className={`${styles.mobileHeroContainer} lg:hidden relative flex flex-col h-screen`} style={{ backgroundColor: "#fdfdfd" }}>
           {/* Header - dark background blending into gradient with white text */}
           <div className="px-4 py-3 flex justify-between items-center relative z-30" style={{ backgroundColor: "rgb(17 17 17)" }}>
@@ -231,8 +231,10 @@ export default function HomePageContent() {
 
           {/* Full height hero container  */}
           <div className={`relative flex-1 ${styles.fullHeightMobileHero}`}>
-            {/* Content overlay */}
-            <div className="absolute inset-0 px-4 flex flex-col justify-between z-20">
+            {/* Content overlay — capped + centered so the phone layout reads as an
+                intentional centered column on tablets (~728-1023px) instead of stretching
+                full-width. No effect below 480px (phones). */}
+            <div className="absolute inset-0 px-4 flex flex-col justify-between z-20 max-w-[480px] mx-auto">
               <div className={styles.mobileSpreadsheetContainer}>
                 <Image
                   fill
@@ -254,29 +256,13 @@ export default function HomePageContent() {
               </div>
 
               {/* Bottom content */}
-              <div className="pb-12 space-y-4">
+              <div className={`${styles.mobileSignInButtonContainer} pb-12 space-y-4`}>
                 <AuthActionButton
                   onClick={handleSignIn}
                   loading={signInAuth.loading}
                   disabled={getStartedAuth.loading}
-                  classname={`${styles.signInButton}`}
+                  classname={`${styles.signInButton} ${styles.signInButtonMobile}`}
                   variant="contained"
-                  sx={{
-                    backgroundColor: "var(--accent)",
-                    color: "var(--accent-contrast)",
-                    fontWeight: 600,
-                    boxShadow: "var(--shadow-soft)",
-                    borderRadius: "0.75rem",
-                    px: 4,
-                    py: 1.5,
-                    fontSize: "1.1rem",
-                    width: "100%",
-                    transition: "transform 0.2s ease",
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      backgroundColor: "var(--accent)",
-                    },
-                  }}
                 >
                   Sign in&nbsp;
                   <FingerprintIcon sx={{ color: "rgb(92 142 4)" }} />

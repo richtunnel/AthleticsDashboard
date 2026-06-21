@@ -61,7 +61,7 @@ const lightTheme = createTheme({
     },
   },
   typography: {
-    fontFamily: "'Inter Variable', 'Inter Fallback', Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: "var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     h1: {
       fontWeight: 700,
     },
