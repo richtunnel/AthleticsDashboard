@@ -1,4 +1,7 @@
-import "server-only";
+// NOTE: do NOT add `import "server-only"` here. This module is shared by the
+// Next.js app AND the standalone BullMQ worker (src/scripts/queue-worker.ts,
+// run via tsx with no Next bundler). `server-only` only resolves inside Next's
+// build, so importing it crash-loops the worker with MODULE_NOT_FOUND.
 
 import { PrismaClient } from "@prisma/client";
 
