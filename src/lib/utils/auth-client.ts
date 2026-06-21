@@ -33,6 +33,22 @@ export const READ_ROLES: UserRole[] = [
 ];
 
 /**
+ * Clear ALL auth session cookies (AD/main, parent, collaborator) before running
+ * a NextAuth signOut. The same email can have both an AD and a parent account,
+ * and NextAuth's signOut() only clears its own instance's cookie — leaving the
+ * other session alive and logging the user back into the wrong dashboard. Call
+ * this from every sign-out handler, then call the appropriate signOut() for the
+ * redirect. Best-effort: never throws so sign-out is never blocked.
+ */
+export async function clearAllSessions(): Promise<void> {
+  try {
+    await fetch("/api/auth/clear-sessions", { method: "POST", credentials: "include" });
+  } catch {
+    // Non-fatal — the subsequent signOut() still clears the primary cookie.
+  }
+}
+
+/**
  * Check if a user has permission based on their role
  * @param userRole - The user's role
  * @param allowedRoles - Array of roles that are allowed

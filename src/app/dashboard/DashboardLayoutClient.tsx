@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { clearAllSessions } from "@/lib/utils/auth-client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
@@ -744,9 +745,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </MenuItem> */}
 
               <MenuItem
-                onClick={() => {
+                onClick={async () => {
                   handleClose();
-                  // Force signOut to completely kill the session
+                  // Clear ALL session cookies first (AD + parent + collaborator),
+                  // then signOut. Without the clear, a parent session registered
+                  // under the same email survives and logs the user back in.
+                  await clearAllSessions();
                   signOut({ callbackUrl: "/?postLogout=true", redirect: true });
                 }}
               >

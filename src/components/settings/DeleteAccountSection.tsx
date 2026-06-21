@@ -5,6 +5,7 @@ import { Card, CardContent, Typography, Button, Box, Alert } from "@mui/material
 import { DeleteForever } from "@mui/icons-material";
 import DeleteAccountModal from "./DeleteAccountModal";
 import { signOut } from "next-auth/react";
+import { clearAllSessions } from "@/lib/utils/auth-client";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 
@@ -44,6 +45,10 @@ export default function DeleteAccountSection({
         const data = await response.json();
         throw new Error(data.error || "Failed to delete account");
       }
+
+      // Clear ALL session cookies (AD + parent + collaborator) before signing
+      // out, so a session under the same email can't survive account deletion.
+      await clearAllSessions();
 
       // Sign out and redirect
       if (onSignOut) {

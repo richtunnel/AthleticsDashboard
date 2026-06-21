@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { clearAllSessions } from "@/lib/utils/auth-client";
 import { getFirstName } from "@/lib/utils/name";
 import { Tooltip } from "@mui/material";
 import {
@@ -190,7 +191,15 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
           borderColor: "divider",
         }}
       >
-        <ListItemButton onClick={() => signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true })} sx={{ borderRadius: 1.5 }}>
+        <ListItemButton
+          onClick={async () => {
+            // Clear ALL session cookies (parent + AD + collaborator) so an AD
+            // session under the same email can't survive parent sign-out.
+            await clearAllSessions();
+            signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true });
+          }}
+          sx={{ borderRadius: 1.5 }}
+        >
           <ListItemIcon sx={{ minWidth: 40 }}>
             <Logout sx={{ fontSize: 20 }} />
           </ListItemIcon>
@@ -347,8 +356,9 @@ function ParentDashboardLayoutContent({ children }: ParentDashboardLayoutClientP
                 Support
               </MenuItem>
               <MenuItem
-                onClick={() => {
+                onClick={async () => {
                   handleClose();
+                  await clearAllSessions();
                   signOut({ callbackUrl: "/onboarding/parent-signup", redirect: true });
                 }}
               >
