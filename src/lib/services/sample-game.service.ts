@@ -8,6 +8,8 @@ import { prisma } from "@/lib/database/prisma";
 interface CreateSampleGameParams {
   userId: string;
   organizationId: string;
+  /** When true, creates a default "Games" workbook and assigns the sample game to it. */
+  createWorkbook?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface CreateSampleGameParams {
  * Sample game includes: Girls Basketball, Varsity, Westchester Giants, Home, 12:00 PM, Pending
  */
 export async function createSampleGame(params: CreateSampleGameParams): Promise<void> {
-  const { userId, organizationId } = params;
+  const { userId, organizationId, createWorkbook = false } = params;
 
   try {
     // Find or create "Girls Basketball" sport
@@ -69,22 +71,44 @@ export async function createSampleGame(params: CreateSampleGameParams): Promise<
       });
     }
 
+    // Optionally create the default "Games" workbook upfront so the sample game
+    // is assigned to it immediately — avoids the client-side race where the
+    // auto-create fires before this game exists and assignOrphans finds nothing.
+    let workbookId: string | undefined;
+    if (createWorkbook) {
+      const existing = await prisma.gamesWorkbook.findFirst({
+        where: { userId },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true },
+      });
+
+      if (existing) {
+        workbookId = existing.id;
+      } else {
+        const wb = await prisma.gamesWorkbook.create({
+          data: { name: "Games", sortOrder: 0, userId },
+        });
+        workbookId = wb.id;
+      }
+    }
+
     // Create the sample game with today's date
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to midnight
+    today.setHours(0, 0, 0, 0);
 
     await prisma.game.create({
       data: {
         date: today,
-        time: "12:00", // 12:00 PM in HH:MM format
-        status: "SCHEDULED", // "Pending" maps to SCHEDULED status
+        time: "12:00",
+        status: "SCHEDULED",
         notes: "Bring food and drinks!",
         isHome: true,
         homeTeamId: team.id,
         opponentId: opponent.id,
         createdById: userId,
-        isSampleGame: true, // Mark as sample game
-        busTravel: false, // No bus travel info
+        isSampleGame: true,
+        busTravel: false,
+        ...(workbookId ? { workbookId } : {}),
       },
     });
 

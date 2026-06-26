@@ -462,11 +462,15 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        // Create sample game for new member (non-blocking)
+        // Create sample game + default workbook for new member (non-blocking).
+        // createWorkbook: true ensures the game is assigned to the workbook
+        // server-side, so the client never hits a race where assignOrphans
+        // fires before the game exists and the worksheet appears blank.
         void runNonCritical(async () => {
           await createSampleGame({
             userId: user.id,
             organizationId: user.organizationId,
+            createWorkbook: true,
           });
 
           await createInitialColumnPreferences(user.id);

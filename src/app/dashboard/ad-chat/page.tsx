@@ -15,6 +15,7 @@ import BlockIcon from "@mui/icons-material/Block";
 import LockIcon from "@mui/icons-material/Lock";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useAdChatSSE } from "@/hooks/useAdChatSSE";
+import { useDebounce } from "@/hooks/useDebounce";
 import { formatDistanceToNow } from "date-fns";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -161,7 +162,10 @@ export default function AdChatPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [searchFocus, setSearchFocus] = useState(false);
+
+  const flushSearch = useDebounce(setDebouncedSearchQuery, 300);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
@@ -178,9 +182,9 @@ export default function AdChatPage() {
   const conversations = convosData?.conversations ?? [];
 
   const { data: searchData, isFetching: searching } = useQuery({
-    queryKey: ["adChatSearch", searchQuery],
-    queryFn: () => fetch(`/api/ad-chat/search?q=${encodeURIComponent(searchQuery)}`).then((r) => r.json()) as Promise<{ users: SearchUser[] }>,
-    enabled: searchQuery.length >= 2,
+    queryKey: ["adChatSearch", debouncedSearchQuery],
+    queryFn: () => fetch(`/api/ad-chat/search?q=${encodeURIComponent(debouncedSearchQuery)}`).then((r) => r.json()) as Promise<{ users: SearchUser[] }>,
+    enabled: debouncedSearchQuery.length >= 2,
     staleTime: 10_000,
   });
   const searchResults = searchData?.users ?? [];
@@ -227,6 +231,7 @@ export default function AdChatPage() {
       queryClient.invalidateQueries({ queryKey: ["adChatConversations"] });
       setSelectedId(convo.id);
       setSearchQuery("");
+      setDebouncedSearchQuery("");
       setSearchFocus(false);
       setMobileView("chat");
     },
@@ -328,7 +333,7 @@ export default function AdChatPage() {
           fullWidth
           placeholder="Search by email or name…"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); flushSearch(e.target.value); }}
           onFocus={() => setSearchFocus(true)}
           onBlur={() => setTimeout(() => setSearchFocus(false), 200)}
           InputProps={{
