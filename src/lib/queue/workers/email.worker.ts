@@ -75,13 +75,23 @@ export const emailWorker = new Worker<EmailJobPayload>(
     connection: bullConnection,
     concurrency: 10,
     limiter: {
-      max: 100,         // up to 100 jobs
-      duration: 1_000,  // per 1 second
+      max: 100,
+      duration: 1_000,
+    },
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
     },
   }
 );
 
 // Final-failure handler — runs after BullMQ exhausts all retries
+emailWorker.on("error", (err) => {
+  console.error("[emailWorker] worker error:", err.message);
+});
+emailWorker.on("stalled", (jobId) => {
+  console.warn(`[emailWorker] job ${jobId} stalled — re-queued for retry`);
+});
 emailWorker.on("failed", async (job, err) => {
   if (!job) return;
   console.error(`[emailWorker] job ${job.id} failed after ${job.attemptsMade} attempts:`, err.message);
@@ -154,9 +164,19 @@ export const emailFanOutWorker = new Worker<BulkEmailFanOutPayload>(
   {
     connection: bullConnection,
     concurrency: 2,
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   }
 );
 
+emailFanOutWorker.on("error", (err) => {
+  console.error("[emailFanOutWorker] worker error:", err.message);
+});
+emailFanOutWorker.on("stalled", (jobId) => {
+  console.warn(`[emailFanOutWorker] job ${jobId} stalled — re-queued for retry`);
+});
 emailFanOutWorker.on("failed", (job, err) => {
   console.error(`[emailFanOutWorker] job ${job?.id} failed:`, err.message);
 });

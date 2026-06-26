@@ -57,9 +57,19 @@ export const slackNotifyWorker = new Worker<SlackNotifyPayload>(
     // rate limit while not bottle-necking spikes.
     concurrency: 10,
     limiter: { max: 60, duration: 60_000 }, // 60 sends/min global ceiling
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   }
 );
 
+slackNotifyWorker.on("error", (err) => {
+  console.error("[slack-worker] worker error:", err.message);
+});
+slackNotifyWorker.on("stalled", (jobId) => {
+  console.warn(`[slack-worker] job ${jobId} stalled — re-queued for retry`);
+});
 slackNotifyWorker.on("failed", (job, err) => {
   if (!job) return;
   console.error(

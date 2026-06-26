@@ -68,9 +68,19 @@ export const gameCancelNotifyWorker = new Worker<GameCancelNotifyPayload>(
   {
     connection: bullConnection,
     concurrency: 5,
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   }
 );
 
+gameCancelNotifyWorker.on("error", (err) => {
+  console.error("[gameCancelNotifyWorker] worker error:", err.message);
+});
+gameCancelNotifyWorker.on("stalled", (jobId) => {
+  console.warn(`[gameCancelNotifyWorker] job ${jobId} stalled — re-queued for retry`);
+});
 gameCancelNotifyWorker.on("failed", (job, err) => {
   console.error(
     `[gameCancelNotifyWorker] job ${job?.id} failed:`,

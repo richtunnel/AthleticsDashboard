@@ -17,9 +17,19 @@ export const stripeWebhookWorker = new Worker<StripeWebhookPayload>(
   {
     connection: bullConnection,
     concurrency: 10,
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   }
 );
 
+stripeWebhookWorker.on("error", (err) => {
+  console.error("[stripeWebhookWorker] worker error:", err.message);
+});
+stripeWebhookWorker.on("stalled", (jobId) => {
+  console.warn(`[stripeWebhookWorker] job ${jobId} stalled — re-queued for retry`);
+});
 stripeWebhookWorker.on("failed", (job, err) => {
   console.error(`[stripeWebhookWorker] event ${job?.data.eventId} failed:`, err.message);
 });

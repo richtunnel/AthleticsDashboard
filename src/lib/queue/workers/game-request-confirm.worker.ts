@@ -120,9 +120,19 @@ export const gameRequestConfirmWorker = new Worker<GameRequestConfirmPayload>(
   {
     connection: bullConnection,
     concurrency: 5,
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   }
 );
 
+gameRequestConfirmWorker.on("error", (err) => {
+  console.error("[gameRequestConfirmWorker] worker error:", err.message);
+});
+gameRequestConfirmWorker.on("stalled", (jobId) => {
+  console.warn(`[gameRequestConfirmWorker] job ${jobId} stalled — re-queued for retry`);
+});
 gameRequestConfirmWorker.on("failed", (job, err) => {
   console.error(`[gameRequestConfirmWorker] job ${job?.id} failed:`, err.message);
 });

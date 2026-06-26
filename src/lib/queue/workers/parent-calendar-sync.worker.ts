@@ -105,7 +105,12 @@ export const parentCalendarSyncWorker = new Worker<ParentCalendarSyncPayload>(
   {
     connection: bullConnection,
     concurrency: 5,
-    limiter: { max: 30, duration: 60_000 }, // 30 jobs / min global ceiling
+    lockDuration: 5 * 60 * 1000, // 5 min — per-sport syncs are smaller but still hit Google API
+    limiter: { max: 30, duration: 60_000 },
+    settings: {
+      stalledInterval: 30_000,
+      maxStalledCount: 1,
+    },
   },
 );
 
@@ -139,4 +144,10 @@ parentCalendarSyncWorker.on("failed", async (job, err) => {
   });
 
   console.error(`[parentCalendarSyncWorker] job ${backgroundJobId} failed after ${job.attemptsMade} attempts:`, err.message);
+});
+parentCalendarSyncWorker.on("error", (err) => {
+  console.error("[parentCalendarSyncWorker] worker error:", err.message);
+});
+parentCalendarSyncWorker.on("stalled", (jobId) => {
+  console.warn(`[parentCalendarSyncWorker] job ${jobId} stalled — re-queued for retry`);
 });
