@@ -449,9 +449,6 @@ export const authOptions: NextAuthOptions = {
             organizationId: org.id,
             plan: "free_trial_plan",
             trialEnd: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            schoolName: "Member Access",
-            teamName: "Member Team",
-            schoolAddress: "Member Location",
             isMemberAccess: true,
           },
           include: {
@@ -616,10 +613,12 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, account, trigger }) {
-      // Skip database lookups for member access tokens to avoid redirect loops
+      // Member access tokens: set session metadata but skip the heavy DB lookup
+      // that normal tokens use — EXCEPT on trigger==="update" (called after the
+      // member fills in school details) where we need fresh school fields.
       if (isMemberAccessToken(token)) {
         const nowMs = Date.now();
-        
+
         if (account?.provider === "member-code" || (user as any)?.memberAccessCode) {
           const issuedAtMs = typeof (user as any)?.memberAccessIssuedAt === "number" ? (user as any).memberAccessIssuedAt : nowMs;
           token.memberAccessCode = normalizeMemberAccessCode((user as any)?.memberAccessCode) ?? MEMBER_ACCESS_CODE;
@@ -640,19 +639,34 @@ export const authOptions: NextAuthOptions = {
           token.memberAccessExpiresAt = nowMs - 1000;
         }
 
-        // This branch returns early WITHOUT the DB lookup below, so the member
-        // session would otherwise have no organizationId/role — which made
-        // session.user.organizationId = "" and broke game import ("Organization
-        // not found"). The member org is upserted at sign-in and its id is
-        // deterministic from the sessionId, so populate it here (no DB call,
-        // preserving the redirect-loop guard this early-return exists for).
         if (token.memberAccessSessionId) {
           token.organizationId = generateMemberOrgId(String(token.memberAccessSessionId));
         }
         token.role = token.role ?? "ATHLETIC_DIRECTOR";
 
-        // Member access users are always considered onboarded
-        token.isOnboarded = true;
+        // On session update (triggered after the member submits the details form)
+        // do a targeted DB fetch to pick up their saved school details.
+        if (trigger === "update" && token.email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email },
+            select: { schoolName: true, teamName: true, schoolAddress: true, city: true },
+          });
+          if (dbUser) {
+            token.schoolName    = dbUser.schoolName    ?? undefined;
+            token.teamName      = dbUser.teamName      ?? undefined;
+            token.schoolAddress = dbUser.schoolAddress ?? undefined;
+            token.city          = dbUser.city          ?? undefined;
+          }
+        }
+
+        // isOnboarded is derived from actual school details, same as normal users.
+        // Members start without school details and are directed to /onboarding/details.
+        token.isOnboarded = Boolean(
+          token.schoolName?.trim() &&
+          token.teamName?.trim() &&
+          token.schoolAddress?.trim()
+        );
+
         return token;
       }
 

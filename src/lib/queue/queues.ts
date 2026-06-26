@@ -109,6 +109,11 @@ export interface EmailImportPayload {
   [key: string]: unknown;
 }
 
+// ── Game request confirmation payload ────────────────────────────────────────
+export interface GameRequestConfirmPayload {
+  gameRequestId: string;
+}
+
 // ── Game cancellation parent-notification payload ─────────────────────────────
 export interface GameCancelNotifyPayload {
   /** The game that was cancelled */
@@ -229,6 +234,18 @@ export const emailImportQueue = new Queue<EmailImportPayload>(
 );
 
 /**
+ * Game request confirmation emails — sent to both ADs when the requester
+ * confirms an approved game request.
+ */
+export const gameRequestConfirmQueue = new Queue<GameRequestConfirmPayload>(
+  `${QUEUE_PREFIX}-game-request-confirm`,
+  {
+    connection: bullConnection,
+    defaultJobOptions: { ...baseJobOptions, priority: Priority.HIGH },
+  }
+);
+
+/**
  * Notifies affected parents when an AD cancels a game.
  * Invalidates their overview caches so the cancelled game surfaces immediately
  * on next dashboard load.
@@ -288,6 +305,7 @@ export const allQueues = {
   parentCalendarSync: parentCalendarSyncQueue,
   gameImport: gameImportQueue,
   emailImport: emailImportQueue,
+  gameRequestConfirm: gameRequestConfirmQueue,
   gameCancelNotify: gameCancelNotifyQueue,
   stripeWebhook: stripeWebhookQueue,
   slackNotify: slackNotifyQueue,

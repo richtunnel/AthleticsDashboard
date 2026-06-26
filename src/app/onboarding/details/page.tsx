@@ -8,6 +8,7 @@ import styles from "@/styles/details_page.module.css";
 import BaseHeader from "@/components/headers/_base";
 import { AuthActionButton } from "@/components/auth/AuthActionButton";
 import SchoolAddressAutocomplete from "@/components/forms/SchoolAddressAutocomplete";
+import { MEMBER_ACCESS_EMAIL_PREFIX, MEMBER_ACCESS_EMAIL_DOMAIN } from "@/lib/utils/memberAccess";
 
 /**
  * Resolve the Stripe checkout URL for the plan the user selected during signup.
@@ -88,10 +89,16 @@ function DetailsPageInner() {
 
       await update();
 
-      // Details complete → go STRAIGHT to the Stripe checkout for the plan the
-      // user selected during signup (passed as ?plan= and also stored on the
-      // user). If we can resolve it, send them to Stripe; otherwise fall back to
-      // the plans page (the dashboard guard will keep unpaid users out anyway).
+      // Member access users skip plans/Stripe — go straight to the dashboard.
+      const email = session?.user?.email ?? "";
+      const isMember = email.startsWith(MEMBER_ACCESS_EMAIL_PREFIX) && email.endsWith(MEMBER_ACCESS_EMAIL_DOMAIN);
+      if (isMember) {
+        router.push("/dashboard");
+        return;
+      }
+
+      // Normal flow: go to Stripe checkout for the plan selected during signup,
+      // or fall back to the plans page.
       const checkoutUrl = await resolveCheckoutUrl(searchParams.get("plan"));
       if (checkoutUrl) {
         window.location.href = checkoutUrl;
