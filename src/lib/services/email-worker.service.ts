@@ -20,11 +20,14 @@ export class EmailWorkerService {
 
     console.log(`[EmailWorkerService] Processing batch of ${recipients.length} recipients`);
 
+    // Pre-load all parent jobs upfront — one query instead of one per recipient
+    const uniqueJobIds = [...new Set(recipients.map((r: any) => r.jobId))];
+    const jobs = await prisma.emailJob.findMany({ where: { id: { in: uniqueJobIds } } });
+    const jobMap = new Map(jobs.map((j) => [j.id, j]));
+
     for (const recipient of recipients) {
       try {
-        const job = await prisma.emailJob.findUnique({
-          where: { id: recipient.jobId }
-        });
+        const job = jobMap.get(recipient.jobId);
 
         if (!job) {
           // If job is gone, just purge the recipient
@@ -123,11 +126,8 @@ export class EmailWorkerService {
       }
     }
 
-    // Check completion for involved jobs
-    const jobIds = [...new Set(recipients.map(r => r.jobId))];
-    for (const jobId of jobIds) {
-      await this.updateJobStatus(jobId);
-    }
+    // Check completion for involved jobs — parallel, not sequential
+    await Promise.all(uniqueJobIds.map((jobId) => this.updateJobStatus(jobId)));
 
     return recipients.length;
   }
