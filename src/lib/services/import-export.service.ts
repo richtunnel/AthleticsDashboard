@@ -5,8 +5,6 @@ import { normalizeTimeFormat } from "../utils/timeValidation";
 import { jobQueueService } from "./job-queue.service";
 import { JobType, JobStatus } from "@prisma/client";
 
-const BATCH_SIZE = 100;
-const CHECKPOINT_INTERVAL = 50;
 
 export interface ImportResult {
   success: number;
@@ -99,158 +97,153 @@ export class ImportExportService {
     const rawHeaders = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
     const headers = this.mapColumnAliases(rawHeaders);
 
-    let success = 0;
     const errors: string[] = [];
 
-    // Get reference data once at the start
-    const teams = await prisma.team.findMany({
-      where: { organizationId },
-      include: { sport: true },
-    });
+    // ── 1. Parse all rows upfront ─────────────────────────────────────────────
+    type ParsedRow = {
+      lineNum: number;
+      date: Date;
+      sportName: string;
+      levelValue: string;
+      teamName: string;
+      opponentName: string;
+      venueName: string;
+      row: Record<string, string>;
+    };
 
-    const opponents = await prisma.opponent.findMany({
-      where: { organizationId },
-    });
+    const parsed: ParsedRow[] = [];
+    for (let i = startLine; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      const values = this.parseCSVLine(line);
+      const row: Record<string, string> = {};
+      headers.forEach((header, index) => { row[header] = values[index] || ""; });
 
-    const venues = await prisma.venue.findMany({
-      where: { organizationId },
-    });
-
-    let i = startLine;
-    let lastCheckpoint = i;
-    
-    try {
-      for (; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        try {
-          // Parse CSV line (handle quoted values)
-          const values = this.parseCSVLine(line);
-          const row: Record<string, string> = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index] || "";
-          });
-
-          // Parse date - only required field
-          const date = new Date(row["Date"]);
-          if (isNaN(date.getTime())) {
-            errors.push(`Line ${i + 1}: Invalid or missing date`);
-            continue;
-          }
-
-          // Find matching team, or use defaults if sport/level not provided
-          let team = teams.find((t: any) => 
-            t.sport.name === (row["Sport"] || "Unknown Sport") && 
-            t.level === (row["Level"] || "VARSITY") && 
-            (row["Team"] ? t.name === row["Team"] : true)
-          );
-
-          // If team not found, create a default sport and team
-          if (!team) {
-            const sportName = row["Sport"] || "Unknown Sport";
-            const levelValue = row["Level"] || "VARSITY";
-
-            let sport = await prisma.sport.findFirst({
-              where: {
-                name: {
-                  equals: sportName,
-                  mode: "insensitive",
-                },
-              },
-            });
-
-            if (!sport) {
-              sport = await prisma.sport.create({
-                data: {
-                  name: sportName,
-                  season: "FALL",
-                },
-              });
-            }
-
-            team = await prisma.team.create({
-              data: {
-                name: `${sportName} ${levelValue}`,
-                sportId: sport.id,
-                level: levelValue as any,
-                organizationId,
-              },
-              include: { sport: true },
-            });
-
-            teams.push(team);
-          }
-
-          if (!team) {
-            throw new Error("Failed to resolve team for imported row");
-          }
-
-          // Find opponent
-          const opponent = row["Opponent"] ? opponents.find((o: any) => o.name === row["Opponent"]) : null;
-
-          // Find venue
-          const venue = row["Venue"] ? venues.find((v: any) => v.name === row["Venue"]) : null;
-
-          // Create game atomically with transaction
-          await prisma.$transaction(async (tx) => {
-            await tx.game.create({
-              data: {
-                date,
-                time: (() => {
-                  if (!row["Time"]) return null;
-                  try { return normalizeTimeFormat(row["Time"]); }
-                  catch { return row["Time"] as string; } // preserve original if format is unrecognised
-                })(),
-                status: (row["Status"] as any) || "SCHEDULED",
-                isHome: row["Location Type"]?.toLowerCase() === "home",
-                notes: row["Notes"] || null,
-                travelRequired: row["Travel Required"]?.toLowerCase() === "yes",
-                busTravel: row["Bus Travel"]?.toLowerCase() === "yes",
-                estimatedTravelTime: row["Travel Time (min)"] ? parseInt(row["Travel Time (min)"]) : null,
-                busCount: row["Bus Count"] ? parseInt(row["Bus Count"]) : null,
-                travelCost: row["Travel Cost"] ? parseFloat(row["Travel Cost"]) : null,
-                homeTeamId: team.id,
-                opponentId: opponent?.id || null,
-                venueId: venue?.id || null,
-                createdById: userId,
-              },
-            });
-          }, {
-            timeout: 5000, // 5 second timeout for individual operations
-          });
-
-          success++;
-
-          // Checkpoint: update progress every CHECKPOINT_INTERVAL rows
-          if (i - lastCheckpoint >= CHECKPOINT_INTERVAL && i < lines.length - 1) {
-            lastCheckpoint = i;
-          }
-        } catch (error) {
-          // Check if it's a transient error (DB locked, timeout, etc.)
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          const isTransientError = this.isTransientError(error);
-          
-          if (isTransientError) {
-            // Re-throw to trigger requeue
-            throw error;
-          }
-          
-          errors.push(`Line ${i + 1}: ${errorMsg}`);
-        }
+      const date = new Date(row["Date"]);
+      if (isNaN(date.getTime())) {
+        errors.push(`Line ${i + 1}: Invalid or missing date`);
+        continue;
       }
-    } catch (criticalError) {
-      console.error(`Critical error during import at line ${i}:`, criticalError);
-      // Return partial results with checkpoint info
-      return {
-        success,
-        errors,
-        lastLine: i,
-        completed: false,
-      };
+
+      parsed.push({
+        lineNum: i + 1,
+        date,
+        sportName: row["Sport"] || "Unknown Sport",
+        levelValue: row["Level"] || "VARSITY",
+        teamName: row["Team"] || "",
+        opponentName: row["Opponent"] || "",
+        venueName: row["Venue"] || "",
+        row,
+      });
     }
 
-    return { success, errors, lastLine: i, completed: true };
+    if (parsed.length === 0) {
+      return { success: 0, errors, lastLine: lines.length, completed: true };
+    }
+
+    // ── 2. Resolve reference data ─────────────────────────────────────────────
+    const [existingTeams, opponents, venues] = await Promise.all([
+      prisma.team.findMany({ where: { organizationId }, include: { sport: true } }),
+      prisma.opponent.findMany({ where: { organizationId } }),
+      prisma.venue.findMany({ where: { organizationId } }),
+    ]);
+
+    const opponentMap = new Map(opponents.map((o) => [o.name.toLowerCase(), o]));
+    const venueMap = new Map(venues.map((v) => [v.name.toLowerCase(), v]));
+
+    // ── 3. Resolve sports — bulk create missing ───────────────────────────────
+    const neededSportNames = [...new Set(parsed.map((p) => p.sportName))];
+    const existingSports = await prisma.sport.findMany({
+      where: { name: { in: neededSportNames, mode: "insensitive" } as any },
+    });
+    const sportMap = new Map(existingSports.map((s) => [s.name.toLowerCase(), s]));
+
+    const missingSportNames = neededSportNames.filter((n) => !sportMap.has(n.toLowerCase()));
+    if (missingSportNames.length > 0) {
+      await prisma.sport.createMany({
+        data: missingSportNames.map((name) => ({ name, season: "FALL" as any })),
+        skipDuplicates: true,
+      });
+      const newSports = await prisma.sport.findMany({
+        where: { name: { in: missingSportNames, mode: "insensitive" } as any },
+      });
+      newSports.forEach((s) => sportMap.set(s.name.toLowerCase(), s));
+    }
+
+    // ── 4. Resolve teams — bulk create missing ────────────────────────────────
+    const teamMap = new Map(existingTeams.map((t) => [`${t.sport.name.toLowerCase()}|${t.level}`, t]));
+
+    const neededTeamKeys = [...new Set(
+      parsed.map((p) => `${p.sportName.toLowerCase()}|${p.levelValue}`)
+    )];
+    const missingTeamKeys = neededTeamKeys.filter((k) => !teamMap.has(k));
+
+    if (missingTeamKeys.length > 0) {
+      const teamsToCreate = missingTeamKeys.map((key) => {
+        const [sportNameLower, level] = key.split("|");
+        const sport = sportMap.get(sportNameLower);
+        const sportName = parsed.find((p) => p.sportName.toLowerCase() === sportNameLower)?.sportName ?? sportNameLower;
+        if (!sport) return null;
+        return {
+          name: `${sportName} ${level}`,
+          sportId: sport.id,
+          level: level as any,
+          organizationId,
+        };
+      }).filter(Boolean) as any[];
+
+      if (teamsToCreate.length > 0) {
+        await prisma.team.createMany({ data: teamsToCreate, skipDuplicates: true });
+        const newTeams = await prisma.team.findMany({
+          where: { organizationId, level: { in: [...new Set(teamsToCreate.map((t: any) => t.level))] } },
+          include: { sport: true },
+        });
+        newTeams.forEach((t) => teamMap.set(`${t.sport.name.toLowerCase()}|${t.level}`, t));
+      }
+    }
+
+    // ── 5. Build game payloads ────────────────────────────────────────────────
+    const gameData: any[] = [];
+    for (const p of parsed) {
+      const team = teamMap.get(`${p.sportName.toLowerCase()}|${p.levelValue}`);
+      if (!team) {
+        errors.push(`Line ${p.lineNum}: Could not resolve team for sport "${p.sportName}" level "${p.levelValue}"`);
+        continue;
+      }
+
+      const opponent = p.opponentName ? opponentMap.get(p.opponentName.toLowerCase()) : null;
+      const venue = p.venueName ? venueMap.get(p.venueName.toLowerCase()) : null;
+
+      let time: string | null = null;
+      if (p.row["Time"]) {
+        try { time = normalizeTimeFormat(p.row["Time"]); }
+        catch { time = p.row["Time"]; }
+      }
+
+      gameData.push({
+        date: p.date,
+        time,
+        status: (p.row["Status"] as any) || "SCHEDULED",
+        isHome: p.row["Location Type"]?.toLowerCase() === "home",
+        notes: p.row["Notes"] || null,
+        travelRequired: p.row["Travel Required"]?.toLowerCase() === "yes",
+        busTravel: p.row["Bus Travel"]?.toLowerCase() === "yes",
+        estimatedTravelTime: p.row["Travel Time (min)"] ? parseInt(p.row["Travel Time (min)"]) : null,
+        busCount: p.row["Bus Count"] ? parseInt(p.row["Bus Count"]) : null,
+        travelCost: p.row["Travel Cost"] ? parseFloat(p.row["Travel Cost"]) : null,
+        homeTeamId: team.id,
+        opponentId: opponent?.id ?? null,
+        venueId: venue?.id ?? null,
+        createdById: userId,
+      });
+    }
+
+    // ── 6. Single bulk insert ─────────────────────────────────────────────────
+    if (gameData.length > 0) {
+      await prisma.game.createMany({ data: gameData, skipDuplicates: true });
+    }
+
+    return { success: gameData.length, errors, lastLine: lines.length, completed: true };
   }
 
   /**
@@ -262,18 +255,15 @@ export class ImportExportService {
     errors: string[];
     lastLine: number;
     completed: boolean;
-    checkpoint?: string;
   }> {
-    const startLine = payload.startLine || 1;
     const jobId = payload.jobId;
     const totalLines = payload.csvContent.split("\n").length;
 
-    // Update progress if we have a job ID
     if (jobId) {
       await jobQueueService.updateProgress(jobId, {
-        current: startLine,
+        current: 0,
         total: totalLines,
-        message: `Processing CSV import... (${startLine}/${totalLines})`,
+        message: `Processing CSV import (${totalLines} rows)...`,
       });
     }
 
@@ -281,84 +271,17 @@ export class ImportExportService {
       payload.csvContent,
       payload.userId,
       payload.organizationId,
-      startLine
     );
 
-    // Accumulate totals
-    const newTotalSuccess = (payload.totalSuccess || 0) + success;
-    const newTotalErrors = (payload.totalErrors || []).concat(errors);
-
-    // If not completed, we need to checkpoint and potentially requeue
-    if (!completed && lastLine < totalLines - 1) {
-      // Update job with checkpoint progress
-      if (jobId) {
-        await jobQueueService.updateProgress(jobId, {
-          current: lastLine,
-          total: totalLines,
-          checkpoint: `resume from line ${lastLine}`,
-          message: `Checkpointing at line ${lastLine}/${totalLines}`,
-        });
-      }
-
-      // Check if we should retry this batch
-      const hasErrors = newTotalErrors.length > 0;
-      const lastError = newTotalErrors[newTotalErrors.length - 1];
-      
-      if (this.isTransientError(lastError)) {
-        // Requeue for retry with current progress
-        await jobQueueService.requeue(jobId || '', lastError);
-      }
-
-      return {
-        success: newTotalSuccess,
-        errors: newTotalErrors,
-        lastLine,
-        completed: false,
-        checkpoint: `resume from line ${lastLine}`,
-      };
-    }
-
-    // All done
     if (jobId) {
       await jobQueueService.updateProgress(jobId, {
         current: totalLines,
         total: totalLines,
-        message: `Import completed: ${newTotalSuccess} games imported, ${newTotalErrors.length} errors`,
+        message: `Import completed: ${success} games imported, ${errors.length} errors`,
       });
     }
 
-    return {
-      success: newTotalSuccess,
-      errors: newTotalErrors,
-      lastLine,
-      completed: true,
-    };
-  }
-
-  /**
-   * Detect transient errors that should trigger requeue
-   */
-  private isTransientError(error: any): boolean {
-    if (!error) return false;
-    
-    const message = error instanceof Error ? error.message : String(error);
-    const transientPatterns = [
-      'connection',
-      'timeout',
-      'deadlock',
-      'locked',
-      'too many connections',
-      'pool',
-      'network',
-      'EHOSTUNREACH',
-      'ECONNREFUSED',
-      'ETIMEDOUT',
-      'ENOTFOUND',
-    ];
-
-    return transientPatterns.some(pattern => 
-      message.toLowerCase().includes(pattern.toLowerCase())
-    );
+    return { success, errors, lastLine, completed };
   }
 
   async exportTeamsToCSV(organizationId: string): Promise<string> {
