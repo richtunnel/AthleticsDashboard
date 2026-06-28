@@ -125,7 +125,12 @@ export const emailFanOutWorker = new Worker<BulkEmailFanOutPayload>(
 
     const parentJob = await prisma.emailJob.findUnique({
       where: { id: parentJobId },
-      include: { recipients: { where: { status: EmailRecipientStatus.PENDING } } },
+      include: {
+        recipients: {
+          where: { status: EmailRecipientStatus.PENDING },
+          select: { id: true, email: true },
+        },
+      },
     });
 
     if (!parentJob) throw new Error(`EmailJob ${parentJobId} not found`);
@@ -143,7 +148,7 @@ export const emailFanOutWorker = new Worker<BulkEmailFanOutPayload>(
       data: { status: EmailJobStatus.PROCESSING },
     });
 
-    // Bulk-add all recipient jobs. BullMQ handles thousands efficiently.
+    // Build job payloads
     const jobs = parentJob.recipients.map((r) => ({
       name: "send",
       data: {
@@ -158,7 +163,12 @@ export const emailFanOutWorker = new Worker<BulkEmailFanOutPayload>(
       opts: { priority: Priority.NORMAL },
     }));
 
-    await emailQueue.addBulk(jobs);
+    // Chunk addBulk to avoid oversized Redis commands at 50k+ recipients
+    const CHUNK_SIZE = 1000;
+    for (let i = 0; i < jobs.length; i += CHUNK_SIZE) {
+      await emailQueue.addBulk(jobs.slice(i, i + CHUNK_SIZE));
+    }
+
     return { enqueued: jobs.length };
   },
   {
