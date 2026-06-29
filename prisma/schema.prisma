@@ -72,6 +72,7 @@ model User {
   shareCode                  String?                   @unique
   parentCode                 String?                   @unique
   accounts                   Account[]
+  oauthStates                OAuthState[]
   accountDeletionReminders   AccountDeletionReminder[]
   calendarGroupMappings      CalendarGroupMapping[]    @relation("UserCalendarGroupMappings")
   collaborativeMembers       CollaborativeMember[]     @relation("CollaborativeMemberOwner")
@@ -138,6 +139,18 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model OAuthState {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  returnTo  String?
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("OAuthState")
 }
 
 model StripeWebhookEvent {

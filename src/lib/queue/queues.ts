@@ -95,8 +95,9 @@ export interface GameImportPayload {
   backgroundJobId: string;
   userId: string;
   organizationId: string;
+  /** Spaces object key for the uploaded CSV — worker fetches and deletes it. */
+  s3Key: string;
   spreadsheetId?: string;
-  // The rest of import payload is opaque — handler resolves from BackgroundJob row
   [key: string]: unknown;
 }
 

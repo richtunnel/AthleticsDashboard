@@ -15,7 +15,8 @@ export interface ImportResult {
 }
 
 export interface ImportJobPayload {
-  csvContent: string;
+  /** Spaces object key — worker fetches CSV from here and deletes it on completion. */
+  s3Key: string;
   userId: string;
   organizationId: string;
   startLine?: number;
@@ -257,7 +258,11 @@ export class ImportExportService {
     completed: boolean;
   }> {
     const jobId = payload.jobId;
-    const totalLines = payload.csvContent.split("\n").length;
+
+    const { downloadImportFile, deleteImportFile } = await import("../utils/s3");
+    const csvContent = await downloadImportFile(payload.s3Key);
+
+    const totalLines = csvContent.split("\n").length;
 
     if (jobId) {
       await jobQueueService.updateProgress(jobId, {
@@ -268,9 +273,14 @@ export class ImportExportService {
     }
 
     const { success, errors, lastLine, completed } = await this.importGamesFromCSV(
-      payload.csvContent,
+      csvContent,
       payload.userId,
       payload.organizationId,
+    );
+
+    // Delete the file from Spaces now that processing is done
+    await deleteImportFile(payload.s3Key).catch((err) =>
+      console.error(`[ImportExportService] Failed to delete s3Key ${payload.s3Key}:`, err)
     );
 
     if (jobId) {

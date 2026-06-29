@@ -1,4 +1,3 @@
-import { google } from "googleapis";
 import { prisma } from "@/lib/database/prisma";
 import crypto from "crypto";
 import { createGoogleOAuth2Client } from "../google/auth";
@@ -82,22 +81,27 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
       JSON.stringify({ token, userId, returnTo: returnTo ?? null })
     ).toString("base64url");
 
-    // Store only the random token for verification
-    await prisma.user.update({
-      where: { id: userId },
+    await prisma.oAuthState.create({
       data: {
-        resetToken: token,
-        resetTokenExpiry: new Date(Date.now() + 5 * 60 * 1000),
+        userId,
+        token,
+        returnTo: returnTo ?? null,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       },
     });
 
-    // Generate authorization URL with incremental authorization
+    // Only force consent when no refresh token exists — Google omits the
+    // refresh token on subsequent authorizations without prompt:consent, but
+    // showing the consent screen every time is unnecessary friction once we
+    // already have a valid refresh token.
+    const needsConsent = !account.refresh_token;
+
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
       scope: requestedScopes,
       include_granted_scopes: true,
       state: statePayload,
-      prompt: "consent",
+      ...(needsConsent ? { prompt: "consent" } : {}),
     });
 
     return {
@@ -118,43 +122,31 @@ export async function initiateIncrementalAuth(userId: string, scopeType: ScopeTy
  */
 export async function handleIncrementalAuthCallback(userId: string, code: string, state: string, redirectUrl: string): Promise<CallbackResult> {
   try {
-    // Decode state — may be base64url JSON { token, returnTo } or legacy raw token
+    // Decode state — base64url JSON { token, userId, returnTo }
     let verifyToken = state;
-    let returnTo: string | null = null;
     try {
       const parsed = JSON.parse(Buffer.from(state, "base64url").toString("utf8"));
       if (parsed && typeof parsed.token === "string") {
         verifyToken = parsed.token;
-        returnTo = typeof parsed.returnTo === "string" ? parsed.returnTo : null;
       }
     } catch {
-      // Legacy format: state IS the token directly
+      // state was passed as raw token
     }
 
     // Verify state token
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        resetToken: true,
-        resetTokenExpiry: true,
-      },
+    const oauthState = await prisma.oAuthState.findUnique({
+      where: { token: verifyToken },
     });
 
-    if (!user || !user.resetToken || user.resetToken !== verifyToken || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+    if (!oauthState || oauthState.userId !== userId || oauthState.expiresAt < new Date()) {
       return {
         success: false,
         error: "Invalid or expired state token",
       };
     }
 
-    // Clear state token
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
+    // Consume the token
+    await prisma.oAuthState.delete({ where: { id: oauthState.id } });
 
     // ✅ FIXED: Use the same OAuth client as NextAuth
     const oauth2Client = createGoogleOAuth2Client(redirectUrl);
@@ -219,7 +211,7 @@ export async function handleIncrementalAuthCallback(userId: string, code: string
     return {
       success: true,
       scopes: mergedScopes,
-      returnTo: returnTo ?? undefined,
+      returnTo: oauthState.returnTo ?? undefined,
     };
   } catch (error) {
     console.error("[IncrementalAuth] Error handling callback:", error);

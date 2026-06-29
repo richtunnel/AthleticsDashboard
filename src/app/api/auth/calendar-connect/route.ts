@@ -36,15 +36,15 @@ export async function GET(request: NextRequest) {
   const userId = (session.user as any).id;
   const returnTo = request.nextUrl.searchParams.get("returnTo");
   
-  // Generate a secure CSRF token and store it in the user record
+  // Generate a secure CSRF token stored in OAuthState (not the password reset fields)
   const stateToken = crypto.randomUUID();
-  const stateTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-  await prisma.user.update({
-    where: { id: userId },
+  await prisma.oAuthState.create({
     data: {
-      resetToken: stateToken,
-      resetTokenExpiry: stateTokenExpiry,
+      userId,
+      token: stateToken,
+      returnTo: returnTo || null,
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     },
   });
 
@@ -56,13 +56,18 @@ export async function GET(request: NextRequest) {
     })
   ).toString("base64url");
 
+  const account = await prisma.account.findFirst({
+    where: { userId, provider: "google" },
+    select: { refresh_token: true },
+  });
+
   const oauth2Client = createGoogleOAuth2Client();
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: SCOPES,
-    prompt: "consent", // Force consent to get refresh token
     state,
+    ...(account?.refresh_token ? {} : { prompt: "consent" }),
   });
 
   return NextResponse.redirect(authUrl);

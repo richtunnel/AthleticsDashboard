@@ -32,6 +32,7 @@
     "docker:compose:logs": "docker-compose logs -f app",
     "docker:compose:build": "docker-compose build --no-cache",
     "worker": "tsx src/scripts/queue-worker.ts",
+    "bull-board": "tsx src/scripts/bull-board.ts",
     "spaces:cors": "tsx src/scripts/configure-spaces-cors.ts"
   },
   "prisma": {
@@ -41,6 +42,8 @@
     "@auth/prisma-adapter": "^2.10.0",
     "@aws-sdk/client-s3": "^3.1009.0",
     "@aws-sdk/s3-request-presigner": "^3.1053.0",
+    "@bull-board/api": "^8.0.1",
+    "@bull-board/express": "^8.0.1",
     "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -58,6 +61,7 @@
     "@react-email/render": "^1.3.2",
     "@tailwindcss/postcss": "^4.1.16",
     "@tanstack/react-query": "^5.90.2",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
@@ -68,6 +72,7 @@
     "cockatiel": "^2.0.2",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "framer-motion": "^12.23.25",
     "googleapis": "^161.0.0",
     "ioredis": "^5.10.1",

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 
 /**
  * S3 / DigitalOcean Spaces client.
@@ -92,4 +92,40 @@ if (!S3_CONFIGURED && process.env.NODE_ENV === "production") {
   );
 }
 
-export { PutObjectCommand, DeleteObjectCommand };
+export { PutObjectCommand, DeleteObjectCommand, GetObjectCommand };
+
+/**
+ * Upload a CSV/text import file to Spaces and return the object key.
+ * Key format: imports/{organizationId}/{jobId}.csv
+ * TTL is enforced by the caller deleting the key after processing.
+ */
+export async function uploadImportFile(organizationId: string, jobId: string, content: string): Promise<string> {
+  const key = `imports/${organizationId}/${jobId}.csv`;
+  await s3Client.send(new PutObjectCommand({
+    Bucket: SPACES_BUCKET,
+    Key: key,
+    Body: content,
+    ContentType: "text/csv",
+    // Private — only readable by the server-side worker
+    ACL: "private",
+  }));
+  return key;
+}
+
+/** Download an import file and return its text content. */
+export async function downloadImportFile(key: string): Promise<string> {
+  const response = await s3Client.send(new GetObjectCommand({
+    Bucket: SPACES_BUCKET,
+    Key: key,
+  }));
+  if (!response.Body) throw new Error(`[s3] Empty body for key: ${key}`);
+  return response.Body.transformToString("utf-8");
+}
+
+/** Delete an import file after processing is complete. */
+export async function deleteImportFile(key: string): Promise<void> {
+  await s3Client.send(new DeleteObjectCommand({
+    Bucket: SPACES_BUCKET,
+    Key: key,
+  }));
+}

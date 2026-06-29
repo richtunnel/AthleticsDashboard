@@ -90,27 +90,22 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
       }
 
-      // Verify CSRF token against user.resetToken
-      const dbUser = await prisma.user.findUnique({
-        where: { id: (session.user as any).id },
-        select: { resetToken: true, resetTokenExpiry: true },
+      // Verify CSRF token against OAuthState
+      const oauthState = await prisma.oAuthState.findUnique({
+        where: { token: parsed.token },
       });
 
       if (
-        !dbUser?.resetToken ||
-        dbUser.resetToken !== parsed.token ||
-        !dbUser.resetTokenExpiry ||
-        dbUser.resetTokenExpiry < new Date()
+        !oauthState ||
+        oauthState.userId !== (session.user as any).id ||
+        oauthState.expiresAt < new Date()
       ) {
         console.error("❌ Invalid or expired state token");
         return NextResponse.redirect(new URL(`${errorDest}?error=invalid_state`, process.env.NEXTAUTH_URL!));
       }
 
       // Consume the token
-      await prisma.user.update({
-        where: { id: (session.user as any).id },
-        data: { resetToken: null, resetTokenExpiry: null },
-      });
+      await prisma.oAuthState.delete({ where: { id: oauthState.id } });
 
       if (typeof parsed.returnTo === "string") returnTo = parsed.returnTo;
     } catch (e) {

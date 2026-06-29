@@ -4,10 +4,15 @@ import { ApiResponse } from "@/lib/utils/api-response";
 import { requireAuth } from "@/lib/utils/auth";
 import { jobQueueService } from "@/lib/services/job-queue.service";
 import { JobType } from "@prisma/client";
+import { uploadImportFile, S3_CONFIGURED } from "@/lib/utils/s3";
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth();
+
+    if (!S3_CONFIGURED) {
+      return ApiResponse.error("File storage is not configured. Contact support.");
+    }
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -18,10 +23,10 @@ export async function POST(request: NextRequest) {
 
     const csvContent = await file.text();
 
+    // Create the BackgroundJob row first so we have an ID for the Spaces key
     const job = await jobQueueService.enqueue({
       type: JobType.GAME_IMPORT,
       payload: {
-        csvContent,
         userId: session.user.id,
         organizationId: session.user.organizationId,
       },
@@ -29,13 +34,16 @@ export async function POST(request: NextRequest) {
       organizationId: session.user.organizationId,
     });
 
-    // Dispatch to BullMQ for instant pickup
+    // Upload CSV to Spaces — store only the key in job payloads, not the raw content
+    const s3Key = await uploadImportFile(session.user.organizationId, job.id, csvContent);
+
+    // Dispatch to BullMQ with the key instead of the raw CSV
     const { gameImportQueue } = await import("@/lib/queue/queues");
     await gameImportQueue.add("import", {
       backgroundJobId: job.id,
       userId: session.user.id,
       organizationId: session.user.organizationId,
-      csvContent,
+      s3Key,
     });
 
     return ApiResponse.success({ jobId: job.id });
